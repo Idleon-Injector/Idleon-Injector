@@ -210,6 +210,7 @@ export async function post({ dir, run, repo, github, core }) {
         files: await github.files(pr.number),
         body: pr.body,
         association: pr.author_association,
+        permission: await github.permission(pr.user.login),
         core,
         issue: github.issue,
     });
