@@ -8,10 +8,10 @@ Operational guidelines for AI coding agents working in the Idleon Injector repos
 
 ### Always
 
-- **Validate syntax and types:** Run `npm run validate` to ensure the cheats bundle builds, syntax checks pass, and ESLint is clean before completing a task.
+- **Run the check:** Run `npm run check` before completing a task. It checks formatting, builds the cheats bundle, runs the syntax checks, ESLint, the CSS checks and the schema check, then all tests. It runs on every push and pull request, and a red check blocks merging.
 - **Guard against action bias:** If a reported bug cannot be reproduced or is already resolved by current code, report findings clearly instead of proposing speculative changes. Never invent modifications for working behavior.
 - **Verification files:** Place temporary scripts and dumps in the system temporary directory or another authorized scratch directory outside the repository root. Remove files you created before validation and task completion; preserve unrelated files.
-- **Target Chromium 87:** The Steam embedded client runs Chromium 87. Keep UI code and browser-injected code compatible with Chromium 87, or supply a verified fallback.
+- **Target Chromium 87:** The Steam embedded client runs Chromium 87. Keep UI code and browser-injected code compatible with Chromium 87, or supply a verified fallback. ESLint enforces this for `src/cheats` and `src/ui` (`eslint-plugin-es-x`).
 
 ### Ask First
 
@@ -40,8 +40,8 @@ Operational guidelines for AI coding agents working in the Idleon Injector repos
 
 ## Verification & Testing
 
-- **Automated tests:** Run `npm run test:ui-imports`, `npm run test:ui-styles`, and `npm run test:css` for validation regression checks using Node's built-in test runner. No Jest, Vitest, or Mocha runner is configured.
-- **Pre-completion check:** Run `npm run validate` (builds cheats bundle, checks syntax and UI imports, runs ESLint and CSS checks, validates schema).
+- **Automated tests:** `npm test` runs every `scripts/**/*.test.mjs` with Node's built-in test runner. No Jest, Vitest, or Mocha runner is configured.
+- **Pre-completion check:** Run `npm run check` (formatting, then `npm run validate`: cheats bundle, syntax, ESLint, UI imports, CSS and schema, then `npm test`).
 - **Manual live check:** Start with `npm run start`, attach to the running game client, and verify live behavior. Hot reload is not supported; restart the app to test backend and cheat modifications.
 - **UI verification:** Use DOM assertions for text, visibility, loading, and action feedback. Inspect the injector UI target separately from the game target; use screenshots from a supported top-level target for visual layout checks.
 - **Ad-hoc checks:**
