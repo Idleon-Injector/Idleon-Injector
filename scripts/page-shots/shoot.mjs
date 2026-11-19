@@ -305,7 +305,7 @@ async function main() {
                 { name: "settings", open: { view: "CONFIG" } },
                 { name: "value-search", open: { view: "SEARCH" } },
                 { name: "devtools", open: { view: "DEVTOOLS" } },
-                { name: "older-pages", open: { view: "ACCOUNT" } },
+                { name: "account-options", open: { view: "ACCOUNT_OPTIONS" } },
                 ...worlds,
             ].filter((area) => !args.only || area.name.includes(args.only));
 

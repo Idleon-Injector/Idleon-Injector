@@ -131,7 +131,6 @@ npm run check
 - [CLI Reference](docs/cli.md) - Console commands and autocomplete.
 - [Configuration](docs/config.md) - Applying settings, saving overrides, and safety.
 - [Platforms](docs/platforms.md) - Steam, web, and OS-specific setup.
-- [Account Pages](docs/account-pages.md) - Editing safety and source entry points.
 
 ## Contributing
 

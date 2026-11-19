@@ -1,6 +1,6 @@
 /**
  * Account Options view (Advanced › Account Options): the raw OptionsListAccount editor,
- * in the same pane it had as the first Older pages tab.
+ * in the same pane it had in the pre-3.0 Account view.
  */
 
 import van from "../../vendor/van-1.6.0.js";

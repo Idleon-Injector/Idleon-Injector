@@ -139,7 +139,6 @@ export const AREAS = [
             { label: "DevTools", view: "DEVTOOLS", words: ["ChromeDebug"] },
         ],
     },
-    { id: "older", code: "OLD", label: "Older pages", view: "ACCOUNT" },
 ];
 
 export const slugify = (name) =>

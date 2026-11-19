@@ -14,7 +14,6 @@ import { Home } from "./views/Home.js";
 import { Pages } from "./views/Pages.js";
 import { Cheats } from "./views/Cheats.js";
 import { Config } from "./views/Config.js";
-import { Account } from "./views/Account.js";
 import { AccountOptions } from "./views/AccountOptions.js";
 import { DevTools } from "./views/DevTools.js";
 import { Search } from "./views/Search.js";
@@ -26,7 +25,6 @@ const viewFactories = {
     [VIEWS.PAGES.id]: Pages,
     [VIEWS.CHEATS.id]: Cheats,
     [VIEWS.CONFIG.id]: Config,
-    [VIEWS.ACCOUNT.id]: Account,
     [VIEWS.ACCOUNT_OPTIONS.id]: AccountOptions,
     [VIEWS.DEVTOOLS.id]: DevTools,
     [VIEWS.SEARCH.id]: Search,
@@ -79,7 +77,6 @@ export const App = () => {
         if (isInputFocused) return;
 
         if (e.key === "1") store.app.activeTab = VIEWS.CHEATS.id;
-        if (e.key === "2") store.app.activeTab = VIEWS.ACCOUNT.id;
         if (e.key === "3") store.app.activeTab = VIEWS.CONFIG.id;
         if (e.key === "4") store.app.activeTab = VIEWS.SEARCH.id;
         if (e.key === "5") store.app.activeTab = VIEWS.DEVTOOLS.id;

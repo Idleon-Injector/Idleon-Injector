@@ -21,11 +21,6 @@ export const VIEWS = {
         label: "CHEATS",
         sidebarLabel: "CHEATS",
     },
-    ACCOUNT: {
-        id: "options-account-tab",
-        label: "ACCOUNT OPTIONS LIST",
-        sidebarLabel: "ACCOUNT OPTIONS",
-    },
     ACCOUNT_OPTIONS: {
         id: "account-options-tab",
         label: "ACCOUNT OPTIONS",
@@ -49,7 +44,7 @@ export const VIEWS = {
 };
 
 // Order in which tabs appear in the sidebar
-export const VIEW_ORDER = [VIEWS.CHEATS, VIEWS.ACCOUNT, VIEWS.CONFIG, VIEWS.SEARCH, VIEWS.DEVTOOLS];
+export const VIEW_ORDER = [VIEWS.CHEATS, VIEWS.ACCOUNT_OPTIONS, VIEWS.CONFIG, VIEWS.SEARCH, VIEWS.DEVTOOLS];
 export const IS_ELECTRON = /electron/i.test(navigator.userAgent);
 export const CATEGORY_ORDER = [
     "general",

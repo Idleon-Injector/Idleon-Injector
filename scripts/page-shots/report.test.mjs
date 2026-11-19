@@ -22,13 +22,13 @@ test("a page the fake game has no data for: its errors aren't flagged, its layou
         errors: ["Failed to load resource: the server responded with a status of 500"],
         misses: { "gga.Tasks": "Cannot resolve path segment: Tasks" },
     };
-    assert.deepEqual(flagsFor(shot("1440/older-pages/tasks", unfed)), []);
+    assert.deepEqual(flagsFor(shot("1440/account/task-board", unfed)), []);
     const overflow = { viewport: 400, boxes: [{ box: "the page", by: 8, culprit: "" }] };
-    assert.deepEqual(flagsFor(shot("400/older-pages/tasks", { ...unfed, overflow })), [
+    assert.deepEqual(flagsFor(shot("400/account/task-board", { ...unfed, overflow })), [
         "the page is 8px too wide for the 400px window",
     ]);
-    const summary = summarize([shot("1440/older-pages/tasks", unfed)], []);
-    assert.deepEqual(summary.unfed, ["1440/older-pages/tasks"]);
+    const summary = summarize([shot("1440/account/task-board", unfed)], []);
+    assert.deepEqual(summary.unfed, ["1440/account/task-board"]);
     assert.match(summary.text, /1 show a page the fake game has no data for/);
 });
 
