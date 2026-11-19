@@ -1,3 +1,5 @@
 # Prettier ignore file
 src/ui/config/configDescriptions.js
 src/ui/vendor/**
+# Written by npm run game-names:update
+scripts/game-names.json
