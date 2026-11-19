@@ -9,7 +9,11 @@ also writes the setting descriptions the Config editor shows. The first-run setu
 
 Apply cheat configuration to RAM when experimenting in the current session. Save to disk when you want
 the configuration available on later runs. Treat applying and saving as separate choices.
-Restart after changing injector settings.
+Restart after changing injector settings. Settings a cheat changes in the game, like a `nomore` list, show up in
+the Config view and are saved with the next save.
+
+If `config.custom.js` has an error, the injector says where, runs with the defaults, and keeps the broken file as
+`config.custom.broken-<date and time>.js` when you next save from the WebUI.
 
 Use Startup Cheats for commands you want to run on startup. Check command descriptions before making
 an action automatic.

@@ -232,6 +232,22 @@ Saved configuration remains a separate disk operation.
 
 Source: [Configuration manager](../src/modules/config/configManager.js).
 
+## The injector's configuration is the one the game gets
+
+Decision: after a cheat runs, and whenever the WebUI reads the configuration, copy the settings the game changed
+itself into the injector's configuration. A save merges what it is sent into that configuration, and every game
+load is injected from it. A broken `config.custom.js` is reported and kept as a copy when the next save replaces it.
+
+Why: the game changes its own settings (`nomore` lists, `<cheat> <value>`), saves from different views sent
+different parts, and a reload got the startup settings, so the injector, the file and the game drifted apart.
+
+Alternative: send every change through the WebUI. Commands typed in the game or the CLI would still be lost.
+
+Trade-off: values without a JSON form stay in the game: functions, the `multiplestacks` Map and `fix_save`'s copy.
+A `nomore` pattern travels as `"/source/flags"`; only list items in that form are read back as patterns.
+
+Source: [Configuration manager](../src/modules/config/configManager.js).
+
 ## Share the game-helper transport
 
 Decision: route server, CLI, and WebSocket helper calls through GameBridge.

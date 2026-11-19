@@ -1,9 +1,11 @@
 const { broadcastCheatStates } = require("../wsServer");
+const { pullGameConfig } = require("../../config/configManager");
 const { createLogger } = require("../../utils/logger");
 
 const log = createLogger("API");
 
-function setupCheatRoutes(app, gameBridge) {
+/** `cheatConfig` is the injector's live config; settings a cheat changes in the game are copied into it. */
+function setupCheatRoutes(app, gameBridge, cheatConfig) {
     app.get("/api/cheats", async (req, res) => {
         try {
             const suggestionsResult = await gameBridge.callHelper("getAutoCompleteSuggestions");
@@ -61,6 +63,7 @@ function setupCheatRoutes(app, gameBridge) {
             } else {
                 const { ok, message } = cheatResponse.value;
                 log.debug(`Executed: ${action} -> ${ok ? "" : "failed: "}${message}`);
+                if (cheatConfig) await pullGameConfig(gameBridge, cheatConfig);
                 res.json({ ok, message });
 
                 // Broadcast updated cheat states to all WebSocket clients

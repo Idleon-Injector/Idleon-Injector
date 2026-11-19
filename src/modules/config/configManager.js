@@ -7,8 +7,15 @@
  */
 
 const { deepClone, union, deepMerge } = require("../utils/objectUtils");
-const { validateConfig, parseConfigFromJson, filterByTemplate, getDeepDiff, objToString } = require("../utils/helpers");
-const fs = require("fs").promises;
+const {
+    validateConfig,
+    parseConfigFromJson,
+    reviveRegExps,
+    filterByTemplate,
+    getDeepDiff,
+    objToString,
+} = require("../utils/helpers");
+const { existsSync, promises: fs } = require("fs");
 const { getRuntimePath } = require("../utils/runtimePaths");
 const os = require("os");
 const { createLogger } = require("../utils/logger");
@@ -20,6 +27,8 @@ let defaultConfig = null;
 let injectorConfig = null;
 let startupCheats = null;
 let cheatConfig = null;
+// config.custom.js exists but couldn't be loaded; the next save keeps it under another name.
+let customConfigBroken = false;
 
 const CDP_PORT = 32123;
 const WEB_PORT = 8080;
@@ -37,9 +46,26 @@ function loadConfiguration() {
 
         defaultConfig = deepClone(config);
 
-        try {
-            const customConfig = require(customConfigPath);
+        let customConfig = null;
+        customConfigBroken = false;
+        if (!existsSync(customConfigPath)) {
+            log.info("No config.custom.js found - using defaults");
+        } else {
+            try {
+                customConfig = require(customConfigPath);
+            } catch (error) {
+                customConfigBroken = true;
+                const line = error.stack?.match(/config\.custom\.js:(\d+)/)?.[1];
+                log.error(
+                    `config.custom.js has an error${line ? ` on line ${line}` : ""}: ${error.message}. ` +
+                        "Your settings in it are not loaded, so the injector is using the default settings. " +
+                        "Fix the file and restart the injector. If you save settings in the WebUI first, your file " +
+                        "is kept as config.custom.broken-<date and time>.js and a new config.custom.js is started."
+                );
+            }
+        }
 
+        if (customConfig) {
             if (customConfig.injectorConfig) {
                 validateConfig(config.injectorConfig, customConfig.injectorConfig, "injectorConfig");
                 config.injectorConfig = deepMerge(config.injectorConfig, customConfig.injectorConfig);
@@ -59,8 +85,6 @@ function loadConfiguration() {
             }
 
             log.debug("Loaded custom config overrides");
-        } catch {
-            log.info("No config.custom.js found - using defaults");
         }
 
         injectorConfig = config.injectorConfig;
@@ -80,7 +104,7 @@ async function updateSessionConfiguration(
     gameBridge
 ) {
     if (receivedFullConfig.cheatConfig) {
-        const parsedCheatConfig = parseConfigFromJson(receivedFullConfig.cheatConfig);
+        const parsedCheatConfig = reviveRegExps(parseConfigFromJson(receivedFullConfig.cheatConfig));
         deepMerge(cheatConfig, parsedCheatConfig);
     }
 
@@ -97,7 +121,7 @@ async function updateSessionConfiguration(
 
     // Keep the submitted cheat values separate from shared live state during synchronization.
     const gameCheatConfig = receivedFullConfig.cheatConfig
-        ? parseConfigFromJson(receivedFullConfig.cheatConfig)
+        ? reviveRegExps(parseConfigFromJson(receivedFullConfig.cheatConfig))
         : cheatConfig;
     if (!(await gameBridge.isAttached())) {
         log.error("Cheat context not found in iframe. Cannot update config in game");
@@ -115,22 +139,56 @@ async function updateSessionConfiguration(
     return { gameApplied: !details.startsWith("Error:"), details };
 }
 
-/** Persist UI overrides, then update the loaded configuration only after the write succeeds. */
+/**
+ * Remove objects that are empty, in place. The game leaves out what has no JSON form, so an object can come
+ * back empty (multiplestacks without its Map). Taken, it would be injected on the next reload, and the
+ * cheat would find an empty object instead of creating its Map.
+ */
+const dropEmptyObjects = (value) => {
+    for (const key of Object.keys(value)) {
+        const item = value[key];
+        if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+        dropEmptyObjects(item);
+        if (!Object.keys(item).length) delete value[key];
+    }
+    return value;
+};
+
+/**
+ * Take the settings the game changed itself (nomore lists, `<cheat> <value>`) into the injector's config,
+ * so the WebUI shows them, a save keeps them and a game reload gets them. Does nothing while the game
+ * isn't reachable.
+ * @param {Object} gameBridge - The game bridge
+ * @param {Object} cheatConfig - The injector's live cheat config, merged into in place
+ */
+async function pullGameConfig(gameBridge, cheatConfig) {
+    try {
+        const result = await gameBridge.callHelper("readCheatConfig");
+        if (result.error || typeof result.value !== "string") return;
+        deepMerge(cheatConfig, reviveRegExps(dropEmptyObjects(JSON.parse(result.value))));
+    } catch (error) {
+        log.debug(`Could not read the game's config: ${error.message}`);
+    }
+}
+
+/**
+ * Persist UI overrides, then update the loaded configuration only after the write succeeds.
+ * What it's sent is merged into the current settings, so a partial save keeps the rest.
+ * @returns {Promise<{ brokenFileKeptAs?: string }>} Where a config.custom.js that failed to load was kept
+ */
 async function saveConfiguration(receivedFullConfig) {
     const cheatConfig = getCheatConfig();
     const startupCheats = getStartupCheats();
     const injectorConfig = getInjectorConfig();
     const defaultConfig = getDefaultConfig();
 
-    const uiCheatConfigRaw = receivedFullConfig.cheatConfig || cheatConfig;
     const uiStartupCheats = receivedFullConfig.startupCheats || startupCheats;
     const uiInjectorConfig = receivedFullConfig.injectorConfig || injectorConfig;
 
-    let parsedUiCheatConfig = parseConfigFromJson(uiCheatConfigRaw);
-
-    if (defaultConfig?.cheatConfig) {
-        parsedUiCheatConfig = filterByTemplate(parsedUiCheatConfig, defaultConfig.cheatConfig) || {};
-    }
+    // Only settings the injector has are taken.
+    const parsedUiCheatConfig =
+        filterByTemplate(reviveRegExps(parseConfigFromJson(receivedFullConfig.cheatConfig || {})), cheatConfig) || {};
+    const mergedCheatConfig = deepMerge(deepClone(cheatConfig), parsedUiCheatConfig);
 
     // Keep loaded custom-only fields when a UI save omits them.
     const injectorTemplate = { ...defaultConfig?.injectorConfig, gameExePath: "", devtoolsBrowserPath: "" };
@@ -139,12 +197,10 @@ async function saveConfiguration(receivedFullConfig) {
         filterByTemplate(uiInjectorConfig, injectorTemplate) || {}
     );
 
-    const cheatConfigDiff = getDeepDiff(parsedUiCheatConfig, defaultConfig?.cheatConfig) || {};
+    const cheatConfigDiff = getDeepDiff(mergedCheatConfig, defaultConfig?.cheatConfig) || {};
     const injectorConfigDiff = getDeepDiff(filteredInjectorConfig, defaultConfig?.injectorConfig) || {};
     const startupCheatsDiff =
         JSON.stringify(uiStartupCheats) !== JSON.stringify(defaultConfig?.startupCheats) ? uiStartupCheats : [];
-
-    const new_injectorConfig = objToString(injectorConfigDiff).replaceAll("\\", "\\\\");
 
     const fileContentString = `
 /****************************************************************************************************
@@ -157,19 +213,30 @@ exports.startupCheats = ${JSON.stringify(startupCheatsDiff, null, "\t")};
 
 exports.cheatConfig = ${objToString(cheatConfigDiff)};
 
-exports.injectorConfig = ${new_injectorConfig};
+exports.injectorConfig = ${objToString(injectorConfigDiff)};
 `;
     const savePath = getRuntimePath("config.custom.js");
 
-    await fs.writeFile(savePath, fileContentString.trim());
+    // Write a temporary file and rename it over the old one, so a crash can't leave a half-written file.
+    const tempPath = `${savePath}.tmp`;
+    await fs.writeFile(tempPath, fileContentString.trim());
+    let brokenFileKeptAs;
+    if (customConfigBroken && existsSync(savePath)) {
+        brokenFileKeptAs = `config.custom.broken-${new Date().toISOString().replace(/[:.]/g, "-")}.js`;
+        await fs.copyFile(savePath, getRuntimePath(brokenFileKeptAs));
+        log.warn(`config.custom.js couldn't be loaded, so it was kept as ${brokenFileKeptAs}`);
+    }
+    await fs.rename(tempPath, savePath);
+    customConfigBroken = false;
     log.info(`Configuration saved to ${savePath}`);
 
     if (uiStartupCheats) {
         startupCheats.length = 0;
         startupCheats.push(...uiStartupCheats);
     }
-    if (parsedUiCheatConfig) deepMerge(cheatConfig, parsedUiCheatConfig);
+    deepMerge(cheatConfig, parsedUiCheatConfig);
     if (filteredInjectorConfig) deepMerge(injectorConfig, filteredInjectorConfig);
+    return { brokenFileKeptAs };
 }
 
 /**
@@ -258,6 +325,7 @@ function getLinuxTimeout() {
 module.exports = {
     loadConfiguration,
     updateSessionConfiguration,
+    pullGameConfig,
     saveConfiguration,
     getInjectorConfig,
     getStartupCheats,

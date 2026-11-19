@@ -65,16 +65,17 @@ const union = (arr1, arr2) => {
  * - Replaces arrays completely (does NOT concatenate)
  * - Deeply merges nested objects
  * - Preserves functions
+ * - A null in source is a value and replaces the target's (only undefined is skipped)
  * @param {Object} target - Target object to merge into
  * @param {Object} source - Source object to merge from
  * @returns {Object} The merged target object
  */
 const deepMerge = (target, source) => {
-    if (source === null || source === undefined) {
+    if (source === undefined) {
         return target;
     }
 
-    if (typeof source !== "object") {
+    if (source === null || typeof source !== "object") {
         return source;
     }
 

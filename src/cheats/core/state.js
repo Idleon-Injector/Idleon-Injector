@@ -41,6 +41,22 @@ export function updateCheatConfig(newConfig) {
     mergeCheatConfig(cheatConfig, newConfig);
 }
 
+/**
+ * The live config as JSON, for the injector to keep what cheats changed in the game. A RegExp (a nomore
+ * pattern) is written as "/source/flags". Left out: functions (the injector has them), Maps and Sets
+ * (multiplestacks keeps its list only in the game) and fix_save's copy of a game value, which isn't a setting.
+ * @returns {string} JSON text
+ */
+export function readCheatConfig() {
+    return JSON.stringify(cheatConfig, (key, value) => {
+        if (key === "fixobj") return undefined;
+        const type = Object.prototype.toString.call(value);
+        if (type === "[object RegExp]") return String(value);
+        if (type === "[object Map]" || type === "[object Set]") return undefined;
+        return value;
+    });
+}
+
 const isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 
 /**
