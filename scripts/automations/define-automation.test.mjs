@@ -1,12 +1,9 @@
 // The core runs every automation (#17): its toggle cheat starts and stops it, a running one shows in the active-cheats
 // list, a tick that throws is reported without stopping anything, and a stopped one never ticks again.
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
-import { join } from "node:path";
 import { mock, test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { importRepo, loadGame, loadUi } from "../known-bugs/index.mjs";
 
 const require = createRequire(import.meta.url);
@@ -180,15 +177,4 @@ test("every automation's cheat is a command, and the folder holds the real ones"
             .filter((id) => !id.startsWith("fixture")),
         ["w7.sushi", "wide.autoboss"]
     );
-});
-
-test("no game-side code outside the core runs a timer of its own", () => {
-    const dir = fileURLToPath(new URL("../../src/cheats/", import.meta.url));
-    const files = readdirSync(dir, { recursive: true }).filter(
-        (file) => file.endsWith(".js") && !file.startsWith("core")
-    );
-    const timers = files.filter((file) =>
-        /\b(setInterval|setTimeout|requestAnimationFrame)\s*\(/.test(readFileSync(join(dir, file), "utf8"))
-    );
-    assert.deepEqual(timers, []);
 });

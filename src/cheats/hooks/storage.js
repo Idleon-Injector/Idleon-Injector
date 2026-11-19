@@ -23,6 +23,7 @@ const formatCount = (val) => {
 const activeActors = new WeakSet();
 
 for (const method of ["init", "_event_STORAGECHEST", "_event_AttacksPage"]) {
+    // Around: the count fields are swapped while the game builds the digit images, and restored once it finishes.
     defineHook({ id: "storage", early: "scripts.ActorEvents_116", method, around: true }, function (callOriginal) {
         if (activeActors.has(this)) {
             return callOriginal();
@@ -68,6 +69,7 @@ for (const method of ["init", "_event_STORAGECHEST", "_event_AttacksPage"]) {
 
 // AFK storage deposits, preserving claim cleanup and remaining drops.
 for (const method of ["_event_Click", "_customEvent_AutoClaimio"]) {
+    // Around: the chest quantities are swapped for this one deposit (withStorageCapScope), so the call runs inside it.
     defineHook(
         { id: "wide.storagecap", early: "scripts.ActorEvents_203", method, around: true },
         function (callOriginal) {
@@ -120,6 +122,7 @@ function startupStorageCap() {
 }
 
 // Storage and Collider timers, using the registry's Script: the first actors init before setup binds `behavior`.
+// Around: runLater and runPeriodically are swapped while init schedules its timers, and restored once it finishes.
 defineHook(
     { id: "wide.storagecap", early: "scripts.ActorEvents_481", method: "init", around: true },
     function (callOriginal) {
