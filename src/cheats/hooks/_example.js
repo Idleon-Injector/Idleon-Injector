@@ -2,7 +2,7 @@
  * Example hook: copy this file to start a new one.
  *
  * The build picks up every file in this folder, so adding the file is all it takes; there is no list to edit.
- * Files starting with "_" are skipped, so this one never runs (godlike reach has its real hook in proxies/events012.js).
+ * Files starting with "_" are skipped, so this one never runs (godlike reach has its real hook in events012.js).
  */
 
 import { cheatState } from "../core/state.js";

@@ -12,7 +12,7 @@ test("a game method an update renamed is reported, and the hooks beside it still
 
     const { hookFailures } = await setup.call(context);
 
-    assert.deepEqual(hookFailures, ["setupEvents579Proxies: _customBlock_Holes not found"]);
+    assert.deepEqual(hookFailures, ["w5.holes: events(579)._customBlock_Holes not found"]);
     assert.equal(events579._customBlock_Holes, undefined, "nothing may be wrapped around a missing method");
     for (const hook of [
         "ActorEvents_579._customBlock_Holes2",

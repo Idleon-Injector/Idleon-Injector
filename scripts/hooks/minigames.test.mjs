@@ -87,7 +87,13 @@ const new577 = gameClass(577, ["_event_Gaming", "_customEvent_W5stuffzz"], {
         return this._GenINFO[58][1];
     },
 });
-const new741 = gameClass(741, ["_event_Minehead", "_event_Sushi", "_event_pressed", "_event_SushiandRG"]);
+const new741 = gameClass(741, [
+    "_event_Minehead",
+    "_event_Sushi",
+    "_event_pressed",
+    "_event_SushiandRG",
+    "_customEvent_sushistuff",
+]);
 
 const { setup } = await importRepo("src/cheats/core/setup.js");
 const { hookFailures } = await setup.call(context);

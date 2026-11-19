@@ -7,7 +7,7 @@ import { importRepo, loadGame } from "../known-bugs/index.mjs";
 const { context, installed } = await loadGame({ setupDone: false });
 const hooks = await importRepo("src/cheats/core/hooks.js");
 const { setup } = await importRepo("src/cheats/core/setup.js");
-const { getHookFailures } = await importRepo("src/cheats/proxies/setup.js");
+const { getHookFailures } = await importRepo("src/cheats/core/hooks.js");
 
 // A game object character select rebuilds, and one it keeps.
 let rebuilt = { value: () => 1 };

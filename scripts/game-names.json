@@ -154,6 +154,7 @@
             "deleteCompanion",
             "getCompanionInfoMe",
             "getCurrentCompanion",
+            "getPartyMembers",
             "getServerVarLoad",
             "guildPointAdjust",
             "playButton",

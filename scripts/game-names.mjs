@@ -34,9 +34,8 @@ const PATTERNS = [
     ["gga", /\bgga\.(\w+)/g],
     ["gga", /\b(?:gga|writeVerified|readGgaEntries)\(\s*["'`](\w+)/g],
     // Pages also pass a save key through settings like writePath: `UpgVault[${i}]`, levelsPath: "Atoms" or
-    // const EQUIPPED_MAIN_PATH = "EquipmentOrder[0]"; hooks name one with createProxy(gga, "GemsOwned", ...).
+    // const EQUIPPED_MAIN_PATH = "EquipmentOrder[0]".
     ["gga", /\b(?!definitionsPath\b)\w*(?:[pP]ath|PATH)\s*[:=]\s*["'`](\w+)(?=[[."'`])/g],
-    ["gga", /\bcreate\w*Proxy\(\s*gga\s*,\s*["'`](\w+)/g],
     // defineHook({ early: "scripts.ActorEvents_116", ... }) hooks that class before setup.
     ["class", /\bearly\s*:\s*["'`](scripts\.ActorEvents_\d+)["'`]/g],
 ];
@@ -50,8 +49,9 @@ export function namesInSource(text) {
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/(?<![:"'`\\])\/\/.*$/gm, "")
         .replace(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["'][^"']*["'];?/gm, "")
-        // defineHook({ target: () => firebase, method: "playButton" }) wraps firebase.playButton.
-        .replace(/\btarget\s*:\s*\(\)\s*=>\s*([\w$.()]+)\s*,\s*method\s*:\s*["'`](\w+)["'`]/g, "$1.$2");
+        // defineHook({ target: () => firebase, method: "playButton" }) wraps firebase.playButton, and
+        // defineHook({ target: () => gga, property: "GemsOwned" }) hooks gga.GemsOwned.
+        .replace(/\btarget\s*:\s*\(\)\s*=>\s*([\w$.()]+)\s*,\s*(?:method|property)\s*:\s*["'`](\w+)["'`]/g, "$1.$2");
     const found = new Set();
     for (const [kind, re, toName = (n) => n] of PATTERNS) {
         for (const m of code.matchAll(re)) if (!OWN_NAMES.has(m[1])) found.add(`${kind}:${toName(m[1])}`);

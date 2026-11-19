@@ -59,7 +59,7 @@ Operational guidelines for AI coding agents working in the Idleon Injector repos
 
 ## Architecture & Conventions
 
-### Cheats Engine & Proxies (`src/cheats/`)
+### Cheats Engine & Hooks (`src/cheats/`)
 
 - **Runtime context:** `cheats.js` is bundled via Rollup from `src/cheats/` (ES modules) into an IIFE executed in the game's browser context (`window.__idleon_cheats__`).
 - **Runtime contracts:** After `gameReady()`, access `gga`, `behavior`, `events`, `itemDefs`, and `cList` directly.
@@ -72,15 +72,14 @@ Operational guidelines for AI coding agents working in the Idleon Injector repos
 - **Code simplicity:** Inline small 1–2 line logic at call sites rather than creating tiny single-use helpers. Use direct property access when types and shapes are guaranteed by the execution path.
 - **New cheats:** Add a file in `src/cheats/cheats/` that calls `defineCheat` (copy `cheats/_example.js`); the build finds it, so no list needs editing. Its settings go in the row's `config` with a default and a description; then run `npm run config:generate`.
 - **New game hooks:** Add a file in `src/cheats/hooks/` that calls `defineHook` (copy `hooks/_example.js`); the build finds it, so no list needs editing. Its handler is base-first by default.
-- **Base-first proxy pattern:** All proxies in `src/cheats/proxies/` must call the original method first via `Reflect.apply` to preserve side effects before checking cheat toggles:
+- **Base-first hooks:** A method hook's handler gets the game method's result (`base`) after the game's method ran, so its side effects are kept:
     ```javascript
-    const PlayerReach = ActorEvents12._customBlock_PlayerReach;
-    ActorEvents12._customBlock_PlayerReach = function (...args) {
-        const base = Reflect.apply(PlayerReach, this, args);
-        if (cheatState.godlike.reach) return 666;
-        return base;
-    };
+    defineHook({ id: "godlike.reach", target: () => events(12), method: "_customBlock_PlayerReach" }, (base) =>
+        cheatState.godlike.reach ? 666 : base
+    );
     ```
+    Declare `around: true` only when that can't work (skipping the game's method, changing its arguments, or changing state it reads while it runs), with a one-line comment saying why. Hooks on the same method wrap in declaration order (first is innermost); keep them in one file.
+- **Game data hooks:** Hook a property of game data with `defineHook({ target, property }, ...)` (an accessor) or `proxy: true` (a Proxy in the property's place); see `core/hooks.js`. Don't patch the game with `new Proxy`, `Object.defineProperty` or assignment outside a hook.
 
 ### Haxe Objects & Traversal
 

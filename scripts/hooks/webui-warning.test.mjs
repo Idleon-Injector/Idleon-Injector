@@ -51,7 +51,7 @@ test("the WebUI shows failed game hooks as a warning that stays on screen", asyn
         { message, type, persistent },
         {
             message:
-                "1 game hook failed to install, so the cheats that use it won't work: setupEvents579Proxies: _customBlock_Holes not found",
+                "1 game hook failed to install, so the cheats that use it won't work: w5.holes: events(579)._customBlock_Holes not found",
             type: "error",
             persistent: true,
         }

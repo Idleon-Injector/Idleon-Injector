@@ -1,0 +1,107 @@
+/**
+ * ActorEvents_124 hooks (the storagecap item grant is in storagecap.js)
+ *
+ * - StampCostss (stamp upgrade cost reduction)
+ * - AFKgainrates (AFK gain multiplier)
+ * - LoadPlayerInfo (perfect obols on load)
+ * - TalentCalc (all cards passive)
+ */
+
+import { cheatConfig, cheatState } from "../core/state.js";
+import { events, gga } from "../core/globals.js";
+import { defineHook } from "../core/hooks.js";
+import { rollAllObols } from "../helpers/obolRolling.js";
+import { getMultiplyValue } from "../helpers/values.js";
+
+// Stamp cost reduction
+defineHook({ id: "w1.stampcost", target: () => events(124), method: "_customBlock_StampCostss" }, (base) => {
+    if (cheatState.w1.stampcost) {
+        const [currency, cost] = base;
+        return [currency, cheatConfig.w1.stampcost(cost)];
+    }
+    return base;
+});
+
+// AFK gain rate multiplier
+defineHook({ id: "multiply.afk", target: () => events(124), method: "_customBlock_AFKgainrates" }, (base) => {
+    if (cheatState.multiply.afk) {
+        return base * getMultiplyValue("afk");
+    }
+    return base;
+});
+
+// Perfect obols on player load
+defineHook({ id: "wide.perfectobols", target: () => events(124), method: "_customBlock_LoadPlayerInfo" }, (base) => {
+    if (cheatState.wide.perfectobols) {
+        try {
+            rollAllObols();
+        } catch (e) {
+            console.error("Error rolling obols:", e);
+        }
+    }
+    return base;
+});
+
+// All cards passive
+defineHook({ id: "wide.cardpassive", target: () => events(124), method: "_customBlock_TalentCalc" }, (base, mode) => {
+    if (!cheatState.wide.cardpassive || mode !== -4) {
+        // -4 is the TalentCalc card-bonus rebuild phase.
+        return base;
+    }
+
+    const ActorEvents12 = events(12);
+    const runCodeOfType = ActorEvents12._customBlock_RunCodeOfTypeXforThingY;
+
+    const cardSlots = gga.Cards[2];
+    // cList.CardStuff as object array with the key as index 0
+    const cardInfo = gga.PixelHelperActor[6].behaviors.getBehavior("ActorEvents_312")._GenINFO[45].h;
+    const bonusH = gga.DNSM.h.CardBonusS.h;
+    const equippedH = gga.DNSM.h.CardBonusS_old.h;
+
+    const equippedCards = new Set();
+    // Native calc reads equipped cards from slots 0..9 (10 total).
+    for (let i = 0; i < 10; i++) {
+        const slotCardId = cardSlots[i];
+        // "B" means empty/blank slot.
+        if (slotCardId && slotCardId !== "B") {
+            equippedCards.add(slotCardId);
+        }
+    }
+
+    // Sum bonus values from owned cards that are not currently equipped.
+    const nonEquippedTotals = Object.create(null);
+
+    for (const cardId of Object.keys(cardInfo)) {
+        if (cardId === "Blank" || equippedCards.has(cardId)) {
+            continue;
+        }
+
+        const cardData = cardInfo[cardId];
+        const bonusName = cardData[3];
+        const cardValue = Number(cardData[4]) || 0;
+        if (!bonusName || cardValue === 0) {
+            continue;
+        }
+
+        const cardLevel = Number(runCodeOfType("CardLv", cardId)) || 0;
+        if (cardLevel === 0) {
+            continue;
+        }
+
+        nonEquippedTotals[bonusName] = (nonEquippedTotals[bonusName] || 0) + cardLevel * cardValue;
+    }
+
+    // Add only the missing passive delta so existing passive sources are not double-counted.
+    for (const bonusName in nonEquippedTotals) {
+        const currentBonus = Number(bonusH[bonusName]) || 0;
+        const equippedBonus = Number(equippedH[bonusName]) || 0;
+        const alreadyPassive = Math.max(currentBonus - equippedBonus, 0);
+        const missingPassive = nonEquippedTotals[bonusName] - alreadyPassive;
+
+        if (missingPassive > 0) {
+            bonusH[bonusName] = currentBonus + missingPassive;
+        }
+    }
+
+    return base;
+});

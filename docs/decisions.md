@@ -30,13 +30,15 @@ Alternative: return a cheat value before invoking the original method.
 
 Trade-off: the original work still runs even when its result will be overridden.
 
-Source: [proxy utilities](../src/cheats/utils/proxy.js).
+Source: [hook core](../src/cheats/core/hooks.js).
 
 ## One way to hook the game
 
-Decision: a game hook is a `defineHook` declaration in its own file under `src/cheats/hooks/`. The core does the
-wrapping, installs each hook on its own, reports a missing target, never wraps an object twice, re-applies every hook
-after character select and installs early hooks before setup. The build finds the files by scanning the folder.
+Decision: a game hook is a `defineHook` declaration in a file under `src/cheats/hooks/`, on a game method or on a
+property of game data. The core does the patching, installs each hook on its own, reports a missing target, never
+patches an object twice, re-applies every hook after character select and installs early hooks before setup. The build
+finds the files by scanning the folder. Hooks on the same method wrap in the order they are declared, so they share a
+file.
 
 Why: the code hooked the game seven different ways, guarded against patching twice three ways, and needed an edit to
 `proxies/setup.js` for every new hook. A contributor now adds one file and gets the core's guarantees.
@@ -45,8 +47,12 @@ Alternative: keep per-file setup functions listed in `proxies/setup.js`, or a ge
 check. Both make every new hook edit a shared file.
 
 Trade-off: the folder scan happens in the build (a rollup step), so the test harness imports the same file list
-itself. A hook that must change state while the game's method runs, or skip it, declares `around`, which steps outside
-base-first; it should stay rare.
+itself. A hook that must change state or arguments while the game's method runs, or skip it, declares `around`, which
+steps outside base-first; each says why in a comment, and they should stay rare. A hook on game data either puts an
+accessor on the property (a getter, or get and set handlers) or replaces the object it holds with a Proxy, for data
+read by any index; the old `createProxy` helper and its `_isPatched` guards are gone. Some around hooks still swap a
+value for the length of one game call (the chest during a storagecap deposit, a player's growTo while it inits); that
+swap is part of the handler, not a hook of its own.
 
 Source: [hook core](../src/cheats/core/hooks.js), [example hook](../src/cheats/hooks/_example.js).
 

@@ -11,7 +11,7 @@
 import { cheatState, startupCheats } from "../core/state.js";
 import { gga } from "../core/globals.js";
 import { defineHook, game } from "../core/hooks.js";
-import { withStorageCapScope } from "../proxies/storageCap.js";
+import { withStorageCapScope } from "../helpers/storageCap.js";
 
 const quantityFormat = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 0 });
 const formatCount = (val) => {

@@ -13,8 +13,7 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Cheat state         | Whether a stateful cheat is enabled, distinct from its configured values.                          |
 | Cheat configuration | Values that customize cheat effects.                                                               |
 | Startup cheats      | Commands selected to run when the cheat runtime starts.                                            |
-| Proxy               | A hook around a game method or property that can alter its result.                                 |
-| Hook                | A game-method wrapper declared with `defineHook` in `src/cheats/hooks/`; the core installs it.     |
+| Hook                | A game method or data wrapper declared with `defineHook` in `src/cheats/hooks/`.                   |
 | Cheat row           | A `defineCheat` declaration in `src/cheats/cheats/`: a command or group, and its settings.         |
 | Early hook          | A hook on a class whose actors exist before setup; it installs as the game defines the class.      |
 | GGA                 | The game's attributes map, exposed as `gga`.                                                       |

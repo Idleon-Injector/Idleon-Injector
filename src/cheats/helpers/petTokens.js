@@ -1,5 +1,5 @@
 import { events, gga } from "../core/globals.js";
-import { getOwnedCompanions } from "../proxies/firebase.js";
+import { getOwnedCompanions } from "../hooks/firebase.js";
 
 /**
  * Pet bonus tokens as the game sees them.

@@ -1,7 +1,7 @@
 /**
  * Core Setup Module
  *
- * Contains the main setup function that initializes all cheats and proxies.
+ * Contains the main setup function that initializes all cheats and game hooks.
  */
 
 import { markSetupDone, setupDone, cheatConfig, startupCheats } from "./state.js";
@@ -9,7 +9,7 @@ import { gameReady, gameContext } from "./globals.js";
 import { runCheat } from "./registration.js";
 
 // Imports for setup logic
-import { getHookFailures, setupAllProxies } from "../proxies/setup.js";
+import { getHookFailures, installHooks } from "./hooks.js";
 import { injectWebUI } from "../ui/overlay.js";
 import { monitor } from "./valueMonitor.js";
 
@@ -18,21 +18,18 @@ let running = null;
 
 /**
  * Startup cheats, the value monitor and the in-game UI start once, on the first setup that reaches them.
- * Set once setup has the game's data and has run every hook step; cheats wait for that.
+ * Set once setup has the game's data and has installed the game hooks; cheats wait for that.
  */
 export let started = false;
 
 /**
- * Main setup function - initializes all cheats and proxies.
+ * Main setup function - initializes all cheats and game hooks.
  *
  * This function:
  * 1. Waits for the game to be ready
- * 2. Sets up every game proxy that isn't installed yet
+ * 2. Installs every game hook (a hook whose target is missing is reported and tried again at character select)
  * 3. Runs startup cheats (first time only)
  * 4. Injects the web UI (if enabled, first time only)
- *
- * Setup counts as done only once every proxy step has run to the end; until then a later call
- * (main.js on page load, or the first cheat) runs it again and retries the steps that threw.
  *
  * @returns {Promise<{message?: string, error?: string, hookFailures: string[]}>} Setup result
  */
@@ -48,7 +45,8 @@ async function runSetup(context) {
     try {
         await gameReady(context);
 
-        if (setupAllProxies()) markSetupDone();
+        installHooks();
+        markSetupDone();
 
         const rtn = ["Cheat setup complete"];
         if (!started) {
