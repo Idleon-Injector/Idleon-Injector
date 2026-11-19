@@ -1,12 +1,18 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList, readComputed } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { ClampedLevelRow } from "../../ClampedLevelRow.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
-import { cleanName, createStaticRowReconciler, getOrCreateState, toInt } from "../../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList, readComputed } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    getOrCreateState,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -75,7 +81,7 @@ const buildRankEntries = (rawLevels, rawNames, fifthColumnMaxLevel) => {
     });
 };
 
-export const RankTab = () => {
+const RankTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Farming Rank" });
     const rankEntries = van.state([]);
     const levelStates = new Map();
@@ -130,3 +136,13 @@ export const RankTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.farming.rank",
+    world: 6,
+    system: "Farming",
+    tab: "Rank",
+    description: "The Land Rank Database upgrades.",
+    keywords: ["Land Rank"],
+    component: RankTab,
+});

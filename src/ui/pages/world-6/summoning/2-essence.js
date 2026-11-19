@@ -1,12 +1,13 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { createStaticRowReconciler, getOrCreateState } from "../../accountShared.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { createStaticRowReconciler, getOrCreateState } from "../../../components/views/account/accountShared.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div } = van.tags;
 
@@ -28,7 +29,7 @@ const buildEssenceEntries = (rawAmounts) =>
         amount,
     }));
 
-export const EssenceTab = () => {
+const EssenceTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Summoning Essence" });
     const entries = van.state([]);
     const amountStates = new Map();
@@ -77,3 +78,13 @@ export const EssenceTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.summoning.essence",
+    world: 6,
+    system: "Summoning",
+    tab: "Essence",
+    description: "Summoning essence amounts.",
+    keywords: ["Summoning Essence"],
+    component: EssenceTab,
+});

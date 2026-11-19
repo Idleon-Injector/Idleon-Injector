@@ -1,12 +1,18 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { cleanName, createStaticRowReconciler, getOrCreateState, toInt } from "../../accountShared.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    getOrCreateState,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div } = van.tags;
 
@@ -39,7 +45,7 @@ const buildUpgradeEntries = (rawDefinitions, rawLevels) => {
         .filter(Boolean);
 };
 
-export const UpgradesTab = () => {
+const UpgradesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Sneaking Upgrades" });
     const entries = van.state([]);
     const levelStates = new Map();
@@ -89,3 +95,13 @@ export const UpgradesTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.sneaking.upgrades",
+    world: 6,
+    system: "Sneaking",
+    tab: "Upgrades",
+    description: "Sneaking upgrade levels.",
+    keywords: ["Sneaking Upgrades", "Ninja"],
+    component: UpgradesTab,
+});

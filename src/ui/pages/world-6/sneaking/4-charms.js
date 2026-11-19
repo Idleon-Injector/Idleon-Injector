@@ -1,18 +1,19 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     useWriteStatus,
     writeVerified,
-} from "../../accountShared.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountRow } from "../../components/AccountRow.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+} from "../../../components/views/account/accountShared.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, input, label, span } = van.tags;
 
@@ -65,7 +66,7 @@ const buildCharmEntries = (rawUnlocks, rawCharmRecords) => {
     });
 };
 
-export const CharmsTab = () => {
+const CharmsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Sneaking Charms" });
     const entries = van.state([]);
     const unlockedStates = new Map();
@@ -124,3 +125,13 @@ export const CharmsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.sneaking.charms",
+    world: 6,
+    system: "Sneaking",
+    tab: "Charms",
+    description: "Which Pristine Charms are unlocked.",
+    keywords: ["Pristine Charms"],
+    component: CharmsTab,
+});

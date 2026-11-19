@@ -18,7 +18,6 @@ import { MasterclassesTab } from "./account/MasterclassesTab.js";
 import { TasksTab } from "./account/TasksTab.js";
 import { UpgradeVaultTab } from "./account/UpgradeVaultTab.js";
 import { W5Tab } from "./account/W5Tab.js";
-import { W6Tab } from "./account/W6Tab.js";
 import { W7Tab } from "./account/W7Tab.js";
 import { renderLazyPanes, renderTabNav } from "./account/tabShared.js";
 
@@ -38,7 +37,6 @@ const ACCOUNT_TABS = [
     { id: "masterclasses", label: "MASTERCLASSES", isWorld: false, component: MasterclassesTab },
     { id: "clicker", label: "CLICKER", isWorld: false, component: ClickerTab },
     { id: "w5", label: "SMOLDERIN' PLAT.", isWorld: true, worldNum: 5, component: W5Tab },
-    { id: "w6", label: "SPIRITED VALLEY", isWorld: true, worldNum: 6, component: W6Tab },
     { id: "w7", label: "EQUINOX VALLEY", isWorld: true, worldNum: 7, component: W7Tab },
 ];
 

@@ -171,12 +171,6 @@
         },
         {
             "rule": "old-page",
-            "file": "src/ui/components/views/account/W6Tab.js",
-            "count": 5,
-            "reason": "World 6 pages not yet moved to src/ui/pages/."
-        },
-        {
-            "rule": "old-page",
             "file": "src/ui/components/views/account/W7Tab.js",
             "count": 13,
             "reason": "World 7 pages not yet moved to src/ui/pages/."

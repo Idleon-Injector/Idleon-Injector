@@ -1,7 +1,3 @@
-.sneaking-tab .account-nested-sub-content {
-    min-height: 0;
-}
-
 .sneaking-toggle-row {
     grid-template-columns: minmax(300px, 1fr) auto auto;
 }

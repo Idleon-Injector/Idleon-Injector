@@ -1,12 +1,18 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
-import { cleanName, createStaticRowReconciler, getOrCreateState, toInt } from "../../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    getOrCreateState,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -39,7 +45,7 @@ const buildStickerEntries = (rawNames, rawAmounts) => {
         .filter(Boolean);
 };
 
-export const StickerTab = () => {
+const StickerTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Farming Stickers" });
     const entries = van.state([]);
     const amountStates = new Map();
@@ -89,3 +95,13 @@ export const StickerTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.farming.sticker",
+    world: 6,
+    system: "Farming",
+    tab: "Sticker",
+    description: "Farming sticker amounts.",
+    keywords: ["Stickers"],
+    component: StickerTab,
+});
