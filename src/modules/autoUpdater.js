@@ -272,4 +272,4 @@ async function performUpdate(releaseInfo) {
     }
 }
 
-module.exports = { performUpdate };
+module.exports = { performUpdate, RELEASE_ARCHIVES, CHECKSUMS_ASSET };

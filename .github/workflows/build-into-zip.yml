@@ -1,30 +1,50 @@
 name: Build Cross-Platform Binaries
 on:
-    workflow_dispatch: # Manual trigger only
+    workflow_dispatch:
+    # Build and Release calls this, so a test build and a release are built the same way.
+    workflow_call:
+
+permissions:
+    contents: read
 
 jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run the check
+              run: npm run check
+
     build:
+        needs: check
         strategy:
+            # The other platforms finish when one fails, so "Re-run failed jobs" only has to redo that one.
+            fail-fast: false
             matrix:
                 include:
                     - os: windows-latest
-                      artifact-name: InjectCheatsUI-Windows
-                      binary-name: InjectCheatsUI.exe
                       build-command: build
                       archive-file: InjectCheatsUI-Windows.zip
                     - os: ubuntu-latest
-                      artifact-name: InjectCheatsUI-Linux
-                      binary-name: InjectCheatsUI-linux
                       build-command: build-unix
                       archive-file: InjectCheatsUI-Linux.tar.gz
                     - os: macos-15-intel
-                      artifact-name: InjectCheatsUI-macOS-x64
-                      binary-name: InjectCheatsUI-macos-x64
                       build-command: build-macos-x64
                       archive-file: InjectCheatsUI-macOS-x64.tar.gz
+                    # GitHub sometimes has no Apple Silicon runner free and cancels this job. No release is made
+                    # without this archive (the checksums job needs every platform): re-run the failed job.
                     - os: macos-15
-                      artifact-name: InjectCheatsUI-macOS-arm64
-                      binary-name: InjectCheatsUI-macos-arm64
                       build-command: build-macos-arm64
                       archive-file: InjectCheatsUI-macOS-arm64.tar.gz
 
@@ -34,50 +54,58 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v6
 
+            # The same Node as the check and as the binary's runtime (the pkg targets follow .nvmrc).
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build binary
+              run: npm run ${{ matrix.build-command }}
+
+            # Only the allowlisted files go in, and the archive is listed back and checked against the allowlist.
+            - name: Pack the archive
+              run: node scripts/release.mjs pack ${{ matrix.archive-file }}
+
+            - name: Upload the archive
+              uses: actions/upload-artifact@v7
+              with:
+                  name: ${{ matrix.archive-file }}
+                  path: release/${{ matrix.archive-file }}
+                  if-no-files-found: error
+                  overwrite: true
+
+    checksums:
+        needs: build
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
             - name: Set up Node.js
               uses: actions/setup-node@v6
               with:
                   node-version-file: .nvmrc
 
-            - name: Install dependencies
-              run: npm ci
-
-            - name: Run Validation
-              run: npm run validate
-
-            # pkg 5 builds the node18 binaries on Node 18; that moves with the packaging rewrite.
-            - name: Set up Node.js 18 for pkg
-              uses: actions/setup-node@v6
+            - name: Download the archives
+              uses: actions/download-artifact@v8
               with:
-                  node-version: "18"
+                  path: release/
+                  pattern: InjectCheatsUI-*
+                  merge-multiple: true
 
-            - name: Install pkg
-              run: npm install -g pkg
+            # Fails unless all four platforms' archives are here.
+            - name: Write SHA256SUMS
+              run: node scripts/release.mjs sums release
 
-            - name: Build Binary
-              run: npm run ${{ matrix.build-command }}
-
-            - name: Create release package
-              shell: bash
-              run: |
-                  mkdir -p release-package
-                  # Copy all files and directories except release-package, node_modules
-                  find . -maxdepth 1 -not -name '.' -not -name 'release-package' -not -name 'node_modules' -exec cp -r {} release-package/ \;
-
-            - name: Archive release package (Windows)
-              if: runner.os == 'Windows'
-              shell: pwsh
-              run: |
-                  Compress-Archive -Path release-package/* -DestinationPath "${{ matrix.archive-file }}"
-
-            - name: Archive release package (Unix)
-              if: runner.os != 'Windows'
-              shell: bash
-              run: |
-                  tar -czf "${{ matrix.archive-file }}" -C release-package .
-
-            - name: Upload Release Package
+            - name: Upload the release files
               uses: actions/upload-artifact@v7
               with:
-                  name: ${{ matrix.artifact-name }}
-                  path: ${{ matrix.archive-file }}
+                  name: release-files
+                  path: release/
+                  if-no-files-found: error
+                  overwrite: true

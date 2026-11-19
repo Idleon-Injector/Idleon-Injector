@@ -10,3 +10,6 @@ cheats.js
 config.custom.js
 InjectCheatsUI.exe
 .mcp.json
+release/
+InjectCheatsUI-linux
+InjectCheatsUI-macos-*

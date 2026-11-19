@@ -305,14 +305,29 @@ update when that file, the archive's line in it, or a match is missing, and copi
 path in the archive. It checks everything before the install changes, and the replace script restores
 every file if one copy fails.
 
-Why: the archive ships the whole repository, so a download that is damaged, tampered with, or picks
-the wrong file must not leave a half-updated install.
+Why: a download that is damaged, tampered with, or holds the wrong file must not leave a half-updated
+install.
 
 Alternative: trust the download and copy whatever files are found.
 
 Trade-off: a release published without `SHA256SUMS` cannot be installed by the updater, only by hand.
 
 Source: [Release archive preparation](../src/modules/autoUpdater.js).
+
+## Ship an allowlist, not the repository
+
+Decision: each release archive holds only the files on an allowlist (the binary, `cheats.js` and `config.js`),
+and the release refuses to publish unless all four platforms' archives and their `SHA256SUMS` exist.
+
+Why: the archive used to ship the whole checkout, `.git` included. A player gets only what runs, and every
+platform gets the same release, so the updater never finds a release without its download.
+
+Alternative: copy the checkout and exclude what shouldn't ship.
+
+Trade-off: a new file that must sit beside the binary needs an allowlist entry, or it never reaches players.
+If GitHub has no runner for one platform, the release waits until that job is re-run.
+
+Source: [Release packaging](../scripts/release.mjs).
 
 ## Build the menu from page declarations
 
