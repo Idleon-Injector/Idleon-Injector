@@ -34,8 +34,9 @@ async function setupIntercept(hook, config, startupCheats, cheatConfig, cdpPort)
     log.info("Setting up cheat injection");
 
     const cheatsPath = getRuntimePath("cheats.js");
-    let cheats = await fs.readFile(cheatsPath, "utf8");
-    cheats =
+    const cheats = await fs.readFile(cheatsPath, "utf8");
+    // Built on every load from the live settings, so a reloaded game gets the ones changed since startup.
+    const injectedScript = () =>
         `let startupCheats = ${JSON.stringify(startupCheats)};\n` +
         `let cheatConfig = ${objToString(cheatConfig)};\n` +
         `let webPort = ${config.webPort};\n` +
@@ -90,7 +91,7 @@ async function setupIntercept(hook, config, startupCheats, cheatConfig, cdpPort)
                 // Inject cheats directly into the current context to persist across page reloads
                 log.debug("Evaluating cheat code");
                 await Runtime.evaluate({
-                    expression: cheats,
+                    expression: injectedScript(),
                     awaitPromise: true,
                     allowUnsafeEvalBlockedByCSP: true,
                 });

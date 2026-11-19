@@ -10,7 +10,7 @@ const { createGameBridge } = require("../game/gameBridge");
 
 const Enquirer = require("enquirer");
 const { exec, execFile } = require("child_process");
-const { getInjectorConfig } = require("../config/configManager");
+const { getInjectorConfig, getCheatConfig, pullGameConfig } = require("../config/configManager");
 const { createLogger, setActivePrompt } = require("../utils/logger");
 const { broadcastCheatStates } = require("../server/wsServer");
 const { createUpdater } = require("../updateService");
@@ -226,6 +226,7 @@ async function startCliInterface(context, client, options = {}) {
                     const { ok, message } = cheatResponse.value;
                     if (ok) log.info(message);
                     else log.error(`${action}: ${message}`);
+                    await pullGameConfig(gameBridge, getCheatConfig());
                     await broadcastCheatStates();
                 }
             }

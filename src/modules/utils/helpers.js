@@ -10,34 +10,57 @@ const { createLogger } = require("./logger");
 
 const log = createLogger("Helpers");
 
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+
 /**
- * Converts a JavaScript object (potentially with functions) into a string representation
- * suitable for injection into the target environment. Functions are converted to their string form.
- * @param {Object} obj - The object to convert to string
- * @returns {string} String representation of the object
+ * Write a config value as JavaScript source, for the injected config and config.custom.js. Strings are
+ * escaped, null stays null, and functions and RegExps (nomore patterns) are written as their source.
+ * @param {*} value - The value to write
+ * @param {string} [indent] - Indentation of the line the value starts on
+ * @returns {string} JavaScript source that evaluates to the value
  */
-const objToString = (obj) => {
-    let ret = "{";
+const objToString = (value, indent = "") => {
+    if (typeof value === "function" || value instanceof RegExp) return value.toString();
+    if (value === undefined) return "undefined";
+    if (typeof value === "number") return String(value); // keeps NaN and Infinity, which JSON writes as null
+    if (value === null || typeof value !== "object") return JSON.stringify(value);
+    const inner = `${indent}    `;
+    if (Array.isArray(value)) return `[${value.map((item) => objToString(item, indent)).join(", ")}]`;
+    const keys = Object.keys(value);
+    if (!keys.length) return "{}";
+    const lines = keys.map(
+        (key) => `${inner}${IDENTIFIER.test(key) ? key : JSON.stringify(key)}: ${objToString(value[key], inner)},`
+    );
+    return `{\n${lines.join("\n")}\n${indent}}`;
+};
 
-    for (const k in obj) {
-        let v = obj[k];
+// JSON has no RegExp, so a nomore pattern travels as "/source/flags". Only list items are read back
+// this way: a plain text setting such as a folder path can look the same.
+const REGEXP_LITERAL = /^\/(.+)\/([dgimsuy]*)$/;
+const regExpToJson = (value) => (value instanceof RegExp ? String(value) : value);
+const toJson = (value) => JSON.stringify(value, (key, item) => regExpToJson(item));
 
-        if (typeof v === "function") {
-            v = v.toString();
-        } else if (Array.isArray(v)) {
-            v = JSON.stringify(v);
-        } else if (typeof v === "object") {
-            v = objToString(v);
-        } else if (typeof v === "string") {
-            v = `"${v}"`;
-        }
-
-        ret += `\n  ${k}: ${v},`;
+/**
+ * Turn "/source/flags" list items back into RegExps, in place.
+ * @param {*} value - Config parsed from JSON
+ * @returns {*} The same config with its patterns restored
+ */
+const reviveRegExps = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((item) => {
+            const match = typeof item === "string" && REGEXP_LITERAL.exec(item);
+            if (!match) return item;
+            try {
+                return new RegExp(match[1], match[2]);
+            } catch {
+                return item;
+            }
+        });
     }
-
-    ret += "\n}";
-
-    return ret;
+    if (value && typeof value === "object") {
+        for (const key of Object.keys(value)) value[key] = reviveRegExps(value[key]);
+    }
+    return value;
 };
 
 /**
@@ -52,7 +75,9 @@ const prepareConfigForJson = (obj) => {
             const value = obj[key];
             if (typeof value === "function") {
                 result[key] = value.toString();
-            } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+            } else if (Array.isArray(value)) {
+                result[key] = value.map(regExpToJson);
+            } else if (typeof value === "object" && value !== null) {
                 result[key] = prepareConfigForJson(value);
             } else {
                 result[key] = value;
@@ -147,7 +172,7 @@ const getDeepDiff = (current, defaultObj) => {
         return current;
     }
     if (typeof current !== "object" || Array.isArray(current)) {
-        if (JSON.stringify(current) !== JSON.stringify(defaultObj)) {
+        if (toJson(current) !== toJson(defaultObj)) {
             return current;
         }
         return undefined;
@@ -183,11 +208,11 @@ const getDeepDiff = (current, defaultObj) => {
                 const currentStr =
                     typeof normalizedCurrent === "string" && /^(\(.*\)|[\w$]+)\s*=>/.test(normalizedCurrent)
                         ? normalizedCurrent
-                        : JSON.stringify(normalizedCurrent);
+                        : toJson(normalizedCurrent);
                 const defaultStr =
                     typeof normalizedDefault === "string" && /^(\(.*\)|[\w$]+)\s*=>/.test(normalizedDefault)
                         ? normalizedDefault
-                        : JSON.stringify(normalizedDefault);
+                        : toJson(normalizedDefault);
 
                 if (currentStr !== defaultStr) {
                     diff[key] = currentVal;
@@ -245,6 +270,7 @@ const validateConfig = (target, source, prefix = "") => {
 
 module.exports = {
     objToString,
+    reviveRegExps,
     prepareConfigForJson,
     parseConfigFromJson,
     filterByTemplate,

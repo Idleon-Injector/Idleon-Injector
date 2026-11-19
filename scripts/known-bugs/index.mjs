@@ -13,15 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import vm from "node:vm";
 
 export const KNOWN_BUGS = {
-    configEscaping:
-        "Quotes and backslashes in text settings aren't escaped when the config is written, and null becomes {}",
-    brokenCustomConfig:
-        "A broken config.custom.js is ignored with a false 'not found' message, then overwritten on the next save",
-    reloadInjectsStartupConfig: "After the game reloads, it runs the startup config instead of the current one",
     destructiveOneClick: "Destructive cheats like wipe run on one click from the Cheats list",
-    partialSaveWipes:
-        "Saving rewrites the whole override file from whatever it's sent, so a partial save wipes other settings",
-    gameConfigNeverFlowsBack: "Config changes made inside the game never flow back, so they are lost on restart",
     unbanNeverRuns: "The unban check reads a cheat that's never registered, so it never runs",
 };
 
@@ -207,6 +199,7 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
         cheatStateList: (await importRepo("src/cheats/api/stateAccessors.js")).getcheatStateList,
         getHookFailures: (await importRepo("src/cheats/core/hooks.js")).getHookFailures,
         updateCheatConfig: state.updateCheatConfig,
+        readCheatConfig: state.readCheatConfig,
     };
     // The bridge evaluates with awaitPromise, so a promise (window.cheat's) comes back as its value.
     const runtime = {

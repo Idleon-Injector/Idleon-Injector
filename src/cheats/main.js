@@ -12,7 +12,14 @@ if (!startupCheats || !cheatConfig || !webPort || !window) {
     throw new Error("cheatConfig, startupCheats, webPort and window must be defined!");
 }
 
-import { cheatState, setCheatConfig, setStartupCheats, setWebPort, updateCheatConfig } from "./core/state.js";
+import {
+    cheatState,
+    setCheatConfig,
+    setStartupCheats,
+    setWebPort,
+    updateCheatConfig,
+    readCheatConfig,
+} from "./core/state.js";
 import { getBEngine, getItemDefs, getMonsterDefs, getCList, getBehavior, getEvents, getGGA } from "./core/globals.js";
 import { cheats, cheat as coreCheat } from "./core/registration.js";
 import { setup as coreSetup } from "./core/setup.js";
@@ -73,6 +80,7 @@ async function setup() {
 window.cheat = cheat;
 window.setup = setup;
 window.updateCheatConfig = updateCheatConfig;
+window.readCheatConfig = readCheatConfig;
 
 // WebUI API
 window.getAutoCompleteSuggestions = getAutoCompleteSuggestions;

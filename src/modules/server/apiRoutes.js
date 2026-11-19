@@ -28,7 +28,7 @@ function setupApiRoutes(app, context, client, config) {
     const { cdpPort } = config;
 
     setupUpdateRoutes(app, client, config.injectorConfig);
-    setupCheatRoutes(app, gameBridge);
+    setupCheatRoutes(app, gameBridge, config.cheatConfig);
     setupGameRoutes(app, gameBridge);
     setupSearchRoutes(app, gameBridge);
     setupConfigRoutes(app, gameBridge, config);

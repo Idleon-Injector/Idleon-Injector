@@ -1,5 +1,5 @@
 const { prepareConfigForJson } = require("../../utils/helpers");
-const { saveConfiguration, updateSessionConfiguration } = require("../../config/configManager");
+const { pullGameConfig, saveConfiguration, updateSessionConfiguration } = require("../../config/configManager");
 const { createLogger } = require("../../utils/logger");
 
 const log = createLogger("API");
@@ -7,7 +7,9 @@ const log = createLogger("API");
 function setupConfigRoutes(app, gameBridge, config) {
     const { cheatConfig, defaultConfig, startupCheats, injectorConfig } = config;
 
-    app.get("/api/config", (req, res) => {
+    app.get("/api/config", async (req, res) => {
+        // Settings changed in the game (like its in-game console) show up here and are kept by the next save.
+        await pullGameConfig(gameBridge, cheatConfig);
         try {
             const serializableCheatConfig = prepareConfigForJson(cheatConfig);
 
@@ -66,20 +68,24 @@ function setupConfigRoutes(app, gameBridge, config) {
     app.post("/api/config/save", async (req, res) => {
         const receivedFullConfig = await req.json();
 
+        // Saving merges into the current settings, so every part is optional.
         if (
             !receivedFullConfig ||
             typeof receivedFullConfig !== "object" ||
-            !receivedFullConfig.cheatConfig ||
-            !Array.isArray(receivedFullConfig.startupCheats)
+            (receivedFullConfig.startupCheats !== undefined && !Array.isArray(receivedFullConfig.startupCheats))
         ) {
             return res.status(400).json({
-                error: "Invalid configuration data received for saving. Expected { startupCheats: [...], cheatConfig: {...} }",
+                error: "Invalid configuration data received for saving. Expected { startupCheats?: [...], cheatConfig?: {...} }",
             });
         }
 
         try {
-            await saveConfiguration(receivedFullConfig);
-            res.json({ message: "Configuration successfully saved to config.custom.js" });
+            const { brokenFileKeptAs } = await saveConfiguration(receivedFullConfig);
+            res.json({
+                message: brokenFileKeptAs
+                    ? `Configuration saved to config.custom.js. The old file had an error, so it was kept as ${brokenFileKeptAs}`
+                    : "Configuration successfully saved to config.custom.js",
+            });
         } catch (apiError) {
             log.error("Error in /api/config/save:", apiError);
             res.status(500).json({
