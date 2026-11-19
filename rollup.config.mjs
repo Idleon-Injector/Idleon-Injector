@@ -86,6 +86,7 @@ const bundleStats = () => ({
 
 const hooksDir = fileURLToPath(new URL("src/cheats/hooks/", import.meta.url));
 const cheatsDir = fileURLToPath(new URL("src/cheats/cheats/", import.meta.url));
+const automationsDir = fileURLToPath(new URL("src/cheats/automations/", import.meta.url));
 
 /** The .js files directly in a folder, sorted. A file starting with "_" (the example) is skipped. */
 const filesIn = (dir) =>
@@ -99,8 +100,11 @@ export const hookFiles = () => filesIn(hooksDir);
 /** The cheat files in src/cheats/cheats/ (each declares defineCheat rows), in the order they register. */
 export const cheatFiles = () => filesIn(cheatsDir);
 
-// `import "virtual:hooks"` and `import "virtual:cheats"` in cheats/main.js import every file in the folder, so a
-// new hook or cheat is just a new file.
+/** The automation files in src/cheats/automations/ (each declares defineAutomation), in the order they register. */
+export const automationFiles = () => filesIn(automationsDir);
+
+// `import "virtual:hooks"`, `"virtual:cheats"` and `"virtual:automations"` in cheats/main.js import every file in the
+// folder, so a new hook, cheat or automation is just a new file.
 // ponytail: watch mode sees edits, not a newly added file; restart it after adding one.
 const folder = (id, dir) => ({
     name: `${id}-folder`,
@@ -128,5 +132,10 @@ export default {
     treeshake: {
         moduleSideEffects: true,
     },
-    plugins: [folder("hooks", hooksDir), folder("cheats", cheatsDir), bundleStats()],
+    plugins: [
+        folder("hooks", hooksDir),
+        folder("cheats", cheatsDir),
+        folder("automations", automationsDir),
+        bundleStats(),
+    ],
 };

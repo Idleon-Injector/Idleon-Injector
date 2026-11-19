@@ -5,6 +5,7 @@
  */
 
 import { cheatState, setupDone, cheatConfig } from "./state.js";
+import { followToggles } from "./automations.js";
 // Note: setup.js is imported dynamically below to avoid circular dependency
 
 /**
@@ -62,6 +63,9 @@ export function runCheat(action, context, on) {
         if (!foundCheat) return { ok: false, message: `${action.split(" ")[0]} is not a valid option.` };
 
         const result = foundCheat.fn.call(context, params, on);
+        // An automation whose toggle this changed starts or stops now; one that refuses to start fails the cheat.
+        const refused = followToggles();
+        if (refused) return refused;
         return result?.ok === undefined ? { ok: true, message: String(result ?? "Done") } : result;
     } catch (error) {
         // The stack stays in the game's console; the result carries only the reason.

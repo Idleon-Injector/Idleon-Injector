@@ -24,6 +24,7 @@ defineCheat({
 });
 
 // A group of toggles: "example speed" flips cheatState.example.speed, and a hook in src/cheats/hooks/ reads it.
+// "example autoheal" turns on the automation in src/cheats/automations/_example.js.
 // "example" alone turns them all on or off (allowToggleChildren). Set `dangerous: true` on anything that can
 // damage an account.
 defineCheat({
@@ -32,6 +33,7 @@ defineCheat({
     allowToggleChildren: true,
     subcheats: [
         { name: "speed", message: "faster example bars (see config)" },
+        { name: "autoheal", message: "top your HP back up every second" },
         { name: "reset", message: "Reset the example bars", dangerous: true, fn: () => "The example bars were reset" },
     ],
     // cheatConfig.example: what a hook reads while the toggle is on. Players override it in config.custom.js.
