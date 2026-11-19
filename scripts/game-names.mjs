@@ -5,6 +5,9 @@
 //   node scripts/game-names.mjs update [N.js]    look every name up in the game's code (a file path or URL; default:
 //                                                 the web game), fail on missing ones, rewrite game-names.json and
 //                                                 list the hooked game functions whose code changed
+//   node scripts/game-names.mjs watch [N.js]     (the Game update watch workflow) compare the game's code with
+//                                                 game-names.json; open one GitHub issue per game version that is off
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const PINNED_PATH = path.join(root, "scripts", "game-names.json");
-export const WEB_GAME_URL = "https://www.legendsofidleon.com/ytGl5oc/N.js";
+const SITE = "https://www.legendsofidleon.com";
 const SOURCE_DIRS = ["src/cheats", "src/ui"];
 
 // Names a pattern catches that belong to the injector, not the game.
@@ -84,6 +87,14 @@ export function functionAt(game, name, sep = "=") {
     return -1;
 }
 
+// `text` somewhere not followed by more of a name: ".h.Cards" must not match ".h.Cards2".
+const includesName = (game, text) => {
+    for (let i = game.indexOf(text); i >= 0; i = game.indexOf(text, i + 1)) {
+        if (!/[\w$]/.test(game[i + text.length] ?? "")) return true;
+    }
+    return false;
+};
+
 // How each kind appears in the game's code. Plain indexOf only: N.js holds a 1.4 MB run of word characters that an
 // unanchored \w+ regex takes minutes on.
 const IN_GAME = {
@@ -91,8 +102,8 @@ const IN_GAME = {
     method: (g, x) => functionAt(g, x) >= 0,
     behavior: (g, x) => functionAt(g, x) >= 0,
     firebase: (g, x) => functionAt(g, x) >= 0 || functionAt(g, x, ":") >= 0,
-    clist: (g, x) => g.includes(`"${x}"`) || g.includes(`.${x}`),
-    gga: (g, x) => g.includes(`"${x}"`) || g.includes(`.h.${x}`),
+    clist: (g, x) => g.includes(`"${x}"`) || includesName(g, `.${x}`),
+    gga: (g, x) => g.includes(`"${x}"`) || includesName(g, `.h.${x}`),
 };
 
 export const inGame = (game, name) => {
@@ -150,23 +161,96 @@ export function buildPinned(names, game, meta) {
     return { game: meta, names: byKind, fingerprints };
 }
 
+// The web game's N.js. Its folder (ytGl5oc in 2026) can change, so it's read from the site's "Play" link, which
+// lives in one of the scripts the landing page loads.
+export async function findWebGameUrl(fetchText = async (url) => (await fetch(url)).text()) {
+    const landing = await fetchText(`${SITE}/`);
+    for (const [, script] of landing.matchAll(/(?:href|src)="(\/[^"]+\.js)"/g)) {
+        const folder = (await fetchText(`${SITE}${script}`)).match(/className:"[^"]*Play[^"]*",href:"\/([\w-]+)\/"/);
+        if (folder) return `${SITE}/${folder[1]}/N.js`;
+    }
+    throw new Error(`No Play link found on ${SITE}: the site changed, so the watcher can't find the game's code.`);
+}
+
 async function loadGame(source) {
-    if (!/^https?:/.test(source))
-        return { text: fs.readFileSync(source, "utf8"), meta: { source: path.basename(source) } };
+    if (!/^https?:/.test(source)) {
+        const text = fs.readFileSync(source, "utf8");
+        return { text, meta: { source: path.basename(source), sha256: sha256(text) } };
+    }
     const res = await fetch(source);
     if (!res.ok) throw new Error(`${source}: HTTP ${res.status}`);
     const text = await res.text();
     const meta = { source, etag: res.headers.get("etag"), lastModified: res.headers.get("last-modified") };
-    return { text, meta };
+    return { text, meta: { ...meta, sha256: sha256(text) } };
+}
+
+const sha256 = (text) => createHash("sha256").update(text).digest("hex");
+
+// What's off between the code's game names, the pinned fingerprints and one version of the game's code.
+export function compare(names, pinned, game) {
+    const missing = [...names.keys()].filter((n) => !inGame(game, n)).sort();
+    const changed = Object.entries(pinned.fingerprints)
+        .filter(([f, hash]) => hash !== null && fingerprint(game, f) !== hash)
+        .map(([f]) => f)
+        .sort();
+    return { missing, changed };
+}
+
+// The issue for a game version that breaks something, or null. Its title carries the version id, so the watcher can
+// tell it already reported that version.
+export function watchIssue({ missing, changed }, meta, names) {
+    if (!missing.length && !changed.length) return null;
+    const id = meta.sha256.slice(0, 12);
+    const day = meta.lastModified ? new Date(meta.lastModified).toISOString().slice(0, 10) : "new version";
+    const counts = [];
+    if (missing.length) counts.push(`${missing.length} missing game name${missing.length > 1 ? "s" : ""}`);
+    if (changed.length) counts.push(`${changed.length} changed game function${changed.length > 1 ? "s" : ""}`);
+    const lines = [
+        `The web game's code changed (\`N.js\` from ${meta.lastModified ?? "an unknown date"}, sha256 \`${id}\`).`,
+    ];
+    if (missing.length) {
+        lines.push("", "Missing from the game's code. The code that uses them is broken until it's fixed:");
+        for (const n of missing) lines.push(`- \`${n}\` in ${[...(names.get(n) ?? [])].join(", ")}`);
+    }
+    if (changed.length) {
+        lines.push(
+            "",
+            "Game functions the injector names whose code changed. Check that their hooks still do the right thing:"
+        );
+        for (const f of changed) lines.push(`- \`${f}\``);
+    }
+    lines.push(
+        "",
+        "Once the code is fixed, run `npm run game-names:update` and commit `scripts/game-names.json`. The watcher then finds nothing for this version.",
+        "",
+        "Opened by the Game update watch workflow."
+    );
+    return { id, title: `Game update ${day} (${id}): ${counts.join(", ")}`, body: lines.join("\n") };
+}
+
+const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" });
+const GITHUB = {
+    issueTitles: () =>
+        JSON.parse(gh("issue", "list", "--state", "all", "--limit", "1000", "--json", "title")).map((i) => i.title),
+    openIssue: ({ title, body }) => gh("issue", "create", "--title", title, "--body", body).trim(),
+};
+
+// One watch run: report a game version once. A version already in an issue title (open or closed) is skipped.
+export async function watch({ names, pinned, source, load = loadGame, github = GITHUB, log = console.log }) {
+    const { text, meta } = await load(source);
+    const issue = watchIssue(compare(names, pinned, text), meta, names);
+    if (!issue) return log(`The game's code (${meta.sha256.slice(0, 12)}) matches the pinned names and fingerprints.`);
+    if (github.issueTitles().some((t) => t.includes(`(${issue.id})`))) return log(`Already reported: ${issue.id}`);
+    log(`Opened ${github.openIssue(issue)}`);
 }
 
 const where = (names, n) => [...names.get(n)].join(", ");
+const readPinned = () => JSON.parse(fs.readFileSync(PINNED_PATH, "utf8"));
 
-async function main([command = "check", source = WEB_GAME_URL]) {
+async function main([command = "check", source]) {
     const names = collectNames();
     if (command === "check") {
-        const pinned = JSON.parse(fs.readFileSync(PINNED_PATH, "utf8"));
-        const unknown = unknownNames(names, pinned);
+        const unknown = unknownNames(names, readPinned());
         for (const n of unknown) console.error(`Unknown game name ${n} (${where(names, n)})`);
         if (unknown.length) {
             console.error("If the name is new, run: npm run game-names:update");
@@ -175,9 +259,12 @@ async function main([command = "check", source = WEB_GAME_URL]) {
         console.log(`game names: ${names.size} known`);
         return 0;
     }
+    if (command === "watch") {
+        await watch({ names, pinned: readPinned(), source: source ?? (await findWebGameUrl()) });
+        return 0;
+    }
     if (command === "update") {
-        const { text, meta } = await loadGame(source);
-        meta.sha256 = createHash("sha256").update(text).digest("hex");
+        const { text, meta } = await loadGame(source ?? (await findWebGameUrl()));
         const missing = [...names.keys()].filter((n) => !inGame(text, n)).sort();
         for (const n of missing) console.error(`Not in the game's code: ${n} (${where(names, n)})`);
         if (missing.length) return 1;
@@ -191,10 +278,13 @@ async function main([command = "check", source = WEB_GAME_URL]) {
         console.log(`game-names.json: ${names.size} names, ${Object.keys(pinned.fingerprints).length} fingerprints`);
         return 0;
     }
-    console.error("usage: node scripts/game-names.mjs check | update [N.js path or URL]");
+    console.error("usage: node scripts/game-names.mjs check | update [N.js path or URL] | watch [N.js path or URL]");
     return 2;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    process.exitCode = await main(process.argv.slice(2));
+    process.exitCode = await main(process.argv.slice(2)).catch((err) => {
+        console.error(err.message);
+        return 1;
+    });
 }

@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fingerprint, functionSource, inGame, namesInSource, unknownNames } from "./game-names.mjs";
+import {
+    compare,
+    findWebGameUrl,
+    fingerprint,
+    functionSource,
+    inGame,
+    namesInSource,
+    unknownNames,
+    watch,
+    watchIssue,
+} from "./game-names.mjs";
 
 test("names: every kind of reference is collected", () => {
     const names = namesInSource(`
@@ -97,4 +107,67 @@ test("check: a name that isn't in the pinned list is reported", () => {
     ]);
     assert.deepEqual(unknownNames(names, { names: { gga: ["Holes"] } }), ["gga:NewThing"]);
     assert.deepEqual(unknownNames(new Map([["gga:Holes", new Set()]]), { names: { gga: ["Holes"] } }), []);
+});
+
+test("watch: finds the game's code through the site's Play link", async () => {
+    const pages = {
+        "https://www.legendsofidleon.com/":
+            '<link href="/app-1.js"><script src="/component---src-pages-index-js-2.js">',
+        "https://www.legendsofidleon.com/app-1.js": "no links here",
+        "https://www.legendsofidleon.com/component---src-pages-index-js-2.js":
+            'createElement("a",{className:"SubtleLink PlayButton",href:"/ytGl5oc/"},"Play for Free")',
+    };
+    assert.equal(await findWebGameUrl(async (url) => pages[url]), "https://www.legendsofidleon.com/ytGl5oc/N.js");
+    pages["https://www.legendsofidleon.com/component---src-pages-index-js-2.js"] = "redesigned";
+    await assert.rejects(
+        findWebGameUrl(async (url) => pages[url]),
+        /No Play link found/
+    );
+});
+
+const PINNED = {
+    fingerprints: { _customBlock_Gallery: fingerprint(GAME, "_customBlock_Gallery"), runLater: null },
+};
+const NAMES = new Map([
+    ["method:_customBlock_Gallery", new Set(["src/cheats/proxies/events579.js"])],
+    ["gga:OptionsListAccount", new Set(["src/ui/a.js"])],
+]);
+
+test("watch: a version that matches opens nothing", () => {
+    const off = compare(NAMES, PINNED, GAME);
+    assert.deepEqual(off, { missing: [], changed: [] });
+    assert.equal(watchIssue(off, { sha256: "a".repeat(64) }, NAMES), null);
+});
+
+test("watch: missing names and changed functions are listed with their files", () => {
+    const game = GAME.replace("q.h.OptionsListAccount", "q.h.OptionsListAccount2").replace("b.h.Cards", "b.h.Cards2");
+    const off = compare(NAMES, PINNED, game);
+    assert.deepEqual(off, { missing: ["gga:OptionsListAccount"], changed: ["_customBlock_Gallery"] });
+    const issue = watchIssue(off, { sha256: "0123456789abcdef", lastModified: "Sun, 01 Nov 2026 23:16:58 GMT" }, NAMES);
+    assert.equal(issue.title, "Game update 2026-11-01 (0123456789ab): 1 missing game name, 1 changed game function");
+    assert.match(issue.body, /- `gga:OptionsListAccount` in src\/ui\/a\.js/);
+    assert.match(issue.body, /- `_customBlock_Gallery`/);
+});
+
+test("watch: one issue per game version, never a duplicate", async () => {
+    const titles = [];
+    const github = {
+        issueTitles: () => titles,
+        openIssue: ({ title }) => (titles.push(title), `#${titles.length}`),
+    };
+    const broken = GAME.replace("q.h.OptionsListAccount", "q.h.Renamed");
+    const load = async () => ({ text: broken, meta: { sha256: "feedfacecafe0000" } });
+    const logs = [];
+    const run = () => watch({ names: NAMES, pinned: PINNED, source: "x", load, github, log: (m) => logs.push(m) });
+    await run();
+    await run();
+    assert.equal(titles.length, 1);
+    assert.deepEqual(logs, ["Opened #1", "Already reported: feedfacecafe"]);
+});
+
+test("watch: a game file that can't be loaded fails the run", async () => {
+    const load = async () => {
+        throw new Error("https://www.legendsofidleon.com/ytGl5oc/N.js: HTTP 404");
+    };
+    await assert.rejects(watch({ names: NAMES, pinned: PINNED, source: "x", load, github: {} }), /HTTP 404/);
 });
