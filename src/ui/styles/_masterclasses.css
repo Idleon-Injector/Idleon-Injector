@@ -1,5 +1,10 @@
 /* Masterclasses / Grimoire */
 
+/* The Classes pages keep the accent their old Masterclasses tab gave their inner tab rows. */
+.world-sub-pane[data-page^="classes."] {
+    --world-color: var(--c-accent);
+}
+
 .grimoire-controls,
 .masterclass-upgrade-controls {
     flex-shrink: 0;
