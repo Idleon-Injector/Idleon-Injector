@@ -29,7 +29,7 @@
 
 .notification-history-toggle:hover {
     color: var(--c-accent);
-    background: var(--c-warning-10);
+    background: var(--c-accent-dim);
 }
 
 .notification-history-toggle svg {

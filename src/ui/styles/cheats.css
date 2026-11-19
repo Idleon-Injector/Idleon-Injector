@@ -152,7 +152,7 @@
 
 .quick-access-btn:hover {
     background: var(--c-accent);
-    color: var(--c-black);
+    color: var(--c-accent-ink);
 }
 
 .quick-access-remove-icon {

@@ -428,7 +428,7 @@
 .upgrade-doubler-button[aria-pressed="true"] {
     border-color: var(--c-accent);
     background: var(--c-accent);
-    color: var(--c-black);
+    color: var(--c-accent-ink);
 }
 
 .upgrade-doubler-button.account-btn--success {
