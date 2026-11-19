@@ -7,7 +7,7 @@ import { importRepo } from "../known-bugs/index.mjs";
 import { loadHookGame } from "./game-double.mjs";
 
 // Where configureSushiWind lives (the only line that follows the code around).
-const SUSHI_WIND_MODULE = "src/cheats/hooks/sushiWind.js";
+const SUSHI_WIND_MODULE = "src/cheats/helpers/sushi/autoPlay.js";
 
 const { context, gga, game, setup, state } = await loadHookGame();
 const { cheatConfig } = state;

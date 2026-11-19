@@ -8,7 +8,7 @@
 import { behavior, events, gga } from "../core/globals.js";
 import { cheatConfig } from "../core/state.js";
 import { defineHook } from "../core/hooks.js";
-import { busy, enabled, startSushi, stopSushi, sortSushi } from "../cheats/sushi/automation.js";
+import { busy, enabled, startSushi, stopSushi, sortSushi } from "../helpers/sushi/autoPlay.js";
 
 const buttons = new WeakMap();
 const x = 764;

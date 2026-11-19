@@ -122,18 +122,6 @@
     ],
     "oldStyle": [
         {
-            "rule": "mod-import",
-            "file": "src/cheats/cheats/sushi/automation.js",
-            "count": 1,
-            "reason": "Sushi auto play calls the wind hook's configureSushiWind; move the shared part to a sushi helper."
-        },
-        {
-            "rule": "mod-import",
-            "file": "src/cheats/hooks/sushiButton.js",
-            "count": 1,
-            "reason": "The sushi button hook calls sushi auto play's functions; move the shared part to a sushi helper."
-        },
-        {
             "rule": "write",
             "file": "src/ui/pages/world-1/owl/owl.js",
             "count": 1,

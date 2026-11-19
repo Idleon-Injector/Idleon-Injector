@@ -1,6 +1,17 @@
 import { defineCheat } from "../core/registration.js";
-import { busy, enabled, getSushiStatus, sortSushi, switchSushi } from "./sushi/automation.js";
+import { defineAutomation } from "../core/automations.js";
+import { busy, enabled, getSushiStatus, sortSushi, start, stop, switchSushi, tick } from "../helpers/sushi/autoPlay.js";
 import { simulateSushiKnowledge } from "./sushi/knowledge.js";
+
+defineAutomation({
+    id: "w7.sushi",
+    cheat: "w7 sushitools",
+    interval: 50,
+    tick,
+    status: getSushiStatus,
+    start,
+    stop,
+});
 
 const commands = {
     "": {

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
-import { loadGame, loadUi } from "../known-bugs/index.mjs";
+import { importRepo, loadGame, loadUi } from "../known-bugs/index.mjs";
 
 const require = createRequire(import.meta.url);
 const TinyRouter = require("../../src/modules/server/tinyRouter");
@@ -142,6 +142,22 @@ test("turning it off stops it before its next step", async () => {
     assert.deepEqual(log, ["50:A", "150:A"]);
     const status = await run("w7 sushitools status");
     assert.deepEqual([status.enabled, status.busy, status.message], [false, false, "Auto Play disabled."]);
+});
+
+test("the in-game buttons and the East Wind hook see the state the cheat's Auto Play sets, and only while it runs", async () => {
+    // The module both hooks import (hooks/sushiButton.js, hooks/sushiWind.js).
+    const autoPlay = await importRepo("src/cheats/helpers/sushi/autoPlay.js");
+    const seen = () => [autoPlay.enabled, autoPlay.windExtended, autoPlay.windHigher];
+    const { ui } = station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, extendChain: true, higherTier: false };
+    ui._GenINFO[151] = 0;
+    assert.equal((await run("w7 sushitools")).ok, false);
+    assert.deepEqual(seen(), [false, false, false], "a refused start sets nothing");
+    ui._GenINFO[151] = -1;
+    assert.deepEqual(await run("w7 sushitools"), ON);
+    assert.deepEqual(seen(), [true, true, false]);
+    assert.deepEqual(await run("w7 sushitools"), OFF);
+    assert.deepEqual(seen(), [false, false, false]);
 });
 
 test("a sushi picked up mid-run stops it with the reason, and it stays on until turned off", async () => {
