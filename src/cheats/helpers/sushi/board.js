@@ -1,7 +1,16 @@
+/**
+ * The board is 15 by 8: the game reads only slots 0-119 of Sushi[0] and Sushi[1]. Its East Wind can upgrade a
+ * "slot 120" past the last slot, which makes Sushi[0] longer; the game ignores those entries and so do we.
+ */
+export const SLOTS = 120;
+
 /** Sushi tiers are zero-based; -1 is empty. Plate positions never move. */
 export function validateBoard(board, plates) {
-    if (!Array.isArray(board) || !Array.isArray(plates) || board.length !== 120 || plates.length !== 120) {
-        throw new Error("Expected a 15 by 8 Sushi board.");
+    if (!Array.isArray(board) || !Array.isArray(plates)) throw new Error("Sushi board data is missing.");
+    if (board.length !== SLOTS || plates.length !== SLOTS) {
+        throw new Error(
+            `The Sushi board save has ${Math.min(board.length, plates.length)} slots instead of 120, so the Sushi tools can't use it. Please report this on the injector's GitHub.`
+        );
     }
     board.forEach((tier, index) => {
         if (!Number.isInteger(tier) || tier < -1 || !Number.isInteger(plates[index]) || plates[index] < -1) {
