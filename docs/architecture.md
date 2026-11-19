@@ -33,4 +33,4 @@ for calls into the injected helpers. Attachment and injection retain their setup
 | Styles                            | [style.css](../src/ui/entry/style.css), [styles](../src/ui/styles/)                                  |
 | Bundling and packaging            | [rollup.config.mjs](../rollup.config.mjs), [package.json](../package.json)                           |
 
-See the [Account page guide](account-pages.md) and [cheats guide](cheats.md) for those areas.
+See the [cheats guide](cheats.md) for that area.

@@ -1,16 +1,16 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { EmptyState } from "../../../EmptyState.js";
-import { SearchBar } from "../../../SearchBar.js";
-import { Icons } from "../../../../assets/icons.js";
-import { deleteGga, gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { AccountToggleRow } from "../components/AccountToggleRow.js";
-import { InlineEditableNumberField } from "../components/InlineEditableNumberField.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { EmptyState } from "../../EmptyState.js";
+import { SearchBar } from "../../SearchBar.js";
+import { Icons } from "../../../assets/icons.js";
+import { deleteGga, gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "./BulkActionBar.js";
+import { useAccountLoad } from "./accountLoadPolicy.js";
+import { ClampedLevelRow } from "./ClampedLevelRow.js";
+import { AccountSection } from "./components/AccountSection.js";
+import { AccountToggleRow } from "./components/AccountToggleRow.js";
+import { InlineEditableNumberField } from "./components/InlineEditableNumberField.js";
+import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 import {
     cleanName,
     getOrCreateState,
@@ -19,7 +19,7 @@ import {
     toNum,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
+} from "./accountShared.js";
 
 const { button, div, img, span } = van.tags;
 

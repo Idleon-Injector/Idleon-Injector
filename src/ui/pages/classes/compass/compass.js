@@ -1,4 +1,5 @@
-import { MasterclassUpgradeTab } from "./MasterclassUpgradeTab.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { MasterclassUpgradeTab } from "../../../components/views/account/MasterclassUpgradeTab.js";
 
 const DUST_FIELDS = [
     { key: "stardust", optionIndex: 357, name: "STARDUST" },
@@ -9,7 +10,7 @@ const DUST_FIELDS = [
     { key: "totalDust", optionIndex: 362, name: "TOTAL DUST COLLECTED" },
 ];
 
-export const CompassTab = () =>
+const CompassTab = () =>
     MasterclassUpgradeTab({
         title: "COMPASS",
         description: "Manage Wind Walker Compass upgrades and Dust.",
@@ -19,3 +20,12 @@ export const CompassTab = () =>
         currencyTitle: "DUST",
         currencyFields: DUST_FIELDS,
     });
+
+export default definePage({
+    id: "classes.compass",
+    world: "classes",
+    system: "Compass",
+    description: "Wind Walker Compass upgrades and dust.",
+    keywords: ["Wind Walker"],
+    component: CompassTab,
+});

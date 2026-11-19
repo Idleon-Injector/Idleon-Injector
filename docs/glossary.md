@@ -22,7 +22,6 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Account options     | The game's indexed `OptionsListAccount` values.                                                    |
 | Account page        | An editor for an account feature or world system. The raw Account Options editor is one such page. |
 | Menu page           | A page declared with `definePage` under `src/ui/pages/`; the menu is built from these.             |
-| Older pages         | The pre-3.0 Account view, kept in the menu until every page has moved to `src/ui/pages/`.          |
 | Greenstack          | A recorded ten-million-unit storage milestone for an item, separate from its current quantity.     |
 | Black Star          | An allocation that multiplies a Gaming Palette color's bonus; each color can hold up to two.       |
 | Pet token           | A saved Normal-tier pet bonus, capped by owned token sources, that works without the injector.     |

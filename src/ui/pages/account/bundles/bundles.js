@@ -1,12 +1,17 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
 import { SearchBar } from "../../../components/SearchBar.js";
 import { executeCheatAction, fetchBundleCatalog, gga } from "../../../services/api.js";
-import { useAccountLoad } from "./accountLoadPolicy.js";
-import { AccountRow } from "./components/AccountRow.js";
-import { AccountSection } from "./components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "./components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
-import { createStaticRowReconciler, useWriteStatus, writeVerified } from "./accountShared.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    createStaticRowReconciler,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span, button, h3, p } = van.tags;
 
@@ -139,7 +144,7 @@ const BuyAllConfirmationModal = ({ open, countdown, bundleCount, status, onCance
         )
     );
 
-export const BundlesTab = () => {
+const BundlesTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Bundles" });
     const catalogState = van.state([]);
     const searchQuery = van.state("");
@@ -460,3 +465,11 @@ export const BundlesTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "account.bundles",
+    world: "account",
+    system: "Bundles",
+    description: "Which bundles the account has received, and buying or unbuying them.",
+    component: BundlesTab,
+});

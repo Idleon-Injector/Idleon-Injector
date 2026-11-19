@@ -14,13 +14,14 @@
  */
 
 import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
 import { readComputedMany } from "../../../services/api.js";
-import { withTooltip } from "../../Tooltip.js";
-import { BulkActionBar } from "./BulkActionBar.js";
-import { ClampedLevelRow } from "./ClampedLevelRow.js";
-import { WarningBanner } from "./components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
-import { useAccountLoad } from "./accountLoadPolicy.js";
+import { withTooltip } from "../../../components/Tooltip.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createIndexedStateGetter,
@@ -28,7 +29,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
-} from "./accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -50,7 +51,7 @@ const VaultRow = ({ index, name, baseMax, realMax, levelState }) => {
     });
 };
 
-export const UpgradeVaultTab = () => {
+const UpgradeVaultTab = () => {
     const data = van.state(null);
     const { loading, error, run } = useAccountLoad({ label: "Upgrade Vault" });
     const { status: maxAllStatus, run: runMaxAll } = useWriteStatus();
@@ -159,3 +160,11 @@ export const UpgradeVaultTab = () => {
         body: () => (data.val ? renderBody(data.val) : null),
     });
 };
+
+export default definePage({
+    id: "account.upgradevault",
+    world: "account",
+    system: "Upgrade Vault",
+    description: "Upgrade Vault upgrade levels, up to their real max.",
+    component: UpgradeVaultTab,
+});

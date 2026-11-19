@@ -76,7 +76,6 @@ export const Home = () =>
             { class: "scroll-container menu-home" },
             AccountSection({
                 title: "WORLDS",
-                note: "Dimmed worlds haven't moved yet; their pages still work in Older pages.",
                 body: () =>
                     menuTree.val
                         ? div({ class: "menu-world-grid" }, ...menuTree.val.map(WorldTile))

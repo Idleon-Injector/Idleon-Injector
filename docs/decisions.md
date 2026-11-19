@@ -168,7 +168,7 @@ Alternative: keep shared behavior exported from the Outposts view.
 
 Trade-off: the domain module still uses the existing account helpers and game API.
 
-Source: [Royal Guard domain](../src/ui/components/views/account/masterclasses/royalGuardDomain.js).
+Source: [Royal Guard domain](../src/ui/components/views/account/royalGuardDomain.js).
 
 ## Decode game catalogs in focused helpers
 

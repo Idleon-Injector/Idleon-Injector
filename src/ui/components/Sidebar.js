@@ -12,7 +12,6 @@ const SHORTCUTS_TOOLTIP_TEXT =
     "Keyboard shortcuts:\n" +
     "Ctrl+K - Search the menu\n" +
     "1 - Cheats\n" +
-    "2 - Older pages\n" +
     "3 - Settings\n" +
     "4 - Value search\n" +
     "5 - DevTools\n" +

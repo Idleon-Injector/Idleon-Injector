@@ -1,8 +1,8 @@
 /** Royal Guard unit rebuilding, distribution, and outpost slot rules shared by account views. */
 
-import { deleteGga, gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { toInt, toNum, writeManyVerified } from "../accountShared.js";
+import { deleteGga, gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { toInt, toNum, writeManyVerified } from "./accountShared.js";
 
 export const BUILT_OUTPOST_LENGTH = 13;
 

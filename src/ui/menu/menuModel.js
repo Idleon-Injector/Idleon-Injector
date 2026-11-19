@@ -134,11 +134,11 @@ export const AREAS = [
         code: "ADV",
         label: "Advanced",
         tabs: [
+            { label: "Account Options", view: "ACCOUNT_OPTIONS", words: ["Raw save values", "OptionsListAccount"] },
             { label: "Value search", view: "SEARCH", words: ["Search", "GGA search", "Scanner"] },
             { label: "DevTools", view: "DEVTOOLS", words: ["ChromeDebug"] },
         ],
     },
-    { id: "older", code: "OLD", label: "Older pages", view: "ACCOUNT", words: ["Account Options"] },
 ];
 
 export const slugify = (name) =>

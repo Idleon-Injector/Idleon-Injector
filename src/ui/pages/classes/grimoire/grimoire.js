@@ -1,4 +1,5 @@
-import { MasterclassUpgradeTab } from "./MasterclassUpgradeTab.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { MasterclassUpgradeTab } from "../../../components/views/account/MasterclassUpgradeTab.js";
 
 const BONE_FIELDS = [
     { key: "femur", optionIndex: 330, name: "FEMUR" },
@@ -15,7 +16,7 @@ const BONE_FIELDS = [
     },
 ];
 
-export const GrimoireTab = () =>
+const GrimoireTab = () =>
     MasterclassUpgradeTab({
         title: "GRIMOIRE",
         description: "Manage Deathbringer Grimoire upgrades and Bone Currency.",
@@ -26,3 +27,12 @@ export const GrimoireTab = () =>
         currencyFields: BONE_FIELDS,
         deleteCachePaths: ["DNSM.h.GrimoireTotLV"],
     });
+
+export default definePage({
+    id: "classes.grimoire",
+    world: "classes",
+    system: "Grimoire",
+    description: "Deathbringer Grimoire upgrades and bone currency.",
+    keywords: ["Deathbringer"],
+    component: GrimoireTab,
+});

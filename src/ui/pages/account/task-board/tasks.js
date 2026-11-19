@@ -1,14 +1,25 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { SimpleNumberRow } from "./SimpleNumberRow.js";
-import { ClampedLevelRow } from "./ClampedLevelRow.js";
-import { useAccountLoad } from "./accountLoadPolicy.js";
-import { cleanName, cleanNameEffect, createStaticRowReconciler, getOrCreateState, toInt } from "./accountShared.js";
-import { RefreshButton } from "./components/AccountPageChrome.js";
-import { AccountSection } from "./components/AccountSection.js";
-import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
-import { createComingSoonPlaceholder, renderLazyPanes, renderTabNav } from "./tabShared.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import {
+    cleanName,
+    cleanNameEffect,
+    createStaticRowReconciler,
+    getOrCreateState,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    createComingSoonPlaceholder,
+    renderLazyPanes,
+    renderTabNav,
+} from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
@@ -415,7 +426,7 @@ const WorldTasksPanel = ({ worldIndex }) => {
     );
 };
 
-export const TasksTab = () => {
+const TasksTab = () => {
     const activeWorld = van.state(WORLD_TABS[0].id);
 
     return div(
@@ -439,3 +450,12 @@ export const TasksTab = () => {
         )
     );
 };
+
+export default definePage({
+    id: "account.taskboard",
+    world: "account",
+    system: "Task Board",
+    description: "Tasks, achievements and merit shop purchases, one tab per world.",
+    keywords: ["Tasks", "Achievements", "Merits", "Merit Shop"],
+    component: TasksTab,
+});

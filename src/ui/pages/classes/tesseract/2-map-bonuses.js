@@ -1,16 +1,23 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { EmptyState } from "../../../EmptyState.js";
-import { Icons } from "../../../../assets/icons.js";
-import { SearchBar } from "../../../SearchBar.js";
-import { deleteGga, gga } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { EditableFieldsRow, StackedNumberField } from "../EditableFieldsRow.js";
-import { renderTabNav } from "../tabShared.js";
-import { cleanName, resolveNumberInput, toInt, useWriteStatus, writeManyVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { EmptyState } from "../../../components/EmptyState.js";
+import { Icons } from "../../../assets/icons.js";
+import { SearchBar } from "../../../components/SearchBar.js";
+import { deleteGga, gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { renderTabNav } from "../../../components/views/account/tabShared.js";
+import {
+    cleanName,
+    resolveNumberInput,
+    toInt,
+    useWriteStatus,
+    writeManyVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -169,7 +176,7 @@ const MapCrystalRow = ({ map, states, talentCap }) => {
     });
 };
 
-export const MapCrystalsTab = () => {
+const MapCrystalsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Arcane Map Crystals" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
 
@@ -385,3 +392,13 @@ export const MapCrystalsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "classes.tesseract.mapbonuses",
+    world: "classes",
+    system: "Tesseract",
+    tab: "Map Bonuses",
+    description: "The Arcane Cultist's per-map drop, EXP and AFK bonuses.",
+    keywords: ["Map Crystals", "Maps", "MapBon"],
+    component: MapCrystalsTab,
+});

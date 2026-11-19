@@ -9,14 +9,9 @@ import { Icons } from "../../assets/icons.js";
 import { Loader } from "../Loader.js";
 import { menuTree, menuError } from "../../menu/pageRegistry.js";
 import { pageTitle, worldClass } from "../../menu/menuModel.js";
-import { olderPagesTab } from "./Account.js";
 import { renderLazyPanes } from "./account/tabShared.js";
 
 const { div, button, span, p } = van.tags;
-
-/** Where each world's pages still live in Older pages. */
-const olderTabOf = (world) =>
-    world.id === "account" ? "player" : world.id === "classes" ? "masterclasses" : `w${world.id}`;
 
 const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label }) =>
     div(
@@ -35,26 +30,13 @@ const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label }) =>
         )
     );
 
-const NotMovedYet = (world) =>
+/** A world none of whose pages loaded (the menu error says why). */
+const NoPages = (world) =>
     div(
         { class: "world-sub-pane active world-sub-pane--empty" },
         span({ class: "world-empty-icon" }, Icons.Wrench()),
-        p({ class: "world-empty-label" }, `${world.label.toUpperCase()} HASN'T MOVED YET`),
-        p(
-            { class: "world-empty-desc" },
-            menuError.val || `Its pages still work as before, in Older pages under ${world.code}.`
-        ),
-        button(
-            {
-                type: "button",
-                class: "btn-secondary",
-                onclick: () => {
-                    olderPagesTab.val = olderTabOf(world);
-                    store.openMenu({ view: "ACCOUNT" });
-                },
-            },
-            `OPEN ${world.code} IN OLDER PAGES`
-        )
+        p({ class: "world-empty-label" }, `${world.label.toUpperCase()} HAS NO PAGES`),
+        p({ class: "world-empty-desc" }, menuError.val || "None of its pages loaded.")
     );
 
 const WorldFrame = (tree) => {
@@ -70,7 +52,7 @@ const WorldFrame = (tree) => {
         { class: () => `world-tab menu-world ${worldClass(worldNow())}` },
         () => {
             const world = worldNow();
-            if (!world.systems.length) return NotMovedYet(world);
+            if (!world.systems.length) return NoPages(world);
             const system = world.systems.find((s) => s.pages.some((page) => page.id === activePage.val));
             return div(
                 { class: "menu-world__nav" },
