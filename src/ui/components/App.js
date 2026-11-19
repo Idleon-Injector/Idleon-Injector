@@ -1,21 +1,28 @@
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { VIEWS } from "../state/constants.js";
+import { AREAS } from "../menu/menuModel.js";
+import { loadPages, menuError } from "../menu/pageRegistry.js";
 
 // Components
 import { Sidebar } from "./Sidebar.js";
+import { MenuSearch } from "./MenuSearch.js";
 import { Toast } from "./Toast.js";
 import { TooltipContainer } from "./Tooltip.js";
 import { UpdateModal } from "./UpdateModal.js";
+import { Home } from "./views/Home.js";
+import { Pages } from "./views/Pages.js";
 import { Cheats } from "./views/Cheats.js";
 import { Config } from "./views/Config.js";
 import { Account } from "./views/Account.js";
 import { DevTools } from "./views/DevTools.js";
 import { Search } from "./views/Search.js";
 
-const { div, main } = van.tags;
+const { div, main, button } = van.tags;
 
 const viewFactories = {
+    [VIEWS.HOME.id]: Home,
+    [VIEWS.PAGES.id]: Pages,
     [VIEWS.CHEATS.id]: Cheats,
     [VIEWS.CONFIG.id]: Config,
     [VIEWS.ACCOUNT.id]: Account,
@@ -23,13 +30,48 @@ const viewFactories = {
     [VIEWS.SEARCH.id]: Search,
 };
 
+const ADVANCED_TABS = AREAS.find((area) => area.id === "advanced").tabs;
+
+/** Value search and DevTools share the Advanced area: one tab row above them. */
+const AdvancedTabs = () =>
+    div(
+        {
+            class: "account-sub-nav menu-tabs menu-area-tabs",
+            role: "tablist",
+            "aria-label": "Advanced",
+            hidden: () => !ADVANCED_TABS.some((tab) => store.app.activeTab === VIEWS[tab.view].id),
+        },
+        ...ADVANCED_TABS.map((tab) => {
+            const active = () => store.app.activeTab === VIEWS[tab.view].id;
+            return button(
+                {
+                    type: "button",
+                    role: "tab",
+                    class: () => `account-sub-tab-btn account-world-sub-tab-btn ${active() ? "active" : ""}`,
+                    "aria-selected": () => String(active()),
+                    onclick: () => store.openMenu({ view: tab.view }),
+                },
+                tab.label
+            );
+        })
+    );
+
 export const App = () => {
     store.initHeartbeat();
     store.loadAppInfo();
     store.checkForUpdate();
+    loadPages().then(() => {
+        if (menuError.val) store.notify(menuError.val, "error");
+    });
 
     // Global Keyboard Shortcuts
     document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && (e.key === "k" || e.key === "K")) {
+            e.preventDefault();
+            document.querySelector(".menu-search-input")?.focus();
+            return;
+        }
+
         const isInputFocused = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
 
         if (isInputFocused) return;
@@ -42,7 +84,9 @@ export const App = () => {
 
         if (e.key === "/") {
             e.preventDefault();
-            const searchInput = document.querySelector(".tab-pane.active .global-search-input");
+            const searchInput =
+                document.querySelector(".tab-pane.active .global-search-input") ||
+                document.querySelector(".menu-search-input");
             searchInput?.focus();
         }
 
@@ -57,6 +101,8 @@ export const App = () => {
             }
         }
     });
+
+    van.derive(store.saveMenuPlace);
 
     const viewInstances = {};
     const tabContent = div({ id: "tab-content" });
@@ -95,7 +141,7 @@ export const App = () => {
     return div(
         { class: "app-layout" },
         Sidebar(),
-        main({ class: "viewport" }, tabContent),
+        main({ class: "viewport" }, div({ class: "menu-top" }, MenuSearch(), AdvancedTabs()), tabContent),
         UpdateModal(),
         Toast(),
         TooltipContainer()

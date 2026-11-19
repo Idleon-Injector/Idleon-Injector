@@ -1,6 +1,6 @@
 /**
- * Account View
- * Top-level container for Account tabs.
+ * Account View ("Older pages" in the menu)
+ * Top-level container for Account tabs. Pages move out of here into src/ui/pages/ one by one.
  * Tab 1: Account Options (raw OptionsListAccount editor)
  * Tabs 2–8: World-specific data editors (W1–W7)
  *
@@ -50,8 +50,11 @@ const ACCOUNT_TABS = [
     { id: "w7", label: "EQUINOX VALLEY", isWorld: true, worldNum: 7, component: W7Tab },
 ];
 
+/** The open tab, shared so the new menu can send players to a world that hasn't moved yet. */
+export const olderPagesTab = van.state(ACCOUNT_TABS[0].id);
+
 export const Account = () => {
-    const activeTab = van.state(ACCOUNT_TABS[0].id);
+    const activeTab = olderPagesTab;
 
     return div(
         { id: "options-account-tab", class: "tab-pane account-tab-layout" },

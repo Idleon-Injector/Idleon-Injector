@@ -8,7 +8,9 @@ For terminology, see the [glossary](glossary.md). For the rendering trade-off, s
 
 ## Where to start
 
-- [Account.js](../src/ui/components/views/Account.js): Account navigation.
+- [Menu pages](../src/ui/pages/): pages that have moved to the new menu, one file each, in `<world>/<system>/`.
+- [Menu model](../src/ui/menu/menuModel.js): `definePage`, the worlds and their systems, and menu search.
+- [Account.js](../src/ui/components/views/Account.js): the Older pages navigation, for pages not moved yet.
 - [Account feature directory](../src/ui/components/views/account/): world and feature editors.
 - [Shared components](../src/ui/components/views/account/components/): editable rows and page controls.
 - [accountShared.js](../src/ui/components/views/account/accountShared.js): shared read/write helpers.

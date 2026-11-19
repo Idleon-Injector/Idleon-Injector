@@ -4,18 +4,74 @@ import { VIEWS, IS_ELECTRON } from "../state/constants.js";
 import { Icons } from "../assets/icons.js";
 import { withTooltip } from "./Tooltip.js";
 import { NotificationHistory } from "./NotificationHistory.js";
+import { WORLDS, AREAS, worldClass } from "../menu/menuModel.js";
 
 const { nav, div, button, span, a } = van.tags;
 
 const SHORTCUTS_TOOLTIP_TEXT =
     "Keyboard shortcuts:\n" +
+    "Ctrl+K - Search the menu\n" +
     "1 - Cheats\n" +
-    "2 - Account Options\n" +
-    "3 - Config\n" +
-    "4 - Search\n" +
-    "5 - Chromedebug\n" +
-    "/ - Focus search\n" +
-    "Ctrl+S - Save config (Config tab)\n";
+    "2 - Older pages\n" +
+    "3 - Settings\n" +
+    "4 - Value search\n" +
+    "5 - DevTools\n" +
+    "/ - Focus this page's search\n" +
+    "Ctrl+S - Save config (Settings)\n";
+
+// The in-game overlay is narrow: the sidebar becomes the icon rail there.
+const narrowQuery = window.matchMedia("(max-width: 760px)");
+const isNarrow = van.state(narrowQuery.matches);
+narrowQuery.addEventListener("change", (e) => (isNarrow.val = e.matches));
+const isRail = () => store.app.sidebarCollapsed || isNarrow.val;
+
+const areaActive = (area) => (area.tabs || [area]).some((tab) => store.app.activeTab === VIEWS[tab.view].id);
+
+const MenuBtn = ({ code, label, active, onclick, colorClass = "" }) =>
+    withTooltip(
+        button(
+            {
+                type: "button",
+                class: () => `tab-button menu-nav-btn ${colorClass} ${active() ? "active" : ""}`,
+                "aria-current": () => (active() ? "page" : "false"),
+                onclick,
+            },
+            span({ class: "menu-nav-code", "aria-hidden": "true" }, code),
+            span({ class: "tab-label" }, label)
+        ),
+        label,
+        "right",
+        isRail
+    );
+
+const MenuNav = () =>
+    div(
+        { class: "nav-menu menu-nav" },
+        MenuBtn({
+            code: Icons.Home(),
+            label: "HOME",
+            active: () => store.app.activeTab === VIEWS.HOME.id,
+            onclick: () => store.openMenu({ view: "HOME" }),
+        }),
+        ...WORLDS.map((world) =>
+            MenuBtn({
+                code: world.code,
+                label: world.label.toUpperCase(),
+                colorClass: worldClass(world),
+                active: () => store.app.activeTab === VIEWS.PAGES.id && store.app.menuWorld === world.id,
+                onclick: () => store.openMenu({ world: world.id }),
+            })
+        ),
+        div({ class: "menu-nav-sep", role: "separator" }),
+        ...AREAS.map((area) =>
+            MenuBtn({
+                code: area.code,
+                label: area.label.toUpperCase(),
+                active: () => areaActive(area),
+                onclick: () => store.openMenu({ view: area.view || area.tabs[0].view }),
+            })
+        )
+    );
 
 const ActiveCheatList = () => {
     return div({ class: "active-cheats" }, div({ class: "active-cheats-header" }, "ACTIVE CHEATS"), () => {
@@ -40,24 +96,10 @@ const ActiveCheatList = () => {
 export const Sidebar = () => {
     const hasUpdate = () => store.app.updateInfo?.updateAvailable;
 
-    const NavBtn = (viewConfig, Icon) =>
-        withTooltip(
-            button(
-                {
-                    class: () => `tab-button ${store.app.activeTab === viewConfig.id ? "active" : ""}`,
-                    onclick: () => (store.app.activeTab = viewConfig.id),
-                },
-                Icon(),
-                span({ class: "tab-label" }, viewConfig.sidebarLabel)
-            ),
-            viewConfig.sidebarLabel,
-            "right",
-            () => store.app.sidebarCollapsed
-        );
-
     return nav(
         {
-            class: () => `sidebar ${store.app.sidebarCollapsed ? "sidebar-collapsed" : ""}`,
+            class: () => `sidebar ${isRail() ? "sidebar-collapsed" : ""}`,
+            "aria-label": "Menu",
         },
         div(
             { class: "brand" },
@@ -94,34 +136,7 @@ export const Sidebar = () => {
             ),
             NotificationHistory()
         ),
-        div(
-            { class: "nav-menu" },
-            NavBtn(VIEWS.CHEATS, Icons.Cheats),
-            NavBtn(VIEWS.ACCOUNT, Icons.Account),
-            NavBtn(VIEWS.CONFIG, Icons.Config),
-            NavBtn(VIEWS.SEARCH, Icons.Search),
-            NavBtn(VIEWS.DEVTOOLS, Icons.DevTools),
-            withTooltip(
-                a(
-                    {
-                        class: "tab-button github-link",
-                        href: "https://github.com/Idleon-Injector/Idleon-Injector",
-                        target: "_blank",
-                        onclick: (e) => {
-                            if (IS_ELECTRON) {
-                                e.preventDefault();
-                                store.openExternalUrl("https://github.com/Idleon-Injector/Idleon-Injector");
-                            }
-                        },
-                    },
-                    Icons.GitHub(),
-                    span({ class: "tab-label" }, "GitHub")
-                ),
-                "Official GitHub Repository",
-                "right",
-                () => store.app.sidebarCollapsed
-            )
-        ),
+        MenuNav(),
         ActiveCheatList(),
         div(
             { class: "system-status" },
@@ -143,6 +158,26 @@ export const Sidebar = () => {
             ),
 
             withTooltip(
+                a(
+                    {
+                        class: "system-shortcuts-button system-github-link",
+                        href: "https://github.com/Idleon-Injector/Idleon-Injector",
+                        target: "_blank",
+                        "aria-label": "Official GitHub Repository",
+                        onclick: (e) => {
+                            if (IS_ELECTRON) {
+                                e.preventDefault();
+                                store.openExternalUrl("https://github.com/Idleon-Injector/Idleon-Injector");
+                            }
+                        },
+                    },
+                    Icons.GitHub()
+                ),
+                "Official GitHub Repository",
+                "right",
+                () => !isRail()
+            ),
+            withTooltip(
                 button(
                     {
                         type: "button",
@@ -153,7 +188,7 @@ export const Sidebar = () => {
                 ),
                 SHORTCUTS_TOOLTIP_TEXT,
                 "right",
-                () => !store.app.sidebarCollapsed
+                () => !isRail()
             )
         ),
 

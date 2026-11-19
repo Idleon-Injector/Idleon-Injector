@@ -253,3 +253,17 @@ Alternative: trust the download and copy whatever files are found.
 Trade-off: a release published without `SHA256SUMS` cannot be installed by the updater, only by hand.
 
 Source: [Release archive preparation](../src/modules/autoUpdater.js).
+
+## Build the menu from page declarations
+
+Decision: each menu page declares itself with `definePage` in its own file under `src/ui/pages/<world>/<system>/`.
+The web server lists that folder and the menu imports every listed module.
+
+Why: a new page is a new file, without editing shared tab lists, so page pull requests stay small and safe to merge.
+
+Alternative: keep hand-maintained tab lists per world, or generate an index at build time (the UI has no build step).
+
+Trade-off: the server reads the folder on each menu load, and every page module loads at start, as the Account tabs
+already did. The worlds and their system names stay a core list, so a page can only join a known system.
+
+Source: [menu model](../src/ui/menu/menuModel.js), [page route](../src/modules/server/routes/pages.js).
