@@ -11,11 +11,12 @@
  * implicitly trimmed because load() only iterates over defs.length entries.
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanNameEffect,
     createIndexedStateGetter,
@@ -24,7 +25,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -44,7 +45,7 @@ const SaltLickRow = ({ index, name, maxLevel, levelState }) =>
         name,
     });
 
-export const SaltLickTab = () => {
+const SaltLickTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Salt Lick" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
     const getLevelState = createIndexedStateGetter();
@@ -132,3 +133,12 @@ export const SaltLickTab = () => {
         body: rowList,
     });
 };
+
+export default definePage({
+    id: "w3.saltlick",
+    world: 3,
+    system: "Salt Lick",
+    description: "Salt Lick upgrade levels.",
+    keywords: ["Saltlick", "Upgrades"],
+    component: SaltLickTab,
+});

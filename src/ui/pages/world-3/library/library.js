@@ -20,16 +20,23 @@
  *   p._customBlock_WorkbenchStuff("maxBookLv", 0, 0)             — global max book level cap
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readComputed, gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { createStaticRowReconciler, getOrCreateState, runBulkSet, toNum, useWriteStatus } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputed, gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    createStaticRowReconciler,
+    getOrCreateState,
+    runBulkSet,
+    toNum,
+    useWriteStatus,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -121,7 +128,7 @@ const buildStaticMeta = async () => {
     };
 };
 
-export const LibraryTab = () => {
+const LibraryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Library" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
     const activeClassNameState = van.state("");
@@ -326,3 +333,12 @@ export const LibraryTab = () => {
         body: listNode,
     });
 };
+
+export default definePage({
+    id: "w3.library",
+    world: 3,
+    system: "Library",
+    description: "Talent max levels for the character you are playing.",
+    keywords: ["Talents"],
+    component: LibraryTab,
+});

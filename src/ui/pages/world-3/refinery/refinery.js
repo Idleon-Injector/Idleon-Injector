@@ -11,15 +11,25 @@
  *   - Refinery 9 (gga.Refinery[11]) is a placeholder and has no in-game effect yet.
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readGgaEntries } from "../../../../services/api.js";
-import { Icons } from "../../../../assets/icons.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { NoticeBanner, RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { cleanName, readLevelDefinitions, toNum, writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readGgaEntries } from "../../../services/api.js";
+import { Icons } from "../../../assets/icons.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import {
+    NoticeBanner,
+    RefreshButton,
+    WarningBanner,
+} from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    cleanName,
+    readLevelDefinitions,
+    toNum,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -85,7 +95,7 @@ const RefinerySection = ({ refIndex, name, levelState, chargeState }) => {
     });
 };
 
-export const RefineryTab = () => {
+const RefineryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Refinery" });
     const nameStates = Array.from({ length: REFINERY_COUNT }, (_, i) => van.state(`Refinery ${i + 1}`));
     const levelStates = Array.from({ length: REFINERY_COUNT }, () => van.state(0));
@@ -165,3 +175,12 @@ export const RefineryTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w3.refinery",
+    world: 3,
+    system: "Refinery",
+    description: "Refinery salt charge and levels.",
+    keywords: ["Salts"],
+    component: RefineryTab,
+});

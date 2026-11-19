@@ -8,17 +8,18 @@
  *   gga.OptionsListAccount[379]           - permanently stored/unlocked set keys (comma list)
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../services/api.js";
-import { Icons } from "../../../../assets/icons.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { AddFromListSection } from "../components/AddFromListSection.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { RemovableStoredRow } from "../components/RemovableStoredRow.js";
-import { unwrapH, useWriteStatus, writeVerified } from "../accountShared.js";
-import { toIndexedArray } from "../../../../utils/index.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { Icons } from "../../../assets/icons.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { AddFromListSection } from "../../../components/views/account/components/AddFromListSection.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
+import { unwrapH, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import { toIndexedArray } from "../../../utils/index.js";
 
 const { div } = van.tags;
 
@@ -195,7 +196,7 @@ const SmithyRow = ({ row, onRemove }) => {
     });
 };
 
-export const SmithyTab = () => {
+const SmithyTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Smithy" });
     const currentStoredSetKeys = van.state([]);
     const smithyRows = van.state([]);
@@ -382,3 +383,12 @@ export const SmithyTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w3.armorsmithy",
+    world: 3,
+    system: "Armor Smithy",
+    description: "Armor sets unlocked in the Armor Smithy.",
+    keywords: ["Smithy", "Armor sets"],
+    component: SmithyTab,
+});

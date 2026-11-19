@@ -19,16 +19,17 @@
  *   t[8] rare chance
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readGgaEntries } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { formatNumber } from "../../../../utils/numberFormat.js";
-import { EditableFieldsRow, StackedNumberField } from "../EditableFieldsRow.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { AccountExpandableGroup } from "../components/AccountExpandableGroup.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { formatNumber } from "../../../utils/numberFormat.js";
+import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { AccountExpandableGroup } from "../../../components/views/account/components/AccountExpandableGroup.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -39,7 +40,7 @@ import {
     unwrapH,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -224,7 +225,7 @@ const PlayerTrapPanel = ({ player, currentPlayer, getExpandedState, getValueStat
     });
 };
 
-export const TrappingTab = () => {
+const TrappingTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Trapping" });
     const finishAllStatus = useWriteStatus();
     const trapCountState = van.state(0);
@@ -389,3 +390,12 @@ export const TrappingTab = () => {
         errorTitle: "TRAPPING LOAD FAILED",
     });
 };
+
+export default definePage({
+    id: "w3.traps",
+    world: 3,
+    system: "Traps",
+    description: "Placed traps for each character.",
+    keywords: ["Trapping", "Critters"],
+    component: TrappingTab,
+});

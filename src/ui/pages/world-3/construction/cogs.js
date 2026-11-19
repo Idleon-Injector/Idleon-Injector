@@ -26,16 +26,17 @@
  * Locking is blocked whenever a cog or player occupies the slot (CogOrder != "Blank").
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readComputed, gga, readCList } from "../../../../services/api.js";
-import { Cogs } from "../../../../assets/cogs.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { formatNumber, parseNumber } from "../../../../utils/numberFormat.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { toNum, useWriteStatus, writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputed, gga, readCList } from "../../../services/api.js";
+import { Cogs } from "../../../assets/cogs.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { toNum, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
 
 const { div, button, span, h3, input } = van.tags;
 
@@ -191,7 +192,7 @@ const CogsEditorRow = ({ code, name, meaning, inputNode, actionButton }) =>
         div({ class: "cogs-cog-stat-row__edit" }, inputNode, actionButton)
     );
 
-export const CogsTab = () => {
+const CogsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cogs" });
 
     const activeSlot = van.state(null);
@@ -709,3 +710,13 @@ export const CogsTab = () => {
         body: boardPane,
     });
 };
+
+export default definePage({
+    id: "w3.construction.cogs",
+    world: 3,
+    system: "Construction",
+    tab: "Cogs",
+    description: "The cog board, flag slots and the cogs on it.",
+    keywords: ["Construction", "Flags"],
+    component: CogsTab,
+});

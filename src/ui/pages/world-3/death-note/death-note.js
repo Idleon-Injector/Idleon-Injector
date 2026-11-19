@@ -19,14 +19,15 @@
  * Miniboss rows are flat account-wide kill counters.
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readGgaEntries } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { withTooltip } from "../../../Tooltip.js";
-import { formatNumber } from "../../../../utils/numberFormat.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { AccountExpandableGroup } from "../components/AccountExpandableGroup.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { withTooltip } from "../../../components/Tooltip.js";
+import { formatNumber } from "../../../utils/numberFormat.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountExpandableGroup } from "../../../components/views/account/components/AccountExpandableGroup.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -37,10 +38,10 @@ import {
     toInt,
     unwrapH,
     writeVerified,
-} from "../accountShared.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { renderPersistentPagePanes, renderTabNav } from "../tabShared.js";
+} from "../../../components/views/account/accountShared.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { renderPersistentPagePanes, renderTabNav } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
@@ -250,7 +251,7 @@ const buildStaticMeta = async () => {
     return { worlds };
 };
 
-export const DeathNoteTab = () => {
+const DeathNoteTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Death Note" });
     const activeSubTab = van.state(DN_SUBTABS[0].id);
     const killStates = new Map();
@@ -407,3 +408,12 @@ export const DeathNoteTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w3.deathnote",
+    world: 3,
+    system: "Death Note",
+    description: "Kills per map and miniboss for the Death Note.",
+    keywords: ["Kills", "Minibosses"],
+    component: DeathNoteTab,
+});

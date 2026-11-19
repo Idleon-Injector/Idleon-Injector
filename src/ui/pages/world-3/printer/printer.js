@@ -1,9 +1,10 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList, readGgaEntries } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { parseNumber } from "../../../../utils/numberFormat.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { parseNumber } from "../../../utils/numberFormat.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -13,13 +14,13 @@ import {
     unwrapH,
     useWriteStatus,
     writeManyVerified,
-} from "../accountShared.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { getNumberInputLiveRaw, NumberInput } from "../../../NumberInput.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { createCharacterSelector } from "../components/CharacterSelector.js";
+} from "../../../components/views/account/accountShared.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { getNumberInputLiveRaw, NumberInput } from "../../../components/NumberInput.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 
 const { div, span, select, option } = van.tags;
 
@@ -29,7 +30,7 @@ const slotLocation = (character, kind, slot) =>
         : { array: "Printer", index: (kind === "print" ? 15 : 5) + 14 * character + 2 * slot };
 
 /** Edit stored printer samples and active prints. */
-export const PrinterTab = () => {
+const PrinterTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Printer" });
     const busy = van.state(false);
     const snapshot = van.state(null);
@@ -464,3 +465,12 @@ export const PrinterTab = () => {
         body: div({ class: "scrollable-panel content-stack" }, characterSelector.node, panelsNode),
     });
 };
+
+export default definePage({
+    id: "w3.printer",
+    world: 3,
+    system: "Printer",
+    description: "Stored printer samples and active prints.",
+    keywords: ["3D Printer", "Samples"],
+    component: PrinterTab,
+});
