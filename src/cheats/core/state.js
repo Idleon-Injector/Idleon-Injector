@@ -7,7 +7,7 @@
 
 /**
  * Central state object for tracking cheat activation.
- * Properties are populated by registerCheats() as cheats are registered.
+ * Properties are populated by defineCheat() as cheats are registered.
  *
  * Structure mirrors the cheat command hierarchy:
  * - cheatState.unlock.portals (boolean)

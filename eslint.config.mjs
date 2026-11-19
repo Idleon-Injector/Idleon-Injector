@@ -100,7 +100,8 @@ export default [
         },
     },
     {
-        files: ["config.js"],
+        // Formula settings like (t) => 0 in config.js and in the cheat rows it is generated from
+        files: ["config.js", "src/cheats/cheats/**/*.js"],
         rules: {
             "no-unused-vars": [
                 "warn",

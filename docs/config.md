@@ -1,10 +1,9 @@
 # Configuration
 
-Keep personal overrides in `config.custom.js`; leave the committed defaults in
-[config.js](../config.js) unchanged. The first-run setup wizard creates the override file.
-
-For option help, use the Config editor. The maintained descriptions live in
-[configDescriptions.js](../src/ui/config/configDescriptions.js).
+Keep personal overrides in `config.custom.js`. The defaults in [config.js](../config.js) are generated: a cheat's
+settings come from its `defineCheat` row, the injector's own from
+[coreSettings.js](../src/modules/config/coreSettings.js). Change them there and run `npm run config:generate`, which
+also writes the setting descriptions the Config editor shows. The first-run setup wizard creates the override file.
 
 ## Applying and saving
 

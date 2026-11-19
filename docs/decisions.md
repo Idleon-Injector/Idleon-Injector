@@ -50,6 +50,26 @@ base-first; it should stay rare.
 
 Source: [hook core](../src/cheats/core/hooks.js), [example hook](../src/cheats/hooks/_example.js).
 
+## One row per cheat, and a generated config.js
+
+Decision: a cheat is a `defineCheat` row in a file under `src/cheats/cheats/`, found by the build the way hooks are.
+The row carries the command, its message, its parameters, whether it is dangerous and its settings with their
+defaults and descriptions. `config.js` and the WebUI's setting descriptions are generated from the rows plus the
+injector's own settings (`npm run config:generate`); the check fails when either is out of date.
+
+Why: adding a cheat meant editing up to five files, picking one of five registration styles, and keeping `config.js`
+and a separate descriptions list in step by hand, which had drifted (settings without descriptions, descriptions of
+settings that no longer exist).
+
+Alternative: keep `config.js` hand-written and only check it against the rows. Contributors would still edit two
+places, and the core settings would have no single source.
+
+Trade-off: `config.js` stays in the download for players and the updater, but nobody edits it, and its
+in-file comments are now the setting descriptions. The descriptions also ride along in the cheats bundle.
+
+Source: [registration](../src/cheats/core/registration.js), [example cheat](../src/cheats/cheats/_example.js),
+[generator](../scripts/config-file.mjs), [core settings](../src/modules/config/coreSettings.js).
+
 ## Preserve editable row identity
 
 Decision: keep editable Account rows stable when their values change.

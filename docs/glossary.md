@@ -15,6 +15,7 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Startup cheats      | Commands selected to run when the cheat runtime starts.                                            |
 | Proxy               | A hook around a game method or property that can alter its result.                                 |
 | Hook                | A game-method wrapper declared with `defineHook` in `src/cheats/hooks/`; the core installs it.     |
+| Cheat row           | A `defineCheat` declaration in `src/cheats/cheats/`: a command or group, and its settings.         |
 | Early hook          | A hook on a class whose actors exist before setup; it installs as the game defines the class.      |
 | GGA                 | The game's attributes map, exposed as `gga`.                                                       |
 | cList               | The game's custom lists, including definition and lookup data.                                     |

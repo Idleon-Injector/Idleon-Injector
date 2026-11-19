@@ -9,14 +9,14 @@
  * - votebonus
  */
 
-import { registerCheats } from "../core/registration.js";
+import { defineCheat } from "../core/registration.js";
 import { cheatState } from "../core/state.js";
 import { behavior, firebase, gga } from "../core/globals.js";
 import { deepCopy } from "../utils/deepCopy.js";
 import { rollAllObols } from "../helpers/obolRolling.js";
 
 // Wide (account-wide) cheats
-registerCheats({
+defineCheat({
     name: "wide",
     message: "all account-wide cheats",
     allowToggleChildren: true,
@@ -89,6 +89,39 @@ registerCheats({
         { name: "cardpassive", message: "all cards always give bonus (passive)" },
         { name: "votebonus", message: "all Ballot and Meritocracy bonuses active" },
     ],
+    config: {
+        autoloot: {
+            itemstochest: { default: true, description: "Automatically sends looted items to the chest" },
+            moneytochest: { default: true, description: "Automatically sends looted money to the chest" },
+            zenithfarm: {
+                default: false,
+                description: "Zenith farming drops are excluded from autoloot and drop normally",
+            },
+            materialfarm: {
+                default: false,
+                description: "Monster material drops are excluded from autoloot and drop normally",
+            },
+            hidenotifications: { default: true, description: "Hides loot and money notifications" },
+        },
+        perfectobols: {
+            preferredstat: {
+                default: "PRIMARY",
+                description: "The stats that should be rolled when using perfectobols (e.g., PRIMARY, STR)",
+            },
+        },
+        plunderous: {
+            allcharacters: { default: false, description: "Enables plunderous mob bonuses for all characters" },
+        },
+        arcade: {
+            ArcadeCost: { default: (t) => 0, description: "Arcade Shop costs. (lower is better)" },
+        },
+        dartshop: {
+            DartsUpgCost: { default: (t) => 0, description: "Dart Shop upgrade costs. (lower is better)" },
+        },
+        hoopshop: {
+            HoopsUpgCost: { default: (t) => 0, description: "Hoop Shop upgrade costs. (lower is better)" },
+        },
+    },
 });
 
 const bossMaps = new Set([29, 66, 114, 165, 214, 266]);

@@ -6,7 +6,7 @@ import { importRepo, loadGame } from "../known-bugs/index.mjs";
 test("cheats that arrive together while the game loads all wait for the one setup, then run in order", async () => {
     const game = await loadGame({ ready: false });
     const globals = await importRepo("src/cheats/core/globals.js");
-    game.registerCheat({
+    game.defineCheat({
         name: "fixture needs game",
         message: "reads the game's data",
         fn: () => `${Object.keys(globals.itemDefs).length >= 0 ? "had" : "missed"} the game's data`,

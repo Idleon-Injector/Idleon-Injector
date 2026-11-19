@@ -6,9 +6,9 @@
  * - speed, card, poison, respawn, hp
  */
 
-import { registerCheats } from "../core/registration.js";
+import { defineCheat } from "../core/registration.js";
 
-registerCheats({
+defineCheat({
     name: "godlike",
     message: "all godlike powers",
     allowToggleChildren: true,
@@ -25,4 +25,7 @@ registerCheats({
         { name: "respawn", message: "instant mob respawn" },
         { name: "hp", message: "never lose hp, become invincible (when active)" },
     ],
+    config: {
+        respawn: { default: (t) => Math.min(t, 1), description: "Mob respawn time (lower is faster)" },
+    },
 });
