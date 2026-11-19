@@ -14,14 +14,15 @@
  *   [8][4+i][3][1] -> rate upgrade level      (i = 0..3)
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { writeVerified } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -113,7 +114,7 @@ const LiquidColumn = ({ liquid, states }) =>
         })
     );
 
-export const LiquidTab = () => {
+const LiquidTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Liquid" });
 
     const liquidStates = LIQUIDS.map(() => ({
@@ -153,3 +154,13 @@ export const LiquidTab = () => {
         body: div({ class: "scrollable-panel" }, grid),
     });
 };
+
+export default definePage({
+    id: "w2.cauldrons.liquid",
+    world: 2,
+    system: "Cauldrons",
+    tab: "Liquid",
+    description: "Liquid amounts and the liquid cauldrons' cap and rate upgrades.",
+    keywords: ["Alchemy", "Liquids"],
+    component: LiquidTab,
+});

@@ -12,15 +12,16 @@
  *   1 = big bubble    (prisma blocked)
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar, SetAllNumberControl } from "../BulkActionBar.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar, SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     readLevelDefinitions,
@@ -28,7 +29,7 @@ import {
     sortPrefixedNumericCodes,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -169,7 +170,7 @@ const CauldronSectionBlock = ({ cauldron, levels, defs, sectionBody, setAllInput
     });
 };
 
-export const BrewingTab = () => {
+const BrewingTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Brewing" });
     const setAllInput = van.state("50000");
 
@@ -290,3 +291,12 @@ export const BrewingTab = () => {
         body: contentNode,
     });
 };
+
+export default definePage({
+    id: "w2.bubbles",
+    world: 2,
+    system: "Bubbles",
+    description: "Bubble levels and prisma bubbles in all four cauldrons.",
+    keywords: ["Alchemy", "Brewing", "Prisma"],
+    component: BrewingTab,
+});

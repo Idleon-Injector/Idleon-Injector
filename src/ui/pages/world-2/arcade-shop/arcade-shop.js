@@ -23,14 +23,15 @@
  *   RESET ALL      -> set every ArcadeUpg[i] to 0
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readGgaEntries } from "../../../../services/api.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readGgaEntries } from "../../../services/api.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     adjustFormattedIntInput,
     cleanNameEffect,
@@ -41,7 +42,7 @@ import {
     runBulkSet,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 const ARCADE_LEVEL_MAX = 102;
@@ -101,7 +102,7 @@ const ArcadeBallRow = ({ field, valueState }) =>
         },
     });
 
-export const ArcadeTab = () => {
+const ArcadeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Arcade" });
     const { status: bulkStatus, run: runBulkSetAll } = useWriteStatus();
 
@@ -232,3 +233,12 @@ export const ArcadeTab = () => {
         body: content,
     });
 };
+
+export default definePage({
+    id: "w2.arcade",
+    world: 2,
+    system: "Arcade Shop",
+    description: "Arcade balls and Arcade Shop upgrade levels.",
+    keywords: ["Arcade", "Balls"],
+    component: ArcadeTab,
+});

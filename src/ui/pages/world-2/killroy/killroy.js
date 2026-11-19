@@ -24,15 +24,16 @@
  *   cList.DeathNoteMobs -> arrays of mob ids; Killroy renders one row per mob id
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readGgaEntries, readCList } from "../../../../services/api.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readGgaEntries, readCList } from "../../../services/api.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -41,8 +42,8 @@ import {
     toNum,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
-import { toIndexedArray } from "../../../../utils/index.js";
+} from "../../../components/views/account/accountShared.js";
+import { toIndexedArray } from "../../../utils/index.js";
 
 const { div, span } = van.tags;
 
@@ -145,7 +146,7 @@ const KillroyAirhornRow = ({ valueState }) => {
     });
 };
 
-export const KillroyTab = () => {
+const KillroyTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Killroy" });
     const bestMobRowsNode = div({ class: "killroy-rows" });
 
@@ -336,3 +337,12 @@ export const KillroyTab = () => {
         body: scrollPane,
     });
 };
+
+export default definePage({
+    id: "w2.killroy",
+    world: 2,
+    system: "Killroy",
+    description: "Killroy skulls, shop upgrades, best scores and bonuses.",
+    keywords: ["Skulls"],
+    component: KillroyTab,
+});

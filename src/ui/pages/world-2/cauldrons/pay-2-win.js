@@ -11,15 +11,16 @@
  * Max levels are read via readComputedMany("alchemy", "CauldronLvMAX", ...).
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readComputedMany } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { writeVerified } from "../accountShared.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readComputedMany } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { writeVerified } from "../../../components/views/account/accountShared.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 
 const { div, span } = van.tags;
 
@@ -167,7 +168,7 @@ const renderSection = (section) => {
     });
 };
 
-export const Pay2WinTab = () => {
+const Pay2WinTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Pay 2 Win" });
     const sections = P2W_SECTION_DEFS.map(createSectionState);
 
@@ -241,3 +242,13 @@ export const Pay2WinTab = () => {
         body: div({ class: "scrollable-panel content-stack" }, ...sections.map(renderSection)),
     });
 };
+
+export default definePage({
+    id: "w2.cauldrons.p2w",
+    world: 2,
+    system: "Cauldrons",
+    tab: "Pay 2 Win",
+    description: "Pay 2 Win cauldron, vial and player boost levels, and Draconic cauldrons.",
+    keywords: ["Alchemy", "P2W"],
+    component: Pay2WinTab,
+});

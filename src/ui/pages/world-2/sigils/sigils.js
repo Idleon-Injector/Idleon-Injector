@@ -8,12 +8,20 @@
  * Sigil names come from cList.SigilDesc[i][0].
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { BulkActionBar, SetAllSelectControl } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { cleanName, readLevelDefinitions, runBulkSet, toNum, useWriteStatus, writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { BulkActionBar, SetAllSelectControl } from "../../../components/views/account/BulkActionBar.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    cleanName,
+    readLevelDefinitions,
+    runBulkSet,
+    toNum,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span, select, option } = van.tags;
 
@@ -107,7 +115,7 @@ const SigilCard = ({ index, tierState, nameState }) => {
     );
 };
 
-export const SigilTab = () => {
+const SigilTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Sigils" });
     const sigilTier = Array.from({ length: SIGIL_COUNT }, () => van.state(-1));
     const sigilName = Array.from({ length: SIGIL_COUNT }, (_, index) => van.state(`#${index}`));
@@ -173,3 +181,12 @@ export const SigilTab = () => {
         body: div({ class: "tier-scroll scrollable-panel" }, grid),
     });
 };
+
+export default definePage({
+    id: "w2.sigils",
+    world: 2,
+    system: "Sigils",
+    description: "Each sigil's tier, from locked to eclectic.",
+    keywords: ["Alchemy"],
+    component: SigilTab,
+});

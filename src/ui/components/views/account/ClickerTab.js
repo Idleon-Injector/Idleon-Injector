@@ -1,13 +1,9 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { PoppyTab } from "./w2/PoppyTab.js";
 import { BubbaTab } from "./BubbaTab.js";
 import { renderLazyPanes, renderTabNav } from "./tabShared.js";
 
 const { div } = van.tags;
-const TABS = [
-    { id: "poppy", label: "POPPY", component: PoppyTab },
-    { id: "bubba", label: "BUBBA", component: BubbaTab },
-];
+const TABS = [{ id: "bubba", label: "BUBBA", component: BubbaTab }];
 
 export const ClickerTab = () => {
     const active = van.state(TABS[0].id);

@@ -8,13 +8,14 @@
  * - Tar Pit and Spiral Upgrades are explicitly separated with section dividers.
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readGgaEntries } from "../../../../services/api.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ClickerRow } from "../ClickerRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 
@@ -77,7 +78,7 @@ const PoppyRow = ({ field, fieldState, onWrite }) =>
         emptyBadge: "-",
     });
 
-export const PoppyTab = () => {
+const PoppyTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Poppy" });
 
     const fieldStates = new Map(ALL_FIELDS.map((f) => [f.index, van.state(undefined)]));
@@ -142,3 +143,12 @@ export const PoppyTab = () => {
         body: rowList,
     });
 };
+
+export default definePage({
+    id: "w2.kangaroo",
+    world: 2,
+    system: "Kangaroo",
+    description: "Poppy the kangaroo's fishing upgrades, Tar Pit and Spiral Upgrades.",
+    keywords: ["Poppy", "Clicker", "Tar Pit"],
+    component: PoppyTab,
+});

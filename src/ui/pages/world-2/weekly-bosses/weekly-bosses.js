@@ -1,9 +1,10 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -12,16 +13,16 @@ import {
     useWriteStatus,
     writeManyVerified,
     writeVerified,
-} from "../accountShared.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+} from "../../../components/views/account/accountShared.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, select, option } = van.tags;
 
 /** Edit Weekly Boss trophies, cosmetic unlocks and each character's main-bar skin. */
-export const WeeklyBossTab = () => {
+const WeeklyBossTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Weekly Boss" });
     const busy = van.state(false);
     const message = van.state("");
@@ -536,3 +537,12 @@ export const WeeklyBossTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "w2.weeklybosses",
+    world: 2,
+    system: "Weekly Bosses",
+    description: "Weekly Boss trophies, cosmetic unlocks and each character's main-bar skin.",
+    keywords: ["Weekly Boss"],
+    component: WeeklyBossTab,
+});

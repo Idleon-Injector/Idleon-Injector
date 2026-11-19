@@ -147,9 +147,9 @@
         },
         {
             "rule": "write",
-            "file": "src/ui/components/views/account/w2/PoppyTab.js",
+            "file": "src/ui/pages/world-2/kangaroo/kangaroo.js",
             "count": 1,
-            "reason": "Poppy rows save with gga(path, value)."
+            "reason": "Kangaroo (was Poppy) rows save with gga(path, value)."
         },
         {
             "rule": "write",
@@ -162,12 +162,6 @@
             "file": "src/ui/components/views/Account.js",
             "count": 8,
             "reason": "Account pages not yet moved to src/ui/pages/."
-        },
-        {
-            "rule": "old-page",
-            "file": "src/ui/components/views/account/W2Tab.js",
-            "count": 10,
-            "reason": "World 2 pages not yet moved to src/ui/pages/."
         },
         {
             "rule": "old-page",
