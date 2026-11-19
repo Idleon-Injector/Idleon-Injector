@@ -132,7 +132,7 @@ test("the summary from a fixture diff", () => {
         ],
         names: ["gga:GemsOwned", "method:_customBlock_Labb"],
     });
-    const rules = { kind: "a page and game-side code mixed", exempt: false, problems: ["Split it."] };
+    const rules = { kind: "a page and game-side code mixed", problems: ["Split it."] };
     const body = renderComment({ data, rules, check: "success", runUrl: RUN.html_url, shotsUrl: "https://x/shots" });
     assert.equal(
         body,
@@ -141,7 +141,7 @@ test("the summary from a fixture diff", () => {
             "### PR summary",
             "",
             "- Kind: a page and game-side code mixed.",
-            "- Contributor rules: not met.",
+            "- PR rules: not met.",
             "  - Split it.",
             "- The check: passed.",
             "- Pages it touches: `w1.anvil`.",
@@ -156,14 +156,11 @@ test("the summary from a fixture diff", () => {
     );
     const quiet = renderComment({
         data: { ...data, pages: [], hooks: [], names: [] },
-        rules: { kind: "a page", exempt: true, problems: [] },
+        rules: { kind: "a page", problems: [] },
         check: "failure",
         runUrl: RUN.html_url,
     });
-    assert.match(
-        quiet,
-        /rules: skipped, the author is a maintainer\.\n- The check: failed\.\n- Pages it touches: none\./
-    );
+    assert.match(quiet, /- PR rules: met\.\n- The check: failed\.\n- Pages it touches: none\./);
     assert.doesNotMatch(quiet, /Screenshots/);
 });
 
@@ -241,7 +238,7 @@ test("stage 2 posts one comment, then updates its own", async () => {
     await run(dir, fresh);
     assert.equal(fresh.writes.length, 1);
     assert.equal(fresh.writes[0].add, 41);
-    assert.match(fresh.writes[0].body, /- Kind: a page\.\n- Contributor rules: met\.\n- The check: passed\./);
+    assert.match(fresh.writes[0].body, /- Kind: a page\.\n- PR rules: met\.\n- The check: passed\./);
     assert.match(
         fresh.writes[0].body,
         /\[page-shots\]\(https:\/\/github\.com\/o\/r\/actions\/runs\/77\/artifacts\/2\)/
