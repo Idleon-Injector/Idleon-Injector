@@ -1,12 +1,13 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { EditableFieldsRow } from "../../EditableFieldsRow.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableFieldsRow } from "../../../components/views/account/EditableFieldsRow.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createIndexedStateGetter,
@@ -15,7 +16,7 @@ import {
     readLevelDefinitions,
     toInt,
     writeManyVerified,
-} from "../../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, option, select, span } = van.tags;
 
@@ -133,7 +134,7 @@ const PlayerChipsRow = ({ entry, fieldStates }) => {
     });
 };
 
-export const ChipsTab = () => {
+const ChipsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Lab chips" });
     const chipEntries = van.state([]);
     const playerChipEntries = van.state([]);
@@ -201,3 +202,13 @@ export const ChipsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.lab.chips",
+    world: 4,
+    system: "Laboratory",
+    tab: "Chips",
+    description: "Lab chip amounts and the chips each character has equipped.",
+    keywords: ["Lab"],
+    component: ChipsTab,
+});

@@ -1,9 +1,10 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList, readComputed, readComputedMany } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { ClampedLevelRow } from "../../ClampedLevelRow.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList, readComputed, readComputedMany } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -12,11 +13,11 @@ import {
     toInt,
     toNum,
     writeVerified,
-} from "../../accountShared.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountRow } from "../../components/AccountRow.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+} from "../../../components/views/account/accountShared.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 
@@ -142,7 +143,7 @@ const RespecStatusRow = ({ respecState }) =>
         badgeClass: () => (respecState.val === 0 ? "account-row__badge--highlight" : ""),
     });
 
-export const MasteryTab = () => {
+const MasteryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking Mastery" });
     const rankState = van.state(1);
     const expState = van.state(0);
@@ -295,3 +296,13 @@ export const MasteryTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "w4.cooking.mastery",
+    world: 4,
+    system: "Cooking",
+    tab: "Mastery",
+    description: "Cooking Mastery rank, EXP, perk levels and each meal's mastery.",
+    keywords: ["Cooking Mastery", "Meal Mastery"],
+    component: MasteryTab,
+});

@@ -1,11 +1,12 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { EditableFieldsRow, StackedNumberField } from "../../EditableFieldsRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -14,7 +15,7 @@ import {
     resolveNumberInput,
     toInt,
     writeManyVerified,
-} from "../../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -108,7 +109,7 @@ const MealRow = ({ entry, fieldStates }) => {
     });
 };
 
-export const MealsTab = () => {
+const MealsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking meals" });
     const mealEntries = van.state([]);
     const mealFieldStates = new Map();
@@ -163,3 +164,13 @@ export const MealsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.cooking.meals",
+    world: 4,
+    system: "Cooking",
+    tab: "Meals",
+    description: "Meal levels, amounts and ribbon levels.",
+    keywords: ["Ribbons"],
+    component: MealsTab,
+});

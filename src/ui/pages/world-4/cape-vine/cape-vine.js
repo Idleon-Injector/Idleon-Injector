@@ -13,15 +13,16 @@
  * never "EquipmentCape1" (the dev cape, which flags non-dev saves).
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../services/api.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -29,8 +30,8 @@ import {
     unwrapH,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
-import { toIndexedArray } from "../../../../utils/index.js";
+} from "../../../components/views/account/accountShared.js";
+import { toIndexedArray } from "../../../utils/index.js";
 
 const { div, span } = van.tags;
 
@@ -61,7 +62,7 @@ const readMilestones = async () => {
     return value;
 };
 
-export const CapeVineTab = () => {
+const CapeVineTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cape Vine" });
     const vineIds = van.state([]);
     const capes = van.state([]);
@@ -309,3 +310,12 @@ export const CapeVineTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "w4.capevine",
+    world: 4,
+    system: "Cape Vine",
+    description: "Add or remove capes on the Cape Vine.",
+    keywords: ["Cathie", "Golden Vine", "Capes"],
+    component: CapeVineTab,
+});
