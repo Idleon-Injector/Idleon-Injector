@@ -44,7 +44,7 @@ function handleMessage(event) {
         const message = JSON.parse(event.data);
 
         if (message.type === "cheat-states" && stateUpdateHandler) {
-            stateUpdateHandler(message.data);
+            stateUpdateHandler(message.data, message.hookFailures);
         } else if (message.type === "monitor-state" && monitorUpdateHandler) {
             monitorUpdateHandler(message.data);
         }
@@ -117,7 +117,7 @@ export function initWebSocket() {
 
 /**
  * Registers a handler for cheat state updates
- * @param {Function} handler - Callback function receiving state data
+ * @param {Function} handler - Callback receiving (states, hookFailures); hookFailures is null when unknown
  */
 export function onStateUpdate(handler) {
     stateUpdateHandler = handler;

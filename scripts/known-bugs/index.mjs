@@ -17,8 +17,6 @@ export const KNOWN_BUGS = {
         "Quotes and backslashes in text settings aren't escaped when the config is written, and null becomes {}",
     brokenCustomConfig:
         "A broken config.custom.js is ignored with a false 'not found' message, then overwritten on the next save",
-    setupStopsAtMissingObject:
-        "One missing game object stops every game hook after it from installing, setup never retries, and the console still says 'Cheats ready!'",
     cheatErrorShowsSuccess: "A cheat that throws an error shows a green success toast",
     reloadInjectsStartupConfig: "After the game reloads, it runs the startup config instead of the current one",
     destructiveOneClick: "Destructive cheats like wipe run on one click from the Cheats list",
@@ -125,8 +123,9 @@ export async function request(router, method, url, body = {}) {
  */
 function fakeGame({ ready = true } = {}) {
     const installed = [];
+    // A bound function has no own `prototype`, so X.prototype is a fake too and its methods exist, as in the game.
     const fake = (path) =>
-        new Proxy(function () {}, {
+        new Proxy(function () {}.bind(), {
             get(target, key) {
                 if (typeof key === "symbol" || Object.prototype.hasOwnProperty.call(target, key)) return target[key];
                 if (key in Function.prototype && key !== "constructor") return target[key];
@@ -176,6 +175,7 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
         context: game.context,
         cheat: (action) => cheat(action, game.context),
         cheatStateList: () => state.cheatState,
+        getHookFailures: (await importRepo("src/cheats/proxies/setup.js")).getHookFailures,
         updateCheatConfig: state.updateCheatConfig,
     };
     const runtime = {

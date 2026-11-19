@@ -16,6 +16,7 @@ export const Toast = () => {
         if (currentTimeout) clearTimeout(currentTimeout);
         isVisible.val = true;
         isFading.val = false;
+        if (toast.persistent) return;
 
         currentTimeout = setTimeout(() => {
             isFading.val = true;

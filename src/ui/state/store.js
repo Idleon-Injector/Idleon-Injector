@@ -57,10 +57,12 @@ const rawMonitorState = vanX.reactive({ values: {} });
 
 const MAX_NOTIFICATION_HISTORY = 10;
 let appInfoRequest = null;
+let shownHookFailures = "";
 
 const Actions = {
-    notify: (message, type = "success") => {
-        const notification = { message, type, id: Date.now() };
+    /** A persistent notification stays on screen until the next one replaces it. */
+    notify: (message, type = "success", persistent = false) => {
+        const notification = { message, type, persistent, id: Date.now() };
         appState.toast = notification;
 
         appState.notificationHistory.unshift(notification);
@@ -85,8 +87,20 @@ const SystemService = {
     initHeartbeat: () => {
         initWebSocket();
 
-        onStateUpdate((states) => {
+        onStateUpdate((states, hookFailures) => {
             dataState.activeCheatStates = states || {};
+            // Every state update repeats the list; speak up only when it changes.
+            if (!hookFailures) return;
+            const failures = hookFailures.join("; ");
+            if (failures === shownHookFailures) return;
+            shownHookFailures = failures;
+            if (!failures) return Actions.notify("All game hooks are installed now");
+            const count = hookFailures.length;
+            Actions.notify(
+                `${count} game ${count === 1 ? "hook" : "hooks"} failed to install, so the cheats that use ${count === 1 ? "it" : "them"} won't work: ${failures}`,
+                "error",
+                true
+            );
         });
 
         onMonitorUpdate((data) => {

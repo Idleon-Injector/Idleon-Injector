@@ -128,15 +128,26 @@ async function fetchCheatStates() {
 }
 
 /**
+ * Builds the cheat-states message. It also carries the game hooks that failed to install, so the UI
+ * hears about them when it connects, when the game connects after setup, and after every cheat.
+ * @returns {Promise<string>}
+ */
+async function cheatStatesMessage() {
+    const [states, failures] = await Promise.all([
+        fetchCheatStates(),
+        gameBridge?.callHelper("getHookFailures").catch(() => null),
+    ]);
+    // null: unknown, for example before the cheats are injected or after the game closed.
+    const hookFailures = failures && !failures.error ? failures.value : null;
+    return JSON.stringify({ type: "cheat-states", data: states, hookFailures });
+}
+
+/**
  * Sends cheat states to a specific client
  * @param {WebSocket} ws - WebSocket client
  */
 async function sendCheatStatesToClient(ws) {
-    const states = await fetchCheatStates();
-    const message = JSON.stringify({
-        type: "cheat-states",
-        data: states,
-    });
+    const message = await cheatStatesMessage();
 
     if (ws.readyState === ws.OPEN) {
         ws.send(message);
@@ -151,11 +162,7 @@ async function broadcastCheatStates() {
     const uiClients = Array.from(clients).filter((c) => c.clientType === "ui");
     if (uiClients.length === 0) return;
 
-    const states = await fetchCheatStates();
-    const message = JSON.stringify({
-        type: "cheat-states",
-        data: states,
-    });
+    const message = await cheatStatesMessage();
 
     for (const client of uiClients) {
         if (client.readyState === client.OPEN) {
