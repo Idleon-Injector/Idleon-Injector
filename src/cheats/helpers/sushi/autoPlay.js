@@ -1,9 +1,23 @@
+/**
+ * Sushi Auto Play: its state and steps, shared by the sushi cheat (cheats/sushi.js, which declares the automation),
+ * the in-game buttons (hooks/sushiButton.js) and the East Wind hook (hooks/sushiWind.js). Only this module changes
+ * the state; the core owns the timer.
+ */
+
 import { gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { defineAutomation, switchAutomation } from "../../core/automations.js";
-import { configureSushiWind } from "../../hooks/sushiWind.js";
+import { switchAutomation } from "../../core/automations.js";
 import { sushiTools } from "./station.js";
 import { readSushiSettings } from "./settings.js";
+
+/** The East Wind options hooks/sushiWind.js applies: set when Auto Play starts, cleared when it stops. */
+export let windExtended = false;
+export let windHigher = false;
+
+export function configureSushiWind(extendChain, higherTier) {
+    windExtended = extendChain;
+    windHigher = higherTier;
+}
 
 export let busy = false;
 export let enabled = false;
@@ -83,7 +97,7 @@ function play(state) {
 }
 
 /** One 50 ms step: read the board, then keep waiting or carry on where the last step left off. */
-function tick() {
+export function tick() {
     if (!session) return; // finished, or stopped on an error: idle until turned off
     try {
         const state = call("status");
@@ -108,7 +122,7 @@ export function getSushiStatus() {
     }
 }
 
-function start() {
+export function start() {
     const options = readSushiSettings();
     const initial = sushiTools("status", null, options);
     if (initial.dragging >= 0) throw new Error("Release the sushi before starting.");
@@ -136,7 +150,7 @@ function start() {
     return "Auto Play enabled. It will idle when the goal is reached.";
 }
 
-function stop() {
+export function stop() {
     enabled = false;
     busy = false;
     session = null;
@@ -145,17 +159,7 @@ function stop() {
     return message;
 }
 
-defineAutomation({
-    id: "w7.sushi",
-    cheat: "w7 sushitools",
-    interval: 50,
-    tick,
-    status: getSushiStatus,
-    start,
-    stop,
-});
-
-/** Turn Auto Play on or off; throws why it refused. */
+/** Turn Auto Play (the "w7.sushi" automation) on or off; throws why it refused. */
 export function switchSushi(on) {
     const result = switchAutomation("w7.sushi", on);
     if (!result.ok) throw new Error(result.message);

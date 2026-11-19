@@ -6,15 +6,8 @@
 
 import { gga, events } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
-
-let extended = false;
-let higher = false;
-
-/** Set by sushi Auto Play when it starts and stops. */
-export function configureSushiWind(extendChain, higherTier) {
-    extended = extendChain;
-    higher = higherTier;
-}
+// Set by sushi Auto Play when it starts and stops.
+import { windExtended as extended, windHigher as higher } from "../helpers/sushi/autoPlay.js";
 
 // Around: the chain is measured against the queue as it was before the game's merge added to it.
 defineHook(
