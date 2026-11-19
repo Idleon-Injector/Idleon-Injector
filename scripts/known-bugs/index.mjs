@@ -219,38 +219,61 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
  * by the given API router.
  */
 export async function loadUi(router) {
-    class Element {
-        nodeType = 1;
+    // Re-renders swap the node in its parent, so a test can read what a page shows after a change.
+    class Node {
         isConnected = true;
+        replaceWith(next) {
+            const siblings = this.parentNode?.childNodes ?? [];
+            const index = siblings.indexOf(this);
+            if (index < 0) return;
+            siblings[index] = next;
+            next.parentNode = this.parentNode;
+        }
+        remove() {
+            const siblings = this.parentNode?.childNodes ?? [];
+            const index = siblings.indexOf(this);
+            if (index >= 0) siblings.splice(index, 1);
+        }
+    }
+    class Element extends Node {
+        nodeType = 1;
         childNodes = [];
         attributes = {};
         listeners = {};
+        handlers = {};
         constructor(name) {
+            super();
             this.nodeName = name;
         }
         append(...children) {
+            for (const child of children) if (typeof child === "object") child.parentNode = this;
             this.childNodes.push(...children);
+        }
+        replaceChildren(...children) {
+            this.childNodes = [];
+            this.append(...children);
         }
         setAttribute(name, value) {
             this.attributes[name] = value;
         }
+        // listeners[type](event) runs every listener and returns the first one's result (a click handler's promise).
         addEventListener(type, listener) {
-            this.listeners[type] = listener;
+            (this.handlers[type] ??= []).push(listener);
+            this.listeners[type] ??= (event) => this.handlers[type].map((handler) => handler(event))[0];
         }
-        removeEventListener(type) {
-            delete this.listeners[type];
+        removeEventListener(type, listener) {
+            this.handlers[type] = this.handlers[type]?.filter((handler) => handler !== listener);
         }
-        replaceWith() {}
-        remove() {}
     }
     globalThis.document = {
         nodeType: 9,
         createElement: (name) => new Element(name),
         createElementNS: (_, name) => new Element(name),
     };
-    globalThis.Text = class {
+    globalThis.Text = class extends Node {
         nodeType = 3;
         constructor(text) {
+            super();
             this.data = String(text);
         }
     };

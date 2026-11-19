@@ -20,7 +20,8 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { gga, readGgaEntries } from "../../../services/api.js";
+import { readGgaEntries } from "../../../services/api.js";
+import { writeVerified } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -72,7 +73,8 @@ const OrionTab = () => {
         });
 
     const onWrite = async (index, value) => {
-        return await gga(`OptionsListAccount[${index}]`, value);
+        await writeVerified(`OptionsListAccount[${index}]`, value);
+        return true;
     };
 
     const rowList = div(

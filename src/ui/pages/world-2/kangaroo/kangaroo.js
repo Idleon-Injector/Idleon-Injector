@@ -10,7 +10,8 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { gga, readGgaEntries } from "../../../services/api.js";
+import { readGgaEntries } from "../../../services/api.js";
+import { writeVerified } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -92,7 +93,8 @@ const PoppyTab = () => {
         });
 
     const onWrite = async (index, value) => {
-        return gga(`OptionsListAccount[${index}]`, value);
+        await writeVerified(`OptionsListAccount[${index}]`, value);
+        return true;
     };
 
     const rowList = div(
