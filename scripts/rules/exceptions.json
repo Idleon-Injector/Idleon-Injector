@@ -9,7 +9,8 @@
         "globals",
         "prettier",
         "rollup",
-        "stylelint"
+        "stylelint",
+        "@yao-pkg/pkg"
     ],
     "allowed": [
         {
