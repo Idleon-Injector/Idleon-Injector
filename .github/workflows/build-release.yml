@@ -2,113 +2,66 @@ name: Build and Release
 
 on:
     workflow_dispatch:
+        inputs:
+            draft:
+                description: "Create a draft to edit the notes first (it posts to Discord when you publish it)"
+                type: boolean
+                default: false
 
 jobs:
     build:
-        strategy:
-            matrix:
-                include:
-                    - os: windows-latest
-                      artifact-name: InjectCheatsUI-Windows
-                      binary-name: InjectCheatsUI.exe
-                      build-command: build
-                      archive-file: InjectCheatsUI-Windows.zip
-                    - os: ubuntu-latest
-                      artifact-name: InjectCheatsUI-Linux
-                      binary-name: InjectCheatsUI-linux
-                      build-command: build-unix
-                      archive-file: InjectCheatsUI-Linux.tar.gz
-                    - os: macos-15-intel
-                      artifact-name: InjectCheatsUI-macOS-x64
-                      binary-name: InjectCheatsUI-macos-x64
-                      build-command: build-macos-x64
-                      archive-file: InjectCheatsUI-macOS-x64.tar.gz
-                    - os: macos-15
-                      artifact-name: InjectCheatsUI-macOS-arm64
-                      binary-name: InjectCheatsUI-macos-arm64
-                      build-command: build-macos-arm64
-                      archive-file: InjectCheatsUI-macOS-arm64.tar.gz
-
-        runs-on: ${{ matrix.os }}
-
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v6
-
-            - name: Set up Node.js
-              uses: actions/setup-node@v6
-              with:
-                  node-version-file: .nvmrc
-
-            - name: Install dependencies
-              run: npm ci
-
-            - name: Run Validation
-              run: npm run validate
-
-            # pkg 5 builds the node18 binaries on Node 18; that moves with the packaging rewrite.
-            - name: Set up Node.js 18 for pkg
-              uses: actions/setup-node@v6
-              with:
-                  node-version: "18"
-
-            - name: Install pkg
-              run: npm install -g pkg
-
-            - name: Build Binary
-              run: npm run ${{ matrix.build-command }}
-
-            - name: Create release package
-              shell: bash
-              run: |
-                  mkdir -p release-package
-                  find . -maxdepth 1 -not -name '.' -not -name 'release-package' -not -name 'node_modules' -exec cp -r {} release-package/ \;
-
-            - name: Archive release package (Windows)
-              if: runner.os == 'Windows'
-              shell: pwsh
-              run: |
-                  Compress-Archive -Path release-package/* -DestinationPath "${{ matrix.archive-file }}"
-
-            - name: Archive release package (Unix)
-              if: runner.os != 'Windows'
-              shell: bash
-              run: |
-                  tar -czf "${{ matrix.archive-file }}" -C release-package .
-
-            - name: Upload zipped artifact
-              uses: actions/upload-artifact@v7
-              with:
-                  name: ${{ matrix.artifact-name }}
-                  path: ${{ matrix.archive-file }}
+        uses: ./.github/workflows/build-into-zip.yml
 
     release:
         needs: build
         runs-on: ubuntu-latest
         permissions:
             contents: write
+        outputs:
+            version: ${{ steps.version.outputs.version }}
 
         steps:
+            - name: Release from master only
+              if: github.ref != 'refs/heads/master'
+              run: |
+                  echo "::error::Releases are made from master; this run is on ${GITHUB_REF}."
+                  exit 1
+
             - name: Checkout repository
               uses: actions/checkout@v6
 
+            # The tag is package.json's version with no "v", as in 2.5.3 and 3.0.0.
             - name: Read version
               id: version
-              run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+              run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-            - name: Download all artifacts
+            - name: Download the release files
               uses: actions/download-artifact@v8
               with:
-                  path: binaries/
+                  name: release-files
+                  path: release/
 
+            # GITHUB_TOKEN can't start other workflows, so the Discord post below is called directly.
             - name: Create GitHub Release
               env:
-                  GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+                  GH_TOKEN: ${{ github.token }}
+                  VERSION: ${{ steps.version.outputs.version }}
+                  DRAFT: ${{ inputs.draft && '--draft' || '' }}
               run: |
-                  gh release create "${{ steps.version.outputs.version }}" \
-                    --title "${{ steps.version.outputs.version }}" \
+                  gh release create "$VERSION" $DRAFT \
+                    --target "$GITHUB_SHA" \
+                    --title "$VERSION" \
                     --generate-notes \
-                    "binaries/InjectCheatsUI-Windows/InjectCheatsUI-Windows.zip" \
-                    "binaries/InjectCheatsUI-Linux/InjectCheatsUI-Linux.tar.gz" \
-                    "binaries/InjectCheatsUI-macOS-x64/InjectCheatsUI-macOS-x64.tar.gz" \
-                    "binaries/InjectCheatsUI-macOS-arm64/InjectCheatsUI-macOS-arm64.tar.gz"
+                    release/InjectCheatsUI-Windows.zip \
+                    release/InjectCheatsUI-Linux.tar.gz \
+                    release/InjectCheatsUI-macOS-x64.tar.gz \
+                    release/InjectCheatsUI-macOS-arm64.tar.gz \
+                    release/SHA256SUMS
+
+    discord:
+        needs: release
+        if: ${{ !inputs.draft }}
+        uses: ./.github/workflows/release-to-discord.yml
+        with:
+            tag: ${{ needs.release.outputs.version }}
+        secrets: inherit
