@@ -26,12 +26,19 @@ export async function createFakeGame(fixture = fakeGameData()) {
 
     const gga = fixture.gga;
     const computed = fixture.computed ?? {};
-    // Every events(N) method answers from `computed`, 0 when the fixture has nothing.
-    const actorEvents = new Proxy({}, { get: (_, method) => (name) => computed[method]?.[name] ?? 0 });
+    // Every events(N) method answers from `computed` (a value, or a function of the call's other arguments),
+    // 0 when the fixture has nothing.
+    const answer = (method, name, ...args) => {
+        const value = computed[method]?.[name];
+        return (typeof value === "function" ? value(...args) : value) ?? 0;
+    };
+    const actorEvents = new Proxy({}, { get: (_, method) => answer.bind(null, method) });
     const context = new Proxy(
         {
             "com.stencyl.Engine": { engine: { gameAttributes: { h: gga } } },
             "scripts.CustomMapsREAL": { GemPopupBundleMessages: () => ({ h: fixture.bundleMessages ?? {} }) },
+            // The pets the account owns, as the game's server copy lists them ("id,x,y,z,plus").
+            FirebaseStorage: { getCompanionInfoMe: () => structuredClone(fixture.companions ?? []) },
         },
         {
             get: (target, key) =>

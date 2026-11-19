@@ -1,48 +1,70 @@
 /**
  * The fake game's data. `gga` is gameAttributes.h (CustomLists.h is cList); `computed[method][name]` answers
- * events(N)[method](name, ...). Fixed values only (no Math.random, no Date), so every run looks the same.
- * A page that shows little gets its data here: the report's `misses` lists what pages asked for and didn't get.
+ * events(N)[method](name, ...): a value, or a function of the other arguments; `companions` is the account's
+ * owned pets. Fixed values only (no Math.random, no Date), so every run looks the same.
+ *
+ * The data is invented, shaped after what each page reads. Each world's pages get theirs from data/<world>.mjs;
+ * a world file sets whole keys, or single indexes of an array declared here with `{ index: value }`.
+ * A page that shows little gets its data there: the report's `misses` lists what pages asked for and didn't get.
  */
-const list = (length, value) => Array.from({ length }, (_, i) => value(i));
+import { list } from "./data/helpers.mjs";
+import shared from "./data/shared.mjs";
+import account from "./data/account.mjs";
+import world1 from "./data/world-1.mjs";
+import world2 from "./data/world-2.mjs";
+import world3 from "./data/world-3.mjs";
+import world4 from "./data/world-4.mjs";
+import world5 from "./data/world-5.mjs";
+import world6 from "./data/world-6.mjs";
+import world7 from "./data/world-7.mjs";
 
-export const fakeGameData = () => ({
+const isObject = (value) => value !== null && typeof value === "object";
+
+/** Copy `patch` into `target`: objects merge key by key, an array takes `{ index: value }`, the rest replaces. */
+function merge(target, patch) {
+    for (const [key, value] of Object.entries(patch)) {
+        const current = target[key];
+        if (isObject(current) && isObject(value) && !Array.isArray(value)) merge(current, value);
+        else target[key] = value;
+    }
+    return target;
+}
+
+const base = () => ({
     gga: {
         ItemDefinitionsGET: { h: {} },
         MonsterDefinitionsGET: { h: {} },
         BundlesReceived: { h: { bun_a: 1 } },
+        // Lists of lists that pages of several worlds index into.
         CustomLists: {
             h: {
-                ClassNames: ["Blank", "Beginner", "Journeyman", "Maestro", "Warrior", "Barbarian", "Archer", "Mage"],
-                SkillNames: ["Blank", "Mining", "Smithing", "Chopping", "Fishing", "Alchemy", "Catching"],
-                HolesInfo: list(68, (i) => (i === 67 ? ["Gem_One|a|b|First gem", "Gem_Two|a|b|Second gem"] : [])),
-                StatueInfo: ["Power", "Speed", "Mining", "Feasty", "Health", "Kachow", "Lumberbob", "Thicc_Skin"].map(
-                    (name) => [`${name}_Statue`, "1", "desc"]
-                ),
-                BribeDescriptions: [
-                    "Insider_Trading",
-                    "Tracking_Chips",
-                    "Mandatory_Fire_Sale",
-                    "Sleeping_On_the_Job",
-                ].map((name, i) => [name, "Lowers the cost of things", String(100 * (i + 1)), "1"]),
+                NinjaInfo: list(45, () => []),
+                Research: list(65, () => []),
+                Spelunky: list(45, () => []),
+                RANDOlist: list(120, () => []),
+                RandoListo2: list(15, () => []),
             },
         },
+        CustomMaps: { h: {} },
+        DNSM: { h: {} },
+        // Shared by several worlds' pages; each world file sets the indexes its pages read.
         OptionsListAccount: list(700, (i) => (i * 13) % 50),
-        StampLevel: list(3, (tab) => list(30, (i) => (i * 7 + tab * 3) % 60)),
-        StampLevelMAX: list(3, () => list(30, () => 60)),
-        StatueLevels: list(8, (i) => [i * 12 + 1, i * 345]),
-        StatueG: list(8, (i) => i % 3),
-        BribeStatus: [1, 1, 0, 0],
-        // [4]: exalted stamp codes; [22]: statue flair levels; [2][78]: flair unlocked.
-        Compass: list(5, (i) => (i === 4 ? ["_1", "a0", "b4"] : [])),
-        RoyalG: list(23, (i) =>
-            i === 22 ? list(8, (j) => j % 5) : i === 2 ? list(79, (k) => (k === 78 ? 1 : 0)) : []
-        ),
-        GetPlayersUsernames: ["Lumi_Main", "Lumi_Alt"],
+        Spelunk: list(60, () => []),
+        Research: list(40, () => []),
+        Ninja: list(110, () => []),
+        Menagerie: list(10, () => []),
+        RoyalG: list(24, () => []),
+        Compass: list(5, () => []),
         Number2Letter: "_abcdefghijklmnopqrstuvwxyz".split(""),
-        AnvilPAstats: [12, 40, 30, 20, 5, 3],
-        FurnaceLevels: [5, 10, 15, 20, 25, 30],
     },
     computed: {},
+    companions: [],
     bundleMessages: {},
     cheatStates: { godlike: { reach: true, crit: true }, w1: { companion: true } },
 });
+
+export const fakeGameData = () =>
+    [shared, account, world1, world2, world3, world4, world5, world6, world7].reduce(
+        (data, part) => merge(data, part()),
+        base()
+    );
