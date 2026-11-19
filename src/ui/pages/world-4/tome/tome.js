@@ -1,12 +1,13 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -16,7 +17,7 @@ import {
     largeParser,
     resolveNumberInput,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -190,7 +191,7 @@ const TomeRow = ({ entry }) =>
         badge: () => largeFormatter(entry.value ?? 0),
     });
 
-export const TomeTab = () => {
+const TomeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Tome" });
     const entries = van.state([]);
     const valueStates = new Map();
@@ -250,3 +251,11 @@ export const TomeTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.tome",
+    world: 4,
+    system: "Tome",
+    description: "Tome values, with the editable ones written to where the game keeps them.",
+    component: TomeTab,
+});

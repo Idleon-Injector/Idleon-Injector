@@ -1,11 +1,12 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { readGgaEntries } from "../../../../../services/api.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton, WarningBanner } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
-import { toInt } from "../../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readGgaEntries } from "../../../services/api.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { toInt } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -64,7 +65,7 @@ const TERRITORY_NAMES = [
 //     });
 // };
 
-export const TerritoryTab = () => {
+const TerritoryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Breeding territory" });
     const territoryUnlockState = van.state(0);
 
@@ -118,3 +119,13 @@ export const TerritoryTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.breeding.territory",
+    world: 4,
+    system: "Breeding",
+    tab: "Territory",
+    description: "Territory unlocks and their spice amounts.",
+    keywords: ["Territories"],
+    component: TerritoryTab,
+});

@@ -1,18 +1,19 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { EditableFieldsRow, StackedNumberField } from "../../EditableFieldsRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     createStaticRowReconciler,
     getOrCreateState,
     resolveNumberInput,
     toInt,
     writeManyVerified,
-} from "../../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -79,7 +80,7 @@ const KitchenRow = ({ entry, fieldStates }) => {
     });
 };
 
-export const TablesTab = () => {
+const TablesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking tables" });
     const kitchenEntries = van.state([]);
     const kitchenFieldStates = new Map();
@@ -128,3 +129,13 @@ export const TablesTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.cooking.tables",
+    world: 4,
+    system: "Cooking",
+    tab: "Tables",
+    description: "Kitchen table upgrade levels: speed, fire and luck.",
+    keywords: ["Kitchens"],
+    component: TablesTab,
+});

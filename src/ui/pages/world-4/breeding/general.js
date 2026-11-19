@@ -1,11 +1,12 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readComputed, readComputedMany, readGgaEntries } from "../../../../../services/api.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { ActionButton } from "../../components/ActionButton.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readComputed, readComputedMany, readGgaEntries } from "../../../services/api.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createIndexedStateGetter,
@@ -14,7 +15,7 @@ import {
     runBulkSet,
     toInt,
     useWriteStatus,
-} from "../../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -78,7 +79,7 @@ const readUpgradeEntries = async () => {
     });
 };
 
-export const GeneralTab = () => {
+const GeneralTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Breeding general" });
     const eggEntries = van.state([]);
     const upgradeEntries = van.state([]);
@@ -243,3 +244,13 @@ export const GeneralTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.breeding.general",
+    world: 4,
+    system: "Breeding",
+    tab: "General",
+    description: "Egg rarity, pet upgrades, best Pet Arena and Crucible rounds, and the spice claim counter.",
+    keywords: ["Eggs", "Pet Arena", "Crucible", "Pet Upgrades"],
+    component: GeneralTab,
+});

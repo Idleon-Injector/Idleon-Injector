@@ -1,11 +1,12 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList, readGgaEntries } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { EditableFieldsRow, StackedNumberField } from "../../EditableFieldsRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -14,7 +15,7 @@ import {
     resolveNumberInput,
     toInt,
     writeManyVerified,
-} from "../../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -130,7 +131,7 @@ const PetRow = ({ entry, fieldStates }) => {
     });
 };
 
-export const PetsTab = () => {
+const PetsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Breeding pets" });
     const petSections = van.state([]);
     const petFieldStates = new Map();
@@ -200,3 +201,13 @@ export const PetsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.breeding.pets",
+    world: 4,
+    system: "Breeding",
+    tab: "Pets",
+    description: "Each pet's DNA level, breedability and shiny days.",
+    keywords: ["Shiny", "Breedability"],
+    component: PetsTab,
+});

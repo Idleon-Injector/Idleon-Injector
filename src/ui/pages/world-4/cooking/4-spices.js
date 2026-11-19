@@ -1,12 +1,13 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
-import { createStaticRowReconciler, getOrCreateState } from "../../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { createStaticRowReconciler, getOrCreateState } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -52,7 +53,7 @@ const buildSpiceEntries = (rawSpiceAmounts) => {
     }));
 };
 
-export const SpicesTab = () => {
+const SpicesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking spices" });
     const spiceEntries = van.state([]);
     const spiceAmountStates = new Map();
@@ -104,3 +105,12 @@ export const SpicesTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.cooking.spices",
+    world: 4,
+    system: "Cooking",
+    tab: "Spices",
+    description: "Spice amounts.",
+    component: SpicesTab,
+});

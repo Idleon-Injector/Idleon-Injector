@@ -1,9 +1,10 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountToggleRow } from "../../components/AccountToggleRow.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountToggleRow } from "../../../components/views/account/components/AccountToggleRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createIndexedStateGetter,
@@ -11,7 +12,7 @@ import {
     readLevelDefinitions,
     toInt,
     writeVerified,
-} from "../../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -54,7 +55,7 @@ const JewelRow = ({ entry, unlockedState }) => {
     });
 };
 
-export const JewelsTab = () => {
+const JewelsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Lab jewels" });
     const jewelEntries = van.state([]);
     const getJewelState = createIndexedStateGetter(0);
@@ -104,3 +105,13 @@ export const JewelsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w4.lab.jewels",
+    world: 4,
+    system: "Laboratory",
+    tab: "Jewels",
+    description: "Which lab jewels are unlocked.",
+    keywords: ["Lab"],
+    component: JewelsTab,
+});
