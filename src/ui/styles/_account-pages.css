@@ -263,6 +263,146 @@
     color: var(--c-danger);
 }
 
+/*
+ * Save state beside a field (useAutoSave): "saving…", a ✓ once the game reads the value back, or why the
+ * save failed. The mark keeps a fixed slot; the words lie over the space to its left (the badge, or the
+ * field's label) on the row's own surface, so nothing around them moves.
+ */
+.save-state {
+    --save-state-bg: var(--c-panel);
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.save-state__mark {
+    display: inline-flex;
+    line-height: 0;
+}
+
+.save-state__icon {
+    width: 14px;
+    height: 14px;
+}
+
+.save-state__label {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 2px);
+    display: flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+    background: var(--save-state-bg);
+    color: var(--c-text-muted);
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.save-state__label:empty {
+    display: none;
+}
+
+/* With room beside it (a card's footer), the words follow the mark instead. */
+.save-state--inline {
+    flex-direction: row-reverse;
+    gap: 6px;
+    width: auto;
+    min-height: 26px;
+}
+
+.save-state--inline .save-state__label {
+    position: static;
+    height: auto;
+    padding: 0;
+    background: none;
+    transform: none;
+}
+
+/* Quick saves never flash "saving…": it shows only once a save takes a moment. */
+.save-state--loading .save-state__label {
+    animation: save-state-wait 0.3s steps(1, end) both;
+}
+
+/* "saved" is for screen readers; the ✓ and the badge's read-back value say it on screen. */
+.save-state--success .save-state__label {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+.save-state--success .save-state__mark {
+    color: var(--c-success);
+    animation: save-state-mark 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.save-state--error .save-state__mark,
+.save-state--error .save-state__label {
+    color: var(--c-warning);
+}
+
+.save-state--error .save-state__label {
+    max-width: 24ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    line-height: 26px;
+}
+
+.is-save-failed .number-input-wrapper,
+.is-save-failed .number-input-wrapper:focus-within {
+    border-color: var(--c-warning);
+}
+
+@keyframes save-state-wait {
+    0% {
+        visibility: hidden;
+    }
+
+    100% {
+        visibility: visible;
+    }
+}
+
+@keyframes save-state-mark {
+    0% {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .save-state--success .save-state__mark {
+        animation: none;
+    }
+}
+
+/* A field with its label above it: the save state ends the label's line. */
+.account-inline-field__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+}
+
 .account-row__info {
     display: flex;
     align-items: center;

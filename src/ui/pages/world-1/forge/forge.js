@@ -15,7 +15,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -52,7 +51,6 @@ const ForgeRow = ({ upgrade, levelState }) =>
         writePath: `FurnaceLevels[${upgrade.index}]`,
         max: upgrade.max,
         name: upgrade.label,
-        wrapApplyButton: (applyButton) => withTooltip(applyButton, `Set level (max ${upgrade.max})`),
         maxAction: true,
     });
 

@@ -1,6 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../assets/icons.js";
-import { withTooltip } from "../../Tooltip.js";
 import { formatNumber, formattedStep } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "./EditableNumberRow.js";
 import { joinClasses, largeFormatter, largeParser, resolveNumberInput, writeVerified } from "./accountShared.js";
@@ -50,6 +49,5 @@ export const ClickerRow = ({
             const step = field.formatted ? formattedStep(cur) : isFloat ? 0.1 : 1;
             return Math.max(0, cur + step * delta);
         },
-        wrapApplyButton: (applyButton) => withTooltip(applyButton, `Write value to OptionsListAccount[${field.index}]`),
     });
 };

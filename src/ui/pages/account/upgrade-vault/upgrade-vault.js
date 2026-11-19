@@ -16,7 +16,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { readComputedMany } from "../../../services/api.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -43,7 +42,6 @@ const VaultRow = ({ index, name, baseMax, realMax, levelState }) => {
         indexLabel: `#${index}`,
         name,
         renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${realMax}`,
-        wrapApplyButton: (applyButton) => withTooltip(applyButton, `Set level for ${name} (max: ${maxLabel})`),
         maxAction: {
             value: realMax,
             tooltip: `Set to max level (${maxLabel})`,

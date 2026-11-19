@@ -14,9 +14,11 @@ export const AccountRow = ({
     badgeClass = "",
     controlsClass = "",
     status = null,
+    rowProps = {},
 }) =>
     div(
         {
+            ...rowProps,
             class: () => {
                 const resolvedStatus = resolveValue(status);
                 return joinClasses(

@@ -105,7 +105,6 @@ const MealRow = ({ entry, fieldStates }) => {
                 { class: "account-stacked-fields" },
                 ...fields.map((field) => StackedNumberField({ field, draftStates, setFieldFocused, resetDraft }))
             ),
-        applyTooltip: "Write meal level, amount, and ribbon level to game",
     });
 };
 

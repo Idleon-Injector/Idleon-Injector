@@ -237,7 +237,6 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
                     resetDraft,
                 })
             ),
-        applyTooltip: "Write all captain fields to game",
     });
 };
 

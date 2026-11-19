@@ -55,10 +55,11 @@ async function setRow(root, label, value) {
     const [input] = elements(row).filter((node) => node.nodeName === "input");
     input.value = String(value);
     input.listeners.input({ target: input });
-    byClass(row, "account-btn--apply")[0].listeners.click({ preventDefault() {} });
-    const classes = () => String(row.attributes.class);
-    await until(() => /account-row--(success|error)/.test(classes()), `${label} to finish saving`);
-    return classes().includes("account-row--success") ? "success" : "error";
+    // Enter saves.
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    const state = () => String(byClass(row, "save-state")[0].attributes.class);
+    await until(() => /save-state--(success|error)/.test(state()), `${label} to finish saving`);
+    return state().includes("save-state--success") ? "success" : "error";
 }
 
 const ROW_PAGES = [

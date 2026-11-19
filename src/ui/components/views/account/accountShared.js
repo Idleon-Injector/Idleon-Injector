@@ -85,11 +85,11 @@ export const toInt = (value, opts = 0) => {
 /**
  * Normalize raw NumberInput text into a finite numeric value.
  * Supports formatted strings (e.g. "1.2M", "12,345"), float/int output,
- * optional clamping, and a nullable fallback for invalid input.
+ * optional clamping (or, with `strict`, an Error naming the bound), and a nullable fallback for invalid input.
  */
 export const resolveNumberInput = (
     raw,
-    { formatted = false, float = false, min = -Infinity, max = Infinity, fallback = null } = {}
+    { formatted = false, float = false, min = -Infinity, max = Infinity, fallback = null, strict = false } = {}
 ) => {
     if (typeof raw === "string" && raw.trim() === "") return fallback;
 
@@ -106,6 +106,9 @@ export const resolveNumberInput = (
     }
 
     const normalized = float ? next : Math.round(next);
+    // strict: a typed value out of range is refused with the reason instead of clamped.
+    if (strict && normalized > max) throw new Error(`max ${formatNumber(max)}`);
+    if (strict && normalized < min) throw new Error(`min ${formatNumber(min)}`);
     return Math.max(min, Math.min(max, normalized));
 };
 

@@ -130,7 +130,6 @@ const PlayerChipsRow = ({ entry, fieldStates }) => {
                 { class: "account-stacked-fields" },
                 ...fields.map((field) => ChipSlotSelect({ field, draftStates, status }))
             ),
-        applyTooltip: "Write all equipped chip ids for this player",
     });
 };
 

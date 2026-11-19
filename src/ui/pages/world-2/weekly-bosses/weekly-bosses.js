@@ -467,7 +467,6 @@ const WeeklyBossTab = () => {
         },
         renderInfo: () => span({ class: "account-row__name" }, "Trophies"),
         renderBadge: (value) => String(value),
-        applyLabel: "SAVE",
         inputProps: { "aria-label": "Weekly Boss trophy balance" },
     });
 

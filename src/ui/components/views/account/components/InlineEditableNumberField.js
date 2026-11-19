@@ -1,8 +1,9 @@
 import van from "../../../../vendor/van-1.6.0.js";
-import { getNumberInputLiveRaw, NumberInput } from "../../../NumberInput.js";
-import { ActionButton } from "./ActionButton.js";
+import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../../NumberInput.js";
+import { SaveState } from "../autoSave.js";
 import {
     adjustFormattedIntInput,
+    joinClasses,
     largeFormatter,
     largeParser,
     resolveNumberInput,
@@ -23,6 +24,7 @@ const defaultAdjust = (raw, delta, current) => adjustFormattedIntInput(raw, delt
  * Inline numeric editor for grouped account rows.
  *
  * This is not a full row; it is a field-level control meant to be composed inside AccountRow controls.
+ * It saves on its own, on Enter or on leaving it; its save state sits after its label.
  */
 export const InlineEditableNumberField = ({
     label,
@@ -38,9 +40,8 @@ export const InlineEditableNumberField = ({
     statusTarget = null,
     rootClass = "account-field-metric",
     labelClass = "account-field-metric__label",
-    inputClass = "account-inline-number-field__input",
 }) => {
-    const { inputValue, status, isDisabled, applyValue, focus, blur, statusMessage } = useNumericEditor({
+    const { inputValue, status, reason, handlers, isDisabled, focus, blur } = useNumericEditor({
         valueState,
         normalize,
         write: typeof write === "function" ? write : (value) => writeVerified(path, value),
@@ -60,9 +61,16 @@ export const InlineEditableNumberField = ({
         });
     }
 
+    const step = (delta, userHandler) => () => {
+        if (isDisabled()) return;
+        const raw = getNumberInputLiveRaw(inputValue) ?? inputValue.val;
+        setNumberInputValue(inputValue, String(adjust(raw, delta, valueState.val)));
+        if (typeof userHandler === "function") userHandler();
+    };
+
     return div(
-        { class: rootClass },
-        renderLabel(),
+        { class: () => joinClasses(rootClass, status.val === "error" ? "is-save-failed" : ""), ...handlers },
+        div({ class: "account-inline-field__head" }, renderLabel(), SaveState({ status, reason })),
         NumberInput({
             mode: inputMode,
             value: inputValue,
@@ -76,29 +84,8 @@ export const InlineEditableNumberField = ({
                 blur();
                 if (typeof inputProps.onblur === "function") inputProps.onblur();
             },
-            onDecrement: () => {
-                if (isDisabled()) return;
-                inputValue.val = String(
-                    adjust(getNumberInputLiveRaw(inputValue) ?? inputValue.val, -1, valueState.val)
-                );
-                if (typeof inputProps.onDecrement === "function") inputProps.onDecrement();
-            },
-            onIncrement: () => {
-                if (isDisabled()) return;
-                inputValue.val = String(adjust(getNumberInputLiveRaw(inputValue) ?? inputValue.val, 1, valueState.val));
-                if (typeof inputProps.onIncrement === "function") inputProps.onIncrement();
-            },
-        }),
-        ActionButton({
-            label: "SET",
-            status,
-            disabled: isDisabled,
-            className: inputClass,
-            onClick: (e) => {
-                e.preventDefault();
-                void applyValue();
-            },
-        }),
-        span({ class: "account-write-feedback", role: "status" }, statusMessage)
+            onDecrement: step(-1, inputProps.onDecrement),
+            onIncrement: step(1, inputProps.onIncrement),
+        })
     );
 };

@@ -105,7 +105,6 @@ const TalentRow = ({ talentId, talentName, curState, maxState, maxBookLvState, i
         renderBadge: () => TalentBadge({ curState, maxState }),
         rowClass: "talent-row",
         controlsClass: "account-row__controls--xl",
-        applyLabel: "SET MAX",
     });
 };
 

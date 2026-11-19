@@ -28,13 +28,11 @@ export const ClampedLevelRow = ({
     rowClass = "",
     badgeClass = "",
     controlsClass = "",
-    applyLabel = "SET",
     inputMode = "int",
     maxAction = null,
-    wrapApplyButton = null,
     renderExtraActions = null,
 }) => {
-    const clamp = (value, fallback = null) => {
+    const clamp = (value, fallback = null, { strict = false } = {}) => {
         const minValue = toBound(resolveValue(min), 0);
         const maxValue = toBound(resolveValue(max), Infinity);
         const rawValue = Number(value);
@@ -44,6 +42,9 @@ export const ClampedLevelRow = ({
         if (integerMode === "floor") nextValue = Math.floor(rawValue);
         if (integerMode === "round") nextValue = Math.round(rawValue);
         if (integerMode === "trunc") nextValue = Math.trunc(rawValue);
+        // A typed value out of range is refused with the reason; −/+ stop at the ends.
+        if (strict && nextValue > maxValue) throw new Error(`max ${maxValue}`);
+        if (strict && nextValue < minValue) throw new Error(`min ${minValue}`);
         return Math.max(minValue, Math.min(maxValue, nextValue));
     };
 
@@ -63,7 +64,7 @@ export const ClampedLevelRow = ({
     return EditableNumberRow({
         valueState,
         normalize: (rawValue) => {
-            const nextValue = clamp(rawValue, invalidFallback);
+            const nextValue = clamp(rawValue, invalidFallback, { strict: true });
             return Number.isNaN(nextValue) ? null : nextValue;
         },
         write: async (nextLevel) => {
@@ -77,14 +78,12 @@ export const ClampedLevelRow = ({
         rowClass,
         badgeClass,
         controlsClass,
-        applyLabel,
         inputMode,
         adjustInput: (rawValue, delta, currentValue) => {
             const nextValue = toNum(rawValue, toNum(currentValue, 0)) + delta;
             return clamp(nextValue, toNum(currentValue, 0));
         },
         maxAction: resolvedMaxAction,
-        wrapApplyButton,
         renderExtraActions,
     });
 };

@@ -159,7 +159,6 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                     resetDraft,
                 })
             ),
-        applyTooltip: "Write level, deposited, tier, and flair to game",
     });
 
 const StatuesTab = () => {

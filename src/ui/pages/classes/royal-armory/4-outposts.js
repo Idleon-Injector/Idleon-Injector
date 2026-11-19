@@ -530,7 +530,6 @@ const BuiltOutpostRow = ({
                 }),
             rootClass: "outpost-field",
             labelClass: "outpost-field__label",
-            inputClass: "outpost-field__set",
         });
 
     return div(
@@ -645,7 +644,6 @@ const KillOutpostRow = ({ outpost, remainingState, onConverted }) =>
             formatter: largeFormatter,
             parser: largeParser,
         },
-        applyLabel: "SET LEFT",
         renderExtraActions: ({ status }) =>
             ActionButton({
                 label: "MAKE OUTPOST",

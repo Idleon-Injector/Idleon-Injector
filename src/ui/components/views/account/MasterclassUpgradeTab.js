@@ -170,7 +170,6 @@ const UpgradeRow = ({ levelsPath, upgrade, levelState, deleteCachePaths = [], on
         rowClass: "masterclass-upgrade-row",
         badgeClass: "masterclass-upgrade-row__level",
         controlsClass: "masterclass-upgrade-row__controls",
-        applyLabel: "SET",
     });
 
 const fieldPath = (field) => field.path ?? `OptionsListAccount[${field.optionIndex}]`;
@@ -212,7 +211,6 @@ const renderCurrencyField = (field, states) =>
               path: fieldPath(field),
               rootClass: "grimoire-currency__field masterclass-currency__field",
               labelClass: "grimoire-currency__label masterclass-currency__label",
-              inputClass: "grimoire-currency__set masterclass-currency__set",
           });
 
 const CurrencySection = ({ title, fields, states, tabs = [], activeTab = null }) => {

@@ -13,7 +13,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -58,13 +57,6 @@ const AnvilRow = ({ category, valueState, onWriteApplied }) =>
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             return clampCategoryValue(category, next + delta);
         },
-        wrapApplyButton: (applyButton) =>
-            withTooltip(
-                applyButton,
-                category.max !== null
-                    ? `Set value (clamped to max ${category.max})`
-                    : `Set allocated points for ${category.label}`
-            ),
         maxAction: category.max !== null ? { value: category.max, tooltip: `Set to maximum (${category.max})` } : null,
         resetAction: category.max === null ? { tooltip: `Reset ${category.label} to 0` } : null,
     });

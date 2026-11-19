@@ -127,7 +127,6 @@ const PetRow = ({ entry, fieldStates }) => {
                 { class: "account-stacked-fields" },
                 ...fields.map((field) => StackedNumberField({ field, draftStates, setFieldFocused, resetDraft }))
             ),
-        applyTooltip: "Write DNA level, breedability, and shiny days to game",
     });
 };
 

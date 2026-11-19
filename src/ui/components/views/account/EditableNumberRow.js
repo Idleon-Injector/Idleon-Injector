@@ -1,20 +1,22 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { getNumberInputLiveRaw, NumberInput } from "../../NumberInput.js";
+import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../NumberInput.js";
 import { ActionButton } from "./components/ActionButton.js";
-import { resolveValue, toNodes } from "./accountShared.js";
+import { joinClasses, resolveValue, toNodes } from "./accountShared.js";
+import { SaveState } from "./autoSave.js";
 import { useNumericEditor } from "./useNumericEditor.js";
 
 const { div, span } = van.tags;
 
 /**
- * Shared numeric editor row with focus-safe local input state.
+ * Shared numeric editor row: the value saves on Enter or on leaving the field, −/+ save at once
+ * (see useAutoSave), Escape puts the stored value back.
  *
  * Contract:
- * - `valueState` holds committed value only.
- * - While input is focused, external valueState updates do not overwrite draft text.
- * - On blur without SET, draft text snaps back to committed value.
- * - `write(next)` must resolve to verified value; primitive applies that result.
- * - Returning `{ cancelled: true }` leaves the committed value unchanged and resets the draft, without success feedback.
+ * - `valueState` holds the stored value only; it changes when a save is read back or the page reloads.
+ * - `normalize(raw)` returns the value to write, null for "not a number", or throws an Error naming why
+ *   the draft can't be saved (shown beside the field; the typed text stays).
+ * - `write(next)` must resolve to the verified value; returning `{ cancelled: true }` leaves the stored
+ *   value unchanged and resets the draft, without success feedback.
  */
 export const EditableNumberRow = ({
     valueState,
@@ -30,12 +32,10 @@ export const EditableNumberRow = ({
     maxAction = null,
     resetAction = null,
     renderExtraActions = null,
-    wrapApplyButton = null,
     rowClass = "",
     badgeClass = "",
     controlsClass = "",
     inputMode = "int",
-    applyLabel = "SET",
     inputProps = {},
     disabled = null,
 }) => {
@@ -50,7 +50,7 @@ export const EditableNumberRow = ({
     } = inputProps;
     const formatCommittedValue = (value) =>
         typeof formatter === "function" ? formatter(value ?? 0) : String(value ?? 0);
-    const { inputValue, status, run, isDisabled, applyValue, focus, blur, statusMessage } = useNumericEditor({
+    const { inputValue, status, reason, handlers, run, isDisabled, applyValue, focus, blur } = useNumericEditor({
         valueState,
         normalize,
         write,
@@ -58,15 +58,8 @@ export const EditableNumberRow = ({
         disabled: () => Boolean(resolveValue(disabled)) || Boolean(resolveValue(inputDisabled)),
     });
 
-    const applyButton = ActionButton({
-        label: () => resolveValue(applyLabel),
-        status,
-        disabled: isDisabled,
-        onClick: (e) => {
-            e.preventDefault();
-            void applyValue();
-        },
-    });
+    // The row's buttons wait while it saves; the save state beside the field shows how it went.
+    const busy = () => (status.val === "loading" ? "loading" : null);
 
     const renderBuiltInAction = (action, fallbackLabel, fallbackValue) => {
         if (!action) return null;
@@ -77,9 +70,9 @@ export const EditableNumberRow = ({
             action.disabled !== undefined && action.disabled !== null
                 ? () => isDisabled() || Boolean(resolveValue(action.disabled))
                 : isDisabled;
-        const actionButton = ActionButton({
+        return ActionButton({
             label: () => resolveValue(actionLabel),
-            status,
+            status: busy,
             variant: "max-reset",
             tooltip: action.tooltip ?? null,
             disabled: actionDisabled,
@@ -89,54 +82,43 @@ export const EditableNumberRow = ({
                 void applyValue(resolveValue(actionValue));
             },
         });
-
-        return actionButton;
     };
 
-    const wrappedApplyButton = typeof wrapApplyButton === "function" ? wrapApplyButton(applyButton) : applyButton;
-    const builtInMaxAction = renderBuiltInAction(maxAction, "MAX");
-    const builtInResetAction = renderBuiltInAction(resetAction, "RESET", 0);
+    const step = (delta, userHandler) => () => {
+        if (isDisabled()) return;
+        const raw = getNumberInputLiveRaw(inputValue) ?? inputValue.val;
+        setNumberInputValue(inputValue, String(adjustInput(raw, delta, valueState.val ?? 0)));
+        if (typeof userHandler === "function") userHandler();
+    };
+
     const extraActions =
         typeof renderExtraActions === "function"
-            ? toNodes(
-                  renderExtraActions({
-                      status,
-                      run,
-                      inputValue,
-                      applyValue,
-                  })
-              )
+            ? toNodes(renderExtraActions({ status: busy, run, inputValue, applyValue }))
             : [];
 
     return div(
         {
-            class: () =>
-                [
-                    "account-row",
-                    typeof rowClass === "function" ? rowClass() : rowClass,
-                    status.val === "success" ? "account-row--success" : "",
-                    status.val === "error" ? "account-row--error" : "",
-                ]
-                    .filter(Boolean)
-                    .join(" "),
+            class: () => joinClasses("account-row", typeof rowClass === "function" ? rowClass() : rowClass),
+            ...handlers,
         },
         div({ class: "account-row__info" }, ...toNodes(renderInfo())),
         span(
             {
                 class: () =>
-                    ["account-row__badge", typeof badgeClass === "function" ? badgeClass() : badgeClass]
-                        .filter(Boolean)
-                        .join(" "),
+                    joinClasses("account-row__badge", typeof badgeClass === "function" ? badgeClass() : badgeClass),
             },
             () => renderBadge(valueState.val)
         ),
         div(
             {
                 class: () =>
-                    ["account-row__controls", typeof controlsClass === "function" ? controlsClass() : controlsClass]
-                        .filter(Boolean)
-                        .join(" "),
+                    joinClasses(
+                        "account-row__controls",
+                        typeof controlsClass === "function" ? controlsClass() : controlsClass,
+                        status.val === "error" ? "is-save-failed" : ""
+                    ),
             },
+            SaveState({ status, reason }),
             NumberInput({
                 mode: inputMode,
                 value: inputValue,
@@ -151,26 +133,12 @@ export const EditableNumberRow = ({
                     blur();
                     if (typeof userOnblur === "function") userOnblur();
                 },
-                onDecrement: () => {
-                    if (isDisabled()) return;
-                    inputValue.val = String(
-                        adjustInput(getNumberInputLiveRaw(inputValue) ?? inputValue.val, -1, valueState.val ?? 0)
-                    );
-                    if (typeof userOnDecrement === "function") userOnDecrement();
-                },
-                onIncrement: () => {
-                    if (isDisabled()) return;
-                    inputValue.val = String(
-                        adjustInput(getNumberInputLiveRaw(inputValue) ?? inputValue.val, 1, valueState.val ?? 0)
-                    );
-                    if (typeof userOnIncrement === "function") userOnIncrement();
-                },
+                onDecrement: step(-1, userOnDecrement),
+                onIncrement: step(1, userOnIncrement),
             }),
-            wrappedApplyButton,
-            ...toNodes(builtInMaxAction),
-            ...toNodes(builtInResetAction),
-            ...extraActions,
-            span({ class: "account-write-feedback", role: "status" }, statusMessage)
+            ...toNodes(renderBuiltInAction(maxAction, "MAX")),
+            ...toNodes(renderBuiltInAction(resetAction, "RESET", 0)),
+            ...extraActions
         )
     );
 };

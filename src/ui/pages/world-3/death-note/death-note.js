@@ -23,7 +23,6 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -104,7 +103,6 @@ const KillCountRow = ({ killState, rowClass = "", controlsClass = "", renderInfo
             formatter: largeFormatter,
             parser: largeParser,
         },
-        wrapApplyButton: (applyButton) => withTooltip(applyButton, "Write kill count"),
     });
 
 const PlayerKillRow = ({ playerName, killState, isCurrentPlayer, mob }) =>
