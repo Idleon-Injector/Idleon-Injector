@@ -124,18 +124,6 @@
 
 .option-input-wrapper {
     display: flex;
+    align-items: center;
     gap: 10px;
-}
-
-.option-apply-button {
-    background: var(--c-control-border-strong);
-    color: var(--c-white);
-    border: none;
-    padding: 0 15px;
-    font-size: 0.875rem;
-}
-
-.option-apply-button:hover {
-    background: var(--c-success);
-    color: var(--c-black);
 }

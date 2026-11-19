@@ -1,7 +1,7 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { NumberInput, setNumberInputValue } from "../../NumberInput.js";
 import { adjustFormattedIntInput, joinClasses, largeFormatter, largeParser, toInt, toNodes } from "./accountShared.js";
-import { SaveState } from "./autoSave.js";
+import { SaveState, saveStateClass } from "./autoSave.js";
 import { useFieldEditor } from "./useFieldEditor.js";
 import { AccountRow } from "./components/AccountRow.js";
 
@@ -79,13 +79,9 @@ export const EditableFieldsRow = ({
     return AccountRow({
         info,
         badge,
-        rowClass,
+        rowClass: () => joinClasses(typeof rowClass === "function" ? rowClass() : rowClass, saveStateClass(status.val)),
         badgeClass,
-        controlsClass: () =>
-            joinClasses(
-                typeof controlsClass === "function" ? controlsClass() : controlsClass,
-                status.val === "error" ? "is-save-failed" : ""
-            ),
+        controlsClass,
         rowProps: handlers,
         controls: [SaveState({ status, reason }), ...toNodes(renderControls(actions)), ...extraActions],
     });

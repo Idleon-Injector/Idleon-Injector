@@ -6,7 +6,7 @@ const { span } = van.tags;
 /** Short reason for a failed save, shown next to the field. */
 export const saveFailureReason = (error) => {
     const message = String(error?.message ?? error ?? "");
-    if (/^Write mismatch/.test(message)) return "game kept the old value";
+    if (/^Write mismatch/.test(message)) return "game kept old value";
     return message || "not saved";
 };
 
@@ -119,6 +119,10 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400 }) => {
 };
 
 const LABEL = { loading: "saving…", success: "saved" };
+
+/** Class for the element around the fields: its badge steps aside for the words, its fields show a failure. */
+export const saveStateClass = (status) =>
+    status === "loading" ? "is-saving" : status === "error" ? "is-save-failed" : "";
 
 /**
  * The save state beside a field: "saving…", a ✓ once the game reads the value back, or why it failed.

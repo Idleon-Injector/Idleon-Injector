@@ -1,6 +1,6 @@
 import van from "../../../../vendor/van-1.6.0.js";
 import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../../NumberInput.js";
-import { SaveState } from "../autoSave.js";
+import { SaveState, saveStateClass } from "../autoSave.js";
 import {
     adjustFormattedIntInput,
     joinClasses,
@@ -69,7 +69,7 @@ export const InlineEditableNumberField = ({
     };
 
     return div(
-        { class: () => joinClasses(rootClass, status.val === "error" ? "is-save-failed" : ""), ...handlers },
+        { class: () => joinClasses(rootClass, saveStateClass(status.val)), ...handlers },
         div({ class: "account-inline-field__head" }, renderLabel(), SaveState({ status, reason })),
         NumberInput({
             mode: inputMode,

@@ -2,7 +2,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../NumberInput.js";
 import { ActionButton } from "./components/ActionButton.js";
 import { joinClasses, resolveValue, toNodes } from "./accountShared.js";
-import { SaveState } from "./autoSave.js";
+import { SaveState, saveStateClass } from "./autoSave.js";
 import { useNumericEditor } from "./useNumericEditor.js";
 
 const { div, span } = van.tags;
@@ -98,7 +98,12 @@ export const EditableNumberRow = ({
 
     return div(
         {
-            class: () => joinClasses("account-row", typeof rowClass === "function" ? rowClass() : rowClass),
+            class: () =>
+                joinClasses(
+                    "account-row",
+                    typeof rowClass === "function" ? rowClass() : rowClass,
+                    saveStateClass(status.val)
+                ),
             ...handlers,
         },
         div({ class: "account-row__info" }, ...toNodes(renderInfo())),
@@ -114,8 +119,7 @@ export const EditableNumberRow = ({
                 class: () =>
                     joinClasses(
                         "account-row__controls",
-                        typeof controlsClass === "function" ? controlsClass() : controlsClass,
-                        status.val === "error" ? "is-save-failed" : ""
+                        typeof controlsClass === "function" ? controlsClass() : controlsClass
                     ),
             },
             SaveState({ status, reason }),

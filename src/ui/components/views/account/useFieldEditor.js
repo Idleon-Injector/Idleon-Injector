@@ -2,9 +2,20 @@ import van from "../../../vendor/van-1.6.0.js";
 import { getNumberInputLiveRaw, setNumberInputValue } from "../../NumberInput.js";
 import { resolveValue } from "./accountShared.js";
 import { useAutoSave } from "./autoSave.js";
+import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
 
 const defaultToDraft = (value) => String(value ?? 0);
 const sameValue = (a, b) => a === b || (a !== null && a !== undefined && String(a) === String(b));
+
+/**
+ * A page's normalize may pull a typed value into range; a typed value is refused with the bound instead,
+ * so what saves is what was typed. Rounding (less than 1 apart) and text that isn't a number pass through.
+ */
+const refuseClamped = (raw, value) => {
+    const typed = parseNumber(String(raw ?? ""));
+    if (typed === null || typeof value !== "number" || !Number.isFinite(value) || Math.abs(typed - value) < 1) return;
+    throw new Error(`${typed > value ? "max" : "min"} ${formatNumber(value)}`);
+};
 
 /**
  * Drafts for one field or a row of fields that save together, saved on Enter or on leaving the row
@@ -35,6 +46,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                 throw new Error("enter a number");
             const next = normalize(submitted);
             if (next === null || next === undefined || Number.isNaN(next)) throw new Error("not a number");
+            fields.forEach((field) => refuseClamped(submitted[field.key], next[field.key]));
             if (fields.every((field) => sameValue(next[field.key], field.valueState.val))) {
                 fields.forEach((field) => resetDraft(field.key));
                 return { unchanged: true };

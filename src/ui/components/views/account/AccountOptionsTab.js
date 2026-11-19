@@ -11,10 +11,10 @@ import { SearchBar } from "../../SearchBar.js";
 import { NumberInput } from "../../NumberInput.js";
 import { Icons } from "../../../assets/icons.js";
 import { withTooltip } from "../../Tooltip.js";
-import { ActionButton } from "./components/ActionButton.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
-import { createStaticRowReconciler, joinClasses, useWriteStatus, writeVerified } from "./accountShared.js";
+import { createStaticRowReconciler, joinClasses, writeVerified } from "./accountShared.js";
+import { SaveState, saveStateClass, useAutoSave } from "./autoSave.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 
 const { div, input, label, span } = van.tags;
@@ -29,11 +29,18 @@ const valueToDisplay = (type, value) => {
 const normalizeForWrite = (type, rawValue) => {
     if (type === "number") {
         const nextValue = Number(rawValue);
-        if (Number.isNaN(nextValue)) throw new Error("Invalid number");
+        if (String(rawValue).trim() === "") throw new Error("enter a number");
+        if (Number.isNaN(nextValue)) throw new Error("not a number");
         return nextValue;
     }
     if (type === "boolean") return rawValue === true;
-    if (type === "object") return JSON.parse(rawValue);
+    if (type === "object") {
+        try {
+            return JSON.parse(rawValue);
+        } catch {
+            throw new Error("not valid JSON");
+        }
+    }
     return rawValue;
 };
 
@@ -44,8 +51,21 @@ const createOptionRow = (index, rawValue, schema) => {
     const description = van.state(schema?.description ?? null);
     const isAI = van.state(Boolean(schema?.AI));
     const warning = van.state(schema?.warning ?? null);
-    const { status, run } = useWriteStatus();
     let isFocused = false;
+    const stored = () => store.data.accountOptions[index];
+    const { status, reason, save, handlers } = useAutoSave({
+        prepare: () => {
+            const nextValue = normalizeForWrite(editorType.val, currentValue.val);
+            if (JSON.stringify(nextValue) === JSON.stringify(stored())) return { unchanged: true };
+            return {
+                write: async () => {
+                    await writeVerified(`OptionsListAccount[${index}]`, nextValue);
+                    store.data.accountOptions[index] = nextValue;
+                },
+            };
+        },
+        revert: () => (currentValue.val = valueToDisplay(editorType.val, stored())),
+    });
 
     const syncFromLoadedValue = (nextRawValue, nextSchema) => {
         const nextType = getOptionType(nextRawValue, nextSchema);
@@ -61,18 +81,6 @@ const createOptionRow = (index, rawValue, schema) => {
         }
     };
 
-    const applyValue = async () => {
-        if (status.val === "loading") return;
-
-        await run(async () => {
-            const nextValue = normalizeForWrite(editorType.val, currentValue.val);
-            const path = `OptionsListAccount[${index}]`;
-            await writeVerified(path, nextValue);
-            store.data.accountOptions[index] = nextValue;
-            currentValue.val = valueToDisplay(editorType.val, nextValue);
-        });
-    };
-
     const renderEditor = () => {
         const type = editorType.val;
         if (type === "boolean") {
@@ -80,7 +88,10 @@ const createOptionRow = (index, rawValue, schema) => {
                 type: "checkbox",
                 class: "option-input",
                 checked: currentValue,
-                onchange: (e) => (currentValue.val = e.target.checked),
+                onchange: (e) => {
+                    currentValue.val = e.target.checked;
+                    void save();
+                },
             });
         }
 
@@ -109,8 +120,7 @@ const createOptionRow = (index, rawValue, schema) => {
                     "option-item feature-card",
                     isAI.val ? "is-ai-option" : "",
                     warning.val ? "has-warning" : "",
-                    status.val === "success" ? "account-row--success" : "",
-                    status.val === "error" ? "account-row--error" : ""
+                    saveStateClass(status.val)
                 ),
             "data-index": index,
         },
@@ -128,26 +138,18 @@ const createOptionRow = (index, rawValue, schema) => {
         div(
             {
                 class: "option-input-wrapper",
+                ...handlers,
                 onfocusin: () => {
                     isFocused = true;
                 },
                 onfocusout: (e) => {
                     if (e.currentTarget.contains(e.relatedTarget)) return;
                     isFocused = false;
-                    currentValue.val = valueToDisplay(editorType.val, store.data.accountOptions[index]);
+                    handlers.onfocusout(e);
                 },
             },
             () => renderEditor(),
-            ActionButton({
-                label: "SET",
-                status,
-                className: "option-apply-button",
-                tooltip: "Write to game memory",
-                onClick: (e) => {
-                    e.preventDefault();
-                    applyValue();
-                },
-            })
+            SaveState({ status, reason, className: "save-state--inline" })
         )
     );
 
