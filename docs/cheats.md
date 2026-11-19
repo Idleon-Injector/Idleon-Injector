@@ -1,7 +1,7 @@
 # Cheats
 
 Use the CLI or Cheats view to find commands and their descriptions. The
-[project wiki](https://github.com/MrJoiny/Idleon-Injector/wiki) provides a user-facing command list.
+[project wiki](https://github.com/Idleon-Injector/Idleon-Injector/wiki) provides a user-facing command list.
 See the [glossary](glossary.md) for the distinction between commands, state, configuration, and proxies.
 
 Commands can alter save-sensitive game data. Check the command description and relevant configuration warnings

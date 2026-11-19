@@ -105,12 +105,12 @@ export const Sidebar = () => {
                 a(
                     {
                         class: "tab-button github-link",
-                        href: "https://github.com/MrJoiny/Idleon-Injector",
+                        href: "https://github.com/Idleon-Injector/Idleon-Injector",
                         target: "_blank",
                         onclick: (e) => {
                             if (IS_ELECTRON) {
                                 e.preventDefault();
-                                store.openExternalUrl("https://github.com/MrJoiny/Idleon-Injector");
+                                store.openExternalUrl("https://github.com/Idleon-Injector/Idleon-Injector");
                             }
                         },
                     },

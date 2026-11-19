@@ -34,7 +34,7 @@ Need help or want to share feedback? Join the community on Discord:
 
 ### Steps
 
-1. **Download**: Get the latest release from the [releases page](https://github.com/MrJoiny/Idleon-Injector/releases).
+1. **Download**: Get the latest release from the [releases page](https://github.com/Idleon-Injector/Idleon-Injector/releases).
 2. **Extract**: Unzip to any folder.
 3. **Run**: Execute `InjectCheatsUI.exe`.
 4. **Setup**: On first run, a CLI wizard guides you through:
@@ -52,7 +52,7 @@ Need help or want to share feedback? Join the community on Discord:
 
 ## Cheat List
 
-- [Project Wiki Cheat List](https://github.com/MrJoiny/Idleon-Injector/wiki) - Full cheat command list for quick lookup.
+- [Project Wiki Cheat List](https://github.com/Idleon-Injector/Idleon-Injector/wiki) - Full cheat command list for quick lookup.
 
 ### Web Interface
 
@@ -153,4 +153,4 @@ Want to contribute? Check out the [Contributing Guide](CONTRIBUTING.md).
 - **sciomachist**
 - **and everyone that contributed to this project**
 
-[![Contributors](https://contrib.rocks/image?repo=MrJoiny/Idleon-Injector)](https://github.com/MrJoiny/Idleon-Injector/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=Idleon-Injector/Idleon-Injector)](https://github.com/Idleon-Injector/Idleon-Injector/graphs/contributors)
