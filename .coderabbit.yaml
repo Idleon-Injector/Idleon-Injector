@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit gives advice only. It never approves; merging is the maintainer's call.
+language: en-US
+tone_instructions: "Plain, short English. Many contributors are players, not programmers: name the 3.0 way to do it, and link the example file to copy."
+reviews:
+    profile: chill
+    # Advice only: no approvals and no "request changes".
+    auto_approvals:
+        enabled: false
+    # Reviews run on request: comment `@coderabbitai review` on the PR.
+    auto_review:
+        enabled: false
+    poem: false
+    in_progress_fortune: false
+    pre_merge_checks:
+        # The PR title workflow checks the title.
+        title:
+            mode: "off"
+    path_instructions:
+        - path: "**/*"
+          instructions: |
+              This is Idleon Injector 3.0. Flag pre-3.0 patterns and name the 3.0 way (AGENTS.md, "The 3.0 Rules"):
+              - patching the game with `new Proxy`, `Object.defineProperty`, assigned functions or `_isPatched` instead of `defineHook`;
+              - `eval` or `new Function`;
+              - new globals, `window` access, routes or dependencies;
+              - network calls from `src/cheats`;
+              - `setInterval`, `setTimeout` or `requestAnimationFrame` on the game side instead of `defineAutomation`;
+              - page saves with `gga(path, value)` or `ggaMany` instead of `writeVerified` / `writeManyVerified`;
+              - mods importing each other, or imports across `src/cheats`, `src/modules` and `src/ui`;
+              - returning `"Error: ..."` strings instead of throwing an `Error`;
+              - pages added to the old tab lists (`Account.js`, `W2Tab.js` to `W7Tab.js`) instead of `src/ui/pages/<world>/<page>/` with `definePage`;
+              - entries added to `scripts/rules/exceptions.json` (that list only shrinks).
+              Flag anything touching the core: `src/cheats/core/`, `src/modules/server/`, `src/modules/config/`, `src/modules/game/`,
+              the updater (`src/modules/autoUpdater.js`, `updateChecker.js`, `updateService.js`), `config.js`, `scripts/`,
+              `.github/`, `package.json`, `package-lock.json` and `rollup.config.mjs`. Only the maintainer changes the core;
+              a contributor PR should report a core bug as an issue instead.
+              Flag a PR that mixes kinds of mod (hook, cheat, page, automation, core): one kind per PR.
+        - path: "src/cheats/hooks/**"
+          instructions: |
+              Hooks. Each file declares its hooks with `defineHook` (copy `src/cheats/hooks/_example.js`).
+              Handlers are base-first: they get the game method's result (`base`) after the game's method ran.
+              `around: true` is only for skipping the game's method, changing its arguments, or changing state it reads
+              while it runs, and needs a one-line `// Around:` comment right above it saying why. Ask whether base-first
+              would work. A new hook needs an approved issue naming the game function; ask for its link.
+              Every game name used must be in `scripts/game-names.json`.
+        - path: "src/cheats/cheats/**"
+          instructions: |
+              Cheats. Each cheat is a `defineCheat` row (copy `src/cheats/cheats/_example.js`): name, message, parameters,
+              `dangerous: true` for anything that can damage an account, and its settings in the row's `config` with a
+              default and a description. `fn` returns the player's message or throws an `Error`. After a `config` change,
+              `config.js` and `src/ui/config/configDescriptions.js` must be regenerated with `npm run config:generate`,
+              never edited by hand. A new cheat needs an approved issue naming the game function; ask for its link.
+        - path: "src/ui/pages/**"
+          instructions: |
+              Pages. Each page is `src/ui/pages/<world>/<system>/<page>.js` with `export default definePage({...})`.
+              It loads with `useAccountLoad` when it opens, uses the shared rows (`EditableNumberRow`, `ClampedLevelRow`,
+              `PersistentAccountListPage`) and the shared CSS rather than a page stylesheet, and saves only through
+              `writeVerified` (`writeManyVerified` for many). Check VanJS reactivity per AGENTS.md: static inputs, tight
+              reactive functions, stable row identity, accessible save feedback. The UI must work in Chromium 87.
+        - path: "src/cheats/automations/**"
+          instructions: |
+              Automations. Each file declares its loop with `defineAutomation({ id, tick, status })` (copy
+              `src/cheats/automations/_example.js`). The core owns the loop, start and stop; the file never starts its
+              own timer. To wait, count ticks.

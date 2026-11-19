@@ -1,0 +1,36 @@
+name: Bug report
+description: Something in the injector doesn't work.
+labels: ["bug"]
+body:
+    - type: input
+      id: version
+      attributes:
+          label: Injector version
+          description: Shown at the top of the injector window, or in the release you downloaded.
+          placeholder: "3.0.0"
+      validations:
+          required: true
+    - type: dropdown
+      id: platform
+      attributes:
+          label: Steam or web
+          options:
+              - Steam
+              - Web
+      validations:
+          required: true
+    - type: input
+      id: game-update
+      attributes:
+          label: When the game last updated
+          description: The date of the last game update before this started, or the game version if you know it.
+          placeholder: "2026-11-15, or v2.41"
+      validations:
+          required: true
+    - type: textarea
+      id: what-happened
+      attributes:
+          label: What happened
+          description: What you did, what you expected, and what happened instead. Paste any error text and add a screenshot if you can.
+      validations:
+          required: true
