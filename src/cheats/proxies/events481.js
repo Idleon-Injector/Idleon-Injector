@@ -1,76 +1,14 @@
 /**
  * ActorEvents_481 Proxies
  *
- * Proxies for ActorEvents_481 functions:
- * - init (storage and Collider timers)
+ * Proxies for ActorEvents_481 functions (the storage timers on init are an early hook in hooks/storage.js):
  * - anotherThing (printer storage deposits)
  * - WorkbenchStuff2 (better cogs RNG)
  */
 
-import { cheatState, startupCheats } from "../core/state.js";
-import { behavior, events, gga } from "../core/globals.js";
+import { cheatState } from "../core/state.js";
+import { events, gga } from "../core/globals.js";
 import { withStorageCapScope } from "./storageCap.js";
-
-const hookedTimerClasses = new WeakSet();
-
-/** Install timer interception using the registry's Script before gameReady binds globals. */
-export function setupEvents481StorageTimerProxy(ActorEvents481, script) {
-    if (hookedTimerClasses.has(ActorEvents481)) return;
-
-    let startupStorageCap = false;
-    let startupWide = false;
-    for (const command of startupCheats) {
-        if (command === "wide") {
-            startupWide = !startupWide;
-            startupStorageCap = startupWide;
-        } else if (command === "wide storagecap") {
-            startupStorageCap = !startupStorageCap;
-        }
-    }
-
-    const init = ActorEvents481.prototype.init;
-    ActorEvents481.prototype.init = function (...args) {
-        const actor = this.actor;
-        const runLater = script.runLater;
-        const runPeriodically = script.runPeriodically;
-        for (const name of ["runLater", "runPeriodically"]) {
-            const Original = script[name];
-            script[name] = function (...args) {
-                const [delay, callback, target] = args;
-                if (target === actor) {
-                    const source = Function.prototype.toString.call(callback);
-                    const cap =
-                        name === "runLater" &&
-                        delay === 500 &&
-                        /(?:105[eE]7|1050000000)/.test(source) &&
-                        source.includes("ChestQuantity") &&
-                        source.includes("GiveAtoms");
-                    const collider =
-                        name === "runLater" &&
-                        delay === 6000 &&
-                        source.includes("AtomThreshold") &&
-                        source.includes("GiveAtoms");
-                    const condense = name === "runPeriodically" && delay === 6000 && source.includes("CondenseChest2B");
-                    if (cap || collider || condense) {
-                        args[1] = function (...args) {
-                            // Before gameReady, use startup intent without running or double-toggling commands.
-                            if (cheatState.wide.storagecap || (gga === null && startupStorageCap)) return;
-                            return Reflect.apply(callback, this, args);
-                        };
-                    }
-                }
-                return Reflect.apply(Original, this, args);
-            };
-        }
-        try {
-            return Reflect.apply(init, this, args);
-        } finally {
-            script.runLater = runLater;
-            script.runPeriodically = runPeriodically;
-        }
-    };
-    hookedTimerClasses.add(ActorEvents481);
-}
 
 /**
  * Setup all ActorEvents_481 proxies.
@@ -81,7 +19,6 @@ export function setupEvents481StorageTimerProxy(ActorEvents481, script) {
  */
 export function setupEvents481Proxies() {
     const ActorEvents481 = events(481);
-    setupEvents481StorageTimerProxy(ActorEvents481, behavior);
 
     const anotherThing = ActorEvents481.prototype._customEvent_anotherThing;
     ActorEvents481.prototype._customEvent_anotherThing = function (...args) {

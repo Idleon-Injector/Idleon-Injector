@@ -11,7 +11,9 @@ before running an unfamiliar command.
 
 - [Command implementations](../src/cheats/cheats/) and [registration](../src/cheats/core/registration.js).
 - [Game globals](../src/cheats/core/globals.js) and [traversal utilities](../src/cheats/utils/traverse.js).
-- [Game hooks](../src/cheats/proxies/) and [proxy utilities](../src/cheats/utils/proxy.js).
+- [Game hooks](../src/cheats/hooks/) declared with [`defineHook`](../src/cheats/core/hooks.js); copy
+  [the example](../src/cheats/hooks/_example.js). Older hooks are still in [proxies](../src/cheats/proxies/) with the
+  [proxy utilities](../src/cheats/utils/proxy.js).
 
 Exact parameters and helper contracts belong in those files. The
 [base-first decision](decisions.md#preserve-original-method-side-effects) explains the method-hook constraint.

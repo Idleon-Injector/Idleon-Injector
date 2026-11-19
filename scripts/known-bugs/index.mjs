@@ -161,6 +161,9 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
     const state = await importRepo("src/cheats/core/state.js");
     state.setCheatConfig({ ...loadCommonJs("config.js").cheatConfig, ingameUI: false });
     await importRepo("src/cheats/cheats/register.js");
+    // The hook files the build bundles (rollup.config.mjs), so setup installs them as in the game.
+    for (const file of (await importRepo("rollup.config.mjs")).hookFiles())
+        await importRepo(`src/cheats/hooks/${file}`);
     const { cheat, registerCheat, registerCheats } = await importRepo("src/cheats/core/registration.js");
     const game = fakeGame({ ready });
     if (ready) (await importRepo("src/cheats/core/globals.js")).registerCommonVariables(game.context);

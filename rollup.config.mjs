@@ -9,7 +9,8 @@
  *   npm run watch:cheats       - Watch mode (rebuild on changes)
  */
 
-import { readFileSync } from "fs";
+import { readdirSync, readFileSync } from "fs";
+import { fileURLToPath } from "url";
 
 // Get package version for banner
 let version = "dev";
@@ -83,6 +84,27 @@ const bundleStats = () => ({
     },
 });
 
+const hooksDir = fileURLToPath(new URL("src/cheats/hooks/", import.meta.url));
+
+/** The hook files in src/cheats/hooks/, in the order they install. A file starting with "_" (the example) is skipped. */
+export const hookFiles = () =>
+    readdirSync(hooksDir)
+        .filter((file) => file.endsWith(".js") && !file.startsWith("_"))
+        .sort();
+
+// `import "virtual:hooks"` in cheats/main.js imports every hook file, so a new hook is just a new file.
+// ponytail: watch mode sees edits, not a newly added file; restart it after adding one.
+const hooksFolder = () => ({
+    name: "hooks-folder",
+    resolveId: (id) => (id === "virtual:hooks" ? "\0virtual:hooks" : null),
+    load: (id) =>
+        id === "\0virtual:hooks"
+            ? hookFiles()
+                  .map((file) => `import ${JSON.stringify(hooksDir + file)};`)
+                  .join("\n")
+            : null,
+});
+
 export default {
     input: "src/cheats/main.js",
     output: {
@@ -98,5 +120,5 @@ export default {
     treeshake: {
         moduleSideEffects: true,
     },
-    plugins: [bundleStats()],
+    plugins: [hooksFolder(), bundleStats()],
 };

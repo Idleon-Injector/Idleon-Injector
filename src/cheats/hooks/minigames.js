@@ -1,0 +1,534 @@
+/**
+ * Minigame hooks
+ *
+ * Each hook wraps a method on an ActorEvents prototype and is controlled by a cheatState.minigame toggle.
+ *
+ * Supported minigames:
+ * - Mining (ActorEvents_229) - Never game over
+ * - Fishing (ActorEvents_229) - Fish aimbot
+ * - Catching (ActorEvents_229) - Static fly/hoop positions
+ * - Choppin (ActorEvents_116) - Gold zone fills bar
+ * - Hoops (ActorEvents_510) - Perfect ball/hoop position
+ * - Darts (ActorEvents_510) - Bullseye position
+ * - Scratch (ActorEvents_670) - Auto reveal all
+ * - Wisdom (ActorEvents_670) - Infinite insta matches + card reveal
+ * - Poing (ActorEvents_577) - AI paddle off-screen
+ * - Log (ActorEvents_577) - Card type reveal
+ * - Minehead (ActorEvents_741) - In-game mine tile reveal
+ * - Gold Pot Rush (ActorEvents_670) - Instant finish minigame
+ * - Event Card Game (ActorEvents_670) - Keep guesses alive
+ * - Event Wheel (ActorEvents_670) - Land on the bonus line, then the bonus wheel jackpot
+ */
+
+import { cheatState, cheatConfig } from "../core/state.js";
+import { behavior, events, gga } from "../core/globals.js";
+import { defineHook } from "../core/hooks.js";
+
+// Find the highest-tier active fish, skipping bombs (type 5) and optionally whales (type 6)
+function findBestFish(genInfo) {
+    const fishes = genInfo[4];
+    let bestIndex = -1;
+    let bestType = -1;
+    for (let i = 0; i < fishes.length; i++) {
+        const f = fishes[i];
+        if (f[0] < 500 && f[1] !== 5 && !(cheatConfig.minigame.fishing.skipWhale && f[1] === 6) && f[1] > bestType) {
+            bestType = f[1];
+            bestIndex = i;
+        }
+    }
+    return bestIndex;
+}
+
+// mining, fishing, catching
+
+// mining block game over
+defineHook(
+    { id: "minigame", target: () => events(229).prototype, method: "_customEvent_MiningGameOver", around: true },
+    (callOriginal) => {
+        if (cheatState.minigame.mining) return; // Skip original entirely
+        return callOriginal();
+    }
+);
+
+// catching and fishing proxy _GenInfo array
+defineHook({ id: "minigame", target: () => events(229).prototype, method: "init" }, function (base) {
+    this._GenInfo = new Proxy(this._GenInfo, {
+        get(target, prop, receiver) {
+            if (typeof prop === "symbol") return Reflect.get(target, prop, receiver);
+
+            const index = Number(prop);
+
+            if (cheatState.minigame.catching) {
+                if (index === 31) return 70;
+                if (index === 33) return [95, 95, 95, 95, 95];
+            }
+
+            if (cheatState.minigame.fishing) {
+                if (index === 4 || index === 13) {
+                    const bestIndex = findBestFish(target);
+                    if (bestIndex !== -1) {
+                        const fishes = target[4];
+                        const bobber = target[8];
+                        const sines = target[13];
+
+                        fishes[bestIndex][0] = bobber[0];
+                        // fish swim offset shifts visual X; zero it so base X snap stays aligned
+                        sines[bestIndex] = 0;
+                    }
+                }
+            }
+
+            return Reflect.get(target, prop, receiver);
+        },
+    });
+
+    return base;
+});
+
+// choppin
+
+// choppin proxy _GeneralINFO for gold zone
+defineHook({ id: "minigame", target: () => events(116).prototype, method: "init" }, function (base) {
+    this._GeneralINFO = new Proxy(this._GeneralINFO, {
+        get(target, prop, receiver) {
+            if (typeof prop === "symbol") return Reflect.get(target, prop, receiver);
+
+            const index = Number(prop);
+            if (cheatState.minigame.choppin && index === 7) {
+                return [100, -1, 0, 2, 0, 220, -1, 0, -1, 0, -1, 0, 0, 220, 0, 0, 1];
+            }
+
+            return Reflect.get(target, prop, receiver);
+        },
+    });
+
+    return base;
+});
+
+// hoops and darts
+
+// Hoops constants
+const HOOP_TGT_X = 107;
+const HOOP_TGT_Y = 108;
+const HOOP_POS_X = 95;
+const HOOP_POS_Y = 96;
+const BALL_X = 91;
+
+// Darts constants
+const DART_X = 138;
+const DART_Y = 139;
+const DART_ACTIVE = 137;
+const BULLSEYE_X = 938;
+const BULLSEYE_Y = 292;
+
+defineHook({ id: "minigame", target: () => events(510).prototype, method: "init" }, function (base) {
+    this._GenINFO = new Proxy(this._GenINFO, {
+        get(target, prop, receiver) {
+            if (typeof prop === "symbol") return Reflect.get(target, prop, receiver);
+
+            const index = Number(prop);
+
+            // Hoops logic
+            if (cheatState.minigame.hoops) {
+                switch (index) {
+                    case HOOP_TGT_X:
+                    case HOOP_POS_X:
+                        return 600;
+                    case HOOP_TGT_Y:
+                    case HOOP_POS_Y:
+                        return 300;
+                    case BALL_X:
+                        return 620;
+                }
+            }
+
+            // Darts logic
+            if (cheatState.minigame.darts && target[DART_ACTIVE] === 1) {
+                if (index === DART_X) return BULLSEYE_X;
+                if (index === DART_Y) return BULLSEYE_Y;
+            }
+
+            return Reflect.get(target, prop, receiver);
+        },
+    });
+
+    return base;
+});
+
+// scratch, wisdom, valentine, gold pot rush and event card game
+
+// Gold Pot Rush queues delayed coin spawns. Without a round id, callbacks
+// from the previous round can write into the next round's _GenINFO[254].
+const goldPotRushRoundIds = new WeakMap();
+
+// Scratch card state
+const SCRATCH_ARRAY_IDX = 212;
+const SCRATCH_STATE_IDX = 50;
+const COVER_IMG_SET_IDX = 68;
+const COVER_IMG_IDX = 1;
+const SCRATCH_REVEAL_START_IDX = 25;
+const SCRATCH_REVEAL_END_IDX = 49;
+
+// Event minigame ids/state
+const EVENT_GAME_IDX = 213;
+const VALENTINE_GAME_ID = 2;
+const VALENTINE_GRID_IDX = 228;
+const VALENTINE_CLICKED_IDX = 229;
+const VALENTINE_GRID_SIZE = 36;
+const GOLD_POT_GAME_ID = 3;
+const CARD_GAME_ID = 4;
+
+// Gold Pot Rush state
+const GOLD_POT_PHASE_IDX = 255;
+const GOLD_POT_BALLS_IDX = 254;
+const GOLD_POT_BALL_PROG_IDX = 10;
+const GOLD_POT_CFG_IDX = 256;
+const GOLD_POT_FRAME_IDX = 0;
+const GOLD_POT_DONE_STAGE = 9;
+
+// Event Card Game state
+const CARD_PHASE_IDX = 255;
+const CARD_LIVES_IDX = 226;
+const CARD_DECK_IDX = 271;
+const CARD_DECK_SIZE = 52;
+const CARD_TOP_REWARD_DEALT = 35;
+const CARD_MAX_LIVES = 2;
+
+// Event Wheel state
+const WHEEL_GAME_ID = 0;
+const WHEEL_ANGLE_IDX = 144;
+const WHEEL_TARGET_IDX = 145;
+const WHEEL_SPIN_IDX = 147;
+const WHEEL_TIER_IDX = 241;
+const WHEEL_TARGET_BANDS = [
+    [188.4, 194],
+    [0, 51.7],
+    [0, 20.7],
+];
+const WHEEL_JACKPOT_START = 359.1;
+const WHEEL_JACKPOT_END = 1.2;
+
+// Wisdom Monument state
+const WISDOM_HOLE_ID = 12;
+const WISDOM_PHASE_IDX = 55;
+const HOLE_ACTIVITY_IDX = 0;
+// const WISDOM_ATTEMPTS_IDX = 194;
+const WISDOM_INSTA_IDX = 200;
+const WISDOM_DATA_IDX = 197;
+const WISDOM_MATCHED_IDX = 198;
+const WISDOM_CARD_SET_IDX = 67;
+const WISDOM_CARD_OFFSET = 44;
+const WISDOM_CARD_COUNT = 44;
+
+function isGoldPotRushRound(instance) {
+    return instance._GenINFO[EVENT_GAME_IDX] === GOLD_POT_GAME_ID && instance._GenINFO[GOLD_POT_PHASE_IDX] === 1;
+}
+
+function isCardGameRound(instance) {
+    return instance._GenINFO[EVENT_GAME_IDX] === CARD_GAME_ID && instance._GenINFO[CARD_PHASE_IDX] === 1;
+}
+
+function keepCardGameAlive(instance) {
+    if (!cheatState.minigame.card || !isCardGameRound(instance)) return;
+
+    const deck = instance._GenINFO[CARD_DECK_IDX];
+    if (!Array.isArray(deck) || deck.length >= CARD_DECK_SIZE) return;
+    if (deck.length >= CARD_TOP_REWARD_DEALT) return;
+
+    instance._GenINFO[CARD_LIVES_IDX] = CARD_MAX_LIVES;
+}
+
+// Retarget the spin so the wheel stops inside the tier's band.
+function steerEventWheel(instance) {
+    const info = instance._GenINFO;
+    if (!cheatState.minigame.wheel || info[EVENT_GAME_IDX] !== WHEEL_GAME_ID || info[WHEEL_SPIN_IDX] !== 1) return;
+
+    const tier = info[WHEEL_TIER_IDX];
+    const band = WHEEL_TARGET_BANDS[tier];
+    if (!band) return;
+
+    const target = info[WHEEL_TARGET_IDX];
+    const landing = target - 360 * Math.floor(target / 360);
+    if (landing >= band[0] && landing < band[1]) return;
+    if (tier === 0 && (landing >= WHEEL_JACKPOT_START || landing < WHEEL_JACKPOT_END)) return;
+
+    let nextTarget = target - landing + (band[0] + band[1]) / 2;
+    if (nextTarget <= info[WHEEL_ANGLE_IDX]) nextTarget += 360;
+    info[WHEEL_TARGET_IDX] = nextTarget;
+}
+
+// _GenINFO proxy hooks for Scratch and Wisdom Monument
+defineHook({ id: "minigame", target: () => events(670).prototype, method: "init" }, function (base) {
+    this._GenINFO = new Proxy(this._GenINFO, {
+        get: (target, prop, receiver) => {
+            if (typeof prop === "symbol") return Reflect.get(target, prop, receiver);
+
+            const index = Number(prop);
+            const value = Reflect.get(target, prop, receiver);
+            // scratch logic auto reveal all scratch zones
+            if (index === SCRATCH_ARRAY_IDX && cheatState.minigame.scratch && value[SCRATCH_STATE_IDX] === 1) {
+                for (let i = SCRATCH_REVEAL_START_IDX; i <= SCRATCH_REVEAL_END_IDX; i++) {
+                    value[i] = 1;
+                }
+                // Hide cover image
+                const coverImage = this._UIinventory15[COVER_IMG_SET_IDX][COVER_IMG_IDX];
+                coverImage.set_alpha(0);
+            }
+            // wisdom logic infinite insta matches
+            if (cheatState.minigame.wisdom && index === WISDOM_INSTA_IDX) {
+                return 10;
+            }
+
+            return value;
+        },
+    });
+
+    return base;
+});
+
+// valentine reveal and Gold Pot Rush round tracking both on _event_OwlEvent.
+defineHook(
+    { id: "minigame", target: () => events(670).prototype, method: "_event_OwlEvent", around: true },
+    function (callOriginal) {
+        const instance = this;
+        const nextGoldPotRushRoundId = (goldPotRushRoundIds.get(this) || 0) + 1;
+        const previousGoldPotRushActive = isGoldPotRushRound(this);
+        const originalRunLater = behavior.runLater;
+
+        keepCardGameAlive(this);
+
+        behavior.runLater = function (...runLaterArgs) {
+            if (runLaterArgs[2] === instance.actor && isGoldPotRushRound(instance)) {
+                const callback = runLaterArgs[1];
+                // Ignore delayed spawns from older rounds after _GenINFO[254] is rebuilt.
+                runLaterArgs[1] = function (...callbackArgs) {
+                    if (goldPotRushRoundIds.get(instance) !== nextGoldPotRushRoundId) return;
+                    return Reflect.apply(callback, this, callbackArgs);
+                };
+            }
+
+            return Reflect.apply(originalRunLater, this, runLaterArgs);
+        };
+
+        let base;
+        try {
+            base = callOriginal();
+        } finally {
+            behavior.runLater = originalRunLater;
+        }
+
+        if (!previousGoldPotRushActive && isGoldPotRushRound(this)) {
+            goldPotRushRoundIds.set(this, nextGoldPotRushRoundId);
+        }
+
+        keepCardGameAlive(this);
+
+        // this._GenINFO[213] event game 2 = valentine game
+        if (cheatState.minigame.valentine && this._GenINFO[EVENT_GAME_IDX] === VALENTINE_GAME_ID) {
+            const grid = this._GenINFO[VALENTINE_GRID_IDX];
+            const clicked = this._GenINFO[VALENTINE_CLICKED_IDX];
+            const covers = this._UIinventory15[COVER_IMG_SET_IDX];
+
+            for (let i = 0; i < VALENTINE_GRID_SIZE; i++) {
+                // 0 = Barf, skip if already clicked
+                if (grid[i] !== 0 || clicked[i] !== 0) continue;
+
+                const tform = covers[i].get_transform();
+                const cform = tform.get_colorTransform();
+                cform.redMultiplier = 0;
+                cform.blueMultiplier = 0;
+                tform.set_colorTransform(cform);
+                covers[i].set_transform(tform);
+            }
+        }
+
+        return base;
+    }
+);
+
+// Event Wheel cheat
+defineHook({ id: "minigame", target: () => events(670).prototype, method: "_event_Events" }, function (base) {
+    steerEventWheel(this);
+    const info = this._GenINFO;
+    if (cheatState.minigame.instawheel && info[EVENT_GAME_IDX] === WHEEL_GAME_ID && info[WHEEL_SPIN_IDX] === 1) {
+        info[WHEEL_ANGLE_IDX] = info[WHEEL_TARGET_IDX];
+    }
+    return base;
+});
+
+// Gold Pot Rush cheat
+defineHook({ id: "minigame", target: () => events(670).prototype, method: "_event_7" }, function (base) {
+    if (!cheatState.minigame.goldrush || !isGoldPotRushRound(this)) {
+        return base;
+    }
+
+    const balls = this._GenINFO[GOLD_POT_BALLS_IDX];
+    const completeProg = GOLD_POT_DONE_STAGE * this._GenINFO[GOLD_POT_CFG_IDX][GOLD_POT_FRAME_IDX];
+
+    // Jump each coin to the game's payout threshold.
+    for (const ball of balls) {
+        if (ball[GOLD_POT_BALL_PROG_IDX] >= completeProg) continue;
+
+        // Fast-forward to the game's own payout threshold so _event_7
+        // resolves the winning bucket on the next tick.
+        ball[GOLD_POT_BALL_PROG_IDX] = completeProg;
+        break;
+    }
+
+    return base;
+});
+
+// wisdom card reveal helper — sets scaleX(1) on item images for active cards
+// and tints matched pairs green using color transforms
+function revealWisdomCards(instance) {
+    if (!cheatState.minigame.wisdom) return;
+    const playerHoleIdx = gga.GetPlayersUsernames.indexOf(gga.UserInfo[0]);
+    if (gga.Holes[HOLE_ACTIVITY_IDX][playerHoleIdx] !== WISDOM_HOLE_ID) return;
+    if (instance._GenINFO[WISDOM_PHASE_IDX] !== 1) return;
+
+    const cards = instance._UIinventory15[WISDOM_CARD_SET_IDX];
+    const data = instance._GenINFO[WISDOM_DATA_IDX];
+    const matched = instance._GenINFO[WISDOM_MATCHED_IDX];
+
+    for (let i = 0; i < WISDOM_CARD_COUNT; i++) {
+        const img = cards[i + WISDOM_CARD_OFFSET];
+        if (data[i] === 0) continue;
+
+        img.set_scaleX(1);
+        if (matched[i] !== 1) continue;
+
+        const tform = img.get_transform();
+        const cform = tform.get_colorTransform();
+        cform.redMultiplier = 0;
+        cform.blueMultiplier = 0;
+        tform.set_colorTransform(cform);
+        img.set_transform(tform);
+    }
+}
+
+// reveal after round setup ("f2") and card clicks ("c")
+defineHook(
+    { id: "minigame", target: () => events(670).prototype, method: "_customEvent_CavernStuffz3" },
+    function (base) {
+        revealWisdomCards(this);
+        return base;
+    }
+);
+
+// re-reveal on every mouse interaction to keep items visible
+defineHook({ id: "minigame", target: () => events(670).prototype, method: "_event_monumentgameplay" }, function (base) {
+    revealWisdomCards(this);
+    return base;
+});
+
+// poing and log
+const LOG_INACTIVE_STATE = -1;
+const LOG_PHASE_IDX = 53;
+const POING_INACTIVE_PHASE = -1;
+const POING_PHASE_IDX = 57;
+const POING_PAD_XS_IDX = 58;
+const POING_AI_PAD_IDX = 1;
+
+// Poing: Hook into _event_Gaming where AI paddle movement happens
+// _GenINFO[58] is paddle X positions [player, ai]
+// We move AI paddle off-screen (999) and block game from updating it
+defineHook(
+    { id: "minigame", target: () => events(577).prototype, method: "_event_Gaming", around: true },
+    function (callOriginal) {
+        // Before running game logic, wrap the paddle X positions if cheat is enabled
+        if (
+            cheatState.minigame.poing &&
+            this._GenINFO[POING_PHASE_IDX] !== POING_INACTIVE_PHASE &&
+            this._GenINFO[POING_PAD_XS_IDX] &&
+            !this._GenINFO[POING_PAD_XS_IDX]._isProxied
+        ) {
+            this._GenINFO[POING_PAD_XS_IDX] = new Proxy(this._GenINFO[POING_PAD_XS_IDX], {
+                get(padXs, key) {
+                    if (typeof key === "symbol") return padXs[key];
+                    const index = Number(key);
+                    if (index === POING_AI_PAD_IDX) {
+                        return 999; // Move AI paddle far off-screen
+                    }
+                    return padXs[key];
+                },
+                set(padXs, key, value) {
+                    const index = Number(key);
+                    // Block game from updating AI's position
+                    if (index === POING_AI_PAD_IDX) {
+                        return true;
+                    }
+                    padXs[key] = value;
+                    return true;
+                },
+            });
+            this._GenINFO[POING_PAD_XS_IDX]._isProxied = true;
+        }
+        return callOriginal();
+    }
+);
+
+// log card reveal
+defineHook({ id: "minigame", target: () => events(577).prototype, method: "_customEvent_W5stuffzz" }, function (base) {
+    if (!cheatState.minigame.log) return base;
+    if (this._GenINFO[LOG_PHASE_IDX] === LOG_INACTIVE_STATE) return base;
+    const cards = this._UIinventory13[41];
+    const data = this._GenINFO[54];
+
+    for (let i = 0; i < 10; i++) {
+        const img = cards[i];
+        const tform = img.get_transform();
+        const cform = tform.get_colorTransform();
+        cform.blueMultiplier = 0;
+
+        if (data[i] === 1) {
+            cform.greenMultiplier = 0;
+        } else {
+            cform.redMultiplier = 0;
+        }
+
+        tform.set_colorTransform(cform);
+        img.set_transform(tform);
+    }
+
+    return base;
+});
+
+// minehead
+
+const TILE_LAYERS = [27, 28, 29];
+const MINE_ALPHA = 0.2;
+const DEFAULT_ALPHA = 1;
+const mineRevealActive = new WeakMap();
+
+defineHook({ id: "minigame", target: () => events(741).prototype, method: "_event_Minehead" }, function (base) {
+    const mineGrid = this._GenINFO[32];
+    const revealedTiles = this._GenINFO[33];
+    const uiInventory = this._UIinventory17;
+
+    if (!Array.isArray(mineGrid) || !uiInventory) return base;
+
+    const inMineRound = this._GenINFO[28] === 1;
+    const shouldReveal = cheatState.minigame.minehead && inMineRound;
+    const wasRevealActive = mineRevealActive.get(this) === true;
+
+    if (!shouldReveal && !wasRevealActive) return base;
+
+    for (let tileIndex = 0; tileIndex < mineGrid.length; tileIndex++) {
+        if (mineGrid[tileIndex] !== 0) continue;
+
+        const isRevealed = revealedTiles[tileIndex] === 1;
+        const alpha = shouldReveal && !isRevealed ? MINE_ALPHA : DEFAULT_ALPHA;
+
+        for (const layer of TILE_LAYERS) {
+            uiInventory[layer][tileIndex].set_alpha(alpha);
+        }
+    }
+
+    if (shouldReveal) {
+        mineRevealActive.set(this, true);
+    } else {
+        mineRevealActive.delete(this);
+    }
+
+    return base;
+});

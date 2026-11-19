@@ -32,6 +32,24 @@ Trade-off: the original work still runs even when its result will be overridden.
 
 Source: [proxy utilities](../src/cheats/utils/proxy.js).
 
+## One way to hook the game
+
+Decision: a game hook is a `defineHook` declaration in its own file under `src/cheats/hooks/`. The core does the
+wrapping, installs each hook on its own, reports a missing target, never wraps an object twice, re-applies every hook
+after character select and installs early hooks before setup. The build finds the files by scanning the folder.
+
+Why: the code hooked the game seven different ways, guarded against patching twice three ways, and needed an edit to
+`proxies/setup.js` for every new hook. A contributor now adds one file and gets the core's guarantees.
+
+Alternative: keep per-file setup functions listed in `proxies/setup.js`, or a generated import list kept in sync by a
+check. Both make every new hook edit a shared file.
+
+Trade-off: the folder scan happens in the build (a rollup step), so the test harness imports the same file list
+itself. A hook that must change state while the game's method runs, or skip it, declares `around`, which steps outside
+base-first; it should stay rare.
+
+Source: [hook core](../src/cheats/core/hooks.js), [example hook](../src/cheats/hooks/_example.js).
+
 ## Preserve editable row identity
 
 Decision: keep editable Account rows stable when their values change.

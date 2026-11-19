@@ -5,7 +5,7 @@
  * - Mining, Fishing, Catching, Choppin, Poing
  * - Hoops, Darts, Wisdom Monument, Scratch, Minehead, Gold Pot Rush, Event Card Game, Event Wheel
  *
- * Proxies are set up at startup via setupMinigameProxies() in setup.js.
+ * The hooks that read these toggles are in hooks/minigames.js.
  * These commands only toggle cheatState booleans.
  */
 
