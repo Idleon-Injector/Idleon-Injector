@@ -15,25 +15,40 @@ import { cheatState, setupDone, cheatConfig } from "./state.js";
 export const cheats = {};
 
 /**
- * Main cheat dispatcher - executes cheat commands.
+ * Main cheat dispatcher - executes cheat commands once setup has the game's data.
  *
- * Parses the action string to find matching cheat commands,
+ * A cheat that arrives while the game is still loading waits for setup instead of running against
+ * empty game references. After that, setup that hasn't finished (a hook failed) is retried alongside.
+ *
+ * @param {string} action - The cheat command to execute
+ * @param {object} context - The game context (this)
+ * @param {boolean} [on] - Turn a toggle cheat on or off instead of flipping it
+ * @returns {Promise<{ok: boolean, message: string}>} Result
+ */
+export async function cheat(action, context, on) {
+    if (!setupDone) {
+        // Dynamic import to avoid circular dependency
+        const { setup, started } = await import("./setup.js");
+        const running = setup.call(context);
+        if (!started) {
+            const { error } = await running;
+            if (error) return { ok: false, message: `Cheat setup failed: ${error}` };
+        }
+    }
+    return runCheat(action, context, on);
+}
+
+/**
+ * Run a cheat command now. Parses the action string to find matching cheat commands,
  * passing remaining parts as parameters.
  *
  * @param {string} action - The cheat command to execute
  * @param {object} context - The game context (this)
- * @returns {string} Result message
+ * @param {boolean} [on] - Turn a toggle cheat on or off instead of flipping it
+ * @returns {{ok: boolean, message: string}} Result
  */
-export function cheat(action, context) {
+export function runCheat(action, context, on) {
     try {
-        if (!setupDone) {
-            (async () => {
-                // Dynamic import to avoid circular dependency
-                const { setup } = await import("./setup.js");
-                await setup.call(context);
-            })();
-        }
-
         const command = action.split(" ");
         const params = [];
         let foundCheat = cheats[command.join(" ")];
@@ -44,14 +59,14 @@ export function cheat(action, context) {
             foundCheat = cheats[command.join(" ")];
         }
 
-        if (foundCheat) {
-            const result = foundCheat.fn.call(context, params);
-            return result ?? "Done";
-        } else {
-            return `${action.split(" ")[0]} is not a valid option.`;
-        }
+        if (!foundCheat) return { ok: false, message: `${action.split(" ")[0]} is not a valid option.` };
+
+        const result = foundCheat.fn.call(context, params, on);
+        return result?.ok === undefined ? { ok: true, message: String(result ?? "Done") } : result;
     } catch (error) {
-        return `Error: ${error.stack}`;
+        // The stack stays in the game's console; the result carries only the reason.
+        console.error(`Cheat '${action}' failed:`, error);
+        return { ok: false, message: error?.message || String(error) };
     }
 }
 
@@ -114,7 +129,7 @@ export function registerCheats(cheatMap, higherKeys = [], parentCategory = null)
     }
 
     // Create the cheat handler function
-    const fn = function (params) {
+    const fn = function (params, on) {
         if ("fn" in cheatMap) {
             return cheatMap.fn.call(this, higherKeys.concat(cheatMap.name).concat(params).splice(1));
         }
@@ -123,28 +138,31 @@ export function registerCheats(cheatMap, higherKeys = [], parentCategory = null)
         if (params.length > 0) {
             if (!("configurable" in cheatMap)) {
                 if (cheatMap.subcheats && cheatMap.subcheats.length > 0) {
-                    return (
-                        `Wrong subcommand, use one of these:\n` +
-                        cheatMap.subcheats.map((p) => `${cmd} ${p.name} (${p.message})`).join("\n")
-                    );
+                    return {
+                        ok: false,
+                        message:
+                            `Wrong subcommand, use one of these:\n` +
+                            cheatMap.subcheats.map((p) => `${cmd} ${p.name} (${p.message})`).join("\n"),
+                    };
                 }
-                return "This cheat doesn't accept values";
+                return { ok: false, message: "This cheat doesn't accept values" };
             }
 
             const config = higherKeys.reduce((obj, key) => (obj[key] ??= {}), cheatConfig);
+            const invalid = { ok: false, message: "Invalid value. Must be a number or boolean." };
             let val = params.join(" ");
 
             if (val === "") {
-                return `Invalid value. Must be a number or boolean.`;
+                return invalid;
             }
 
             try {
                 val = JSON.parse(val);
                 if (typeof val !== "number" && typeof val !== "boolean") {
-                    return `Invalid value. Must be a number or boolean.`;
+                    return invalid;
                 }
             } catch {
-                return `Invalid value. Must be a number or boolean.`;
+                return invalid;
             }
 
             stateObject[cheatMap.name] = true;
@@ -154,18 +172,19 @@ export function registerCheats(cheatMap, higherKeys = [], parentCategory = null)
 
         // Handle mass toggle of subcheats (only if allowToggleChildren is set)
         if (!params[0] && cheatMap.subcheats && cheatMap.allowToggleChildren) {
+            const next = on ?? !stateObject[cheatMap.name + "s"];
             for (const i in stateObject[cheatMap.name]) {
-                stateObject[cheatMap.name][i] = !stateObject[cheatMap.name + "s"];
+                stateObject[cheatMap.name][i] = next;
             }
-            stateObject[cheatMap.name + "s"] = !stateObject[cheatMap.name + "s"];
+            stateObject[cheatMap.name + "s"] = next;
             return `${stateObject[cheatMap.name + "s"] ? "Activated" : "Deactivated"} ${cheatMap.message}`;
         }
 
         if ("subcheats" in cheatMap) {
-            stateObject[cheatMap.name + "s"] = !stateObject[cheatMap.name + "s"];
+            stateObject[cheatMap.name + "s"] = on ?? !stateObject[cheatMap.name + "s"];
             return `${stateObject[cheatMap.name + "s"] ? "Activated" : "Deactivated"} ${cheatMap.message}.`;
         }
-        stateObject[cheatMap.name] = !stateObject[cheatMap.name];
+        stateObject[cheatMap.name] = on ?? !stateObject[cheatMap.name];
         return `${stateObject[cheatMap.name] ? "Activated" : "Deactivated"} ${cheatMap.message}.`;
     };
 

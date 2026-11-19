@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { test } from "node:test";
@@ -33,7 +34,7 @@ async function request(router, method, url, body = {}) {
 
 test("API setup retains every endpoint and does not evaluate the game during registration", () => {
     const router = new TinyRouter();
-    setupApiRoutes(router, "window.fixture", { Runtime: {} }, {});
+    setupApiRoutes(router, "window.fixture", Object.assign(new EventEmitter(), { Runtime: {} }), {});
     const actual = Object.entries(router.routes).flatMap(([method, routes]) =>
         [...routes.keys()].map((url) => `${method} ${url}`)
     );
@@ -70,7 +71,7 @@ test("API setup retains every endpoint and does not evaluate the game during reg
 test("API groups use the configured game bridge for reads and configuration updates", async () => {
     const router = new TinyRouter();
     const calls = [];
-    const client = {
+    const client = Object.assign(new EventEmitter(), {
         Runtime: {
             evaluate: async (options) => {
                 calls.push(options);
@@ -79,7 +80,7 @@ test("API groups use the configured game bridge for reads and configuration upda
                 return { result: { value: "Config updated in game." } };
             },
         },
-    };
+    });
     setupApiRoutes(router, "window.fixture", client, { cheatConfig: {}, startupCheats: [], injectorConfig: {} });
     const read = await request(router, "POST", "/api/game/gga/read", { path: "Lv0[0]" });
     assert.deepEqual(read.body, { value: 7 });

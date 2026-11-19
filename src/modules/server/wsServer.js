@@ -139,7 +139,16 @@ async function cheatStatesMessage() {
     ]);
     // null: unknown, for example before the cheats are injected or after the game closed.
     const hookFailures = failures && !failures.error ? failures.value : null;
-    return JSON.stringify({ type: "cheat-states", data: states, hookFailures });
+    return JSON.stringify({ type: "cheat-states", data: states, hookFailures, gameOpen: !!gameBridge });
+}
+
+/**
+ * The game's connection closed: stop asking it for states and tell every UI that no cheat is on any more.
+ * @returns {Promise<void>}
+ */
+function gameClosed() {
+    gameBridge = null;
+    return broadcastCheatStates();
 }
 
 /**
@@ -210,6 +219,7 @@ function closeWebSocket() {
 module.exports = {
     initWebSocket,
     broadcastCheatStates,
+    gameClosed,
     getConnectedClients,
     closeWebSocket,
 };

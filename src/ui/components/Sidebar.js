@@ -85,7 +85,7 @@ const ActiveCheatList = () => {
             { class: "active-cheats-list" },
             ...activeCheats.map((cheat) =>
                 span(
-                    { class: "active-cheat-item", onclick: () => store.executeCheat(cheat, cheat) },
+                    { class: "active-cheat-item", onclick: () => store.executeCheat(cheat, cheat, false) },
                     span({ class: "active-cheat-text" }, cheat)
                 )
             )

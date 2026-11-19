@@ -494,12 +494,8 @@ registerCheat({
             return "chng command is currently disabled in config.js Enable it ONLY if you know what you are doing.";
         }
 
-        try {
-            eval(params[0]);
-            return `${params[0]}`;
-        } catch (error) {
-            return `Error: ${error}`;
-        }
+        eval(params[0]);
+        return `${params[0]}`;
     },
 });
 

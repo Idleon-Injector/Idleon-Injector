@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import { captureLogger, importRepo, loadCommonJs, loadGame } from "./index.mjs";
 
@@ -6,7 +7,7 @@ import { captureLogger, importRepo, loadCommonJs, loadGame } from "./index.mjs";
 async function startInjector(setupResult) {
     const logger = captureLogger();
     let onPageLoad;
-    const client = {
+    const client = Object.assign(new EventEmitter(), {
         Runtime: {
             evaluate: async ({ expression }) =>
                 expression.startsWith("setup.call(") ? setupResult : { result: { value: true } },
@@ -15,7 +16,7 @@ async function startInjector(setupResult) {
             loadEventFired: (handler) => (onPageLoad = handler),
             reload: async () => {},
         },
-    };
+    });
     const injectorConfig = { enableUI: false, target: "web" };
     loadCommonJs("src/main.js", {
         "./modules/config/configManager": {

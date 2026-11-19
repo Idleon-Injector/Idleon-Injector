@@ -31,11 +31,16 @@ function createGameBridge(runtime, context) {
             return evaluate(expression, options);
         },
 
-        executeCheat(action) {
-            return evaluate(`cheat.call(${context}, ${JSON.stringify(String(action))})`, {
-                awaitPromise: true,
-                allowUnsafeEvalBlockedByCSP: true,
-            });
+        /** Run a cheat; `on` sets a toggle cheat instead of flipping it. The value is `{ ok, message }`. */
+        executeCheat(action, on) {
+            return evaluate(
+                `cheat.call(${context}, ${JSON.stringify(String(action))}, ${JSON.stringify(on ?? null)})`,
+                {
+                    awaitPromise: true,
+                    returnByValue: true,
+                    allowUnsafeEvalBlockedByCSP: true,
+                }
+            );
         },
 
         async isAttached() {

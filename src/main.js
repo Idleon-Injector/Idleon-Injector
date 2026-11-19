@@ -209,6 +209,7 @@ async function main() {
         log.debug("Network interceptor ready");
 
         const { Runtime, Page } = client;
+        client.on("disconnect", () => log.warn("The game closed. Restart the injector to use cheats again."));
 
         log.debug("Registering page load handler");
         Page.loadEventFired(async () => {

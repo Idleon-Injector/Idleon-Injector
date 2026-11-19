@@ -6,7 +6,7 @@
 
 import { markSetupDone, setupDone, cheatConfig, startupCheats } from "./state.js";
 import { gameReady, gameContext } from "./globals.js";
-import { cheat } from "./registration.js";
+import { runCheat } from "./registration.js";
 
 // Imports for setup logic
 import { getHookFailures, setupAllProxies } from "../proxies/setup.js";
@@ -16,8 +16,11 @@ import { monitor } from "./valueMonitor.js";
 /** The setup run in progress, so calls that arrive while it waits for the game share it. */
 let running = null;
 
-/** Startup cheats, the value monitor and the in-game UI start once, on the first setup that reaches them. */
-let started = false;
+/**
+ * Startup cheats, the value monitor and the in-game UI start once, on the first setup that reaches them.
+ * Set once setup has the game's data and has run every hook step; cheats wait for that.
+ */
+export let started = false;
 
 /**
  * Main setup function - initializes all cheats and proxies.
@@ -77,5 +80,5 @@ async function runSetup(context) {
  * @returns {string[]} Array of result messages
  */
 export function runStartupCheats() {
-    return startupCheats.map((c) => cheat(c, gameContext));
+    return startupCheats.map((c) => runCheat(c, gameContext).message);
 }

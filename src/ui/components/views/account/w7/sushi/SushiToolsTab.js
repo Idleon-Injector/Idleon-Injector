@@ -72,13 +72,7 @@ export function SushiToolsTab() {
     }
     async function command(action) {
         const response = await executeCheatAction("w7 sushitools" + (action ? " " + action : ""));
-        if (typeof response.result !== "string" || response.result.startsWith("Error:"))
-            throw new Error(
-                String(response.result || "Sushi command failed.")
-                    .replace(/^(Error:\s*)+/, "")
-                    .split(/\s+at\s|\n/)[0]
-            );
-        return JSON.parse(response.result);
+        return JSON.parse(response.message);
     }
     async function run(action) {
         pending.val = true;

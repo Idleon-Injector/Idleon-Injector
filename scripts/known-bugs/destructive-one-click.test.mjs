@@ -15,7 +15,7 @@ test(
         const router = new TinyRouter();
         setupCheatRoutes(router, {
             callHelper: async () => ({ value: [wipe] }),
-            executeCheat: async () => ({ value: "Inventory wiped" }),
+            executeCheat: async () => ({ value: { ok: true, message: "Inventory wiped" } }),
         });
         const { requests } = await loadUi(router);
         globalThis.confirm = () => false; // if the fix asks first, the player hasn't said yes yet

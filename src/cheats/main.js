@@ -47,10 +47,11 @@ setupStorageEarlyHooks();
 /**
  * Main cheat dispatcher - wraps coreCheat with proper context.
  * @param {string} action - The cheat command to execute
- * @returns {string} Result message
+ * @param {boolean} [on] - Turn a toggle cheat on or off instead of flipping it
+ * @returns {Promise<{ok: boolean, message: string}>} Result
  */
-function cheat(action) {
-    return coreCheat(action, this);
+function cheat(action, on) {
+    return coreCheat(action, this, on);
 }
 
 /**

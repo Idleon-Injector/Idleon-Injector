@@ -39,12 +39,7 @@ export const CheatItem = (cheat) => {
             finalAction = `${cheat.value} ${val}`;
         }
 
-        try {
-            await store.executeCheat(finalAction, cheat.message);
-            feedbackState.val = "success";
-        } catch {
-            feedbackState.val = "error";
-        }
+        feedbackState.val = (await store.executeCheat(finalAction, cheat.message)) ? "success" : "error";
         setTimeout(() => (feedbackState.val = null), 1000);
     };
 
