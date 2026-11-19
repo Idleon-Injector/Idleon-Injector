@@ -31,7 +31,8 @@ function checkForUpdates(currentVersion) {
     return new Promise((resolve) => {
         const options = {
             hostname: "api.github.com",
-            path: "/repos/MrJoiny/Idleon-Injector/releases/latest",
+            // By id, not by name, so a rename or transfer of the repo doesn't break the update check.
+            path: "/repositories/1463002607/releases/latest",
             method: "GET",
             headers: {
                 "User-Agent": "Idleon-Injector-Update-Checker",

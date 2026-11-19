@@ -40,7 +40,7 @@ async function printHeader() {
     log.info(`InjectCheatUI v${version}`);
     log.info("=============================");
     log.info("FREE & PUBLIC SOURCE SOFTWARE");
-    log.info("GitHub: https://github.com/MrJoiny/Idleon-Injector");
+    log.info("GitHub: https://github.com/Idleon-Injector/Idleon-Injector");
     log.info("");
 
     const update = await createUpdater().check();
