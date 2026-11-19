@@ -42,8 +42,7 @@ export const UpdateModal = () => {
                 ),
                 p(
                     {
-                        class: () =>
-                            `update-modal-warning ${hiddenUnless(updateInfo().canApplyUpdate === false)}`,
+                        class: () => `update-modal-warning ${hiddenUnless(updateInfo().canApplyUpdate === false)}`,
                     },
                     "Auto-update is only available in packaged builds."
                 ),

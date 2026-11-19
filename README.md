@@ -115,10 +115,10 @@ npm run build-macos-x64
 npm run build-macos-arm64
 ```
 
-Validation runs the standard checks:
+The check runs formatting, validation and all tests (the same command runs on every pull request):
 
 ```bash
-npm run validate
+npm run check
 ```
 
 ## Documentation

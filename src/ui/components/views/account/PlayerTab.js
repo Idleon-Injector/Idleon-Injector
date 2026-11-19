@@ -106,9 +106,9 @@ export const PlayerTab = () => {
             inputProps: { "aria-label": title, ...(money ? { formatter: largeFormatter, parser: largeParser } : {}) },
             adjustInput: money
                 ? (raw, delta, current) => {
-                    const base = parseNumber(String(raw)) ?? current;
-                    return Math.max(0, base + delta * formattedStep(base));
-                }
+                      const base = parseNumber(String(raw)) ?? current;
+                      return Math.max(0, base + delta * formattedStep(base));
+                  }
                 : undefined,
             rowClass: `account-row--wide-controls${index === 0 ? " has-warning" : ""}`,
             controlsClass: "account-row__controls--xl",
@@ -174,8 +174,7 @@ export const PlayerTab = () => {
     load();
     return PersistentAccountListPage({
         title: "PLAYER",
-        description:
-            "Edit levels and money. Level edits reset XP and leave talent points unchanged.",
+        description: "Edit levels and money. Level edits reset XP and leave talent points unchanged.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy.val }),
         state: { loading, error },
         loadingText: "READING PLAYER",

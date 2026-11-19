@@ -33,9 +33,7 @@ function findBestFish(genInfo) {
     let bestType = -1;
     for (let i = 0; i < fishes.length; i++) {
         const f = fishes[i];
-        if (f[0] < 500 && f[1] !== 5
-            && !(cheatConfig.minigame.fishing.skipWhale && f[1] === 6)
-            && f[1] > bestType) {
+        if (f[0] < 500 && f[1] !== 5 && !(cheatConfig.minigame.fishing.skipWhale && f[1] === 6) && f[1] > bestType) {
             bestType = f[1];
             bestIndex = i;
         }
@@ -251,7 +249,7 @@ function setupEvents670Minigames() {
         instance._GenINFO[CARD_LIVES_IDX] = CARD_MAX_LIVES;
     }
 
-    // Retarget the spin so the wheel stops inside the tier's band. 
+    // Retarget the spin so the wheel stops inside the tier's band.
     function steerEventWheel(instance) {
         const info = instance._GenINFO;
         if (!cheatState.minigame.wheel || info[EVENT_GAME_IDX] !== WHEEL_GAME_ID || info[WHEEL_SPIN_IDX] !== 1) return;

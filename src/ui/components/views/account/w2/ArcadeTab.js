@@ -112,7 +112,10 @@ export const ArcadeTab = () => {
     const load = async () =>
         run(async () => {
             const [rawOptions, parsed] = await Promise.all([
-                readGgaEntries("OptionsListAccount", BALL_FIELDS.map((field) => String(field.optionIndex))),
+                readGgaEntries(
+                    "OptionsListAccount",
+                    BALL_FIELDS.map((field) => String(field.optionIndex))
+                ),
                 readLevelDefinitions({
                     levelsPath: "ArcadeUpg",
                     definitionsPath: "ArcadeShopInfo",

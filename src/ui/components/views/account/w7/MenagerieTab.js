@@ -344,9 +344,9 @@ export const MenagerieTab = () => {
                     meta:
                         id === "unlocks"
                             ? [
-                                unlockAll,
-                                span({ class: "account-write-feedback", role: "status" }, () => bulkMessage.val),
-                            ]
+                                  unlockAll,
+                                  span({ class: "account-write-feedback", role: "status" }, () => bulkMessage.val),
+                              ]
                             : null,
                     body: lists[id],
                 })

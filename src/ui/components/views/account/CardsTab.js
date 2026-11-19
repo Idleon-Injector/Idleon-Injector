@@ -41,8 +41,9 @@ const CARD_REGION_NAMES = [
 ];
 
 const toUnwrappedIndexedArray = (value) => toIndexedArray(unwrapH(value));
+// The last tier reached. Chromium 87 (the Steam client) has no findLastIndex.
 const tierIndexForAmount = (amount, thresholds) =>
-    thresholds.findLastIndex((threshold) => Number(amount) >= threshold);
+    thresholds.reduce((last, threshold, i) => (Number(amount) >= threshold ? i : last), -1);
 
 const nextTierLabel = (amount, thresholds) => {
     const nextThreshold = thresholds.find((threshold) => Number(amount) < threshold);
@@ -96,10 +97,7 @@ const TierSelect = ({
         },
         option({ value: "", disabled: true, selected: true }, label),
         ...TIER_MULTIPLIERS.map((_, tierIndex) =>
-            option(
-                { value: tierIndex },
-                `TIER ${tierIndex + 1} - ${thresholds ? thresholds[tierIndex] : "PER CARD"}`
-            )
+            option({ value: tierIndex }, `TIER ${tierIndex + 1} - ${thresholds ? thresholds[tierIndex] : "PER CARD"}`)
         )
     );
 };
@@ -247,19 +245,17 @@ const CardSection = ({
             ),
             div(
                 { class: "card-region__body account-item-stack" },
-                ...region.cards.map((card) =>
-                    Row({ card, valueState: getOrCreateState(valueStates, card.monsterId) })
-                )
+                ...region.cards.map((card) => Row({ card, valueState: getOrCreateState(valueStates, card.monsterId) }))
             )
         ),
         setRegionTier
             ? TierSelect({
-                label: "SET REGION TIER",
-                status,
-                disabled: () => region.cards.length === 0,
-                className: "card-region__tier-select",
-                onSelect: (tierIndex) => setRegionTier(region, tierIndex),
-            })
+                  label: "SET REGION TIER",
+                  status,
+                  disabled: () => region.cards.length === 0,
+                  className: "card-region__tier-select",
+                  onSelect: (tierIndex) => setRegionTier(region, tierIndex),
+              })
             : null
     );
 };
@@ -347,8 +343,7 @@ export const CardsTab = () => {
 
     return PersistentAccountListPage({
         title: "CARDS",
-        description: () =>
-            `${totalCards.val} cards grouped by Card Region. Edit amounts or set exact tier minimums.`,
+        description: () => `${totalCards.val} cards grouped by Card Region. Edit amounts or set exact tier minimums.`,
         actions: RefreshButton({
             onRefresh: load,
             tooltip: "Re-read live cards and definitions from the running game.",

@@ -4,12 +4,17 @@
     "description": "A cheat injector for Legends of Idleon",
     "main": "src/main.js",
     "bin": "src/main.js",
+    "engines": {
+        "node": ">=22"
+    },
     "scripts": {
         "start": "node src/main.js",
         "build:cheats": "rollup -c",
         "watch:cheats": "rollup -c --watch",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
+        "test": "node --test \"scripts/**/*.test.mjs\"",
+        "check": "npm run format:check && npm run validate && npm test",
         "validate:ui-imports": "node scripts/validate-ui-imports.mjs",
         "test:ui-imports": "node --test scripts/validate-ui-imports.test.mjs",
         "test:api-routes": "node --test scripts/api-routes.test.mjs",
@@ -17,7 +22,7 @@
         "lint:css": "stylelint \"src/ui/**/*.css\" --max-warnings 0",
         "format:check:css": "prettier --check \"src/ui/**/*.css\"",
         "test:css": "node --test scripts/validate-css.test.mjs",
-        "validate": "npm run build:cheats && node --check cheats.js config.js && npx eslint . && npm run validate:ui-imports && npm run lint:css && npm run format:check:css && node -e \"require('./src/ui/config/optionsAccountSchema.json')\"",
+        "validate": "npm run build:cheats && node --check cheats.js config.js && eslint . --max-warnings 0 && npm run validate:ui-imports && npm run lint:css && npm run format:check:css && node -e \"require('./src/ui/config/optionsAccountSchema.json')\"",
         "build": "npm run build:cheats && pkg . -t node18-win-x64 --compress Gzip --output InjectCheatsUI.exe",
         "build-unix": "npm run build:cheats && pkg . -t node18-linux-x64 --compress Gzip --output InjectCheatsUI-linux",
         "build-macos-x64": "npm run build:cheats && pkg . -t node18-macos-x64 --compress Gzip --output InjectCheatsUI-macos-x64",
@@ -37,6 +42,7 @@
     "devDependencies": {
         "@eslint/js": "^9.39.2",
         "eslint": "^9.39.2",
+        "eslint-plugin-es-x": "9.7.0",
         "globals": "^17.0.0",
         "prettier": "^3.8.1",
         "rollup": "^4.41.0",
