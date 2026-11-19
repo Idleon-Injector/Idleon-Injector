@@ -12,7 +12,7 @@ Operational guidelines for AI coding agents working in the Idleon Injector repos
 - **Guard against action bias:** If a reported bug cannot be reproduced or is already resolved by current code, report findings clearly instead of proposing speculative changes. Never invent modifications for working behavior.
 - **Verification files:** Place temporary scripts and dumps in the system temporary directory or another authorized scratch directory outside the repository root. Remove files you created before validation and task completion; preserve unrelated files.
 - **Target Chromium 87:** The Steam embedded client runs Chromium 87. Keep UI code and browser-injected code compatible with Chromium 87, or supply a verified fallback. ESLint enforces this for `src/cheats` and `src/ui` (`eslint-plugin-es-x`).
-- **Game names:** Every game name the code uses (`events(N)`, `_customBlock_*`, `behavior.*`, `firebase.*`, `cList` lists and `gga` keys) must be in `scripts/game-names.json`, or `npm run check` fails. For a new name, run `npm run game-names:update`: it downloads the web game's code (about 26 MB), confirms every name exists, and rewrites the list. Commit the list with your change.
+- **Game names:** Every game name the code uses (`events(N)`, `_customBlock_*`, `behavior.*`, `firebase.*`, `cList` lists and `gga` keys) must be in `scripts/game-names.json`, or `npm run check` fails. For a new name, run `npm run game-names:update`: it downloads the web game's code (about 26 MB), confirms every name exists, and rewrites the list. Commit the list with your change. The Game update watch workflow compares the live web game with this list every 3 hours and opens one issue per game version that breaks a name or changes a function the code hooks.
 
 ### Ask First
 
