@@ -1,0 +1,48 @@
+name: PR summary
+on:
+    # Stage 2 of the PR summary (stage 1 is the summary job in check.yml). workflow_run runs master's copy of this file
+    # after Check finishes, with a token that can comment. It never checks out or runs the PR's code: the artifact the
+    # PR's run left is untrusted data that scripts/pr-summary.mjs size-caps, validates and matches to the run, and it
+    # never reaches a shell. The kind, the rules and the linked issue's labels come from the API.
+    workflow_run:
+        workflows: [Check]
+        types: [completed]
+
+permissions:
+    contents: read # check out master
+    actions: read # download the run's artifact, read its job results
+    issues: read # the linked issue's labels
+    pull-requests: write # post or update the comment
+
+concurrency:
+    group: pr-summary-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+
+jobs:
+    comment:
+        if: github.event.workflow_run.event == 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout master
+              uses: actions/checkout@v6
+              with:
+                  ref: ${{ github.event.repository.default_branch }}
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+
+            - name: Download the summary artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: pr-summary
+                  path: ${{ runner.temp }}/pr-summary
+                  run-id: ${{ github.event.workflow_run.id }}
+                  github-token: ${{ github.token }}
+
+            - name: Post or update the summary comment
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  SUMMARY_DIR: ${{ runner.temp }}/pr-summary
+              run: node scripts/pr-summary.mjs post "$SUMMARY_DIR"

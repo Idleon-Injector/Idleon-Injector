@@ -25,3 +25,47 @@ jobs:
 
             - name: Run the check
               run: npm run check
+
+    # Stage 1 of the PR summary (stage 2 is pr-summary.yml, which comments). It runs the PR's code, so it gets only
+    # this workflow's read-only token and no secrets, and hands stage 2 plain data as artifacts.
+    summary:
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            # The merge commit's first parent is master: the summary compares against it.
+            - name: Checkout the PR
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 2
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Collect the pages, hooks and game names the PR touches, and screenshot the pages
+              env:
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+              run: node scripts/pr-summary.mjs collect --out pr-summary --shots
+
+            - name: Upload the summary
+              uses: actions/upload-artifact@v7
+              with:
+                  name: pr-summary
+                  path: pr-summary/summary.json
+                  if-no-files-found: error
+                  retention-days: 5
+
+            - name: Upload the screenshots
+              uses: actions/upload-artifact@v7
+              with:
+                  name: page-shots
+                  path: pr-summary/shots/
+                  if-no-files-found: ignore
+                  retention-days: 14
