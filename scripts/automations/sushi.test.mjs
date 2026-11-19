@@ -216,6 +216,37 @@ test("sushi in the reserved slots are sorted out first, and a bad board refuses 
     assert.equal((await run("w7 sushitools status")).enabled, false);
 });
 
+// Issue #4. The game reads only slots 0-119, but its East Wind can chain from slot 119 into a "slot 120" and upgrade
+// it, which makes Sushi[0] longer than Sushi[1]. The game ignores those entries; so do the tools.
+test("a board the game's East Wind made longer than 120 plays and sorts, and its extra entries are left alone", async () => {
+    const { board } = station();
+    board.push(1, 2);
+    assert.deepEqual(await run("w7 sushitools"), ON);
+    await advance(5000);
+    const status = await run("w7 sushitools status");
+    assert.equal(status.message, "Finished: 2/2 tier 3+ sushi.");
+    assert.equal(status.board.length, 120);
+    assert.deepEqual(board.slice(0, 6), [2, 2, -1, -1, -1, -1]);
+    assert.deepEqual(board.slice(120), [1, 2]);
+    assert.deepEqual(await run("w7 sushitools"), OFF);
+
+    const sorting = station([-1, -1, -1, -1, 0, 1]);
+    sorting.board.push(3);
+    assert.deepEqual(await run("w7 sushitools sort"), { enabled: false, message: "Sorted 4 slots." });
+    assert.deepEqual(sorting.board.slice(0, 6), [1, 0, -1, -1, -1, -1]);
+    assert.deepEqual(sorting.board.slice(120), [3]);
+});
+
+test("a board shorter than 120, which the game never makes, refuses with what's wrong", async () => {
+    station().board.length = 119;
+    assert.deepEqual(await run("w7 sushitools"), {
+        ok: false,
+        message:
+            "The Sushi board save has 119 slots instead of 120, so the Sushi tools can't use it. Please report this on the injector's GitHub.",
+    });
+    assert.equal((await run("w7 sushitools status")).enabled, false);
+});
+
 test("while Auto Play is on, the WebUI's active-cheats list shows it, and a click there turns it off", async () => {
     const router = new TinyRouter();
     const client = Object.assign(new EventEmitter(), { Runtime: game.runtime });

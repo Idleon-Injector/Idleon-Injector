@@ -1,5 +1,5 @@
 import { gga, events } from "../../core/globals.js";
-import { validateBoard, boardLimits, sortBoard, findMergeMove } from "./board.js";
+import { SLOTS, validateBoard, boardLimits, sortBoard, findMergeMove } from "./board.js";
 
 function station() {
     if (Number(gga.MenuType2) !== 102) throw new Error("Keep the in-game Sushi board open.");
@@ -24,8 +24,11 @@ export function sushiTools(action, expected = null, options = {}) {
             maxPurchaseTier: Number(events(579)._customBlock_SushiStuff("MaxCookTier", 0, 0)) + 1,
         };
     const actor = station();
-    const board = gga.Sushi[0];
-    const plates = gga.Sushi[1];
+    // Work on the 120 board slots only; entries past them (see SLOTS) stay as the game left them.
+    const live = gga.Sushi[0];
+    const slots = () => live.slice(0, SLOTS);
+    const board = slots();
+    const plates = gga.Sushi[1].slice(0, SLOTS);
     validateBoard(board, plates);
     const maxTier = Number(events(579)._customBlock_SushiStuff("MaxTier", 0, 0));
     const limits = boardLimits(board, plates, maxTier, options);
@@ -41,8 +44,8 @@ export function sushiTools(action, expected = null, options = {}) {
             maxPurchaseTier,
             pending,
             dragging,
-            board: board.slice(),
-            plates: plates.slice(),
+            board,
+            plates,
         };
     }
     if (pending > 0) throw new Error("Wait for the current East Wind chain to finish.");
@@ -71,7 +74,7 @@ export function sushiTools(action, expected = null, options = {}) {
         const trigger = actor._TRIGGEREDtext;
         try {
             layout.forEach((value, index) => {
-                board[index] = value;
+                live[index] = value;
             });
             for (const index of changed) {
                 if (index !== source && index !== target) {
@@ -81,7 +84,7 @@ export function sushiTools(action, expected = null, options = {}) {
             }
             // The game's normal upgrade handler applies XP, bonuses and East Wind.
             // Consume exactly one matching source; never retry a partially completed merge.
-            board[source] = -1;
+            live[source] = -1;
             actor._TRIGGEREDtext = "i" + target;
             actor._customEvent_sushistuff();
             actor._TRIGGEREDtext = "h" + source;
@@ -90,7 +93,7 @@ export function sushiTools(action, expected = null, options = {}) {
         } finally {
             actor._TRIGGEREDtext = trigger;
         }
-        if (board[source] !== -1 || board[target] <= tier || board.filter((value) => value >= 0).length !== count - 1)
+        if (live[source] !== -1 || live[target] <= tier || slots().filter((value) => value >= 0).length !== count - 1)
             throw new Error("Native merge read-back mismatch; stopped without retry.");
         return true;
     }
@@ -112,7 +115,6 @@ export function sushiTools(action, expected = null, options = {}) {
         if (!(cost > 0) || !(Number(gga.Sushi[4][0]) >= cost))
             throw new Error(`Not enough fuel for tier ${purchaseTier} sushi.`);
         const trigger = actor._TRIGGEREDtext;
-        const before = board.slice();
         try {
             // Use the game's tier selector so its purchase icon updates too.
             if (!Number.isInteger(maxCook) || maxCook < 0 || maxCook > maxTier)
@@ -128,9 +130,9 @@ export function sushiTools(action, expected = null, options = {}) {
         } finally {
             actor._TRIGGEREDtext = trigger;
         }
-        if (board[destination] < 0 || board.some((tier, index) => index !== destination && tier !== before[index]))
+        if (live[destination] < 0 || slots().some((tier, index) => index !== destination && tier !== board[index]))
             throw new Error("Purchase read-back mismatch; no retry performed.");
-        return { bought: true, tier: board[destination], destination };
+        return { bought: true, tier: live[destination], destination };
     }
     if (action === "sort") {
         if (!expected || JSON.stringify(board) !== JSON.stringify(expected))
@@ -139,7 +141,7 @@ export function sushiTools(action, expected = null, options = {}) {
         const changed = sorted.flatMap((value, index) => (value !== board[index] ? [index] : []));
         // Keep the Haxe array identity and all plate/fireplace data intact.
         sorted.forEach((value, index) => {
-            board[index] = value;
+            live[index] = value;
         });
         const trigger = actor._TRIGGEREDtext;
         try {
@@ -151,10 +153,10 @@ export function sushiTools(action, expected = null, options = {}) {
         } finally {
             actor._TRIGGEREDtext = trigger;
         }
-        if (board.some((value, index) => value !== sorted[index])) throw new Error("Sort read-back mismatch.");
+        if (slots().some((value, index) => value !== sorted[index])) throw new Error("Sort read-back mismatch.");
         return {
             message: changed.length ? `Sorted ${changed.length} slots.` : "Board already sorted.",
-            board: board.slice(),
+            board: slots(),
         };
     }
     if (action === "plan") {
@@ -170,11 +172,7 @@ export function sushiTools(action, expected = null, options = {}) {
             discovered: gga.Sushi[5],
         });
         if (!move) return null;
-        return {
-            ...move,
-            board: board.slice(),
-            plates: plates.slice(),
-        };
+        return { ...move, board, plates };
     }
     throw new Error("Unknown Sushi action.");
 }

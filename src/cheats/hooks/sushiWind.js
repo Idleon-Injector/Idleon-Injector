@@ -8,6 +8,7 @@ import { gga, events } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
 // Set by sushi Auto Play when it starts and stops.
 import { windExtended as extended, windHigher as higher } from "../helpers/sushi/autoPlay.js";
+import { SLOTS } from "../helpers/sushi/board.js";
 
 // Around: the chain is measured against the queue as it was before the game's merge added to it.
 defineHook(
@@ -30,7 +31,7 @@ defineHook(
         if (board[destination] < 0 || board[destination] > maxTier || board[destination] >= ceiling) return result;
         const limit = extended ? plates.filter((plate) => plate >= 0).length - 1 : 25;
         const chain = [];
-        for (let step = 1; step <= limit && destination + step < board.length; step++) {
+        for (let step = 1; step <= limit && destination + step < Math.min(board.length, SLOTS); step++) {
             const index = destination + step;
             if (plates[index] < 0 || board[index] < 0 || board[index] >= maxTier || board[index] >= board[index - 1])
                 break;

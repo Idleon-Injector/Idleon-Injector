@@ -184,6 +184,11 @@ test("East Wind: the game's chain is untouched until a chain option is set", asy
     assert.deepEqual(wind({ _GenINFO: Object.assign([], { 157: [], 158: 1 }) }), [[4]], "busy");
     assert.deepEqual(wind({ gameChain: [], _TRIGGEREDtext: "i6" }), [[7]], "a chain the game left empty");
     assert.deepEqual(wind({ gameChain: [], _TRIGGEREDtext: "i8" }), [[]], "past the board");
+    // Issue #4: a board the game's own East Wind grew past slot 119 still chains only on the 120 real slots.
+    const [board, plates] = gga.Sushi;
+    gga.Sushi = [Array(117).fill(-1).concat(5, 4, 3, 2, 1), Array(120).fill(0)];
+    assert.deepEqual(wind({ gameChain: [], _TRIGGEREDtext: "i117" }), [[118, 119]], "stops at the last slot");
+    gga.Sushi = [board, plates];
     configureSushiWind(false, false);
     assert.deepEqual(wind(), [[4]]);
     assert.deepEqual(wind({ _TRIGGEREDtext: 5 }), [[4]]);
