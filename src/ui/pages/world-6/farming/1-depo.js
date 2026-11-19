@@ -1,12 +1,18 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
-import { cleanName, createIndexedStateGetter, createStaticRowReconciler, toInt } from "../../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    cleanName,
+    createIndexedStateGetter,
+    createStaticRowReconciler,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -49,7 +55,7 @@ const buildSeedSections = (rawCropDepo, rawSeedInfo) =>
         }),
     }));
 
-export const DepoTab = () => {
+const DepoTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Farming Depo" });
     const seedSections = van.state([]);
     const getAmountState = createIndexedStateGetter();
@@ -123,3 +129,13 @@ export const DepoTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.farming.depo",
+    world: 6,
+    system: "Farming",
+    tab: "Depo",
+    description: "Crop amounts in the crop depot.",
+    keywords: ["Crop Depot", "Crops"],
+    component: DepoTab,
+});

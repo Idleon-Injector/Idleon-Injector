@@ -1,18 +1,19 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     useWriteStatus,
     writeVerified,
-} from "../../accountShared.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { AccountRow } from "../../components/AccountRow.js";
-import { AccountSection } from "../../components/AccountSection.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
+} from "../../../components/views/account/accountShared.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, input, label, span } = van.tags;
 
@@ -80,7 +81,7 @@ const buildJadeEntries = (rawDefinitions, rawLetters, rawOrder, encoded) => {
         .filter(Boolean);
 };
 
-export const JadeTab = () => {
+const JadeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Jade Emporium" });
     const entries = van.state([]);
     const boughtStates = new Map();
@@ -142,3 +143,13 @@ export const JadeTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.sneaking.jade",
+    world: 6,
+    system: "Sneaking",
+    tab: "Jade",
+    description: "Which Jade Emporium upgrades are bought.",
+    keywords: ["Jade Emporium"],
+    component: JadeTab,
+});

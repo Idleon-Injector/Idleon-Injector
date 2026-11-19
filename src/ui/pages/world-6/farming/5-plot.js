@@ -1,11 +1,12 @@
-import van from "../../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../../services/api.js";
-import { toIndexedArray } from "../../../../../utils/index.js";
-import { SimpleNumberRow } from "../../SimpleNumberRow.js";
-import { useAccountLoad } from "../../accountLoadPolicy.js";
-import { RefreshButton } from "../../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../../components/PersistentAccountListPage.js";
-import { createStaticRowReconciler, getOrCreateState, toInt } from "../../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { createStaticRowReconciler, getOrCreateState, toInt } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -53,7 +54,7 @@ const PlotTile = ({ entry, levelState, expState }) =>
         })
     );
 
-export const PlotTab = () => {
+const PlotTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Farming Plots" });
     const plotEntries = van.state([]);
     const levelStates = new Map();
@@ -116,3 +117,13 @@ export const PlotTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.farming.plot",
+    world: 6,
+    system: "Farming",
+    tab: "Plot",
+    description: "Land plot levels and EXP on the 9x4 grid.",
+    keywords: ["Land Plots", "Plots"],
+    component: PlotTab,
+});

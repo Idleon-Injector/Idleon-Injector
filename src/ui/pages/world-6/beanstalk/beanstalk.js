@@ -1,18 +1,19 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList, readGgaEntries } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     resolveNumberInput,
     writeVerified,
-} from "../accountShared.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+} from "../../../components/views/account/accountShared.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 
@@ -56,7 +57,7 @@ const buildItemEntries = async (rawLevels, rawFoodInfo) => {
     }));
 };
 
-export const BeanstackTab = () => {
+const BeanstackTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Beanstack" });
     const entries = van.state([]);
     const levelStates = new Map();
@@ -106,3 +107,12 @@ export const BeanstackTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.beanstalk",
+    world: 6,
+    system: "Beanstalk",
+    description: "Gold food levels on the Beanstalk.",
+    keywords: ["Beanstack", "Gold Food"],
+    component: BeanstackTab,
+});

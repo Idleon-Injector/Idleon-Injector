@@ -1,14 +1,20 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { fetchCheatStates, gga, readCList, readComputed } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { NumberInput } from "../../../NumberInput.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { cleanName, createStaticRowReconciler, useWriteStatus, writeVerified } from "../accountShared.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { fetchCheatStates, gga, readCList, readComputed } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { NumberInput } from "../../../components/NumberInput.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 const PROGRESS_PATH = "OptionsListAccount[369]";
@@ -52,7 +58,7 @@ const wholeNumber = (raw, max, label) => {
 };
 
 /** Edit Emperor progress and stored entries, with locally derived base rewards. */
-export const EmperorTab = () => {
+const EmperorTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Emperor" });
     const busy = van.state(false);
     const snapshot = van.state(null);
@@ -447,3 +453,12 @@ export const EmperorTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w6.emperor",
+    world: 6,
+    system: "Emperor",
+    description: "Emperor account progress and stored fight entries, with the base rewards.",
+    keywords: ["Emperor Fights", "Emperor Entries"],
+    component: EmperorTab,
+});

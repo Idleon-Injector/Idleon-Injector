@@ -1,7 +1,3 @@
-.summoning-tab .account-nested-sub-content {
-    min-height: 0;
-}
-
 .summoning-round-row {
     grid-template-columns: minmax(300px, 1fr) auto auto;
 }
