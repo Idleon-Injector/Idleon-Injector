@@ -145,6 +145,7 @@ test("watch: missing names and changed functions are listed with their files", (
     assert.deepEqual(off, { missing: ["gga:OptionsListAccount"], changed: ["_customBlock_Gallery"] });
     const issue = watchIssue(off, { sha256: "0123456789abcdef", lastModified: "Sun, 01 Nov 2026 23:16:58 GMT" }, NAMES);
     assert.equal(issue.title, "Game update 2026-11-01 (0123456789ab): 1 missing game name, 1 changed game function");
+    assert.deepEqual(issue.labels, ["known-problem"], "lumbot tells players about known-problem issues");
     assert.match(issue.body, /- `gga:OptionsListAccount` in src\/ui\/a\.js/);
     assert.match(issue.body, /- `_customBlock_Gallery`/);
 });

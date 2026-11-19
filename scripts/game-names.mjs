@@ -225,14 +225,29 @@ export function watchIssue({ missing, changed }, meta, names) {
         "",
         "Opened by the Game update watch workflow."
     );
-    return { id, title: `Game update ${day} (${id}): ${counts.join(", ")}`, body: lines.join("\n") };
+    // known-problem: lumbot tells players about open issues with this label.
+    return {
+        id,
+        title: `Game update ${day} (${id}): ${counts.join(", ")}`,
+        body: lines.join("\n"),
+        labels: ["known-problem"],
+    };
 }
 
 const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" });
 const GITHUB = {
     issueTitles: () =>
         JSON.parse(gh("issue", "list", "--state", "all", "--limit", "1000", "--json", "title")).map((i) => i.title),
-    openIssue: ({ title, body }) => gh("issue", "create", "--title", title, "--body", body).trim(),
+    openIssue: ({ title, body, labels }) =>
+        gh(
+            "issue",
+            "create",
+            "--title",
+            title,
+            "--body",
+            body,
+            ...labels.flatMap((label) => ["--label", label])
+        ).trim(),
 };
 
 // One watch run: report a game version once. A version already in an issue title (open or closed) is skipped.
