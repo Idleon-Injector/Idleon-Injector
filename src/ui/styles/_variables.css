@@ -21,16 +21,16 @@
     --c-border-strong: #505050;
 
     /* -- THEME ACCENT (runtime-overridable) -- */
-    /* Luminate's blue: accent, soft (dim) .102, wash (06) .055, edge (40) .42, ink for text on it. */
-    --c-accent: #46aae1;
-    --c-accent-dim: rgba(70, 170, 225, 0.102);
-    --c-accent-dim-solid: rgba(30, 48, 65, 0.9);
-    --c-accent-glow: rgba(70, 170, 225, 0.3);
-    --c-accent-hover: #8ec8ed;
-    --c-accent-06: rgba(70, 170, 225, 0.055);
-    --c-accent-20: rgba(70, 170, 225, 0.2);
-    --c-accent-25: rgba(70, 170, 225, 0.25);
-    --c-accent-40: rgba(70, 170, 225, 0.42);
+    /* A lighter take on Luminate's blue (Lumi's pick over #46aae1): accent, soft (dim) .102, wash (06) .055, edge (40) .42, ink for text on it. */
+    --c-accent: #63afed;
+    --c-accent-dim: rgba(99, 175, 237, 0.102);
+    --c-accent-dim-solid: rgba(34, 49, 67, 0.9);
+    --c-accent-glow: rgba(99, 175, 237, 0.3);
+    --c-accent-hover: #9acbf3;
+    --c-accent-06: rgba(99, 175, 237, 0.055);
+    --c-accent-20: rgba(99, 175, 237, 0.2);
+    --c-accent-25: rgba(99, 175, 237, 0.25);
+    --c-accent-40: rgba(99, 175, 237, 0.42);
     --c-accent-ink: #090b10;
 
     /* -- SEMANTIC STATES (fixed) -- */
@@ -204,13 +204,13 @@
         --c-panel-hover: oklch(21.12% 0.0181 274.98);
         --c-border: oklch(29.28% 0.02 281);
         --c-border-strong: oklch(38.67% 0 89.88);
-        --c-accent: oklch(70.26% 0.1222 236.42);
+        --c-accent: oklch(73.03% 0.118 245.03);
         --c-accent-dim: color-mix(in oklch, var(--c-accent) 10.2%, transparent);
         /* Mixed in srgb: in oklch the panel's hue greys the blue out. */
         --c-accent-dim-solid: color-mix(in srgb, var(--c-accent) 15%, var(--c-panel) 85%);
         --c-accent-glow: color-mix(in oklch, var(--c-accent) 30%, transparent);
         /* Mixed by hand: color-mix with white in oklch drags the hue toward white's hue 0 (purple). */
-        --c-accent-hover: oklch(80.67% 0.0794 236.42);
+        --c-accent-hover: oklch(82.18% 0.0764 245.03);
         --c-accent-06: color-mix(in oklch, var(--c-accent) 5.5%, transparent);
         --c-accent-20: color-mix(in oklch, var(--c-accent) 20%, transparent);
         --c-accent-25: color-mix(in oklch, var(--c-accent) 25%, transparent);

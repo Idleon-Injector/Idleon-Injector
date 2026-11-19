@@ -46,7 +46,7 @@ const STYLES = {
     `,
     buttonDefault: `
         background: linear-gradient(180deg, #161821, #0e0f14);
-        color: #46aae1;
+        color: #63afed;
         padding: 0 20px;
         height: 32px;
         line-height: 32px;
@@ -55,21 +55,21 @@ const STYLES = {
         box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         border: 1px solid #2a2b36;
         border-top: none;
-        text-shadow: 0 0 10px rgba(70, 170, 225, 0.3);
+        text-shadow: 0 0 10px rgba(99, 175, 237, 0.3);
         position: absolute;
         top: 0;
         left: 50%;
         transform: translateX(-50%);
     `,
     buttonExpanded: `
-        background: #46aae1;
+        background: #63afed;
         color: #090b10;
         padding: 10px 24px;
         height: auto;
         line-height: normal;
         border-radius: 2px;
         letter-spacing: 1px;
-        box-shadow: 0 0 20px rgba(70, 170, 225, 0.2);
+        box-shadow: 0 0 20px rgba(99, 175, 237, 0.2);
         border: none;
         position: absolute;
         top: 20px;
@@ -107,24 +107,24 @@ export function injectWebUI() {
     toggleBtn.onmouseover = () => {
         if (!isUiExpanded) {
             toggleBtn.style.background = "#161821";
-            toggleBtn.style.color = "#8ec8ed";
-            toggleBtn.style.boxShadow = "0 4px 20px rgba(70, 170, 225, 0.15)";
+            toggleBtn.style.color = "#9acbf3";
+            toggleBtn.style.boxShadow = "0 4px 20px rgba(99, 175, 237, 0.15)";
             toggleBtn.style.height = "36px";
         } else {
-            toggleBtn.style.background = "#8ec8ed";
-            toggleBtn.style.boxShadow = "0 0 25px rgba(70, 170, 225, 0.4)";
+            toggleBtn.style.background = "#9acbf3";
+            toggleBtn.style.boxShadow = "0 0 25px rgba(99, 175, 237, 0.4)";
         }
     };
 
     toggleBtn.onmouseout = () => {
         if (!isUiExpanded) {
             toggleBtn.style.background = "linear-gradient(180deg, #161821, #0e0f14)";
-            toggleBtn.style.color = "#46aae1";
+            toggleBtn.style.color = "#63afed";
             toggleBtn.style.boxShadow = "0 4px 15px rgba(0,0,0,0.5)";
             toggleBtn.style.height = "32px";
         } else {
-            toggleBtn.style.background = "#46aae1";
-            toggleBtn.style.boxShadow = "0 0 20px rgba(70, 170, 225, 0.2)";
+            toggleBtn.style.background = "#63afed";
+            toggleBtn.style.boxShadow = "0 0 20px rgba(99, 175, 237, 0.2)";
         }
     };
 
