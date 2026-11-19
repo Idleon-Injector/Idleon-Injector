@@ -43,6 +43,19 @@ test("names: every kind of reference is collected", () => {
     ]);
 });
 
+test("names: a defineHook declaration names the game method or early class it hooks", () => {
+    const names = namesInSource(`
+        defineHook({ id: "core.reapply", target: () => firebase, method: "playButton" }, (base) => base);
+        defineHook({ id: "minigame", target: () => events(229).prototype, method: "init" }, (base) => base);
+        defineHook({ id: "storage", early: "scripts.ActorEvents_203", method, around: true }, (call) => call());
+    `);
+    assert.deepEqual([...names].sort(), [
+        "class:scripts.ActorEvents_203",
+        "class:scripts.ActorEvents_229",
+        "firebase:playButton",
+    ]);
+});
+
 test("names: comments, imports, class names and the injector's own names don't count", () => {
     const names = namesInSource(`
         import { thing } from "./gga.js";

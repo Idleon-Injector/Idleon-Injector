@@ -70,6 +70,7 @@ Operational guidelines for AI coding agents working in the Idleon Injector repos
   Fix fixtures that omit guaranteed initialization rather than adding production guards to accommodate them.
 - **Companion data:** `w1.companion.companions` is a comma-separated string (e.g. `"0,1,2"`), not a function or array.
 - **Code simplicity:** Inline small 1–2 line logic at call sites rather than creating tiny single-use helpers. Use direct property access when types and shapes are guaranteed by the execution path.
+- **New game hooks:** Add a file in `src/cheats/hooks/` that calls `defineHook` (copy `hooks/_example.js`); the build finds it, so no list needs editing. Its handler is base-first by default.
 - **Base-first proxy pattern:** All proxies in `src/cheats/proxies/` must call the original method first via `Reflect.apply` to preserve side effects before checking cheat toggles:
     ```javascript
     const PlayerReach = ActorEvents12._customBlock_PlayerReach;

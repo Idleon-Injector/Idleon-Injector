@@ -7,7 +7,7 @@
 
 // Imports for setupAllProxies
 import { setupBehaviorScriptProxies } from "./behavior.js";
-import { setupFirebaseProxy, setupFirebaseStorageProxy, setupSteamAchievementProxy } from "./firebase.js";
+import { setupFirebaseStorageProxy, setupSteamAchievementProxy } from "./firebase.js";
 import { setupGameAttributeProxies } from "./gameAttributes.js";
 import { setupTrappingProxies } from "./trapping.js";
 import { setupCListProxy } from "./clist.js";
@@ -15,11 +15,9 @@ import { setupEvents012Proxies } from "./events012.js";
 import { setupEvents020Proxies } from "./events020.js";
 import { setupItemGetNotificationProxy } from "./events034.js";
 import { setupEvents038Proxies } from "./events038.js";
-import { setupEvents116Proxies } from "./events116.js";
 import { setupAutoLootProxy } from "./events044.js";
 import { setupEvents124Proxies } from "./events124.js";
 import { setupEvents189Proxies } from "./events189.js";
-import { setupEvents203Proxies } from "./events203.js";
 import { setupItemsMenuProxy } from "./events312.js";
 import { setupEvents345Proxies } from "./events345.js";
 import { setupEvents481Proxies } from "./events481.js";
@@ -29,17 +27,16 @@ import { setupEvents091Proxies } from "./events091.js";
 import { setupActorProxies } from "./actor.js";
 import { setupAbilityProxy, setupQuestProxy, setupSmithProxy } from "./misc.js";
 import { setupItemProxies } from "./items.js";
-import { setupMinigameProxies } from "./minigames.js";
 import { setupSushiButtonProxy } from "./sushiButton.js";
 import { missingHooks } from "../utils/proxy.js";
+import { getDefinedHookFailures, installHooks } from "../core/hooks.js";
 
 // Each step installs one group of hooks, in the order they always ran in.
 const steps = [
     // Behavior script proxies (RNG, timing, no damage)
     setupBehaviorScriptProxies,
 
-    // Firebase proxy (character selection handling, companions, party, achievements)
-    setupFirebaseProxy,
+    // Firebase proxy (companions, party, achievements)
     setupFirebaseStorageProxy,
     setupSteamAchievementProxy,
 
@@ -58,10 +55,8 @@ const steps = [
     setupAutoLootProxy,
     setupItemGetNotificationProxy,
     setupEvents038Proxies,
-    setupEvents116Proxies,
     setupEvents124Proxies,
     setupEvents189Proxies,
-    setupEvents203Proxies,
     setupItemsMenuProxy,
     setupEvents345Proxies,
     setupEvents481Proxies,
@@ -79,8 +74,8 @@ const steps = [
     // Item definition proxies (godlike speed, upstones, equipall, candytime)
     setupItemProxies,
 
-    // Minigame proxies (mining, fishing, catching, choppin, hoops, darts, scratch, wisdom, poing)
-    setupMinigameProxies,
+    // Every defineHook hook in src/cheats/hooks/ (minigames, storage) and the re-apply on character select
+    installHooks,
 ];
 
 /** Steps that ran to the end; they are never run again, so their hooks are never wrapped twice. */
@@ -94,7 +89,7 @@ const failures = new Map();
  * @returns {string[]}
  */
 export function getHookFailures() {
-    return [...failures.values()].flat();
+    return [...failures.values()].flat().concat(getDefinedHookFailures());
 }
 
 /**
@@ -119,8 +114,8 @@ export function setupAllProxies() {
         }
         // ponytail: a step that threw partway runs again from the top, so hooks it installed before the throw
         // can be wrapped twice unless the step guards them (_isPatched, as the game-data steps do). Missing
-        // methods don't throw, so this needs a step to break outside createMethodProxy. defineHook (#14) can
-        // record each hook instead.
+        // methods don't throw, so this needs a step to break outside createMethodProxy. defineHook hooks (the
+        // installHooks step) record each hook instead; #15 moves the other steps onto it.
         if (missingHooks.length) stepFailures.unshift(`${step.name}: ${missingHooks.join(", ")} not found`);
         if (stepFailures.length) failures.set(step.name, stepFailures);
         else failures.delete(step.name);

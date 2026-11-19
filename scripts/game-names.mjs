@@ -37,9 +37,11 @@ const PATTERNS = [
     // const EQUIPPED_MAIN_PATH = "EquipmentOrder[0]"; hooks name one with createProxy(gga, "GemsOwned", ...).
     ["gga", /\b(?!definitionsPath\b)\w*(?:[pP]ath|PATH)\s*[:=]\s*["'`](\w+)(?=[[."'`])/g],
     ["gga", /\bcreate\w*Proxy\(\s*gga\s*,\s*["'`](\w+)/g],
+    // defineHook({ early: "scripts.ActorEvents_116", ... }) hooks that class before setup.
+    ["class", /\bearly\s*:\s*["'`](scripts\.ActorEvents_\d+)["'`]/g],
 ];
 // ponytail: a name that only reaches the game through a variable or another helper isn't seen. The mod model (#14-#18)
-// declares names in one place; the collector reads those declarations then.
+// declares names in one place; the collector reads those declarations (defineHook so far).
 
 // The game names one source file uses, as "kind:name" strings. Comments and import lines are skipped: a comment
 // naming "firebase.js" or an import of "./gga.js" isn't a dependency. A // after a colon is a URL, not a comment.
@@ -47,7 +49,9 @@ export function namesInSource(text) {
     const code = text
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/(?<![:"'`\\])\/\/.*$/gm, "")
-        .replace(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["'][^"']*["'];?/gm, "");
+        .replace(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["'][^"']*["'];?/gm, "")
+        // defineHook({ target: () => firebase, method: "playButton" }) wraps firebase.playButton.
+        .replace(/\btarget\s*:\s*\(\)\s*=>\s*([\w$.()]+)\s*,\s*method\s*:\s*["'`](\w+)["'`]/g, "$1.$2");
     const found = new Set();
     for (const [kind, re, toName = (n) => n] of PATTERNS) {
         for (const m of code.matchAll(re)) if (!OWN_NAMES.has(m[1])) found.add(`${kind}:${toName(m[1])}`);

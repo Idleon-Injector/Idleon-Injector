@@ -1,8 +1,7 @@
 /**
  * Firebase Proxy
  *
- * Proxies for Firebase storage functions:
- * - playButton (re-initialize proxies on character selection)
+ * Proxies for Firebase storage functions (the re-apply on character select is in core/hooks.js):
  * - Companion management (delete, swap, set, get)
  * - Party members
  * - Unban (cleanMarkedFiles)
@@ -10,11 +9,8 @@
  */
 
 import { cheatConfig, cheatState } from "../core/state.js";
-import { registerCommonVariables, cList, firebase, gameContext, gga, monsterDefs } from "../core/globals.js";
+import { cList, firebase, gga, monsterDefs } from "../core/globals.js";
 import { createMethodProxy } from "../utils/proxy.js";
-import { setupCListProxy } from "./clist.js";
-import { setupGameAttributeProxies } from "./gameAttributes.js";
-import { setupItemProxies } from "./items.js";
 
 let getCompanionInfoMe;
 
@@ -131,33 +127,4 @@ export function setupSteamAchievementProxy() {
         achieveList.push(args[0]);
         return Reflect.apply(areaCheck, this, args);
     };
-}
-
-/**
- * Setup Firebase proxy to handle character selection screen.
- *
- * When player returns from character selection, some game data objects
- * are recreated. The _isPatched flag on those objects will be undefined,
- * allowing the proxies to be re-applied to the new object references.
- */
-export function setupFirebaseProxy() {
-    if (!firebase.playButton) return;
-
-    createMethodProxy(firebase, "playButton", (base) => {
-        // Register common variables again
-        registerCommonVariables(gameContext);
-
-        // Re-apply proxies that depend on game data objects that get
-        // recreated during character selection. The _isPatched guard
-        // in each setup function will only apply if the object is new.
-        try {
-            setupCListProxy();
-            setupGameAttributeProxies();
-            setupItemProxies();
-        } catch (e) {
-            console.error("Error re-applying proxies after character selection:", e);
-        }
-
-        return base;
-    });
 }
