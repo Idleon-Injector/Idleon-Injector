@@ -19,7 +19,7 @@ function fakeHttps(answer) {
         const req = new EventEmitter();
         req.setTimeout = (ms, listener) => {
             if (listener) req.on("timeout", listener);
-            setTimeout(() => req.emit("timeout"), ms);
+            setTimeout(() => req.emit("timeout"), ms).unref?.();
             return req;
         };
         if (options.timeout) req.setTimeout(options.timeout);

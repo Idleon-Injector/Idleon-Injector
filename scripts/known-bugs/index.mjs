@@ -20,7 +20,6 @@ export const KNOWN_BUGS = {
     setupStopsAtMissingObject:
         "One missing game object stops every game hook after it from installing, setup never retries, and the console still says 'Cheats ready!'",
     cheatErrorShowsSuccess: "A cheat that throws an error shows a green success toast",
-    updaterUnsafe: "The updater has no timeout and doesn't verify downloads",
     reloadInjectsStartupConfig: "After the game reloads, it runs the startup config instead of the current one",
     destructiveOneClick: "Destructive cheats like wipe run on one click from the Cheats list",
     toggleOnlyApi: "The API can only toggle a cheat, not set it, so two 'turn on' requests turn it back off",

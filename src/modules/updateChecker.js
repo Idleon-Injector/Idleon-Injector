@@ -3,6 +3,8 @@ const { createLogger } = require("./utils/logger");
 
 const log = createLogger("UpdateChecker");
 
+const CHECK_TIMEOUT_MS = 10_000;
+
 /**
  * Compares two semantic version strings.
  * @param {string} v1 - First version string (e.g., "1.4.2")
@@ -37,6 +39,7 @@ function checkForUpdates(currentVersion) {
             headers: {
                 "User-Agent": "Idleon-Injector-Update-Checker",
             },
+            timeout: CHECK_TIMEOUT_MS,
         };
 
         const req = https.request(options, (res) => {
@@ -77,6 +80,7 @@ function checkForUpdates(currentVersion) {
             });
         });
 
+        req.on("timeout", () => req.destroy(new Error(`no answer within ${CHECK_TIMEOUT_MS / 1000} seconds`)));
         req.on("error", (error) => {
             log.error("Update check failed:", error.message);
             resolve(null);
