@@ -17,7 +17,6 @@ import { ClickerTab } from "./account/ClickerTab.js";
 import { MasterclassesTab } from "./account/MasterclassesTab.js";
 import { TasksTab } from "./account/TasksTab.js";
 import { UpgradeVaultTab } from "./account/UpgradeVaultTab.js";
-import { W7Tab } from "./account/W7Tab.js";
 import { renderLazyPanes, renderTabNav } from "./account/tabShared.js";
 
 const { div, span } = van.tags;
@@ -35,7 +34,6 @@ const ACCOUNT_TABS = [
     { id: "bundles", label: "BUNDLES", isWorld: false, component: BundlesTab },
     { id: "masterclasses", label: "MASTERCLASSES", isWorld: false, component: MasterclassesTab },
     { id: "clicker", label: "CLICKER", isWorld: false, component: ClickerTab },
-    { id: "w7", label: "EQUINOX VALLEY", isWorld: true, worldNum: 7, component: W7Tab },
 ];
 
 /** The open tab, shared so the new menu can send players to a world that hasn't moved yet. */
