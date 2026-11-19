@@ -143,10 +143,7 @@ export function SushiToolsTab() {
                         div(
                             { class: "sushi-settings-section" },
                             h3("PURCHASE"),
-                            div(
-                                { class: "sushi-settings-grid" },
-                                numberField("Purchase tier", settings.tier)
-                            )
+                            div({ class: "sushi-settings-grid" }, numberField("Purchase tier", settings.tier))
                         ),
                         div(
                             { class: "sushi-settings-section" },

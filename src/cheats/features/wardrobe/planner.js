@@ -346,7 +346,11 @@ export function applyWardrobePlan(plan, attributes, recalculate, foodCapacity, g
         for (let slot = 0; slot < Number(attributes.FoodSlotsOwned); slot++) {
             const id = attributes.EquipmentOrder[2][slot];
             if (id !== "Blank")
-                assign(attributes.EquipmentQuantity[2], slot, /^FoodG[0-9]+$/.test(id) ? limits.golden : limits.regular);
+                assign(
+                    attributes.EquipmentQuantity[2],
+                    slot,
+                    /^FoodG[0-9]+$/.test(id) ? limits.golden : limits.regular
+                );
         }
         recalculate();
         for (const { target, key, value } of plan.entries) {

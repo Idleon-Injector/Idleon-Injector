@@ -140,76 +140,72 @@ export const EventshopTab = () => {
         notice.val = "";
         let attemptedWrite = false;
         try {
-            await feedback.run(
-                async () => {
-                    try {
-                        const snapshot = await readSnapshot();
-                        applySnapshot(snapshot);
-                        const targets = snapshot.catalog.filter(
-                            (entry) =>
-                                (index === null || entry.index === index) &&
-                                snapshot.ownership.includes(entry.code) !== enabled
-                        );
-                        if (!targets.length) {
-                            notice.val = "Ownership is already set. No changes made.";
+            await feedback.run(async () => {
+                try {
+                    const snapshot = await readSnapshot();
+                    applySnapshot(snapshot);
+                    const targets = snapshot.catalog.filter(
+                        (entry) =>
+                            (index === null || entry.index === index) &&
+                            snapshot.ownership.includes(entry.code) !== enabled
+                    );
+                    if (!targets.length) {
+                        notice.val = "Ownership is already set. No changes made.";
+                        return { cancelled: true };
+                    }
+                    if (index === null) {
+                        const cardifierNote = targets.some((entry) => entry.index === 50) ? `\n\n${ROW_NOTES[50]}` : "";
+                        if (
+                            !window.confirm(
+                                `${enabled ? "Enable" : "Disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}?${cardifierNote}`
+                            )
+                        ) {
+                            notice.val = "No changes made.";
                             return { cancelled: true };
                         }
-                        if (index === null) {
-                            const cardifierNote = targets.some((entry) => entry.index === 50)
-                                ? `\n\n${ROW_NOTES[50]}`
-                                : "";
-                            if (
-                                !window.confirm(
-                                    `${enabled ? "Enable" : "Disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}?${cardifierNote}`
-                                )
-                            ) {
-                                notice.val = "No changes made.";
-                                return { cancelled: true };
-                            }
-                            const fresh = await readSnapshot();
-                            applySnapshot(fresh);
-                            if (
-                                fresh.ownership !== snapshot.ownership ||
-                                JSON.stringify(fresh.catalog) !== JSON.stringify(snapshot.catalog)
-                            ) {
-                                notice.val =
-                                    "Catalog or ownership changed during confirmation. Review the refreshed state and try again.";
-                                return { cancelled: true };
-                            }
+                        const fresh = await readSnapshot();
+                        applySnapshot(fresh);
+                        if (
+                            fresh.ownership !== snapshot.ownership ||
+                            JSON.stringify(fresh.catalog) !== JSON.stringify(snapshot.catalog)
+                        ) {
+                            notice.val =
+                                "Catalog or ownership changed during confirmation. Review the refreshed state and try again.";
+                            return { cancelled: true };
                         }
-
-                        const targetCodes = new Set(targets.map((entry) => entry.code));
-                        const nextOwnership = enabled
-                            ? snapshot.ownership + targets.map((entry) => entry.code).join("")
-                            : Array.from(snapshot.ownership)
-                                  .filter((code) => !targetCodes.has(code))
-                                  .join("");
-                        attemptedWrite = true;
-                        await writeVerified(OWNERSHIP_PATH, nextOwnership);
-                        applySnapshot({ catalog: snapshot.catalog, ownership: nextOwnership });
-                        notice.val = `Verified ownership for ${targets.length} upgrade${targets.length === 1 ? "" : "s"}.`;
-                        return true;
-                    } catch (caughtError) {
-                        console.error("[Eventshop] ownership action failed", caughtError);
-                        if (attemptedWrite) {
-                            try {
-                                applySnapshot(await readSnapshot());
-                                notice.val =
-                                    "The write could not be verified and may have applied. Current ownership was reread.";
-                            } catch (readError) {
-                                console.error("[Eventshop] read after write failure failed", readError);
-                                ready.val = false;
-                                error.val = `Ownership verification unavailable. Refresh before editing. ${readError.message}`;
-                                notice.val = "The write may have applied. Ownership verification is unavailable.";
-                            }
-                        } else {
-                            ready.val = false;
-                            error.val = `Fresh read failed. Refresh before editing. ${caughtError.message}`;
-                        }
-                        throw caughtError;
                     }
+
+                    const targetCodes = new Set(targets.map((entry) => entry.code));
+                    const nextOwnership = enabled
+                        ? snapshot.ownership + targets.map((entry) => entry.code).join("")
+                        : Array.from(snapshot.ownership)
+                              .filter((code) => !targetCodes.has(code))
+                              .join("");
+                    attemptedWrite = true;
+                    await writeVerified(OWNERSHIP_PATH, nextOwnership);
+                    applySnapshot({ catalog: snapshot.catalog, ownership: nextOwnership });
+                    notice.val = `Verified ownership for ${targets.length} upgrade${targets.length === 1 ? "" : "s"}.`;
+                    return true;
+                } catch (caughtError) {
+                    console.error("[Eventshop] ownership action failed", caughtError);
+                    if (attemptedWrite) {
+                        try {
+                            applySnapshot(await readSnapshot());
+                            notice.val =
+                                "The write could not be verified and may have applied. Current ownership was reread.";
+                        } catch (readError) {
+                            console.error("[Eventshop] read after write failure failed", readError);
+                            ready.val = false;
+                            error.val = `Ownership verification unavailable. Refresh before editing. ${readError.message}`;
+                            notice.val = "The write may have applied. Ownership verification is unavailable.";
+                        }
+                    } else {
+                        ready.val = false;
+                        error.val = `Fresh read failed. Refresh before editing. ${caughtError.message}`;
+                    }
+                    throw caughtError;
                 }
-            );
+            });
         } finally {
             busy.val = false;
         }
