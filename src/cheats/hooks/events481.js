@@ -1,35 +1,28 @@
 /**
- * ActorEvents_481 Proxies
+ * ActorEvents_481 hooks (the storage timers on init are an early hook in storage.js)
  *
- * Proxies for ActorEvents_481 functions (the storage timers on init are an early hook in hooks/storage.js):
  * - anotherThing (printer storage deposits)
  * - WorkbenchStuff2 (better cogs RNG)
  */
 
 import { cheatState } from "../core/state.js";
 import { events, gga } from "../core/globals.js";
-import { withStorageCapScope } from "./storageCap.js";
+import { defineHook } from "../core/hooks.js";
+import { withStorageCapScope } from "../helpers/storageCap.js";
 
-/**
- * Setup all ActorEvents_481 proxies.
- *
- * NOTE: WorkbenchStuff2 intentionally deviates from "base first" pattern.
- * Better cogs cheat requires setting RNG state before calling base
- * to influence the cog quality roll.
- */
-export function setupEvents481Proxies() {
-    const ActorEvents481 = events(481);
-
-    const anotherThing = ActorEvents481.prototype._customEvent_anotherThing;
-    ActorEvents481.prototype._customEvent_anotherThing = function (...args) {
+// Around: the deposit runs as a storagecap deposit, watching the printed amount and chest writes while it runs.
+defineHook(
+    { id: "wide.storagecap", target: () => events(481).prototype, method: "_customEvent_anotherThing", around: true },
+    function (callOriginal) {
         if (!cheatState.wide.storagecap || !this._TRIGGEREDtext.includes("d")) {
-            return Reflect.apply(anotherThing, this, args);
+            return callOriginal();
         }
         const descriptor = Object.getOwnPropertyDescriptor(this, "_DNprint");
         let printValue = this._DNprint;
         let produced = null;
         return withStorageCapScope(
             () => {
+                // ponytail: this actor's field is watched for this one call only, like the chest in the scope.
                 Object.defineProperty(this, "_DNprint", {
                     configurable: true,
                     enumerable: descriptor ? descriptor.enumerable : true,
@@ -40,7 +33,7 @@ export function setupEvents481Proxies() {
                     },
                 });
                 try {
-                    return Reflect.apply(anotherThing, this, args);
+                    return callOriginal();
                 } finally {
                     if (descriptor?.get || descriptor?.set) {
                         Object.defineProperty(this, "_DNprint", descriptor);
@@ -82,19 +75,20 @@ export function setupEvents481Proxies() {
                 },
             }
         );
-    };
+    }
+);
 
-    // Better cogs (W3 cogs with high RNG)
-    const WorkbenchStuff2 = ActorEvents481.prototype._customEvent_WorkbenchStuff2;
-    ActorEvents481.prototype._customEvent_WorkbenchStuff2 = function (...args) {
-        // Special case: modify RNG state before calling base
+// Around: the cog's roll is forced by setting RNG before the game rolls, and freed after.
+defineHook(
+    { id: "w3.bettercog", target: () => events(481).prototype, method: "_customEvent_WorkbenchStuff2", around: true },
+    function (callOriginal) {
         if (cheatState.w3.bettercog && this._TRIGGEREDtext.includes("k")) {
             cheatState.rng = "high";
-            const base = Reflect.apply(WorkbenchStuff2, this, args);
+            const base = callOriginal();
             cheatState.rng = false;
             return base;
         }
 
-        return Reflect.apply(WorkbenchStuff2, this, args);
-    };
-}
+        return callOriginal();
+    }
+);

@@ -141,8 +141,35 @@ function fakeGame({ ready = true } = {}) {
     engine.behaviors.behaviors[0].script._CloudLoadComplete = 1;
     const gga = engine.gameAttributes.h;
     gga.PixelHelperActor = Array(28).fill(0); // 0 is the game's "UI actor not created yet"
+    // The game always has these; hooks go on their entries one by one.
+    Object.assign(gga.CustomLists.h, gameLists());
+    Object.assign(gga.ItemDefinitionsGET.h, gameItems());
     return { context, gga, installed };
 }
+
+/** One entry of each custom list the hooks go on, as deep as the hooks look. */
+export const gameLists = () => ({
+    MTXinfo: [[[[0, 0, 0, 300, 0, 5, 0, 700]]]],
+    RefineryInfo: [Array(12).fill("1")],
+    SaltLicks: [Array(3).fill("1")],
+    PrayerInfo: [Array(7).fill("1")],
+    PostOfficePossibleOrders: [[[Array(2).fill("1")]]],
+    GuildGPtasks: [Array(2).fill("1")],
+    TaskDescriptions: [[Array(15).fill("1")]],
+    SSignInfoUI: [Array(5).fill("1")],
+    WorshipBASEinfos: [Array(7).fill("1")],
+    AlchemyVialItemsPCT: [5],
+    CardStuff: [[[0, 0, 0, "Dmg", "1"]]],
+    ArtifactInfo: [[0, 0, 1]],
+    ItemToCraftEXP: {},
+});
+
+/** One item definition of each kind the hooks go on. */
+export const gameItems = () => ({
+    Timecandy1: { h: { Type: "TIME_CANDY", ID: 3600 } },
+    SwordGame: { h: { Type: "WEAPON", typeGen: "aWeapon", Speed: 4, Class: "WARRIOR", lvReqToEquip: 1 } },
+    StoneGame: { h: { Type: "STONE", typeGen: "dStone", Amount: 30, Trigger: 1 } },
+});
 
 /**
  * Import the real in-game cheat code (each test file runs in its own process, so it is fresh), with the
@@ -175,7 +202,7 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
         context: game.context,
         cheat: (action, on) => cheat(action, game.context, on),
         cheatStateList: () => state.cheatState,
-        getHookFailures: (await importRepo("src/cheats/proxies/setup.js")).getHookFailures,
+        getHookFailures: (await importRepo("src/cheats/core/hooks.js")).getHookFailures,
         updateCheatConfig: state.updateCheatConfig,
     };
     // The bridge evaluates with awaitPromise, so a promise (window.cheat's) comes back as its value.

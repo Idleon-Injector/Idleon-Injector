@@ -2,7 +2,7 @@
  * Game classes and data for the hook behaviour tests (behaviour-*.test.mjs), on top of the fake game of
  * known-bugs/index.mjs. A test sets these up before setup, so the hooks wrap real methods it can call.
  */
-import { importRepo, loadGame } from "../known-bugs/index.mjs";
+import { gameItems, gameLists, importRepo, loadGame } from "../known-bugs/index.mjs";
 
 /**
  * Load the fake game and return helpers. `game.base` is what every game method returns unless `game.returns`
@@ -47,7 +47,11 @@ export async function loadHookGame() {
         for (const key of keys) node = node[key] ??= {};
         node[last] = value;
     };
-    /** Run setup on the fake game. */
-    const setup = async () => (await importRepo("src/cheats/core/setup.js")).setup.call(context);
+    /** Run setup on the fake game, with the lists and item kinds the game always has beside the test's own. */
+    const setup = async () => {
+        for (const [name, list] of Object.entries(gameLists())) gga.CustomLists.h[name] ??= list;
+        for (const [name, item] of Object.entries(gameItems())) gga.ItemDefinitionsGET.h[name] ??= item;
+        return (await importRepo("src/cheats/core/setup.js")).setup.call(context);
+    };
     return { ...loaded, gga, game, methods, events, actor, set, setup };
 }

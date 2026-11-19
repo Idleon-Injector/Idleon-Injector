@@ -7,12 +7,13 @@ import { importRepo } from "../known-bugs/index.mjs";
 import { loadHookGame } from "./game-double.mjs";
 
 // Where configureSushiWind lives (the only line that follows the code around).
-const SUSHI_WIND_MODULE = "src/cheats/proxies/sushiWind.js";
+const SUSHI_WIND_MODULE = "src/cheats/hooks/sushiWind.js";
 
 const { context, gga, game, setup, state } = await loadHookGame();
 const { cheatConfig } = state;
 const window = (globalThis.window = {});
 // As in the game: cheats.js loads, then the game's script registers its classes, then creates the UI actors.
+context["scripts.ActorEvents_741"] = undefined; // the game hasn't defined this class yet
 (await importRepo("src/cheats/core/hooks.js")).installEarlyHooks();
 window.__idleon_cheats__ = context;
 const calls = [];

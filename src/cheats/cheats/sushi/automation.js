@@ -1,6 +1,6 @@
 import { gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { configureSushiWind } from "../../proxies/sushiWind.js";
+import { configureSushiWind } from "../../hooks/sushiWind.js";
 import { sushiTools } from "./station.js";
 import { readSushiSettings } from "./settings.js";
 

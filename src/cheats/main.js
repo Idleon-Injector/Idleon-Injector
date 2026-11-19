@@ -33,10 +33,9 @@ import { getAutoCompleteSuggestions } from "./api/suggestions.js";
 import { searchGga, getGgaKeys } from "./api/search.js";
 import { getBundleCatalog } from "./helpers/bundles.js";
 import { monitor } from "./core/valueMonitor.js";
-import { installEarlyHooks } from "./core/hooks.js";
+import { getHookFailures, installEarlyHooks } from "./core/hooks.js";
 // Every hook file in src/cheats/hooks/, found by the build (rollup.config.mjs)
 import "virtual:hooks";
-import { getHookFailures } from "./proxies/setup.js";
 
 // Sets the config, startup and webport from glob to internal state
 setCheatConfig(cheatConfig);

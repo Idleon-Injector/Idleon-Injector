@@ -10,21 +10,15 @@ test("a game class an update removed is reported, and every other hook still ins
 
     const { hookFailures } = await setup.call(context);
 
-    assert.equal(hookFailures.length, 1, hookFailures.join("\n"));
-    assert.match(
-        hookFailures[0],
-        /^setupEvents579Proxies: _customBlock_Summoning, .*_customBlock_SushiStuff not found$/
-    );
-    for (const before of ["ActorEvents_12.", "ActorEvents_481."]) {
+    // One line for each hook on the class, under the cheats it serves.
+    for (const failure of hookFailures) assert.match(failure, /^[\w., ]+: events\(579\)\._customBlock_\w+ not found$/);
+    assert.ok(hookFailures.includes("w5.holes: events(579)._customBlock_Holes not found"));
+    assert.ok(hookFailures.includes("w7.sushi: events(579)._customBlock_SushiStuff not found"));
+    assert.equal(hookFailures.length, 23, hookFailures.join("\n"));
+    for (const other of ["ActorEvents_12.", "ActorEvents_481.", "ActorEvents_713.", "ActorEvents_91."]) {
         assert.ok(
-            installed.some((hook) => hook.includes(before)),
-            `${before} hooks run before it and must install`
-        );
-    }
-    for (const after of ["ActorEvents_713.", "ActorEvents_91."]) {
-        assert.ok(
-            installed.some((hook) => hook.includes(after)),
-            `${after} hooks run after it and must install`
+            installed.some((hook) => hook.includes(other)),
+            `${other} hooks must install`
         );
     }
 });

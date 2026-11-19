@@ -102,3 +102,16 @@ export function traverseAll(obj, worker, visited = new Set()) {
 
     walk(obj);
 }
+
+/**
+ * Every node at a specific depth, as traverse() visits them (for hooks on custom list entries).
+ *
+ * @param {object} obj - The object to traverse
+ * @param {number} depth - Depth of the nodes (0 = obj itself)
+ * @returns {object[]}
+ */
+export function nodesAt(obj, depth) {
+    const nodes = [];
+    traverse(obj, depth, (node) => nodes.push(node));
+    return nodes;
+}

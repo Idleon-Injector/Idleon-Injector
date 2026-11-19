@@ -23,7 +23,7 @@ test("an early hook installs when the game's script defines the class, before an
     const actor = new registry["scripts.ActorEvents_9"]();
     assert.equal(actor.init(), "init, hooked");
     assert.ok("value" in Object.getOwnPropertyDescriptor(registry, "scripts.ActorEvents_9"));
-    assert.deepEqual(hooks.getDefinedHookFailures(), ["test.gone: scripts.ActorEvents_9.prototype.renamed not found"]);
+    assert.deepEqual(hooks.getHookFailures(), ["test.gone: scripts.ActorEvents_9.prototype.renamed not found"]);
 
     hooks.installHooks(); // setup later
     assert.equal(actor.init(), "init, hooked", "setup doesn't wrap it again");

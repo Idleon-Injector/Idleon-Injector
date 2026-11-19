@@ -115,7 +115,9 @@ test("storage counts: big counts are written out in digits while the storage che
     assert.deepEqual(calls, [["attacks", "1500"]]);
 });
 
-test("storage deposits: uncapped stacks land as their real total", () => {
+test("storage deposits: uncapped stacks land as their real total", async () => {
+    // Storagecap only turns on through a cheat, and a cheat runs setup first, which hooks the chest's methods.
+    await (await importRepo("src/cheats/core/setup.js")).setup.call(context);
     const actor = Object.assign(new class203.ActorEvents(), { _DummyText: "Copper", _ItemsToDROP: [["Copper", 7]] });
     gga.ChestOrder = ["Iron", "Copper", "Blank"];
     const quantities = [1, 5, 0];

@@ -1,18 +1,16 @@
 /**
- * ActorEvents_713 Proxies (W7 Spelunking)
+ * ActorEvents_713 hooks (W7 spelunking)
+ *
+ * - SpelunkStuff (start the next dive at a chosen depth)
  */
 
 import { events, gga } from "../core/globals.js";
 import { cheatConfig } from "../core/state.js";
-import { createMethodProxy } from "../utils/proxy.js";
+import { defineHook } from "../core/hooks.js";
 
-/**
- * Setup ActorEvents_713 proxies.
- */
-export function setupEvents713Proxies() {
-    const actorEvents713 = events(713);
-
-    createMethodProxy(actorEvents713.prototype, "_customEvent_SpelunkStuff", function (base) {
+defineHook(
+    { id: "w7.spelunkdepth", target: () => events(713).prototype, method: "_customEvent_SpelunkStuff" },
+    function (base) {
         // Only apply when spelunking menu is active (MenuType2 === 82)
         if (gga.MenuType2 !== 82) return base;
 
@@ -22,5 +20,5 @@ export function setupEvents713Proxies() {
             cheatConfig.w7.spelunkdepth = 0;
         }
         return base;
-    });
-}
+    }
+);

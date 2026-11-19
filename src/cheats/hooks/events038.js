@@ -1,33 +1,23 @@
 /**
- * Events 038 Proxies
+ * ActorEvents_38 hooks: inventory item use
  *
- * Proxies for ActorEvents_38 (inventory item interactions):
  * - Item move (candy use anywhere, divinity pearl unlock)
  * - Item misc (mystery stone stat targeting)
  */
 
 import { cheatState } from "../core/state.js";
 import { itemDefs, events, gga } from "../core/globals.js";
+import { defineHook } from "../core/hooks.js";
 
-/**
- * Setup all ActorEvents_38 proxies.
- */
-export function setupEvents038Proxies() {
-    setupItemMoveProxy();
-    setupItemMiscProxy();
-}
-
-/**
- * Setup item move proxy (candy anywhere, divinity pearl unlock).
- *
- * NOTE: Intentionally deviates from "base first" pattern in some paths.
- * Candy cheat requires modifying game state before calling base and restoring after.
- * Divinity pearl cheat may need to call a different function entirely.
- */
-function setupItemMoveProxy() {
-    const actorEvents38 = events(38);
-    const InvItem4custom = actorEvents38.prototype._event_InvItem4custom;
-    actorEvents38.prototype._event_InvItem4custom = function (...args) {
+// Around: candy changes the map the game reads while it runs; the divinity pearl skips the game's use.
+defineHook(
+    {
+        id: "wide.candy, unlock.divinitypearl",
+        target: () => events(38).prototype,
+        method: "_event_InvItem4custom",
+        around: true,
+    },
+    function (callOriginal) {
         const actor = this.actor;
 
         const inventoryOrder = gga.InventoryOrder;
@@ -60,7 +50,7 @@ function setupItemMoveProxy() {
                     gga.AFKtarget = newTarget;
                 }
                 gga.CurrentMap = 1;
-                const base = Reflect.apply(InvItem4custom, this, args);
+                const base = callOriginal();
                 gga.CurrentMap = originalMap;
                 gga.AFKtarget = originalTarget;
                 return base;
@@ -88,22 +78,15 @@ function setupItemMoveProxy() {
             }
         }
 
-        return Reflect.apply(InvItem4custom, this, args);
-    };
-}
+        return callOriginal();
+    }
+);
 
-/**
- * Setup item misc proxy (mystery stone stat targeting).
- *
- * NOTE: Intentionally deviates from "base first" pattern.
- * Mystery stone cheat requires setting RNG state before calling base
- * to influence the random roll outcome.
- */
-function setupItemMiscProxy() {
-    const actorEvents38 = events(38);
-    const InventoryItem = actorEvents38.prototype._event_InventoryItem;
-    actorEvents38.prototype._event_InventoryItem = function (...args) {
-        if (!cheatState.upstones.misc) return Reflect.apply(InventoryItem, this, args);
+// Around: the stone's roll is forced by setting RNG before the game rolls, and freed after.
+defineHook(
+    { id: "upstones.misc", target: () => events(38).prototype, method: "_event_InventoryItem", around: true },
+    function (callOriginal) {
+        if (!cheatState.upstones.misc) return callOriginal();
 
         const dragId = this.actor.getValue("ActorEvents_38", "_ItemDragID");
         const inventory = gga.InventoryOrder;
@@ -115,13 +98,13 @@ function setupItemMiscProxy() {
             cheatState.rng = 0.85; // First random roll for Misc stat
             cheatState.rngInt = "high"; // 2nd random roll for positive value
 
-            const base = Reflect.apply(InventoryItem, this, args);
+            const base = callOriginal();
 
             cheatState.rng = false;
             cheatState.rngInt = false;
             return base;
         }
 
-        return Reflect.apply(InventoryItem, this, args);
-    };
-}
+        return callOriginal();
+    }
+);

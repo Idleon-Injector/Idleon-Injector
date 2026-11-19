@@ -1,29 +1,21 @@
 /**
- * Events 044 Proxies
+ * ActorEvents_44 hooks: item drops
  *
- * Proxies for ActorEvents_44 (item drops):
  * - Auto loot (instant item pickup and chest management)
  */
 
 import { behavior, events, gga, itemDefs } from "../core/globals.js";
 import { cheatConfig, cheatState } from "../core/state.js";
 import { lootableItemTypes } from "../constants.js";
-import { createMethodProxy } from "../utils/proxy.js";
+import { defineHook } from "../core/hooks.js";
 
 const MULTI_STACK_SLOT_LIMIT = 1050000000;
 
-/**
- * Setup auto loot proxy (instant item pickup and chest management).
- */
-export function setupAutoLootProxy() {
-    const actorEvents44 = events(44);
-
-    // Proxy init to handle instant looting and chest transfer on spawn
-    createMethodProxy(actorEvents44.prototype, "init", function (base) {
-        if (processAutoLoot(this)) return;
-        return base;
-    });
-}
+// Handle instant looting and chest transfer as a drop spawns
+defineHook({ id: "wide.autoloot", target: () => events(44).prototype, method: "init" }, function (base) {
+    if (processAutoLoot(this)) return;
+    return base;
+});
 
 /**
  * Processes auto-loot logic for an item drop.

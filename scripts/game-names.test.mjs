@@ -22,7 +22,6 @@ test("names: every kind of reference is collected", () => {
         gga.Holes[15][0] = 1; gga("Cards[1]"); writeVerified(\`RoyalMaps[\${i}][11]\`, 0); readGgaEntries("Lv0");
         const row = { writePath: \`UpgVault[\${i}]\`, levelsPath: "Atoms", definitionsPath: "UpgradeVault" };
         const EQUIPPED_MAIN_PATH = "EquipmentOrder[0]";
-        createProxy(gga, "GemsOwned", {});
     `);
     assert.deepEqual([...names].sort(), [
         "behavior:runLater",
@@ -34,7 +33,6 @@ test("names: every kind of reference is collected", () => {
         "gga:Atoms",
         "gga:Cards",
         "gga:EquipmentOrder",
-        "gga:GemsOwned",
         "gga:Holes",
         "gga:Lv0",
         "gga:RoyalMaps",
@@ -43,9 +41,10 @@ test("names: every kind of reference is collected", () => {
     ]);
 });
 
-test("names: a defineHook declaration names the game method or early class it hooks", () => {
+test("names: a defineHook declaration names the game method, property or early class it hooks", () => {
     const names = namesInSource(`
         defineHook({ id: "core.reapply", target: () => firebase, method: "playButton" }, (base) => base);
+        defineHook({ id: "wide.gems", target: () => gga, property: "GemsOwned" }, { set: (value) => value });
         defineHook({ id: "minigame", target: () => events(229).prototype, method: "init" }, (base) => base);
         defineHook({ id: "storage", early: "scripts.ActorEvents_203", method, around: true }, (call) => call());
     `);
@@ -53,6 +52,7 @@ test("names: a defineHook declaration names the game method or early class it ho
         "class:scripts.ActorEvents_203",
         "class:scripts.ActorEvents_229",
         "firebase:playButton",
+        "gga:GemsOwned",
     ]);
 });
 
@@ -142,7 +142,7 @@ const PINNED = {
     fingerprints: { _customBlock_Gallery: fingerprint(GAME, "_customBlock_Gallery"), runLater: null },
 };
 const NAMES = new Map([
-    ["method:_customBlock_Gallery", new Set(["src/cheats/proxies/events579.js"])],
+    ["method:_customBlock_Gallery", new Set(["src/cheats/hooks/events579.js"])],
     ["gga:OptionsListAccount", new Set(["src/ui/a.js"])],
 ]);
 

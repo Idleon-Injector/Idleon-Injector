@@ -230,7 +230,7 @@ defineCheat({
     },
 });
 
-// Upgrade stones cheats (now proxy-based - see proxies/items.js)
+// Upgrade stones cheats (now hook-based - see hooks/items.js)
 defineCheat({
     name: "upstones",
     message: "upgrade stone cheats",
