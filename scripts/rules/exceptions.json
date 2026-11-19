@@ -156,12 +156,6 @@
             "file": "src/ui/pages/world-7/clam-work/clam-work.js",
             "count": 1,
             "reason": "Clam rows save with gga(path, value)."
-        },
-        {
-            "rule": "old-page",
-            "file": "src/ui/components/views/Account.js",
-            "count": 8,
-            "reason": "Account pages not yet moved to src/ui/pages/."
         }
     ]
 }

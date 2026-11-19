@@ -1,4 +1,5 @@
-import { MasterclassUpgradeTab } from "./MasterclassUpgradeTab.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { MasterclassUpgradeTab } from "../../../components/views/account/MasterclassUpgradeTab.js";
 
 const TACHYON_FIELDS = [
     { key: "tachyon1", optionIndex: 388, name: "TACHYON 1" },
@@ -10,7 +11,7 @@ const TACHYON_FIELDS = [
     { key: "tachyonTotal", optionIndex: 394, name: "TOTAL TACHYON COLLECTED" },
 ];
 
-export const TesseractTab = () =>
+const TesseractTab = () =>
     MasterclassUpgradeTab({
         title: "TESSERACT",
         description: "Manage Arcane Cultist Tesseract upgrades and Tachyons.",
@@ -20,3 +21,13 @@ export const TesseractTab = () =>
         currencyTitle: "TACHYONS",
         currencyFields: TACHYON_FIELDS,
     });
+
+export default definePage({
+    id: "classes.tesseract",
+    world: "classes",
+    system: "Tesseract",
+    tab: "Tesseract",
+    description: "Arcane Cultist Tesseract upgrades and tachyons.",
+    keywords: ["Arcane Cultist"],
+    component: TesseractTab,
+});

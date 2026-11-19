@@ -1,9 +1,10 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
 import { Icons } from "../../../assets/icons.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { EditableNumberRow } from "./EditableNumberRow.js";
-import { useAccountLoad } from "./accountLoadPolicy.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -16,9 +17,9 @@ import {
     unwrapH,
     useWriteStatus,
     writeVerified,
-} from "./accountShared.js";
-import { RefreshButton } from "./components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
+} from "../../../components/views/account/accountShared.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, select, option, details, summary } = van.tags;
 
@@ -260,7 +261,7 @@ const CardSection = ({
     );
 };
 
-export const CardsTab = () => {
+const CardsTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Cards" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
     const totalCards = van.state(0);
@@ -356,3 +357,12 @@ export const CardsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "account.cards",
+    world: "account",
+    system: "Card Search",
+    description: "Card amounts and tiers, grouped by card region.",
+    keywords: ["Cards"],
+    component: CardsTab,
+});

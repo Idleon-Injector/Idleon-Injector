@@ -15,6 +15,7 @@ import { Pages } from "./views/Pages.js";
 import { Cheats } from "./views/Cheats.js";
 import { Config } from "./views/Config.js";
 import { Account } from "./views/Account.js";
+import { AccountOptions } from "./views/AccountOptions.js";
 import { DevTools } from "./views/DevTools.js";
 import { Search } from "./views/Search.js";
 
@@ -26,13 +27,14 @@ const viewFactories = {
     [VIEWS.CHEATS.id]: Cheats,
     [VIEWS.CONFIG.id]: Config,
     [VIEWS.ACCOUNT.id]: Account,
+    [VIEWS.ACCOUNT_OPTIONS.id]: AccountOptions,
     [VIEWS.DEVTOOLS.id]: DevTools,
     [VIEWS.SEARCH.id]: Search,
 };
 
 const ADVANCED_TABS = AREAS.find((area) => area.id === "advanced").tabs;
 
-/** Value search and DevTools share the Advanced area: one tab row above them. */
+/** Account Options, Value search and DevTools share the Advanced area: one tab row above them. */
 const AdvancedTabs = () =>
     div(
         {

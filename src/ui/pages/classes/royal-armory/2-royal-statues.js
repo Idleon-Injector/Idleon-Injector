@@ -1,12 +1,17 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { SimpleNumberRow } from "../SimpleNumberRow.js";
-import { cleanName, createStaticRowReconciler, getOrCreateState } from "../accountShared.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    getOrCreateState,
+} from "../../../components/views/account/accountShared.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div } = van.tags;
 const ROYAL_STATUE_COUNT = 7;
@@ -15,7 +20,7 @@ const ROYAL_STATUE_COUNT = 7;
  * Edit the seven selectable Royal Statue levels.
  * @returns {HTMLElement} Persistent account editor page.
  */
-export const RoyalStatuesTab = () => {
+const RoyalStatuesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Royal Statues" });
     const royalStates = new Map();
     const royalList = div({ class: "account-item-stack" });
@@ -69,3 +74,12 @@ export const RoyalStatuesTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "classes.royalarmory.statues",
+    world: "classes",
+    system: "Royal Armory",
+    tab: "Royal Statues",
+    description: "Royal Statue levels.",
+    component: RoyalStatuesTab,
+});

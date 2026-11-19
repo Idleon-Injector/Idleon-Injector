@@ -1,9 +1,5 @@
 /* Masterclasses / Grimoire */
 
-.masterclasses-tab {
-    --world-color: var(--c-accent);
-}
-
 .grimoire-controls,
 .masterclass-upgrade-controls {
     flex-shrink: 0;

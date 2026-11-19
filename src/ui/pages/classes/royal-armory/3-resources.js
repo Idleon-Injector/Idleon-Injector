@@ -1,16 +1,17 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { EmptyState } from "../../../EmptyState.js";
-import { Icons } from "../../../../assets/icons.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { formatNumber } from "../../../../utils/numberFormat.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { InlineEditableNumberField } from "../components/InlineEditableNumberField.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { EmptyState } from "../../../components/EmptyState.js";
+import { Icons } from "../../../assets/icons.js";
+import { gga, readCList } from "../../../services/api.js";
+import { formatNumber } from "../../../utils/numberFormat.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { InlineEditableNumberField } from "../../../components/views/account/components/InlineEditableNumberField.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     getOrCreateState,
     resolveNumberInput,
@@ -19,7 +20,7 @@ import {
     useWriteStatus,
     writeManyVerified,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { button, div, span } = van.tags;
 
@@ -156,7 +157,7 @@ const NodeRow = ({ node, gradeState, depletedState }) => {
     });
 };
 
-export const ResourceNodesTab = () => {
+const ResourceNodesTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Resource Nodes" });
     const activeWorld = van.state(1);
     const bulkStatus = useWriteStatus();
@@ -304,3 +305,13 @@ export const ResourceNodesTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "classes.royalarmory.resources",
+    world: "classes",
+    system: "Royal Armory",
+    tab: "Resources",
+    description: "Resource node grades and depleted state.",
+    keywords: ["Resource Nodes"],
+    component: ResourceNodesTab,
+});

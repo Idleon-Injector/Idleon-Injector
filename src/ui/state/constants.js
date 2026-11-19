@@ -26,6 +26,11 @@ export const VIEWS = {
         label: "ACCOUNT OPTIONS LIST",
         sidebarLabel: "ACCOUNT OPTIONS",
     },
+    ACCOUNT_OPTIONS: {
+        id: "account-options-tab",
+        label: "ACCOUNT OPTIONS",
+        sidebarLabel: "ACCOUNT OPTIONS",
+    },
     CONFIG: {
         id: "config-tab",
         label: "CONFIGURATION",

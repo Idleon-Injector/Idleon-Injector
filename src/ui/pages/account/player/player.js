@@ -1,9 +1,10 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList, readComputed, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { formattedStep, parseNumber } from "../../../utils/numberFormat.js";
-import { EditableNumberRow } from "./EditableNumberRow.js";
-import { useAccountLoad } from "./accountLoadPolicy.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     createStaticRowReconciler,
     getOrCreateState,
@@ -11,15 +12,15 @@ import {
     largeParser,
     unwrapH,
     writeManyVerified,
-} from "./accountShared.js";
-import { RefreshButton } from "./components/AccountPageChrome.js";
-import { AccountSection } from "./components/AccountSection.js";
-import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
-import { createCharacterSelector } from "./components/CharacterSelector.js";
+} from "../../../components/views/account/accountShared.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 
 const { div, span } = van.tags;
 
-export const PlayerTab = () => {
+const PlayerTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Player" });
     const selected = van.state("");
     const current = van.state("");
@@ -187,3 +188,12 @@ export const PlayerTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "account.player",
+    world: "account",
+    system: "Player",
+    description: "Character levels and money.",
+    keywords: ["Characters"],
+    component: PlayerTab,
+});

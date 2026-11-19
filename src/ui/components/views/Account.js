@@ -1,22 +1,13 @@
 /**
  * Account View ("Older pages" in the menu)
  * Top-level container for Account tabs. Pages move out of here into src/ui/pages/ one by one.
- * Tab 1: Account Options (raw OptionsListAccount editor)
- * Tabs 2–8: World-specific data editors (W1–W7)
+ * Account Options moved to Advanced (views/AccountOptions.js); the rest moved to src/ui/pages/.
  *
  * Follows the same sub-tab pattern as Config.js.
  * Each tab lives in src/ui/components/views/account/ for easy scalability.
  */
 
 import van from "../../vendor/van-1.6.0.js";
-import { AccountOptionsTab } from "./account/AccountOptionsTab.js";
-import { PlayerTab } from "./account/PlayerTab.js";
-import { BundlesTab } from "./account/BundlesTab.js";
-import { CardsTab } from "./account/CardsTab.js";
-import { ClickerTab } from "./account/ClickerTab.js";
-import { MasterclassesTab } from "./account/MasterclassesTab.js";
-import { TasksTab } from "./account/TasksTab.js";
-import { UpgradeVaultTab } from "./account/UpgradeVaultTab.js";
 import { renderLazyPanes, renderTabNav } from "./account/tabShared.js";
 
 const { div, span } = van.tags;
@@ -25,16 +16,7 @@ const { div, span } = van.tags;
  * Tab definitions.
  * To add a new tab: push an entry here and create its component in ./account/.
  */
-const ACCOUNT_TABS = [
-    { id: "account-options", label: "ACCOUNT OPTIONS", isWorld: false, component: AccountOptionsTab },
-    { id: "player", label: "PLAYER", isWorld: false, component: PlayerTab },
-    { id: "upgrade-vault", label: "UPGRADE VAULT", isWorld: false, component: UpgradeVaultTab },
-    { id: "tasks", label: "TASKS", isWorld: false, component: TasksTab },
-    { id: "cards", label: "CARDS", isWorld: false, component: CardsTab },
-    { id: "bundles", label: "BUNDLES", isWorld: false, component: BundlesTab },
-    { id: "masterclasses", label: "MASTERCLASSES", isWorld: false, component: MasterclassesTab },
-    { id: "clicker", label: "CLICKER", isWorld: false, component: ClickerTab },
-];
+const ACCOUNT_TABS = [];
 
 /** The open tab, shared so the new menu can send players to a world that hasn't moved yet. */
 export const olderPagesTab = van.state(ACCOUNT_TABS[0].id);

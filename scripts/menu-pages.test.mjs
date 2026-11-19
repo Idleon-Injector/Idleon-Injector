@@ -126,7 +126,7 @@ test("search finds systems, tabs, extra words and areas by their old names", () 
     assert.deepEqual(top("sushi").target, { world: 7, page: "w7.sushi.shop" }, "a system opens on its first page");
     assert.deepEqual(top("config").target, { view: "CONFIG" });
     assert.deepEqual(top("chromedebug").target, { view: "DEVTOOLS" });
-    assert.deepEqual(top("account options").target, { view: "ACCOUNT" });
+    assert.deepEqual(top("account options").target, { view: "ACCOUNT_OPTIONS" });
     assert.deepEqual(top("w1").target, { world: 1, page: null });
     assert.deepEqual(top("equinox valley").target, { world: 7, page: null });
     assert.equal(top("button page").label, "The Button", "descriptions match last");

@@ -10,20 +10,21 @@ import {
     buildDistributedUnitArrays,
     refreshRoyalGuardUnitCaches,
     resetRoyalGuardUnitsToVanilla,
-} from "./royalGuardDomain.js";
-import van from "../../../../vendor/van-1.6.0.js";
-import { EmptyState } from "../../../EmptyState.js";
-import { Icons } from "../../../../assets/icons.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { formatNumber } from "../../../../utils/numberFormat.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { InlineEditableNumberField } from "../components/InlineEditableNumberField.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+} from "../../../components/views/account/royalGuardDomain.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { EmptyState } from "../../../components/EmptyState.js";
+import { Icons } from "../../../assets/icons.js";
+import { gga, readCList } from "../../../services/api.js";
+import { formatNumber } from "../../../utils/numberFormat.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { InlineEditableNumberField } from "../../../components/views/account/components/InlineEditableNumberField.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -38,7 +39,7 @@ import {
     useWriteStatus,
     writeManyVerified,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { button, div, input, option, select, span } = van.tags;
 
@@ -737,7 +738,7 @@ const readOutposts = async () => {
     return { outposts, mapDispNames, mapDetails };
 };
 
-export const OutpostsTab = () => {
+const OutpostsTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Outposts" });
     const activeWorld = van.state(1);
     const outposts = van.state([]);
@@ -899,3 +900,12 @@ export const OutpostsTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "classes.royalarmory.outposts",
+    world: "classes",
+    system: "Royal Armory",
+    tab: "Outposts",
+    description: "Outposts, kill counters, ranks, slots and stationed map units.",
+    component: OutpostsTab,
+});

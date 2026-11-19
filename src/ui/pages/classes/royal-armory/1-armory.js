@@ -1,5 +1,9 @@
-import { MasterclassUpgradeTab } from "./MasterclassUpgradeTab.js";
-import { UNIT_REBUILD_DISPLAY_SHELVES, resetRoyalGuardUnitsToVanilla } from "./royalGuardDomain.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { MasterclassUpgradeTab } from "../../../components/views/account/MasterclassUpgradeTab.js";
+import {
+    UNIT_REBUILD_DISPLAY_SHELVES,
+    resetRoyalGuardUnitsToVanilla,
+} from "../../../components/views/account/royalGuardDomain.js";
 
 const resourceFields = (resourceIds) =>
     resourceIds.map((resourceId) => ({
@@ -20,7 +24,7 @@ const ROYAL_ARMORY_RESOURCE_TABS = [
 
 const getDisplayShelf = (upgrade) => Number(upgrade.index) + 1;
 
-export const RoyalArmoryTab = () =>
+const RoyalArmoryTab = () =>
     MasterclassUpgradeTab({
         title: "ROYAL ARMORY",
         description: "Manage Royal Guard Royal Armory upgrades.",
@@ -38,3 +42,13 @@ export const RoyalArmoryTab = () =>
                 : null;
         },
     });
+
+export default definePage({
+    id: "classes.royalarmory",
+    world: "classes",
+    system: "Royal Armory",
+    tab: "Armory",
+    description: "Royal Armory upgrades and royal resources.",
+    keywords: ["Royal Guardian"],
+    component: RoyalArmoryTab,
+});
