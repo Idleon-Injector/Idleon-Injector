@@ -43,16 +43,12 @@ const MineheadUpgradeRow = ({ entry, levelState, doublers }) =>
         integerMode: "round",
         renderInfo: () => [
             span({ class: "account-row__index" }, `#${entry.index}`),
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, entry.name)
-            ),
+            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
         rowClass: "account-row--wide-controls minigame-upgrade-row",
         controlsClass: "account-row__controls--xl",
         maxAction: true,
-        renderExtraActions: () =>
-            UpgradeDoublerButton({ doublers, index: entry.index, name: entry.name }),
+        renderExtraActions: () => UpgradeDoublerButton({ doublers, index: entry.index, name: entry.name }),
     });
 
 export const MineheadTab = () => {

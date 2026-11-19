@@ -193,10 +193,7 @@ export const MapCrystalsTab = () => {
 
     const getMapRow = (map) => {
         if (!rowNodes.has(map.mapIndex)) {
-            rowNodes.set(
-                map.mapIndex,
-                MapCrystalRow({ map, states: getMapStates(map.mapIndex), talentCap })
-            );
+            rowNodes.set(map.mapIndex, MapCrystalRow({ map, states: getMapStates(map.mapIndex), talentCap }));
         }
         return rowNodes.get(map.mapIndex);
     };
@@ -257,9 +254,12 @@ export const MapCrystalsTab = () => {
             const writes = [];
             for (const map of mapsToUpdate) {
                 const states = getMapStates(map.mapIndex);
-                if (states.purple.val !== killCount) writes.push({ path: `MapBon[${map.mapIndex}][0]`, value: killCount });
-                if (states.yellow.val !== killCount) writes.push({ path: `MapBon[${map.mapIndex}][1]`, value: killCount });
-                if (states.blue.val !== killCount) writes.push({ path: `MapBon[${map.mapIndex}][2]`, value: killCount });
+                if (states.purple.val !== killCount)
+                    writes.push({ path: `MapBon[${map.mapIndex}][0]`, value: killCount });
+                if (states.yellow.val !== killCount)
+                    writes.push({ path: `MapBon[${map.mapIndex}][1]`, value: killCount });
+                if (states.blue.val !== killCount)
+                    writes.push({ path: `MapBon[${map.mapIndex}][2]`, value: killCount });
             }
             if (writes.length > 0) {
                 const CHUNK_SIZE = 60;
@@ -293,11 +293,7 @@ export const MapCrystalsTab = () => {
         const query = searchQuery.val.trim().toLowerCase();
         const worldMaps = getActiveWorldMaps();
         const visibleMaps = query
-            ? worldMaps.filter(
-                  (m) =>
-                      m.name.toLowerCase().includes(query) ||
-                      `#${m.mapIndex}`.includes(query)
-              )
+            ? worldMaps.filter((m) => m.name.toLowerCase().includes(query) || `#${m.mapIndex}`.includes(query))
             : worldMaps;
 
         if (visibleMaps.length === 0) {
@@ -308,10 +304,7 @@ export const MapCrystalsTab = () => {
             });
         }
 
-        return div(
-            { class: "account-list map-crystals-list" },
-            ...visibleMaps.map((map) => getMapRow(map))
-        );
+        return div({ class: "account-list map-crystals-list" }, ...visibleMaps.map((map) => getMapRow(map)));
     };
 
     const bulkActions = [
@@ -336,7 +329,8 @@ export const MapCrystalsTab = () => {
             label: "CLEAR WORLD (0)",
             status: bulkStatus,
             disabled: () => loading.val || activeTab.val === "all",
-            tooltip: "Reset all crystals on maps in the current world view to 0 kills (select a specific world tab to enable)",
+            tooltip:
+                "Reset all crystals on maps in the current world view to 0 kills (select a specific world tab to enable)",
             onClick: () => {
                 if (activeTab.val === "all") return;
                 applyBulkKills(getActiveWorldMaps(), 0);
