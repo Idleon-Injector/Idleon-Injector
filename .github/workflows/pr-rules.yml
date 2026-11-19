@@ -1,0 +1,35 @@
+name: PR rules
+on:
+    # pull_request_target runs master's copy of this file and of scripts/pr-rules.mjs with a token that can read the
+    # linked issue's labels, so a PR can't change the rules it is checked against. It never checks out or runs the PR's
+    # code: the files come from the API and the body only reaches the script as an environment variable. "edited"
+    # re-runs it when the contributor links an issue in the description.
+    pull_request_target:
+        types: [opened, edited, reopened, synchronize]
+
+permissions:
+    contents: read
+    pull-requests: read
+    issues: read
+
+jobs:
+    rules:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout master
+              uses: actions/checkout@v6
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+
+            - name: One kind per PR, and an approved issue for a new cheat or hook
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  PR_BODY: ${{ github.event.pull_request.body }}
+                  PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+              run: node scripts/pr-rules.mjs

@@ -26,12 +26,14 @@ changes it. If you find a core bug, open an issue, ideally with proof.
 - **No need to ask:** a page for game content that already exists, a bug fix with a test that failed before the fix,
   and wording.
 - **Ask first:** a new cheat or a new game hook. Open a feature request naming the game function, and wait for a yes
-  before you start. Link that issue in your PR.
+  before you start: the yes is the `approved` label on the issue. Link that issue in your PR description, for example
+  `For #12`; a check fails a PR that adds a cheat or hook file without a linked, approved issue.
 
 ## One kind per PR
 
 A PR is either a page or game-side code (a cheat with the hooks and automations it needs). Put a page and a cheat in
-separate PRs, and leave core changes to the maintainer. There is no line limit.
+separate PRs, and leave core changes to the maintainer. There is no line limit. A check fails a PR that changes both a
+page and game-side code, and a comment on every PR sums up what it touches, with screenshots of the pages it changes.
 
 ## The pull request
 
