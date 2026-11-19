@@ -5,17 +5,24 @@
  *   PostOfficeInfo[3][i][0] -> points spent in upgrade i
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList, readGgaEntries } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { cleanName, runBulkSet, toInt, useWriteStatus, writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import {
+    cleanName,
+    runBulkSet,
+    toInt,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -78,7 +85,7 @@ const POBoxRow = ({ box, onAfterWrite = null }) => {
     });
 };
 
-export const PostOfficeTab = () => {
+const PostOfficeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Post Office" });
     const boxComplete = van.state(0);
     const boxStreak = van.state(0);
@@ -301,3 +308,12 @@ export const PostOfficeTab = () => {
         body: div({ class: "po-scroll scrollable-panel" }, pointsSection, boxesSection),
     });
 };
+
+export default definePage({
+    id: "w2.postoffice",
+    world: 2,
+    system: "Post Office",
+    description: "Post Office box upgrades and the delivery points that pay for them.",
+    keywords: ["Delivery boxes"],
+    component: PostOfficeTab,
+});

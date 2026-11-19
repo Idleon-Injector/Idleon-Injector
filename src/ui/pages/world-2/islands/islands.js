@@ -5,14 +5,15 @@
  * Island unlocks are stored as a compact token string in [169].
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readGgaEntries } from "../../../../services/api.js";
-import { BulkActionBar, SetAllNumberControl } from "../BulkActionBar.js";
-import { SimpleNumberRow } from "../SimpleNumberRow.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { AccountToggleRow } from "../components/AccountToggleRow.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
+import { BulkActionBar, SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
+import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { AccountToggleRow } from "../../../components/views/account/components/AccountToggleRow.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     getOrCreateState,
     resolveNumberInput,
@@ -20,7 +21,7 @@ import {
     useWriteStatus,
     writeManyVerified,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -99,7 +100,7 @@ const NumericRow = ({ field, valueState, badge }) =>
         valueState,
     });
 
-export const IslandsTab = () => {
+const IslandsTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Islands" });
     const unlockBulk = useWriteStatus();
     const garbageBulk = useWriteStatus();
@@ -284,3 +285,12 @@ export const IslandsTab = () => {
         body: content,
     });
 };
+
+export default definePage({
+    id: "w2.islands",
+    world: 2,
+    system: "Islands",
+    description: "Which fishing islands are unlocked, their currencies and upgrades.",
+    keywords: ["Fishing Islands"],
+    component: IslandsTab,
+});

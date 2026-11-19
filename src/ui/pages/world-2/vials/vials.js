@@ -11,11 +11,12 @@
  * both update the same committed state without rebuilding row-local truth.
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { BulkActionBar, SetAllNumberControl } from "../BulkActionBar.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { BulkActionBar, SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createIndexedStateGetter,
@@ -24,7 +25,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -40,7 +41,7 @@ const VialRow = ({ vial, levelState }) =>
         name: vial.name,
     });
 
-export const VialTab = () => {
+const VialTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Vials" });
     const setAllInput = van.state("13");
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
@@ -113,3 +114,12 @@ export const VialTab = () => {
         body: listNode,
     });
 };
+
+export default definePage({
+    id: "w2.vials",
+    world: 2,
+    system: "Vials",
+    description: "Vial levels.",
+    keywords: ["Alchemy"],
+    component: VialTab,
+});
