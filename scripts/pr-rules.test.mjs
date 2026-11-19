@@ -18,8 +18,8 @@ const CHEAT = "src/cheats/cheats/wide.js";
 const HOOK = "src/cheats/hooks/events012.js";
 const AUTOMATION = "src/cheats/automations/sushi.js";
 const noIssues = async () => null;
-const check = (files, { body = "", association = "CONTRIBUTOR", issue = noIssues } = {}) =>
-    checkPr({ files, body, association, core, issue });
+const check = (files, { body = "", association = "CONTRIBUTOR", permission = "read", issue = noIssues } = {}) =>
+    checkPr({ files, body, association, permission, core, issue });
 
 test("the core is read from .github/CODEOWNERS", () => {
     for (const p of ["src/cheats/core/", "scripts/", ".github/workflows/", "package.json", ".github/CODEOWNERS"])
@@ -78,6 +78,16 @@ test("maintainers (OWNER, MEMBER) are exempt; collaborators aren't", async () =>
         assert.deepEqual(result, { kind: result.kind, exempt: true, problems: [] }, association);
     }
     assert.equal((await check(files, { association: "COLLABORATOR" })).problems.length, 2);
+});
+
+test("a private org member (CONTRIBUTOR in Actions) with write access to the repo is exempt; a reader isn't", async () => {
+    const files = [modified(PAGE), added("src/cheats/hooks/new.js")];
+    for (const permission of ["admin", "write"]) {
+        assert.equal((await check(files, { permission })).exempt, true, permission);
+    }
+    for (const permission of ["read", "none", undefined]) {
+        assert.equal((await check(files, { permission })).problems.length, 2, String(permission));
+    }
 });
 
 test("issue links in the PR body", () => {

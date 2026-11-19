@@ -204,6 +204,7 @@ function fakeGithub({ pr, comments = [] }) {
     return {
         writes,
         pull: async (n) => (n === pr.number ? pr : null),
+        permission: async () => "read",
         files: async () => [{ path: "src/ui/pages/world-1/anvil/anvil.js", status: "modified" }],
         issue: async () => null,
         runJobs: async () => [
@@ -223,6 +224,7 @@ const PR = {
     number: 41,
     body: "",
     author_association: "CONTRIBUTOR",
+    user: { login: "someone" },
     head: { sha: SHA, repo: { full_name: "someone/Idleon-Injector" } },
 };
 const dirs = [];
