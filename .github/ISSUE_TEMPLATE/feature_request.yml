@@ -1,0 +1,29 @@
+name: Feature request
+description: Ask for a new cheat, game hook or page. New cheats and hooks need a yes here before anyone starts work.
+labels: ["enhancement"]
+body:
+    - type: dropdown
+      id: kind
+      attributes:
+          label: Kind
+          options:
+              - Cheat
+              - Game hook
+              - Page
+              - Automation
+      validations:
+          required: true
+    - type: textarea
+      id: game-function
+      attributes:
+          label: The game function or page
+          description: For a cheat or hook, the game function it calls or changes (for example `events(12)._customBlock_PlayerReach`). For a page, the game system it shows.
+      validations:
+          required: true
+    - type: textarea
+      id: what-the-player-sees
+      attributes:
+          label: What the player sees
+          description: What it does for the player, in a sentence or two.
+      validations:
+          required: true

@@ -1,0 +1,28 @@
+name: PR title
+on:
+    # pull_request_target runs this file and the title rule from master, so a PR can't change the rule it is checked
+    # against. It never checks out or runs the PR's code; the title only reaches the script as an environment variable.
+    pull_request_target:
+        types: [opened, edited, reopened, synchronize]
+
+permissions:
+    contents: read
+
+jobs:
+    title:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout master
+              uses: actions/checkout@v6
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+
+            - name: Check the PR title
+              env:
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+              run: node scripts/pr-title.mjs
