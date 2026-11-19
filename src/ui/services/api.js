@@ -65,6 +65,11 @@ export async function fetchConfig() {
     return _request("/config");
 }
 
+/** List the menu's page modules and their stylesheets (paths under /pages/). */
+export async function fetchPageFiles() {
+    return _request("/pages");
+}
+
 export async function fetchAppInfo() {
     return _request("/app-info");
 }

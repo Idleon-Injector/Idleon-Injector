@@ -11,6 +11,7 @@ const path = require("path");
 const fs = require("fs").promises;
 const TinyRouter = require("./tinyRouter");
 const { initWebSocket } = require("./wsServer");
+const { setupPageRoutes } = require("./routes/pages");
 const { createLogger } = require("../utils/logger");
 
 const log = createLogger("WebServer");
@@ -68,6 +69,7 @@ async function serveStatic(req, res, staticDir) {
 function createWebServer(config) {
     const router = new TinyRouter();
     router.enableUI = config.enableUI;
+    if (config.enableUI) setupPageRoutes(router, path.join(__dirname, "../../ui/pages"));
 
     log.debug(`Web UI ${config.enableUI ? "enabled" : "disabled"}`);
 

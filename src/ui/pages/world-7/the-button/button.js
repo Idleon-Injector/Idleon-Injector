@@ -1,11 +1,12 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readComputed, readGgaEntries } from "../../../../services/api.js";
-import { ClickerRow } from "../ClickerRow.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { getOrCreateState, writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { gga, readComputed, readGgaEntries } from "../../../services/api.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { getOrCreateState, writeVerified } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -24,7 +25,7 @@ const ButtonRow = ({ field, fieldState, onWrite }) =>
         emptyBadge: "-",
     });
 
-export const ButtonTab = () => {
+const ButtonPage = () => {
     const { loading, error, run } = useAccountLoad({ label: "Button" });
     const fieldStates = new Map();
 
@@ -62,7 +63,7 @@ export const ButtonTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "BUTTON",
+        title: "THE BUTTON",
         description: "Set W7 Button presses done and remaining charges from OptionsListAccount[594] and [595].",
         actions: RefreshButton({
             onRefresh: load,
@@ -75,3 +76,12 @@ export const ButtonTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w7.button",
+    world: 7,
+    system: "The Button",
+    description: "Presses done and remaining charges of World 7's Button.",
+    keywords: ["Button", "Presses", "Charges"],
+    component: ButtonPage,
+});

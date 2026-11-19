@@ -4,6 +4,7 @@ import { VIEWS } from "./constants.js";
 import { getCheatConfigPath, configPathExists } from "../utils/index.js";
 import { formatDisplayValue } from "../components/views/search/valueUtils.js";
 import { createLiveMonitor } from "./liveMonitor.js";
+import { findWorld } from "../menu/menuModel.js";
 import {
     initWebSocket,
     onStateUpdate,
@@ -27,8 +28,17 @@ const safeParseJSON = (key, fallback = []) => {
     }
 };
 
+// The menu opens where the player left it; the very first start shows Home.
+const MENU_LAST_KEY = "menuLast";
+const savedMenu = safeParseJSON(MENU_LAST_KEY, null) || {};
+const isKnownView = (id) =>
+    Object.values(VIEWS).some((view) => view.id === id) && (id !== VIEWS.PAGES.id || findWorld(savedMenu.world));
+
 const appState = vanX.reactive({
-    activeTab: "cheats-tab",
+    activeTab: isKnownView(savedMenu.tab) ? savedMenu.tab : VIEWS.HOME.id,
+    // Pages view: the world shown (1-7, "account", "classes") and the page id open in it ("" = its first page).
+    menuWorld: savedMenu.world ?? null,
+    menuPage: typeof savedMenu.page === "string" ? savedMenu.page : "",
     configDrawerOpen: false,
     isLoading: false,
     heartbeat: false,
@@ -420,6 +430,31 @@ const store = {
     toggleSidebar: () => {
         appState.sidebarCollapsed = !appState.sidebarCollapsed;
         localStorage.setItem("sidebarCollapsed", appState.sidebarCollapsed);
+    },
+
+    /**
+     * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }` (page "" or null = the world's first page).
+     */
+    openMenu: (target) => {
+        if (target.view) {
+            appState.activeTab = VIEWS[target.view].id;
+            return;
+        }
+        appState.menuWorld = target.world;
+        appState.menuPage = target.page || "";
+        appState.activeTab = VIEWS.PAGES.id;
+    },
+
+    /** Remember where the menu is, so it opens there next time. */
+    saveMenuPlace: () => {
+        try {
+            localStorage.setItem(
+                MENU_LAST_KEY,
+                JSON.stringify({ tab: appState.activeTab, world: appState.menuWorld, page: appState.menuPage })
+            );
+        } catch {
+            // ponytail: storage blocked (private window); the menu just opens on Home next time.
+        }
     },
 
     toggleCheatsViewMode: () => {

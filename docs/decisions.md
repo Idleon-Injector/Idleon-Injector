@@ -237,3 +237,17 @@ Trade-off: each updater owns its check cache. Startup and CLI checks use fresh i
 route retains its instance and controls the response-before-exit handoff.
 
 Source: [Updater](../src/modules/updateService.js).
+
+## Build the menu from page declarations
+
+Decision: each menu page declares itself with `definePage` in its own file under `src/ui/pages/<world>/<system>/`.
+The web server lists that folder and the menu imports every listed module.
+
+Why: a new page is a new file, without editing shared tab lists, so page pull requests stay small and safe to merge.
+
+Alternative: keep hand-maintained tab lists per world, or generate an index at build time (the UI has no build step).
+
+Trade-off: the server reads the folder on each menu load, and every page module loads at start, as the Account tabs
+already did. The worlds and their system names stay a core list, so a page can only join a known system.
+
+Source: [menu model](../src/ui/menu/menuModel.js), [page route](../src/modules/server/routes/pages.js).

@@ -1,6 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { BigFishTab } from "./w7/BigFishTab.js";
-import { ButtonTab } from "./w7/ButtonTab.js";
 import { ClamTab } from "./w7/ClamTab.js";
 import { CoralTab } from "./w7/CoralTab.js";
 import { GalleryTab } from "./w7/GalleryTab.js";
@@ -30,7 +29,6 @@ const W7_SUBTABS = [
     { id: "big-fish", label: "BIG FISH", component: BigFishTab },
     { id: "minehead", label: "MINEHEAD", component: MineheadTab },
     { id: "glimbo", label: "GLIMBO", component: GlimboTab },
-    { id: "button", label: "BUTTON", component: ButtonTab },
     { id: "sushi", label: "SUSHI", component: SushiTab },
 ];
 

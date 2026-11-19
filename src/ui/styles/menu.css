@@ -1,0 +1,374 @@
+/**
+ * Menu frame
+ * Sidebar groups (worlds and areas), the menu search above every view, Home, and the narrow overlay.
+ */
+
+/* --- SIDEBAR GROUPS --- */
+.menu-nav {
+    flex: 0 1 auto;
+    min-height: 0;
+    gap: 2px;
+    margin: 0 -4px;
+    padding: 0 4px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--c-border) transparent;
+}
+
+.menu-nav-btn {
+    flex-shrink: 0;
+    gap: 10px;
+    padding: 7px 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.menu-nav-code {
+    display: inline-flex;
+    align-items: center;
+    min-width: 2.6em;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--world-color, var(--c-text-muted));
+}
+
+.tab-button .menu-nav-code svg {
+    width: 16px;
+    height: 16px;
+}
+
+.tab-button.active .menu-nav-code {
+    color: var(--world-color, var(--c-accent));
+}
+
+.menu-nav-sep {
+    flex-shrink: 0;
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--c-border);
+}
+
+.sidebar .active-cheats {
+    flex: 1 1 0;
+    min-height: 56px;
+}
+
+.sidebar-collapsed .menu-nav-btn {
+    padding: 8px 4px;
+}
+
+.sidebar-collapsed .menu-nav-code {
+    min-width: 0;
+}
+
+.system-github-link {
+    margin-left: auto;
+}
+
+.system-github-link + .system-shortcuts-button {
+    margin-left: 0;
+}
+
+.system-github-link svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* --- MENU SEARCH (above every view) --- */
+.menu-top {
+    position: relative;
+    z-index: 1300;
+    flex-shrink: 0;
+    padding: 0 30px;
+}
+
+.menu-bar {
+    margin-bottom: 0;
+}
+
+.menu-bar__kbd {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border: 1px solid var(--c-border);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--c-text-muted);
+    white-space: nowrap;
+}
+
+.menu-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: min(440px, 60vh);
+    overflow-y: auto;
+    padding: 6px;
+    background: var(--c-panel-98);
+    border: 1px solid var(--c-border);
+    box-shadow: 0 14px 28px var(--c-black-50);
+}
+
+.menu-search-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    width: 100%;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--c-text-main);
+    text-align: left;
+    text-transform: none;
+    letter-spacing: 0.01em;
+}
+
+.menu-search-result.is-hi {
+    background: var(--c-accent-dim);
+    border-color: var(--c-accent-25);
+}
+
+.menu-search-result__label {
+    font-size: 0.92rem;
+}
+
+.menu-search-result__matched {
+    margin-left: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+.menu-search-result__where {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+.menu-search-none {
+    padding: 14px 8px;
+    font-size: 0.9rem;
+    font-style: italic;
+    color: var(--c-text-muted);
+}
+
+.menu-area-tabs {
+    margin-top: 16px;
+    background: transparent;
+    position: static;
+}
+
+.menu-area-tabs[hidden] {
+    display: none;
+}
+
+#tab-content > .tab-pane:not(.drawer-open) {
+    padding-top: 16px;
+}
+
+/* --- PAGES VIEW --- */
+.menu-system-nav {
+    position: static;
+}
+
+/* --- HOME --- */
+.menu-home {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-right: 4px;
+}
+
+.menu-world-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+    gap: 8px;
+}
+
+.menu-world-tile {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--c-panel);
+    border: 1px solid var(--c-border);
+    transition: border-color 0.2s var(--ease-tech);
+}
+
+.menu-world-tile:hover,
+.menu-world-tile:focus-within {
+    border-color: var(--world-color, var(--c-accent-25));
+}
+
+.menu-world-tile__head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 10px;
+    align-items: baseline;
+    width: 100%;
+    padding: 10px 12px 8px;
+    background: transparent;
+    border: 0;
+    color: var(--c-text-main);
+    text-align: left;
+}
+
+.menu-world-tile__code {
+    grid-row: span 2;
+    min-width: 2.6em;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--world-color, var(--c-accent));
+}
+
+.menu-world-tile__label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.menu-world-tile__name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--c-text-muted);
+}
+
+.menu-world-tile__head:hover .menu-world-tile__label {
+    color: var(--world-color, var(--c-accent));
+}
+
+.menu-world-tile__systems {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 0 12px 12px calc(12px + 2.6em + 10px);
+}
+
+.menu-world-tile__system {
+    padding: 3px 9px;
+    background: var(--c-panel-dim);
+    border: 1px solid var(--c-border);
+    color: var(--c-text-dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+}
+
+.menu-world-tile__system:hover {
+    color: var(--world-color, var(--c-accent));
+    border-color: var(--world-color, var(--c-accent));
+}
+
+.menu-world-tile.is-unmoved .menu-world-tile__head {
+    opacity: 0.7;
+}
+
+.menu-world-tile.is-unmoved:hover .menu-world-tile__head,
+.menu-world-tile.is-unmoved:focus-within .menu-world-tile__head {
+    opacity: 1;
+}
+
+.menu-home-cheats__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.menu-home-cheats .active-cheat-item {
+    border-width: 0 0 0 2px;
+    border-style: solid;
+    border-radius: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.menu-home-cheats__empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+/* --- NARROW: the in-game overlay --- */
+@media (max-width: 760px) {
+    .sidebar-toggle {
+        display: none;
+    }
+
+    .menu-top {
+        padding: 0 12px;
+    }
+
+    .menu-bar {
+        padding: 8px;
+    }
+
+    .menu-bar__kbd {
+        display: none;
+    }
+
+    #tab-content > .tab-pane:not(.drawer-open) {
+        padding: 12px;
+    }
+
+    /* Tabs scroll sideways instead of stacking into a tall wall. */
+    .account-sub-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: var(--c-border) transparent;
+    }
+
+    .account-sub-nav::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .account-sub-nav::-webkit-scrollbar-thumb {
+        background: var(--c-border);
+    }
+
+    /* No overlap below the row: a scrolling row would otherwise shift 1px when a tab takes focus. */
+    .account-sub-tab-btn {
+        flex-shrink: 0;
+        bottom: 0;
+        white-space: nowrap;
+    }
+
+    /* Home's worlds become one-line rows, so the active cheats stay in view. */
+    .menu-world-grid {
+        gap: 6px;
+    }
+
+    .menu-world-tile__head {
+        grid-template-columns: auto auto minmax(0, 1fr);
+        padding: 8px 10px;
+    }
+
+    .menu-world-tile__code {
+        grid-row: auto;
+    }
+
+    .menu-world-tile__name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Page headers stack: title and description, then the actions. */
+    .account-header {
+        flex-wrap: wrap;
+    }
+
+    .menu-world-tile__systems {
+        padding-left: 12px;
+    }
+}

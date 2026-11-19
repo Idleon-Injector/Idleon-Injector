@@ -6,6 +6,16 @@
 // Lazy import to avoid circular dependencies: components import this file,
 // so we can't import components here directly. Instead, App.js will handle the mapping.
 export const VIEWS = {
+    HOME: {
+        id: "home-tab",
+        label: "HOME",
+        sidebarLabel: "HOME",
+    },
+    PAGES: {
+        id: "pages-tab",
+        label: "PAGES",
+        sidebarLabel: "PAGES",
+    },
     CHEATS: {
         id: "cheats-tab",
         label: "CHEATS",
