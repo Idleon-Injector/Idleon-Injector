@@ -8,13 +8,14 @@
  *   gga.RoyalG[22][i]   -> Statue Flair level: 0..4
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { deleteGga, gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { EditableFieldsRow, StackedNumberField } from "../EditableFieldsRow.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { deleteGga, gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     createStaticRowReconciler,
     getOrCreateState,
@@ -23,7 +24,7 @@ import {
     toInt,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span, select, option, button } = van.tags;
 
@@ -161,7 +162,7 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
         applyTooltip: "Write level, deposited, tier, and flair to game",
     });
 
-export const StatuesTab = () => {
+const StatuesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Statues" });
 
     const nameStates = new Map();
@@ -286,3 +287,12 @@ export const StatuesTab = () => {
         body: listNode,
     });
 };
+
+export default definePage({
+    id: "w1.statues",
+    world: 1,
+    system: "Statues",
+    description: "Statue levels, deposits, tiers and Statue Flair.",
+    keywords: ["Statue Flair", "Tiers"],
+    component: StatuesTab,
+});

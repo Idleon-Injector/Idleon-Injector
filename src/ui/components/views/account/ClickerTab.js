@@ -1,12 +1,10 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { OrionTab } from "./w1/OrionTab.js";
 import { PoppyTab } from "./w2/PoppyTab.js";
 import { BubbaTab } from "./BubbaTab.js";
 import { renderLazyPanes, renderTabNav } from "./tabShared.js";
 
 const { div } = van.tags;
 const TABS = [
-    { id: "orion", label: "ORION", component: OrionTab },
     { id: "poppy", label: "POPPY", component: PoppyTab },
     { id: "bubba", label: "BUBBA", component: BubbaTab },
 ];

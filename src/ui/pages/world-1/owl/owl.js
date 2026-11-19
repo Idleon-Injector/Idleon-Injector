@@ -18,13 +18,14 @@
  *   264 - Shiny Feathers (count)
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readGgaEntries } from "../../../../services/api.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ClickerRow } from "../ClickerRow.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { AccountSection } from "../components/AccountSection.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 
 const { div, span } = van.tags;
 
@@ -56,7 +57,7 @@ const OrionRow = ({ field, fieldState, onWrite }) =>
         controlsClass: "account-row__controls--xl",
     });
 
-export const OrionTab = () => {
+const OrionTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Orion" });
 
     const fieldStates = new Map(ALL_FIELDS.map((field) => [field.index, van.state(undefined)]));
@@ -113,3 +114,12 @@ export const OrionTab = () => {
         body: rowList,
     });
 };
+
+export default definePage({
+    id: "w1.owl",
+    world: 1,
+    system: "Owl",
+    description: "Orion the owl's upgrades, stats and permanent bonuses.",
+    keywords: ["Orion", "Great Horned Owl", "Feathers"],
+    component: OrionTab,
+});

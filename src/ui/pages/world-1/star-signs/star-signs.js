@@ -18,14 +18,15 @@
  *   mapId ≥ 250 → F-N
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { toInt, toNum, useWriteStatus, writeManyVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { toInt, toNum, useWriteStatus, writeManyVerified } from "../../../components/views/account/accountShared.js";
 
 const { div, button, span, h4, p, select, option } = van.tags;
 
@@ -288,7 +289,7 @@ const syncActiveSign = (activeSign, nextSigns) => {
     else activeSign.val = null;
 };
 
-export const StarSignsTab = () => {
+const StarSignsTab = () => {
     const signs = van.state(null);
     const { loading, error, run } = useAccountLoad({ label: "Star Signs" });
     const activeSign = van.state(null);
@@ -537,3 +538,12 @@ export const StarSignsTab = () => {
         body: renderBody,
     });
 };
+
+export default definePage({
+    id: "w1.starsigns",
+    world: 1,
+    system: "Star Signs",
+    description: "Which players completed each star sign, and in what order.",
+    keywords: ["Starsigns", "Constellations"],
+    component: StarSignsTab,
+});

@@ -1,12 +1,19 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { cleanName, createStaticRowReconciler, unwrapH, useWriteStatus, writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    unwrapH,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span, p } = van.tags;
 const OWNERSHIP_PATH = "OptionsListAccount[311]";
@@ -66,7 +73,7 @@ const readSnapshot = async () => {
 };
 
 /** Edit Eventshop ownership flags without spending points or granting purchase rewards. */
-export const EventshopTab = () => {
+const EventshopTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Eventshop" });
     const busy = van.state(false);
     const ready = van.state(false);
@@ -244,3 +251,12 @@ export const EventshopTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "account.eventshop",
+    world: "account",
+    system: "Event Shop",
+    description: "Which Event Shop rewards are owned.",
+    keywords: ["Eventshop", "Event points"],
+    component: EventshopTab,
+});
