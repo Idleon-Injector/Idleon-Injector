@@ -27,7 +27,8 @@ export function allowedFiles(archiveName) {
     const archive = ARCHIVES.find((entry) => entry.name === archiveName);
     if (!archive)
         throw new Error(`${archiveName} isn't a release archive (${ARCHIVES.map((a) => a.name).join(", ")}).`);
-    return [archive.binary, "cheats.js", "config.js"];
+    // LICENSE: MIT asks for the notice to ship with every copy.
+    return [archive.binary, "cheats.js", "config.js", "LICENSE"];
 }
 
 /** The file names inside an archive. */

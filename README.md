@@ -145,6 +145,12 @@ Want to contribute? Check out the [Contributing Guide](CONTRIBUTING.md).
   terminal output:
   `PROTON_LOG=1 PROTON_NO_ESYNC=1 WINEDBG=fixme %command% --remote-debugging-port=32123`
 
+## License
+
+MIT (see [LICENSE](LICENSE)).
+
+Joiny, VoidKitten and Lumi agreed to MIT for their code in [#1](https://github.com/Idleon-Injector/Idleon-Injector/issues/1). Code from crip and a few other contributors, and anything left from the earlier injector this project grew from (by iBelg, Creater0822, valleymon and sciomachist), stays in with credit, but without a license until its author agrees. If you wrote some of it and want it changed or removed, say so in [#1](https://github.com/Idleon-Injector/Idleon-Injector/issues/1) and it will be.
+
 ## Credits
 
 - **iBelg**

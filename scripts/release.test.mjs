@@ -30,7 +30,8 @@ test("each release archive is the updater's: its binary, cheats.js and config.js
         "InjectCheatsUI-macOS-arm64.tar.gz",
         "InjectCheatsUI-macOS-x64.tar.gz",
     ]);
-    for (const { name, binary } of ARCHIVES) assert.deepEqual(allowedFiles(name), [binary, "cheats.js", "config.js"]);
+    for (const { name, binary } of ARCHIVES)
+        assert.deepEqual(allowedFiles(name), [binary, "cheats.js", "config.js", "LICENSE"]);
     assert.throws(() => allowedFiles("InjectCheatsUI.zip"), /isn't a release archive/);
 });
 
@@ -58,13 +59,13 @@ test("an archive with a file outside the allowlist, or without one it needs, fai
     assert.throws(() => checkArchive(join(dir, "extra.tar.gz"), name), /Not allowed: README\.md\./);
 
     make("missing.tar.gz", ["InjectCheatsUI-linux", "cheats.js"]);
-    assert.throws(() => checkArchive(join(dir, "missing.tar.gz"), name), /Missing: config\.js\./);
+    assert.throws(() => checkArchive(join(dir, "missing.tar.gz"), name), /Missing: config\.js, LICENSE\./);
 });
 
 test("packing refuses when a release file wasn't built", (t) => {
     const dir = tempDir();
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-    writeTree(dir, ["cheats.js", "config.js"]);
+    writeTree(dir, ["cheats.js", "config.js", "LICENSE"]);
 
     assert.throws(() => pack("InjectCheatsUI-Windows.zip", dir, join(dir, "out")), /InjectCheatsUI\.exe not built/);
     assert.equal(fs.existsSync(join(dir, "out", "InjectCheatsUI-Windows.zip")), false);
