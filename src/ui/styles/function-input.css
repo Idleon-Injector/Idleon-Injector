@@ -159,7 +159,7 @@
 
 .function-preset-btn.active {
     background: var(--c-accent);
-    color: var(--c-black);
+    color: var(--c-accent-ink);
     border-color: var(--c-accent);
     font-weight: 600;
 }

@@ -20,7 +20,7 @@ button {
 #load-options-button,
 #update-config-button {
     background: var(--c-accent);
-    color: var(--c-black);
+    color: var(--c-accent-ink);
     border: none;
     padding: 8px 20px;
     box-shadow: 0 0 10px var(--c-accent-dim);

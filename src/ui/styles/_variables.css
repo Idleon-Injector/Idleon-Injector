@@ -21,15 +21,17 @@
     --c-border-strong: #505050;
 
     /* -- THEME ACCENT (runtime-overridable) -- */
-    --c-accent: #ffb700;
-    --c-accent-dim: rgba(255, 183, 0, 0.1);
-    --c-accent-dim-solid: rgba(57, 48, 26, 0.9);
-    --c-accent-glow: rgba(255, 183, 0, 0.3);
-    --c-accent-hover: #ffc94a;
-    --c-accent-06: rgba(255, 183, 0, 0.06);
-    --c-accent-20: rgba(255, 183, 0, 0.2);
-    --c-accent-25: rgba(255, 183, 0, 0.25);
-    --c-accent-40: rgba(255, 183, 0, 0.4);
+    /* Luminate's blue: accent, soft (dim) .102, wash (06) .055, edge (40) .42, ink for text on it. */
+    --c-accent: #46aae1;
+    --c-accent-dim: rgba(70, 170, 225, 0.102);
+    --c-accent-dim-solid: rgba(30, 48, 65, 0.9);
+    --c-accent-glow: rgba(70, 170, 225, 0.3);
+    --c-accent-hover: #8ec8ed;
+    --c-accent-06: rgba(70, 170, 225, 0.055);
+    --c-accent-20: rgba(70, 170, 225, 0.2);
+    --c-accent-25: rgba(70, 170, 225, 0.25);
+    --c-accent-40: rgba(70, 170, 225, 0.42);
+    --c-accent-ink: #090b10;
 
     /* -- SEMANTIC STATES (fixed) -- */
     --c-success: #59f57d;
@@ -202,15 +204,18 @@
         --c-panel-hover: oklch(21.12% 0.0181 274.98);
         --c-border: oklch(29.28% 0.02 281);
         --c-border-strong: oklch(38.67% 0 89.88);
-        --c-accent: oklch(82.53% 0.1709 80.01);
-        --c-accent-dim: color-mix(in oklch, var(--c-accent) 10%, transparent);
-        --c-accent-dim-solid: color-mix(in oklch, var(--c-accent) 15%, var(--c-panel) 85%);
+        --c-accent: oklch(70.26% 0.1222 236.42);
+        --c-accent-dim: color-mix(in oklch, var(--c-accent) 10.2%, transparent);
+        /* Mixed in srgb: in oklch the panel's hue greys the blue out. */
+        --c-accent-dim-solid: color-mix(in srgb, var(--c-accent) 15%, var(--c-panel) 85%);
         --c-accent-glow: color-mix(in oklch, var(--c-accent) 30%, transparent);
-        --c-accent-hover: color-mix(in oklch, var(--c-accent) 65%, var(--c-white) 35%);
-        --c-accent-06: color-mix(in oklch, var(--c-accent) 6%, transparent);
+        /* Mixed by hand: color-mix with white in oklch drags the hue toward white's hue 0 (purple). */
+        --c-accent-hover: oklch(80.67% 0.0794 236.42);
+        --c-accent-06: color-mix(in oklch, var(--c-accent) 5.5%, transparent);
         --c-accent-20: color-mix(in oklch, var(--c-accent) 20%, transparent);
         --c-accent-25: color-mix(in oklch, var(--c-accent) 25%, transparent);
-        --c-accent-40: oklch(82.53% 0.1709 80.01 / 0.4);
+        --c-accent-40: color-mix(in oklch, var(--c-accent) 42%, transparent);
+        --c-accent-ink: oklch(14.98% 0.0113 267.69);
         --c-success: oklch(93.07% 0.2286 123.09);
         --c-warning: oklch(82.53% 0.1709 80.01);
         --c-danger: oklch(63.17% 0.2544 21.75);

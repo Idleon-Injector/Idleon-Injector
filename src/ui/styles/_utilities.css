@@ -44,7 +44,7 @@
     color: var(--c-text-muted);
     border-bottom: 1px solid var(--c-border);
     flex-shrink: 0;
-    background: color-mix(in srgb, var(--c-accent) 8%, var(--c-panel));
+    background: color-mix(in srgb, var(--c-warning) 8%, var(--c-panel));
 }
 
 .warning-banner--polymer {
