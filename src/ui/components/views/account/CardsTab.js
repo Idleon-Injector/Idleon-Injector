@@ -41,7 +41,9 @@ const CARD_REGION_NAMES = [
 ];
 
 const toUnwrappedIndexedArray = (value) => toIndexedArray(unwrapH(value));
-const tierIndexForAmount = (amount, thresholds) => thresholds.findLastIndex((threshold) => Number(amount) >= threshold);
+// The last tier reached. Chromium 87 (the Steam client) has no findLastIndex.
+const tierIndexForAmount = (amount, thresholds) =>
+    thresholds.reduce((last, threshold, i) => (Number(amount) >= threshold ? i : last), -1);
 
 const nextTierLabel = (amount, thresholds) => {
     const nextThreshold = thresholds.find((threshold) => Number(amount) < threshold);

@@ -22,7 +22,7 @@ Before submitting:
 
 ```bash
 npm run format
-npm run validate
+npm run check
 ```
 
-Both must pass.
+The check must pass; it also runs on every pull request.
