@@ -110,16 +110,16 @@
             "detail": "POING_PAD_XS_IDX",
             "count": 1,
             "reason": "Minigame actor proxy: Poing's paddle positions, so the AI paddle stays off-screen."
-        }
-    ],
-    "oldStyle": [
+        },
         {
             "rule": "patch",
             "file": "src/cheats/hooks/minigames.js",
             "detail": "runLater",
             "count": 1,
-            "reason": "Gold Pot Rush swaps behavior.runLater for one _event_OwlEvent call; not on #19's list of allowed swaps, so it needs a decision."
-        },
+            "reason": "runLater: Gold Pot Rush swaps behavior.runLater for one _event_OwlEvent call, like the other per-call swaps (decided 2026-11-19)."
+        }
+    ],
+    "oldStyle": [
         {
             "rule": "mod-import",
             "file": "src/cheats/cheats/sushi/automation.js",
