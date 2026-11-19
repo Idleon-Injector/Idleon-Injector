@@ -37,16 +37,22 @@ jobs:
             - name: Set up Node.js
               uses: actions/setup-node@v6
               with:
-                  node-version: "18"
+                  node-version-file: .nvmrc
 
             - name: Install dependencies
-              run: npm install
-
-            - name: Install pkg
-              run: npm install -g pkg
+              run: npm ci
 
             - name: Run Validation
               run: npm run validate
+
+            # pkg 5 builds the node18 binaries on Node 18; that moves with the packaging rewrite.
+            - name: Set up Node.js 18 for pkg
+              uses: actions/setup-node@v6
+              with:
+                  node-version: "18"
+
+            - name: Install pkg
+              run: npm install -g pkg
 
             - name: Build Binary
               run: npm run ${{ matrix.build-command }}
