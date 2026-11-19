@@ -16,8 +16,8 @@ import { cheatState, setCheatConfig, setStartupCheats, setWebPort, updateCheatCo
 import { getBEngine, getItemDefs, getMonsterDefs, getCList, getBehavior, getEvents, getGGA } from "./core/globals.js";
 import { cheats, cheat as coreCheat } from "./core/registration.js";
 import { setup as coreSetup } from "./core/setup.js";
-// Static cheats register automatically when this module is imported
-import "./cheats/register.js";
+// Every cheat file in src/cheats/cheats/, found by the build (rollup.config.mjs)
+import "virtual:cheats";
 import {
     getcheatStateList,
     readPath,

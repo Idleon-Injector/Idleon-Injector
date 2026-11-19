@@ -160,11 +160,13 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
     console.log = console.error = () => {};
     const state = await importRepo("src/cheats/core/state.js");
     state.setCheatConfig({ ...loadCommonJs("config.js").cheatConfig, ingameUI: false });
-    await importRepo("src/cheats/cheats/register.js");
+    // The cheat files the build bundles (rollup.config.mjs).
+    for (const file of (await importRepo("rollup.config.mjs")).cheatFiles())
+        await importRepo(`src/cheats/cheats/${file}`);
     // The hook files the build bundles (rollup.config.mjs), so setup installs them as in the game.
     for (const file of (await importRepo("rollup.config.mjs")).hookFiles())
         await importRepo(`src/cheats/hooks/${file}`);
-    const { cheat, registerCheat, registerCheats } = await importRepo("src/cheats/core/registration.js");
+    const { cheat, defineCheat } = await importRepo("src/cheats/core/registration.js");
     const game = fakeGame({ ready });
     if (ready) (await importRepo("src/cheats/core/globals.js")).registerCommonVariables(game.context);
     if (setupDone) state.markSetupDone();
@@ -186,7 +188,7 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
             }
         },
     };
-    return { ...game, state, registerCheat, registerCheats, cheat: window.cheat, runtime };
+    return { ...game, state, defineCheat, cheat: window.cheat, runtime };
 }
 
 /**

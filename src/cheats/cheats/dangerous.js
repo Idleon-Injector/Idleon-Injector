@@ -10,7 +10,7 @@
  * - equipall (equip any item at any class/level)
  */
 
-import { registerCheats, registerCheat } from "../core/registration.js";
+import { defineCheat } from "../core/registration.js";
 import { itemDefs, cList, itemTypes, gga, events } from "../core/globals.js";
 import { dropOnChar } from "../helpers/dropOnChar.js";
 import { alchemyTypes } from "../constants.js";
@@ -239,15 +239,17 @@ function alchFn(params) {
 }
 
 // Equip any item at any class/level
-// note: this needs to be a registercheats, for the toggle to work
-registerCheats({
+// No fn: this is a toggle, read by the equip hooks
+defineCheat({
     name: "equipall",
+    dangerous: true,
     message: "!danger! Equip any item at any class/level",
 });
 
 // Wipe commands
-registerCheats({
+defineCheat({
     name: "wipe",
+    dangerous: true,
     message: "Wipe certain stuff from your account. Use with caution!",
     registerParent: false,
     subcheats: [
@@ -276,8 +278,9 @@ registerCheats({
 });
 
 // Bulk drop - drop all items of a given type
-registerCheat({
+defineCheat({
     name: "bulk",
+    dangerous: true,
     category: "bulk",
     message: "Drop a collection of items at once. Usage: bulk [type] [amount]",
     needsParam: true,
@@ -305,8 +308,9 @@ registerCheat({
 });
 
 // Class change - change character class by name
-registerCheat({
+defineCheat({
     name: "class",
+    dangerous: true,
     category: "class",
     message: "!danger! Change character class. Usage: class [class_name]",
     needsParam: true,
@@ -419,8 +423,9 @@ function handleSkillLevel(name, lvl) {
 }
 
 // Level change - unified handler for skills, alchemy, and custom changers
-registerCheat({
+defineCheat({
     name: "lvl",
+    dangerous: true,
     category: "lvl",
     message: "Change the lvl of a skill or alchemy type to this value",
     needsParam: true,
@@ -486,8 +491,9 @@ registerCheat({
 
 // A highly dangerous function that lets you manually change in-game variables, like:
 // > chng bEngine.getGameAttribute("QuestComplete").h["Secretkeeper1"]=1
-registerCheat({
+defineCheat({
     name: "chng",
+    dangerous: true,
     message: "!danger! Execute arbitrary code. Caution advised. Consider chromedebug instead",
     fn: (params) => {
         if (!cheatConfig.chng_enabled) {
@@ -499,7 +505,7 @@ registerCheat({
     },
 });
 
-registerCheat({
+defineCheat({
     name: "fix_magnifier",
     message: "Fix magnifier data",
     fn: () => {

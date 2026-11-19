@@ -8,7 +8,7 @@
  * - upstones, keychain, unlock
  */
 
-import { registerCheat, registerCheats } from "../core/registration.js";
+import { defineCheat } from "../core/registration.js";
 import { cheatState, cheatConfig } from "../core/state.js";
 import { firebase, itemDefs, monsterDefs, events, gga, cList } from "../core/globals.js";
 import { deepCopy } from "../utils/deepCopy.js";
@@ -16,7 +16,7 @@ import { dropOnChar, getCharCords } from "../helpers/dropOnChar.js";
 import { keychainStatsMap } from "../constants.js";
 
 // The OG-drop function that we all love
-registerCheat({
+defineCheat({
     name: "drop",
     category: "drop",
     message: "drop items",
@@ -30,7 +30,7 @@ registerCheat({
 });
 
 // Spawn any monster you like: Be careful with what you spawn!
-registerCheat({
+defineCheat({
     name: "spawn",
     category: "spawn",
     message: "spawn monsters",
@@ -52,7 +52,7 @@ registerCheat({
 });
 
 // Quick daily shop and post office reset
-registerCheat({
+defineCheat({
     name: "daily",
     message: "Daily shop and post office reset",
     fn: () => {
@@ -62,7 +62,7 @@ registerCheat({
 });
 
 // Kill yourself (set HP to value)
-registerCheat({
+defineCheat({
     name: "noob",
     message: "Kill yourself",
     fn: (params) => {
@@ -73,7 +73,7 @@ registerCheat({
 });
 
 // Quantity cheat (first inventory/chest slot)
-registerCheats({
+defineCheat({
     name: "qnty",
     category: "general",
     message: "Change the quantity of the first item in inventory/chest",
@@ -103,7 +103,7 @@ registerCheats({
 });
 
 // Hit the jackpot in the arcade
-registerCheat({
+defineCheat({
     name: "jackpot",
     message: "Hit the jackpot in the arcade",
     fn: () => {
@@ -116,7 +116,7 @@ registerCheat({
 });
 
 // Stop/restart cloud saving
-registerCheat({
+defineCheat({
     name: "cloudz",
     message: "Stops cloud saving",
     fn: () => {
@@ -128,21 +128,21 @@ registerCheat({
 });
 
 // Chrome debug (handled in executable)
-registerCheat({
+defineCheat({
     name: "chromedebug",
     message: "Open the game in a chrome debug console",
     fn: () => {},
 });
 
 // update (handled in executable)
-registerCheat({
+defineCheat({
     name: "update",
     message: "update (Check for updates and install the latest version)",
     fn: () => {},
 });
 
 // Stop dropping items from monsters
-registerCheat({
+defineCheat({
     name: "nomore",
     category: "nomore",
     message: "Stop dropping items from monsters, accepts regex",
@@ -181,7 +181,7 @@ registerCheat({
 });
 
 // Multiple stacks in chest
-registerCheat({
+defineCheat({
     name: "multiplestacks",
     category: "multiplestacks",
     message: "Will make multiple stacks of specified items in chest when autochest is on",
@@ -207,7 +207,7 @@ registerCheat({
 });
 
 // Save game attribute to memory
-registerCheat({
+defineCheat({
     name: "fix_save",
     message: "Save a game attribute to memory. Use fix_write to write it back to the game",
     needsParam: true,
@@ -218,7 +218,7 @@ registerCheat({
 });
 
 // Write game attribute from memory
-registerCheat({
+defineCheat({
     name: "fix_write",
     message: "Write a game attribute from memory to the game. Use fix_save to save it to memory",
     needsParam: true,
@@ -231,7 +231,7 @@ registerCheat({
 });
 
 // Upgrade stones cheats (now proxy-based - see proxies/items.js)
-registerCheats({
+defineCheat({
     name: "upstones",
     message: "upgrade stone cheats",
     allowToggleChildren: true,
@@ -243,7 +243,7 @@ registerCheats({
 });
 
 // Unlock cheats
-registerCheats({
+defineCheat({
     name: "unlock",
     message: "unlock cheats",
     allowToggleChildren: true,
@@ -379,10 +379,13 @@ registerCheats({
             },
         },
     ],
+    config: {
+        islands: { default: "abcde_", description: "String of IDs for islands to unlock (e.g., 'abcde_')" },
+    },
 });
 
 // Keychain cheat
-registerCheat({
+defineCheat({
     name: "keychain",
     category: "keychain",
     message: "Generate a specific maxed keychain stat from Flurbo store",
@@ -426,7 +429,7 @@ registerCheat({
 });
 
 // Buy gem shop packs
-registerCheat({
+defineCheat({
     name: "buy",
     category: "buy",
     message: "Buy gem shop packs. You get items from the pack, but no gems and no pets",

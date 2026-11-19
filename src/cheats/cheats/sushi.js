@@ -1,4 +1,4 @@
-import { registerCheat } from "../core/registration.js";
+import { defineCheat } from "../core/registration.js";
 import { busy, enabled, getSushiStatus, startSushi, sortSushi, stopSushi } from "./sushi/automation.js";
 import { simulateSushiKnowledge } from "./sushi/knowledge.js";
 
@@ -21,7 +21,7 @@ const commands = {
 };
 
 for (const [action, { fn, message, needsParam = false }] of Object.entries(commands)) {
-    registerCheat({
+    defineCheat({
         name: action ? "w7 sushitools " + action : "w7 sushitools",
         category: "w7",
         needsParam,

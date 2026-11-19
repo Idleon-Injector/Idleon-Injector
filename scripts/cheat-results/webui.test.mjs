@@ -10,14 +10,14 @@ const { createGameBridge } = require("../../src/modules/game/gameBridge");
 const { setupCheatRoutes } = require("../../src/modules/server/routes/cheats");
 
 const game = await loadGame();
-game.registerCheat({
+game.defineCheat({
     name: "fixture broken",
     message: "a cheat that throws",
     fn: () => {
         throw new TypeError("game value missing");
     },
 });
-game.registerCheats({
+game.defineCheat({
     name: "fixture",
     message: "fixture parent",
     subcheats: [{ name: "nested", message: "nested", subcheats: [{ name: "deep", message: "deep" }] }],

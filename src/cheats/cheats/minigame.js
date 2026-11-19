@@ -9,10 +9,10 @@
  * These commands only toggle cheatState booleans.
  */
 
-import { registerCheats } from "../core/registration.js";
+import { defineCheat } from "../core/registration.js";
 
 // Register minigame cheats
-registerCheats({
+defineCheat({
     name: "minigame",
     message: "unlimited minigames",
     subcheats: [
@@ -33,4 +33,12 @@ registerCheats({
         { name: "wheel", message: "event wheel always lands on the bonus" },
         { name: "instawheel", message: "instant event wheel spins without changing the odds" },
     ],
+    config: {
+        fishing: {
+            skipWhale: {
+                default: true,
+                description: "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",
+            },
+        },
+    },
 });

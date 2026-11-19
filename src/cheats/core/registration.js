@@ -10,7 +10,7 @@ import { cheatState, setupDone, cheatConfig } from "./state.js";
 /**
  * Registry of all cheat commands.
  * Keys are command strings (e.g., "godlike crit"). Suggestions are evaluated after game readiness.
- * @type {Object<string, {fn: Function, message: string, category: string, needsParam: boolean, suggestions?: Function}>}
+ * @type {Object<string, {fn: Function, message: string, category: string, needsParam: boolean, suggestions?: Function, dangerous?: boolean}>}
  */
 export const cheats = {};
 
@@ -71,6 +71,42 @@ export function runCheat(action, context, on) {
 }
 
 /**
+ * Every defineCheat row, in the order the cheat files ran. scripts/config-file.mjs writes config.js and the
+ * setting descriptions from their `config`; the tests walk them.
+ */
+export const cheatRows = [];
+
+/**
+ * Declare a cheat: one row per command, or one row per group with its subcheats. Copy cheats/_example.js.
+ *
+ * A row with `fn` and no `subcheats` is a command: `fn(params, on)` gets the words after its name.
+ * Any other row is a toggle (cheatState[name]), or a group whose subcheats toggle cheatState[name][sub]; a
+ * subcheat with its own `fn` gets [subName, ...params]. Whatever `fn` returns or throws, the player gets
+ * `{ ok, message }` (see runCheat).
+ *
+ * @param {object} row
+ * @param {string} row.name - The command ("drop"), or the group's first word ("w1")
+ * @param {string} row.message - What it does, shown in the CLI and the WebUI
+ * @param {Function} [row.fn] - Runs the command (otherwise it's a toggle)
+ * @param {boolean} [row.needsParam] - The command takes words after its name (true for `configurable`)
+ * @param {boolean} [row.configurable] - A toggle that also takes a number or boolean, stored in cheatConfig
+ * @param {boolean} [row.dangerous] - Can damage the account; subcheats inherit it
+ * @param {object[]} [row.subcheats] - Rows for "name sub" (a subcheat has no `config` of its own)
+ * @param {boolean} [row.allowToggleChildren] - The bare group command turns every subcheat on or off
+ * @param {boolean} [row.registerParent=true] - false: only the subcheats are commands
+ * @param {string} [row.category] - The WebUI tab; a group's own name by default, else "general"
+ * @param {Function} [row.suggestions] - Returns CLI/WebUI choices using current game data
+ * @param {object} [row.config] - This cheat's settings, cheatConfig[name]: each setting is
+ *   `{ default, description }`, or `{ example, description }` for one config.js only shows commented out, or
+ *   `{ description }` alone for one the cheat sets at runtime. Nest plain objects for groups of settings.
+ */
+export function defineCheat(row) {
+    cheatRows.push(row);
+    if ("fn" in row && !("subcheats" in row)) registerCheat(row);
+    else registerCheats(row);
+}
+
+/**
  * Register a simple cheat command.
  *
  * @param {object} cheatDef - Cheat definition object
@@ -80,10 +116,12 @@ export function runCheat(action, context, on) {
  * @param {string} [cheatDef.category="general"] - Category for grouping in UI
  * @param {boolean} [cheatDef.needsParam=false] - Whether this cheat needs/accepts a parameter input
  * @param {Function} [cheatDef.suggestions] - Returns CLI/WebUI choices using current game data
+ * @param {boolean} [cheatDef.dangerous] - Can damage the account
  */
-export function registerCheat({ name, fn, message, category = "general", needsParam = false, suggestions }) {
+function registerCheat({ name, fn, message, category = "general", needsParam = false, suggestions, dangerous }) {
     cheats[name] = { fn, message, category, needsParam };
     if (suggestions) cheats[name].suggestions = suggestions;
+    if (dangerous) cheats[name].dangerous = true;
 }
 
 /**
@@ -109,9 +147,11 @@ export function registerCheat({ name, fn, message, category = "general", needsPa
  * @param {boolean} [cheatMap.needsParam] - Whether this cheat needs/accepts a parameter input (auto-inferred from configurable if not set)
  * @param {string[]} [higherKeys] - Parent command keys (for recursion)
  * @param {string} [parentCategory] - Category inherited from parent
+ * @param {boolean} [parentDangerous] - Danger inherited from parent
  */
-export function registerCheats(cheatMap, higherKeys = [], parentCategory = null) {
+function registerCheats(cheatMap, higherKeys = [], parentCategory = null, parentDangerous = false) {
     const cmd = higherKeys.concat(cheatMap.name).join(" ");
+    const dangerous = cheatMap.dangerous ?? parentDangerous;
 
     // Category priority: explicit > inherited > top-level name (if has subcheats) > "general"
     const category =
@@ -200,18 +240,19 @@ export function registerCheats(cheatMap, higherKeys = [], parentCategory = null)
             category,
             needsParam,
             suggestions: cheatMap.suggestions,
+            dangerous,
         });
     }
 
-    // Recursively register subcheats, passing category
+    // Recursively register subcheats, passing category and danger
     if ("subcheats" in cheatMap) {
-        cheatMap.subcheats.forEach((map) => registerCheats(map, higherKeys.concat(cheatMap.name), category));
+        cheatMap.subcheats.forEach((map) => registerCheats(map, higherKeys.concat(cheatMap.name), category, dangerous));
     }
 }
 
 /**
  * Get all registered cheats.
- * @returns {Object<string, {fn: Function, message: string, category: string, needsParam: boolean, suggestions?: Function}>}
+ * @returns {Object<string, {fn: Function, message: string, category: string, needsParam: boolean, suggestions?: Function, dangerous?: boolean}>}
  */
 export function getCheats() {
     return cheats;

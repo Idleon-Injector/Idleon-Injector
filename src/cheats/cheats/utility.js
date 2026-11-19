@@ -8,7 +8,7 @@
  * - cheats (list available cheats)
  */
 
-import { registerCheat, registerCheats, getCheats } from "../core/registration.js";
+import { defineCheat, getCheats } from "../core/registration.js";
 import { itemDefs, monsterDefs, cList, gga, gameContext } from "../core/globals.js";
 import { traverseAll, buildPath } from "../utils/traverse.js";
 import { blacklist_gga } from "../constants.js";
@@ -341,7 +341,7 @@ function createListFunction(params) {
 }
 
 // Search commands
-registerCheats({
+defineCheat({
     name: "search",
     message: "Search for an item, monster, talent or smithing recipe",
     registerParent: false,
@@ -415,7 +415,7 @@ registerCheats({
 });
 
 // Get Game Attributes
-registerCheat({
+defineCheat({
     name: "gga",
     message: "The attribute you want to get, separated by spaces",
     needsParam: true,
@@ -423,7 +423,7 @@ registerCheat({
 });
 
 // Get Game Key
-registerCheat({
+defineCheat({
     name: "ggk",
     message: "The key you want to get, separated by spaces",
     fn: (params) => gg_func(params, 1),
@@ -452,21 +452,23 @@ function eval_gg_func(params, mode) {
 }
 
 // Evaluate Get Game Attributes
-registerCheat({
+defineCheat({
     name: "egga",
+    dangerous: true,
     message: "Show the game attribute, separate with spaces",
     fn: (params) => eval_gg_func(params, 0),
 });
 
 // Evaluate Get Game Key
-registerCheat({
+defineCheat({
     name: "eggk",
+    dangerous: true,
     message: "Show the game key, separate with spaces",
     fn: (params) => eval_gg_func(params, 1),
 });
 
 // List available cheats
-registerCheat({
+defineCheat({
     name: "cheats",
     message: "list available cheats",
     fn: () => {
@@ -478,7 +480,7 @@ registerCheat({
 });
 
 // List command
-registerCheats({
+defineCheat({
     name: "list",
     message: "list something. third param optional filter",
     registerParent: false,

@@ -85,22 +85,30 @@ const bundleStats = () => ({
 });
 
 const hooksDir = fileURLToPath(new URL("src/cheats/hooks/", import.meta.url));
+const cheatsDir = fileURLToPath(new URL("src/cheats/cheats/", import.meta.url));
 
-/** The hook files in src/cheats/hooks/, in the order they install. A file starting with "_" (the example) is skipped. */
-export const hookFiles = () =>
-    readdirSync(hooksDir)
+/** The .js files directly in a folder, sorted. A file starting with "_" (the example) is skipped. */
+const filesIn = (dir) =>
+    readdirSync(dir)
         .filter((file) => file.endsWith(".js") && !file.startsWith("_"))
         .sort();
 
-// `import "virtual:hooks"` in cheats/main.js imports every hook file, so a new hook is just a new file.
+/** The hook files in src/cheats/hooks/, in the order they install. */
+export const hookFiles = () => filesIn(hooksDir);
+
+/** The cheat files in src/cheats/cheats/ (each declares defineCheat rows), in the order they register. */
+export const cheatFiles = () => filesIn(cheatsDir);
+
+// `import "virtual:hooks"` and `import "virtual:cheats"` in cheats/main.js import every file in the folder, so a
+// new hook or cheat is just a new file.
 // ponytail: watch mode sees edits, not a newly added file; restart it after adding one.
-const hooksFolder = () => ({
-    name: "hooks-folder",
-    resolveId: (id) => (id === "virtual:hooks" ? "\0virtual:hooks" : null),
-    load: (id) =>
-        id === "\0virtual:hooks"
-            ? hookFiles()
-                  .map((file) => `import ${JSON.stringify(hooksDir + file)};`)
+const folder = (id, dir) => ({
+    name: `${id}-folder`,
+    resolveId: (source) => (source === `virtual:${id}` ? `\0virtual:${id}` : null),
+    load: (source) =>
+        source === `\0virtual:${id}`
+            ? filesIn(dir)
+                  .map((file) => `import ${JSON.stringify(dir + file)};`)
                   .join("\n")
             : null,
 });
@@ -120,5 +128,5 @@ export default {
     treeshake: {
         moduleSideEffects: true,
     },
-    plugins: [hooksFolder(), bundleStats()],
+    plugins: [folder("hooks", hooksDir), folder("cheats", cheatsDir), bundleStats()],
 };

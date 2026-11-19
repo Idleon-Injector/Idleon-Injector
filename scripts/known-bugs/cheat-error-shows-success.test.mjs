@@ -10,7 +10,7 @@ const { setupCheatRoutes } = require("../../src/modules/server/routes/cheats");
 
 test("a cheat that throws shows an error, not a success", async () => {
     const game = await loadGame();
-    game.registerCheat({
+    game.defineCheat({
         name: "fixture broken",
         message: "a cheat that throws",
         fn: () => {

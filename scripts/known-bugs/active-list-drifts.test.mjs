@@ -11,7 +11,7 @@ const { setupApiRoutes } = require("../../src/modules/server/apiRoutes");
 test("the active-cheats list names real cheats, shows nested ones, and notices the game closing", async () => {
     const game = await loadGame();
     // No cheat registered today is three levels deep, so the test registers one the way the game code would.
-    game.registerCheats({
+    game.defineCheat({
         name: "fixture",
         message: "fixture",
         subcheats: [{ name: "nested", message: "nested", subcheats: [{ name: "deep", message: "deep" }] }],

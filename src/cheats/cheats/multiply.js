@@ -6,10 +6,10 @@
  * - classexp, crystal, skillexp, shopstock, printer, carrycap
  */
 
-import { registerCheats } from "../core/registration.js";
+import { defineCheat } from "../core/registration.js";
 
 // Stat multiplier cheats
-registerCheats({
+defineCheat({
     name: "multiply",
     message:
         "Multiplies stats by the number (or applies function) given. use reasonably, ridiculous numbers can cause shadowbanning!",
@@ -72,4 +72,17 @@ registerCheats({
             configurable: true,
         },
     ],
+    config: {
+        printer: { description: "Multiplies sample print by x, overrides lab/god bonus" },
+        carrycap: { description: "Carry capacity multiplier" },
+        damage: { description: "Total damage multiplier" },
+        money: { description: "Money drops multiplier" },
+        drop: { description: "Drop rarity multiplier" },
+        afk: { description: "AFK gains multiplier" },
+        skillexp: { description: "Skill XP gain multiplier" },
+        classexp: { description: "Class XP gain multiplier" },
+        efficiency: { description: "Skilling efficiency multiplier" },
+        crystal: { description: "Crystal spawn chance multiplier" },
+        shopstock: { description: "Shop stock quantity multiplier" },
+    },
 });
