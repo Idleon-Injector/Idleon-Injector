@@ -77,25 +77,43 @@ function initializeConfiguration() {
     return { injectorConfig, startupCheats, cheatConfig, defaultConfig, cdpPort, webPort };
 }
 
+/**
+ * Run the in-game setup and report how it went.
+ * @returns {Promise<boolean|null>} null when the cheats aren't in the page, else whether every hook installed
+ */
 async function initializeCheatContext(Runtime, context) {
     log.debug("Initializing cheat context");
 
     const contextExists = await Runtime.evaluate({ expression: `!!${context}` });
     if (!contextExists.result.value) {
         log.error("Cheat context not found - injection may have failed");
-        return false;
+        return null;
     }
 
     const init = await Runtime.evaluate({
         expression: `setup.call(${context})`,
         awaitPromise: true,
+        returnByValue: true,
         allowUnsafeEvalBlockedByCSP: true,
     });
     if (init.exceptionDetails) {
         log.error("Cheat setup failed:", init.exceptionDetails.exception?.description || init.exceptionDetails.text);
+        return false;
     }
-    log.debug("Cheat context initialized:", init.result.value);
-    return true;
+    const { message, error, hookFailures } = init.result.value;
+    if (error) {
+        log.error("Cheat setup failed:", error);
+        return false;
+    }
+    log.debug("Cheat context initialized:", message);
+    if (hookFailures.length === 0) return true;
+
+    const count = hookFailures.length;
+    log.warn(
+        `${count} game ${count === 1 ? "hook" : "hooks"} failed to install, so the cheats that use ${count === 1 ? "it" : "them"} won't work:`
+    );
+    for (const failure of hookFailures) log.warn(`  ${failure}`);
+    return false;
 }
 
 async function startWebServer(app, webPort, wsConfig = null) {
@@ -127,12 +145,12 @@ async function handlePageLoad(gameContext, config, app) {
         });
     }
 
-    const cheatInitialized = await initializeCheatContext(Runtime, context);
-    if (!cheatInitialized) return;
+    const cheatsReady = await initializeCheatContext(Runtime, context);
+    if (cheatsReady === null) return;
 
     if (!servicesStarted) {
         servicesStarted = true;
-        log.info("Cheats ready!");
+        if (cheatsReady) log.info("Cheats ready!");
 
         await startCliInterface(context, client, {
             injectorConfig: config.injectorConfig,

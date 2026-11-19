@@ -34,6 +34,7 @@ import { searchGga, getGgaKeys } from "./api/search.js";
 import { getBundleCatalog } from "./helpers/bundles.js";
 import { monitor } from "./core/valueMonitor.js";
 import { setupStorageEarlyHooks } from "./proxies/storageEarlyHooks.js";
+import { getHookFailures } from "./proxies/setup.js";
 
 // Sets the config, startup and webport from glob to internal state
 setCheatConfig(cheatConfig);
@@ -54,7 +55,7 @@ function cheat(action) {
 
 /**
  * Setup function - wraps coreSetup with proper context.
- * @returns {Promise<string>} Setup result message
+ * @returns {Promise<object>} Setup result, see core/setup.js
  */
 async function setup() {
     return coreSetup.call(this);
@@ -72,6 +73,7 @@ window.updateCheatConfig = updateCheatConfig;
 window.getAutoCompleteSuggestions = getAutoCompleteSuggestions;
 window.cheatStateList = getcheatStateList;
 window.getBundleCatalog = getBundleCatalog;
+window.getHookFailures = getHookFailures;
 
 // Search API
 window.searchGga = searchGga;

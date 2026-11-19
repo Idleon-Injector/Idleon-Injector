@@ -9,54 +9,65 @@ import { gameReady, gameContext } from "./globals.js";
 import { cheat } from "./registration.js";
 
 // Imports for setup logic
-import { setupAllProxies } from "../proxies/setup.js";
+import { getHookFailures, setupAllProxies } from "../proxies/setup.js";
 import { injectWebUI } from "../ui/overlay.js";
 import { monitor } from "./valueMonitor.js";
+
+/** The setup run in progress, so calls that arrive while it waits for the game share it. */
+let running = null;
+
+/** Startup cheats, the value monitor and the in-game UI start once, on the first setup that reaches them. */
+let started = false;
 
 /**
  * Main setup function - initializes all cheats and proxies.
  *
  * This function:
  * 1. Waits for the game to be ready
- * 2. Sets up Firebase proxy for character selection handling
- * 3. Sets up all game proxies
- * 4. Runs startup cheats
- * 5. Injects the web UI (if enabled)
+ * 2. Sets up every game proxy that isn't installed yet
+ * 3. Runs startup cheats (first time only)
+ * 4. Injects the web UI (if enabled, first time only)
  *
- * @returns {Promise<string>} Setup result message
+ * Setup counts as done only once every proxy step has run to the end; until then a later call
+ * (main.js on page load, or the first cheat) runs it again and retries the steps that threw.
+ *
+ * @returns {Promise<{message?: string, error?: string, hookFailures: string[]}>} Setup result
  */
-export async function setup() {
-    if (setupDone) return "Cheat setup complete";
+export function setup() {
+    if (setupDone) return Promise.resolve({ message: "Cheat setup complete", hookFailures: getHookFailures() });
+    if (!running) running = runSetup(this).finally(() => (running = null));
+    return running;
+}
+
+async function runSetup(context) {
     console.log("Entering setup function");
-    markSetupDone();
 
     try {
-        await gameReady(this);
+        await gameReady(context);
 
-        setupAllProxies();
+        if (setupAllProxies()) markSetupDone();
 
-        monitor.init();
-
-        const rtn = [
-            "--------------------",
-            ...runStartupCheats(),
-            "Cheat setup complete",
-            "--------------------",
-            "Hit enter to list available cheats",
-            "Cheats will find as you type, so if you're looking for eg gem cheats, or an item just type it and see what comes up",
-            "--------------------",
-        ];
-
-        console.log("Exiting setup function successfully");
-
-        if (cheatConfig.ingameUI) {
-            injectWebUI();
+        const rtn = ["Cheat setup complete"];
+        if (!started) {
+            started = true;
+            monitor.init();
+            rtn.unshift("--------------------", ...runStartupCheats());
+            rtn.push(
+                "--------------------",
+                "Hit enter to list available cheats",
+                "Cheats will find as you type, so if you're looking for eg gem cheats, or an item just type it and see what comes up",
+                "--------------------"
+            );
+            if (cheatConfig.ingameUI) {
+                injectWebUI();
+            }
         }
 
-        return rtn.join("\n");
+        console.log("Exiting setup function successfully");
+        return { message: rtn.join("\n"), hookFailures: getHookFailures() };
     } catch (setupError) {
         console.error("Error occurred during setup function:", setupError.stack || setupError);
-        return "Error during cheat setup";
+        return { error: String(setupError.message || setupError), hookFailures: getHookFailures() };
     }
 }
 

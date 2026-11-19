@@ -19,6 +19,9 @@ function resolvePath(obj, path) {
     return path.split(".").reduce((o, i) => o[i], obj);
 }
 
+/** Methods createMethodProxy() couldn't find in the running game; setupAllProxies() empties it per step. */
+export const missingHooks = [];
+
 /**
  * Method Proxy Utility
  *
@@ -32,6 +35,9 @@ function resolvePath(obj, path) {
  * @param {Function} handler - Callback function: (baseResult, ...args) => newResult.
  *                             The `this` context from the original call is preserved.
  *
+ * A game update can rename or remove the method or its object. Then nothing is wrapped and the
+ * method name goes into `missingHooks`, which setupAllProxies() reports, so the other hooks still install.
+ *
  * @example
  * createMethodProxy(ActorEvents12, "_customBlock_PlayerReach", (base, ...args) => {
  *     if (cheatState.godlike.reach) return 666;
@@ -39,7 +45,11 @@ function resolvePath(obj, path) {
  * });
  */
 export function createMethodProxy(target, methodName, handler) {
-    const original = target[methodName];
+    const original = target?.[methodName];
+    if (typeof original !== "function") {
+        missingHooks.push(methodName);
+        return;
+    }
     target[methodName] = function (...args) {
         const base = Reflect.apply(original, this, args);
         return handler.call(this, base, ...args);
