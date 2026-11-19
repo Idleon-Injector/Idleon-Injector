@@ -1,0 +1,202 @@
+{
+    "dependencies": [
+        "chrome-remote-interface",
+        "enquirer",
+        "ws",
+        "@eslint/js",
+        "eslint",
+        "eslint-plugin-es-x",
+        "globals",
+        "prettier",
+        "rollup",
+        "stylelint"
+    ],
+    "allowed": [
+        {
+            "rule": "eval",
+            "file": "src/cheats/cheats/dangerous.js",
+            "count": 1,
+            "reason": "chng: the console cheat that runs a line of game code the player typed; running typed code is the cheat."
+        },
+        {
+            "rule": "eval",
+            "file": "src/cheats/cheats/utility.js",
+            "count": 1,
+            "reason": "egga/eggk: console cheats that list the values or keys of a game expression the player typed."
+        },
+        {
+            "rule": "eval",
+            "file": "src/modules/utils/helpers.js",
+            "count": 1,
+            "reason": "The config formula parser: turns a formula like (t) => t * 2 from the config file into a function."
+        },
+        {
+            "rule": "eval",
+            "file": "src/ui/utils/functionParser.js",
+            "count": 1,
+            "reason": "The config page's half of the formula parser: turns the (t) => ... formulas the player edits into functions."
+        },
+        {
+            "rule": "network",
+            "file": "src/cheats/core/valueMonitor.js",
+            "count": 1,
+            "reason": "The Monitor tab's live channel back to the injector's own local server (core)."
+        },
+        {
+            "rule": "window",
+            "file": "src/cheats/utils/pathResolver.js",
+            "count": 1,
+            "reason": "The Search and Monitor tabs read any path the player types, starting from the game's window (core tooling that lives in utils/)."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/helpers/storageCap.js",
+            "detail": "ChestQuantity",
+            "count": 1,
+            "reason": "Storagecap deposit chest: swapped for one deposit call only; a lasting proxy would have to follow every chest the game builds."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/events481.js",
+            "detail": "_DNprint",
+            "count": 3,
+            "reason": "_DNprint: the actor's field is watched for one call only (set, then restored two ways), like the chest in the deposit scope."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/events020.js",
+            "detail": "growTo",
+            "count": 1,
+            "reason": "growTo: the player's growTo is swapped while init runs, so the big model never shows at normal size."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/storage.js",
+            "detail": "key",
+            "count": 3,
+            "reason": "storage.js: the chest's count fields are swapped while the game builds its digit images (set, then restored two ways)."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/storage.js",
+            "detail": "name",
+            "count": 1,
+            "reason": "storage.js: runLater and runPeriodically are swapped while ActorEvents_481 init schedules the storage timers."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/minigames.js",
+            "detail": "_GenInfo",
+            "count": 1,
+            "reason": "Minigame actor proxy: catching and fishing read their state from this actor's own _GenInfo array."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/minigames.js",
+            "detail": "_GeneralINFO",
+            "count": 1,
+            "reason": "Minigame actor proxy: choppin's gold zone is read from this actor's own _GeneralINFO array."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/minigames.js",
+            "detail": "_GenINFO",
+            "count": 2,
+            "reason": "Minigame actor proxies: darts, Scratch and Wisdom Monument read their state from this actor's own _GenINFO array."
+        },
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/minigames.js",
+            "detail": "POING_PAD_XS_IDX",
+            "count": 1,
+            "reason": "Minigame actor proxy: Poing's paddle positions, so the AI paddle stays off-screen."
+        }
+    ],
+    "oldStyle": [
+        {
+            "rule": "patch",
+            "file": "src/cheats/hooks/minigames.js",
+            "detail": "runLater",
+            "count": 1,
+            "reason": "Gold Pot Rush swaps behavior.runLater for one _event_OwlEvent call; not on #19's list of allowed swaps, so it needs a decision."
+        },
+        {
+            "rule": "mod-import",
+            "file": "src/cheats/cheats/sushi/automation.js",
+            "count": 1,
+            "reason": "Sushi auto play calls the wind hook's configureSushiWind; move the shared part to a sushi helper."
+        },
+        {
+            "rule": "mod-import",
+            "file": "src/cheats/hooks/sushiButton.js",
+            "count": 1,
+            "reason": "The sushi button hook calls sushi auto play's functions; move the shared part to a sushi helper."
+        },
+        {
+            "rule": "write",
+            "file": "src/ui/pages/world-1/owl/owl.js",
+            "count": 1,
+            "reason": "Owl rows save with gga(path, value)."
+        },
+        {
+            "rule": "write",
+            "file": "src/ui/pages/world-1/pets/pets.js",
+            "count": 2,
+            "reason": "Pet token picks and grants save with gga and ggaMany, checking the result by hand."
+        },
+        {
+            "rule": "write",
+            "file": "src/ui/components/views/account/w2/PoppyTab.js",
+            "count": 1,
+            "reason": "Poppy rows save with gga(path, value)."
+        },
+        {
+            "rule": "write",
+            "file": "src/ui/components/views/account/w7/ClamTab.js",
+            "count": 1,
+            "reason": "Clam rows save with gga(path, value)."
+        },
+        {
+            "rule": "old-page",
+            "file": "src/ui/components/views/Account.js",
+            "count": 8,
+            "reason": "Account pages not yet moved to src/ui/pages/."
+        },
+        {
+            "rule": "old-page",
+            "file": "src/ui/components/views/account/W2Tab.js",
+            "count": 10,
+            "reason": "World 2 pages not yet moved to src/ui/pages/."
+        },
+        {
+            "rule": "old-page",
+            "file": "src/ui/components/views/account/W3Tab.js",
+            "count": 15,
+            "reason": "World 3 pages not yet moved to src/ui/pages/."
+        },
+        {
+            "rule": "old-page",
+            "file": "src/ui/components/views/account/W4Tab.js",
+            "count": 6,
+            "reason": "World 4 pages not yet moved to src/ui/pages/."
+        },
+        {
+            "rule": "old-page",
+            "file": "src/ui/components/views/account/W5Tab.js",
+            "count": 6,
+            "reason": "World 5 pages not yet moved to src/ui/pages/."
+        },
+        {
+            "rule": "old-page",
+            "file": "src/ui/components/views/account/W6Tab.js",
+            "count": 5,
+            "reason": "World 6 pages not yet moved to src/ui/pages/."
+        },
+        {
+            "rule": "old-page",
+            "file": "src/ui/components/views/account/W7Tab.js",
+            "count": 13,
+            "reason": "World 7 pages not yet moved to src/ui/pages/."
+        }
+    ]
+}

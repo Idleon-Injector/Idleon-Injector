@@ -42,6 +42,7 @@ function findBestFish(genInfo) {
 // mining, fishing, catching
 
 // mining block game over
+// Around: with the mining cheat on, the game's game-over must not run at all.
 defineHook(
     { id: "minigame", target: () => events(229).prototype, method: "_customEvent_MiningGameOver", around: true },
     (callOriginal) => {
@@ -287,6 +288,7 @@ defineHook({ id: "minigame", target: () => events(670).prototype, method: "init"
 });
 
 // valentine reveal and Gold Pot Rush round tracking both on _event_OwlEvent.
+// Around: behavior.runLater is swapped while the event runs, so delayed spawns from older rounds can be dropped.
 defineHook(
     { id: "minigame", target: () => events(670).prototype, method: "_event_OwlEvent", around: true },
     function (callOriginal) {
@@ -432,6 +434,7 @@ const POING_AI_PAD_IDX = 1;
 // Poing: Hook into _event_Gaming where AI paddle movement happens
 // _GenINFO[58] is paddle X positions [player, ai]
 // We move AI paddle off-screen (999) and block game from updating it
+// Around: the paddle positions must be wrapped before the game moves the AI paddle.
 defineHook(
     { id: "minigame", target: () => events(577).prototype, method: "_event_Gaming", around: true },
     function (callOriginal) {

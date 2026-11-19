@@ -78,8 +78,25 @@ Operational guidelines for AI coding agents working in the Idleon Injector repos
         cheatState.godlike.reach ? 666 : base
     );
     ```
-    Declare `around: true` only when that can't work (skipping the game's method, changing its arguments, or changing state it reads while it runs), with a one-line comment saying why. Hooks on the same method wrap in declaration order (first is innermost); keep them in one file.
+    Declare `around: true` only when that can't work (skipping the game's method, changing its arguments, or changing state it reads while it runs), with a one-line `// Around:` comment right above it saying why. Hooks on the same method wrap in declaration order (first is innermost); keep them in one file.
 - **Game data hooks:** Hook a property of game data with `defineHook({ target, property }, ...)` (an accessor) or `proxy: true` (a Proxy in the property's place); see `core/hooks.js`. Don't patch the game with `new Proxy`, `Object.defineProperty` or assignment outside a hook.
+
+### The 3.0 Rules (`scripts/rules/`)
+
+Rule tests read the code and refuse the pre-3.0 ways of doing things; each refusal names the 3.0 way:
+
+- **Patching the game:** only with `defineHook`. No `new Proxy`, `Object.defineProperty`, assigned functions or `_isPatched` outside `src/cheats/core/`.
+- **Code from strings:** no `eval` or `new Function`.
+- **`window`, routes, globals and dependencies:** belong to the core. Game-side mods read the game through `core/globals.js`; UI code doesn't add globals.
+- **Network:** code that runs in the game (`src/cheats`) makes no network calls.
+- **Loops:** declare them with `defineAutomation`. No `setInterval`, `setTimeout` or `requestAnimationFrame` on the game side outside the core.
+- **Page saves:** through `writeVerified` (`writeManyVerified` for many), never `gga(path, value)` or `ggaMany` directly.
+- **Imports:** mods (a cheat, hook or automation file with its folder, or a page folder) don't import each other; shared code goes in `src/cheats/helpers/` or the page building blocks. Nothing imports across the game (`src/cheats`), the server (`src/modules`) and the UI (`src/ui`).
+- **Errors:** throw an `Error`; never return an `"Error: ..."` string.
+- **Pages:** live in `src/ui/pages/<world>/<page>/` with `definePage`, not in the old tab lists (`Account.js`, `W2Tab.js` to `W7Tab.js`).
+- **Around hooks:** each `around: true` hook has an `// Around:` comment right above it saying why base-first doesn't work.
+
+`scripts/rules/exceptions.json` lists the permanent exceptions (`allowed`, each with its reason) and the code still to convert (`oldStyle`). New code never goes on either list. When you convert listed code, lower its count or remove it; the test fails until you do, so the list only shrinks. 3.0 ships when `oldStyle` is empty.
 
 ### Haxe Objects & Traversal
 
