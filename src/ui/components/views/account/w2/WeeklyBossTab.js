@@ -105,7 +105,11 @@ export const WeeklyBossTab = () => {
             throw new Error("Weekly Boss data is unavailable. Refresh to try again.");
         }
         for (const skin of skins) {
-            if (weekly[skin.key] !== undefined && weekly[skin.key] !== null && ![0, 1].includes(Number(weekly[skin.key]))) {
+            if (
+                weekly[skin.key] !== undefined &&
+                weekly[skin.key] !== null &&
+                ![0, 1].includes(Number(weekly[skin.key]))
+            ) {
                 throw new Error(`Invalid unlock value for ${skin.name}.`);
             }
         }

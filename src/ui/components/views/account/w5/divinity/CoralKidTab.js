@@ -28,7 +28,11 @@ const CORAL_KID_FIELDS = [
 ];
 const SINGULARITY_FIELDS = [
     { index: 616, name: "Singularity Transmute Level", description: "Boosts Divinity PTS gain." },
-    { index: 617, name: "Transmute Base Value Level", description: "Base value for transmuting Divinity PTS into Singularity Spirals." },
+    {
+        index: 617,
+        name: "Transmute Base Value Level",
+        description: "Base value for transmuting Divinity PTS into Singularity Spirals.",
+    },
     { index: 618, name: "Divinity EXP Multiplier", description: "Divinity EXP gain multiplier." },
     { index: 619, name: "Universal Time Elapsed Efficiency", description: "Universal Time Elapsed efficiency." },
     { index: 620, name: "Lumi Gain Rate Multiplier", description: "+5% Lumi gain rate per level." },
