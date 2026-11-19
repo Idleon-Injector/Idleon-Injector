@@ -51,7 +51,7 @@ export function summarize(shots, baselineNames, threshold = DIFF_THRESHOLD) {
     if (unfed.length) {
         lines.push(
             `${unfed.length} show a page the fake game has no data for, so their errors aren't flagged;`,
-            "report.json lists what each asked for (`misses`), to add to fake-game-data.mjs."
+            "report.json lists what each asked for (`misses`), to add to scripts/page-shots/data/."
         );
     }
     if (flagged.length)

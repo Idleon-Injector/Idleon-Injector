@@ -240,8 +240,12 @@ async function main() {
             if (entry.level === "error")
                 errors.push(`${entry.text}${entry.url ? ` (${entry.url.replace(api.url, "/")})` : ""}`);
         });
+        // Only the current page's requests count: one cut off by the next navigation never reports back.
         const inflight = new Set();
-        Network.requestWillBeSent(({ requestId }) => inflight.add(requestId));
+        let pageLoader = null;
+        Network.requestWillBeSent(({ requestId, loaderId }) => {
+            if (loaderId === pageLoader) inflight.add(requestId);
+        });
         Network.loadingFinished(({ requestId }) => inflight.delete(requestId));
         Network.loadingFailed(({ requestId }) => inflight.delete(requestId));
 
@@ -259,7 +263,9 @@ async function main() {
         };
         const open = async (url) => {
             const loaded = Page.loadEventFired();
-            await Page.navigate({ url });
+            inflight.clear();
+            pageLoader = null;
+            ({ loaderId: pageLoader } = await Page.navigate({ url }));
             await loaded;
         };
         // Quiet: no request for 300ms (10s at most), then two frames.
