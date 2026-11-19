@@ -10,15 +10,16 @@
  *   [5] = Capacity   (allocated)
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../services/api.js";
-import { withTooltip } from "../../../Tooltip.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { withTooltip } from "../../../components/Tooltip.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { writeVerified } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -68,7 +69,7 @@ const AnvilRow = ({ category, valueState, onWriteApplied }) =>
         resetAction: category.max === null ? { tooltip: `Reset ${category.label} to 0` } : null,
     });
 
-export const AnvilTab = () => {
+const AnvilTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Anvil" });
     const statStates = Array.from({ length: 6 }, () => van.state(0));
 
@@ -128,3 +129,12 @@ export const AnvilTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w1.anvil",
+    world: 1,
+    system: "Anvil",
+    description: "How the Anvil's points are spent on Bonus Exp, Speed and Capacity.",
+    keywords: ["Smithing", "Production", "Points"],
+    component: AnvilTab,
+});

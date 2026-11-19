@@ -20,17 +20,23 @@
  *   StampLevelMAX is rounded up to the next step boundary.
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readGgaEntries } from "../../../../services/api.js";
-import { withTooltip } from "../../../Tooltip.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { cleanName, sortPrefixedNumericCodes, writeManyVerified, writeVerified } from "../accountShared.js";
-import { renderPersistentPagePanes, renderTabNav } from "../tabShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
+import { withTooltip } from "../../../components/Tooltip.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    cleanName,
+    sortPrefixedNumericCodes,
+    writeManyVerified,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
+import { renderPersistentPagePanes, renderTabNav } from "../../../components/views/account/tabShared.js";
 
 const { div } = van.tags;
 
@@ -116,7 +122,7 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
     });
 };
 
-export const StampsTab = () => {
+const StampsTab = () => {
     const activePage = van.state(0);
     const { loading, error, run } = useAccountLoad({ label: "Stamps" });
     const exaltedCodes = van.state(new Set());
@@ -232,3 +238,12 @@ export const StampsTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w1.stamps",
+    world: 1,
+    system: "Stamps",
+    description: "Stamp levels and exalted stamps.",
+    keywords: ["Exalted"],
+    component: StampsTab,
+});

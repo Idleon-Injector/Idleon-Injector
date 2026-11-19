@@ -12,16 +12,17 @@
  *     [5] Puff Puff Go        - max 60
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../services/api.js";
-import { withTooltip } from "../../../Tooltip.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { runBulkSet, useWriteStatus } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { withTooltip } from "../../../components/Tooltip.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { runBulkSet, useWriteStatus } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -55,7 +56,7 @@ const ForgeRow = ({ upgrade, levelState }) =>
         maxAction: true,
     });
 
-export const ForgeTab = () => {
+const ForgeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Forge" });
     const { status: maxAllStatus, run: runMaxAll } = useWriteStatus();
     const levelStates = Array.from({ length: 6 }, () => van.state(0));
@@ -123,3 +124,12 @@ export const ForgeTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w1.forge",
+    world: 1,
+    system: "Forge",
+    description: "Forge upgrade levels.",
+    keywords: ["Furnace", "Upgrades"],
+    component: ForgeTab,
+});

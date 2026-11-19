@@ -1,18 +1,24 @@
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { cleanName, createStaticRowReconciler, useWriteStatus, writeManyVerified } from "../accountShared.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    useWriteStatus,
+    writeManyVerified,
+} from "../../../components/views/account/accountShared.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 const STATUS_PATH = "BribeStatus";
 
 /** Edit account-wide bribe ownership without spending coins. */
-export const BribesTab = () => {
+const BribesTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Bribes" });
     const busy = van.state(false);
     const message = van.state("");
@@ -229,3 +235,12 @@ export const BribesTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "w1.bribes",
+    world: 1,
+    system: "Bribes",
+    description: "Which bribes are owned, and bribe expansions.",
+    keywords: ["Expansions"],
+    component: BribesTab,
+});

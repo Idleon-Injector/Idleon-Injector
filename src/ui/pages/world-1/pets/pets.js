@@ -11,7 +11,8 @@
  * and capped by the token sources the account owns (the game wipes the list past that).
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
 import {
     executeCheatAction,
     fetchCheatStates,
@@ -23,16 +24,16 @@ import {
     readGgaEntries,
     saveConfigFile,
     updateSessionConfig,
-} from "../../../../services/api.js";
-import { EmptyState } from "../../../EmptyState.js";
-import { SearchBar } from "../../../SearchBar.js";
-import { Icons } from "../../../../assets/icons.js";
-import { withTooltip } from "../../../Tooltip.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { cleanName, cleanNameEffect, useWriteStatus } from "../accountShared.js";
+} from "../../../services/api.js";
+import { EmptyState } from "../../../components/EmptyState.js";
+import { SearchBar } from "../../../components/SearchBar.js";
+import { Icons } from "../../../assets/icons.js";
+import { withTooltip } from "../../../components/Tooltip.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { cleanName, cleanNameEffect, useWriteStatus } from "../../../components/views/account/accountShared.js";
 
 const { div, button, span, label, input } = van.tags;
 
@@ -245,7 +246,7 @@ const CompanionCard = ({
     );
 };
 
-export const CompanionsTab = () => {
+const CompanionsTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Pets" });
     const { status: writeStatus, run: runWrite } = useWriteStatus();
 
@@ -652,3 +653,12 @@ export const CompanionsTab = () => {
         ),
     });
 };
+
+export default definePage({
+    id: "w1.pets",
+    world: 1,
+    system: "Pets",
+    description: "Owned pets, Pets+ and pet tokens.",
+    keywords: ["Companions", "Pets+", "Pet tokens"],
+    component: CompanionsTab,
+});
