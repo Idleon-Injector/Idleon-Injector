@@ -120,30 +120,5 @@
             "reason": "runLater: Gold Pot Rush swaps behavior.runLater for one _event_OwlEvent call, like the other per-call swaps (decided 2026-11-19)."
         }
     ],
-    "oldStyle": [
-        {
-            "rule": "write",
-            "file": "src/ui/pages/world-1/owl/owl.js",
-            "count": 1,
-            "reason": "Owl rows save with gga(path, value)."
-        },
-        {
-            "rule": "write",
-            "file": "src/ui/pages/world-1/pets/pets.js",
-            "count": 2,
-            "reason": "Pet token picks and grants save with gga and ggaMany, checking the result by hand."
-        },
-        {
-            "rule": "write",
-            "file": "src/ui/pages/world-2/kangaroo/kangaroo.js",
-            "count": 1,
-            "reason": "Kangaroo (was Poppy) rows save with gga(path, value)."
-        },
-        {
-            "rule": "write",
-            "file": "src/ui/pages/world-7/clam-work/clam-work.js",
-            "count": 1,
-            "reason": "Clam rows save with gga(path, value)."
-        }
-    ]
+    "oldStyle": []
 }

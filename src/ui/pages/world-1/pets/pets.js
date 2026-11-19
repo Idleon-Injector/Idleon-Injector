@@ -17,8 +17,6 @@ import {
     executeCheatAction,
     fetchCheatStates,
     fetchConfig,
-    gga,
-    ggaMany,
     readCList,
     readComputed,
     readGgaEntries,
@@ -33,7 +31,13 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
-import { cleanName, cleanNameEffect, useWriteStatus } from "../../../components/views/account/accountShared.js";
+import {
+    cleanName,
+    cleanNameEffect,
+    useWriteStatus,
+    writeManyVerified,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, button, span, label, input } = van.tags;
 
@@ -343,7 +347,9 @@ const CompanionsTab = () => {
                 await readSelection();
                 const { normal, plus, picks = tokens.val.picks } = getChange();
                 if (picks !== tokens.val.picks) {
-                    if (!(await gga(TOKEN_PATH, picks.join(",")))) throw new Error("Could not save pet token picks");
+                    await writeVerified(TOKEN_PATH, picks.join(",")).catch(() => {
+                        throw new Error("Could not save pet token picks");
+                    });
                     tokens.val = { ...tokens.val, picks };
                 }
                 const entries = companions.val
@@ -416,10 +422,11 @@ const CompanionsTab = () => {
         runWrite(
             async () => {
                 writeError.val = "";
-                const result = await ggaMany(
+                await writeManyVerified(
                     tokens.val.missing.map((index) => ({ path: `OptionsListAccount[${index}]`, value: 1 }))
-                );
-                if (!result.ok) throw new Error("Could not grant the missing pet token");
+                ).catch(() => {
+                    throw new Error("Could not grant the missing pet token");
+                });
                 tokens.val = await readComputed("companions", "petTokens");
             },
             {

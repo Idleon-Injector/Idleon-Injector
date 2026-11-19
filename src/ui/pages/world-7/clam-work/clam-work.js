@@ -140,7 +140,10 @@ const ClamTab = () => {
             );
         });
 
-    const onWrite = async (index, value) => gga(`OptionsListAccount[${index}]`, value);
+    const onWrite = async (index, value) => {
+        await writeVerified(`OptionsListAccount[${index}]`, value);
+        return true;
+    };
 
     const body = div(
         { class: "scrollable-panel content-stack" },
