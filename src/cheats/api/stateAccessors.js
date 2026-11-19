@@ -9,6 +9,7 @@
  */
 
 import { cheatState } from "../core/state.js";
+import { withAutomations } from "../core/automations.js";
 import { events } from "../core/globals.js";
 import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
@@ -31,8 +32,9 @@ const COMPUTED_SOURCES = {
     farming: { eventId: 579, method: "_customBlock_FarmingStuffs" },
 };
 
+/** Which cheats are on, running automations included, for the WebUI's active-cheats list. */
 export function getcheatStateList() {
-    return cheatState;
+    return withAutomations(cheatState);
 }
 
 /**

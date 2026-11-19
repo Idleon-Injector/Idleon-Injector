@@ -1,8 +1,14 @@
 // What Sushi Auto Play does, written against the automation before it became a defineAutomation (#17): the game
 // actions it takes, when it takes them, and what it answers. A fake Sushi station stands in for the game.
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import { createRequire } from "node:module";
 import { mock, test } from "node:test";
-import { loadGame } from "../known-bugs/index.mjs";
+import { loadGame, loadUi } from "../known-bugs/index.mjs";
+
+const require = createRequire(import.meta.url);
+const TinyRouter = require("../../src/modules/server/tinyRouter");
+const { setupApiRoutes } = require("../../src/modules/server/apiRoutes");
 
 mock.timers.enable({ apis: ["setInterval", "setTimeout", "Date"], now: 0 });
 const game = await loadGame();
@@ -192,4 +198,20 @@ test("sushi in the reserved slots are sorted out first, and a bad board refuses 
         message: "Clear 2 slots before starting; no sushi will be deleted.",
     });
     assert.equal((await run("w7 sushitools status")).enabled, false);
+});
+
+test("while Auto Play is on, the WebUI's active-cheats list shows it, and a click there turns it off", async () => {
+    const router = new TinyRouter();
+    const client = Object.assign(new EventEmitter(), { Runtime: game.runtime });
+    setupApiRoutes(router, "context", client, { cheatConfig: {}, startupCheats: [], injectorConfig: {} });
+    const { store } = await loadUi(router);
+    station();
+    assert.deepEqual(await run("w7 sushitools"), ON);
+    await store.loadCheatStates();
+    assert.ok(store.getActiveCheats().includes("w7 sushitools"));
+
+    assert.equal(await store.executeCheat("w7 sushitools", "Sushi tools"), true);
+    assert.equal((await run("w7 sushitools status")).enabled, false);
+    await store.loadCheatStates();
+    assert.ok(!store.getActiveCheats().includes("w7 sushitools"));
 });

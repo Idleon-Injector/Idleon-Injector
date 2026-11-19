@@ -36,6 +36,9 @@ import { monitor } from "./core/valueMonitor.js";
 import { getHookFailures, installEarlyHooks } from "./core/hooks.js";
 // Every hook file in src/cheats/hooks/, found by the build (rollup.config.mjs)
 import "virtual:hooks";
+import { getAutomations } from "./core/automations.js";
+// Every automation file in src/cheats/automations/, found by the build (rollup.config.mjs)
+import "virtual:automations";
 
 // Sets the config, startup and webport from glob to internal state
 setCheatConfig(cheatConfig);
@@ -76,6 +79,7 @@ window.getAutoCompleteSuggestions = getAutoCompleteSuggestions;
 window.cheatStateList = getcheatStateList;
 window.getBundleCatalog = getBundleCatalog;
 window.getHookFailures = getHookFailures;
+window.getAutomations = getAutomations;
 
 // Search API
 window.searchGga = searchGga;

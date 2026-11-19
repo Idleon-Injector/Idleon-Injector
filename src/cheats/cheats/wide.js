@@ -11,7 +11,7 @@
 
 import { defineCheat } from "../core/registration.js";
 import { cheatState } from "../core/state.js";
-import { behavior, firebase, gga } from "../core/globals.js";
+import { firebase, gga } from "../core/globals.js";
 import { deepCopy } from "../utils/deepCopy.js";
 import { rollAllObols } from "../helpers/obolRolling.js";
 
@@ -123,42 +123,3 @@ defineCheat({
         },
     },
 });
-
-const bossMaps = new Set([29, 66, 114, 165, 214, 266]);
-let autobossArmed = false;
-let autobossReload = null;
-let autobossMap = null;
-
-setInterval(() => {
-    if (!cheatState.wide.autoboss || !bossMaps.has(gga.CurrentMap)) {
-        autobossArmed = false;
-        clearTimeout(autobossReload);
-        autobossReload = null;
-        return;
-    }
-
-    if (gga.CurrentMap !== autobossMap) {
-        autobossMap = gga.CurrentMap;
-        autobossArmed = false;
-        clearTimeout(autobossReload);
-        autobossReload = null;
-    }
-
-    if (gga.BossHP > 0) {
-        autobossArmed = true;
-        return;
-    }
-
-    if (!autobossArmed || autobossReload) return;
-
-    autobossArmed = false;
-    autobossReload = setTimeout(() => {
-        autobossReload = null;
-        if (!cheatState.wide.autoboss || !bossMaps.has(gga.CurrentMap)) return;
-
-        autobossArmed = false;
-        const fadeOut = behavior.createFadeOut(0.4, 0);
-        const fadeIn = behavior.createFadeIn(0.5, 0);
-        behavior.reloadCurrentScene(fadeOut, fadeIn);
-    }, 5000);
-}, 1000);

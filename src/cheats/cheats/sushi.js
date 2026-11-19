@@ -1,10 +1,10 @@
 import { defineCheat } from "../core/registration.js";
-import { busy, enabled, getSushiStatus, startSushi, sortSushi, stopSushi } from "./sushi/automation.js";
+import { busy, enabled, getSushiStatus, sortSushi, switchSushi } from "./sushi/automation.js";
 import { simulateSushiKnowledge } from "./sushi/knowledge.js";
 
 const commands = {
     "": {
-        fn: () => (enabled ? stopSushi() : startSushi()),
+        fn: (params, on) => switchSushi(on),
         message: "Enable or disable Sushi automation; settings in config",
     },
     status: { fn: getSushiStatus, message: "Read Sushi tools status" },
@@ -26,10 +26,10 @@ for (const [action, { fn, message, needsParam = false }] of Object.entries(comma
         category: "w7",
         needsParam,
         message,
-        fn: (params) => {
+        fn: (params, on) => {
             if (!needsParam && params.length)
                 throw new Error(`${action || "w7 sushitools"} does not accept arguments.`);
-            return JSON.stringify(fn(params));
+            return JSON.stringify(fn(params, on));
         },
     });
 }

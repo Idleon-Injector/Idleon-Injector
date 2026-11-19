@@ -177,7 +177,7 @@ export const gameItems = () => ({
  * leaves setup to the first cheat, as in the game.
  */
 export async function loadGame({ ready = true, setupDone = ready } = {}) {
-    // wide.js starts a timer on import and setup opens a WebSocket to the injector; neither may keep the test alive.
+    // An automation left on keeps its timer and setup opens a WebSocket to the injector; neither may keep the test alive.
     const setIntervalReal = globalThis.setInterval;
     globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
     globalThis.WebSocket = class {
@@ -193,6 +193,9 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
     // The hook files the build bundles (rollup.config.mjs), so setup installs them as in the game.
     for (const file of (await importRepo("rollup.config.mjs")).hookFiles())
         await importRepo(`src/cheats/hooks/${file}`);
+    // The automation files the build bundles (rollup.config.mjs).
+    for (const file of (await importRepo("rollup.config.mjs")).automationFiles())
+        await importRepo(`src/cheats/automations/${file}`);
     const { cheat, defineCheat } = await importRepo("src/cheats/core/registration.js");
     const game = fakeGame({ ready });
     if (ready) (await importRepo("src/cheats/core/globals.js")).registerCommonVariables(game.context);
@@ -201,7 +204,7 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
     const window = {
         context: game.context,
         cheat: (action, on) => cheat(action, game.context, on),
-        cheatStateList: () => state.cheatState,
+        cheatStateList: (await importRepo("src/cheats/api/stateAccessors.js")).getcheatStateList,
         getHookFailures: (await importRepo("src/cheats/core/hooks.js")).getHookFailures,
         updateCheatConfig: state.updateCheatConfig,
     };
