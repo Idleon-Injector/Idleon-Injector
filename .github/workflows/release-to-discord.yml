@@ -1,20 +1,35 @@
 name: Release To Discord
 
 on:
+    # A release published by hand (such as a draft from Build and Release).
     release:
         types: [published]
+    # Build and Release calls this: a release it publishes with GITHUB_TOKEN starts no "published" run.
+    workflow_call:
+        inputs:
+            tag:
+                required: true
+                type: string
+
+permissions:
+    contents: read
 
 jobs:
-    github-releases-to-discord:
+    post:
         runs-on: ubuntu-latest
-        permissions: {}
         steps:
-            - name: GitHub Releases to Discord
-              uses: SethCohen/github-releases-to-discord@v1.19.0
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
               with:
-                  webhook_url: ${{ secrets.WEBHOOK_URL }}
-                  color: "2105893"
-                  username: "Release Changelog"
-                  avatar_url: "https://cdn.pixabay.com/photo/2022/01/30/13/33/github-6980894_640.png"
-                  footer_title: "Changelog"
-                  reduce_headings: true
+                  node-version-file: .nvmrc
+
+            # Without the DISCORD_RELEASE_WEBHOOK secret this prints a notice and succeeds.
+            - name: Post the release to #github-updates
+              env:
+                  DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ inputs.tag || github.event.release.tag_name }}
+              run: node scripts/discord-release.mjs "$TAG"

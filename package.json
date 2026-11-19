@@ -25,10 +25,10 @@
         "format:check:css": "prettier --check \"src/ui/**/*.css\"",
         "test:css": "node --test scripts/validate-css.test.mjs",
         "validate": "npm run build:cheats && node --check cheats.js config.js && eslint . --max-warnings 0 && npm run validate:ui-imports && npm run lint:css && npm run format:check:css && node -e \"require('./src/ui/config/optionsAccountSchema.json')\"",
-        "build": "npm run build:cheats && pkg . -t node18-win-x64 --compress Gzip --output InjectCheatsUI.exe",
-        "build-unix": "npm run build:cheats && pkg . -t node18-linux-x64 --compress Gzip --output InjectCheatsUI-linux",
-        "build-macos-x64": "npm run build:cheats && pkg . -t node18-macos-x64 --compress Gzip --output InjectCheatsUI-macos-x64",
-        "build-macos-arm64": "npm run build:cheats && pkg . -t node18-macos-arm64 --compress Gzip --output InjectCheatsUI-macos-arm64"
+        "build": "npm run build:cheats && pkg . -t node24-win-x64 --compress Gzip --output InjectCheatsUI.exe",
+        "build-unix": "npm run build:cheats && pkg . -t node24-linux-x64 --compress Gzip --output InjectCheatsUI-linux",
+        "build-macos-x64": "npm run build:cheats && pkg . -t node24-macos-x64 --compress Gzip --output InjectCheatsUI-macos-x64",
+        "build-macos-arm64": "npm run build:cheats && pkg . -t node24-macos-arm64 --compress Gzip --output InjectCheatsUI-macos-arm64"
     },
     "author": "MrJoiny",
     "dependencies": {
@@ -43,6 +43,7 @@
     },
     "devDependencies": {
         "@eslint/js": "^9.39.2",
+        "@yao-pkg/pkg": "6.25.0",
         "eslint": "^9.39.2",
         "eslint-plugin-es-x": "9.7.0",
         "globals": "^17.0.0",

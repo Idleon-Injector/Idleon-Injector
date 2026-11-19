@@ -27,7 +27,7 @@ const DOWNLOADS = "https://github.com/fixture/releases/download/v99.0.0/";
 const SUMS_URL = DOWNLOADS + "SHA256SUMS";
 const ARCHIVE_URL = DOWNLOADS + archiveName;
 const NEW_RELEASE = { "cheats.js": "new cheats", "config.js": "new config", [archiveBinary]: "new binary" };
-// The real archive ships the whole repo, so the same names turn up elsewhere in it.
+// Archives before 3.0 shipped the whole repo, so the same names turned up elsewhere in them.
 const DECOYS = { "src/modules/server/routes/config.js": "a route", "src/cheats.js": "not the bundle" };
 
 /**

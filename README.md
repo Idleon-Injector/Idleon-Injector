@@ -88,7 +88,7 @@ The injector validates `config.custom.js` for type errors (e.g., string where a 
 ## Development
 
 Tech stack: Node.js + CDP backend, [VanJS](https://vanjs.org/) + VanX web UI,
-packaged with `pkg` (Node 18).
+packaged with `@yao-pkg/pkg` (Node 24).
 
 To build the injector from source:
 
