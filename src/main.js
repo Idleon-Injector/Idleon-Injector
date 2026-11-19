@@ -35,7 +35,7 @@ const log = createLogger("Main");
 let servicesStarted = false;
 let uiServicesStarted = false;
 
-async function printHeader() {
+function printHeader() {
     log.info("=============================");
     log.info(`InjectCheatUI v${version}`);
     log.info("=============================");
@@ -43,11 +43,12 @@ async function printHeader() {
     log.info("GitHub: https://github.com/Idleon-Injector/Idleon-Injector");
     log.info("");
 
-    const update = await createUpdater().check();
-    if (update && update.updateAvailable) {
-        log.warn(`UPDATE AVAILABLE: v${update.latestVersion} - ${update.url}`);
-        log.info("");
-    }
+    // In the background, so a slow network never delays attaching to the game.
+    createUpdater()
+        .check()
+        .then((update) => {
+            if (update?.updateAvailable) log.warn(`UPDATE AVAILABLE: v${update.latestVersion} - ${update.url}`);
+        });
 }
 
 function printConfiguration(injectorConfig) {
@@ -168,7 +169,7 @@ async function main() {
 
         const config = initializeConfiguration();
 
-        await printHeader();
+        printHeader();
         printConfiguration(config.injectorConfig);
 
         const app = createWebServer({ enableUI: config.injectorConfig.enableUI });

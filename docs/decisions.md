@@ -237,3 +237,19 @@ Trade-off: each updater owns its check cache. Startup and CLI checks use fresh i
 route retains its instance and controls the response-before-exit handoff.
 
 Source: [Updater](../src/modules/updateService.js).
+
+## Verify an update completely before replacing anything
+
+Decision: every release publishes a `SHA256SUMS` asset in `sha256sum` format. The updater refuses an
+update when that file, the archive's line in it, or a match is missing, and copies files by their exact
+path in the archive. It checks everything before the install changes, and the replace script restores
+every file if one copy fails.
+
+Why: the archive ships the whole repository, so a download that is damaged, tampered with, or picks
+the wrong file must not leave a half-updated install.
+
+Alternative: trust the download and copy whatever files are found.
+
+Trade-off: a release published without `SHA256SUMS` cannot be installed by the updater, only by hand.
+
+Source: [Release archive preparation](../src/modules/autoUpdater.js).
