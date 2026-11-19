@@ -1,15 +1,16 @@
 /** Account-wide prayer levels and per-character equipment. */
-import van from "../../../../vendor/van-1.6.0.js";
-import { deleteGga, gga, readCList, readGgaEntries } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { EditableNumberRow } from "../EditableNumberRow.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { WarningBanner } from "../components/AccountPageChrome.js";
-import { createCharacterSelector } from "../components/CharacterSelector.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { deleteGga, gga, readCList, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -19,7 +20,7 @@ import {
     useWriteStatus,
     writeManyVerified,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -76,7 +77,7 @@ export const levelPlan = (state, id, requested) => {
 };
 
 /** Render the prayer editor without invoking normal-game purchases or unlocks. */
-export const PrayersTab = () => {
+const PrayersTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Prayers" });
     const busy = van.state(false);
     const selected = van.state("");
@@ -456,3 +457,12 @@ export const PrayersTab = () => {
         errorTitle: "PRAYERS READ FAILED",
     });
 };
+
+export default definePage({
+    id: "w3.prayers",
+    world: 3,
+    system: "Prayers",
+    description: "Prayer levels and the prayers each character has equipped.",
+    keywords: ["Curses"],
+    component: PrayersTab,
+});

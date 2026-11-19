@@ -12,12 +12,13 @@
  * All per-atom max level requests are batch-fetched during load.
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readComputedMany } from "../../../../services/api.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputedMany } from "../../../services/api.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanNameEffect,
     createIndexedStateGetter,
@@ -26,7 +27,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -39,7 +40,7 @@ const AtomRow = ({ index, name, maxLevel, levelState }) =>
         name,
     });
 
-export const AtomColliderTab = () => {
+const AtomColliderTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Atom Collider" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
     const getLevelState = createIndexedStateGetter();
@@ -133,3 +134,12 @@ export const AtomColliderTab = () => {
         body: rowList,
     });
 };
+
+export default definePage({
+    id: "w3.atomcollider",
+    world: 3,
+    system: "Atom Collider",
+    description: "Atom levels in the Atom Collider.",
+    keywords: ["Atoms", "Collider"],
+    component: AtomColliderTab,
+});

@@ -13,13 +13,14 @@
  * When setting a building level, write both TowerInfo[i] and TowerInfo[i + 27].
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readComputedMany } from "../../../../services/api.js";
-import { withTooltip } from "../../../Tooltip.js";
-import { BulkActionBar } from "../BulkActionBar.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputedMany } from "../../../services/api.js";
+import { withTooltip } from "../../../components/Tooltip.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -28,7 +29,7 @@ import {
     toNum,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -50,7 +51,7 @@ const BuildingRow = ({ index, name, maxLevel, levelState }) =>
         maxAction: true,
     });
 
-export const ConstructionBuildingsTab = () => {
+const ConstructionBuildingsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Construction Buildings" });
     const { status: bulkStatus, run: runMaxAll } = useWriteStatus();
     const levelStates = Array.from({ length: BUILDING_COUNT }, () => van.state(0));
@@ -155,3 +156,13 @@ export const ConstructionBuildingsTab = () => {
         body: rowList,
     });
 };
+
+export default definePage({
+    id: "w3.construction.buildings",
+    world: 3,
+    system: "Construction",
+    tab: "Buildings",
+    description: "Building levels, with their caps raised by the Workbench.",
+    keywords: ["Construction", "Towers"],
+    component: ConstructionBuildingsTab,
+});

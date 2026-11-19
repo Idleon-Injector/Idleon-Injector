@@ -17,16 +17,17 @@
  *   readComputed("dream", "UpgMaxLV", [i])     - max level for upgrade i
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readComputed, readComputedMany, gga, readCList } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { AccountRow } from "../components/AccountRow.js";
-import { ActionButton } from "../components/ActionButton.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "../components/AccountPageChrome.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputed, readComputedMany, gga, readCList } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -35,7 +36,7 @@ import {
     toNum,
     useWriteStatus,
     writeVerified,
-} from "../accountShared.js";
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -153,7 +154,7 @@ const buildStaticMeta = async () => {
     };
 };
 
-export const EquinoxTab = () => {
+const EquinoxTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Equinox" });
     const { status: fillBarStatus, run: fillBarRun } = useWriteStatus();
 
@@ -359,3 +360,12 @@ export const EquinoxTab = () => {
         body: content,
     });
 };
+
+export default definePage({
+    id: "w3.equinox",
+    world: 3,
+    system: "Equinox",
+    description: "Equinox bar, upgrade levels and cloud challenges.",
+    keywords: ["Dream", "Clouds"],
+    component: EquinoxTab,
+});

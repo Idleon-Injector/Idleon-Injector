@@ -10,16 +10,17 @@
  *   Type === "PREMIUM_HELMET" && typeGen === "aHelmetMTX"
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { gga } from "../../../../services/api.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { AddFromListSection } from "../components/AddFromListSection.js";
-import { RemovableStoredRow } from "../components/RemovableStoredRow.js";
-import { cleanName, unwrapH, useWriteStatus, writeVerified } from "../accountShared.js";
-import { toIndexedArray } from "../../../../utils/index.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { AddFromListSection } from "../../../components/views/account/components/AddFromListSection.js";
+import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
+import { cleanName, unwrapH, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import { toIndexedArray } from "../../../utils/index.js";
 
 const { div } = van.tags;
 
@@ -87,7 +88,7 @@ const RackRow = ({ row, onRemove }) => {
     });
 };
 
-export const HatRackTab = () => {
+const HatRackTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Hat Rack" });
     const currentRackIds = van.state([]);
     const slabHistoryIds = van.state([]);
@@ -312,3 +313,12 @@ export const HatRackTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w3.hatrack",
+    world: 3,
+    system: "Hat Rack",
+    description: "Premium hats on the Hat Rack.",
+    keywords: ["Hats"],
+    component: HatRackTab,
+});

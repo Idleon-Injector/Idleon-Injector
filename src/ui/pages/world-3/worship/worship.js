@@ -18,15 +18,21 @@
  *   This tab reads it through readComputed("skillStats", "WorshipChargeMax", []).
  */
 
-import van from "../../../../vendor/van-1.6.0.js";
-import { readComputed, gga, readGgaEntries } from "../../../../services/api.js";
-import { toIndexedArray } from "../../../../utils/index.js";
-import { useAccountLoad } from "../accountLoadPolicy.js";
-import { ClampedLevelRow } from "../ClampedLevelRow.js";
-import { AccountSection } from "../components/AccountSection.js";
-import { RefreshButton } from "../components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../components/PersistentAccountListPage.js";
-import { createStaticRowReconciler, getOrCreateState, toInt, writeVerified } from "../accountShared.js";
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputed, gga, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import {
+    createStaticRowReconciler,
+    getOrCreateState,
+    toInt,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -87,7 +93,7 @@ const WorshipWaveRow = ({ index, name, waveState, writeWave }) =>
         renderBadge: (currentValue) => `BEST WAVE ${currentValue ?? 0}`,
     });
 
-export const WorshipTab = () => {
+const WorshipTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Worship" });
     const activeCharacterNameRef = van.state(null);
     const activeMaxChargeRef = van.state(null);
@@ -215,3 +221,12 @@ export const WorshipTab = () => {
         body,
     });
 };
+
+export default definePage({
+    id: "w3.worship",
+    world: 3,
+    system: "Worship",
+    description: "Worship charge per character and the best wave of each totem.",
+    keywords: ["Totems", "Charge"],
+    component: WorshipTab,
+});
