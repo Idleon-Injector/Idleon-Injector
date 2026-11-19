@@ -68,6 +68,8 @@ const rawMonitorState = vanX.reactive({ values: {} });
 const MAX_NOTIFICATION_HISTORY = 10;
 let appInfoRequest = null;
 let shownHookFailures = "";
+// Set while the injector reports the game closed; it doesn't re-attach, so only a restart clears it.
+let gameClosed = false;
 
 const Actions = {
     /** A persistent notification stays on screen until the next one replaces it. */
@@ -97,8 +99,13 @@ const SystemService = {
     initHeartbeat: () => {
         initWebSocket();
 
-        onStateUpdate((states, hookFailures) => {
+        onStateUpdate((states, hookFailures, gameOpen) => {
             dataState.activeCheatStates = states || {};
+            const closed = gameOpen === false;
+            if (closed && !gameClosed)
+                Actions.notify("The game closed. Restart the injector to use cheats again.", "error", true);
+            gameClosed = closed;
+            if (closed) appState.heartbeat = false;
             // Every state update repeats the list; speak up only when it changes.
             if (!hookFailures) return;
             const failures = hookFailures.join("; ");
@@ -121,13 +128,13 @@ const SystemService = {
         const check = async () => {
             // Check WebSocket connection first
             if (getConnectionStatus()) {
-                appState.heartbeat = true;
+                appState.heartbeat = !gameClosed;
                 return;
             }
 
             // Fall back to HTTP heartbeat check
             const alive = await API.checkHeartbeat();
-            appState.heartbeat = !!alive;
+            appState.heartbeat = alive?.status === "online";
         };
         check();
         setInterval(check, 10000);
@@ -254,35 +261,51 @@ const CheatService = {
         appState.configDrawerOpen = false;
     },
 
-    executeCheat: async (action, message) => {
+    /**
+     * Run a cheat and show the result. A toggle cheat is set to the opposite of the state the player
+     * saw, so a double click or a second tab can't flip it back.
+     * @returns {Promise<boolean>} whether the cheat succeeded
+     */
+    executeCheat: async (action, message, on = clickedState(action)) => {
         try {
-            const result = await API.executeCheatAction(action);
-            Actions.notify(`Cheat ${result.result || "Success"}`);
+            const result = await API.executeCheatAction(action, on);
+            Actions.notify(`Cheat ${result.message}`);
             FavoritesService.addToRecent(action);
             // Note: Cheat states are now updated via WebSocket push from server
             // No need for manual loadCheatStates() call
+            return true;
         } catch (e) {
             Actions.notify(`Error executing '${message}': ${e.message}`, "error");
+            return false;
         }
     },
 };
 
-const getActiveCheats = (states) => {
-    const activeCheats = [];
+/**
+ * The state a click on a toggle cheat asks for: the opposite of what the player sees. Undefined when the
+ * action isn't a toggle (or the states aren't loaded), so it runs as before. A cheat with subcheats
+ * keeps its own on/off flag beside them as `<name>s`.
+ */
+const clickedState = (action) => {
+    const words = action.split(" ");
+    const name = words.pop();
+    const parent = words.reduce((obj, key) => obj?.[key], dataState.activeCheatStates);
+    const value = parent?.[typeof parent?.[name] === "object" ? name + "s" : name];
+    return typeof value === "boolean" ? !value : undefined;
+};
 
-    const normalizeKey = (key) => (key.endsWith("s") ? key.slice(0, -1) : key);
+/** Every cheat that is on, by its full command, at any depth (a parent's `<name>s` flag is the parent). */
+const getActiveCheats = (states, prefix = "") => {
+    const activeCheats = [];
 
     for (const key in states) {
         const value = states[key];
 
         if (typeof value === "object" && value !== null) {
-            for (const subKey in value) {
-                if (value[subKey] === true) {
-                    activeCheats.push(`${normalizeKey(key)} ${subKey}`);
-                }
-            }
+            activeCheats.push(...getActiveCheats(value, `${prefix}${key} `));
         } else if (value === true) {
-            activeCheats.push(normalizeKey(key));
+            const parent = key.slice(0, -1);
+            activeCheats.push(prefix + (key.endsWith("s") && typeof states[parent] === "object" ? parent : key));
         }
     }
 

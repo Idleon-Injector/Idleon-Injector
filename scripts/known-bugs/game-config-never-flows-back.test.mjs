@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import { KNOWN_BUGS, captureLogger, loadCommonJs, loadGame, request, useInstallDir } from "./index.mjs";
@@ -19,16 +20,11 @@ test(
         game.gga.ItemDefinitionsGET.h.Copper = { h: { Type: "Ore" } };
 
         const router = new TinyRouter();
-        setupApiRoutes(
-            router,
-            "context",
-            { Runtime: game.runtime },
-            {
-                cheatConfig: config.getCheatConfig(),
-                startupCheats: config.getStartupCheats(),
-                injectorConfig: config.getInjectorConfig(),
-            }
-        );
+        setupApiRoutes(router, "context", Object.assign(new EventEmitter(), { Runtime: game.runtime }), {
+            cheatConfig: config.getCheatConfig(),
+            startupCheats: config.getStartupCheats(),
+            injectorConfig: config.getInjectorConfig(),
+        });
         // The Cheats list runs cheats in the game through this route; the CLI uses the same game bridge.
         await request(router, "POST", "/api/toggle", { action: "godlike speed 5" });
         await request(router, "POST", "/api/toggle", { action: "nomore Copper" });

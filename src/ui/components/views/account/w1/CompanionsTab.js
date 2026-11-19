@@ -319,14 +319,7 @@ export const CompanionsTab = () => {
             await readSelection();
         });
 
-    // /api/toggle flips a cheat rather than setting it, so acting on the state this tab
-    // loaded with can switch it off while reporting success. Re-read, act, then confirm.
-    const setCompanionCheat = async (wanted) => {
-        const before = !!(await fetchCheatStates())?.data?.w1?.companion;
-        if (before !== wanted) await executeCheatAction("w1 companion");
-        const after = !!(await fetchCheatStates())?.data?.w1?.companion;
-        if (after !== wanted) throw new Error(`Could not turn the W1 Companion cheat ${wanted ? "on" : "off"}`);
-    };
+    const setCompanionCheat = (wanted) => executeCheatAction("w1 companion", wanted);
 
     // /api/config/save rewrites config.custom.js from whatever it is handed, so it needs
     // the whole config - a partial would drop every other saved override.

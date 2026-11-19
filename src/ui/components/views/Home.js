@@ -61,7 +61,7 @@ const ActiveCheats = () =>
                         type: "button",
                         class: "active-cheat-item",
                         title: `Turn off ${cheat}`,
-                        onclick: () => store.executeCheat(cheat, cheat),
+                        onclick: () => store.executeCheat(cheat, cheat, false),
                     },
                     span({ class: "active-cheat-text" }, cheat)
                 )

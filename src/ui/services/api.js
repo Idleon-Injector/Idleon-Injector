@@ -29,7 +29,7 @@ async function _request(endpoint, options = {}) {
         }
 
         if (!response.ok) {
-            throw new Error(data.details || data.error || `HTTP Error ${response.status}`);
+            throw new Error(data.details || data.error || data.message || `HTTP Error ${response.status}`);
         }
 
         return data;
@@ -53,12 +53,18 @@ export async function fetchBundleCatalog() {
     return data.bundles;
 }
 
-export async function executeCheatAction(action) {
-    return _request("/toggle", {
+/**
+ * Run a cheat. `on` sets a toggle cheat to that state instead of flipping it.
+ * Resolves with `{ ok: true, message }`; a cheat that failed rejects with its message.
+ */
+export async function executeCheatAction(action, on) {
+    const result = await _request("/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: action }),
+        body: JSON.stringify({ action, on }),
     });
+    if (!result.ok) throw new Error(result.message);
+    return result;
 }
 
 export async function fetchConfig() {

@@ -44,7 +44,7 @@ function handleMessage(event) {
         const message = JSON.parse(event.data);
 
         if (message.type === "cheat-states" && stateUpdateHandler) {
-            stateUpdateHandler(message.data, message.hookFailures);
+            stateUpdateHandler(message.data, message.hookFailures, message.gameOpen);
         } else if (message.type === "monitor-state" && monitorUpdateHandler) {
             monitorUpdateHandler(message.data);
         }

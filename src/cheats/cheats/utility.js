@@ -69,7 +69,7 @@ function gg_func(params, mode) {
         if (error instanceof TypeError) {
             return `This TypeError should appear if you gave a non-iterable value, or wrong query...\n${error}`;
         }
-        return `Error: ${error}`;
+        throw error;
     }
 }
 
@@ -447,7 +447,7 @@ function eval_gg_func(params, mode) {
         return entries.map(([key, val]) => (mode === 0 ? `${key}, ${val}` : `${key}`)).join("\n");
     } catch (error) {
         if (error instanceof TypeError) return `This TypeError should appear if you gave a non-existing object`;
-        return `Error: ${error}`;
+        throw error;
     }
 }
 

@@ -17,17 +17,12 @@ export const KNOWN_BUGS = {
         "Quotes and backslashes in text settings aren't escaped when the config is written, and null becomes {}",
     brokenCustomConfig:
         "A broken config.custom.js is ignored with a false 'not found' message, then overwritten on the next save",
-    cheatErrorShowsSuccess: "A cheat that throws an error shows a green success toast",
     reloadInjectsStartupConfig: "After the game reloads, it runs the startup config instead of the current one",
     destructiveOneClick: "Destructive cheats like wipe run on one click from the Cheats list",
-    toggleOnlyApi: "The API can only toggle a cheat, not set it, so two 'turn on' requests turn it back off",
     partialSaveWipes:
         "Saving rewrites the whole override file from whatever it's sent, so a partial save wipes other settings",
     gameConfigNeverFlowsBack: "Config changes made inside the game never flow back, so they are lost on restart",
     unbanNeverRuns: "The unban check reads a cheat that's never registered, so it never runs",
-    activeListDrifts:
-        "The active-cheats list drops a trailing 's', misses cheats nested three deep, and stays online after the game closes",
-    cheatBeforeSetup: "A cheat can run before setup has finished",
 };
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -173,15 +168,16 @@ export async function loadGame({ ready = true, setupDone = ready } = {}) {
     // The part of what cheats/main.js puts on the game window that these tests call over (fake) CDP.
     const window = {
         context: game.context,
-        cheat: (action) => cheat(action, game.context),
+        cheat: (action, on) => cheat(action, game.context, on),
         cheatStateList: () => state.cheatState,
         getHookFailures: (await importRepo("src/cheats/proxies/setup.js")).getHookFailures,
         updateCheatConfig: state.updateCheatConfig,
     };
+    // The bridge evaluates with awaitPromise, so a promise (window.cheat's) comes back as its value.
     const runtime = {
         async evaluate({ expression }) {
             try {
-                return { result: { value: vm.runInNewContext(expression, window) } };
+                return { result: { value: await vm.runInNewContext(expression, window) } };
             } catch (error) {
                 return { result: {}, exceptionDetails: { text: String(error) } };
             }

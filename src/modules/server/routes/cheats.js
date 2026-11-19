@@ -40,29 +40,35 @@ function setupCheatRoutes(app, gameBridge) {
         }
     });
 
+    // Runs a cheat and answers { ok, message }. With `on: true|false` a toggle cheat is set to that state
+    // instead of flipped, so a repeated request can't turn it back.
     app.post("/api/toggle", async (req, res) => {
-        const { action } = await req.json();
+        const { action, on } = await req.json();
         if (!action) {
-            return res.status(400).json({ error: "Missing action parameter" });
+            return res.status(400).json({ ok: false, message: "Missing action parameter" });
+        }
+        if (on !== undefined && typeof on !== "boolean") {
+            return res.status(400).json({ ok: false, message: "'on' must be true or false" });
         }
         try {
-            const cheatResponse = await gameBridge.executeCheat(action);
+            const cheatResponse = await gameBridge.executeCheat(action, on);
             if (cheatResponse.error) {
                 log.error(`Error executing cheat '${action}':`, cheatResponse.error.text);
                 res.status(500).json({
-                    error: `Failed to execute cheat '${action}'`,
-                    details: cheatResponse.error.text,
+                    ok: false,
+                    message: `Failed to execute cheat '${action}': ${cheatResponse.error.text}`,
                 });
             } else {
-                log.debug(`Executed: ${action} -> ${cheatResponse.value}`);
-                res.json({ result: cheatResponse.value });
+                const { ok, message } = cheatResponse.value;
+                log.debug(`Executed: ${action} -> ${ok ? "" : "failed: "}${message}`);
+                res.json({ ok, message });
 
                 // Broadcast updated cheat states to all WebSocket clients
                 broadcastCheatStates();
             }
         } catch (apiError) {
             log.error(`Error executing cheat '${action}':`, apiError);
-            res.status(500).json({ error: `Internal server error while executing cheat '${action}'` });
+            res.status(500).json({ ok: false, message: `Internal server error while executing cheat '${action}'` });
         }
     });
 

@@ -223,7 +223,9 @@ async function startCliInterface(context, client, options = {}) {
                 if (cheatResponse.error) {
                     log.error(`Error executing cheat '${action}':`, cheatResponse.error.text);
                 } else {
-                    log.info(`${cheatResponse.value}`);
+                    const { ok, message } = cheatResponse.value;
+                    if (ok) log.info(message);
+                    else log.error(`${action}: ${message}`);
                     await broadcastCheatStates();
                 }
             }

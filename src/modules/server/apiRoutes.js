@@ -8,6 +8,7 @@ const { setupCheatRoutes } = require("./routes/cheats");
 const { setupSearchRoutes } = require("./routes/search");
 const { setupConfigRoutes } = require("./routes/config");
 const { setupUpdateRoutes } = require("./routes/updates");
+const { gameClosed } = require("./wsServer");
 
 const log = createLogger("API");
 
@@ -32,8 +33,15 @@ function setupApiRoutes(app, context, client, config) {
     setupSearchRoutes(app, gameBridge);
     setupConfigRoutes(app, gameBridge, config);
 
+    // Nothing re-attaches after the game closes, so the status stays "game closed" until a restart.
+    let gameOpen = true;
+    client.on("disconnect", () => {
+        gameOpen = false;
+        void gameClosed();
+    });
+
     app.get("/api/heartbeat", (req, res) => {
-        res.json({ status: "online", timestamp: Date.now() });
+        res.json({ status: gameOpen ? "online" : "game closed", timestamp: Date.now() });
     });
 
     app.get("/api/app-info", (req, res) => {

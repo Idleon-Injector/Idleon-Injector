@@ -267,3 +267,20 @@ Trade-off: the server reads the folder on each menu load, and every page module 
 already did. The worlds and their system names stay a core list, so a page can only join a known system.
 
 Source: [menu model](../src/ui/menu/menuModel.js), [page route](../src/modules/server/routes/pages.js).
+
+## Answer every cheat with one result shape
+
+Decision: the cheat dispatcher answers `{ ok, message }` for every command, and `/api/toggle` passes it on.
+A command that throws comes back `ok: false` with the error's message; the stack stays in the game's console.
+A request may carry `on: true|false` to set a toggle cheat instead of flipping it, and a cheat that arrives before
+setup has the game's data waits for setup.
+
+Why: callers told failures from successes by parsing `"Error: …"` strings, so most showed a thrown cheat as a success,
+and a flip-only API let a double click or a second tab turn a cheat back off.
+
+Alternative: classify each command's own messages, which waits for the command model.
+
+Trade-off: a command that returns a failure as plain text (for example "No item found") still answers `ok: true`.
+Commands with their own function ignore `on`.
+
+Source: [command registration](../src/cheats/core/registration.js), [cheat routes](../src/modules/server/routes/cheats.js).
