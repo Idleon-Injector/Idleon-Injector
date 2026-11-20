@@ -17,6 +17,7 @@ import { RefreshButton, WarningBanner } from "../../../components/views/account/
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
@@ -212,7 +213,7 @@ const StatuesTab = () => {
             return statues.map((statue) =>
                 StatueRow({
                     index: statue.index,
-                    nameState: getOrCreateState(nameStates, statue.index, statue.name),
+                    nameState: getOrCreateState(nameStates, statue.index, cleanName(statue.name)),
                     levelState: getOrCreateState(levelStates, statue.index),
                     depositedState: getOrCreateState(depositedStates, statue.index),
                     tierState: getOrCreateState(tierStates, statue.index),
@@ -241,7 +242,7 @@ const StatuesTab = () => {
                 if (!entry?.[0] || !entry[0].trim()) return;
 
                 const values = statueValues(levels?.[i], tiers?.[i], flair[i]);
-                getOrCreateState(nameStates, i, entry[0]).val = entry[0];
+                getOrCreateState(nameStates, i).val = cleanName(entry[0]);
                 getOrCreateState(levelStates, i).val = values.level;
                 getOrCreateState(depositedStates, i).val = values.deposited;
                 getOrCreateState(tierStates, i).val = values.tier;

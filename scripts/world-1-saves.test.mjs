@@ -156,3 +156,8 @@ test("statues: a refused save says why and shows what the game holds", async () 
     assert.equal(tierOf(row), "Zenith");
     [g.StatueG[1], g.RoyalG[22][1]] = saved;
 });
+
+test("statues: names show the game's underscores as spaces", async () => {
+    const root = await openPage(STATUES, (root) => statueRow(root, 7));
+    assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "THICC SKIN");
+});
