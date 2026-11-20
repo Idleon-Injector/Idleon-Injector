@@ -696,3 +696,19 @@ test("a save made while who is in play can't be read is logged without Undo", as
     assert.equal(saved.hasBefore, true, "a saved copy names its character");
     await assert.rejects(undoAction((await newest()).id), { message: "old value unknown" });
 });
+
+// Re-read 3 of #110: a load that failed in a way the load policy didn't catch doesn't stop the page's later loads.
+test("a page's loads go on after one failed in a way the policy didn't catch", async () => {
+    const { useAccountLoad } = await importRepo("src/ui/components/views/account/accountLoadPolicy.js");
+    const { run } = useAccountLoad({ label: "Test" });
+    // An error whose message can't even be read: reading it throws inside the policy's own catch.
+    const unreadable = {
+        get message() {
+            throw new Error("unreadable");
+        },
+    };
+    await run(async () => {
+        throw unreadable;
+    }).catch(() => {});
+    assert.equal(await run(async () => "read"), "read");
+});

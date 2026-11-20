@@ -68,8 +68,12 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage, busy =
         lastTask = task;
         queued++;
         loading.val = true;
+        // After a load that failed in a way `load` didn't catch too, so one such failure can't stop every later load.
         queue = queue
-            .then(() => load(task))
+            .then(
+                () => load(task),
+                () => load(task)
+            )
             .finally(() => {
                 if (--queued === 0) loading.val = false;
             });
