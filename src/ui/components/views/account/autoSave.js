@@ -5,6 +5,8 @@ import { undoAction } from "./undo.js";
 
 const { span, button } = van.tags;
 
+/** How long a ✓ stays once nothing (Undo) keeps it. */
+export const SUCCESS_MS = 2400;
 /** How long Undo stays beside a saved field (longer while the pointer or focus is on it). */
 export const UNDO_MS = 10000;
 /** The row's confirm-in-place wash after an undo (Luminate's menu spec: 800 ms). */
@@ -43,7 +45,7 @@ const isRowField = (node) =>
  * the game again, so the row shows what the game now holds. When the fields edit one of several things (the selected
  * tile, say), `subject()` names it: Undo stays with the thing it saved, so it goes when the fields move on.
  */
-export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject = null }) => {
+export const useAutoSave = ({ prepare, revert = null, successMs = SUCCESS_MS, subject = null }) => {
     const status = van.state(null);
     const reason = van.state("");
     const offer = van.state(null);
@@ -77,16 +79,17 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
 
     /**
      * `by`: "save" (the field's save), "button" (run(): a button writing the field's own value, like Reset), "switch"
-     * (run(): a StateSwitch, which says its own failure) or "undo" (whose refusal is said here once, not held).
+     * (run(): a StateSwitch with `ownStatus`, which says saving…, saved and its failure itself, so the row says none of
+     * them) or "undo" (whose refusal is said here once, not held).
      * A cancelled write leaves a failure alone, except the field's save: its drafts were reset.
      */
     const settle = (next, why = "", by = "save", kind = null) => {
+        if (by === "switch") return;
         const fieldWrite = by === "save" || by === "button";
         if (next === "error" && fieldWrite) held = { why, kind };
         else if ((next === "success" && fieldWrite) || (next === null && by === "save")) held = null;
         let shown = { next, why, kind };
         if (next !== "loading" && held) shown = { ...held, next: "error" };
-        else if (next === "error" && by === "switch") shown = { next: null, why: "", kind: null };
         clearTimeout(clearTimer);
         status.val = shown.next;
         reason.val = shown.why;
@@ -118,8 +121,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         withAction({ label: named, kind: "row" }, async (action) => {
             const outcome = await track(task, by);
             // No Undo beside the field's failure: it would offer to put back another write.
-            if (outcome.ok && status.rawVal === "success" && action.entries > 0 && subject?.() === savedFor)
-                startOffer(action);
+            if (outcome.ok && !held && action.entries > 0 && subject?.() === savedFor) startOffer(action);
             return outcome;
         });
 

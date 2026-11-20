@@ -1,6 +1,6 @@
 import van from "../../../../vendor/van-1.6.0.js";
 import { captureGesture } from "../../../../services/changeLog.js";
-import { saveFailureReason } from "../autoSave.js";
+import { SUCCESS_MS, saveFailureReason } from "../autoSave.js";
 import { joinClasses, resolveValue } from "../accountShared.js";
 
 const { input, label, span } = van.tags;
@@ -27,8 +27,8 @@ const { input, label, span } = van.tags;
  * @param {(next: boolean) => *} opts.onFlip saves the new state
  * @param {*} [opts.disabled] when the game can't be written at all (still loading, failed to read); not while saving
  * @param {*} [opts.status] the row's save status ("loading", "success", "error"), to read out saving and saved
- * @param {boolean} [opts.ownStatus] read out saving and saved from its own saves instead (the row's save state may be
- *   saying another control's failure meanwhile); `onFlip` then returns `{ ok }`, as useAutoSave's run() does
+ * @param {boolean} [opts.ownStatus] read out saving and saved from its own saves instead, the saved for as long as the
+ *   row's ✓ (with useAutoSave's run(task, "switch"), the row then says none of it); `onFlip` returns `{ ok }`
  * @param {boolean} [opts.rowField] the switch edits the row's draft (saved with the row's other fields), not by itself
  * @param {*} [opts.title] tooltip
  * @param {string} [opts.className]
@@ -59,6 +59,7 @@ export const StateSwitch = ({
     // The newest flip asked for while saves run (null once they settle): the box shows it, not the state in between.
     const pending = van.state(null);
     const own = van.state(null);
+    let ownTimer = null;
     let saving = false;
     let wanted = null;
     const box = input({
@@ -79,6 +80,7 @@ export const StateSwitch = ({
                     const { on, inGesture } = wanted;
                     wanted = null;
                     failed.val = null;
+                    clearTimeout(ownTimer);
                     own.val = "loading";
                     let outcome;
                     try {
@@ -89,6 +91,7 @@ export const StateSwitch = ({
                     if (outcome?.ok === false && outcome.error)
                         failed.val = { reason: saveFailureReason(outcome.error), on: isOn() };
                     own.val = outcome?.ok ? "success" : null;
+                    if (own.val === "success") ownTimer = setTimeout(() => (own.val = null), SUCCESS_MS);
                 }
             } finally {
                 saving = false;

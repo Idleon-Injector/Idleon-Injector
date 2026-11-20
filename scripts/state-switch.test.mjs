@@ -22,8 +22,8 @@ const elements = (node, out = []) => {
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
 
-async function until(check, what) {
-    for (let i = 0; i < 300; i++) {
+async function until(check, what, tries = 300) {
+    for (let i = 0; i < tries; i++) {
         if (check()) return;
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
@@ -615,7 +615,7 @@ test("stamps: a switch flipped while the level saves waits for it, and says its 
         );
         switchStartedAfterHeld(requests.log);
         assert.equal(wordsOf(row), "game kept old value", "the switch says why it wasn't saved");
-        assert.equal(saveWordsOf(row), "", "once: the row doesn't say it too");
+        assert.equal(saveWordsOf(row), "saved", "once: the row keeps the level's ✓");
     } finally {
         runCleanups();
     }
@@ -637,23 +637,29 @@ test("stamps: a refused level stays said when the switch flipped behind it saves
     }
 });
 
-test("stamps: Escape while the switch saves takes back the level's failure for good", async () => {
+test("stamps: a switch's save is read out once, by the switch", async () => {
     try {
-        const { row, levels, before } = await openStampA1();
-        cleanups.push(refuseWrites(levels, 0));
-        const field = typeLevel(row, before + 1);
-        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
-        await until(() => saveWordsOf(row) === "game kept old value", "the level's failure");
-
+        const { row } = await openStampA1();
         const requests = watchRequests((url, body) => url.includes("/write") && body.includes("Compass[4]"));
         const flipped = flip(row, true);
-        await until(requests.held, "the switch's write to reach the game");
-        row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        await until(() => requests.held() && switchStatusOf(row) === "Saving…", "the switch to say it's saving");
+        assert.equal(saveWordsOf(row), "", "the row doesn't say saving… too");
         requests.release();
         await flipped;
-        await until(() => saveWordsOf(row) !== "saving…", "the switch's save to end");
-        assert.equal(String(field.attributes.value), String(before), "Escape put the level back");
-        assert.equal(saveWordsOf(row), "saved", "no failure for a draft that's gone");
+        await until(() => switchStatusOf(row) === "Saved", "the switch to say it saved");
+        assert.equal(saveWordsOf(row), "", "the row doesn't say saved too");
+    } finally {
+        runCleanups();
+    }
+});
+
+test("stamps: the switch's Saved goes after as long as the row's ✓ stays", async () => {
+    const { SUCCESS_MS } = await importRepo("src/ui/components/views/account/autoSave.js");
+    try {
+        const { row } = await openStampA1();
+        await flip(row, true);
+        await until(() => switchStatusOf(row) === "Saved", "the switch to say it saved");
+        await until(() => switchStatusOf(row) === "", "Saved to go", SUCCESS_MS / 10 + 300);
     } finally {
         runCleanups();
     }
@@ -812,6 +818,53 @@ test("emperor: Reset asking first leaves the field's failure; Reset saving takes
         assert.equal(ola[369], 0);
         await until(() => saveWordsOf(row) === "saved", "Reset's ✓");
     } finally {
+        restore();
+        ola[369] = before.progress;
+        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+    }
+});
+
+test("emperor: Escape while Reset runs takes back the field's failure for good", async () => {
+    const ola = game.gga.OptionsListAccount;
+    const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
+    if (!(Number(ola[369]) > 0)) ola[369] = 5;
+    const progress = ola[369];
+    const restore = refuseWrites(ola, 369);
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let holding = false;
+    let held = false;
+    globalThis.fetch = async (url, options) => {
+        if (holding && !held) {
+            held = true;
+            await gate;
+        }
+        return realFetch(url, options);
+    };
+    try {
+        const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
+            text(root).includes("Natural capacity")
+        );
+        const row = rowNamed(root, "Completed showdowns");
+        const field = elements(row).find((node) => node.nodeName === "input");
+        field.value = String(progress + 1);
+        field.listeners.input({ target: field });
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => saveWordsOf(row) === "game kept old value", "the field's failure");
+
+        holding = true; // Reset's first read waits, so Escape comes while Reset runs
+        const reset = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
+        const clicked = click(reset);
+        await until(() => held, "Reset to reach the game");
+        row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        release();
+        await clicked; // only asks
+        await until(() => saveWordsOf(row) !== "saving…", "Reset to end");
+        assert.equal(saveWordsOf(row), "", "no failure for a draft that's gone");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
         restore();
         ola[369] = before.progress;
         game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
