@@ -194,19 +194,19 @@ const MenagerieTab = () => {
             ]);
         });
 
-    // Saves take turns, each then reading the game again. With none running, one writes at once, so it joins the
-    // click or key that made it (its Undo shows beside its row).
+    // A save writes at once, so it joins the click or key that made it (its Undo shows beside its row); each row
+    // already saves one value at a time. The game is then read again, one read after another, so the last is newest.
+    // ponytail: a switch flipped while Unlock all writes races it; the game keeps whichever lands last, and the page
+    // then shows that.
     let pendingSaves = 0;
-    let saveQueue = Promise.resolve();
+    let reads = Promise.resolve();
     const save = (task) => {
-        const work = pendingSaves++ === 0 ? new Promise((resolve) => resolve(task())) : saveQueue.then(task);
+        pendingSaves++;
         saving.val = true;
-        const turn = work.finally(async () => {
-            await load();
+        return new Promise((resolve) => resolve(task())).finally(async () => {
+            await (reads = reads.then(load));
             if (--pendingSaves === 0) saving.val = false;
         });
-        saveQueue = turn.catch(() => {});
-        return turn;
     };
 
     const numberRow = (name, path, integer = true, note = null, formatted = false) =>
@@ -289,6 +289,7 @@ const MenagerieTab = () => {
 
     const bulk = useWriteStatus();
     const bulkMessage = van.state("");
+    const ALL_SAVED = "All 25 unlocks saved.";
     const unlockAll = ActionButton({
         label: () => (bulk.status.val === "loading" ? "Unlocking…" : "Unlock all"),
         status: bulk.status,
@@ -307,7 +308,7 @@ const MenagerieTab = () => {
                     ),
                 {
                     onSuccess: () => {
-                        bulkMessage.val = "All 25 unlocks saved.";
+                        bulkMessage.val = ALL_SAVED;
                     },
                     onError: (error) => {
                         bulkMessage.val = error.message;
@@ -335,7 +336,16 @@ const MenagerieTab = () => {
                         id === "unlocks"
                             ? [
                                   unlockAll,
-                                  span({ class: "account-write-feedback", role: "status" }, () => bulkMessage.val),
+                                  // Said only while it holds: a flip or an undo since takes it back.
+                                  span({ class: "account-write-feedback", role: "status" }, () =>
+                                      bulkMessage.val === ALL_SAVED &&
+                                      Array.from(
+                                          { length: unlockCount },
+                                          (_, i) => state(`Menagerie[2][${i}]`).val
+                                      ).some((value) => !(value >= 1))
+                                          ? ""
+                                          : bulkMessage.val
+                                  ),
                               ]
                             : null,
                     body: lists[id],

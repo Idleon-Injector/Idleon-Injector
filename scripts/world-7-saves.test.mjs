@@ -301,6 +301,29 @@ test("Menagerie: fields stay usable while a save runs, and a second Enter saves 
     assert.equal(Menagerie[0][1], 1234);
 });
 
+test("Menagerie: a save made while another runs offers its Undo beside its row too", async () => {
+    const root = await openPage(MENAGERIE, menagerieRead);
+    const rank = findRow(root, "Shell rank");
+    const exp = findRow(root, "Unspent Shell EXP");
+    const [rankField] = inputs(rank);
+    const [expField] = inputs(exp);
+    const undoShown = (row) => byClass(row, "save-state__undo")[0]?.attributes.hidden === false;
+    focus(rankField);
+    type(rankField, Menagerie[0][2] === 55 ? 56 : 55);
+    const release = hold("/write");
+    try {
+        press(rank, rankField, "Enter");
+        await tick();
+        focus(expField);
+        type(expField, Menagerie[0][1] === 4321 ? 4322 : 4321);
+        press(exp, expField, "Enter");
+    } finally {
+        release();
+    }
+    await until(() => undoShown(rank), "the first save's Undo");
+    await until(() => undoShown(exp), "the second save's Undo");
+});
+
 test("Menagerie: switching an unlock off takes back the line saying all were saved", async () => {
     const root = await openPage(MENAGERIE, menagerieRead);
     const line = () => byClass(root, "account-write-feedback").find((node) => text(node).includes("All 25"));
@@ -311,4 +334,42 @@ test("Menagerie: switching an unlock off takes back the line saying all were sav
     inputs(row)[0].listeners.change({ target: { checked: false } });
     await until(() => Menagerie[2][3] === 0, "the unlock to switch off");
     assert.equal(line(), undefined);
+});
+
+const unlockLine = (root) => byClass(root, "account-write-feedback").map(text).join("");
+const unlockRow = (root, n) => byClass(root, "account-row").find((node) => text(node).includes(`Unlock #${n}`));
+
+test("Menagerie: an unlock switched off while Unlock all saves doesn't leave 'All 25 unlocks saved.'", async () => {
+    const root = await openPage(MENAGERIE, menagerieRead);
+    for (let i = 0; i < 25; i++) Menagerie[2][i] = i === 3 ? 1 : 0;
+    await buttonNamed(root, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => inputs(unlockRow(root, 3))[0].attributes.checked === true, "unlock #3 to show On");
+    const release = hold("/write");
+    try {
+        buttonNamed(root, "Unlock all").listeners.click({ preventDefault() {} });
+        await until(() => unlockLine(root) === "Saving…", "Unlock all to start");
+        inputs(unlockRow(root, 3))[0].listeners.change({ target: { checked: false } });
+    } finally {
+        release();
+    }
+    await until(
+        () => unlockLine(root) !== "Saving…" && buttonNamed(root, "Unlock all").attributes.disabled === false,
+        "both saves to finish"
+    );
+    assert.equal(Menagerie[2][3], 0);
+    assert.equal(unlockLine(root), "");
+});
+
+test("Menagerie: Undo all after Unlock all takes back 'All 25 unlocks saved.'", async () => {
+    const root = await openPage(MENAGERIE, menagerieRead);
+    for (let i = 0; i < 25; i++) Menagerie[2][i] = 0;
+    const { lastBulkAction } = await importRepo("src/ui/services/changeLog.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    lastBulkAction.val = null;
+    buttonNamed(root, "Unlock all").listeners.click({ preventDefault() {} });
+    await until(() => unlockLine(root) === "All 25 unlocks saved." && lastBulkAction.val, "Unlock all to save");
+    await undoAction(lastBulkAction.val.action.id);
+    await until(() => inputs(unlockRow(root, 3))[0].attributes.checked === false, "the page to read the undo");
+    assert.equal(Menagerie[2][3], 0);
+    assert.equal(unlockLine(root), "");
 });
