@@ -65,13 +65,21 @@ const CACHES = [
     [/^Research\[16\](\[|$)/, "DNSM.h.CellLV_tot"],
     [/^Research\[17\](\[[89]\])?$/, "DNSM.h.JellySlotz"],
 ];
+// Resolves to false when the game didn't clear one: the values are back by then, so that is a warning, not a failure.
 const clearCaches = (paths) =>
     Promise.all(
         CACHES.filter(([pattern]) => paths.some((path) => pattern.test(path))).map(([, cache]) => deleteGga(cache))
+    ).then(
+        () => true,
+        () => false
     );
 
+/** What a row says when its undo landed but the game's cached totals weren't cleared. */
+export const TOTALS_NOT_CLEARED = "Undone. Refresh to update totals.";
+
 /**
- * Undo every entry of the action not undone yet. Resolves to the action; rejects with an Error whose message
+ * Undo every entry of the action not undone yet. Resolves to the action (with `warning` when the cached totals
+ * weren't cleared: its entries are undone, so there is nothing to try again); rejects with an Error whose message
  * is the reason, short enough to show beside a field. Nothing is written when a value changed since, so a
  * refused undo leaves the game as it was (and the entry in the log). Once any old value is back, the page it
  * was made on reads the game again, even when the rest is refused.
@@ -148,6 +156,6 @@ export const undoAction = async (id) => {
         todo.map((entry) => entry.index)
     );
     changesVersion.val++;
-    await clearCaches(writes.map((write) => write.path));
+    if (!(await clearCaches(writes.map((write) => write.path)))) return { ...action, warning: TOTALS_NOT_CLEARED };
     return action;
 };

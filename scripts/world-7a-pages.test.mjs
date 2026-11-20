@@ -252,6 +252,51 @@ test("Undo from History clears the Bubba and Jelly cached totals with neither pa
     for (const key of ["Bubba_LVzAll", "CellLV_tot", "JellySlotz"]) assert.equal(key in gga.DNSM.h, false, key);
 });
 
+// #126 (from #124): the values are back and marked undone before the cached totals are cleared, so a clean-up that
+// fails can't be tried again. It is a warning: the row shows the undo landed, says so, and saves again as usual.
+test("an Undo whose cache clean-up fails shows the values undone with a warning, and the row still saves", async (t) => {
+    const realFetch = globalThis.fetch;
+    t.after(() => (globalThis.fetch = realFetch));
+    const name = String(gga.CustomLists.h.BubbaUpg[1][0]).replace(/_/g, " ");
+    const page = await openPage("src/ui/pages/world-7/bubba/1-bubba.js", (root) => Boolean(findRow(root, name)));
+    const row = findRow(page, name);
+    const before = gga.Bubba[1][1];
+    await saveRow(row, before + 1);
+    assert.equal(stateOf(row), "success");
+    gga.DNSM.h.Bubba_LVzAll = 999; // the game's total, built from the saved level
+
+    globalThis.fetch = (url, options) =>
+        String(url).endsWith("/game/gga/delete")
+            ? Promise.resolve(new Response(JSON.stringify({ error: "game busy" }), { status: 500 }))
+            : realFetch(url, options);
+    await byClass(row, "save-state__undo")[0].listeners.click({});
+    await until(() => ["success", "error"].includes(stateOf(row)), "the undo to end");
+    assert.equal(gga.Bubba[1][1], before, "the old level is back");
+
+    assert.equal(stateOf(row), "success", "the undo landed");
+    assert.equal(text(byClass(row, "save-state__label")[0]), "Undone. Refresh to update totals.");
+    assert.match(classes(row), /is-undo-warned/, "the badge steps aside for the words");
+    await until(() => String(input(row).attributes.value) === String(before), "the row to show the old level");
+    assert.equal(gga.DNSM.h.Bubba_LVzAll, 999, "the cache stayed");
+    const { actions } = await (await importRepo("src/ui/services/api.js")).fetchChanges();
+    const undone = actions.find((action) => action.entries.some((entry) => entry.path === "Bubba[1][1]"));
+    assert.ok(
+        undone.entries.every((entry) => entry.undone),
+        "History has it undone"
+    );
+
+    globalThis.fetch = realFetch;
+    type(input(row), before + 2);
+    row.listeners.keydown({ key: "Enter", target: input(row), preventDefault() {} });
+    // The next save's ✓ takes the warning's place.
+    await until(
+        () => gga.Bubba[1][1] === before + 2 && text(byClass(row, "save-state__label")[0]) === "saved",
+        "the next save"
+    );
+    assert.equal(stateOf(row), "success");
+    assert.doesNotMatch(classes(row), /is-undo-warned/);
+});
+
 test("Clam Scurge fields stay open while another Scurge field saves, and both edits save", async (t) => {
     gga.Menagerie[5] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     const page = await openPage("src/ui/pages/world-7/clam-work/clam-work.js", (root) =>
