@@ -119,9 +119,6 @@ Rejected, so the design pass doesn't drift back:
 ## Decided after the board
 
 - **Quiet − / +:** chosen (above).
+- **Rounded value rows:** chosen after comparing the menu with and without them. Value rows have 10 px corners and their
+  fields 9 px, so the pill buttons don't sit in sharp boxes.
 - **Mint saved tick:** not taken. Colours come later, in their own pass.
-
-## Not decided yet
-
-- **Rounded value rows:** the board gave value rows 10 px corners and their fields 9 px. It is built as its own last
-  commit so the maintainer can see the menu with and without it.
