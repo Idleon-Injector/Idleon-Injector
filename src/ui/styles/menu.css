@@ -334,9 +334,7 @@
     color: var(--c-text-main);
     padding: 4px 8px;
     background: var(--c-accent-dim);
-    border-color: var(--c-accent);
-    border-width: 0 0 0 2px;
-    border-style: solid;
+    border: 0;
     border-radius: 0;
     font-family: var(--font-mono);
     font-weight: 400;
