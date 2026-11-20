@@ -24,6 +24,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import {
     cleanName,
     createIndexedStateGetter,
+    createStaticRowReconciler,
     readLevelDefinitions,
     runBulkSet,
     toNum,
@@ -32,8 +33,10 @@ import {
 
 const { div, span } = van.tags;
 
-const VaultRow = ({ index, name, baseMax, realMax, levelState }) => {
-    const maxLabel = realMax !== baseMax ? `${realMax} (base ${baseMax})` : String(realMax);
+// realMaxState follows every load; the row itself stays, so its save and undo feedback stays with it.
+const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
+    const maxLabel = () =>
+        realMaxState.val !== baseMax ? `${realMaxState.val} (base ${baseMax})` : String(realMaxState.val);
 
     return ClampedLevelRow({
         valueState: levelState,
@@ -41,10 +44,10 @@ const VaultRow = ({ index, name, baseMax, realMax, levelState }) => {
         max: Infinity,
         indexLabel: `#${index}`,
         name,
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${realMax}`,
+        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${realMaxState.val}`,
         maxAction: {
-            value: realMax,
-            tooltip: `Set to max level (${maxLabel})`,
+            value: () => realMaxState.val,
+            tooltip: () => `Set to max level (${maxLabel()})`,
         },
     });
 };
@@ -54,6 +57,9 @@ const UpgradeVaultTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Upgrade Vault" });
     const { status: maxAllStatus, run: runMaxAll } = useWriteStatus();
     const getLevelState = createIndexedStateGetter();
+    const getRealMaxState = createIndexedStateGetter();
+    const listNode = div({ class: "account-list" });
+    const reconcileRows = createStaticRowReconciler(listNode);
 
     const load = async () =>
         run(async () => {
@@ -89,9 +95,21 @@ const UpgradeVaultTab = () => {
 
             upgrades.forEach((upgrade) => {
                 getLevelState(upgrade.index).val = upgrade.level;
+                getRealMaxState(upgrade.index).val = upgrade.realMax;
             });
 
             data.val = { upgrades };
+            reconcileRows(upgrades.map(({ index, name, baseMax }) => `${index}:${name}:${baseMax}`).join("|"), () =>
+                upgrades.map(({ index, name, baseMax }) =>
+                    VaultRow({
+                        index,
+                        name,
+                        baseMax,
+                        realMaxState: getRealMaxState(index),
+                        levelState: getLevelState(index),
+                    })
+                )
+            );
         });
 
     const doMaxAll = async () => {
@@ -107,21 +125,6 @@ const UpgradeVaultTab = () => {
     };
 
     load();
-
-    const renderBody = (resolved) => {
-        return div(
-            { class: "account-list" },
-            ...resolved.upgrades.map((upgrade) =>
-                VaultRow({
-                    index: upgrade.index,
-                    name: upgrade.name,
-                    baseMax: upgrade.baseMax,
-                    realMax: upgrade.realMax,
-                    levelState: getLevelState(upgrade.index),
-                })
-            )
-        );
-    };
 
     return PersistentAccountListPage({
         title: "UPGRADE VAULT",
@@ -155,7 +158,7 @@ const UpgradeVaultTab = () => {
                 "Any level from 0 up saves; no hard upper limit is enforced."
         ),
         state: { loading, error },
-        body: () => (data.val ? renderBody(data.val) : null),
+        body: listNode,
     });
 };
 
