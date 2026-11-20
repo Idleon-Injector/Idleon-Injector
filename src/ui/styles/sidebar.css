@@ -287,13 +287,12 @@
     scrollbar-color: var(--c-border) transparent;
 }
 
+/* An active cheat is just its name in a quiet row, lined up under the heading: no bar, no box. */
 .active-cheat-item {
     font-size: 0.875rem;
     font-family: var(--font-mono);
-    color: var(--c-accent);
-    padding: 4px 8px;
-    background: var(--c-accent-dim);
-    border-left: 2px solid var(--c-accent);
+    color: var(--c-text-muted);
+    padding: 3px 0;
     min-height: 22px;
     flex-shrink: 0;
     line-height: 1.2;

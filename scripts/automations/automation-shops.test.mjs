@@ -149,7 +149,19 @@ test("automation shops buys switched-on items into the chest each second, cheape
     assert.equal(shops().on, true);
     assert.deepEqual(
         readComputed("automation", "list").value.map(({ id, label, on }) => [id, label, on]),
-        [["account.automation.shops", "Shops", true]],
+        [
+            ["w7.automation.bubba", "Bubba", false],
+            ["w2.automation.bubbles", "Bubbles", false],
+            ["w1.automation.orion", "Orion", false],
+            ["w2.automation.poppy", "Poppy", false],
+            ["w2.automation.tarpit", "Tar Pit", false],
+            ["w3.automation.construction", "Construction", false],
+            ["w4.automation.cooking", "Cooking", false],
+            ["classes.automation.grimoire", "Grimoire", false],
+            ["account.automation.shops", "Shops", true],
+            ["w6.automation.sneaking", "Sneaking", false],
+            ["w6.automation.summoning", "Summoning", false],
+        ],
         "the overview lists only the automation toggles"
     );
 

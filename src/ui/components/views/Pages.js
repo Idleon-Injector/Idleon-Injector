@@ -9,7 +9,8 @@ import { VIEWS } from "../../state/constants.js";
 import { Icons } from "../../assets/icons.js";
 import { Loader } from "../Loader.js";
 import { menuTree, menuError } from "../../menu/pageRegistry.js";
-import { pageTitle, worldClass } from "../../menu/menuModel.js";
+import { pageShown, pageTitle, worldClass } from "../../menu/menuModel.js";
+import { VIEWS } from "../../state/constants.js";
 import { renderLazyPanes } from "./account/tabShared.js";
 // Undo all, offered beside a page's bulk control after it changed values.
 import "./account/UndoAllOffer.js";
@@ -55,6 +56,10 @@ const WorldFrame = (tree) => {
     const activePage = van.derive(() => {
         const pages = pagesOf(worldNow());
         return (pages.find((page) => page.id === store.app.menuPage) || pages[0] || { id: "" }).id;
+    });
+    // Each time a page is shown (picked, or the Pages view shown again), the pages that asked are told.
+    van.derive(() => {
+        if (store.app.activeTab === VIEWS.PAGES.id) pageShown(activePage.val);
     });
 
     return div(
