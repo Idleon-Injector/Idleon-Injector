@@ -34,6 +34,10 @@ const EXAMPLES = {
     "/game/gga/delete": ["POST", { path: "gga.Number2Letter" }],
     "/game/computed/read": ["POST", { namespace: "thingies", name: "anything" }],
     "/game/computed/read-many": ["POST", { namespace: "thingies", name: "anything", argSets: [[], [1]] }],
+    // The fake game has no save copies yet.
+    "/save-copies": ["GET"],
+    "/save-copies/compare": ["POST", { id: "2026-11-20T00-00-00-000Z_Lumi_Main" }, 404],
+    "/save-copies/restore": ["POST", { id: "2026-11-20T00-00-00-000Z_Lumi_Main", select: "all" }, 404],
 };
 
 const uiRoutes = [

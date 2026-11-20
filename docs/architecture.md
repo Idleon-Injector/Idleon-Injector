@@ -17,6 +17,10 @@ Injected code runs in the game context; Node and UI code have separate environme
 The Node server, CLI, and WebSocket handlers use [GameBridge](../src/modules/game/gameBridge.js)
 for calls into the injected helpers. Attachment and injection retain their setup-specific CDP operations.
 
+Save copies cross all three: the injected code keeps the newest cloud save's copy in memory, the Node server pulls it
+over CDP and stores it in `save-copies/` next to the injector's other runtime files, and the Web UI compares and
+restores through the server.
+
 ## Find the relevant area
 
 | Task area                         | Source                                                                                               |
@@ -25,6 +29,7 @@ for calls into the injected helpers. Attachment and injection retain their setup
 | Configuration loading             | [configManager.js](../src/modules/config/configManager.js)                                           |
 | HTTP and WebSocket contracts      | [apiRoutes.js](../src/modules/server/apiRoutes.js), [wsServer.js](../src/modules/server/wsServer.js) |
 | Server Monitor lifecycle          | [monitor.js](../src/modules/server/monitor.js)                                                       |
+| Save copies                       | [saveCopies.js](../src/modules/saveCopies.js), [core/saveCopy.js](../src/cheats/core/saveCopy.js)    |
 | Console interaction               | [cliInterface.js](../src/modules/cli/cliInterface.js)                                                |
 | Command registration and state    | [cheats/core](../src/cheats/core/)                                                                   |
 | Commands and game hooks           | [cheats/cheats](../src/cheats/cheats/), [hooks](../src/cheats/hooks/)                                |

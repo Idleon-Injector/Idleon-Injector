@@ -11,6 +11,20 @@ const normalizeReadValue = (value) => {
     return value;
 };
 
+/**
+ * Write many game paths through the game's writeGamePaths helper: the write-many route, and restoring a save copy.
+ * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }> }>}
+ * @throws {Error} when the game couldn't run the writes at all
+ */
+async function writeGamePaths(gameBridge, writes) {
+    const result = await gameBridge.callHelper("writeGamePaths", [writes]);
+    if (result.error) throw new Error(`Batch write failed: ${result.error.text}`);
+    const data = result.value;
+    if (!data || typeof data !== "object") throw new Error("Batch write returned no data");
+    if (data.error) throw new Error(data.error);
+    return data;
+}
+
 function setupGameRoutes(app, gameBridge) {
     app.get("/api/game/bundles", async (req, res) => {
         try {
@@ -292,18 +306,7 @@ function setupGameRoutes(app, gameBridge) {
         }
 
         try {
-            const result = await gameBridge.callHelper("writeGamePaths", [writes]);
-
-            if (result.error) {
-                return res.status(500).json({ error: "Batch write failed", details: result.error.text });
-            }
-
-            const data = result.value;
-            if (!data || typeof data !== "object") {
-                return res.status(500).json({ error: "Batch write returned no data" });
-            }
-            if (data.error) return res.status(500).json({ error: data.error });
-
+            const data = await writeGamePaths(gameBridge, writes);
             log.debug(`Batch write: ${writes.length} paths`);
             res.json(data);
         } catch (err) {
@@ -313,4 +316,4 @@ function setupGameRoutes(app, gameBridge) {
     });
 }
 
-module.exports = { setupGameRoutes };
+module.exports = { setupGameRoutes, writeGamePaths, normalizeReadValue };

@@ -5,11 +5,13 @@
  * - Party members
  * - Unban (cleanMarkedFiles)
  * - Steam achievements (prevent duplicates)
+ * - Save copies: keep each cloud save for the injector (#32)
  */
 
 import { cheatConfig, cheatState } from "../core/state.js";
 import { cList, firebase, gga, monsterDefs } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
+import { captureSaveCopy } from "../core/saveCopy.js";
 
 let readingOwned = false;
 
@@ -129,4 +131,10 @@ defineHook({ id: "steamachieve", target: () => firebase, method: "areaCheck", ar
     if (achieveList.includes(id)) return;
     achieveList.push(id);
     return callOriginal();
+});
+
+// After the game has sent its save to the cloud, keep a copy of it for the injector's server to store.
+defineHook({ id: "saveCopies", target: () => firebase, method: "commitSave" }, (base) => {
+    captureSaveCopy();
+    return base;
 });

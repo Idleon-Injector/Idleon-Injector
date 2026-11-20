@@ -5,6 +5,7 @@ jspm_packages/
 .scratch/
 idleon-web-profile/
 logs/
+save-copies/
 
 cheats.js
 config.custom.js
