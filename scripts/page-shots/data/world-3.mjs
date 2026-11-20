@@ -28,7 +28,18 @@ const talentLevel = (id) => (id % 9 === 4 ? 0 : (id * 7) % 100);
 
 // Shared by every fakeGameData() call, so two calls compare equal.
 const computed = {
-    _customBlock_WorkbenchStuff: { maxBookLv: 150, ExtraMaxLvAtom: (baseMax, i) => (i % 4 === 0 ? 10 : 0) },
+    _customBlock_WorkbenchStuff: {
+        maxBookLv: 150,
+        ExtraMaxLvAtom: (baseMax, i) => (i % 4 === 0 ? 10 : 0),
+        // Construction › Automation: what a level needs and costs, and the build slots (the first two gilded, x3).
+        TowerBuildReq: (b) => 1000 + 250 * b,
+        TowerSaltCost: (b) => 40 * (b + 1),
+        TowerBuildSlots: 8,
+        TotalGildedSlots: 2,
+        TotalGildedBoostio: 3,
+    },
+    // The 8th build slot feeds the Menagerie jelly.
+    _customBlock_MenagerieStuff: { SideJellyUnlocked: 1 },
     _customBlock_SkillStats: { WorshipChargeMax: 520 },
     _customBlock_AtomCollider: { AtomMaxLv: (i) => 20 + (i % 3) * 10 },
     _customBlock_Dreamstuff: {
@@ -39,12 +50,22 @@ const computed = {
     },
 };
 
+// The construction menu's behavior: [3] its tab, [12][0] build rate per hour, [17] no building selected.
+const constructionMenu = () => ({ _GenINFO: { 3: 0, 12: [420], 17: -1 } });
+
 export default () => ({
     gga: {
-        // [i] building level, [i + 27] the level it builds toward.
+        // [i] building level, [i + 27] the level it builds toward (one ahead: built, waiting for salt), [54..61] the
+        // build slots, [62..65] cog crafting, [66 + i] build progress.
         TowerInfo: [
             ...list(BUILDINGS, (i) => (i === 0 ? 3 : level(i, 50))),
-            ...list(BUILDINGS, (i) => (i === 0 ? 3 : level(i, 50))),
+            ...list(BUILDINGS, (i) => (i === 0 ? 3 : level(i, 50)) + (i === 6 || i === 12 ? 1 : 0)),
+            ...[1, 8, 20, 11, 16, -1, -1, -1],
+            0,
+            0,
+            0,
+            0,
+            ...list(BUILDINGS, (i) => (i * 370) % 1600),
         ],
         // 0 locked, positive charging, -11 or lower unlocked.
         FlagUnlock: list(120, (i) => (i < 60 ? -11 : i < 70 ? 1000 * (i - 59) : 0)),
@@ -76,7 +97,9 @@ export default () => ({
         // [0] bar fill, [2..] upgrade levels (the first also sets how many clouds show).
         Dream: [4200, 0, ...upgradeLevels(DREAM_UPGRADES, 1)],
         WeeklyBoss: { h: Object.fromEntries(list(CLOUDS, (i) => [`d_${i}`, i < 6 ? i * 40 : -1])) },
-        OptionsListAccount: { 379: "0,COPPER_SET,GOLD_SET" },
+        // [34] the game's busy flag, clear.
+        OptionsListAccount: { 34: 0, 379: "0,COPPER_SET,GOLD_SET" },
+        PixelHelperActor: { 8: { behaviors: { getBehavior: constructionMenu } } },
         CustomMaps: {
             h: {
                 FishPools: h({}),
@@ -105,14 +128,14 @@ export default () => ({
         DNSM: { h: { TalentDL2: [12, 40, 7, 0], PrayNonEq: 0 } },
         CustomLists: {
             h: {
-                // [0] name, ..., [8] base max level.
+                // [0] name, [1] description, [2] bonus per level, [4] salt, [5] second material, ..., [8] base max level.
                 TowerInfo: list(BUILDINGS, (i) => [
                     `${fakeName(i)}_Tower`,
+                    `+{%_${fakeName(i + 3)}_gain@Current_Bonuses:_+{%_${fakeName(i + 3)}_gain`,
+                    String(1 + (i % 4)),
                     "0",
-                    "0",
-                    "0",
-                    "0",
-                    "0",
+                    `Refinery${1 + (i % 6)}`,
+                    "Blank",
                     "0",
                     "0",
                     String(50),
