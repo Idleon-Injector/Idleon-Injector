@@ -228,8 +228,8 @@ const WeeklyBossTab = () => {
                 state.unlocked.val = write.value === 1;
             } else if (write.player) {
                 const state = playerStates.get(playerKey(write.player));
+                // The draft is the player's newest pick, which may have changed while this saved: it saves next.
                 state.value.val = String(write.value);
-                state.draft.val = String(write.value);
             } else if (write.path === "OptionsListAccount[188]") {
                 trophies.val = write.value;
             }
@@ -547,7 +547,7 @@ const WeeklyBossTab = () => {
             }),
             AccountSection({
                 title: "Character skins",
-                note: "Choose Default or an unlocked skin, then Save. Change maps in game to apply the main-bar skin.",
+                note: "Choose Default or an unlocked skin; it saves when you pick it. Change maps in game to apply the main-bar skin.",
                 body: playerList,
             })
         ),

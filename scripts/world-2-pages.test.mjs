@@ -130,6 +130,38 @@ test("sigils: Set all asks before it lowers any sigil, and raising runs on one p
     await until(() => all(4), "the raise to land");
 });
 
+test("weekly bosses: a skin picked while the last pick saves is the one saved", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const isPicker = (node) => node.nodeName === "select" && String(node.attributes["aria-label"]).includes("main-bar");
+    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
+        elements(root).some(isPicker)
+    );
+    const picker = elements(root).find(isPicker);
+    const value = (option) => String(resolve(option.attributes.value));
+    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
+    const [first, second] = elements(picker)
+        .filter((node) => node.nodeName === "option" && !resolve(node.attributes.disabled))
+        .map(value)
+        .filter((pick) => pick !== "2" && pick !== "__unknown__");
+
+    const hold = holdWrites();
+    picker.listeners.change({ target: { value: first } });
+    await until(() => hold.held() > 0, "the first pick's save to reach the game");
+    picker.listeners.change({ target: { value: second } });
+    hold.release();
+    await until(() => String(weekly.set0) === second, "the newer pick to save");
+    weekly.set0 = 2;
+});
+
+test("weekly bosses: the character skins note doesn't send the player to a Save button", async () => {
+    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
+        text(root).includes("Character skins")
+    );
+    assert.ok(text(root).includes("it saves when you pick it"));
+    assert.ok(!/then Save/.test(text(root)));
+});
+
 test("islands: two islands unlocked close together both stay unlocked (they share one string)", async () => {
     ola[169] = "";
     const root = await openPage("src/ui/pages/world-2/islands/islands.js", (root) => rowNamed(root, "Rando Island"));
