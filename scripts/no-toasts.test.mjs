@@ -117,6 +117,27 @@ test("a risky button asks in place: CLICK AGAIN, then the second click runs it, 
     assert.equal(clickAgain(button, "disable 13 bribes."), false, "a click after that asks again");
 });
 
+test("one button's question running out doesn't hide another button's question", async (t) => {
+    const { clickAgain } = await importRepo("src/ui/components/inPlace.js");
+    const { TooltipContainer } = await importRepo("src/ui/components/Tooltip.js");
+    const tooltip = TooltipContainer();
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const first = globalThis.document.createElement("button");
+    const second = globalThis.document.createElement("button");
+
+    clickAgain(first, "reset the first.");
+    t.mock.timers.tick(3000);
+    clickAgain(second, "reset the second.");
+    t.mock.timers.tick(1000); // the first runs out
+    await Promise.resolve(); // the tooltip redraws
+    assert.equal(first.attributes["data-again"], undefined);
+    assert.match(classOf(tooltip), /\bvisible\b/, "the second question still shows");
+    assert.equal(text(tooltip), "Click again to reset the second.");
+    t.mock.timers.tick(3000);
+    await Promise.resolve();
+    assert.doesNotMatch(classOf(tooltip), /\bvisible\b/, "and goes when it runs out itself");
+});
+
 test("a typed value that needs confirming asks beside its field; only Enter again in the field answers", async () => {
     const { askAtField } = await importRepo("src/ui/components/inPlace.js");
     const field = globalThis.document.createElement("input");

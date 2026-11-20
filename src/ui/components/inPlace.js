@@ -107,7 +107,7 @@ const disarm = (button) => {
     button.removeAttribute("data-again");
     if (state.label === null) button.removeAttribute("aria-label");
     else button.setAttribute("aria-label", state.label);
-    hideTooltip();
+    hideTooltip(button);
 };
 
 /**
@@ -155,7 +155,7 @@ export const askAtField = (field, ms = 10000) => {
         if (asked === question && inField) {
             asked = "";
             clearTimeout(timer);
-            hideTooltip();
+            hideTooltip(el);
             return true;
         }
         // The question is asked where the player is. Leaving the field only leaves "Enter again" beside it, so
@@ -166,7 +166,7 @@ export const askAtField = (field, ms = 10000) => {
             asked = question;
             timer = setTimeout(() => {
                 asked = "";
-                hideTooltip();
+                hideTooltip(el);
             }, ms);
             showTooltip(el, `Enter again to ${question}`);
             announce(`Enter again to ${question}`);

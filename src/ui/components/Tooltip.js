@@ -81,8 +81,11 @@ const calculatePosition = (targetEl, preferredPosition, tooltipEl) => {
 };
 
 let tooltipElement = null;
+// The element the tooltip is showing for, so one control's timer can't hide another's tooltip.
+let shownFor = null;
 
 export const showTooltip = (targetEl, text, position = "top") => {
+    shownFor = targetEl;
     // First render off-screen to measure size, then position correctly
     tooltipState.val = {
         visible: true,
@@ -100,7 +103,9 @@ export const showTooltip = (targetEl, text, position = "top") => {
     });
 };
 
-export const hideTooltip = () => {
+/** Hide the tooltip; given `targetEl`, only while it's still that element's. */
+export const hideTooltip = (targetEl = null) => {
+    if (targetEl && targetEl !== shownFor) return;
     tooltipState.val = { ...tooltipState.val, visible: false };
 };
 
@@ -138,8 +143,8 @@ export const withTooltip = (element, text, position = "top", enabled = true) => 
         showTooltip(element, tooltipText, position);
     });
 
-    element.addEventListener("mouseleave", hideTooltip);
-    element.addEventListener("click", hideTooltip);
+    element.addEventListener("mouseleave", () => hideTooltip());
+    element.addEventListener("click", () => hideTooltip());
 
     return element;
 };
