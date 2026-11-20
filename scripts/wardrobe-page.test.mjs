@@ -20,6 +20,8 @@ const commands = [];
 const saves = [];
 // Run once at the next wide wardrobestats (a player switching characters) and at the next config file save.
 let onStats = null;
+// While set, every wide wardrobestats waits until the release it is handed to `holdStats(release)` is called.
+let holdStats = null;
 let onSave = null;
 const toggle = router.routes.POST.get("/api/toggle");
 router.routes.POST.set("/api/toggle", async (req, res) => {
@@ -31,6 +33,7 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
         onStats = null;
         run();
     }
+    if (action === "wide wardrobestats" && holdStats) await new Promise((release) => holdStats(release));
     return toggle(req, res);
 });
 // How many of the next config file saves fail, and what runs before the next one fails (another tab saving).
@@ -132,9 +135,12 @@ const settle = async () => {
 };
 const wardrobeConfig = async () => (await fetchConfig()).cheatConfig.wide.wardrobe;
 
+// Every page a test opened; each one reloads after an undo.
+const pages = [];
 const open = async () => {
     const root = (await importRepo(PAGE)).default.component();
     await until(() => titles(root).includes("Equipment & specials"), "the page to load its preview");
+    pages.push(root);
     return root;
 };
 const page = await open();
@@ -530,8 +536,11 @@ test("a loadout whose file save failed is taken back when the session can't be r
     }
 });
 
-// CodeRabbit on #103: after an undo, one load reads the page, after the game worked the stats out again.
-test("after an undo the page reads its status once, after the stats are worked out", async () => {
+// CodeRabbit on #103 and #110: after an undo, each open page reads its status once, after its own stat update has
+// answered. Every stat update is held and they answer one at a time, so a page that read its status first, or
+// without waiting for its own update, reads while its update is still held. A page that doesn't wait reads within
+// one config read of sending its update; `twoReads()` lets two pass before counting.
+test("after an undo each page reads its status once, after its own stat update", async () => {
     await settle();
     const apply = button(page, "Apply");
     await click(apply);
@@ -539,24 +548,33 @@ test("after an undo the page reads its status once, after the stats are worked o
     await until(() => /is on Lumi_Main/.test(text(page)), "the loadout to land");
     const [action] = (await fetchChanges()).actions;
     const since = log.length;
-    await undoAction(action.id);
     const count = (entry) => log.slice(since).filter((logged) => logged === entry).length;
-    // The reloads have ended once every stat update has a preview read after it and nothing more is asked for a while.
-    let seen = -1;
-    let quietSince = 0;
-    await until(() => {
-        if (!count("wide wardrobestats") || count("wardrobe.preview") < count("wide wardrobestats")) return false;
-        if (log.length !== seen) {
-            seen = log.length;
-            quietSince = Date.now();
-            return false;
+    const twoReads = async () => {
+        await fetchConfig();
+        await fetchConfig();
+    };
+    const held = [];
+    holdStats = (release) => held.push(release);
+    try {
+        await undoAction(action.id);
+        await until(() => held.length === pages.length, "every page's stat update");
+        await twoReads();
+        assert.equal(count("wardrobe.status"), 0, "no page read its status before its stat update answered");
+        // One update answers at a time: only the page that sent it reads its status.
+        for (const [index, release] of held.entries()) {
+            release();
+            await until(() => count("wardrobe.status") === index + 1, `the status read after update ${index + 1}`);
+            await twoReads();
+            assert.equal(count("wardrobe.status"), index + 1, "only the page whose update answered read its status");
         }
-        return Date.now() - quietSince > 150;
-    }, "the reloads after the undo to end");
-    const tail = log.slice(since);
-    // Every page open on the fake game (an earlier test opened a second one) reloads once, after its stat update.
-    const reads = count("wardrobe.status");
-    const stats = count("wide wardrobestats");
-    assert.equal(reads, stats, `one status read per page: ${tail.join(", ")}`);
-    assert.ok(tail.indexOf("wardrobe.status") > tail.indexOf("wide wardrobestats"), "read after the stats");
+        await until(
+            () => pages.every((root) => !button(root, "Refresh").attributes.disabled),
+            "every page's reload to end"
+        );
+        assert.equal(count("wardrobe.status"), pages.length, "one status read per page");
+        assert.equal(count("wide wardrobestats"), pages.length, "one stat update per page");
+    } finally {
+        holdStats = null;
+        for (const release of held) release();
+    }
 });
