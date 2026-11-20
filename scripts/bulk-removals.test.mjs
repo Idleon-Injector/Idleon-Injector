@@ -613,3 +613,81 @@ test("islands: a reload after an undo waits for a Set all still running", async 
         options[167] = 0;
     }
 });
+
+// CodeRabbit on #110: an undo of this page that waits for a Set all stays queued when another page's undo comes in
+// meanwhile, so the bulk actions come back once its read ran.
+test("islands: a reload waiting for a Set all still runs after another page's undo", async () => {
+    const options = game.gga.OptionsListAccount;
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+    const named = (label) => buttonsNamed(root, label);
+    const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
+    await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
+    const unlocks = options[169];
+    try {
+        await click(named("Unlock all")[0]);
+        await until(() => options[169] === "abcde_", "the unlocks to land");
+        const [action] = (await fetchChanges()).actions;
+        const slow = holdNext(
+            (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
+        );
+        const rando = click(named("Set all")[1]);
+        await until(() => slow.reached, "Rando's Set all to be sent");
+        await undoAction(action.id);
+        reloadPlace.val = { view: "elsewhere", page: "another page" };
+        slow.release();
+        await rando;
+        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions once the reload ran");
+        assert.equal(options[169], unlocks, "the undo landed");
+    } finally {
+        held = null;
+        options[169] = unlocks;
+        options[166] = 0;
+        options[167] = 0;
+    }
+});
+
+// CodeRabbit on #110: an undo waiting for a Max all the game then refused in part, and the read after that refusal, run
+// one after the other, so the newer read answers last.
+test("salt-lick.js: the reload after an undo and the read after a refused Max all run one after the other", async () => {
+    const levels = game.gga.SaltLick;
+    const caps = [0, 1].map((index) => Number(game.gga.CustomLists.h.SaltLicks[index][4]));
+    levels[0] = caps[0] + 5;
+    const kept = caps[1] + 5;
+    Object.defineProperty(levels, 1, { get: () => kept, set() {}, configurable: true });
+    const { fetchChanges, fetchConfig } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const options = game.gga.OptionsListAccount;
+    try {
+        const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
+        const max = () => buttonsNamed(root, "Max all").find((node) => !node.attributes.disabled);
+        await until(() => max() && text(root).includes(`LV ${caps[0] + 5}`), "Salt Lick");
+        // A change to undo, made on this page.
+        await withAction({ label: "level" }, () => writeManyVerified([{ path: "OptionsListAccount[399]", value: 1 }]));
+        const [action] = (await fetchChanges()).actions;
+        const write = holdNext((url) => url.endsWith("/game/gga/write-many"));
+        const pressed = click(max());
+        await until(() => write.reached, "the Max all write to be sent");
+        await undoAction(action.id);
+        const reads = holdAnswers((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        write.release();
+        await until(() => reads.count() > 0, "a read after the refused Max all");
+        // A read that didn't wait for the first would be sent within a config read or two.
+        await fetchConfig();
+        await fetchConfig();
+        assert.equal(reads.count(), 1, "the second read waits for the first");
+        reads.release();
+        await pressed;
+        await until(() => max(), "the reads to end");
+    } finally {
+        held = null;
+        answersHeld = null;
+        Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
+        levels[0] = 0;
+        options[399] = 0;
+    }
+});
