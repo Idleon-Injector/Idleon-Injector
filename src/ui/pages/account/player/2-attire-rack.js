@@ -60,8 +60,13 @@ const statLine = (outfit) =>
         .join(" · ");
 
 /** The writes that put `item` in a character's attire slot: its live copy while in play, and its saved copy. */
+// Only the copies that don't hold `item` yet: after a write that landed in part, the copy that has it keeps its upgrades
+// (an undo may have put them back) and the other one is written.
 const slotWrites = (character, item) =>
-    [character.active ? "" : null, character.saved ? `PlayerDATABASE.h[${character.name}].h.` : null]
+    [
+        character.active && character.item !== item ? "" : null,
+        character.saved && character.savedItem !== item ? `PlayerDATABASE.h[${character.name}].h.` : null,
+    ]
         .filter((root) => root !== null)
         .flatMap((root) => [
             { path: `${root}${ORDER_PATH}`, value: item },
@@ -307,13 +312,14 @@ const AttireRackPage = () => {
         const status = await readStatus();
         const character = status.characters.find((entry) => entry.name === name);
         if (!character || !changeable(character)) throw new Error("can't change this character here");
-        if (character.item === item) {
+        const writes = slotWrites(character, item);
+        if (!writes.length) {
             if (!statsOwed) return { cancelled: true };
             return updateStats();
         }
         // A write that lands only in part still changed the character in play: its stat update is owed.
         if (character.active) statsOwed = true;
-        await writeManyVerified(slotWrites(character, item)).catch(async (caught) => {
+        await writeManyVerified(writes).catch(async (caught) => {
             await readStatus().catch(() => {});
             throw caught;
         });

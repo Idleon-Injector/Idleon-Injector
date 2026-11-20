@@ -568,9 +568,14 @@ test("a change of the character in play that partly landed owes its stat update,
     } finally {
         Object.defineProperty(slot, 15, { value: kept, writable: true, configurable: true });
     }
+    // Upgrades the live copy got meanwhile (an undo can put some back) stay: only the saved copy is written.
+    gga.EquipmentMap[0][15].h = { STR: 5 };
     node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
     await until(() => commands.slice(ran).includes("wide attirestats"), "the owed stat update");
     await until(() => /save-state--success/.test(saveState(node)), "the row to say it saved");
+    assert.equal(slot[15], next, "the saved copy gets the pick too");
+    assert.equal(JSON.stringify(gga.EquipmentMap[0][15].h), JSON.stringify({ STR: 5 }));
+    gga.EquipmentMap[0][15].h = {};
 });
 
 // Attire review F7: the undo's stat failure goes once an owed update runs, and Refresh runs it.
