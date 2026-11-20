@@ -371,8 +371,9 @@ test("quick switch flips save one after another, so the file keeps the last choi
     const flips = [true, false, true].map((checked) => box.listeners.change({ target: { checked } }));
     await Promise.all(flips);
     await until(() => /save-state--success/.test(saveState("Golden Bramble")), "the saves to end");
-    await settle(50);
+    await queueIdle();
     assert.deepEqual(saved(), [{ id: "1:item5", on: true }]);
+    assert.deepEqual(fileShops(), [{ id: "1:item5", on: true }], "the file keeps the last choice too");
     assert.equal(box.checked, true);
 });
 
@@ -426,6 +427,10 @@ test("review: a startup change and an item save that overlap both reach the conf
     await Promise.all([ui.switchAutomation("automation shops", true), picks.set("0:item1", { stopAt: 7 })]);
     slowSave = 0;
     assert.deepEqual(fileStartup, ["automation shops"], "the item save didn't write back the old startup list");
+    assert.ok(
+        fileShops().some(({ id, stopAt }) => id === "0:item1" && stopAt === 7),
+        "and the startup change didn't lose the item's stop-at"
+    );
     await picks.set("0:item1", { stopAt: null });
     await ui.switchAutomation("automation shops", false);
 });
@@ -542,7 +547,11 @@ test("review: a refresh that read the config before an item saved doesn't put th
 test("review: with every item on and Shops off, Enable all still switches Shops on", async () => {
     await until(() => button(shops, "Enable all"), "Enable all");
     await button(shops, "Enable all").listeners.click({ preventDefault() {} });
-    await until(() => shopsOn() && saved().every(({ on }) => on), "every item and Shops on");
+    const total = byClass(shops, "automation-pick").length;
+    await until(
+        () => shopsOn() && saved().length === total && saved().every(({ on }) => on),
+        "every item and Shops on"
+    );
     await ui.switchAutomation("automation shops", false);
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => button(shops, "Enable all"), "Enable all to be available with Shops off");
@@ -863,21 +872,33 @@ test("reader: the Shops tab's switch read that a newer one overtook is dropped",
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
     let release;
-    let answered;
+    let releaseOn;
     holdNextListRead = new Promise((resolve) => (release = resolve));
+    holdNextOn = new Promise((resolve) => (releaseOn = resolve)); // the switch, once its turn comes, waits here
     try {
         const asked = listAsked;
         void button(shops, "Refresh").listeners.click({ preventDefault() {} });
         await until(() => listAsked > asked, "the Refresh's read to be held");
-        await checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
-        await until(() => statusOf(shops) !== "Off", "the switch's own read to show Shops on");
-    } finally {
-        answered = listAnswered;
+        void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
+        await handled();
+        assert.notEqual(statusOf(shops), "Off", "the click shows at once");
+        const answered = listAnswered;
+        const toggled = commands.length;
         release();
+        await until(
+            () => listAnswered > answered && commands.length > toggled,
+            "the older read, then the switch's turn"
+        );
+        await handled();
+        assert.equal(shopsOn(), false, "the switch hasn't applied yet");
+        assert.notEqual(statusOf(shops), "Off", "the older read (Off) doesn't replace the click");
+    } finally {
+        release();
+        releaseOn();
     }
-    await until(() => listAnswered > answered, "the held read to be answered");
-    await handled();
-    assert.notEqual(statusOf(shops), "Off", "the older read was dropped");
+    await queueIdle();
+    assert.equal(shopsOn(), true);
+    await until(() => statusOf(shops) !== "Off", "the switch's own read to show Shops on");
     await ui.switchAutomation("automation shops", false);
 });
 
