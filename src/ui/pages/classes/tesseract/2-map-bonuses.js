@@ -255,7 +255,7 @@ const MapCrystalsTab = () => {
 
     const applyBulkKills = async (mapsToUpdate, killCount) => {
         if (!mapsToUpdate || mapsToUpdate.length === 0) return;
-        await runBulk(async () => {
+        const result = await runBulk(async () => {
             const writes = [];
             for (const map of mapsToUpdate) {
                 const states = getMapStates(map.mapIndex);
@@ -284,6 +284,8 @@ const MapCrystalsTab = () => {
                 states.blue.val = killCount;
             }
         });
+        // Some writes may have landed before one failed: show what the game holds now.
+        if (!result.ok && !result.cancelled) await load();
     };
 
     const getActiveWorldMaps = () => {

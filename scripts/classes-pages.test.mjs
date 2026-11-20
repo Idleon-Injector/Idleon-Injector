@@ -106,6 +106,38 @@ const unitArrays = () => copy([6, 7, 8, 9, 10, 11, 12, 13].map((index) => game.g
 const putUnitArrays = (saved) =>
     [6, 7, 8, 9, 10, 11, 12, 13].forEach((index, i) => (game.gga.RoyalG[index] = saved[i]));
 
+test("map bonuses: a bulk 10M that fails partway shows what the game holds", async () => {
+    const saved = copy(game.gga.MapBon);
+    const root = (await importRepo("src/ui/pages/classes/tesseract/2-map-bonuses.js")).default.component();
+    const row = (mapIndex) =>
+        byClass(root, "map-crystal-row").find(
+            (node) => text(byClass(node, "account-row__index")[0]) === `#${mapIndex}`
+        );
+    await until(() => pageRead(root) && row(1), "the map bonuses to load");
+    const shown = () =>
+        elements(row(1))
+            .filter((node) => node.nodeName === "input")
+            .map((node) => node.value);
+    const shownBefore = shown();
+    const realFetch = globalThis.fetch;
+    let batches = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).endsWith("/game/gga/write-many") && ++batches === 2)
+            return new Response(JSON.stringify({ error: "the game refused" }), { status: 500 });
+        return realFetch(url, options);
+    };
+    try {
+        await click(buttonsNamed(root, "Set all to 10M")[0]);
+        assert.equal(batches, 2, "the second batch was refused");
+        assert.deepEqual([...game.gga.MapBon[1]], [10000000, 10000000, 10000000], "the first batch landed");
+        await until(() => shown().join() !== shownBefore.join(), "map #1 to show the kills it now holds");
+        assert.deepEqual(shown(), Array(3).fill(shown()[0]));
+    } finally {
+        globalThis.fetch = realFetch;
+        saved.forEach((entry, index) => (game.gga.MapBon[index] = entry));
+    }
+});
+
 test("masterclass pages: a search by index finds the row with that number", async () => {
     const root = (await importRepo("src/ui/pages/classes/grimoire/grimoire.js")).default.component();
     await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
