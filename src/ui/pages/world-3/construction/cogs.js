@@ -325,6 +325,7 @@ const CogsTab = () => {
 
     // A tiny cog's type and tier make one id: they save together on Enter or on leaving them.
     const tinySave = useAutoSave({
+        subject: () => getActiveIndex(),
         prepare: () => {
             const index = getActiveIndex();
             if (!isSideSlot(index)) return { unchanged: true };

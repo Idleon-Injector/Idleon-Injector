@@ -389,3 +389,38 @@ test("a reload asked for while the page loads runs once that load ends", async (
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(loads, 3, "once");
 });
+
+test("Undo stays with the tile or slot it saved: it goes when the fields move on to another", async () => {
+    const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
+    const { useAutoSave } = await importRepo("src/ui/components/views/account/autoSave.js");
+    const selected = van.state("A");
+    const save = useAutoSave({
+        subject: () => selected.val,
+        prepare: () => ({ write: () => writeVerified("OptionsListAccount[254]", ola[254] + 1) }),
+    });
+    await save.save();
+    assert.ok(save.undo.offer.rawVal, "Undo for A");
+    selected.val = "B";
+    await until(() => save.undo.offer.rawVal === null, "A's Undo to go when B is picked");
+
+    // Picking C saves B first (leaving B's field): that save lands while C is shown, so C gets no Undo for it.
+    const landing = save.save();
+    selected.val = "C";
+    await landing;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(save.undo.offer.rawVal, null);
+});
+
+test("the research grid's Undo goes when another tile is picked", async () => {
+    const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
+    const root = await openPage("src/ui/pages/world-7/research/grid.js", (node) => tiles(node).length > 1);
+    const card = () => byClass(root, "research-grid-detail__edit-row")[0];
+    const [first, second] = tiles(root);
+    first.listeners.click({});
+    await until(card, "the tile's card");
+    const [field] = elements(card()).filter((node) => node.nodeName === "input");
+    await saveRow(card(), String(field.attributes.value) === "0" ? 1 : 0);
+    assert.ok(undoOffered(card()), "Undo beside the save");
+    second.listeners.click({});
+    await until(() => !undoOffered(card()), "the other tile's card without that Undo");
+});

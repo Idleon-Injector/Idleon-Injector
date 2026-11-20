@@ -67,6 +67,7 @@ const GridTab = () => {
     const detailInput = van.state("0");
     // The selected tile's level saves on Enter or on leaving the field.
     const detailSave = useAutoSave({
+        subject: () => selectedIndex.val,
         prepare: () => {
             const index = selectedIndex.val;
             const tile = index === null ? null : gridStates[index];

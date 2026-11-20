@@ -31,9 +31,10 @@ const isEditField = (node) => /^(INPUT|SELECT|TEXTAREA)$/.test(String(node?.node
  *
  * After a save, `undo.offer` holds its logged action for UNDO_MS: SaveState shows "↶ Undo" beside the ✓. Undo puts
  * the old values back (on the character they were saved on) with the same saving…/✓ states, then the page reads
- * the game again, so the row shows what the game now holds.
+ * the game again, so the row shows what the game now holds. When the fields edit one of several things (the selected
+ * tile, say), `subject()` names it: Undo stays with the thing it saved, so it goes when the fields move on.
  */
-export const useAutoSave = ({ prepare, revert = null, successMs = 2400 }) => {
+export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject = null }) => {
     const status = van.state(null);
     const reason = van.state("");
     const offer = van.state(null);
@@ -50,7 +51,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400 }) => {
     const endOffer = () => {
         clearTimeout(offerTimer);
         offer.val = null;
-        if (status.val === "success" && successMs > 0) status.val = null;
+        if (status.rawVal === "success" && successMs > 0) status.val = null;
     };
     const startOffer = (action) => {
         offer.val = action;
@@ -87,12 +88,14 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400 }) => {
     };
 
     /** Run any write (a row's toggle button, say) with this save state, as one action Undo can put back. */
-    const run = (task) =>
-        withAction({ label, kind: "row" }, async (action) => {
+    const run = (task) => {
+        const savedFor = subject?.();
+        return withAction({ label, kind: "row" }, async (action) => {
             const outcome = await track(task);
-            if (outcome.ok && action.entries > 0) startOffer(action);
+            if (outcome.ok && action.entries > 0 && subject?.() === savedFor) startOffer(action);
             return outcome;
         });
+    };
 
     const track = async (task) => {
         settle("loading");
@@ -153,6 +156,12 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400 }) => {
         if (typeof revert === "function") revert();
         if (status.val === "error") settle(null);
     };
+
+    if (subject)
+        van.derive(() => {
+            subject();
+            endOffer();
+        });
 
     /** Put these on the element around the row's fields. */
     const handlers = {
