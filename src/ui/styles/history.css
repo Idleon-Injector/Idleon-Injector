@@ -18,9 +18,11 @@
     display: none;
 }
 
+/* A change is a rounded row (#26), like the value rows on the pages. */
 .change-group {
     background: var(--c-panel);
     border: 1px solid var(--c-border);
+    border-radius: 10px;
     transition: border-color 0.2s;
 }
 
