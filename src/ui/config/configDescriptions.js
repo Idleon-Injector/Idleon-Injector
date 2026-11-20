@@ -16,6 +16,10 @@ export const configDescriptions = {
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
+    "cheatConfig.automation.bubbles.target":
+        "Automation: bubbles that have a max are raised to this % of it (0 to 99.9).",
+    "cheatConfig.automation.bubbles.items":
+        'Automation: alchemy bubbles to raise, { id: "cauldron:bubble", on, stopAt, pay }; stopAt is a level, pay is "particles" or left out for materials.',
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",

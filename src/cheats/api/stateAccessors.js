@@ -15,6 +15,7 @@ import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
 import { attireStatus } from "../helpers/attire/outfits.js";
 import { getAutomationShops } from "../helpers/automation/shops.js";
+import { getAutomationBubbles } from "../helpers/automation/bubbles.js";
 import {
     captureWardrobe,
     wardrobeFood,
@@ -96,10 +97,12 @@ export function readComputed(namespace, name, args = []) {
         }
     }
 
-    // Account › Automation: its automations ("automation …" toggles) with their status, and the town shops.
-    if (namespace === "automation" && (name === "list" || name === "shops")) {
+    // Account › Automation: its automations ("automation …" toggles) with their status, the town shops, and the
+    // bubbles for World 2 › Bubbles › Automation.
+    if (namespace === "automation" && (name === "list" || name === "shops" || name === "bubbles")) {
         try {
             if (name === "shops") return { value: getAutomationShops() };
+            if (name === "bubbles") return { value: getAutomationBubbles() };
             return { value: getAutomations().filter(({ cheat }) => cheat.startsWith("automation ")) };
         } catch (error) {
             return { error: error.message };

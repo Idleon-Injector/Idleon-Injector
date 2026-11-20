@@ -21,6 +21,10 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        bubbles: {
+            target: 90, // Automation: bubbles that have a max are raised to this % of it (0 to 99.9).
+            items: [], // Automation: alchemy bubbles to raise, { id: "cauldron:bubble", on, stopAt, pay }; stopAt is a level, pay is "particles" or left out for materials.
+        },
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)
