@@ -1101,6 +1101,26 @@ test("a level row with no cap (max null or empty) shows no cap badge", async () 
     }
 });
 
+test("stamps: a queued commit that changes nothing leaves a newer typed level in the field", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        const requests = watchRequests((url, body) => url.includes("/write") && body.includes("Compass[4]"));
+        const flipped = requests.track(flip(row, true));
+        await until(requests.held, "the switch's write to reach the game");
+        const field = levelFieldOf(row);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} }); // the level as stored: waits
+        typeLevel(row, before + 2); // typed while that commit waits, not committed
+        requests.release();
+        await flipped;
+        await until(() => switchStatusOf(row) === "Saved", "the switch's save to end");
+        await until(() => saveWordsOf(row) !== "saving…", "the queued commit to run");
+        assert.equal(String(field.attributes.value), String(before + 2), "the newer draft is still there");
+        assert.equal(levels[0], before, "and not saved early");
+    } finally {
+        await runCleanups();
+    }
+});
+
 test("a save that failed part-way says some changes may have applied, not that the game kept the old value", async () => {
     const { saveFailureReason } = await importRepo("src/ui/components/views/account/autoSave.js");
     assert.equal(

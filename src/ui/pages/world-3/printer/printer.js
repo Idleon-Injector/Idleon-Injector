@@ -56,16 +56,20 @@ const PrinterTab = () => {
     let cachedCatalogue = null;
 
     const cannotWrite = () => isBusy() || Boolean(error.val) || !snapshot.val;
-    // A slot's drafts: the picked item and the quantity as typed.
+    // A slot's drafts: the picked item, the quantity as typed, and the stored quantity the field showed then (its
+    // rounded form, "16.2K", stands for exactly that one, even once a save in between has changed what's stored).
     const draftsOf = (state) => ({
         item: state.item.val,
         rawQty: getNumberInputLiveRaw(state.quantity) ?? state.quantity.val,
+        shownQty: state.baseline.qty,
     });
-    const isDirty = (state, { item, rawQty } = draftsOf(state)) => {
+    const showsQty = ({ rawQty, shownQty }) => rawQty === String(shownQty) || rawQty === largeFormatter(shownQty);
+    const isDirty = (state, drafts = draftsOf(state)) => {
         state.dirty.val;
-        // The field shows a rounded quantity ("16.2K"); left as shown, it is the saved quantity.
-        if (rawQty === String(state.baseline.qty) || rawQty === largeFormatter(state.baseline.qty)) {
-            return item !== state.baseline.item;
+        const { item, rawQty } = drafts;
+        // The field shows a rounded quantity ("16.2K"); left as shown, it is the quantity it stood for.
+        if (showsQty(drafts)) {
+            return item !== state.baseline.item || String(drafts.shownQty) !== String(state.baseline.qty);
         }
         const parsed = parseNumber(rawQty);
         const qtyChanged = Number.isFinite(parsed)
@@ -257,14 +261,13 @@ const PrinterTab = () => {
         if (!isAllowedItem(item, state)) throw new Error("pick an item");
         if (!Number.isFinite(parsed)) throw new Error("not a number");
         if (parsed <= 0) throw new Error("min 1");
-        const qty =
-            rawQty === String(state.baseline.qty) ||
-            rawQty === largeFormatter(state.baseline.qty) ||
-            parsed === Number(state.baseline.qty)
-                ? state.baseline.qty
-                : typeof state.baseline.qty === "string"
-                  ? String(parsed)
-                  : parsed;
+        const qty = showsQty(drafts)
+            ? drafts.shownQty
+            : parsed === Number(state.baseline.qty)
+              ? state.baseline.qty
+              : typeof state.baseline.qty === "string"
+                ? String(parsed)
+                : parsed;
         return { write: () => writeSlot(state, item, qty) };
     };
 
