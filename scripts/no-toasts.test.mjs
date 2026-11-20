@@ -119,17 +119,21 @@ test("a risky button asks in place: CLICK AGAIN, then the second click runs it, 
 
 test("a typed value that needs confirming asks beside its field; only Enter again in the field answers", async () => {
     const { askAtField } = await importRepo("src/ui/components/inPlace.js");
-    let inField = true;
-    const ask = askAtField(() => inField);
+    const field = globalThis.document.createElement("input");
+    const ask = askAtField(() => field);
+    globalThis.document.activeElement = field;
     assert.throws(
         () => ask("lower showdowns from 9 to 3."),
-        (error) => {
-            assert.equal(error.message, "Enter it again to lower showdowns from 9 to 3.");
-            return error.askAgain === true;
-        }
+        (error) => error.message === "Re-enter" && error.askAgain === true,
+        "the first Enter is refused; the field's save state says Re-enter"
     );
-    inField = false; // leaving the field saves too, but never answers
+    globalThis.document.activeElement = field;
+    assert.equal(ask("lower showdowns from 9 to 3."), true, "Enter again in the field answers");
+
+    globalThis.document.activeElement = null; // leaving the field saves too, but never answers
     assert.throws(() => ask("lower showdowns from 9 to 3."));
-    inField = true;
+    assert.throws(() => ask("lower showdowns from 9 to 3."));
+    globalThis.document.activeElement = field;
+    assert.throws(() => ask("lower showdowns from 9 to 3."), "back in the field, it asks before it answers");
     assert.equal(ask("lower showdowns from 9 to 3."), true);
 });

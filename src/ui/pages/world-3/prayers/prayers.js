@@ -307,10 +307,11 @@ const PrayersTab = () => {
     const askAtLevel = (id) => {
         if (!lockAsks.has(id)) {
             const label = `${cleanName(getOrCreateState(metadataStates, id).val[0])} level`;
-            lockAsks.set(
-                id,
-                askAtField(() => document.activeElement?.getAttribute("aria-label") === label)
-            );
+            const field = () =>
+                [...document.querySelectorAll("input[aria-label]")].find(
+                    (input) => input.getAttribute("aria-label") === label
+                );
+            lockAsks.set(id, askAtField(field));
         }
         return lockAsks.get(id);
     };

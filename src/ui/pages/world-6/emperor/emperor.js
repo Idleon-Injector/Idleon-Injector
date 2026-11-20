@@ -206,7 +206,7 @@ const EmperorTab = () => {
 
     // A typed decrease asks in place (#77): the first Enter is refused beside the field with what it would do,
     // and Enter again within a few seconds saves it.
-    const askAtProgress = askAtField(() => progressInput.contains(document.activeElement));
+    const askAtProgress = askAtField(() => progressInput);
 
     // Each save returns { cancelled: true } when there's nothing to write, and throws when it fails.
     // `button`: RESET, which asks in place with CLICK AGAIN.

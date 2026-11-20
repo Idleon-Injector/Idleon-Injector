@@ -111,7 +111,8 @@ const ResultItem = ({ result, ui, handlers }) => {
         handlers.saveEdit();
     };
 
-    return div(
+    // The row keeps its height; why a value wasn't written gets a line under it.
+    const row = div(
         {
             class: () =>
                 "search-result-item " +
@@ -194,9 +195,9 @@ const ResultItem = ({ result, ui, handlers }) => {
                     Icons.List()
                 )
             );
-        }),
-        EditError(isEditing, ui.edit)
+        })
     );
+    return div({ class: "search-result-entry" }, row, EditError(isEditing, ui.edit));
 };
 
 const SearchButton = ({
@@ -641,7 +642,8 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                 (isMonitorEnabled() ? "monitor-enabled " : "") +
                 (isMonitored() ? "monitored " : "") +
                 (copyFeedback.val === "success" ? "copied " : "") +
-                (ui.writtenPath === path ? "is-confirmed" : ""),
+                (ui.writtenPath === path ? "is-confirmed " : "") +
+                (isEditing() && ui.savedEdit.error ? "has-said" : ""),
         },
         span({ class: "result-path" }, path),
         span({ class: "result-equals" }, "="),

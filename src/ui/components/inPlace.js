@@ -141,22 +141,36 @@ export const clickAgain = (button, question, ms = 4000) => {
 
 /**
  * The in-place confirm for a typed value (#77), where a save used to open the browser's confirm popup. Returns
- * `ask(question)`: the first time it throws an Error ("Enter it again to …") that the field's save state shows
- * beside it, and nothing is written. The same question again within `ms`, while the player is still in the field
- * (`inField()`: Enter, not leaving it), returns true.
+ * `ask(question)`: the first time it throws an Error ("Re-enter", short enough for the save state beside a field
+ * at 400 px), the menu's tooltip and screen readers say "Enter again to …" at the field, and nothing is written. The same
+ * question again within `ms`, asked and answered in the field (Enter, not leaving it), returns true.
+ * `field()`: the field's element (or the element around it).
  */
-export const askAtField = (inField, ms = 6000) => {
+export const askAtField = (field, ms = 10000) => {
     let asked = "";
     let timer = null;
     return (question) => {
-        if (asked === question && inField()) {
+        const el = field();
+        const inField = Boolean(el?.contains(document.activeElement));
+        if (asked === question && inField) {
             asked = "";
             clearTimeout(timer);
+            hideTooltip();
             return true;
         }
-        asked = question;
+        // The question is asked where the player is. Leaving the field only leaves "Enter again" beside it, so
+        // the next Enter there shows the question before one more Enter answers it.
         clearTimeout(timer);
-        timer = setTimeout(() => (asked = ""), ms);
-        throw Object.assign(new Error(`Enter it again to ${question}`), { askAgain: true });
+        asked = "";
+        if (inField) {
+            asked = question;
+            timer = setTimeout(() => {
+                asked = "";
+                hideTooltip();
+            }, ms);
+            showTooltip(el, `Enter again to ${question}`);
+            announce(`Enter again to ${question}`);
+        }
+        throw Object.assign(new Error("Re-enter"), { askAgain: true });
     };
 };

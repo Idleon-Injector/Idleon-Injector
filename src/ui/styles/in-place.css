@@ -146,9 +146,29 @@
     display: none;
 }
 
-/* Under a value search field: the row grows by the line only when there's a reason to show. */
+/* Empty, the line keeps its live region but takes no room (and no gap) in the row. */
+.said--copy.said--empty {
+    position: absolute;
+}
+
+/* Under a value search field: the row grows by the line only while there's a reason to show. */
+.search-result-item.has-said {
+    flex-wrap: wrap;
+    row-gap: 0;
+    height: auto;
+    min-height: 40px;
+}
+
 .said--under {
     flex-basis: 100%;
+}
+
+.search-result-entry > .said--under .said__body {
+    padding: 6px 13px 2px;
+}
+
+.said--under.said--empty {
+    position: absolute;
 }
 
 .said--under .said__body {
@@ -246,7 +266,8 @@
 }
 
 /* --- CLICK AGAIN ---
- * The button keeps its box; CLICK AGAIN lies over it (wider when it needs to) and its fill drains away.
+ * The button keeps its box; CLICK AGAIN lies over it, reaching left when it's wider (buttons sit at the right
+ * of their rows), and its fill drains away.
  */
 button[data-again] {
     --again-color: var(--c-accent);
@@ -265,8 +286,8 @@ button[data-again]::after {
     content: attr(data-again);
     position: absolute;
     top: -1px;
+    right: -1px;
     bottom: -1px;
-    left: 50%;
     z-index: 1;
     display: flex;
     align-items: center;
@@ -280,7 +301,6 @@ button[data-again]::after {
     color: var(--again-color);
     font-weight: 700;
     white-space: nowrap;
-    transform: translateX(-50%);
     animation: again-drain var(--again-ms, 4s) linear forwards;
 }
 

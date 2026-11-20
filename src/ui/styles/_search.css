@@ -391,11 +391,10 @@
 
 .search-result-item {
     display: flex;
-    flex-wrap: wrap; /* a write's failure takes its own line under the field */
     align-items: center;
-    gap: 0 0.5rem;
+    gap: 0.5rem;
     padding: 0 12px;
-    min-height: 40px; /* Match cheat button height */
+    height: 40px; /* Match cheat button height */
     background: var(--c-panel);
     border: 1px solid var(--c-control-border-strong);
     border-radius: var(--radius-sm);
