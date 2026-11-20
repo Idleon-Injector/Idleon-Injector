@@ -466,3 +466,21 @@ test("History's Undo stays in place, marked busy, while it runs", async () => {
     await undoing;
     await until(() => button.attributes["aria-disabled"] === "false", "Undo to finish");
 });
+
+test('History keeps "N more" open when the log refreshes', async () => {
+    const { History } = await importRepo("src/ui/components/views/History.js");
+    const { changesVersion } = await importRepo("src/ui/services/changeLog.js");
+    const indexes = [300, 301, 302, 303, 304, 305, 306, 307];
+    await withAction({ label: "eight" }, () =>
+        writeManyVerified(indexes.map((i) => ({ path: `OptionsListAccount[${i}]`, value: ola[i] })))
+    );
+    store.app.activeTab = "history-tab";
+    const root = History();
+    const more = () => byClass(byClass(root, "change-group")[0] ?? root, "change-group__more")[0];
+    await until(more, "History to list the eight values");
+    const opened = more();
+    opened.listeners.toggle({ target: { open: true } });
+    changesVersion.val++;
+    await until(() => more() && more() !== opened, "the log to refresh");
+    assert.equal(more().attributes.open, true);
+});

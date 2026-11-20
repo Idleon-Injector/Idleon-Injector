@@ -52,6 +52,8 @@ const Group = (data) => {
     const state = van.state("idle"); // "idle" | "loading" | "refused"
     const reason = van.state("");
     const washed = van.state(false);
+    // "N more" stays as the player left it while the log refreshes (a save, an undo).
+    let moreOpen = false;
     const left = () => data.val.entries.filter((entry) => !entry.undone);
     const characters = () => [...new Set(data.val.entries.map((entry) => entry.character).filter(Boolean))];
 
@@ -126,7 +128,7 @@ const Group = (data) => {
                 ...entries,
                 more.length
                     ? details(
-                          { class: "change-group__more" },
+                          { class: "change-group__more", open: moreOpen, ontoggle: (e) => (moreOpen = e.target.open) },
                           summary({ class: "change-group__more-toggle" }, `${more.length} more`),
                           ...more
                       )
