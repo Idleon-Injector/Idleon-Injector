@@ -36,7 +36,7 @@ const slotLocation = (character, kind, slot) =>
 const PrinterTab = () => {
     // Slot writes queued or running, and a Refresh. An Undo's reload waits for them, so it can't put an older value back.
     const busy = van.state(0);
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Printer", busy: () => busy.val > 0 });
+    const { loading, error, pending, run: runLoad } = useAccountLoad({ label: "Printer", busy: () => busy.val > 0 });
     // Slot saves and Clears write one at a time, in the order asked, so a press made while another slot saves waits
     // its turn instead of being dropped. Each still writes under its own row's History action (captureGesture), so
     // every slot keeps its Undo even while another slot's action is open, waiting its turn.
@@ -72,8 +72,9 @@ const PrinterTab = () => {
     let accountIdentity = "";
     let cachedCatalogue = null;
 
-    // Not `busy`: a save asked for while another slot saves waits its turn (inTurn), so no press is lost.
-    const cannotWrite = () => loading.val || Boolean(error.val) || !snapshot.val;
+    // Not `busy`: a save asked for while another slot saves waits its turn (inTurn), so no press is lost. But not while
+    // an Undo's reload waits for them: the rows still show what the Undo put back.
+    const cannotWrite = () => loading.val || Boolean(error.val) || !snapshot.val || pending.val;
     // A slot's drafts: the picked item, the quantity as typed, and the stored quantity the field showed then (its
     // rounded form, "16.2K", stands for exactly that one, even once a save in between has changed what's stored).
     const draftsOf = (state) => ({
@@ -186,15 +187,17 @@ const PrinterTab = () => {
     };
 
     const updateRow = (state, item, qty, resetDraft = false) => {
-        const retainDraft = !resetDraft && isDirty(state);
+        const drafts = draftsOf(state);
+        const retainDraft = !resetDraft && isDirty(state, drafts);
+        // A kept draft keeps only the half the player changed; the other shows what the game holds now.
+        const keepItem = retainDraft && drafts.item !== state.baseline.item;
+        const keepQty = retainDraft && !showsQty(drafts);
         state.saved.val = { item, qty };
         // A kept draft is compared with what the game holds now.
         state.baseline = { item, qty };
-        if (!retainDraft) {
-            state.item.val = item;
-            setNumberInputValue(state.quantity, String(qty));
-            state.dirty.val++;
-        }
+        if (!keepItem) state.item.val = item;
+        if (!keepQty) setNumberInputValue(state.quantity, String(qty));
+        state.dirty.val++;
     };
 
     const syncSnapshot = (next, resetDrafts = false) => {

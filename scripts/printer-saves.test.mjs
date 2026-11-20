@@ -204,6 +204,39 @@ test("Printer's Clear asks Click again when the press also saves another slot's 
     assert.ok(requests.length > writes);
 });
 
+// Review of #131: while an Undo's reload waited for another slot's write, an item picked on the undone row saved with
+// the quantity the row still showed, over the one the Undo put back.
+test("Printer saves nothing while an Undo's reload waits, then keeps the picked item with the game's quantity", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const root = await openPrinter();
+    const [undone, other] = [findRow(root, "Sample 1"), findRow(root, "Sample 3")];
+    const select = byClass(undone, "printer-item-select")[0];
+    const picked = elements(select).find(
+        (node) => node.nodeName === "option" && !["Blank", gga.Printer[printerSlot(1)]].includes(node.attributes.value)
+    ).attributes.value;
+    const hold = holdWrites();
+    t.after(hold.release);
+
+    type(inputs(other)[0], 3333);
+    enter(other, inputs(other)[0]);
+    await until(() => hold.held() === 1, "Sample 3's save to reach the game");
+    gga.Printer[printerSlot(1) + 1] = 123; // an Undo put Sample 1's old quantity back
+    reloadPlace.val = { view: "", page: "" };
+    await new Promise((resolve) => setTimeout(resolve)); // VanJS runs the page's reload watch on the next turn
+    select.listeners.change({ target: { value: picked } });
+    enter(undone, inputs(undone)[0]);
+    hold.release();
+    // A save let through would run before the reload, which would then show its quantity instead.
+    await until(() => inputs(undone)[0].value === "123", "the reload to show the quantity the Undo put back");
+    assert.equal(gga.Printer[printerSlot(1) + 1], 123, "nothing saved over the Undo");
+    assert.equal(select.value, picked, "the picked item stays a draft");
+    enter(undone, inputs(undone)[0]);
+    await until(() => gga.Printer[printerSlot(1)] === picked, "the picked item to be saved");
+    assert.equal(gga.Printer[printerSlot(1) + 1], 123, "with the quantity the game holds");
+});
+
 // Review of #131: an Undo's reload read the game while a slot write was still running, and its older answer put the
 // old quantity back on that row; the reload now waits for the slot writes.
 test("Printer's reload after an Undo waits for a slot write still running", async (t) => {
