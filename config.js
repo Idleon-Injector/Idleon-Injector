@@ -21,6 +21,10 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        bubba: {
+            saving: 10, // Automation: Bubba's saving %, how much of a High or Low upgrade's cost a Balanced one may spend
+            items: [], // Automation: Bubba upgrades to buy with meat, { id, on, stopAt, priority }; priority 1 is High, 2 Low, none Balanced.
+        },
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)
