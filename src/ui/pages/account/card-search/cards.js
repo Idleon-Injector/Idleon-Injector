@@ -10,6 +10,7 @@ import {
     createStaticRowReconciler,
     getOrCreateState,
     joinClasses,
+    oneAtATime,
     resolveNumberInput,
     resolveValue,
     runBulkSet,
@@ -18,7 +19,9 @@ import {
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { Said, clickAgain, disarm, useSaid } from "../../../components/inPlace.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, select, option, details, summary } = van.tags;
@@ -93,7 +96,7 @@ const TierSelect = ({
             onchange: async (event) => {
                 const tierIndex = Number(event.target.value);
                 event.target.value = "";
-                await onSelect(tierIndex, thresholds?.[tierIndex]);
+                await onSelect(tierIndex, thresholds?.[tierIndex], event.target);
             },
         },
         option({ value: "", disabled: true, selected: true }, label),
@@ -217,6 +220,7 @@ const CardSection = ({
     bulkStatus = null,
     activeBulkRegion = null,
     setRegionTier = null,
+    said = null,
     unresolved = false,
 }) => {
     const status = () => (setRegionTier && activeBulkRegion.val === region.key ? bulkStatus.val : null);
@@ -244,6 +248,8 @@ const CardSection = ({
                 span({ class: "card-region__title" }, region.name),
                 span({ class: "card-region__count" }, `${region.cards.length} CARDS`)
             ),
+            // Why the region's last tier pick failed; the region opens to show it.
+            said ? Said({ said: said.said, className: "said--line card-region__said", kinds: ["failed"] }) : null,
             div(
                 { class: "card-region__body account-item-stack" },
                 ...region.cards.map((card) => Row({ card, valueState: getOrCreateState(valueStates, card.monsterId) }))
@@ -255,7 +261,7 @@ const CardSection = ({
                   status,
                   disabled: () => region.cards.length === 0,
                   className: "card-region__tier-select",
-                  onSelect: (tierIndex) => setRegionTier(region, tierIndex),
+                  onSelect: (tierIndex, _, selectNode) => setRegionTier(region, tierIndex, selectNode),
               })
             : null
     );
@@ -268,6 +274,11 @@ const CardsTab = () => {
     const amountStates = new Map();
     const openStates = new Map();
     const activeBulkRegion = van.state(null);
+    const regionSaids = new Map();
+    const getRegionSaid = (key) => {
+        if (!regionSaids.has(key)) regionSaids.set(key, useSaid());
+        return regionSaids.get(key);
+    };
     const regionsNode = div({ class: "cards-regions" });
     const reconcileRegions = createStaticRowReconciler(regionsNode);
 
@@ -294,6 +305,7 @@ const CardsTab = () => {
                         bulkStatus,
                         activeBulkRegion,
                         setRegionTier,
+                        said: getRegionSaid(region.key),
                     })
                 ),
                 ...(data.unresolved.length
@@ -319,24 +331,37 @@ const CardsTab = () => {
             totalCards.val = data.total;
         });
 
-    async function setRegionTier(region, tierIndex) {
-        if (bulkStatus.val === "loading") return;
+    // A pick made while another region saves waits its turn instead of being dropped.
+    const inTurn = oneAtATime();
+    // A pick that would lower any card asks in place first (DESIGN.md); one that only raises runs at once.
+    const setRegionTier = (region, tierIndex, selectNode) =>
+        inTurn(async () => {
+            const said = getRegionSaid(region.key);
+            said.clear();
+            const lowered = region.cards.filter(
+                (card) => getOrCreateState(amountStates, card.monsterId).val > card.thresholds[tierIndex]
+            );
+            if (lowered.length) {
+                const question = `lower ${lowered.length} card${lowered.length === 1 ? "" : "s"} in ${region.name} to tier ${tierIndex + 1}.`;
+                if (!clickAgain(selectNode, question, { targets: lowered.map((card) => card.monsterId) })) return;
+            } else disarm(selectNode);
 
-        activeBulkRegion.val = region.key;
-        const result = await runBulk(() =>
-            runBulkSet({
-                entries: region.cards,
-                getTargetValue: (card) => card.thresholds[tierIndex],
-                getValueState: (card) => getOrCreateState(amountStates, card.monsterId),
-                getPath: (card) => card.path,
-            })
-        );
+            activeBulkRegion.val = region.key;
+            const result = await runBulk(() =>
+                runBulkSet({
+                    entries: region.cards,
+                    getTargetValue: (card) => card.thresholds[tierIndex],
+                    getValueState: (card) => getOrCreateState(amountStates, card.monsterId),
+                    getPath: (card) => card.path,
+                })
+            );
 
-        if (!result.ok) {
-            getOpenState(region.key).val = true;
-            await load();
-        }
-    }
+            if (!result.ok) {
+                said.say("failed", saveFailureReason(result.error));
+                getOpenState(region.key).val = true;
+                await load();
+            }
+        });
 
     load();
 

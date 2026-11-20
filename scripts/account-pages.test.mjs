@@ -6,7 +6,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-await loadUi(router);
+const { requests } = await loadUi(router);
 const gga = game.gga;
 
 const text = (node) =>
@@ -114,4 +114,97 @@ test("task board: Refresh shows the game's new progress, and Target follows the 
     await saveRow(row, 2);
     assert.match(saveState(row), /save-state--success/);
     assert.equal(sub(), "Progress 77777 / Target 1000");
+});
+
+const CARDS = "src/ui/pages/account/card-search/cards.js";
+const regionSelect = (root) =>
+    elements(root).find((node) => node.nodeName === "select" && classes(node).includes("card-region__tier-select"));
+const pick = (select, tierIndex) => {
+    select.value = String(tierIndex);
+    return select.listeners.change({ target: select });
+};
+const refuseWrites = (object, key) => {
+    const kept = object[key];
+    Object.defineProperty(object, key, { get: () => kept, set() {}, configurable: true, enumerable: true });
+    return () =>
+        Object.defineProperty(object, key, { value: kept, writable: true, configurable: true, enumerable: true });
+};
+
+test("card search: a region tier that would lower cards asks first, and lowers them on the second pick", async () => {
+    // A tooltip places itself on the next frame.
+    globalThis.requestAnimationFrame ??= () => {};
+    const cards = gga.Cards[0].h;
+    cards.mob0 = 37;
+    cards.mob1 = 74;
+    const root = await openPage(CARDS);
+    const select = regionSelect(root);
+
+    await pick(select, 0);
+    assert.equal(select.attributes["data-again"], "Click again", "the first pick asks");
+    assert.match(select.attributes["aria-label"], /^Click again to lower \d+ cards in BLUNDER HILLS W1 to tier 1\.$/);
+    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "nothing written");
+
+    await pick(select, 0);
+    assert.equal(cards.mob0, 6);
+    assert.equal(cards.mob1, 6);
+});
+
+test("card search: a region tier that only raises runs on one pick", async () => {
+    const cards = gga.Cards[0].h;
+    cards.mob0 = 0;
+    cards.mob1 = 0;
+    const root = await openPage(CARDS);
+    const select = regionSelect(root);
+    await pick(select, 0);
+    assert.equal(select.attributes["data-again"], undefined, "it didn't ask");
+    assert.deepEqual([cards.mob0, cards.mob1], [6, 6]);
+});
+
+test("card search: a refused region tier says why under the region, and the next pick clears it", async () => {
+    const cards = gga.Cards[0].h;
+    const root = await openPage(CARDS);
+    const select = regionSelect(root);
+    const region = elements(root).find((node) => classes(node).split(" ").includes("card-region"));
+    const reason = () => text(byClass(region, "card-region__said")[0]);
+    const restore = refuseWrites(cards, "mob0");
+    try {
+        await pick(select, 3);
+        await until(() => reason() !== "", "the reason");
+        assert.match(reason(), /game kept old value/);
+    } finally {
+        restore();
+    }
+    await pick(select, 5);
+    assert.equal(reason(), "", "the retry cleared it");
+});
+
+test("card search: a tier picked in a second region while the first saves waits its turn instead of being dropped", async () => {
+    const root = await openPage(CARDS);
+    const [first, second] = elements(root).filter(
+        (node) => node.nodeName === "select" && classes(node).includes("card-region__tier-select")
+    );
+    const writes = () => requests.filter((entry) => /write/.test(entry)).length;
+    const before = writes();
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const realFetch = globalThis.fetch;
+    let held = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("write") && !held) {
+            held = true;
+            await gate;
+        }
+        return realFetch(url, options);
+    };
+    let picks;
+    try {
+        const firstPick = pick(first, 5); // the top tier only raises, so neither asks
+        await until(() => held, "the first region's write to start");
+        picks = Promise.all([firstPick, pick(second, 5)]);
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    await picks;
+    assert.equal(writes() - before, 2, "both regions were written");
 });

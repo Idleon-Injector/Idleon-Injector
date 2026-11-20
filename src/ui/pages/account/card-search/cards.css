@@ -194,3 +194,13 @@
         justify-content: flex-end;
     }
 }
+
+/* Why a region's tier pick failed, under its header. Empty, it takes no room. */
+.card-region__said {
+    margin: 0;
+    padding: 0 12px 10px;
+}
+
+.card-region__said.said--empty {
+    position: absolute;
+}
