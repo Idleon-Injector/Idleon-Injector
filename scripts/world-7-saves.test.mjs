@@ -321,7 +321,7 @@ test("Sushi Tools: Refresh during a settings save keeps the typed setting, and t
     const next = (await savedTier()) === 3 ? 4 : 3;
 
     type(tier, next);
-    const release = hold("/config/update");
+    const release = hold("/config/save");
     leave(section, tier);
     await buttonNamed(root, "Refresh").listeners.click({ preventDefault() {} });
     release();
@@ -332,7 +332,7 @@ test("Sushi Tools: Refresh during a settings save keeps the typed setting, and t
     const chain = inputs(
         elements(root).find((node) => node.nodeName === "label" && text(node).includes("Extended"))
     )[0];
-    const releaseToggle = hold("/config/update");
+    const releaseToggle = hold("/config/save");
     chain.listeners.change({ target: { checked: !chain.attributes.checked } });
     await until(() => text(byClass(root, "save-state__label")[0]) === "saving…", "the toggle to save");
     releaseToggle();

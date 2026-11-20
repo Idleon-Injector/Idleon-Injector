@@ -107,6 +107,37 @@ export async function saveConfigFile(configToSave) {
     });
 }
 
+let configTurn = Promise.resolve();
+/** Run `task` after every config read or save the menu asked for before it, so they run one at a time, in order. */
+export const inConfigTurn = (task) => {
+    const run = configTurn.then(task);
+    configTurn = run.catch(() => {});
+    return run;
+};
+
+/**
+ * Save the part of the config a page changed, in its turn. `change(config)` gets the config as it is now and returns
+ * only what changes, like `{ cheatConfig: { w7: { sushitools } }, startupCheats }`: the server merges objects into the
+ * rest key by key and takes a list (startupCheats, the Wardrobe's loadouts) whole. The server writes config.custom.js
+ * first and only then takes the part into the session and sends it to the game, so a save that fails changed nothing
+ * and trying again saves it once.
+ * Resolves with the save's answer (its message says when the running game kept its old settings) and the config read
+ * after it.
+ */
+export const saveConfigPart = (change) =>
+    inConfigTurn(async () => {
+        const result = await saveConfigFile(change(await fetchConfig()));
+        return { result, config: await fetchConfig() };
+    });
+
+/** The startup list with `cheat` on or off at start. Startup cheats toggle, so a list with its group ("w1") stays. */
+export const startupWith = (list, cheat, on) =>
+    on
+        ? list.includes(cheat) || list.includes(cheat.split(" ")[0])
+            ? list
+            : [...list, cheat]
+        : list.filter((command) => command !== cheat);
+
 export async function fetchDevToolsUrl() {
     const data = await _request("/devtools-url");
     if (data && data.url) return data.url;
