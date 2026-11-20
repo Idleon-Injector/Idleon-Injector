@@ -206,7 +206,7 @@ const AchievementRow = ({ entry, valueState }) =>
             path: entry.path,
             formatted: false,
             min: -1,
-            badge: (currentValue) => (Number(currentValue) === -1 ? "COMPLETE" : `PROGRESS ${currentValue ?? 0}`),
+            badge: (currentValue) => (Number(currentValue) === -1 ? "COMPLETE" : ""),
             maxAction: {
                 label: "Done",
                 value: -1,

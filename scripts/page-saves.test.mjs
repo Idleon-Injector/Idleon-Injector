@@ -45,10 +45,12 @@ async function openPage(file, ready) {
 const findRow = (root, label) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
 // The badge shows a dash until the page has read the value.
-const rowLoaded = (root, label) => {
-    const row = findRow(root, label);
-    return row && !/^[-—]?$/.test(text(byClass(row, "account-row__badge")[0]));
-};
+// The page shows its rows once it has read the game; until then its body is hidden.
+const pageRead = (root) =>
+    !byClass(root, "account-page-shell__body").some((node) =>
+        String(node.attributes.class).includes("is-hidden-until-ready")
+    );
+const rowLoaded = (root, label) => Boolean(findRow(root, label)) && pageRead(root);
 
 async function setRow(root, label, value) {
     const row = findRow(root, label);
@@ -222,7 +224,7 @@ test("prayers.js: the level field stays enabled while its save runs", async (t) 
     const firstRow = (root) => byClass(root, "prayer-row")[0];
     const root = await openPage(
         "src/ui/pages/world-3/prayers/prayers.js",
-        (root) => firstRow(root) && !/^[-—]?$/.test(text(byClass(firstRow(root), "account-row__badge")[0]))
+        (root) => Boolean(firstRow(root)) && pageRead(root)
     );
     const row = firstRow(root);
     const [input] = elements(row).filter((node) => node.nodeName === "input");
@@ -242,3 +244,72 @@ test("prayers.js: the level field stays enabled while its save runs", async (t) 
     assert.ok(disabledDuringSave.length > 0);
     assert.deepEqual([...new Set(disabledDuringSave)], [false], "the field was never disabled");
 });
+
+// A page save for one character (writeManyVerified's `character`): the game checks who is in play in the same call
+// as the writes, so a player who switched characters meanwhile gets nothing written on the new one.
+const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+const { fetchChanges } = await importRepo("src/ui/services/api.js");
+const OLA = 254;
+async function playing(name, run) {
+    Object.assign(game.gga, { UserInfo: [name], GetPlayersUsernames: ["Lumi_Main", "Lumi_Alt"] });
+    try {
+        return await run();
+    } finally {
+        delete game.gga.UserInfo;
+        delete game.gga.GetPlayersUsernames;
+    }
+}
+const logged = async () => (await fetchChanges()).actions.length;
+
+test("a save for the character in play lands and goes in the change log", () =>
+    playing("Lumi_Main", async () => {
+        const actions = await logged();
+        await writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 61 }], { character: "Lumi_Main" });
+        assert.equal(ola[OLA], 61);
+        assert.equal(await logged(), actions + 1);
+    }));
+
+test("a save for another character than the one in play writes nothing and says who is in play", () =>
+    playing("Lumi_Alt", async () => {
+        const before = ola[OLA];
+        const actions = await logged();
+        await assert.rejects(
+            writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 62 }], { character: "Lumi_Main" }),
+            { message: "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt." }
+        );
+        assert.equal(ola[OLA], before);
+        assert.equal(await logged(), actions, "nothing logged");
+    }));
+
+test("a switch after the change log read the old values, before the game writes, writes nothing", () =>
+    playing("Lumi_Main", async () => {
+        const before = ola[OLA];
+        const evaluate = game.runtime.evaluate;
+        // The player switches just as the write reaches the game: after the save planned and read the old values.
+        game.runtime.evaluate = (options) => {
+            if (options.expression.startsWith("writeGamePaths(")) game.gga.UserInfo[0] = "Lumi_Alt";
+            return evaluate(options);
+        };
+        try {
+            await assert.rejects(
+                writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 63 }], { character: "Lumi_Main" }),
+                /Lumi_Alt is in play now, not Lumi_Main/
+            );
+        } finally {
+            game.runtime.evaluate = evaluate;
+        }
+        assert.equal(ola[OLA], before);
+    }));
+
+test("a save that names no character lands whoever is in play, with the request it always sent", (t) =>
+    playing("Lumi_Alt", async () => {
+        const bodies = [];
+        const fetch = globalThis.fetch;
+        t.mock.method(globalThis, "fetch", (url, options) => {
+            if (String(url).endsWith("/write-many")) bodies.push(JSON.parse(options.body));
+            return fetch(url, options);
+        });
+        await writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 64 }]);
+        assert.equal(ola[OLA], 64);
+        assert.deepEqual(bodies, [{ writes: [{ path: `gga.OptionsListAccount[${OLA}]`, value: 64 }] }]);
+    }));

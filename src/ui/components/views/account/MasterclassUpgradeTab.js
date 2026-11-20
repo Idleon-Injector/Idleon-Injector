@@ -194,7 +194,8 @@ const renderCurrencyField = (field, states) =>
     field.type === "toggle"
         ? AccountToggleRow({
               info: div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, field.name)),
-              badge: () => (states.get(field.key).val ? "ENABLED" : "DISABLED"),
+              words: ["Enabled", "Disabled"],
+              name: field.name,
               checked: () => Boolean(states.get(field.key).val),
               rowClass: "grimoire-currency__toggle masterclass-currency__toggle",
               title: field.title ?? field.name,
@@ -397,15 +398,12 @@ export const MasterclassUpgradeTab = ({
 
     load();
 
-    const subNav = div(
-        { class: "control-bar sticky-header masterclass-upgrade-controls" },
-        SearchBar({
-            placeholder: `SEARCH ${title} OR INDEX`,
-            value: searchQuery,
-            debounceMs: 0,
-            onInput: (value) => (searchQuery.val = value),
-        })
-    );
+    const toolbar = SearchBar({
+        placeholder: `SEARCH ${title} OR INDEX`,
+        value: searchQuery,
+        debounceMs: 0,
+        onInput: (value) => (searchQuery.val = value),
+    });
 
     return PersistentAccountListPage({
         title,
@@ -437,7 +435,7 @@ export const MasterclassUpgradeTab = ({
             },
         }),
         state: { loading, error },
-        subNav,
+        toolbar,
         loadingText: `READING ${title}`,
         errorTitle: `${title} READ FAILED`,
         initialWrapperClass: "masterclass-upgrade-scroll",

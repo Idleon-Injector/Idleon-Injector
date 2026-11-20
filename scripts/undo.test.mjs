@@ -42,10 +42,14 @@ async function openPage(file, ready) {
 
 const findRow = (root, label) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
-const rowLoaded = (label) => (root) => {
-    const row = findRow(root, label);
-    return row && !/^[-—]?$/.test(text(byClass(row, "account-row__badge")[0]));
-};
+// The page shows its rows once it has read the game; until then its body is hidden.
+const pageRead = (root) =>
+    !byClass(root, "account-page-shell__body").some((node) =>
+        String(node.attributes.class).includes("is-hidden-until-ready")
+    );
+const rowLoaded = (label) => (root) => Boolean(findRow(root, label)) && pageRead(root);
+// A value shows once, in its field (VanJS writes a bound value to the attribute here).
+const fieldValue = (row) => String(elements(row).find((node) => node.nodeName === "input")?.attributes.value ?? "");
 const saveState = (row) => classes(byClass(row, "save-state")[0]);
 const undoButton = (row) => byClass(row, "save-state__undo")[0];
 const undoOffered = (row) => undoButton(row) && undoButton(row).attributes.hidden === false;
@@ -102,7 +106,7 @@ test("a saved value offers Undo beside its ✓, and Undo puts the old value back
     await clickUndo(row);
     assert.match(saveState(row), /save-state--success/, "undoing shows the same ✓");
     assert.equal(ola[254], old);
-    await until(() => text(byClass(row, "account-row__badge")[0]).includes(String(old)), "the row to show it");
+    await until(() => fieldValue(row) === String(old), "the row to show it");
     assert.equal(undoOffered(row), false, "nothing left to undo on the row");
     assert.equal((await newest()).entries[0].undone, true);
 });
@@ -191,7 +195,6 @@ test("an undo refused because the value moved shows what the game holds now", as
     assert.equal(text(byClass(row, "save-state__label")[0]), "changed since: now 50");
     const [input] = elements(row).filter((node) => node.nodeName === "input");
     await until(() => String(input.attributes.value) === "50", "the field to show 50");
-    assert.match(text(byClass(row, "account-row__badge")[0]), /\b50\b/);
 });
 
 // CodeRabbit on #106: a field left focused through that reload kept its old value as if typed, and leaving it saved
@@ -208,7 +211,9 @@ test("a field focused through a refused undo's reload, then left untouched, save
 
     input.listeners.focus({ target: input });
     await clickUndo(row);
-    await until(() => /\b120\b/.test(text(byClass(other, "account-row__badge")[0])), "the reload to show 120");
+    // The focused field keeps what it shows; the refused row's own field shows the same reload landing.
+    const [undone] = elements(row).filter((node) => node.nodeName === "input");
+    await until(() => String(undone.attributes.value) === "50", "the reload to land");
     const asked = requests.length;
     input.listeners.blur({ target: input, relatedTarget: null });
     other.listeners.focusout({ target: input, currentTarget: other, relatedTarget: null });
@@ -395,7 +400,7 @@ test("a row's Undo shows the value the game got back, even when the row's copy w
     await saveRow(row, 20);
     await clickUndo(row);
     assert.equal(ola[254], 15);
-    await until(() => /\b15\b/.test(text(byClass(row, "account-row__badge")[0])), "the row to show 15");
+    await until(() => fieldValue(row) === "15", "the row to show 15");
 });
 
 test("Account Options' Undo shows the value the game got back, even when the row's copy was stale", async () => {
@@ -675,6 +680,64 @@ test("Printer compares a kept draft with the value the reload read", async () =>
     pick(was); // what the row showed before the reload, no longer what the game holds
     row.listeners.keydown({ key: "Enter", target: select, preventDefault() {} });
     await until(() => gga.Printer[index] === was, "the pick to save");
+});
+
+test("Printer saves the exact quantity a rounded draft stood for, even after a save in between", async () => {
+    const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const selects = (root) => elements(root).filter((node) => classes(node).includes("printer-item-select"));
+    const root = await openPage("src/ui/pages/world-3/printer/printer.js", (node) => selects(node).length > 0);
+    const [select] = selects(root);
+    let panel = select;
+    while (!panel.attributes["data-printer-character"]) panel = panel.parentNode;
+    const index = 15 + 14 * gga.GetPlayersUsernames.indexOf(panel.attributes["data-printer-character"]); // print 1
+    let row = select;
+    while (!row.listeners.keydown) row = row.parentNode;
+    const field = elements(row).find((node) => node.nodeName === "input");
+    const before = { item: gga.Printer[index], qty: gga.Printer[index + 1] };
+    const other = elements(select)
+        .filter((node) => node.nodeName === "option")
+        .map((node) => node.attributes.value)
+        .find((id) => id !== "Blank" && id !== before.item);
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = false;
+    let answered = Promise.resolve();
+    // Hold the first save's write, so the second commit is made while it runs.
+    globalThis.fetch = (url, options) => {
+        if (held || !String(url).includes("/write") || !String(options?.body).includes("Printer[")) {
+            return realFetch(url, options);
+        }
+        held = true;
+        answered = gate.then(() => realFetch(url, options));
+        return answered;
+    };
+    const commit = (qty) => {
+        field.value = String(qty);
+        field.listeners.input({ target: field });
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+    };
+    try {
+        gga.Printer[index + 1] = 16234;
+        reloadPlace.val = { view: "", page: "" }; // read the slot again
+        await until(() => field.value === largeFormatter(16234), "the slot to show 16.2K");
+        commit(20000);
+        await until(() => held, "the first save to reach the game");
+        select.value = other;
+        select.listeners.change({ target: select });
+        commit(largeFormatter(16234)); // back to what the field showed before
+        release();
+        await answered;
+        await until(() => gga.Printer[index] === other, "the second save to land");
+        assert.equal(gga.Printer[index + 1], 16234, "the exact quantity, not 16200");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        await answered;
+        gga.Printer[index] = before.item;
+        gga.Printer[index + 1] = before.qty;
+    }
 });
 
 test("a save made while who is in play can't be read is logged without Undo", async () => {

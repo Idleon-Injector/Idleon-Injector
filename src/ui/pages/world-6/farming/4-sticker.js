@@ -38,7 +38,6 @@ const buildStickerEntries = (rawNames, rawAmounts) => {
                 rawName: name,
                 name: cleanName(name, `Sticker ${index + 1}`),
                 amount: toInt(amounts[index], { min: 0 }),
-                badge: (currentValue) => `AMT ${currentValue ?? 0}`,
                 formatted: false,
             };
         })

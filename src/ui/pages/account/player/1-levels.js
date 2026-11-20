@@ -102,7 +102,6 @@ const PlayerTab = () => {
                         ? span({ class: "option-warning" }, "Warning: changing the main level up will shadowban you.")
                         : null
                 ),
-            renderBadge: (value) => (money ? `${largeFormatter(value)} COPPER` : `LV ${value}`),
             inputMode: money ? "float" : "int",
             inputProps: { "aria-label": title, ...(money ? { formatter: largeFormatter, parser: largeParser } : {}) },
             adjustInput: money

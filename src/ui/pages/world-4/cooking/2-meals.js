@@ -98,7 +98,6 @@ const MealRow = ({ entry, fieldStates }) => {
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => `LV ${getOrCreateState(fieldStates, entry.fields[0].key).val ?? 0}`,
         controlsClass: "account-row__controls--stack-action",
         renderControls: ({ draftStates, resetDraft, setFieldFocused }) =>
             div(

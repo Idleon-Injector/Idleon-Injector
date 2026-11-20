@@ -47,7 +47,6 @@ const NametagRow = ({ row, amountState }) =>
             path: `${NAMETAG_COUNTS_PATH}[${row.nametagNumber}]`,
             subLabel: row.itemId,
             formatted: false,
-            badge: (currentValue) => String(currentValue),
         },
         valueState: amountState,
     });

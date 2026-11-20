@@ -78,7 +78,8 @@ const canonicalizeUnlocks = (rawValue) => {
 const IslandUnlockRow = ({ island, unlocksState, writeUnlocks }) =>
     AccountToggleRow({
         info: div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, island.label)),
-        badge: () => (unlocksState.val.includes(island.token) ? "UNLOCKED" : "LOCKED"),
+        words: ["Unlocked", "Locked"],
+        name: island.label,
         checked: () => unlocksState.val.includes(island.token),
         title: `Toggle ${island.label}`,
         write: async (enabled) => {
@@ -216,7 +217,8 @@ const IslandsTab = () => {
                         { class: "account-row__name-group" },
                         span({ class: "account-row__name" }, "Emporium Bonus Bribe")
                     ),
-                    badge: () => (bribeState.val ? "ENABLED" : "DISABLED"),
+                    words: ["Enabled", "Disabled"],
+                    name: "Emporium Bonus Bribe",
                     checked: () => bribeState.val === 1,
                     title: "Toggle Emporium Bonus Bribe",
                     write: async (enabled) => {
@@ -276,7 +278,6 @@ const IslandsTab = () => {
                 NumericRow({
                     field: { index: 184, name: "Fractal Isle AFK Time (Hours)" },
                     valueState: getValueState(184),
-                    badge: (hours) => `${hours ?? 0}h`,
                 })
             ),
         })

@@ -46,7 +46,7 @@ const RoyalStatuesTab = () => {
                             path: `RoyalG[0][${entry.index}]`,
                             formatted: false,
                             max: Number.MAX_SAFE_INTEGER,
-                            badge: (level) => (level > 0 ? `LV ${level}` : "LOCKED"),
+                            badge: (level) => (level > 0 ? "" : "LOCKED"),
                         },
                         valueState: getOrCreateState(royalStates, entry.index),
                     })

@@ -40,7 +40,6 @@ const buildCosmoEntries = (holes, upgrades, section, sectionIndex) => {
             name: cleanName(definition[2], `${section.title} ${index + 1}`),
             path: `Holes[${section.holeIndex}][${index}]`,
             value: toNum(values[index], 0),
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
         };
     });
 };

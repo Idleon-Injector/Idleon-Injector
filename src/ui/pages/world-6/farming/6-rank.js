@@ -28,7 +28,6 @@ const UnboundedRankRow = ({ entry, levelState }) =>
             path: `${FARM_RANK_DATABASE_PATH}[${entry.index}]`,
             formatted: false,
             showIndex: false,
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
             rowClass: "farming-grid-field-row",
             controlsClass: "account-row__controls--xl",
         },

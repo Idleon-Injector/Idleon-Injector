@@ -341,6 +341,93 @@ test("Perfect Equipped refuses before writing when another character is in play 
     }
 });
 
+// The page's requests still waiting on the fake API, and how many wardrobe previews the page has read: a refusal's
+// catch-up and an undo's reload both end by reading the preview, so a test waits for that read and no request left.
+let waiting = 0;
+const answerFetch = globalThis.fetch;
+globalThis.fetch = async (...args) => {
+    waiting++;
+    try {
+        return await answerFetch(...args);
+    } finally {
+        waiting--;
+    }
+};
+let previewReads = 0;
+const computedRead = router.routes.POST.get("/api/game/computed/read");
+router.routes.POST.set("/api/game/computed/read", async (req, res) => {
+    const { name } = await req.json();
+    const answered = await computedRead(req, res);
+    if (name === "preview") previewReads++;
+    return answered;
+});
+const previewReadSince = (reads, what) => until(() => previewReads > reads && waiting === 0, what);
+
+// The player is on Lumi_Alt just as a save reaches the game: after the page planned for Lumi_Main and the change log
+// read the old values. The game checks who is in play in the same call as the writes. `skip`: writes that land first
+// (1 lets the gear land and switches at the food). Resolves to the preview reads made before the switch.
+const switchAtNextWrite = (skip = 0) =>
+    new Promise((switched) => {
+        const write = router.routes.POST.get("/api/game/gga/write-many");
+        router.routes.POST.set("/api/game/gga/write-many", async (req, res) => {
+            if (skip-- > 0) return write(req, res);
+            router.routes.POST.set("/api/game/gga/write-many", write);
+            switched(previewReads);
+            gga.UserInfo[0] = "Lumi_Alt";
+            try {
+                return await write(req, res);
+            } finally {
+                gga.UserInfo[0] = "Lumi_Main";
+            }
+        });
+    });
+
+test("a player who switches characters as Apply writes gets no gear put on the new one", async () => {
+    await until(() => waiting === 0, "the page to finish reading the game");
+    const actions = (await fetchChanges()).actions.length;
+    const switched = switchAtNextWrite();
+    const apply = button(page, "Apply");
+    await click(apply);
+    await click(apply);
+    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    assert.ok(byClass(page, "said--failed").length, "said in place");
+    assert.equal(gga.EquipmentOrder[0][1], "EquipmentSword5");
+    assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
+    assert.equal((await fetchChanges()).actions.length, actions, "nothing logged");
+    await previewReadSince(await switched, "the page to read the game again");
+});
+
+test("a player who switches characters as Apply writes the food stacks is told the gear landed and no food was set", async () => {
+    gga.EquipmentQuantity[2][0] = 30000;
+    const switched = switchAtNextWrite(1);
+    const apply = button(page, "Apply");
+    await click(apply);
+    await click(apply);
+    const said =
+        "Rare Drops (DK / RG Primarily) landed on Lumi_Main, but its food stacks weren't set: " +
+        "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt.";
+    await until(() => text(page).includes(said), "the refusal");
+    assert.equal(gga.EquipmentOrder[0][1], "EquipmentWands9", "the gear landed on Lumi_Main");
+    assert.equal(gga.EquipmentQuantity[2][0], 30000, "no food stack set");
+    await previewReadSince(await switched, "the page to read the game again");
+    const [action] = (await fetchChanges()).actions;
+    const reads = previewReads;
+    await undoAction(action.id);
+    await previewReadSince(reads, "the page to read the game after the undo");
+    gga.EquipmentQuantity[2][0] = 25000;
+});
+
+test("a player who switches characters as Perfect Equipped writes gets no gear rebuilt on the new one", async () => {
+    gga.EquipmentMap[0][0].h = { STR: 3 };
+    const switched = switchAtNextWrite();
+    const perfect = button(page, "Perfect Equipped");
+    await click(perfect);
+    await click(perfect);
+    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    assert.equal(JSON.stringify(gga.EquipmentMap[0][0].h), JSON.stringify({ STR: 3 }));
+    await previewReadSince(await switched, "the page to read the game again");
+});
+
 test("a name typed while a loadout saves stays in the field for the next one", async () => {
     await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");

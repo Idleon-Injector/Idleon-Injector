@@ -12,6 +12,47 @@
     min-height: 0;
 }
 
+/* Under the page top (#26) the workbench takes the rest of the pane. */
+.search-page-top {
+    margin-bottom: 1rem;
+}
+
+.search-page-top + .search-layout {
+    flex: 1;
+    height: auto;
+}
+
+/* In the narrow overlay the keys go above the scan and the pane scrolls; each list keeps a height to scroll in. */
+@media (max-width: 760px) {
+    .search-page-top + .search-layout {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .search-page-top + .search-layout > *,
+    .search-page-top + .search-layout .search-right-column > * {
+        flex: none;
+    }
+
+    .search-page-top + .search-layout > :first-child {
+        height: 380px;
+    }
+
+    .search-page-top + .search-layout .search-right-column {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .search-page-top + .search-layout .search-right-column > :nth-child(2) {
+        height: 360px;
+    }
+
+    .search-page-top + .search-layout .search-right-column > :nth-child(3) {
+        height: 280px;
+    }
+}
+
 .search-right-column {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) minmax(160px, 0.9fr);

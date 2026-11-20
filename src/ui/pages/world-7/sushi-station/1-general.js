@@ -84,7 +84,6 @@ const ResourceRow = ({ field, valueState }) => {
             name: field.label,
             formatted: isCurrency,
             float: isCurrency,
-            badge: (currentValue) => (isCurrency ? largeFormatter(currentValue ?? 0) : String(currentValue ?? 0)),
         },
         valueState,
     });

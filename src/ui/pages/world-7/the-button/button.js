@@ -22,7 +22,6 @@ const ButtonRow = ({ field, fieldState, onWrite }) =>
         onWrite,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
-        emptyBadge: "-",
     });
 
 const ButtonPage = () => {

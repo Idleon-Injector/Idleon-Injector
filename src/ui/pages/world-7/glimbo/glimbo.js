@@ -52,7 +52,6 @@ const GlimboTab = () => {
                 ),
                 subLabel: itemId,
                 formatted: false,
-                badge: (currentValue) => `LV ${toInt(currentValue, { min: 0 })}`,
             };
         });
     };
