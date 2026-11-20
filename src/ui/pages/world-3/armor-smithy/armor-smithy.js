@@ -272,55 +272,41 @@ const SmithyTab = () => {
         });
     };
 
-    const removeAtIndex = async (index) => {
-        if (mutating.val) return;
-        const current = [...currentStoredSetKeys.val];
-        if (index < 0 || index >= current.length) return;
-
+    // Every change starts from the sets the game holds now, so a set the game stored since the page read them is
+    // kept. After any outcome the page reads the game again; a failed write keeps its warning.
+    const change = async (build) => {
         mutating.val = true;
         try {
-            const next = current.filter((_, i) => i !== index);
+            const stored = normalizeStoredSetKeys(await gga(STORED_SETS_PATH));
+            const next = build(stored);
+            if (next.length === stored.length) return { cancelled: true };
             await writeStoredSets(next);
-            await refreshAfterWrite();
         } finally {
+            const warning = writeWarning.val;
+            await refreshAfterWrite();
+            writeWarning.val = warning;
             mutating.val = false;
         }
+    };
+
+    const removeAtIndex = async (index) => {
+        if (mutating.val) return;
+        const setKey = currentStoredSetKeys.val[index];
+        if (setKey === undefined) return;
+        await change((stored) => stored.filter((key) => key !== setKey));
     };
     removeAtIndex.isBusy = () => mutating.val;
 
     const addSelected = async () => {
         const setKey = selectedAddSetKey.val;
         if (!setKey || mutating.val) return;
-
-        await runAdd(async () => {
-            mutating.val = true;
-            try {
-                const current = [...currentStoredSetKeys.val];
-                if (current.includes(setKey)) return;
-                const next = [...current, setKey];
-                await writeStoredSets(next);
-                await refreshAfterWrite();
-            } finally {
-                mutating.val = false;
-            }
-        });
+        await runAdd(() => change((stored) => (stored.includes(setKey) ? stored : [...stored, setKey])));
     };
 
     const addAllAvailable = async () => {
         if (mutating.val || addOptions.val.length === 0) return;
-        await runAdd(async () => {
-            mutating.val = true;
-            try {
-                const current = [...currentStoredSetKeys.val];
-                const toAdd = addOptions.val.map((entry) => entry.setKey).filter((setKey) => !current.includes(setKey));
-                if (toAdd.length === 0) return;
-                const next = [...current, ...toAdd];
-                await writeStoredSets(next);
-                await refreshAfterWrite();
-            } finally {
-                mutating.val = false;
-            }
-        });
+        const toAdd = addOptions.val.map((entry) => entry.setKey);
+        await runAdd(() => change((stored) => [...stored, ...toAdd.filter((setKey) => !stored.includes(setKey))]));
     };
 
     load();

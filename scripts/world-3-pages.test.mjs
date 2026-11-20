@@ -151,3 +151,27 @@ test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pre
     await until(() => !gga.Spelunk[46].includes(hat(1)), "the second press to remove it");
     assert.deepEqual([...gga.Cards[1]], []);
 });
+
+const SMITHY = "src/ui/pages/world-3/armor-smithy/armor-smithy.js";
+const smithyRows = (root) => byClass(root, "smithy-row");
+
+test("Smithy: Remove and Add keep a set the game stored after the page read the list", async () => {
+    gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
+
+    // In game, the player completes a set and the game stores it.
+    gga.OptionsListAccount[379] += ",IRON_SET";
+    const gold = smithyRows(root).find((row) => text(row).includes("GOLD_SET"));
+    click(buttonIn(gold, "Remove"));
+    await until(() => !gga.OptionsListAccount[379].includes("GOLD_SET"), "Remove to finish");
+    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,IRON_SET");
+
+    gga.OptionsListAccount[379] += ",PLATINUM_SET";
+    await until(() => smithyRows(root).length === 2, "the page to read the game again");
+    const addAll = buttonIn(root, "Add all");
+    click(addAll);
+    await until(() => settledButton(addAll), "Add all to finish");
+    for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET"]) {
+        assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} stays stored`);
+    }
+});
