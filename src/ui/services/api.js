@@ -6,18 +6,24 @@
 
 const API_BASE = "/api";
 
+/** How long a request waits for the server's answer before it fails like any other failed request. Tests lower it. */
+export const requestLimit = { timeoutMs: 10000 };
+
 /**
  * Generic internal request helper
  * @param {string} endpoint - relative path (e.g. '/config')
  * @param {object} options - fetch options
+ * @param {{ timeoutMs?: number }} [limit] - 0 for a call that may rightly take longer (a value search, an update)
  */
-async function _request(endpoint, options = {}) {
+async function _request(endpoint, options = {}, { timeoutMs = requestLimit.timeoutMs } = {}) {
     // Clean endpoint to prevent double slashes when joining with API_BASE
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
     const url = `${API_BASE}/${cleanEndpoint}`;
+    const controller = new AbortController();
+    let timer = null;
 
-    try {
-        const response = await fetch(url, options);
+    const answer = (async () => {
+        const response = await fetch(url, { ...options, signal: controller.signal });
 
         if (response.status === 204) return null;
 
@@ -33,9 +39,27 @@ async function _request(endpoint, options = {}) {
         }
 
         return data;
+    })();
+    // A request with no answer after timeoutMs fails, and its answer is dropped if it comes after all: the page never
+    // shows it, so it can't call a save done or put an older value over a newer one.
+    const noAnswer = new Promise((_resolve, reject) => {
+        if (!(timeoutMs > 0)) return;
+        timer = setTimeout(() => {
+            // Reads are the GETs and the POSTs that only read (gga/read-many, computed/read, ...).
+            const read = !options.method || options.method === "GET" || /\/read(-\w+)?$/.test(cleanEndpoint);
+            reject(new Error(read ? "Couldn't load. Try again." : "Couldn't save. Try again."));
+            controller.abort();
+        }, timeoutMs);
+    });
+
+    try {
+        return await Promise.race([answer, noAnswer]);
     } catch (error) {
         console.error(`API Error [${endpoint}]:`, error);
         throw error;
+    } finally {
+        clearTimeout(timer);
+        answer.catch(() => {}); // the aborted request's own rejection, once the race is over
     }
 }
 
@@ -80,15 +104,20 @@ export async function fetchAppInfo() {
     return _request("/app-info");
 }
 
+// Both reach GitHub: the server gives each download 30 seconds of silence, and a download takes longer than 10.
 export async function checkForUpdate(force = false) {
-    return _request(`/update/check${force ? "?force=1" : ""}`);
+    return _request(`/update/check${force ? "?force=1" : ""}`, {}, { timeoutMs: 0 });
 }
 
 export async function applyUpdate() {
-    return _request("/update/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-    });
+    return _request(
+        "/update/apply",
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+        },
+        { timeoutMs: 0 }
+    );
 }
 
 export async function updateSessionConfig(updatedConfig) {
@@ -173,16 +202,21 @@ export async function fetchGgaKeys() {
  * @returns {Promise<{results: Array, totalCount: number, truncated?: boolean}>}
  */
 export async function searchGga(query, keys, options = null) {
-    return _request("/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            query,
-            keys,
-            withinPaths: options?.withinPaths || null,
-            compare: options?.compare || null,
-        }),
-    });
+    // A value search scans the whole save, which can take longer than a request's usual limit.
+    return _request(
+        "/search",
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                query,
+                keys,
+                withinPaths: options?.withinPaths || null,
+                compare: options?.compare || null,
+            }),
+        },
+        { timeoutMs: 0 }
+    );
 }
 
 /**
@@ -437,12 +471,17 @@ export async function fetchSaveCopies() {
  * @param {string} id
  * @returns {Promise<{ id: string, character: string, groups: Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, restorable: boolean }> }> }>}
  */
+// Compare and restore go through the whole save, which can take longer than a request's usual limit.
 export async function compareSaveCopy(id) {
-    return _request("/save-copies/compare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-    });
+    return _request(
+        "/save-copies/compare",
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+        },
+        { timeoutMs: 0 }
+    );
 }
 
 /**
@@ -454,11 +493,15 @@ export async function compareSaveCopy(id) {
  * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }> }>}
  */
 export async function restoreSaveCopy(id, select) {
-    return _request("/save-copies/restore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, select }),
-    });
+    return _request(
+        "/save-copies/restore",
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, select }),
+        },
+        { timeoutMs: 0 }
+    );
 }
 
 /**
