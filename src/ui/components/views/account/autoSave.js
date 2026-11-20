@@ -1,6 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../assets/icons.js";
-import { captureGesture, labelOf, withAction } from "../../../services/changeLog.js";
+import { captureGesture, labelOf, releaseAction, withAction } from "../../../services/changeLog.js";
 import { undoAction } from "./undo.js";
 
 const { span, button } = van.tags;
@@ -49,8 +49,9 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
     const offer = van.state(null);
     const washed = van.state(false);
     const refused = van.state(false);
-    let running = null;
-    let again = false;
+    // The newest thing in the row's queue while it's a save ({ again, turn }): a save asked for then joins it.
+    let lastSave = null;
+    let saveLoops = 0;
     let clearTimer = null;
     let offerTimer = null;
     let label = "";
@@ -148,7 +149,14 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
      */
     const run = (task, by = "button") => {
         const savedFor = subject?.();
-        const named = label;
+        let named = label;
+        // A write that waits its turn doesn't keep its click's action open meanwhile (the running save's writes would
+        // then be logged apart, with no Undo); it opens its own when its turn comes, named after the same click.
+        if (tail) {
+            releaseAction();
+            named = "";
+        }
+        lastSave = null; // a save asked for after this runs after it
         return inTurn(() => runNow(task, by, savedFor, named));
     };
 
@@ -168,20 +176,28 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         }
     };
 
+    // A save asked for while the newest thing queued is a save joins it (it saves once more when that one ends, so
+    // the last value is the one saved); after a switch, a button or Undo, it waits its own turn behind them.
     const save = () => {
-        if (running) {
-            again = true;
-            return running;
+        if (lastSave) {
+            lastSave.again = true;
+            return lastSave.turn;
         }
-        running = inTurn(async () => {
+        const loop = { again: false };
+        saveLoops++;
+        loop.turn = inTurn(async () => {
             let outcome;
             do {
-                again = false;
+                loop.again = false;
                 outcome = await saveOnce();
-            } while (again);
+            } while (loop.again);
             return outcome;
-        }).finally(() => (running = null));
-        return running;
+        }).finally(() => {
+            saveLoops--;
+            if (lastSave === loop) lastSave = null;
+        });
+        lastSave = loop;
+        return loop.turn;
     };
 
     /** Put back what the offered save changed; a refusal says why where the ✓ was, and pulses. */
@@ -191,6 +207,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         holds.pointer = holds.focus = false;
         endOffer();
         // It takes its turn too, so a switch flipped before it answers doesn't run beside it.
+        lastSave = null;
         const outcome = await inTurn(() => track(() => undoAction(action.id), "undo", "undo"));
         if (!outcome.ok) return;
         washed.val = true;
@@ -204,8 +221,10 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         if (!holds.pointer && !holds.focus && offer.val) offerTimer = setTimeout(endOffer, UNDO_MS / 2);
     };
 
+    // Escape: the draft is put back, so its failure goes, even while another write says saving….
     const cancel = () => {
         if (typeof revert === "function") revert();
+        held = null;
         if (status.val === "error") settle(null);
     };
 
@@ -239,7 +258,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         onfocusout: (e) => {
             const next = e.relatedTarget;
             if (next && isRowField(next) && e.currentTarget.contains(next)) {
-                if (running || status.val === "loading") return;
+                if (saveLoops > 0 || status.val === "loading") return;
                 try {
                     prepare();
                     if (draftRefused) settle(null);
@@ -260,7 +279,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         run,
         cancel,
         handlers,
-        isBusy: () => running !== null,
+        isBusy: () => saveLoops > 0,
         undo: { offer, washed, refused, run: undo, hold },
     };
 };

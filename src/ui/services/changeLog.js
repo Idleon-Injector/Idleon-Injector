@@ -190,6 +190,14 @@ export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn
     return result;
 };
 
+/**
+ * Let go of the action whose code is running: a write that waits its turn opens its own when it starts (its kept
+ * click still names it), so the action doesn't stay open meanwhile and split another save's writes from each other.
+ */
+export const releaseAction = () => {
+    if (current) open.delete(current);
+};
+
 /*
  * The action a save belongs to: the one whose code is running, else the only one still waiting on the game.
  * ponytail: two actions waiting at once (a quick tab through two fields whose pages read before writing) can't be

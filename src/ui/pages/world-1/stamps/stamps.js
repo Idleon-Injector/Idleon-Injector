@@ -95,7 +95,8 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
                 words: ["Exalted", "Not exalted"],
                 name: `${name} exalted`,
                 title: `Exalted stamp (${stampCode})`,
-                // The switch says why its save failed; the row's save state says saving… and ✓.
+                // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
+                ownStatus: true,
                 onFlip: (exalted) =>
                     run(async () => {
                         const next = new Set(exaltedCodes.val);
