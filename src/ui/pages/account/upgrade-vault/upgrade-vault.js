@@ -18,6 +18,7 @@ import { definePage } from "../../../menu/menuModel.js";
 import { readComputedMany } from "../../../services/api.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -56,6 +57,8 @@ const UpgradeVaultTab = () => {
     const data = van.state(null);
     const { loading, error, run } = useAccountLoad({ label: "Upgrade Vault" });
     const { status: maxAllStatus, run: runMaxAll } = useWriteStatus();
+    // Why the last Max all failed, until the next one.
+    const maxAllFailure = van.state("");
     const getLevelState = createIndexedStateGetter();
     const getRealMaxState = createIndexedStateGetter();
     const listNode = div({ class: "account-list" });
@@ -114,7 +117,8 @@ const UpgradeVaultTab = () => {
 
     const doMaxAll = async () => {
         if (loading.val || error.val || !data.val?.upgrades.length) return;
-        await runMaxAll(async () => {
+        maxAllFailure.val = "";
+        const outcome = await runMaxAll(async () => {
             await runBulkSet({
                 entries: data.val.upgrades,
                 getTargetValue: (upgrade) => upgrade.realMax,
@@ -122,6 +126,9 @@ const UpgradeVaultTab = () => {
                 getPath: (upgrade) => `UpgVault[${upgrade.index}]`,
             });
         });
+        if (!outcome.error) return;
+        maxAllFailure.val = saveFailureReason(outcome.error);
+        await load(); // some levels may have saved
     };
 
     load();
@@ -135,7 +142,7 @@ const UpgradeVaultTab = () => {
             leading: span({ class: "account-write-feedback", role: "status" }, () => {
                 if (maxAllStatus.val === "loading") return "Saving all vault upgrades";
                 if (maxAllStatus.val === "success") return "All vault upgrades saved";
-                if (maxAllStatus.val === "error") return "Failed to save all vault upgrades";
+                if (maxAllFailure.val) return `Failed to save all vault upgrades: ${maxAllFailure.val}`;
                 return "";
             }),
             actions: [

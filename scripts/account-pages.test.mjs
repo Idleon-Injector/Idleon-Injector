@@ -308,3 +308,23 @@ test("levels: fields stay enabled while a save runs, and a second field's save w
     assert.equal(gga.Money, 1234);
     assert.equal(gga.Lv0[2], level);
 });
+
+test("upgrade vault: a failed Max all says why until the next press", async () => {
+    const root = await openPage(VAULT);
+    const maxAll = button(root, "Max all");
+    const feedback = () => text(byClass(root, "account-write-feedback")[0]);
+    gga.UpgVault[0] = 0;
+    const restore = refuseWrites(gga.UpgVault, 0);
+    try {
+        await maxAll.listeners.click({ preventDefault() {}, currentTarget: maxAll });
+        await until(() => /^Failed/.test(feedback()), "Max all to fail");
+        assert.equal(feedback(), "Failed to save all vault upgrades: game kept old value");
+        await until(() => classes(maxAll).includes("account-btn--error"), "the button to show the failure");
+        await until(() => !classes(maxAll).includes("account-btn--error"), "the button's failure to fade");
+        assert.equal(feedback(), "Failed to save all vault upgrades: game kept old value", "it stays");
+    } finally {
+        restore();
+    }
+    await maxAll.listeners.click({ preventDefault() {}, currentTarget: maxAll });
+    await until(() => feedback() === "All vault upgrades saved", "the retry to save");
+});
