@@ -19,10 +19,13 @@ export const saveFailureReason = (error) => {
     return message || "not saved";
 };
 
-// A field the row edits: a row's switch or checkbox saves on its own, so leaving a field for it still saves the field.
-const isEditField = (node) =>
-    /^(INPUT|SELECT|TEXTAREA)$/.test(String(node?.nodeName ?? "").toUpperCase()) &&
-    !/^(checkbox|radio)$/i.test(String(node?.type ?? node?.attributes?.type ?? ""));
+const isEditField = (node) => /^(INPUT|SELECT|TEXTAREA)$/.test(String(node?.nodeName ?? "").toUpperCase());
+// One of the row's own fields, for leaving a field: a switch that saves by itself isn't, so leaving a level for it
+// saves the level; a switch that edits the row's draft (marked `data-row-field`) is.
+const isRowField = (node) =>
+    isEditField(node) &&
+    (!/^(checkbox|radio)$/i.test(String(node?.type ?? node?.attributes?.type ?? "")) ||
+        (node?.getAttribute?.("data-row-field") ?? null) !== null);
 
 /**
  * Save on commit, for one field or a row of fields that save together: Enter saves and keeps focus,
@@ -194,7 +197,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         // takes back a reason they no longer have); anything else (Undo too) saves.
         onfocusout: (e) => {
             const next = e.relatedTarget;
-            if (next && isEditField(next) && e.currentTarget.contains(next)) {
+            if (next && isRowField(next) && e.currentTarget.contains(next)) {
                 if (running || status.val === "loading") return;
                 try {
                     prepare();

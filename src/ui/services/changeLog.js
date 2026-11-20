@@ -132,7 +132,8 @@ const noteGesture = (target) => {
 export const captureGesture = () => {
     const kept = gesture;
     const keptAction = current;
-    const place = app ? currentPlace() : null;
+    // Inside another kept write (a switch's next flip queued again), keep the place that one kept.
+    const place = keptPlace ?? (app ? currentPlace() : null);
     return (fn) => {
         const now = { gesture, current, keptPlace };
         gesture = kept;

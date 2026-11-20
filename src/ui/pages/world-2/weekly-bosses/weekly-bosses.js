@@ -376,6 +376,7 @@ const WeeklyBossTab = () => {
                 disabled: () => loading.val || Boolean(error.val) || signature === null,
                 title: () =>
                     state.unlocked.val ? `Lock ${entry.name}` : `Unlock ${entry.name} without spending trophies`,
+                status: state.write.status, // nothing else on the row reads out saving and saved
                 onFlip: (unlocked) => setSkin(entry, unlocked),
             }),
         });

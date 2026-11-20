@@ -27,6 +27,7 @@ const { input, label, span } = van.tags;
  * @param {(next: boolean) => *} opts.onFlip saves the new state
  * @param {*} [opts.disabled] when the game can't be written at all (still loading, failed to read); not while saving
  * @param {*} [opts.status] the row's save status ("loading", "success", "error"), to read out saving and saved
+ * @param {boolean} [opts.rowField] the switch edits the row's draft (saved with the row's other fields), not by itself
  * @param {*} [opts.title] tooltip
  * @param {string} [opts.className]
  * @returns {HTMLElement}
@@ -38,6 +39,7 @@ export const StateSwitch = ({
     onFlip,
     disabled = false,
     status = null,
+    rowField = false,
     title = null,
     className = "",
 }) => {
@@ -59,6 +61,7 @@ export const StateSwitch = ({
         type: "checkbox",
         role: "switch",
         "aria-label": name,
+        ...(rowField ? { "data-row-field": "" } : {}),
         checked: () => pending.val ?? isOn(),
         disabled: () => Boolean(resolveValue(disabled)),
         onchange: async (e) => {

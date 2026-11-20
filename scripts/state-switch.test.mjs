@@ -338,7 +338,7 @@ for (const [name, file, list, index, off] of [
             restore = refuseWrites(list(), index);
             await flip(row, true);
             await until(() => wordsOf(row) !== off, "the switch to say why");
-            assert.match(wordsOf(row), /game kept old value/);
+            assert.equal(wordsOf(row), "game kept old value", "one value: it landed or it didn't");
             assert.equal(rowStatusOf(row), "", "the row doesn't also announce the failure");
         } finally {
             restore();
@@ -374,13 +374,17 @@ const holdEachWrite = () => {
 const switchLabelOf = (row) => byClass(row, "state-switch")[0];
 const switchStatusOf = (row) => text(byClass(switchLabelOf(row), "account-write-feedback")[0]);
 const shown = (row) => switchOf(row).attributes.checked; // what the box shows (VanJS writes the binding here)
+// Start the change log on `page`; `done()` puts the menu back where it was, so later tests don't start elsewhere.
+const cleanups = [];
 const startLog = async (page) => {
     const changeLog = await importRepo("src/ui/services/changeLog.js");
     const store = (await importRepo("src/ui/state/store.js")).default;
     const root = globalThis.document.createElement("div");
     root.append(page);
     changeLog.startChangeLog(store.app, root);
-    return { changeLog, store, root };
+    const { activeTab, menuWorld, menuPage } = store.app;
+    const done = () => Object.assign(store.app, { activeTab, menuWorld, menuPage });
+    return { changeLog, store, root, done };
 };
 
 test("killroy: while a later flip waits, the box shows that flip, not the state the first save left", async () => {
@@ -479,7 +483,8 @@ test("event shop: a confirmed Enable all keeps its button's action through the q
             "src/ui/pages/account/event-shop/event-shop.js",
             (root) => pageRead(root) && byClass(root, "state-switch").length > 1
         );
-        const { changeLog } = await startLog(page);
+        const { changeLog, done } = await startLog(page);
+        cleanups.push(done);
         const enableAll = buttonNamed(page, "Enable all");
         const logged = changeLog.lastBulkAction.val;
         await click(enableAll); // asks in place
@@ -487,6 +492,7 @@ test("event shop: a confirmed Enable all keeps its button's action through the q
         await until(() => changeLog.lastBulkAction.val !== logged, "Enable all to log its action");
         assert.equal(changeLog.lastBulkAction.val.action.anchor, enableAll, "its Undo all sits beside the button");
     } finally {
+        for (const cleanup of cleanups.splice(0)) cleanup();
         ola[311] = before;
     }
 });
@@ -496,7 +502,8 @@ test("bribes: a queued save is logged on the page it was asked for on, after the
     try {
         resetBribes();
         const page = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping On the Job"));
-        const { changeLog, store } = await startLog(page);
+        const { changeLog, store, done } = await startLog(page);
+        cleanups.push(done);
         store.openMenu({ view: "PAGES" });
         store.openMenu({ world: 1 });
         const askedOn = changeLog.currentPlace();
@@ -511,6 +518,7 @@ test("bribes: a queued save is logged on the page it was asked for on, after the
         await until(() => changeLog.lastBulkAction.val !== logged, "the saves to be logged");
         assert.deepEqual(changeLog.lastBulkAction.val.action.place, askedOn, "logged where it was asked for");
     } finally {
+        for (const cleanup of cleanups.splice(0)) cleanup();
         writes.all();
         resetBribes();
     }
@@ -542,4 +550,124 @@ test("a save that failed part-way says some changes may have applied, not that t
         "some changes may have applied"
     );
     assert.equal(saveFailureReason(new Error("Write mismatch at BribeStatus[2]")), "game kept old value");
+});
+
+// ---- Round 3 (second read of 0a4de92) ----
+
+test("bribes: a switch's queued second flip is logged on its page after the player moved on", async () => {
+    const writes = holdEachWrite();
+    try {
+        resetBribes();
+        const page = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Mandatory Fire Sale"));
+        const { changeLog, store, done } = await startLog(page);
+        cleanups.push(done);
+        store.openMenu({ view: "PAGES" });
+        store.openMenu({ world: 1 });
+        const askedOn = changeLog.currentPlace();
+        const row = rowNamed(page, "Mandatory Fire Sale");
+        const first = flip(row, true);
+        await until(() => writes.held() === 1, "On to reach the game");
+        void flip(row, false); // waits in the switch, then queues again on the page
+        store.openMenu({ view: "HISTORY" });
+        writes.next();
+        await until(() => writes.held() === 2, "Off to reach the game");
+        const logged = changeLog.lastBulkAction.val;
+        writes.all();
+        await first;
+        await until(() => changeLog.lastBulkAction.val !== logged, "Off to be logged");
+        assert.equal(bribes()[2], 0);
+        assert.deepEqual(changeLog.lastBulkAction.val.action.place, askedOn, "logged on Bribes, not History");
+    } finally {
+        for (const cleanup of cleanups.splice(0)) cleanup();
+        writes.all();
+        resetBribes();
+    }
+});
+
+test("bribes: a row flip that Disable all already covered claims no save", async () => {
+    const writes = holdEachWrite();
+    try {
+        resetBribes(); // the first two are owned
+        const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Insider Trading"));
+        const row = rowNamed(root, "Insider Trading");
+        const disableAll = buttonNamed(root, "Disable all");
+        await click(disableAll); // asks in place
+        const bulk = click(disableAll); // confirmed
+        await until(() => writes.held() === 1, "Disable all to reach the game");
+        const rowSave = flip(row, false); // waits behind Disable all, which turns it off
+        writes.all();
+        await Promise.all([bulk, rowSave]);
+        assert.equal(bribes()[0], 0);
+        assert.equal(rowStatusOf(row), "", "nothing to save, so no SAVED");
+        assert.doesNotMatch(classes(row), /account-row--success/);
+    } finally {
+        writes.all();
+        resetBribes();
+    }
+});
+
+test("weekly bosses: a skin switch reads out saving and saved", async () => {
+    const writes = holdEachWrite();
+    const weekly = game.gga.WeeklyBoss.h;
+    const locked = Object.keys(weekly).filter((key) => key.startsWith("UI_") && Number(weekly[key]) === 0);
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-2/weekly-bosses/weekly-bosses.js",
+            (root) => pageRead(root) && byClass(root, "state-switch").length > 1
+        );
+        const row = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Locked");
+        const save = flip(row, true);
+        await until(() => writes.held() === 1, "the save to reach the game");
+        await until(() => switchStatusOf(row) === "Saving…", "the switch to say it is saving");
+        writes.all();
+        await save;
+        await until(() => switchStatusOf(row) === "Saved", "the switch to say it saved");
+    } finally {
+        writes.all();
+        for (const key of locked) weekly[key] = 0;
+    }
+});
+
+// Research › Observations: the unlock switch edits the tile's draft, saved with its other fields.
+const OBSERVATIONS = "src/ui/pages/world-7/research/observations.js";
+const research = () => game.gga.Research;
+const openTile = async () => {
+    const root = await openPage(OBSERVATIONS, (root) => pageRead(root) && byClass(root, "observation-tile").length > 0);
+    const tile = byClass(root, "observation-tile")[0];
+    const fields = elements(tile).filter((node) => node.nodeName === "input" && node !== switchOf(tile));
+    return { tile, unlock: switchOf(tile), insightLevel: fields[0] };
+};
+
+test("observations: Enter on the unlock switch saves the tile", async () => {
+    const before = structuredClone(research());
+    try {
+        const { tile, unlock } = await openTile();
+        const was = Number(research()[2][0]) === 1;
+        await flip(tile, !was);
+        tile.listeners.keydown({ key: "Enter", target: unlock, preventDefault() {} });
+        await until(() => (Number(research()[2][0]) === 1) !== was, "the tile to save its unlock");
+    } finally {
+        Object.assign(research(), before);
+    }
+});
+
+test("observations: moving from a field to the unlock switch keeps editing, and Escape there puts it back", async () => {
+    const writes = holdEachWrite();
+    const before = structuredClone(research());
+    try {
+        const { tile, unlock, insightLevel } = await openTile();
+        const stored = String(insightLevel.attributes.value ?? insightLevel.value);
+        insightLevel.value = String(Number(stored) + 1);
+        insightLevel.listeners.input({ target: insightLevel });
+        tile.listeners.focusout({ currentTarget: tile, target: insightLevel, relatedTarget: unlock });
+        tile.listeners.keydown({ key: "Escape", target: unlock, preventDefault() {} });
+        await until(() => String(insightLevel.attributes.value) === stored, "Escape to put the field back");
+        // A save started by leaving the field would read the game, then write: let a few game round trips pass.
+        const { gga } = await importRepo("src/ui/services/api.js");
+        for (let i = 0; i < 3; i++) await gga("Research");
+        assert.equal(writes.held(), 0, "leaving the field for the switch didn't save the tile");
+    } finally {
+        writes.all();
+        Object.assign(research(), before);
+    }
 });
