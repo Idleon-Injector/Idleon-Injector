@@ -92,7 +92,8 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             } catch (readError) {
                 error.val = readError.message;
             }
-            throw new Error(`Some changes may have applied and could not be verified. ${caughtError.message}`);
+            // One value (the whole history): it landed or it didn't, and the history was read again.
+            throw caughtError;
         }
     };
 

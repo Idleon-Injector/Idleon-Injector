@@ -63,7 +63,8 @@ const BribesTab = () => {
             } catch (readError) {
                 error.val = readError.message;
             }
-            throw new Error(`Some changes may have applied. ${caughtError.message}`);
+            // One value either landed or didn't; of several, some may have.
+            throw writes.length > 1 ? new Error(`Some changes may have applied. ${caughtError.message}`) : caughtError;
         }
     };
 
@@ -84,13 +85,13 @@ const BribesTab = () => {
                         const addWrite = (index, value) =>
                             writes.push({ index, path: `${STATUS_PATH}[${index}]`, value });
                         if (enabled) {
-                            if (values[entry.index] === 1) return;
+                            if (values[entry.index] === 1) return { cancelled: true };
                             addWrite(entry.index, 1);
                             for (let index = entry.start; index < entry.start + entry.count; index++) {
                                 if (values[index] === -1) addWrite(index, 0);
                             }
                         } else {
-                            if (values[entry.index] !== 1) return;
+                            if (values[entry.index] !== 1) return { cancelled: true };
                             addWrite(entry.index, 0);
                         }
                         await applyWrites(writes);

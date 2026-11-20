@@ -7,6 +7,8 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
 await loadUi(router);
+// Asking in place (Click again) draws on the next frame; the test DOM has no frames.
+globalThis.requestAnimationFrame ??= (callback) => setTimeout(callback, 0);
 const ola = game.gga.OptionsListAccount;
 
 const text = (node) =>
@@ -343,3 +345,201 @@ for (const [name, file, list, index, off] of [
         }
     });
 }
+
+// ---- Round 2 (PR #108 at b471846) ----
+
+// Hold each write until let through one at a time with `next()`; `all()` lets the rest through.
+const holdEachWrite = () => {
+    const realFetch = globalThis.fetch;
+    const waiting = [];
+    let open = false;
+    let held = 0;
+    globalThis.fetch = async (url, options) => {
+        if (!open && String(url).includes("/write")) {
+            held++;
+            await new Promise((resolve) => waiting.push(resolve));
+        }
+        return realFetch(url, options);
+    };
+    return {
+        held: () => held,
+        next: () => waiting.shift()?.(),
+        all: () => {
+            open = true;
+            globalThis.fetch = realFetch;
+            while (waiting.length) waiting.shift()();
+        },
+    };
+};
+const switchLabelOf = (row) => byClass(row, "state-switch")[0];
+const switchStatusOf = (row) => text(byClass(switchLabelOf(row), "account-write-feedback")[0]);
+const shown = (row) => switchOf(row).attributes.checked; // what the box shows (VanJS writes the binding here)
+const startLog = async (page) => {
+    const changeLog = await importRepo("src/ui/services/changeLog.js");
+    const store = (await importRepo("src/ui/state/store.js")).default;
+    const root = globalThis.document.createElement("div");
+    root.append(page);
+    changeLog.startChangeLog(store.app, root);
+    return { changeLog, store, root };
+};
+
+test("killroy: while a later flip waits, the box shows that flip, not the state the first save left", async () => {
+    const writes = holdEachWrite();
+    try {
+        ola[115] = 0;
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
+        const row = rowNamed(root, "AIRHORN RESET");
+        const save = flip(row, true);
+        await until(() => writes.held() === 1, "the On save to reach the game");
+        void flip(row, false); // asked for while On saves
+        writes.next(); // On lands
+        await until(() => writes.held() === 2, "the Off save to reach the game");
+        assert.equal(wordsOf(row), "On", "the words say what the game holds");
+        assert.equal(shown(row), false, "the box shows the Off still to come");
+        writes.all();
+        await save;
+        assert.equal(ola[115], 0);
+        assert.equal(switchOf(row).checked, false);
+    } finally {
+        writes.all();
+        ola[115] = 0;
+    }
+});
+
+test("killroy: an old failure goes once the game holds something else, and stays gone", async () => {
+    let restore = () => {};
+    try {
+        ola[115] = 0;
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
+        const row = rowNamed(root, "AIRHORN RESET");
+        restore = refuseWrites(ola, 115);
+        await flip(row, true);
+        restore();
+        restore = () => {};
+        assert.equal(wordsOf(row), "game kept old value");
+        const refresh = buttonNamed(root, "Refresh");
+        ola[115] = 1; // changed elsewhere (in the game, or a bulk action)
+        await click(refresh);
+        await until(() => wordsOf(row) === "On", "the switch to show the new state");
+        ola[115] = 0; // and back
+        await click(refresh);
+        await until(() => wordsOf(row) !== "On", "the second refresh");
+        assert.equal(wordsOf(row), "Off", "the old failure stays gone");
+    } finally {
+        restore();
+        ola[115] = 0;
+    }
+});
+
+test("islands (the shared toggle row): the switch reads out saving and saved", async () => {
+    const writes = holdEachWrite();
+    const before = ola[169];
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-2/islands/islands.js",
+            (root) => pageRead(root) && rowNamed(root, "Trash Island")
+        );
+        const row = rowNamed(root, "Trash Island");
+        const save = flip(row, wordsOf(row) !== "Unlocked");
+        await until(() => writes.held() === 1, "the save to reach the game");
+        await until(() => switchStatusOf(row) === "Saving…", "the switch to say it is saving");
+        writes.all();
+        await save;
+        await until(() => switchStatusOf(row) === "Saved", "the switch to say it saved");
+    } finally {
+        writes.all();
+        ola[169] = before;
+    }
+});
+
+test("bribes: a row flip that Enable all already covered claims no save", async () => {
+    const writes = holdEachWrite();
+    try {
+        resetBribes();
+        const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Mandatory Fire Sale"));
+        const row = rowNamed(root, "Mandatory Fire Sale");
+        const bulk = click(buttonNamed(root, "Enable all"));
+        await until(() => writes.held() === 1, "Enable all to reach the game");
+        const rowSave = flip(row, true); // waits behind Enable all, which turns it on
+        writes.all();
+        await Promise.all([bulk, rowSave]);
+        assert.equal(bribes()[2], 1);
+        assert.equal(rowStatusOf(row), "", "nothing to save, so no SAVED");
+        assert.doesNotMatch(classes(row), /account-row--success/);
+    } finally {
+        writes.all();
+        resetBribes();
+    }
+});
+
+test("event shop: a confirmed Enable all keeps its button's action through the queue", async () => {
+    const before = ola[311];
+    try {
+        const page = await openPage(
+            "src/ui/pages/account/event-shop/event-shop.js",
+            (root) => pageRead(root) && byClass(root, "state-switch").length > 1
+        );
+        const { changeLog } = await startLog(page);
+        const enableAll = buttonNamed(page, "Enable all");
+        const logged = changeLog.lastBulkAction.val;
+        await click(enableAll); // asks in place
+        await click(enableAll); // confirmed
+        await until(() => changeLog.lastBulkAction.val !== logged, "Enable all to log its action");
+        assert.equal(changeLog.lastBulkAction.val.action.anchor, enableAll, "its Undo all sits beside the button");
+    } finally {
+        ola[311] = before;
+    }
+});
+
+test("bribes: a queued save is logged on the page it was asked for on, after the player moved on", async () => {
+    const writes = holdEachWrite();
+    try {
+        resetBribes();
+        const page = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping On the Job"));
+        const { changeLog, store } = await startLog(page);
+        store.openMenu({ view: "PAGES" });
+        store.openMenu({ world: 1 });
+        const askedOn = changeLog.currentPlace();
+        const logged = changeLog.lastBulkAction.val;
+        const first = flip(rowNamed(page, "Mandatory Fire Sale"), true);
+        await until(() => writes.held() === 1, "the first save to reach the game");
+        const second = flip(rowNamed(page, "Sleeping On the Job"), true); // waits its turn
+        store.openMenu({ view: "HISTORY" }); // the player moves on before it runs
+        assert.notEqual(changeLog.currentPlace().view, askedOn.view);
+        writes.all();
+        await Promise.all([first, second]);
+        await until(() => changeLog.lastBulkAction.val !== logged, "the saves to be logged");
+        assert.deepEqual(changeLog.lastBulkAction.val.action.place, askedOn, "logged where it was asked for");
+    } finally {
+        writes.all();
+        resetBribes();
+    }
+});
+
+test("stamps: leaving a level field for the row's switch saves the level", async () => {
+    const levels = game.gga.StampLevel[0];
+    const before = levels[0];
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-1/stamps/stamps.js",
+            (root) => pageRead(root) && rowNamed(root, "Stamp A1")
+        );
+        const row = rowNamed(root, "Stamp A1");
+        const field = elements(row).find((node) => node.nodeName === "input" && node !== switchOf(row));
+        field.value = String(before + 1);
+        field.listeners.input({ target: field });
+        row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: switchOf(row) });
+        await until(() => levels[0] === before + 1, "the level to save");
+    } finally {
+        levels[0] = before;
+    }
+});
+
+test("a save that failed part-way says some changes may have applied, not that the game kept the old value", async () => {
+    const { saveFailureReason } = await importRepo("src/ui/components/views/account/autoSave.js");
+    assert.equal(
+        saveFailureReason(new Error("Some changes may have applied. Write mismatch at BribeStatus[5]")),
+        "some changes may have applied"
+    );
+    assert.equal(saveFailureReason(new Error("Write mismatch at BribeStatus[2]")), "game kept old value");
+});

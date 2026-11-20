@@ -66,8 +66,10 @@ export const currentPlace = () => {
 };
 
 let actionCount = 0;
+// Set while a deferred write runs as if asked for now (captureGesture): the page it was asked for on.
+let keptPlace = null;
 const newAction = (label, kind, anchor = null) => {
-    const place = currentPlace();
+    const place = keptPlace ?? currentPlace();
     return {
         id: `${Date.now().toString(36)}-${++actionCount}`,
         label: String(label || "").trim(),
@@ -122,19 +124,24 @@ const noteGesture = (target) => {
 };
 
 /**
- * Keep the click or key that asked for a write, for a write that runs later (one waiting its turn): `inGesture(fn)`
- * runs `fn` as if that click were the newest, so its save is named after, and offers Undo beside, the control that
- * asked for it rather than whatever was clicked since.
+ * Keep what asked for a write, for a write that runs later (one waiting its turn): `inGesture(fn)` runs `fn` as if
+ * then were now. Its save joins the action that asked for it (a bulk button's), or is named after, and offers Undo
+ * beside, the control that was clicked; and it's logged on the page it was asked for on, even if the player has
+ * moved on since.
  */
 export const captureGesture = () => {
     const kept = gesture;
+    const keptAction = current;
+    const place = app ? currentPlace() : null;
     return (fn) => {
-        const now = gesture;
+        const now = { gesture, current, keptPlace };
         gesture = kept;
+        if (keptAction && open.has(keptAction)) current = keptAction;
+        keptPlace = place;
         try {
             return fn();
         } finally {
-            gesture = now;
+            ({ gesture, current, keptPlace } = now);
         }
     };
 };

@@ -13,12 +13,16 @@ const WASH_MS = 800;
 /** Short reason for a failed save, shown next to the field. */
 export const saveFailureReason = (error) => {
     const message = String(error?.message ?? error ?? "");
-    // Anywhere in the message: a page may lead it with what else it knows ("Some changes may have applied.").
-    if (/Write mismatch/.test(message)) return "game kept old value";
+    // A save of several values that failed part-way: say so, not that nothing changed (the page reads the game again).
+    if (/^Some changes may have applied/.test(message)) return "some changes may have applied";
+    if (/^Write mismatch/.test(message)) return "game kept old value";
     return message || "not saved";
 };
 
-const isEditField = (node) => /^(INPUT|SELECT|TEXTAREA)$/.test(String(node?.nodeName ?? "").toUpperCase());
+// A field the row edits: a row's switch or checkbox saves on its own, so leaving a field for it still saves the field.
+const isEditField = (node) =>
+    /^(INPUT|SELECT|TEXTAREA)$/.test(String(node?.nodeName ?? "").toUpperCase()) &&
+    !/^(checkbox|radio)$/i.test(String(node?.type ?? node?.attributes?.type ?? ""));
 
 /**
  * Save on commit, for one field or a row of fields that save together: Enter saves and keeps focus,

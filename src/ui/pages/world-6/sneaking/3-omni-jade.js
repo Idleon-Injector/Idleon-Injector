@@ -109,6 +109,7 @@ const OmniJadeTab = () => {
                 words: ["On", "Off"],
                 name,
                 disabled,
+                status, // nothing else on the row reads out saving and saved
                 onFlip: (on) => write(() => save(() => writeVerified(path, on ? 1 : 0))),
             }),
         });
