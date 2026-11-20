@@ -149,6 +149,7 @@ export default definePage({
     id: "w2.kangaroo",
     world: 2,
     system: "Kangaroo",
+    tab: "Poppy",
     description: "Poppy the kangaroo's fishing upgrades, Tar Pit and Spiral Upgrades.",
     keywords: ["Poppy", "Clicker", "Tar Pit"],
     component: PoppyTab,

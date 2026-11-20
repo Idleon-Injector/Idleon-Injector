@@ -16,6 +16,9 @@ const EVENT_SHOP = 20;
 const ARMORY = 70;
 
 const vaultMax = (index) => 10 + (index % 5) * 10;
+// World 7 › Bubba › Automation: costs climb by upgrade, the last few unlock with more meat made.
+const bubbaCost = (i) => Math.round(40 * 1.6 ** i);
+const bubbaUnlock = (i) => (i < 22 ? 0 : 10 ** (i - 16));
 
 // Attire Rack: outfits (EquipmentGown1..), their stats and bonuses, and the attire slot (row 0, slot 15).
 const OUTFITS = 8;
@@ -212,6 +215,15 @@ export default () => ({
             },
         },
     },
-    computed: { _customBlock_Summoning: { VaultUpgMaxLV: vaultMax }, ...wardrobeComputed() },
+    computed: {
+        _customBlock_Summoning: { VaultUpgMaxLV: vaultMax },
+        _customBlock_Bubbastuff: {
+            BubbaUnlocked: 1,
+            DoWeNeedToSelectGift: 0,
+            UpgCost: bubbaCost,
+            MeatProdREQ: bubbaUnlock,
+        },
+        ...wardrobeComputed(),
+    },
     cheatStates: { wide: { attire: true } },
 });

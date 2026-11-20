@@ -213,13 +213,40 @@ const startup = () => fileStartup;
 const fileShops = () => saves.findLast((body) => body.cheatConfig)?.cheatConfig.automation.shops;
 const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation shops").on;
 
+// Every automation the game declares, in the overview's order.
+const ALL_LABELS = [
+    "Bubba",
+    "Bubbles",
+    "Orion",
+    "Poppy",
+    "Tar Pit",
+    "Construction",
+    "Cooking",
+    "Grimoire",
+    "Shops",
+    "Sneaking",
+    "Summoning",
+];
+const ALL_CHEATS = [
+    "automation bubba",
+    "automation bubbles",
+    "automation orion",
+    "automation poppy",
+    "automation tarpit",
+    "automation construction",
+    "automation cooking",
+    "automation grimoire",
+    "automation shops",
+    "automation sneaking",
+    "automation summoning",
+];
 const overview = (await importRepo("src/ui/pages/account/automation/1-overview.js")).default.component();
 await until(() => row(overview, "Shops"), "the overview to list Shops");
 
 test("the overview lists the automation toggles only, each with its status", () => {
     assert.deepEqual(
         byClass(overview, "account-row__name").map(text),
-        ["Shops"],
+        ALL_LABELS,
         "Sushi Auto Play and autoboss are not automation toggles"
     );
     assert.equal(text(byClass(row(overview, "Shops"), "automation-row__status")[0]), "Off");
@@ -249,7 +276,7 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
     await until(() => button(overview, "Enable all"), "Enable all");
     await button(overview, "Enable all").listeners.click({ preventDefault() {} });
     await until(() => shopsOn() && button(overview, "Disable all"), "every automation to run");
-    assert.deepEqual(startup(), ["automation shops"]);
+    assert.deepEqual(startup(), ALL_CHEATS);
 
     const since = commands.length;
     const disable = button(overview, "Disable all");
@@ -261,7 +288,10 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
 
     await disable.listeners.click({ preventDefault() {} });
     await until(() => !shopsOn(), "the automation to stop");
-    assert.deepEqual(commands.slice(since), [["automation shops", false]]);
+    assert.deepEqual(
+        commands.slice(since),
+        ALL_CHEATS.map((cheat) => [cheat, false])
+    );
     assert.deepEqual(startup(), []);
 });
 
@@ -1008,10 +1038,10 @@ test("round 4: Enable all after switching one automation off switches it back on
         .filter(({ on }) => on)
         .map(({ id }) => id)
         .sort();
-    assert.deepEqual(on, ["account.automation.shops", "test.kit"], "Enable all, clicked after the Off, switches both");
-    assert.deepEqual(fileStartup.sort(), ["automation shops", "automation testkit"]);
-    switchAutomation("account.automation.shops", false);
-    switchAutomation("test.kit", false);
+    const every = getAutomations().filter(({ cheat }) => cheat.startsWith("automation "));
+    assert.deepEqual(on, every.map(({ id }) => id).sort(), "Enable all, clicked after the Off, switches every one");
+    assert.deepEqual(fileStartup.sort(), [...ALL_CHEATS, "automation testkit"].sort());
+    for (const { id } of every) switchAutomation(id, false);
 });
 
 // A second reader's review of 9a3241c.
@@ -1963,4 +1993,49 @@ test("row queue: a stop-at the field refused still shows after the item's switch
     await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: false } });
     await until(() => !saved().some(({ id, on }) => id === "1:item7" && on), "Velvet Stone off");
     await ui.switchAutomation("automation shops", false);
+});
+
+test("the overview reads again each time it is shown, so a switch made on a system's own tab shows", async () => {
+    const { pageShown } = await importRepo("src/ui/menu/menuModel.js");
+    const overviewStatus = () => text(byClass(row(overview, "Shops"), "automation-row__status")[0]);
+    switchAutomation("account.automation.shops", false); // whatever the tests before left
+    pageShown("account.automation.overview");
+    await until(() => overviewStatus() === "Off", "the overview to start from Shops off");
+    switchAutomation("account.automation.shops", true); // switched on a system's own tab, behind the overview's back
+    await queueIdle();
+    assert.equal(overviewStatus(), "Off", "while hidden it doesn't read");
+    pageShown("account.automation.overview"); // the menu shows it again
+    await until(
+        () => overviewStatus() !== "Off",
+        () => `the overview to read again: ${overviewStatus()}`
+    );
+    switchAutomation("account.automation.shops", false);
+    pageShown("account.automation.overview");
+    await until(() => overviewStatus() === "Off", "the overview to read the switch-off");
+});
+
+test("the menu tells a page each time it is shown: picked, or the Pages view shown again", async () => {
+    const store = (await importRepo("src/ui/state/store.js")).default;
+    const { menuTree } = await importRepo("src/ui/menu/pageRegistry.js");
+    const { buildMenuTree, whenShown } = await importRepo("src/ui/menu/menuModel.js");
+    const pages = await Promise.all(
+        ["src/ui/pages/account/automation/1-overview.js", "src/ui/pages/account/automation/2-shops.js"].map(
+            async (file) => (await importRepo(file)).default
+        )
+    );
+    menuTree.val = buildMenuTree(pages);
+    const { Pages } = await importRepo("src/ui/components/views/Pages.js");
+    const shown = [];
+    whenShown("account.automation.shops", () => shown.push("shops"));
+    Pages();
+    store.openMenu({ world: "account", page: "account.automation.overview" });
+    await settle();
+    store.openMenu({ world: "account", page: "account.automation.shops" });
+    await settle();
+    assert.deepEqual(shown, ["shops"]);
+    store.openMenu({ view: "CHEATS" });
+    await settle();
+    store.openMenu({ world: "account", page: "account.automation.shops" });
+    await settle();
+    assert.deepEqual(shown, ["shops", "shops"], "back from another view");
 });
