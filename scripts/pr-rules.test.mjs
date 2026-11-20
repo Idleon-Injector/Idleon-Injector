@@ -18,8 +18,7 @@ const CHEAT = "src/cheats/cheats/wide.js";
 const HOOK = "src/cheats/hooks/events012.js";
 const AUTOMATION = "src/cheats/automations/sushi.js";
 const noIssues = async () => null;
-const check = (files, { body = "", association = "CONTRIBUTOR", permission = "read", issue = noIssues } = {}) =>
-    checkPr({ files, body, association, permission, core, issue });
+const check = (files, { body = "", issue = noIssues } = {}) => checkPr({ files, body, core, issue });
 
 test("the core is read from .github/CODEOWNERS", () => {
     for (const p of ["src/cheats/core/", "scripts/", ".github/workflows/", "package.json", ".github/CODEOWNERS"])
@@ -44,7 +43,6 @@ test("each path gets its kind", () => {
 test("a PR of one kind passes and is named", async () => {
     assert.deepEqual(await check([modified(PAGE), modified("src/ui/pages/world-1/anvil/anvil.css")]), {
         kind: "a page",
-        exempt: false,
         problems: [],
     });
     assert.equal((await check([modified(CHEAT), modified(HOOK), modified(AUTOMATION)])).kind, "game-side code");
@@ -71,23 +69,10 @@ test("a PR with a page and game-side code fails and says to split it", async () 
     assert.match(moved.problems[0], /split it/);
 });
 
-test("maintainers (OWNER, MEMBER) are exempt; collaborators aren't", async () => {
+test("the rules don't ask who opened the PR: a maintainer's mixed PR with a new hook fails like anyone's", async () => {
+    assert.equal(checkPr.length, 1, "one argument, and no author in it");
     const files = [modified(PAGE), added("src/cheats/hooks/new.js"), modified("scripts/rules/exceptions.json")];
-    for (const association of ["OWNER", "MEMBER"]) {
-        const result = await check(files, { association });
-        assert.deepEqual(result, { kind: result.kind, exempt: true, problems: [] }, association);
-    }
-    assert.equal((await check(files, { association: "COLLABORATOR" })).problems.length, 2);
-});
-
-test("a private org member (CONTRIBUTOR in Actions) with write access to the repo is exempt; a reader isn't", async () => {
-    const files = [modified(PAGE), added("src/cheats/hooks/new.js")];
-    for (const permission of ["admin", "write"]) {
-        assert.equal((await check(files, { permission })).exempt, true, permission);
-    }
-    for (const permission of ["read", "none", undefined]) {
-        assert.equal((await check(files, { permission })).problems.length, 2, String(permission));
-    }
+    assert.equal((await check(files)).problems.length, 2);
 });
 
 test("issue links in the PR body", () => {

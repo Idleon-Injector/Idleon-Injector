@@ -167,11 +167,9 @@ const items = (values, format = (v) => `\`${v}\``) =>
         : "none";
 
 export function renderComment({ data, rules, check, runUrl, shotsUrl }) {
-    const ruleLines = rules.exempt
-        ? ["- Contributor rules: skipped, the author is a maintainer."]
-        : rules.problems.length
-          ? ["- Contributor rules: not met.", ...rules.problems.map((p) => `  - ${p}`)]
-          : ["- Contributor rules: met."];
+    const ruleLines = rules.problems.length
+        ? ["- PR rules: not met.", ...rules.problems.map((p) => `  - ${p}`)]
+        : ["- PR rules: met."];
     const checkWord = { success: "passed", failure: "failed", cancelled: "cancelled" }[check] ?? "didn't finish";
     const lines = [
         MARKER,
@@ -209,8 +207,6 @@ export async function post({ dir, run, repo, github, core }) {
     const rules = await checkPr({
         files: await github.files(pr.number),
         body: pr.body,
-        association: pr.author_association,
-        permission: await github.permission(pr.user.login),
         core,
         issue: github.issue,
     });

@@ -129,7 +129,7 @@ Rule tests read the code and refuse the pre-3.0 ways of doing things; each refus
 
 ## Git & PR Workflow
 
-- **Contributor rules:** [CONTRIBUTING.md](CONTRIBUTING.md) is the source: new cheats and new game hooks need an approved issue before work starts; the core (`.github/CODEOWNERS`) is the maintainer's alone; one kind per PR; fill in the three-line PR template, including the in-game test the contributor did themselves.
+- **Contributor rules:** [CONTRIBUTING.md](CONTRIBUTING.md) is the source: new cheats and new game hooks need an approved issue before work starts; the core (`.github/CODEOWNERS`) is the maintainer's alone; one kind per PR; fill in the three-line PR template, including the in-game test the contributor did themselves. The `rules` check holds every PR to the first two, the maintainer's and AI-written ones included.
 - **PR title:** PRs are squash-merged, so the title becomes the commit and a check enforces `<type>(<scope>): <short imperative description>` (`feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`; the rule is `scripts/pr-title.mjs`). Lowercase description, no trailing period. Example: `fix(ui): restore sidebar content after switching tabs`. Use the same format for commits; branch names and in-PR commit messages aren't checked.
 - **Pull requests:** Require explicit user confirmation before creation. Omit testing logs and validation details from PR descriptions unless requested. In PowerShell, use single-quoted here-strings or body files to prevent backticks from escaping Markdown.
 
