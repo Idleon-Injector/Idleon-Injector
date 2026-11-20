@@ -330,3 +330,19 @@ test("vials: a vial saved while Set all runs keeps the level it saved (Set all l
     assert.equal(levels[0], 4);
     assert.equal(shown(input), "4", "the row shows what the game holds");
 });
+
+test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the game shows as it is", async () => {
+    ola[123] = 2;
+    const root = await openPage("src/ui/pages/world-2/cauldrons/pay-2-win.js", (root) => rowNamed(root, "COUNT"));
+    const row = rowNamed(root, "COUNT");
+    const input = enter(row, 9);
+    await until(() => stateOf(row) === "error", "the save to be refused");
+    assert.equal(ola[123], 2, "nothing was written");
+    assert.ok(text(row).includes("max 4"), "the row says why");
+
+    leave(row, input);
+    ola[123] = 9;
+    await click(buttonNamed(root, "Refresh"));
+    await until(() => text(row).includes("9 / 4"), "the row to show what the game holds");
+    ola[123] = 2;
+});

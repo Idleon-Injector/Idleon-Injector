@@ -108,9 +108,11 @@ const createSectionState = (section) => {
 const P2WRow = ({ label, valueState, maxState, writePath }) =>
     EditableNumberRow({
         valueState,
+        // A value pulled into range is refused with the bound (useFieldEditor), so nothing past the max is written.
         normalize: (rawValue) => {
             const parsed = Math.max(0, Math.round(Number(rawValue)));
-            return Number.isNaN(parsed) ? null : parsed;
+            const max = Number(maxState.val);
+            return Number.isNaN(parsed) ? null : max > 0 ? Math.min(max, parsed) : parsed;
         },
         write: async (nextValue) => writeVerified(writePath, nextValue),
         renderInfo: () => span({ class: "account-row__name" }, label),
@@ -180,10 +182,9 @@ const Pay2WinTab = () => {
 
             for (const section of sections) {
                 if (section.kind === "single") {
+                    // What the game holds, even past the max, so the row never hides it.
                     const rawValue = Number(rawDraconic ?? 0);
-                    section.valueStates[0].val = Number.isFinite(rawValue)
-                        ? Math.min(section.max, Math.max(0, rawValue))
-                        : 0;
+                    section.valueStates[0].val = Number.isFinite(rawValue) ? rawValue : 0;
                     continue;
                 }
 
