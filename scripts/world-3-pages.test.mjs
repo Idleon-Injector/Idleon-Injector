@@ -529,7 +529,7 @@ test("Library: a switch while Max books writes leaves the new character's books 
 test("Buildings: a level save the game doesn't take leaves the level and its pending copy as they were", async () => {
     gga.TowerInfo[0] = 3;
     gga.TowerInfo[27] = 3;
-    const root = await openPage("src/ui/pages/world-3/construction/buildings.js", (r) =>
+    const root = await openPage("src/ui/pages/world-3/construction/1-buildings.js", (r) =>
         byClass(r, "account-row").some((row) => text(row).includes("#1"))
     );
     const row = byClass(root, "account-row").find((r) => text(byClass(r, "account-row__index")[0]) === "#1");
@@ -548,7 +548,7 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
 
-const COGS = "src/ui/pages/world-3/construction/cogs.js";
+const COGS = "src/ui/pages/world-3/construction/2-cogs.js";
 globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
 const openCogs = async () => {
     const root = await openPage(COGS, (r) => byClass(r, "cogs-slot").length > 0);
