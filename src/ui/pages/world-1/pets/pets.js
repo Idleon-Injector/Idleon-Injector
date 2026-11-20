@@ -354,8 +354,9 @@ const CompanionsTab = () => {
             async () => {
                 writeError.val = "";
                 if (error.val || !companions.val.length) throw new Error("Refresh pet data before changing tiers");
-                const [nextTokens] = await Promise.all([readComputed("companions", "petTokens"), readSelection()]);
-                tokens.val = nextTokens;
+                // The tokens first: the saved tiers are read against them (a pet with a token has no tier).
+                tokens.val = await readComputed("companions", "petTokens");
+                await readSelection();
                 const { normal, plus, picks = tokens.val.picks } = getChange();
                 if (picks !== tokens.val.picks) {
                     await writeVerified(TOKEN_PATH, picks.join(",")).catch(() => {

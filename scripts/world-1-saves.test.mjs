@@ -164,6 +164,26 @@ test("statues: a refused save says why and shows what the game holds", async () 
     [g.StatueG[1], g.RoyalG[22][1]] = saved;
 });
 
+// Review of #122: the second Enter's save took the deposit it was committed with as an edit and wrote it back.
+test("statues: a save queued behind another keeps a deposit the game made meanwhile", async () => {
+    const saved = [[...g.StatueLevels[2]], g.RoyalG[22][2]];
+    g.RoyalG[22][2] = 1;
+    const root = await openPage(STATUES, (root) => statueRow(root, 2));
+    const row = statueRow(root, 2);
+    const release = holdWrites();
+    try {
+        typeFlair(row, "2");
+        await tick();
+        g.StatueLevels[2][1] = 77777; // deposited in the game while the first save runs
+        typeFlair(row, "3");
+    } finally {
+        release();
+    }
+    await until(() => g.RoyalG[22][2] === 3 && saveState(row) === "success", "both saves");
+    assert.equal(g.StatueLevels[2][1], 77777, "the game's deposit isn't put back");
+    [g.StatueLevels[2], g.RoyalG[22][2]] = saved;
+});
+
 test("statues: names show the game's underscores as spaces", async () => {
     const root = await openPage(STATUES, (root) => statueRow(root, 7));
     assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "THICC SKIN");
@@ -229,6 +249,24 @@ test("pets: removing a token the game dropped since does not select the pet", as
     await tick();
     assert.equal(text(byClass(petCard(root, 2), "companion-card__tier")[0]), "NOT SELECTED");
     g.OptionsListAccount[606] = "2,5";
+});
+
+// Review of #122: the click read the saved tiers against the tokens the page had before, and dropped pet 2's Pets+.
+test("pets: a click keeps a Pets+ pick saved for a pet whose token the game dropped since", async () => {
+    const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+    g.OptionsListAccount[606] = "2";
+    const root = await openPage(PETS, (root) => petCard(root, 12));
+    g.OptionsListAccount[606] = ""; // the game dropped pet 2's token
+    await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "2:1,5:0" } } } }); // the Config tab
+    try {
+        await petControl(root, 12, "card").listeners.click({});
+        const saved = (await fetchConfig()).cheatConfig.w1.companion.companions;
+        assert.ok(String(saved).split(",").includes("2:1"), `pet 2 stays at Pets+ (saved: ${saved})`);
+    } finally {
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+        g.OptionsListAccount[606] = "2,5";
+    }
 });
 
 const STAR_SIGNS = "src/ui/pages/world-1/star-signs/star-signs.js";

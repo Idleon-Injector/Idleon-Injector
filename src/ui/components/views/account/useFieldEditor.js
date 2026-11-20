@@ -61,13 +61,13 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         });
 
     const autoSave = useAutoSave({
-        // The drafts as they were at the commit, so a later commit (made after a switch, say) can't save in its place.
-        capture: getDrafts,
-        prepare: (submitted = getDrafts()) => {
+        // The drafts as they were at the commit, so a later commit (made after a switch, say) can't save in its place,
+        // and the stored values they were taken from: a field untouched then stays untouched (and takes the game's
+        // value) when an earlier save read the game back and moved the stored value on meanwhile.
+        capture: () => ({ drafts: getDrafts(), bases: new Map(baseByKey) }),
+        prepare: ({ drafts: submitted, bases } = { drafts: getDrafts(), bases: baseByKey }) => {
             if (isDisabled()) return { unchanged: true };
-            const touched = fields.filter(
-                (field) => !isUntouched(field, submitted[field.key], baseByKey.get(field.key))
-            );
+            const touched = fields.filter((field) => !isUntouched(field, submitted[field.key], bases.get(field.key)));
             if (!touched.length) {
                 resetSubmitted(submitted);
                 return { unchanged: true };
