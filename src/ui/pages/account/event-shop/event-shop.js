@@ -146,8 +146,8 @@ const EventshopTab = () => {
     // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
     const inTurn = oneAtATime();
 
-    // `button`: the bulk button clicked, which asks in place before a bulk change (#77). Returns the save outcome, so a
-    // row's switch can say why a save failed.
+    // `button`: the bulk button clicked, which asks in place before a bulk removal (#77); an addition runs on one
+    // press (DESIGN.md). Returns the save outcome, so a row's switch can say why a save failed.
     const setOwnership = (enabled, index, feedback, button = null) =>
         inTurn(async () => {
             if (busy.val || !ready.val) return;
@@ -168,14 +168,14 @@ const EventshopTab = () => {
                             notice.val = "Ownership is already set. No changes made.";
                             return { cancelled: true };
                         }
-                        if (index === null) {
+                        if (index === null && !enabled) {
                             const cardifierNote = targets.some((entry) => entry.index === 50)
                                 ? `\n\n${ROW_NOTES[50]}`
                                 : "";
                             if (
                                 !clickAgain(
                                     button,
-                                    `${enabled ? "enable" : "disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`,
+                                    `disable ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`,
                                     { targets: targets.map((entry) => entry.code) }
                                 )
                             )

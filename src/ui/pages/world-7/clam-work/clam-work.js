@@ -62,8 +62,8 @@ const ClamTab = () => {
     const fieldStates = new Map(ALL_FIELDS.map((field) => [field.index, van.state(undefined)]));
     const scurgeStates = new Map();
     const scurgeReady = van.state(false);
-    const saving = van.state(false);
-    const disabled = () => loading.val || saving.val;
+    // Fields stay enabled while a save runs, so the next field the player types into keeps her edit.
+    const disabled = () => loading.val;
     const scurgeList = div({ class: "account-item-stack" });
     const reconcileScurge = createStaticRowReconciler(scurgeList);
 
@@ -104,16 +104,7 @@ const ClamTab = () => {
                                 ? value
                                 : null;
                         },
-                        write: async (next) => {
-                            if (disabled()) throw new Error("Another Clam operation is in progress.");
-                            saving.val = true;
-                            try {
-                                return await writeVerified(field.path, next);
-                            } finally {
-                                await load();
-                                saving.val = false;
-                            }
-                        },
+                        write: (next) => writeVerified(field.path, next),
                         renderInfo: () =>
                             div(
                                 { class: "account-row__name-group" },

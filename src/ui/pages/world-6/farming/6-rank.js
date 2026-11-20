@@ -107,8 +107,7 @@ const RankTab = () => {
             );
 
             for (const rank of ranks) {
-                getOrCreateState(levelStates, rank.index).val =
-                    rank.maxLevel === null ? rank.level : Math.min(rank.maxLevel, rank.level);
+                getOrCreateState(levelStates, rank.index).val = rank.level;
             }
         });
 

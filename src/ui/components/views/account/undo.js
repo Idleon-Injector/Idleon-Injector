@@ -3,7 +3,13 @@
  * Its writes go through writeManyVerified (read back and checked) and are not logged again; the action's
  * entries are marked undone instead.
  */
-import { fetchChanges, markChangesUndone, matchesVerifiedValue, readGgaMany } from "../../../services/api.js";
+import {
+    deleteGga,
+    fetchChanges,
+    markChangesUndone,
+    matchesVerifiedValue,
+    readGgaMany,
+} from "../../../services/api.js";
 import {
     LIVE_TO_SAVED,
     SAVED_TO_LIVE,
@@ -51,6 +57,18 @@ const targetPath = async (entry, active) => {
 
 // The page the action was made on shows the game's values again (Pages and the area views listen).
 const reloadPlaceOf = (action) => (reloadPlace.val = { ...action.place });
+
+// The game's cached totals that a page's save clears, by the values they are built from. Undo clears them here,
+// since the page may not be open. ponytail: one row per page that clears a cache; add a row with each new one.
+const CACHES = [
+    [/^Bubba\[[12]\](\[|$)/, "DNSM.h.Bubba_LVzAll"],
+    [/^Research\[16\](\[|$)/, "DNSM.h.CellLV_tot"],
+    [/^Research\[17\](\[[89]\])?$/, "DNSM.h.JellySlotz"],
+];
+const clearCaches = (paths) =>
+    Promise.all(
+        CACHES.filter(([pattern]) => paths.some((path) => pattern.test(path))).map(([, cache]) => deleteGga(cache))
+    );
 
 /**
  * Undo every entry of the action not undone yet. Resolves to the action; rejects with an Error whose message
@@ -112,6 +130,7 @@ export const undoAction = async (id) => {
         if (kept.size || moved) reloadPlaceOf(action);
         if (landed.length) await markChangesUndone(id, landed);
         changesVersion.val++;
+        await clearCaches([...kept]);
         const missed = writes.length - kept.size;
         throw new Error(
             !error.results
@@ -129,5 +148,6 @@ export const undoAction = async (id) => {
         todo.map((entry) => entry.index)
     );
     changesVersion.val++;
+    await clearCaches(writes.map((write) => write.path));
     return action;
 };

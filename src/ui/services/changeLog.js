@@ -78,7 +78,9 @@ const newAction = (label, kind, anchor = null) => {
         kind,
         // The control that made it: a bulk action's Undo all sits beside it.
         anchor,
+        // Values logged, and values the game took (logged or not: a log that fails doesn't undo a save).
         entries: 0,
+        landed: 0,
     };
 };
 
@@ -86,6 +88,8 @@ const newAction = (label, kind, anchor = null) => {
 export const lastBulkAction = van.state(null);
 /** Goes up whenever the log changes (a save, an undo), so the History page knows to read it again. */
 export const changesVersion = van.state(0);
+/** Goes up when a save is logged (not an undo, which asks its pages to reload): a page load that saw it go up reads again. */
+export let savesLogged = 0;
 
 let current = null;
 const open = new Set();
@@ -259,12 +263,14 @@ export const finishChange = async (change, values, landed = null) => {
         .filter((_entry, index) => !landed || landed[index]);
     if (!entries.length) return;
     const { action } = change;
+    action.landed += entries.length;
     try {
         await logChanges({ id: action.id, page: action.page, label: action.label, place: action.place }, entries);
         action.entries += entries.length;
         // An action still running is offered when it ends (withAction); one made by a click or key, as it logs.
         if (action.kind !== "row" && !open.has(action)) lastBulkAction.val = { action };
         changesVersion.val++;
+        savesLogged++;
     } catch (error) {
         console.warn("[changes] The change log didn't take this save; it won't be in History.", error);
     }

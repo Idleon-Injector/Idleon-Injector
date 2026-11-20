@@ -57,3 +57,34 @@ test("in-game settings are saved and come back after a restart, and runtime-only
     const injected = vm.runInThisContext(`(${objToString(restarted)})`);
     assert.ok(injected.nomore.items[0].test("Copper"), "the game gets a working pattern");
 });
+
+test("Save settings reaches the game, so the next settings read keeps it and the next save writes it", async (t) => {
+    const dir = useInstallDir(t, { cheatConfig: { godlike: { speed: 2 }, skipWhale: true } });
+    const config = require("../src/modules/config/configManager");
+    config.loadConfiguration();
+    const game = await loadGame();
+    game.state.updateCheatConfig(structuredClone(config.getCheatConfig()));
+    const router = new TinyRouter();
+    setupApiRoutes(router, "context", Object.assign(new EventEmitter(), { Runtime: game.runtime }), {
+        cheatConfig: config.getCheatConfig(),
+        defaultConfig: config.getDefaultConfig(),
+        startupCheats: config.getStartupCheats(),
+        injectorConfig: config.getInjectorConfig(),
+    });
+    const fileSpeed = () => requireFresh(join(dir, "config.custom.js")).cheatConfig.godlike?.speed;
+
+    // Config: change speed to 7 and press Save settings, which sends the whole config read just before.
+    const toSave = (await request(router, "GET", "/api/config")).body;
+    delete toSave.defaultConfig;
+    toSave.cheatConfig.godlike.speed = 7;
+    const saved = await request(router, "POST", "/api/config/save", toSave);
+    assert.equal(saved.body.message, "Configuration successfully saved to config.custom.js");
+    assert.equal(fileSpeed(), 7);
+    assert.equal(game.state.cheatConfig.godlike.speed, 7, "the game has the saved value");
+
+    // Opening Config again reads the game's settings back; then another setting is saved.
+    const reopened = (await request(router, "GET", "/api/config")).body;
+    assert.equal(reopened.cheatConfig.godlike.speed, 7, "Config still shows the saved value");
+    await request(router, "POST", "/api/config/save", { cheatConfig: { skipWhale: false } });
+    assert.equal(fileSpeed(), 7, "the file keeps it");
+});
