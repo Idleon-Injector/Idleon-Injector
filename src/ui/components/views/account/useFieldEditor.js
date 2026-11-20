@@ -3,6 +3,7 @@ import { getNumberInputLiveRaw, setNumberInputValue } from "../../NumberInput.js
 import { largeFormatter, resolveValue } from "./accountShared.js";
 import { useAutoSave } from "./autoSave.js";
 import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
+import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
 
 const defaultToDraft = (value) => String(value ?? 0);
 
@@ -39,6 +40,8 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const fieldByKey = new Map(fields.map((field) => [field.key, field]));
     const draftStates = {};
     const focusByKey = new Map();
+    // The page these fields are on, read again after a failed save.
+    const place = currentPlace();
     // The stored value each draft was taken from.
     const baseByKey = new Map();
 
@@ -80,7 +83,15 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
             }
             return {
                 write: async () => {
-                    const verified = await write(next);
+                    let verified;
+                    try {
+                        verified = await write(next);
+                    } catch (error) {
+                        // A write in several steps may have saved some fields before it failed: read the game
+                        // again, so the fields (and Escape, and the next save) start from what it now holds.
+                        reloadPlace.val = { ...place };
+                        throw error;
+                    }
                     if (verified?.cancelled) {
                         fields.forEach((field) => resetDraft(field.key));
                         return verified;
