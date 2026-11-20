@@ -64,7 +64,8 @@ const SaltLickTab = () => {
                 getPath: (_, index) => `SaltLick[${index}]`,
             });
         });
-        // Some of it may have landed: the rows show what the game holds.
+        // Some of it may have landed: the rows show what the game holds. The bulk buttons wait for that read, so an
+        // older one can't put earlier levels back over a newer write.
         if (!result.ok && !result.cancelled) await load();
     };
 
@@ -115,6 +116,7 @@ const SaltLickTab = () => {
                 {
                     label: "Max all",
                     status: bulkStatus,
+                    disabled: () => loading.val,
                     tooltip: "Set every Salt Lick upgrade to its max level",
                     onClick: () => doSetAll(null),
                 },
@@ -122,6 +124,7 @@ const SaltLickTab = () => {
                     label: "Reset all",
                     variant: "danger",
                     status: bulkStatus,
+                    disabled: () => loading.val,
                     tooltip: "Reset every Salt Lick upgrade to 0",
                     confirm: "reset every Salt Lick upgrade to 0.",
                     onClick: () => doSetAll(0),
@@ -129,6 +132,7 @@ const SaltLickTab = () => {
             ],
             refresh: {
                 onClick: load,
+                disabled: () => loading.val || bulkStatus.val === "loading",
             },
         }),
         state: { loading, error },

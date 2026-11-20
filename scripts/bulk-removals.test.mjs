@@ -339,3 +339,58 @@ test("salt-lick.js: a Max all the game refused in part shows the levels the game
         levels[0] = 0;
     }
 });
+
+// CodeRabbit on #110: Refresh waits for a Max all, and the bulk buttons wait for the read after one the game refused in
+// part, so an older read can't put earlier levels back over a newer write.
+test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait for the read after it", async () => {
+    const levels = game.gga.SaltLick;
+    const caps = [0, 1].map((index) => Number(game.gga.CustomLists.h.SaltLicks[index][4]));
+    levels[0] = caps[0] + 5;
+    const kept = caps[1] + 5;
+    Object.defineProperty(levels, 1, { get: () => kept, set() {}, configurable: true });
+    const fetch = globalThis.fetch;
+    // The next request `matches` picks waits until it is let go.
+    let held = null;
+    const holdNext = (matches) => {
+        let release;
+        const gate = new Promise((resolve) => (release = resolve));
+        held = { matches, gate, reached: false, release };
+        return held;
+    };
+    globalThis.fetch = async (url, options = {}) => {
+        const hold = held;
+        if (hold?.matches(url, options.body ? JSON.parse(options.body) : {})) {
+            held = null;
+            hold.reached = true;
+            await hold.gate;
+        }
+        return fetch(url, options);
+    };
+    try {
+        const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
+        const named = (label) => buttonsNamed(root, label);
+        const max = () => named("Max all").find((node) => !node.attributes.disabled);
+        const badge = (index) =>
+            text(elements(root).filter((node) => /account-row__badge/.test(node.attributes.class ?? ""))[index]);
+        await until(() => max() && badge(0).includes(`LV ${caps[0] + 5}`), "Salt Lick");
+        const write = holdNext((url) => url.endsWith("/game/gga/write-many"));
+        const pressed = click(max());
+        await until(() => write.reached, "the Max all write to be sent");
+        await until(() => named("Refresh").every((node) => node.attributes.disabled), "Refresh to wait for Max all");
+        const reread = holdNext((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        write.release();
+        await until(() => reread.reached, "the read after the refused Max all");
+        await until(
+            () => [...named("Max all"), ...named("Reset all")].every((node) => node.attributes.disabled),
+            "Max all and Reset all to wait for the read"
+        );
+        reread.release();
+        await pressed;
+        await until(() => max() && badge(0).includes(`LV ${caps[0]} `), "the row to show what the game holds");
+    } finally {
+        globalThis.fetch = fetch;
+        held = null;
+        Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
+        levels[0] = 0;
+    }
+});
