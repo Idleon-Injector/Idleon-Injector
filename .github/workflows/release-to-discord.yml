@@ -27,7 +27,7 @@ jobs:
                   node-version-file: .nvmrc
 
             # Without the DISCORD_RELEASE_WEBHOOK secret this prints a notice and succeeds.
-            - name: Post the release to #github-updates
+            - name: Post the release to #injector-updates
               env:
                   DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
                   GH_TOKEN: ${{ github.token }}

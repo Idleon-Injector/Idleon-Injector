@@ -45,7 +45,7 @@ error against the packaging configuration in `package.json`.
 2. Run **Build and Release** from `master` in the Actions tab. It runs the check, builds all four platforms,
    packs them, writes `SHA256SUMS`, and publishes the release, tagged with the version without a "v" (`3.0.0`).
    Tick **draft** to edit the notes first; publishing the draft then posts it.
-3. The release is posted to #github-updates through the `DISCORD_RELEASE_WEBHOOK` repository secret. Without
+3. The release is posted to #injector-updates through the `DISCORD_RELEASE_WEBHOOK` repository secret. Without
    the secret, the run notes that it skipped the post.
 
 If one platform's build fails (GitHub sometimes has no Apple Silicon runner free), nothing is released; use

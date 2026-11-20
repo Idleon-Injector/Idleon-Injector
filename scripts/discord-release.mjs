@@ -1,5 +1,5 @@
 /**
- * Posts a published GitHub release to Discord (#github-updates) through the DISCORD_RELEASE_WEBHOOK secret.
+ * Posts a published GitHub release to Discord (#injector-updates) through the DISCORD_RELEASE_WEBHOOK secret.
  *
  *   node scripts/discord-release.mjs <tag>
  *
@@ -41,7 +41,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const webhook = process.env.DISCORD_RELEASE_WEBHOOK;
     if (!webhook) {
         console.log(
-            "::notice title=Not posted to Discord::The DISCORD_RELEASE_WEBHOOK secret isn't set, so this release wasn't posted to #github-updates."
+            "::notice title=Not posted to Discord::The DISCORD_RELEASE_WEBHOOK secret isn't set, so this release wasn't posted to #injector-updates."
         );
         process.exit(0);
     }
