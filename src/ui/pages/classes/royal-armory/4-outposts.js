@@ -338,6 +338,8 @@ const MapUnitRow = ({ unit, changeUnits, unitWrites, said, reload }) => {
                     await writeVerified(`RoyalG[${unit.typeArray}][${index}]`, value);
                     Object.assign(unit, { unitIndex: index, type: value });
                 }),
+            // Populate's question and preview count units from the last read.
+            onApplied: reload,
             onFailed: reload,
         }),
         ActionButton({
@@ -595,15 +597,20 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
         );
     };
 
-    // Only the unit list is rebuilt on a reload, and only when the units changed: the rest of the card stays.
+    // Only the unit list is rebuilt on a reload, and only when the game's units differ from what the rows show now
+    // (a TYPE pick changes its row's unit in place): the rest of the card stays.
     const unitList = div({ class: "outpost-map-units__list" });
-    const reconcileUnits = createStaticRowReconciler(unitList);
-    const setUnits = (units) =>
-        reconcileUnits(units.map((unit) => `${unit.unitIndex}:${unit.type}`).join("|"), () =>
-            units.length
+    const unitKey = (units) => units.map((unit) => `${unit.unitIndex}:${unit.type}`).join("|");
+    let shownUnits = null;
+    const setUnits = (units) => {
+        if (shownUnits && unitKey(shownUnits) === unitKey(units)) return;
+        shownUnits = units;
+        unitList.replaceChildren(
+            ...(units.length
                 ? units.map((unit) => MapUnitRow({ unit, changeUnits, unitWrites, said, reload }))
-                : span({ class: "outpost-map-units__empty" }, "None stationed")
+                : [span({ class: "outpost-map-units__empty" }, "None stationed")])
         );
+    };
 
     const fieldLabel = (field) => {
         if (field.index < 3) return field.label;

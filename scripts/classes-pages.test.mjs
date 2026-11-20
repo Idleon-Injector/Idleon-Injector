@@ -174,6 +174,55 @@ test("outposts: two quick Removes on one map remove both of its units, not anoth
     }
 });
 
+const unitTypeSelect = (root) =>
+    byClass(byClass(card(root, 1), "outpost-map-unit")[0], "outpost-select-field__select")[0];
+// A select shows what was picked in it, or else the value it was built with.
+const selectShows = (select) => String(select.value ?? select.attributes.value);
+
+test("outposts: after a unit TYPE pick and an undo, the unit shows what the game holds and its Remove works", async () => {
+    const saved = unitArrays();
+    game.gga.RoyalG[6] = [4];
+    game.gga.RoyalG[7] = [1];
+    const root = await openOutposts();
+    try {
+        const picked = unitTypeSelect(root);
+        await choose(picked, "5");
+        assert.deepEqual([...game.gga.RoyalG[6]], [5], "the pick landed");
+        // ok(a === b): a failed equal on page nodes would print the whole page.
+        assert.ok(unitTypeSelect(root) === picked, "the picked unit's row stays in place");
+        // What History's Undo does: the old value goes back, then the page reads the game again.
+        game.gga.RoyalG[6] = [4];
+        await click(buttonsNamed(root, "Refresh")[0]);
+        await until(() => selectShows(unitTypeSelect(root)) === "4", "the unit to show the Militia the game holds");
+        await click(buttonsNamed(card(root, 1), "Remove")[0]);
+        await until(() => game.gga.RoyalG[6].length === 0, "the unit removed");
+        assert.equal(cardSays(card(root, 1)), "");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+test("outposts: Populate after a unit TYPE pick asks Click again when the pick makes it remove units", async () => {
+    const saved = unitArrays();
+    // 10 Militia and 8 Knights on M1: Populate's default counts keep all 18. One more Knight is one too many.
+    game.gga.RoyalG[6] = [...Array(10).fill(4), ...Array(8).fill(6)];
+    game.gga.RoyalG[7] = Array(18).fill(1);
+    const root = await openOutposts();
+    try {
+        await choose(unitTypeSelect(root), "6");
+        assert.equal(game.gga.RoyalG[6].filter((type) => type === 6).length, 9, "the pick landed");
+        await openUnits(root);
+        const populate = buttonsNamed(root, "Populate outposts")[0];
+        const before = writes();
+        await click(populate);
+        await tick();
+        assert.equal(populate.attributes["data-again"], "Click again");
+        assert.equal(writes(), before, "the first press writes nothing");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
 test("outposts: a reload after a unit change keeps the other cards and what is typed in them", async () => {
     const saved = unitArrays();
     const root = await openOutposts();
@@ -331,6 +380,30 @@ test("map bonuses: a bulk 10M that fails partway shows what the game holds", asy
         globalThis.fetch = realFetch;
         saved.forEach((entry, index) => (game.gga.MapBon[index] = entry));
     }
+});
+
+test("map bonuses: a reload leaves the rows in the page", async () => {
+    const root = (await importRepo("src/ui/pages/classes/tesseract/2-map-bonuses.js")).default.component();
+    await until(() => pageRead(root) && byClass(root, "map-crystal-row").length, "the map bonuses to load");
+    const row = byClass(root, "map-crystal-row")[0];
+    const list = row.parentNode;
+    const takenOut = watchTakenOut(row);
+    await click(buttonsNamed(root, "Refresh")[0]);
+    // ok(a === b): a failed equal on page nodes would print the whole page.
+    assert.ok(byClass(root, "map-crystal-row")[0] === row, "the row is the same row");
+    assert.ok(row.parentNode === list, "the row stayed in its list");
+    assert.ok(elements(root).includes(list), "the list stayed in the page");
+    assert.equal(takenOut(), 0, "the row was not taken out and put back");
+});
+
+test("masterclass pages: a reload leaves the rows in the page", async () => {
+    const root = (await importRepo("src/ui/pages/classes/grimoire/grimoire.js")).default.component();
+    await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
+    const row = byClass(root, "masterclass-upgrade-row")[0];
+    const takenOut = watchTakenOut(row);
+    await click(buttonsNamed(root, "Refresh")[0]);
+    assert.equal(byClass(root, "masterclass-upgrade-row")[0], row);
+    assert.equal(takenOut(), 0, "the row was not taken out and put back");
 });
 
 test("masterclass pages: a search by index finds the row with that number", async () => {
