@@ -1,5 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
+import { currentPlace, reloadPlace, savesLogged } from "../../../services/changeLog.js";
 
 /**
  * Shared account-page load helpers.
@@ -38,7 +38,16 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage, busy =
     const load = async (task) => {
         error.val = null;
         try {
-            return await task();
+            // A save that landed while this load ran may have been read before it landed: read again.
+            // ponytail: at most three reads; a page saved into nonstop would show the third read.
+            let result;
+            let saves;
+            let reads = 0;
+            do {
+                saves = savesLogged;
+                result = await task();
+            } while (savesLogged !== saves && ++reads < 3);
+            return result;
         } catch (caughtError) {
             console.error(`[account-load] ${label} load failed:`, caughtError);
 

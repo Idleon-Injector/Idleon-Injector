@@ -34,7 +34,6 @@ const BeanstackRow = ({ entry, levelState }) =>
                 span({ class: "account-row__sub-label" }, entry.itemId)
             ),
         ],
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${BEANSTACK_MAX_LEVEL}`,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
         maxAction: {
@@ -53,7 +52,7 @@ const buildItemEntries = async (rawLevels, rawFoodInfo) => {
         index,
         itemId,
         name: cleanName(definitions[itemId]?.displayName, itemId),
-        level: resolveNumberInput(levels[index], { min: 0, max: BEANSTACK_MAX_LEVEL, fallback: 0 }),
+        level: resolveNumberInput(levels[index], { min: 0, fallback: 0 }),
     }));
 };
 

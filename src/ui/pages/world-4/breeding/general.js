@@ -37,7 +37,7 @@ const buildEggEntries = (rawEggs, capacity) =>
         value: Math.min(EGG_MAX_RARITY, toInt(rawEggs?.[index], { min: 0 })),
         max: EGG_MAX_RARITY,
         formatted: false,
-        badge: (currentValue) => `${currentValue ?? 0} / ${EGG_MAX_RARITY}`,
+        cap: EGG_MAX_RARITY,
     }));
 
 const readUpgradeEntries = async () => {
@@ -74,7 +74,7 @@ const readUpgradeEntries = async () => {
             ...upgrade,
             value: Math.min(maxLevel, upgrade.value),
             max: maxLevel,
-            badge: (currentValue) => `${currentValue ?? 0} / ${maxLevel}`,
+            cap: maxLevel,
         };
     });
 };
@@ -220,7 +220,7 @@ const GeneralTab = () => {
                         path: SPICE_CLAIM_PATH,
                         max: 100,
                         formatted: false,
-                        badge: (currentValue) => `${currentValue ?? 0} / 100`,
+                        cap: 100,
                     },
                     valueState: spiceClaimState,
                 })

@@ -347,12 +347,15 @@ const CompanionsTab = () => {
         });
     };
 
-    // The change is built after the re-read so a list saved from the Config tab isn't overwritten.
+    // The change is built after the re-read so a list saved from the Config tab, or a token picked in the game,
+    // isn't overwritten.
     const writeSelection = (getChange) =>
         runWrite(
             async () => {
                 writeError.val = "";
                 if (error.val || !companions.val.length) throw new Error("Refresh pet data before changing tiers");
+                // The tokens first: the saved tiers are read against them (a pet with a token has no tier).
+                tokens.val = await readComputed("companions", "petTokens");
                 await readSelection();
                 const { normal, plus, picks = tokens.val.picks } = getChange();
                 if (picks !== tokens.val.picks) {
@@ -386,15 +389,19 @@ const CompanionsTab = () => {
 
     const isBusy = () => loading.val || writeStatus.val === "loading";
 
-    const withoutToken = (companionId) => tokens.val.picks.filter((id) => id !== companionId);
+    // Each handler decides from `shown`, the token the player saw when pressing; writeSelection reads the game's
+    // tokens again, which only carry the change out, so a press never removes a token picked in the game since.
+    const withoutToken = (companionId) =>
+        isToken(companionId) ? tokens.val.picks.filter((id) => id !== companionId) : tokens.val.picks;
 
     const handleToggle = async (companionId) => {
         if (isBusy()) return;
+        const shown = isToken(companionId);
         await writeSelection(() => {
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
             // Token pets already show as Normal, so clicking one deselects it.
-            if (isToken(companionId)) return { normal, plus, picks: withoutToken(companionId) };
+            if (shown) return { normal, plus, picks: withoutToken(companionId) };
             if (normal.has(companionId)) normal.delete(companionId);
             else normal.add(companionId);
             plus.delete(companionId);
@@ -404,26 +411,29 @@ const CompanionsTab = () => {
 
     const handleTogglePlus = async (companionId) => {
         if (isBusy()) return;
-
+        const shown = isToken(companionId);
         await writeSelection(() => {
             const plus = new Set(plusIds.val);
             if (plus.has(companionId)) plus.delete(companionId);
             else plus.add(companionId);
             const normal = new Set(normalIds.val);
             normal.delete(companionId);
-            return { normal, plus, picks: isToken(companionId) ? withoutToken(companionId) : tokens.val.picks };
+            return { normal, plus, picks: shown ? withoutToken(companionId) : tokens.val.picks };
         });
     };
 
     const handleToken = async (companionId) => {
         if (isBusy() || tokenBlock(companionId)) return;
+        const shown = isToken(companionId);
         await writeSelection(() => {
+            const blocked = !shown && tokenBlock(companionId); // the game's tokens may have changed since the page read them
+            if (blocked) throw new Error(blocked);
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
             normal.delete(companionId);
             plus.delete(companionId);
-            const picks = isToken(companionId) ? withoutToken(companionId) : [...tokens.val.picks, companionId];
-            return { normal, plus, picks };
+            const added = isToken(companionId) ? tokens.val.picks : [...tokens.val.picks, companionId];
+            return { normal, plus, picks: shown ? withoutToken(companionId) : added };
         });
     };
 

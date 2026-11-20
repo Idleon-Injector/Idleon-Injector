@@ -68,7 +68,7 @@ The recommended way to interact is via the [VanJS](https://vanjs.org/)-powered W
     - Save and monitor game values from Search.
     - Review success/error activity without leaving the active view.
     - Access Chrome DevTools.
-    - Apply config changes to RAM or save them to disk.
+    - Apply config changes for this session, or save them to the config file and the running game.
 
 ### Command Line
 

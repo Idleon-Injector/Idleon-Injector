@@ -43,7 +43,6 @@ const RankLevelRow = ({ entry, levelState }) => {
         max: entry.maxLevel,
         integerMode: "round",
         renderInfo: () => span({ class: "account-row__name" }, entry.name),
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${entry.maxLevel}`,
         rowClass: "farming-grid-field-row",
         controlsClass: "account-row__controls--xl",
         maxAction: true,
@@ -108,8 +107,7 @@ const RankTab = () => {
             );
 
             for (const rank of ranks) {
-                getOrCreateState(levelStates, rank.index).val =
-                    rank.maxLevel === null ? rank.level : Math.min(rank.maxLevel, rank.level);
+                getOrCreateState(levelStates, rank.index).val = rank.level;
             }
         });
 

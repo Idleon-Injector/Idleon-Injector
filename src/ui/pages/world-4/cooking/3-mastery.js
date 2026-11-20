@@ -77,9 +77,10 @@ const buildMealEntries = (rawMealInfo, rawAllocations, rawMealLevels) => {
                 path: `${MEAL_MASTERY_PATH}[${index}]`,
                 value: toInt(allocations[index], { min: 0 }),
                 formatted: false,
+                // The level is in the field; the badge adds the bonus it gives.
                 badge: (currentValue) => {
                     const level = toInt(currentValue, { min: 0 });
-                    return `LV ${level} · ${(1 + level / (level + 5)).toFixed(2)}x`;
+                    return `${(1 + level / (level + 5)).toFixed(2)}x`;
                 },
             };
         })
@@ -137,8 +138,7 @@ const RespecStatusRow = ({ respecState }) =>
                 span({ class: "account-row__sub-label" }, `${RESPEC_PATH} is managed by the game`)
             ),
         ],
-        badge: () => (respecState.val === 0 ? "READY" : "USED"),
-        badgeClass: () => (respecState.val === 0 ? "account-row__badge--highlight" : ""),
+        badge: () => (respecState.val === 0 ? "Ready" : "Used"),
     });
 
 const MasteryTab = () => {
@@ -159,15 +159,20 @@ const MasteryTab = () => {
     const reconcilePurpleRows = createStaticRowReconciler(purpleNode);
     const reconcileMealRows = createStaticRowReconciler(mealNode);
 
+    let pointsRead = 0;
     const refreshPoints = async () => {
+        const read = ++pointsRead;
         const [purple, yellow] = await Promise.all([
             readComputed("cookingMastery", "PtsLeftCook_P"),
             readComputed("cookingMastery", "PtsLeftCook_Y"),
         ]);
+        // An older read answering last would show the points from before the newer save.
+        if (read !== pointsRead) return;
         purplePointsState.val = toInt(purple, { min: 0 });
         yellowPointsState.val = toInt(yellow, { min: 0 });
     };
-    const refreshPointsAfterWrite = refreshPoints;
+    // The save already landed; a failed points read keeps the old points until the next save or Refresh.
+    const refreshPointsAfterWrite = () => refreshPoints().catch(() => {});
 
     const expRequirement = () => {
         const storedRank = Math.max(0, toInt(rankState.val, { min: 1 }) - 1);
