@@ -7,6 +7,10 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router } = await createFakeApi();
 await loadUi(router);
+// Click again places its tooltip on the next frame and on <body>, as in the menu.
+globalThis.requestAnimationFrame = () => {};
+globalThis.document.body = globalThis.document.createElement("body");
+globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
 const { updateSessionConfig } = await importRepo("src/ui/services/api.js");
 
 // What the page hands the config file save (the fake API's own save writes nothing).
@@ -41,7 +45,9 @@ const plainPets = () =>
         .filter((card) => /NOT SELECTED/.test(text(card)))
         .map((card) => card.childNodes.find((node) => node.nodeName === "button"));
 await until(() => byClass(page, "companion-card-wrap").length > 3, "the pets to load");
-const clearAll = elements(page).find((node) => node.nodeName === "button" && text(node) === "CLEAR ALL");
+const clearAll = elements(page).find((node) => node.nodeName === "button" && text(node) === "Clear all");
+// Clear all asks in place first (#25): the first press arms it, the second clears.
+const press = (button) => button.listeners.click({ preventDefault() {}, stopPropagation() {}, currentTarget: button });
 const saved = async (click) => {
     const count = saves.length;
     await click();
@@ -52,7 +58,13 @@ const saved = async (click) => {
 
 test("clearing every pet takes w1 companion off the startup cheats", async () => {
     await updateSessionConfig({ startupCheats: ["godlike reach", "w1 companion"] });
-    assert.deepEqual(await saved(() => clearAll.listeners.click({})), ["godlike reach"]);
+    assert.deepEqual(
+        await saved(async () => {
+            await press(clearAll);
+            await press(clearAll);
+        }),
+        ["godlike reach"]
+    );
 });
 
 // Unselected once the first test cleared them.

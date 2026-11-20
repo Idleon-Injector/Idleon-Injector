@@ -103,24 +103,13 @@
     overflow: hidden;
 }
 
+/* Collapse / expand: a quiet round button holding the chevron, centred in the rail. */
 .sidebar-toggle {
-    background: transparent;
-    border: 1px solid var(--c-border);
-    color: var(--c-text-dim);
-    padding: 8px 10px;
-    margin-top: 10px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    width: 100%;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    margin-left: auto;
 }
 
-.sidebar-toggle:hover {
-    border-color: var(--c-accent);
-    color: var(--c-accent);
+.sidebar-collapsed .sidebar-toggle {
+    margin-right: auto;
 }
 
 /* --- BRAND --- */
@@ -346,25 +335,6 @@
     font-family: var(--font-mono);
 }
 
-.system-shortcuts-button {
-    margin-left: auto;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--c-border);
-    background: transparent;
-    color: var(--c-text-dim);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition:
-        color 0.2s var(--ease-tech),
-        border-color 0.2s var(--ease-tech),
-        background 0.2s var(--ease-tech);
-}
-
 .system-actions {
     margin-left: auto;
     display: flex;
@@ -403,20 +373,23 @@
     background: var(--c-accent-06);
 }
 
-.system-shortcuts-button svg {
-    width: 16px;
-    height: 16px;
-    opacity: 0.8;
-}
-
-.system-shortcuts-button:hover {
-    border-color: var(--c-accent-25);
-    background: var(--c-accent-06);
-    color: var(--c-accent);
-}
-
 .sidebar-collapsed .system-actions {
     display: none;
+}
+
+/* The last line: GitHub and Keys at the left (the GitHub mark under the status dot), the collapse chevron at the right. */
+.sidebar-foot {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.sidebar-foot .system-github-link {
+    margin-left: -6px;
+}
+
+.system-keys-button.btn-sm {
+    margin-left: -2px;
 }
 
 .sidebar-collapsed .system-shortcuts-button {

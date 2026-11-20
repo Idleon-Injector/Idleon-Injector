@@ -2,22 +2,42 @@ import van from "../../../../vendor/van-1.6.0.js";
 import { withTooltip } from "../../../Tooltip.js";
 import { joinClasses, resolveValue } from "../accountShared.js";
 import { labelOf, withAction } from "../../../../services/changeLog.js";
+import { announce, clickAgain, disarm } from "../../../inPlace.js";
 
 const { button } = van.tags;
 
+// A press's result for screen readers, once its status settles: the button itself only changes colour (#77).
+const sayResult = async (name, pending, status) => {
+    try {
+        await pending;
+    } catch {
+        // The status says it failed.
+    }
+    for (let i = 0; i < 600 && resolveValue(status) === "loading"; i++) await new Promise((r) => setTimeout(r, 100));
+    const now = resolveValue(status);
+    if (now === "success") announce(`${name}: done`);
+    else if (now === "error") announce(`${name}: failed`);
+};
+
+// The three kinds (DESIGN.md): main is an area's one blue button; quiet is any other action, Max included; danger
+// is anything that removes or lowers. A switch (an on/off toggle) keeps its own look until the layout pass.
 const VARIANT_CLASS = {
-    apply: "account-btn account-btn--apply",
-    danger: "account-btn account-btn--danger",
-    "max-reset": "account-btn account-btn--max-reset",
+    main: "account-btn btn-main btn-sm",
+    quiet: "account-btn btn-quiet btn-sm",
+    danger: "account-btn btn-danger btn-sm",
+    switch: "account-btn account-btn--switch",
+    "switch-filled": "account-btn account-btn--switch account-btn--apply",
 };
 
 /**
- * Shared action button for account feature tabs.
+ * Shared action button for account feature tabs. `confirm` (a question, or a function that returns one or null) makes
+ * the press ask in place first (#25): the first press reads "Click again" and only a second one runs `onClick`. Bulk
+ * removals pass it; additions run on one press.
  */
 export const ActionButton = ({
     label,
     status = null,
-    variant = "apply",
+    variant = "quiet",
     className = "",
     disabled = false,
     tooltip = null,
@@ -25,6 +45,7 @@ export const ActionButton = ({
     preventMouseDown = true,
     type = "button",
     buttonProps = {},
+    confirm = null,
 }) => {
     const buttonNode = button(
         {
@@ -33,8 +54,9 @@ export const ActionButton = ({
             onmousedown: preventMouseDown ? (e) => e.preventDefault() : null,
             class: () => {
                 const resolvedStatus = resolveValue(status);
+                const kind = resolveValue(variant);
                 return joinClasses(
-                    VARIANT_CLASS[variant] ?? variant,
+                    VARIANT_CLASS[kind] ?? kind,
                     resolveValue(className),
                     resolvedStatus === "loading" ? "account-btn--loading" : "",
                     resolvedStatus === "success" ? "account-btn--success" : "",
@@ -44,9 +66,21 @@ export const ActionButton = ({
             disabled: () => {
                 return Boolean(resolveValue(disabled)) || resolveValue(status) === "loading";
             },
+            "aria-busy": () => String(resolveValue(status) === "loading"),
             // One press is one action: everything it saves, now or after its awaits, undoes together.
             onclick: onClick
-                ? (e) => withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e))
+                ? (e) => {
+                      if (confirm) {
+                          const question = typeof confirm === "function" ? confirm() : confirm;
+                          // A question that went away (Set count raised after it asked) takes "Click again" with it.
+                          if (!question) disarm(buttonNode);
+                          else if (!clickAgain(buttonNode, question)) return undefined;
+                      }
+                      const name = String(resolveValue(label)).trim();
+                      const result = withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e));
+                      if (status) void sayResult(name, result, status);
+                      return result;
+                  }
                 : null,
         },
         () => resolveValue(label)

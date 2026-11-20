@@ -131,7 +131,7 @@ const offer = (action, anchor) => {
         button(
             {
                 type: "button",
-                class: "undo-all__button",
+                class: "btn-quiet btn-sm undo-all__button",
                 hidden: () => state.val === "refused" || state.val === "done",
                 title: `Put back the ${count === 1 ? "value" : `${count} values`} this changed`,
                 onclick: () => void undo(),

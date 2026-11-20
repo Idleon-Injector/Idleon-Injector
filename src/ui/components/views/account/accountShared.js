@@ -2,7 +2,6 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { gga, ggaMany, readCList } from "../../../services/api.js";
-import { Icons } from "../../../assets/icons.js";
 import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
@@ -194,8 +193,7 @@ export const sortPrefixedNumericCodes = (a, b) => {
 
 export const renderAccountLoading = () => div({ class: "account-loader" }, Loader());
 
-export const renderAccountError = (message) =>
-    EmptyState({ icon: Icons.SearchX(), title: "LOAD FAILED", subtitle: message });
+export const renderAccountError = (message) => EmptyState({ failed: true, title: "LOAD FAILED", subtitle: message });
 
 /**
  * Write a value through gga (or a compatible writer) and fail if verification

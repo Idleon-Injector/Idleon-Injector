@@ -71,7 +71,28 @@
     gap: 12px;
 }
 
-.warning-banner .btn-secondary {
+/* --- GROUP CHEVRON ---
+ * The one chevron (icons.js), on a group that opens and closes: it points right, and down while the group is open.
+ */
+.group-chevron {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--c-text-dim);
+    transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+details[open] > summary > .group-chevron {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .group-chevron {
+        transition: none;
+    }
+}
+
+.warning-banner .btn-quiet {
     margin-left: auto;
     flex-shrink: 0;
 }

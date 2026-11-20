@@ -312,7 +312,7 @@ const LibraryTab = () => {
             ),
             actions: [
                 {
-                    label: "MAX BOOKS",
+                    label: "Max books",
                     status: bulkStatus,
                     disabled: () => loading.val || availableTalentCount.val <= 0,
                     tooltip: "Set all available Library books to the current max book level",

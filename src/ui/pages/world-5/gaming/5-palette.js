@@ -71,6 +71,7 @@ export const PaletteStarButton = ({ stars, entry }) =>
             if (stars.lastIndex.val === entry.index && stars.status.val === "error") return "FAILED";
             return `${count} ★ · ${[1, 2, 4][count]}×`;
         },
+        variant: "switch-filled",
         className: "gaming-palette-star-button",
         status: () => (stars.lastIndex.val === entry.index ? stars.status.val : null),
         disabled: stars.disabled,

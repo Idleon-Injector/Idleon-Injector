@@ -271,7 +271,9 @@ const WeeklyBossTab = () => {
                 return;
             }
             const countLabel = `${targets.length} cosmetic UI skin${targets.length === 1 ? "" : "s"}`;
+            // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
             if (
+                !enabled &&
                 !clickAgain(
                     button,
                     `${enabled ? "enable" : "disable"} ${countLabel}. ` +
@@ -350,7 +352,8 @@ const WeeklyBossTab = () => {
             ),
             badge: () => (state.unlocked.val ? "UNLOCKED" : "LOCKED"),
             controls: ActionButton({
-                label: () => (state.unlocked.val ? "DISABLE" : "ENABLE"),
+                label: () => (state.unlocked.val ? "Disable" : "Enable"),
+                variant: () => (state.unlocked.val ? "danger" : "quiet"),
                 status: state.write.status,
                 disabled: cannotWrite,
                 tooltip: () => `${state.unlocked.val ? "Disable" : "Enable"} ${entry.name} without spending trophies`,
@@ -514,13 +517,14 @@ const WeeklyBossTab = () => {
                 meta: BulkActionBar({
                     actions: [
                         {
-                            label: "ENABLE ALL",
+                            label: "Enable all",
                             status: bulk.status,
                             disabled: cannotWrite,
                             onClick: (e) => setAll(true, e.currentTarget),
                         },
                         {
-                            label: "DISABLE ALL",
+                            label: "Disable all",
+                            variant: "danger",
                             status: bulk.status,
                             disabled: cannotWrite,
                             onClick: (e) => setAll(false, e.currentTarget),

@@ -105,7 +105,7 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
                 : ActionButton({
                       label: () => (isPrisma.val ? "PRISMA ON" : "PRISMA OFF"),
                       status,
-                      variant: "apply",
+                      variant: "switch-filled",
                       className: () => `brewing-prisma-btn${isPrisma.val ? " brewing-prisma-btn--active" : ""}`,
                       tooltip: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
                       onClick: async (e) => {
@@ -158,7 +158,7 @@ const CauldronSectionBlock = ({ cauldron, levels, defs, sectionBody, setAllInput
         title: cauldron.label,
         rootClass: `brewing-section brewing-section--${cauldron.id}`,
         meta: ActionButton({
-            label: "SET ALL",
+            label: "Set all",
             status: bulkStatus,
             tooltip: "Set all bubbles in this cauldron",
             onClick: async (e) => {

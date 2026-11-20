@@ -10,10 +10,10 @@ const { div, input, span } = van.tags;
  * @param {string} options.placeholder - Placeholder text
  * @param {function} options.onInput - Callback when input changes (receives value)
  * @param {number} [options.debounceMs=300] - Debounce delay in ms
- * @param {any} [options.icon=Icons.ChevronRight()] - Icon to show
+ * @param {any} [options.icon=Icons.Search()] - Icon to show
  * @param {van.state} [options.value] - Optional reactive state for the input value
  */
-export const SearchBar = ({ placeholder, onInput, debounceMs = 300, icon = Icons.ChevronRight(), value } = {}) => {
+export const SearchBar = ({ placeholder, onInput, debounceMs = 300, icon = Icons.Search(), value } = {}) => {
     const handleInput =
         debounceMs > 0
             ? debounce((e) => onInput(e.target.value.trim()), debounceMs)

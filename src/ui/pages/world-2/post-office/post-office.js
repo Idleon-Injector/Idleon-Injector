@@ -280,15 +280,16 @@ const PostOfficeTab = () => {
         meta: div(
             { class: "po-bulk-bar" },
             ActionButton({
-                label: "MAX ALL",
+                label: "Max all",
                 status: boxBulkStatus,
-                variant: "max-reset",
+                variant: "quiet",
                 onClick: doMaxAllBoxes,
             }),
             ActionButton({
-                label: "RESET",
+                label: "Reset",
                 status: boxBulkStatus,
-                variant: "max-reset",
+                variant: "danger",
+                confirm: "set every box upgrade to 0.",
                 onClick: doResetBoxes,
             })
         ),

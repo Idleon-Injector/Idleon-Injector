@@ -6,11 +6,12 @@ import { toNodes } from "./accountShared.js";
 
 const { div, span, select, option } = van.tags;
 
-const SetAllApplyButton = ({ label, status, onApply }) =>
+const SetAllApplyButton = ({ label, status, onApply, confirm = null }) =>
     onApply
         ? ActionButton({
               label,
               status,
+              confirm,
               onClick: async (e) => {
                   e.preventDefault();
                   await onApply();
@@ -31,12 +32,13 @@ export const BulkActionBar = ({ leading = null, actions = [], refresh = null }) 
                 ActionButton({
                     label: action.label,
                     status: action.status,
-                    variant: action.variant ?? "max-reset",
+                    variant: action.variant ?? "quiet",
                     className: action.extraClass ?? "",
                     disabled: action.disabled ?? false,
                     tooltip: action.tooltip ?? null,
                     onClick: (e) => action.onClick(e),
                     preventMouseDown: action.preventMouseDown !== false,
+                    confirm: action.confirm ?? null,
                 })
             ),
         refresh
@@ -52,8 +54,9 @@ export const SetAllNumberControl = ({
     label,
     value,
     status = null,
-    applyLabel = "SET ALL",
+    applyLabel = "Set all",
     onApply = null,
+    confirm = null,
     min = 0,
     max = Infinity,
 }) =>
@@ -78,10 +81,10 @@ export const SetAllNumberControl = ({
                 },
             })
         ),
-        SetAllApplyButton({ label: applyLabel, status, onApply })
+        SetAllApplyButton({ label: applyLabel, status, onApply, confirm })
     );
 
-export const SetAllSelectControl = ({ label, value, options, status = null, applyLabel = "SET ALL", onApply }) =>
+export const SetAllSelectControl = ({ label, value, options, status = null, applyLabel = "Set all", onApply }) =>
     div(
         { class: "account-setall-row" },
         span({ class: "account-setall-row__label" }, label),

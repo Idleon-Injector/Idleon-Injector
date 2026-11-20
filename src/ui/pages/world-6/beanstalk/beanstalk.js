@@ -38,7 +38,7 @@ const BeanstackRow = ({ entry, levelState }) =>
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
         maxAction: {
-            label: "MAX",
+            label: "Max",
             value: BEANSTACK_MAX_LEVEL,
             tooltip: `Set this Beanstack food to ${BEANSTACK_MAX_LEVEL}`,
         },

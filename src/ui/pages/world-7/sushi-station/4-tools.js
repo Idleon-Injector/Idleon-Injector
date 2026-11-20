@@ -211,8 +211,8 @@ function SushiToolsTab() {
                             { class: "account-item-stack" },
                             ActionButton({
                                 label: () => (enabled.val ? "Disable Auto Play" : "Enable Auto Play"),
-                                variant: "account-btn",
-                                className: () => (enabled.val ? "account-btn--danger" : "account-btn--apply"),
+                                // The page's one blue button; turning it off is the danger kind.
+                                variant: () => (enabled.val ? "danger" : "main"),
                                 disabled: () => pending.val || (!enabled.val && !settingsLoaded.val),
                                 onClick: () => run(""),
                             }),

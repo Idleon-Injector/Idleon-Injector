@@ -265,23 +265,26 @@
 }
 
 .system-github-link.is-failed {
-    border-color: var(--c-warning-40);
     color: var(--c-warning);
 }
 
 /* --- CLICK AGAIN ---
- * The button keeps its box; CLICK AGAIN lies over it, reaching left when it's wider (buttons sit at the right
- * of their rows), and its fill drains away.
+ * The button keeps its box; "Click again" lies over it as the same pill, reaching left when it's wider (buttons
+ * sit at the right of their rows), and its wash drains away. It takes the colours its kind has on hover.
  */
 button[data-again] {
-    --again-color: var(--c-accent);
-    --again-fill: var(--c-accent-20);
+    --again-color: var(--c-text-main);
+    --again-fill: rgba(255, 255, 255, 0.1);
     position: relative;
     color: transparent;
 }
 
-.account-btn--danger[data-again],
-.account-btn--max-reset[data-again] {
+.btn-main[data-again] {
+    --again-color: var(--c-accent-hover);
+    --again-fill: rgba(99, 175, 237, 0.22);
+}
+
+.btn-danger[data-again] {
     --again-color: var(--c-danger-soft-text);
     --again-fill: var(--c-danger-20);
 }
@@ -289,21 +292,23 @@ button[data-again] {
 button[data-again]::after {
     content: attr(data-again);
     position: absolute;
-    top: -1px;
-    right: -1px;
-    bottom: -1px;
+    top: 0;
+    right: 0;
+    bottom: 0;
     z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: calc(100% + 2px);
-    padding: 0 10px;
-    border: 1px solid var(--again-color);
+    min-width: 100%;
+    box-sizing: border-box;
+    padding: 0 13px;
+    border-radius: 999px;
     background:
         linear-gradient(var(--again-fill), var(--again-fill)) no-repeat left / 100% 100%,
         var(--c-panel);
     color: var(--again-color);
-    font-weight: 700;
+    font-weight: 600;
+    text-transform: none;
     white-space: nowrap;
     animation: again-drain var(--again-ms, 4s) linear forwards;
 }

@@ -1,8 +1,8 @@
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
+import { Icons } from "../../assets/icons.js";
 import { NumberInput } from "../NumberInput.js";
 import { FunctionInput } from "../FunctionInput.js";
-import { Icons } from "../../assets/icons.js";
 import { withTooltip } from "../Tooltip.js";
 import { isFunction } from "../../utils/functionParser.js";
 import { configDescriptions } from "../../config/configDescriptions.js";
@@ -101,7 +101,7 @@ export const ConfigNode = ({
                     class: () => `cheat-category ${isCategoryModified.val ? "modified-category" : ""}`,
                     open: shouldAutoExpand || undefined,
                 },
-                summary(key),
+                summary(key, Icons.Chevron({ dir: "right", class: "group-chevron" })),
                 div(
                     { class: "cheat-category-content" },
                     ConfigNode({
@@ -280,8 +280,8 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
             withTooltip(
                 button(
                     {
-                        class: () => `config-reset-btn ${isModified.val ? "" : "hidden"}`,
-
+                        type: "button",
+                        class: () => `btn-quiet btn-sm config-reset-btn ${isModified.val ? "" : "hidden"}`,
                         onclick: () => {
                             if (isFn && typeof defaultVal === "function") {
                                 data[key] = defaultVal.toString();
@@ -291,7 +291,7 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
                             localTextState.val = getStringValue(defaultVal);
                         },
                     },
-                    Icons.Refresh()
+                    "Reset"
                 ),
                 "Reset to default"
             )

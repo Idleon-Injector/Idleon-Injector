@@ -77,7 +77,7 @@ const EquinoxBar = ({ barFillState, barFillReqState, barFillRateState, fillBarSt
             ),
             span({ class: "equinox-overview__rate" }, () => `+${fmtInt(barFillRateState.val)} / hr`),
             ActionButton({
-                label: () => (fillBarStatus.val === "success" ? "FILLED!" : "FILL BAR"),
+                label: () => (fillBarStatus.val === "success" ? "Filled" : "Fill bar"),
                 status: fillBarStatus,
                 tooltip: "Fill the Dream Bar to the current requirement",
                 onClick: (e) => {
@@ -118,7 +118,7 @@ const CloudRow = ({ entry }) => {
         ],
         badge: () => `${fmtInt(entry.progressState.val)} / ${fmtInt(entry.requiredState.val)}`,
         controls: ActionButton({
-            label: "COMPLETE",
+            label: "Complete",
             status,
             tooltip: "Set cloud progress to required value",
             onClick: (e) => {

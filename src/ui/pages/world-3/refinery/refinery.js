@@ -60,7 +60,7 @@ const RefinerySection = ({ refIndex, name, levelState, chargeState }) => {
     const isPolymer = refIndex >= POLYMER_LOCK_FROM;
     const isPlaceholder = refIndex === PLACEHOLDER_INDEX;
     const badges = [
-        isPolymer ? span({ class: "refinery-badge refinery-badge--polymer" }, Icons.Wrench(), " POLYMER") : null,
+        isPolymer ? span({ class: "refinery-badge refinery-badge--polymer" }, "POLYMER") : null,
         isPlaceholder
             ? span({ class: "refinery-badge refinery-badge--placeholder" }, Icons.Warning(), " NOT IN GAME")
             : null,
@@ -151,7 +151,7 @@ const RefineryTab = () => {
         actions: RefreshButton({ onRefresh: load }),
         topNotices: [
             NoticeBanner(
-                { icon: Icons.Wrench(), variant: "polymer" },
+                { variant: "polymer" },
                 span(
                     {},
                     "Refineries 7-9 require the ",

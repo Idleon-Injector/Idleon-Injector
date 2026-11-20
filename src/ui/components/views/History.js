@@ -105,7 +105,7 @@ const Group = (data) => {
                 button(
                     {
                         type: "button",
-                        class: "undo-all__button change-group__button",
+                        class: "btn-quiet btn-sm undo-all__button change-group__button",
                         // Stays while it runs (busy, not gone), so a refusal leaves focus where it was.
                         hidden: () => !left().length,
                         "aria-disabled": () => String(state.val === "loading"),
@@ -128,7 +128,11 @@ const Group = (data) => {
                 more.length
                     ? details(
                           { class: "change-group__more", open: moreOpen, ontoggle: (e) => (moreOpen = e.target.open) },
-                          summary({ class: "change-group__more-toggle" }, `${more.length} more`),
+                          summary(
+                              { class: "change-group__more-toggle" },
+                              Icons.Chevron({ dir: "right", class: "group-chevron" }),
+                              `${more.length} more`
+                          ),
                           ...more
                       )
                     : null
@@ -204,10 +208,9 @@ export const History = () => {
                 }),
                 () =>
                     failed.val
-                        ? EmptyState({ icon: Icons.Warning(), title: "HISTORY NOT READ", subtitle: failed.val })
+                        ? EmptyState({ failed: true, title: "HISTORY NOT READ", subtitle: failed.val })
                         : loaded.val && !count.val
                           ? EmptyState({
-                                icon: Icons.Undo(),
                                 title: "NO CHANGES YET",
                                 subtitle: "Values you save on any page show here, ready to undo.",
                             })

@@ -9,6 +9,7 @@ import { ActionButton } from "../../../components/views/account/components/Actio
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
+import { clickAgain } from "../../../components/inPlace.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, button } = van.tags;
@@ -207,36 +208,43 @@ const RatKingTab = () => {
         div(
             { class: "rat-king-bulk-bar" },
             ActionButton({
-                label: "MAX ALL (100)",
-                variant: "max-reset",
+                label: "Max all (100)",
+                variant: "quiet",
                 status: maxStatus.status,
                 disabled: isWriting,
                 tooltip: "Reclaim all 100 Rat King crowns",
                 onClick: handleReclaimAll,
             }),
             ActionButton({
-                label: "RECLAIM DISCOVERED",
-                variant: "apply",
+                label: "Reclaim discovered",
+                variant: "quiet",
                 status: discoveredStatus.status,
                 disabled: isWriting,
                 tooltip: "Reclaim crowns for all plant mutations currently discovered in Log Book (Gaming[11])",
                 onClick: handleReclaimDiscovered,
             }),
             ActionButton({
-                label: "CLEAR ALL (0)",
+                label: "Clear all (0)",
                 variant: "danger",
                 status: clearStatus.status,
                 disabled: isWriting,
                 tooltip: "Clear all reclaimed crowns",
+                confirm: () => (crownsSet.val.size ? `clear all ${crownsSet.val.size} reclaimed crowns.` : null),
                 onClick: handleClearAll,
             }),
             SetAllNumberControl({
                 label: "Set Count:",
                 value: targetCount,
                 status: setCountStatus.status,
-                applyLabel: "APPLY",
+                applyLabel: "Apply",
                 min: 0,
                 max: ALL_CROWNS.length,
+                // Lowering the count removes crowns, so it asks first; raising it runs on one click.
+                confirm: () => {
+                    const desired = Math.max(0, Math.min(ALL_CROWNS.length, toInt(targetCount.val, 0)));
+                    const removed = crownsSet.val.size - desired;
+                    return removed > 0 ? `remove ${removed} crown${removed === 1 ? "" : "s"}.` : null;
+                },
                 onApply: handleSetCount,
             })
         );
@@ -262,22 +270,27 @@ const RatKingTab = () => {
                     button(
                         {
                             type: "button",
-                            class: "account-btn account-btn--max-reset",
+                            class: "account-btn btn-quiet btn-sm",
                             disabled: isWriting,
                             onclick: () => updatePlantCrowns(p, true),
                             title: `Reclaim all 10 crowns for Plant ${p + 1}`,
                         },
-                        "ALL"
+                        "All"
                     ),
                     button(
                         {
                             type: "button",
-                            class: "account-btn account-btn--danger",
+                            class: "account-btn btn-danger btn-sm",
                             disabled: isWriting,
-                            onclick: () => updatePlantCrowns(p, false),
+                            onclick: (e) => {
+                                const owned = MUTATION_CHARS.filter((m) => crownsSet.val.has(`${p}${m}`)).length;
+                                if (owned && !clickAgain(e.currentTarget, `clear ${owned} crowns on Plant ${p + 1}.`))
+                                    return undefined;
+                                return updatePlantCrowns(p, false);
+                            },
                             title: `Clear crowns for Plant ${p + 1}`,
                         },
-                        "CLEAR"
+                        "Clear"
                     )
                 )
             ),
@@ -331,8 +344,8 @@ const RatKingTab = () => {
                     status: maxLogbookStatus.status,
                     controls: [
                         ActionButton({
-                            label: "MAX LOG BOOK",
-                            variant: "max-reset",
+                            label: "Max log book",
+                            variant: "quiet",
                             status: maxLogbookStatus.status,
                             disabled: () => logbookStr.val === "jjjjjjjjjj" || isWriting(),
                             tooltip: "Max all 10 plant log book discoveries to 'jjjjjjjjjj'",

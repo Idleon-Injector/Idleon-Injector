@@ -105,7 +105,9 @@ const BribesTab = () => {
                 (entry) => !entry.readOnly && (enabled ? values[entry.index] !== 1 : values[entry.index] === 1)
             );
             if (!targets.length) return;
+            // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
             if (
+                !enabled &&
                 !clickAgain(
                     button,
                     `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${
@@ -160,7 +162,8 @@ const BribesTab = () => {
                                   : "";
                       }),
                       ActionButton({
-                          label: () => (state.value.val === 1 ? "DISABLE" : "ENABLE"),
+                          label: () => (state.value.val === 1 ? "Disable" : "Enable"),
+                          variant: () => (state.value.val === 1 ? "danger" : "quiet"),
                           status: state.write.status,
                           disabled: cannotWrite,
                           tooltip: () =>
@@ -225,13 +228,14 @@ const BribesTab = () => {
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "ENABLE ALL",
+                    label: "Enable all",
                     status: bulk.status,
                     disabled: cannotWrite,
                     onClick: (e) => setAll(true, e.currentTarget),
                 },
                 {
-                    label: "DISABLE ALL",
+                    label: "Disable all",
+                    variant: "danger",
                     status: bulk.status,
                     disabled: cannotWrite,
                     onClick: (e) => setAll(false, e.currentTarget),

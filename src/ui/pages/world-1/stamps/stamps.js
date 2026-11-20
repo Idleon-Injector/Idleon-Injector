@@ -92,7 +92,7 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
             ActionButton({
                 label: () => (isExalted.val ? "EXALTED ON" : "EXALTED OFF"),
                 status,
-                variant: "account-btn",
+                variant: "switch",
                 className: () => `stamp-exalted-btn ${isExalted.val ? "stamp-exalted-btn--active" : ""}`.trim(),
                 tooltip: `Toggle exalted stamp (${stampCode})`,
                 onClick: async (e) => {
@@ -107,7 +107,7 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
                 },
             }),
             ActionButton({
-                label: "RELOCK",
+                label: "Relock",
                 status,
                 variant: "danger",
                 tooltip: "Set both StampLevel and StampLevelMAX to 0",

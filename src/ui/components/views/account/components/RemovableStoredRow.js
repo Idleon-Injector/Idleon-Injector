@@ -39,7 +39,7 @@ export const RemovableStoredRow = ({
         ],
         badge,
         controls: ActionButton({
-            label: "REMOVE",
+            label: "Remove",
             status,
             variant: "danger",
             disabled: () => isBusy(),

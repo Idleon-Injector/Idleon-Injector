@@ -1,4 +1,5 @@
 import van from "../vendor/van-1.6.0.js";
+import { Icons } from "../assets/icons.js";
 import {
     parseFunction,
     generateFunctionString,
@@ -207,7 +208,16 @@ export const FunctionInput = ({ data, dataKey, initialValue }) => {
                     class: () => `function-number-input-wrapper ${isNumberType(currentType.val) ? "" : "hidden"}`,
                 },
 
-                button({ class: "function-number-btn", onclick: () => handleNumberIncrement(-1), tabindex: -1 }, "−"),
+                button(
+                    {
+                        type: "button",
+                        class: "btn-quiet btn-icon btn-sm function-number-btn",
+                        "aria-label": "Lower",
+                        onclick: () => handleNumberIncrement(-1),
+                        tabindex: -1,
+                    },
+                    Icons.Minus()
+                ),
                 input({
                     type: "number",
                     class: "function-number-input",
@@ -216,7 +226,16 @@ export const FunctionInput = ({ data, dataKey, initialValue }) => {
                     onfocus: handleFocus,
                     onblur: handleBlur,
                 }),
-                button({ class: "function-number-btn", onclick: () => handleNumberIncrement(1), tabindex: -1 }, "+")
+                button(
+                    {
+                        type: "button",
+                        class: "btn-quiet btn-icon btn-sm function-number-btn",
+                        "aria-label": "Raise",
+                        onclick: () => handleNumberIncrement(1),
+                        tabindex: -1,
+                    },
+                    Icons.Plus()
+                )
             ),
 
             span(

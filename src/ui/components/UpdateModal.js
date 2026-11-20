@@ -75,6 +75,7 @@ export const UpdateModal = () => {
                     {
                         id: "modal-cancel",
                         type: "button",
+                        class: "btn-quiet",
                         disabled: () => store.app.updateApplying,
                         onclick: close,
                     },
@@ -84,6 +85,7 @@ export const UpdateModal = () => {
                     {
                         id: "modal-accept",
                         type: "button",
+                        class: "btn-main",
                         disabled: () => store.app.updateApplying || !updateInfo().canApplyUpdate,
                         onclick: () => store.applyUpdate(),
                     },

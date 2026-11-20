@@ -1,6 +1,7 @@
 import van from "../../vendor/van-1.6.0.js";
 import * as API from "../../services/api.js";
 import { IS_ELECTRON } from "../../state/constants.js";
+import { Icons } from "../../assets/icons.js";
 
 const { div, iframe, button } = van.tags;
 
@@ -49,7 +50,7 @@ export const DevTools = () => {
     const renderEmbeddedView = () =>
         div(
             { class: "danger-zone-header" },
-            div({ class: "devtools-popout-title" }, "⚠ DEVTOOLS POP-OUT"),
+            div({ class: "devtools-popout-title" }, Icons.Warning(), " DEVTOOLS POP-OUT"),
 
             div("Embedded DevTools is disabled inside the game UI to prevent crashes"),
             div("Use the pop-out window for full DevTools access"),
@@ -57,14 +58,16 @@ export const DevTools = () => {
                 { class: "devtools-actions" },
                 button(
                     {
-                        class: "btn-primary",
+                        type: "button",
+                        class: "btn-quiet",
                         onclick: openWebUi,
                     },
                     "Open Web UI"
                 ),
                 button(
                     {
-                        class: "btn-primary",
+                        type: "button",
+                        class: "btn-main",
                         onclick: openDevTools,
                     },
                     "Open ChromeDebug"

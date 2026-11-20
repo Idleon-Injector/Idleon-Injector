@@ -208,7 +208,7 @@ const AchievementRow = ({ entry, valueState }) =>
             min: -1,
             badge: (currentValue) => (Number(currentValue) === -1 ? "COMPLETE" : `PROGRESS ${currentValue ?? 0}`),
             maxAction: {
-                label: "DONE",
+                label: "Done",
                 value: -1,
                 tooltip: "Set achievement status to complete (-1)",
             },

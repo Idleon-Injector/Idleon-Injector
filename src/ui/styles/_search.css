@@ -190,16 +190,10 @@
     display: none;
 }
 
-.keys-group.expandable > summary::before {
-    content: ">";
-    display: inline-block;
-    margin-right: 0.5rem;
-    transition: transform 0.2s ease;
-    font-size: 0.875rem;
-}
-
-.keys-group.expandable[open] > summary::before {
-    transform: rotate(90deg);
+.keys-group.expandable > summary {
+    display: flex;
+    gap: 6px;
+    align-items: center;
 }
 
 .keys-expand-content {
@@ -257,42 +251,18 @@
 
 .search-btn-group {
     display: flex;
-    gap: 10px;
-    align-items: stretch;
+    gap: 6px;
+    align-items: center;
     flex-shrink: 0;
 }
 
+/* Wide enough for "First scan", "New scan" and "Scanning", so the pair never moves. */
 .search-btn-group .search-btn {
-    padding: 6px 14px;
-    min-width: 96px;
-    font-size: 0.85rem;
-    justify-content: center;
-}
-
-.search-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.search-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
+    min-width: 108px;
 }
 
 .search-btn.loading {
     pointer-events: none;
-}
-
-.search-btn .icon-base {
-    width: 1rem;
-    height: 1rem;
-}
-
-.search-btn.next-search-btn {
-    gap: 0.2rem;
 }
 
 .search-type-hint {
@@ -349,21 +319,6 @@
     border: 1px solid var(--c-accent-25);
     border-radius: var(--radius-sm);
     padding: 0.2rem 0.5rem;
-}
-
-.refresh-btn {
-    border-color: var(--c-border);
-}
-
-.refresh-btn:hover:not(:disabled) {
-    color: var(--c-accent);
-    border-color: var(--c-accent-25);
-    background: var(--c-accent-06);
-}
-
-.refresh-btn .icon-base {
-    width: 1rem;
-    height: 1rem;
 }
 
 .results-content {
@@ -477,39 +432,15 @@
     align-items: center;
 }
 
+/* Row actions are quiet buttons (_buttons.css) that show on the row's hover or focus; a pressed one stays. */
 .result-action-btn {
     opacity: 0;
-    background: transparent;
-    border: none;
-    color: var(--c-text-muted);
-    cursor: pointer;
-    padding: 0;
-    border-radius: var(--radius-sm);
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 100%;
 }
 
-.search-result-item:hover .result-action-btn {
+.search-result-item:hover .result-action-btn,
+.search-result-item:focus-within .result-action-btn,
+.result-action-btn[aria-pressed="true"] {
     opacity: 1;
-}
-
-.result-action-btn:hover {
-    color: var(--c-accent);
-    background: var(--c-white-10);
-}
-
-.monitor-btn:hover {
-    color: var(--c-accent) !important;
-}
-
-.result-action-btn.monitor-btn.active {
-    opacity: 1;
-    color: var(--c-success);
-    background: rgba(204, 255, 0, 0.12);
 }
 
 .saved-result-item {
@@ -652,22 +583,6 @@
     color: var(--c-success);
 }
 
-.result-action-btn.save-to-list-btn.active {
-    opacity: 1;
-    color: var(--c-accent);
-    background: var(--c-accent-dim);
-    border: 1px solid var(--c-accent-25);
-}
-
-.result-action-btn.remove-btn:hover {
-    color: var(--c-danger);
-}
-
-.result-action-btn .icon-base {
-    width: 0.875rem;
-    height: 0.875rem;
-}
-
 .saved-results-content {
     flex: 1;
     overflow-y: auto;
@@ -678,19 +593,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-}
-
-.btn-small {
-    padding: 6px 12px;
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.btn-small.active {
-    background: var(--c-accent);
-    color: var(--c-accent-ink);
-    border-color: var(--c-accent);
-    box-shadow: 0 0 10px var(--c-accent-dim);
 }
 
 /* Scan Type Controls */

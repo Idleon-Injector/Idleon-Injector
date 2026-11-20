@@ -169,7 +169,7 @@ export const MenuSearch = () => {
         },
         div(
             { class: "search-wrapper" },
-            span({ class: "search-icon" }, () => (command.val ? Icons.ChevronRight() : Icons.Search())),
+            span({ class: "search-icon" }, Icons.Search()),
             field,
             () =>
                 open.val && command.val

@@ -178,11 +178,6 @@
     padding: 40px;
 }
 
-.world-empty-icon {
-    font-size: 2.5rem;
-    color: var(--c-text-muted);
-    line-height: 1;
-}
 .world-empty-label {
     font-size: 0.875rem;
     font-weight: 700;
@@ -208,10 +203,6 @@
     color: var(--c-text-muted);
 }
 
-.world-sub-placeholder__icon {
-    font-size: 2rem;
-    color: var(--c-text-muted);
-}
 .world-sub-placeholder__label {
     font-size: 0.875rem;
     font-weight: 700;

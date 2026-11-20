@@ -620,7 +620,7 @@ const CogsTab = () => {
             div(
                 { class: "cogs-selection-actions" },
                 ActionButton({
-                    label: "LOCK",
+                    label: "Lock",
                     status: lockStatus,
                     variant: "danger",
                     disabled: () => {
@@ -630,7 +630,7 @@ const CogsTab = () => {
                     onClick: () => setSlotLockState(getActiveIndex(), false),
                 }),
                 ActionButton({
-                    label: "UNLOCK",
+                    label: "Unlock",
                     status: lockStatus,
                     disabled: () => {
                         const index = getActiveIndex();
@@ -649,7 +649,7 @@ const CogsTab = () => {
                     success: "SAVED",
                     error: "WRITE FAILED",
                 }),
-                button({ type: "button", class: "btn-secondary", onclick: closeSlotPopup }, "CLOSE")
+                button({ type: "button", class: "btn-quiet btn-sm", onclick: closeSlotPopup }, "Close")
             )
         )
     );

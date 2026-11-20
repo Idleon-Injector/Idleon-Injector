@@ -1,7 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { EmptyState } from "../../EmptyState.js";
 import { SearchBar } from "../../SearchBar.js";
-import { Icons } from "../../../assets/icons.js";
 import { deleteGga, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "./BulkActionBar.js";
@@ -143,7 +142,7 @@ const UpgradeRow = ({ levelsPath, upgrade, levelState, deleteCachePaths = [], on
         max: upgrade.maxLevel,
         integerMode: "trunc",
         maxAction: {
-            label: "MAX",
+            label: "Max",
             value: upgrade.maxLevel,
             tooltip: `Set ${upgrade.name} to level ${upgrade.maxLevel}`,
         },
@@ -298,7 +297,6 @@ export const MasterclassUpgradeTab = ({
     const rowNodes = new Map();
     const upgradeRows = div({ class: "account-item-stack account-item-stack--dense masterclass-upgrade-list" });
     const noUpgrades = EmptyState({
-        icon: Icons.SearchX(),
         title: `NO ${title} UPGRADES`,
         subtitle: `No ${title} levels or definitions were returned by the running game.`,
     });
@@ -418,18 +416,19 @@ export const MasterclassUpgradeTab = ({
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: bulkStatus,
                     disabled: () => loading.val || bulkStatus.val === "loading",
                     tooltip: `Set every ${title} upgrade to its defined maximum level.`,
                     onClick: () => runBulkAction("max"),
                 },
                 {
-                    label: "RESET ALL",
+                    label: "Reset all",
                     status: bulkStatus,
                     variant: "danger",
                     disabled: () => loading.val || bulkStatus.val === "loading",
                     tooltip: `Reset every ${title} upgrade to level 0.`,
+                    confirm: `reset every ${title} upgrade to level 0.`,
                     onClick: () => runBulkAction("reset"),
                 },
             ],

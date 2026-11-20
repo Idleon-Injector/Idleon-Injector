@@ -2,7 +2,7 @@
  * Feedback said where the player acted (#77): no toasts.
  * - A run's result: a short line at the control (`useSaid` + `Said`), only when the result can't be seen from there.
  * - A refusal pulses the control's own hint and says why; a failure stays until the next try.
- * - A risky click asks in place (`clickAgain`): the button reads "CLICK AGAIN" for a few seconds.
+ * - A risky click asks in place (`clickAgain`): the button reads "Click again" for a few seconds.
  */
 
 import van from "../vendor/van-1.6.0.js";
@@ -88,9 +88,10 @@ export const Said = ({ said, className = "", kinds = null }) => {
     );
 };
 
-// The one live region for click-again questions, so a keyboard player hears what the second click will do.
+// The one live region for what a button says without words on screen: a click-again question (so a keyboard player
+// hears what the second click will do) and a press's result (the button only changes colour).
 let askRegion = null;
-const announce = (text) => {
+export const announce = (text) => {
     if (!askRegion) {
         askRegion = span({ class: "sr-only", role: "status" });
         document.body.appendChild(askRegion);
@@ -99,7 +100,8 @@ const announce = (text) => {
 };
 
 const armed = new WeakMap();
-const disarm = (button) => {
+/** Forget `button`'s question, if it asked one: the press it was about no longer needs asking. */
+export const disarm = (button) => {
     const state = armed.get(button);
     if (!state) return;
     clearTimeout(state.timer);
@@ -113,7 +115,7 @@ const disarm = (button) => {
 /**
  * The in-place confirm (#25), where a click used to open the browser's confirm popup. `question` is what the second click
  * does, as words that follow "Click again to" ("disable 12 bribes."). The first click arms `button` and returns
- * false: it reads CLICK AGAIN, the menu's tooltip and screen readers say "Click again to …", and its fill drains
+ * false: it reads "Click again", the menu's tooltip and screen readers say "Click again to …", and its fill drains
  * over `ms`. A second click within `ms` returns true. If the question or `targets` (what the change touches,
  * ids the question doesn't name) changed meanwhile, the button asks again instead.
  */
@@ -134,7 +136,7 @@ export const clickAgain = (button, question, { targets = null, ms = 4000 } = {})
     button.style.setProperty("--again-ms", `${ms}ms`);
     button.removeAttribute("data-again");
     void button.offsetWidth; // a new question drains from full again
-    button.setAttribute("data-again", "CLICK AGAIN");
+    button.setAttribute("data-again", "Click again");
     button.setAttribute("aria-label", `Click again to ${question}`);
     showTooltip(button, `Click again to ${question}`);
     announce(`Click again to ${question}`);

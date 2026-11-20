@@ -76,7 +76,7 @@ const QuickAccessSection = () => {
                               },
                               title: "Remove from favorites",
                           },
-                          Icons.X()
+                          Icons.Close()
                       )
                     : null
             )
@@ -87,7 +87,7 @@ const QuickAccessSection = () => {
         { class: "quick-access-section" },
         div(
             { class: "quick-access-group" },
-            div({ class: "quick-access-header" }, span("★ FAVORITES"), Said({ said: favoritesSaid.said })),
+            div({ class: "quick-access-header" }, span("FAVORITES"), Said({ said: favoritesSaid.said })),
             () => {
             const favorites = [...store.data.favoriteCheats];
             if (favorites.length === 0) {
@@ -99,7 +99,7 @@ const QuickAccessSection = () => {
 
         div(
             { class: "quick-access-group" },
-            div({ class: "quick-access-header" }, span("↻ RECENT"), Said({ said: recentSaid.said })),
+            div({ class: "quick-access-header" }, span("RECENT"), Said({ said: recentSaid.said })),
             () => {
             const recent = [...store.data.recentCheats];
             if (recent.length === 0) {
@@ -246,19 +246,22 @@ export const Cheats = () => {
                 searchBar,
                 button(
                     {
-                        class: () => `config-drawer-toggle ${store.app.configDrawerOpen ? "active" : ""}`,
+                        type: "button",
+                        class: () => `btn-quiet config-drawer-toggle ${store.app.configDrawerOpen ? "active" : ""}`,
+                        "aria-pressed": () => String(Boolean(store.app.configDrawerOpen)),
                         onclick: handleConfigDrawerToggle,
                         title: "Toggle config drawer",
                     },
-                    Icons.Config()
+                    "Config"
                 ),
                 button(
                     {
-                        class: "view-mode-toggle",
+                        type: "button",
+                        class: "btn-quiet view-mode-toggle",
                         onclick: store.toggleCheatsViewMode,
-                        title: "Toggle View Mode (List/Tabs)",
+                        title: "Switch between the list and the tabs",
                     },
-                    () => (store.app.cheatsViewMode === "tabs" ? Icons.List() : Icons.Tabs())
+                    () => (store.app.cheatsViewMode === "tabs" ? "List view" : "Tab view")
                 )
             ),
 
@@ -276,7 +279,7 @@ export const Cheats = () => {
 
                 if (categories.length === 0 && store.app.cheatsError) {
                     return EmptyState({
-                        icon: Icons.Warning(),
+                        failed: true,
                         title: "THE CHEAT LIST DIDN'T LOAD",
                         subtitle: store.app.cheatsError,
                     });
@@ -284,7 +287,6 @@ export const Cheats = () => {
 
                 if (categories.length === 0) {
                     return EmptyState({
-                        icon: Icons.SearchX(),
                         title: "NO CHEATS FOUND",
                         subtitle: filterTerm ? "Try a different search term" : "Cheats list is empty",
                     });
@@ -323,8 +325,12 @@ export const Cheats = () => {
                                 visibleCheats.map((cheat) => CheatItem(cheat)),
                                 hasMore
                                     ? button(
-                                          { class: "load-more-btn", onclick: () => (pagination.limit += 50) },
-                                          `LOAD MORE (${activeCheats.length - pagination.limit} REMAINING)`
+                                          {
+                                              type: "button",
+                                              class: "btn-quiet load-more-btn",
+                                              onclick: () => (pagination.limit += 50),
+                                          },
+                                          `Load more (${activeCheats.length - pagination.limit} remaining)`
                                       )
                                     : null
                             );

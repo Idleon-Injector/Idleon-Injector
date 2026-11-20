@@ -124,6 +124,18 @@ test("a cheat that needs a value refuses on its row and pulses its value field",
     assert.equal(text(said), "needs a value");
 });
 
+test("a cheat that needs a value lights its star once that value is a favorite", async () => {
+    const row = CheatItem({ value: "fixture nested deep", message: "deep", needsParam: true });
+    const [, field, star] = row.childNodes;
+    assert.equal(star.attributes["aria-pressed"], "false");
+    field.listeners.input({ target: { value: "7" } });
+    await star.listeners.click({ stopPropagation() {} });
+    await settle();
+    assert.equal(star.attributes["aria-pressed"], "true", "the star says it's a favorite");
+    assert.match(classOf(star), /is-favorite/);
+    store.toggleFavorite("fixture nested deep 7");
+});
+
 for (const [where, render] of [
     ["the sidebar", () => Sidebar()],
     ["Home", () => Home()],

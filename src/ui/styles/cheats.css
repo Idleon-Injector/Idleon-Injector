@@ -42,15 +42,8 @@
     user-select: none;
 }
 
-.cheat-category summary::after {
-    content: "+";
-    font-family: var(--font-mono);
-    color: var(--c-text-dim);
-}
-
-.cheat-category[open] summary::after {
-    content: "-";
-    color: var(--c-accent);
+.cheat-category summary .group-chevron {
+    order: 1;
 }
 
 .cheat-category-content {
@@ -262,57 +255,18 @@
     gap: 10px;
 }
 
-.config-drawer-toggle {
-    flex: none;
-    width: 42px;
-    background: var(--c-black-30);
-    border: 1px solid var(--c-border);
-    color: var(--c-text-dim);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    padding: 0;
-    transition: all 0.2s;
-}
+/* The control bar's Config and List view / Tab view are quiet buttons; Config stays filled while the drawer is open. */
+/* In the narrow overlay they take the line under the search, so the field keeps its width. */
+@media (max-width: 760px) {
+    #cheats-tab .control-bar {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        row-gap: 4px;
+    }
 
-.config-drawer-toggle svg {
-    width: 1em;
-    height: 1em;
-}
-
-.config-drawer-toggle:hover {
-    color: var(--c-text-main);
-    border-color: var(--c-accent-25);
-    background: var(--c-accent-06);
-}
-
-.config-drawer-toggle.active {
-    color: var(--c-accent);
-    border-color: var(--c-accent);
-    background: var(--c-accent-dim-solid);
-}
-
-/* --- VIEW MODE TOGGLE --- */
-.view-mode-toggle {
-    flex: none;
-    width: 42px;
-    background: var(--c-black-30);
-    border: 1px solid var(--c-border);
-    color: var(--c-text-dim);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    transition: all 0.2s;
-    border-radius: 4px; /* Optional rounded corners */
-}
-
-.view-mode-toggle:hover {
-    color: var(--c-text-main);
-    border-color: var(--c-text-dim);
+    #cheats-tab .control-bar .search-wrapper {
+        flex: 1 1 100%;
+    }
 }
 
 /* --- TABS MODE --- */
@@ -379,16 +333,6 @@
 
 /* --- LOAD MORE BUTTON --- */
 .load-more-btn {
-    margin-top: 10px;
     width: 100%;
-    padding: 10px;
-    background: var(--c-white-05);
-    border: 1px solid var(--c-border);
-    color: var(--c-text-dim);
-    cursor: pointer;
-}
-
-.load-more-btn:hover {
-    background: var(--c-white-10);
-    color: var(--c-text-main);
+    margin-top: 10px;
 }

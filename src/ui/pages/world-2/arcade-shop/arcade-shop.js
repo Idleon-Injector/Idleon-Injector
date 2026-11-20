@@ -201,27 +201,29 @@ const ArcadeTab = () => {
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: bulkStatus,
                     tooltip: "Set every Arcade upgrade to 100",
                     onClick: () => doSetAll(100),
                 },
                 {
-                    label: "MAX ALL COSMIC",
+                    label: "Max all cosmic",
                     status: bulkStatus,
                     tooltip: "Set every Arcade upgrade to 101",
                     onClick: () => doSetAll(101),
                 },
                 {
-                    label: "MAX ALL OMEGA",
+                    label: "Max all omega",
                     status: bulkStatus,
                     tooltip: "Set every Arcade upgrade to 102",
                     onClick: () => doSetAll(102),
                 },
                 {
-                    label: "RESET ALL",
+                    label: "Reset all",
+                    variant: "danger",
                     status: bulkStatus,
                     tooltip: "Reset every Arcade upgrade to 0",
+                    confirm: "reset every Arcade upgrade to 0.",
                     onClick: () => doSetAll(0),
                 },
             ],

@@ -202,7 +202,6 @@ export const AccountOptionsTab = () => {
                 ? visibleRows
                 : [
                       EmptyState({
-                          icon: Icons.SearchX(),
                           title: "NO OPTIONS MATCH",
                           subtitle: "Adjust your filter or search term",
                       }),

@@ -37,7 +37,7 @@ export const AccountExpandableGroup = ({
                             expanded.val && "account-expandable-group__arrow--open"
                         ),
                 },
-                Icons.ChevronRight()
+                Icons.Chevron({ dir: "right" })
             ),
             span({ class: "account-expandable-group__title" }, ...toNodes(title), ...toNodes(marker)),
             meta !== null ? span({ class: "account-expandable-group__meta" }, ...toNodes(meta)) : null

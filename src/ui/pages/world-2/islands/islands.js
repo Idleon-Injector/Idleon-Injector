@@ -159,13 +159,14 @@ const IslandsTab = () => {
             meta: BulkActionBar({
                 actions: [
                     {
-                        label: "UNLOCK ALL",
+                        label: "Unlock all",
                         status: unlockBulk.status,
                         tooltip: "Write the canonical unlock string abcde_",
                         onClick: () => unlockBulk.run(() => writeUnlocks(CANONICAL_UNLOCK_ORDER, { batch: true })),
                     },
                     {
-                        label: "LOCK ALL",
+                        label: "Lock all",
+                        variant: "danger",
                         status: unlockBulk.status,
                         tooltip: "Clear every island unlock",
                         onClick: () => unlockBulk.run(() => writeUnlocks("", { batch: true })),
@@ -189,7 +190,7 @@ const IslandsTab = () => {
             meta: div(
                 { class: "islands-section__controls" },
                 SetAllNumberControl({
-                    label: "SET ALL",
+                    label: "Set all",
                     value: garbageSetAll,
                     status: garbageBulk.status,
                     onApply: () => setAll(GARBAGE_FIELDS, garbageSetAll, garbageBulk),
@@ -219,7 +220,7 @@ const IslandsTab = () => {
             meta: div(
                 { class: "islands-section__controls" },
                 SetAllNumberControl({
-                    label: "SET ALL",
+                    label: "Set all",
                     value: randoSetAll,
                     status: randoBulk.status,
                     onApply: () => setAll(RANDO_FIELDS, randoSetAll, randoBulk),
@@ -235,7 +236,7 @@ const IslandsTab = () => {
             meta: div(
                 { class: "islands-section__controls" },
                 SetAllNumberControl({
-                    label: "SET UPGRADES",
+                    label: "Set upgrades",
                     value: shimmerSetAll,
                     status: shimmerBulk.status,
                     onApply: () => setAll(SHIMMER_FIELDS, shimmerSetAll, shimmerBulk),

@@ -139,7 +139,7 @@ const ConstructionBuildingsTab = () => {
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: bulkStatus,
                     disabled: () => loading.val || !buildingMeta.length,
                     onClick: doMaxAll,

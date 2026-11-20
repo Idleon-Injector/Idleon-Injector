@@ -1,5 +1,6 @@
 import van from "../vendor/van-1.6.0.js";
 import { CheatItem } from "./CheatItem.js";
+import { Icons } from "../assets/icons.js";
 
 const { div, details, summary } = van.tags;
 
@@ -24,7 +25,7 @@ export const LazyCategory = ({ category, isOpen, cheats }) => {
                 isExpanded.val = e.target.open;
             },
         },
-        summary(category),
+        summary(category, Icons.Chevron({ dir: "right", class: "group-chevron" })),
         () => {
             if (!isExpanded.val) {
                 return div({ class: "cheat-category-content hidden" });

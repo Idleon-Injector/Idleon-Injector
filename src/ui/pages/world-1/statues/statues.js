@@ -232,9 +232,9 @@ const StatuesTab = () => {
             button(
                 {
                     type: "button",
-                    class: "btn-secondary",
+                    class: "btn-quiet btn-sm",
                     "aria-label": "Toggle Statue Flair unlock",
-                    "aria-pressed": () => flairUnlocked.val,
+                    "aria-pressed": () => String(flairUnlocked.val),
                     disabled: () => loading.val || flairToggleStatus.val === "loading",
                     onclick: () => {
                         if (flairToggleStatus.val === "loading") return;
@@ -250,7 +250,7 @@ const StatuesTab = () => {
                         );
                     },
                 },
-                () => `FLAIR: ${flairUnlocked.val ? "ON" : "OFF"}`
+                () => `Flair: ${flairUnlocked.val ? "on" : "off"}`
             ),
             RefreshButton({
                 onRefresh: load,
