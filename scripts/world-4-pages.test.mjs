@@ -155,3 +155,12 @@ test("Undo after adding a cape takes it back off the vine", async () => {
     await undoAction((await fetchChanges()).actions[0].id);
     assert.deepEqual([...gga.Spelunk[54]], before);
 });
+
+test("a Tome record with no field shows its value", async () => {
+    const root = await openPage("src/ui/pages/world-4/tome/tome.js");
+    const readOnly = byClass(root, "account-row").filter((row) => byTag(row, "input").length === 0);
+    assert.ok(readOnly.length > 0, "the page has read-only records");
+    const row = rowByIndex(root, "#1");
+    assert.equal(byTag(row, "input").length, 0, "#1 is read-only");
+    assert.equal(text(byClass(row, "account-row__badge")[0]), "791");
+});
