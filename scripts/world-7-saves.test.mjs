@@ -166,3 +166,34 @@ test("Sushi Station: a slot save the game refuses shows the game's tier again an
         restore();
     }
 });
+
+test("Research Grid: Refresh while a level saves keeps the typed level, and leaving again writes nothing", async () => {
+    const GRID = "src/ui/pages/world-7/research/grid.js";
+    const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
+    const root = await openPage(GRID, (node) => tiles(node).length > 3);
+    const card = () => byClass(root, "research-grid-detail__edit-row")[0];
+    tiles(root)[3].listeners.click({});
+    await until(card, "the tile's card");
+    const index = Number(/Tile (\d+)/.exec(text(byClass(root, "research-grid-detail__index")[0]))[1]) - 1;
+    const max = Number(/\/ (\d+)/.exec(text(byClass(root, "research-grid-detail__preview-level")[0]))[1]);
+    const next = Research[0][index] === max ? 0 : max;
+    const [field] = inputs(card());
+
+    focus(field);
+    type(field, next);
+    const release = hold("/write");
+    leave(card(), field);
+    // Refresh reads the game while the save's write waits.
+    await buttonNamed(root, "Refresh").listeners.click({ preventDefault() {} });
+    release();
+    await settled(card());
+    assert.equal(Research[0][index], next);
+    assert.equal(field.attributes.value, String(next), "the field keeps the saved level");
+
+    const start = requests.length;
+    focus(field);
+    leave(card(), field);
+    await tick();
+    assert.deepEqual(writesSince(start), [], "leaving the untouched field writes nothing");
+    assert.equal(Research[0][index], next);
+});
