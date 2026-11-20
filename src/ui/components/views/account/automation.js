@@ -400,12 +400,17 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     let fileOnly = null; // the reason shown for the row's last failure that was only at the file
     // The notice while any of this row's saves still waits for the game; then the newest outcome shows.
     const late = useStillWaiting();
+    const running = van.state(0); // this row's saves still running: an earlier one's check waits for the last
     // `task(onLate)` starts the save.
-    const track = (task) => () =>
-        task(late.onLate).catch((error) => {
-            if (error.fileOnly) fileOnly = saveFailureReason(error);
-            throw error;
-        });
+    const track = (task) => () => {
+        running.val++;
+        return task(late.onLate)
+            .catch((error) => {
+                if (error.fileOnly) fileOnly = saveFailureReason(error);
+                throw error;
+            })
+            .finally(() => running.val--);
+    };
     const save = useAutoSave({
         prepare: () => {
             const typed = getNumberInputLiveRaw(draft) ?? draft.val;
@@ -448,7 +453,9 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     const waiting = () => late.notice.val !== null;
     const status = {
         get val() {
-            if (waiting()) return "loading"; // a wait isn't a failure: it keeps the saving look
+            // A wait isn't a failure: it keeps the saving look. So does an earlier save's check while a later save on
+            // this row still runs (a refusal still shows: it is true, and the field's own refusals must show at once).
+            if (waiting() || (running.val > 0 && save.status.val === "success")) return "loading";
             const shown = save.status.val === "error" && save.reason.val === fileOnly;
             return shown && !picks.fileBehind() ? null : save.status.val;
         },

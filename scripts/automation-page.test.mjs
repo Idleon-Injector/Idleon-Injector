@@ -1756,3 +1756,28 @@ test("local review: a stop-at too big to store exactly is refused at its field",
     assert.match(text(pickRow("Royal Pebble")), /whole number/);
     metric("Royal Pebble").listeners.keydown({ key: "Escape", target: input, preventDefault() {} });
 });
+
+test("local review: an item row shows no check while a later save on it is still running", async () => {
+    let releaseFirst;
+    let releaseSecond;
+    holdNextUpdate = new Promise((resolve) => (releaseFirst = resolve));
+    const sent = updates.length;
+    try {
+        void checkbox(pickRow("Golden Bramble")).listeners.change({ target: { checked: false } });
+        await until(() => updates.length > sent, "the first save to reach the game and be held");
+        void checkbox(pickRow("Golden Bramble")).listeners.change({ target: { checked: true } });
+        holdNextUpdate = new Promise((resolve) => (releaseSecond = resolve));
+        releaseFirst();
+        await until(() => updates.length > sent + 1, "the first save to end and the second to be held");
+        await handled();
+        assert.doesNotMatch(saveState("Golden Bramble"), /save-state--success/, "the second save hasn't ended");
+        assert.match(saveState("Golden Bramble"), /save-state--loading/);
+    } finally {
+        releaseFirst();
+        releaseSecond?.();
+    }
+    await until(() => /save-state--success/.test(saveState("Golden Bramble")), "the second save's outcome");
+    await checkbox(pickRow("Golden Bramble")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item5" && on), "Golden Bramble off");
+    await ui.switchAutomation("automation shops", false);
+});
