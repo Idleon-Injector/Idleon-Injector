@@ -7,7 +7,7 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 // The tooltip that says "Click again to …" places itself on the next frame.
 globalThis.requestAnimationFrame = () => {};
-const { router } = await createFakeApi();
+const { router, game } = await createFakeApi();
 const { requests } = await loadUi(router);
 // The question is read out once, from a live region on the page.
 globalThis.document.body = globalThis.document.createElement("body");
@@ -271,3 +271,25 @@ for (const [file, label] of [
         assert.equal(button.attributes["data-again"], "Click again", "it asks about W2");
     });
 }
+
+// Lumi's call (2026-11-20): Lock all removes every island unlock, so it asks in place like the other removals.
+test("islands: Lock all asks in place, locks every island on the second click, and Undo puts them back", async () => {
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const unlocks = () => game.gga.OptionsListAccount[169];
+    game.gga.OptionsListAccount[169] = "abc";
+    const button = await openPage("src/ui/pages/world-2/islands/islands.js", "Lock all");
+    const before = writes();
+    await click(button);
+    await settle(100);
+    assert.equal(button.attributes["data-again"], "Click again", "the first click asks");
+    assert.equal(writes(), before, "and locks nothing");
+    assert.equal(unlocks(), "abc");
+    await click(button);
+    await until(() => writes() > before, "the second click to lock");
+    await settle(100);
+    assert.equal(unlocks(), "");
+    const [action] = (await fetchChanges()).actions;
+    await undoAction(action.id);
+    assert.equal(unlocks(), "abc", "Undo unlocks them again");
+});
