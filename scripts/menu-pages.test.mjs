@@ -181,6 +181,7 @@ const CHEATS = [
     { value: "wipe inv", message: "Wipe your inventory", category: "wipe", dangerous: true },
     { value: "drop Timecandy1", message: "24 Hr Time Candy", category: "drop", needsParam: true },
     { value: "nomore Timecandy1", message: "24 Hr Time Candy", category: "nomore" },
+    { value: "drop Timecandy2", message: "72 Hr Time Candy", category: "drop", needsParam: true },
     { value: "drop Copper", message: "Copper Ore", category: "drop", needsParam: true },
     { value: "class mossy_fang", message: "Change to Mossy_Fang (ID: 1)", category: "class", dangerous: true },
 ];
@@ -260,9 +261,10 @@ test("search finds the terminal's commands after cheats, by item name, and knows
         [
             ["Cheat", "wide candy", "Cheat · Cheats › Wide"],
             ["Command", "drop · 24 Hr Time Candy", "Command · drop Timecandy1"],
+            ["Command", "drop · 72 Hr Time Candy", "Command · drop Timecandy2"],
             ["Command", "nomore · 24 Hr Time Candy", "Command · nomore Timecandy1"],
         ],
-        "cheats first, then the commands by the item's name"
+        "cheats first, then the commands by the item's name, every drop before every nomore"
     );
     assert.deepEqual(candy[1].target, { command: "drop Timecandy1", message: "24 Hr Time Candy", needsParam: true });
     assert.equal(search("drop candy")[0].command, "drop Timecandy1", "every word, like the terminal");
@@ -285,6 +287,6 @@ test("search finds the terminal's commands after cheats, by item name, and knows
     assert.equal(isDangerousCommand("drop Timecandy1 5", CHEATS), false);
     assert.equal(isDangerousCommand("godlike reach", CHEATS), false);
     assert.equal(isDangerousCommand("nothing here", CHEATS), false);
-    assert.equal(commandHint("drop Timecandy1"), "Add an amount, or leave it for 1");
+    assert.equal(commandHint("drop Timecandy1"), "Amount optional");
     assert.equal(commandHint("godlike speed"), "");
 });

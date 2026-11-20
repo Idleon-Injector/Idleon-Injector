@@ -96,6 +96,10 @@
     font-size: 0.75rem;
     color: var(--c-text-muted);
     white-space: nowrap;
+    /* "CTRL K" and the command box's "ENTER" take the same room, so the field doesn't jump. */
+    box-sizing: content-box;
+    min-width: 6ch;
+    text-align: center;
 }
 
 .menu-search-results {

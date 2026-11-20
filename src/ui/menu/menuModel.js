@@ -267,6 +267,10 @@ const categoryName = (category) =>
  */
 export const cheatSearchEntries = (cheats, descriptions) => {
     const values = new Set(cheats.map((cheat) => cheat.value));
+    // Equal matches list by command, in the game's order: "candy" gives every candy to drop, then to nomore.
+    const groups = new Map();
+    for (const cheat of cheats)
+        if (!groups.has(cheat.value.split(" ")[0])) groups.set(cheat.value.split(" ")[0], groups.size);
     const out = cheats.map((cheat) => {
         const value = cheat.value;
         const base = value.split(" ")[0];
@@ -276,6 +280,7 @@ export const cheatSearchEntries = (cheats, descriptions) => {
         if (!cheat.needsParam && !hiddenBase) {
             return {
                 kind: "Cheat",
+                group: groups.get(base),
                 label: value,
                 where: `Cheat · ${place}`,
                 command: value,
@@ -286,6 +291,7 @@ export const cheatSearchEntries = (cheats, descriptions) => {
         const named = hiddenBase && message !== "";
         return {
             kind: "Command",
+            group: groups.get(base),
             named,
             label: named ? `${base} · ${message}` : value,
             where: named ? `Command · ${value}` : `Command · ${place}`,
@@ -304,6 +310,7 @@ export const cheatSearchEntries = (cheats, descriptions) => {
         if (!owner) continue;
         out.push({
             kind: "Setting",
+            group: groups.get(path[0]),
             label: path[path.length - 1],
             where: `Setting · ${owner}`,
             command: "",
@@ -335,8 +342,8 @@ export const isDangerousCommand = (text, cheats) => {
  */
 export const commandHint = (command) => {
     const base = command.split(" ")[0];
-    if (base === "drop" || base === "spawn") return "Add an amount, or leave it for 1";
-    if (base === "multiplestacks") return "Add the number of stacks";
+    if (base === "drop" || base === "spawn") return "Amount optional";
+    if (base === "multiplestacks") return "Needs a stack count";
     return "";
 };
 
@@ -400,5 +407,5 @@ export const searchMenu = (entries, query) => {
         if (!score && entry.description && entry.description.toLowerCase().includes(q)) score = 25;
         if (score > 0) hits.push({ ...entry, matched, score: 200 + score });
     }
-    return hits.sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
+    return hits.sort((a, b) => b.score - a.score || (a.group ?? 0) - (b.group ?? 0)).slice(0, MAX_RESULTS);
 };

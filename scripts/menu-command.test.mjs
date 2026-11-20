@@ -63,7 +63,7 @@ test("picking a command fills the box without running it; Enter runs it once, wi
     assert.equal(field.value, "drop Timecandy1 ");
     assert.ok(isCommandBox(), "the box is a command box");
     assert.match(hint(), /24 Hr Time Candy/);
-    assert.match(hint(), /Add an amount, or leave it for 1 · Enter runs · Esc cancels/);
+    assert.match(hint(), /Amount optional · Enter runs · Esc cancels/);
     assert.deepEqual(ran, [], "picking doesn't run it");
 
     await type("drop Timecandy1 5");
