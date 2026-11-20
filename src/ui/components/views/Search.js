@@ -166,6 +166,15 @@ export const Search = () => {
         }
     };
 
+    // A scan or a reset closes the open editor, so it waits while that editor's value is being written: a
+    // write that fails is still said under its field.
+    const refuseMidWrite = () => {
+        if (!ui.isSettingValue) return false;
+        ui.searchRefusal = "Wait until the value is written";
+        ui.refusals++;
+        return true;
+    };
+
     // A refusal is about the inputs the scan had; changing them takes it back.
     van.derive(() => {
         void [ui.searchQuery, ui.searchQuery2, ui.selectedKeys, ui.scanTypeNew, ui.scanTypeNext];
@@ -282,6 +291,7 @@ export const Search = () => {
         },
 
         startNewScan: () => {
+            if (refuseMidWrite()) return;
             scanSession.reset();
             ui.displayLimit = 50;
             ui.error = null;
@@ -468,7 +478,7 @@ export const Search = () => {
         saveEdit: () => commitEdit(ui.edit, handlers.cancelEdit),
 
         handleSearch: async (mode = "new") => {
-            if (ui.scan.isSearching) return;
+            if (ui.scan.isSearching || refuseMidWrite()) return;
 
             handlers.cancelEdit();
             handlers.cancelSavedEdit();

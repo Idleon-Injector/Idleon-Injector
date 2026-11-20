@@ -46,7 +46,7 @@ const byClass = (node, name) => find(node, (child) => classOf(child).split(/\s+/
 const event = (extra = {}) => ({ preventDefault() {}, stopPropagation() {}, ...extra });
 
 const { router } = await createFakeApi();
-await loadUi(router);
+const { store } = await loadUi(router);
 // The click-again question shows in the menu's tooltip and is read out once, from a live region on the page.
 globalThis.requestAnimationFrame = () => {};
 globalThis.document.body = globalThis.document.createElement("body");
@@ -95,6 +95,36 @@ test("value search: a refused scan is said in its hint line, a bad value under i
     for (let i = 0; field() && i < 100; i++) await settle();
     assert.equal(field(), undefined, "the field closes once the game took it");
     assert.ok(byClass(page, "is-confirmed").length, "the written row washes once");
+});
+
+test("value search: a scan waits while a value is being written, so a failed write is still said", async (t) => {
+    const { Search } = await importRepo("src/ui/components/views/Search.js");
+    const page = Search();
+    for (let i = 0; !byClass(page, "search-query-input").length && i < 100; i++) await settle();
+    const query = byClass(page, "search-query-input")[0];
+    for (let i = 0; i < 100 && !find(page, (n) => /OptionsListAccount/.test(n.data ?? "")).length; i++) await settle();
+    query.listeners.input({ target: { value: "5" } });
+    await settle();
+    query.listeners.keydown(event({ key: "Enter" }));
+    for (let i = 0; !byClass(page, "edit-btn").length && i < 200; i++) await settle();
+
+    let fail;
+    t.mock.method(store, "setGgaValue", () => new Promise((_, reject) => (fail = reject)));
+    byClass(page, "edit-btn")[0].listeners.click(event());
+    await settle();
+    const field = () => byClass(page, "result-edit-input")[0];
+    field().listeners.input({ target: { value: "8" } });
+    field().listeners.keydown(event({ key: "Enter" })); // the write starts
+    await settle();
+    query.listeners.keydown(event({ key: "Enter" })); // a scan while it runs
+    await settle();
+    assert.equal(text(byClass(page, "search-type-hint")[0]), "Wait until the value is written");
+
+    fail(new Error("the game kept 5"));
+    await settle();
+    const under = byClass(page, "said--under").find((line) => /said--failed/.test(classOf(line)));
+    assert.ok(field(), "the field is still open");
+    assert.equal(text(under), "the game kept 5", "and says why the value wasn't written");
 });
 
 test("a risky button asks in place: CLICK AGAIN, then the second click runs it, or it runs out", async (t) => {
