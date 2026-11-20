@@ -187,6 +187,8 @@ const TomeRow = ({ entry }) =>
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
+        // No field shows this value, so the badge does.
+        badge: () => largeFormatter(entry.value ?? 0),
     });
 
 const TomeTab = () => {

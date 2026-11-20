@@ -220,9 +220,11 @@ const EmperorTab = () => {
         message.val = "";
         let writesStarted = false;
         try {
-            const next = reset ? 0 : wholeNumber(draft, PROGRESS_LIMIT);
             const before = await readSnapshot();
             showSnapshot(before);
+            // The count the game holds isn't an edit, so the limit an edit keeps to doesn't apply to it.
+            const untouched = String(draft).trim() !== "" && Number(draft) === before.progress;
+            const next = reset ? 0 : untouched ? before.progress : wholeNumber(draft, PROGRESS_LIMIT);
             let fresh = before;
             // The same count saves again only to repair a base reward cache that's out of sync.
             if (next === before.progress && cacheMatches(before)) {
@@ -309,6 +311,8 @@ const EmperorTab = () => {
             mode: "int",
             inputmode: "numeric",
             "aria-label": label,
+            // Entries show their natural capacity, what Refill fills to, as the field's cap.
+            cap: entryControl ? () => snapshot.val?.capacity : null,
             readOnly: isBusy,
             disabled: () => Boolean(error.val) || !snapshot.val || (entryControl && snapshot.val.cheatEnabled),
             onDecrement: () => {
@@ -368,17 +372,10 @@ const EmperorTab = () => {
             { class: "account-row__name-group" },
             span({ class: "account-row__name" }, "Remaining entries"),
             span({ class: "account-row__sub-label" }, () =>
-                snapshot.val
-                    ? `Natural capacity ${snapshot.val.capacity}; base daily replenishment ${snapshot.val.daily}`
-                    : ""
+                snapshot.val ? `Base daily replenishment ${snapshot.val.daily}` : ""
             )
         ),
-        badge: () =>
-            snapshot.val
-                ? snapshot.val.cheatEnabled
-                    ? "CHEAT ACTIVE"
-                    : `${snapshot.val.remaining} / ${snapshot.val.capacity}`
-                : "—",
+        badge: () => (snapshot.val?.cheatEnabled ? "Cheat active" : ""),
         controls: [
             SaveState(entriesWrite),
             entriesInput,

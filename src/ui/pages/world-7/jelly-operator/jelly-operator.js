@@ -70,12 +70,9 @@ const LevelRow = ({
                 span({ class: "account-row__sub-label", role: "status" }, () => writeError.val)
             ),
         ],
-        renderBadge: (value) => {
-            const status = statusLabel ? statusLabel() : locked ? "LOCKED" : "";
-            // The level is in the field; the badge keeps only the state and the cap.
-            if (!displayMax) return status;
-            return `${status ? `${status} · ` : ""}LV ${value ?? 0} / ${max}`;
-        },
+        // The level and its cap are in the field; the badge keeps only the state.
+        renderBadge: () => (statusLabel ? statusLabel() : locked ? "Locked" : ""),
+        cap: displayMax ? max : null,
         adjustInput: (raw, delta, current) =>
             Math.max(0, Math.min(max, (validLevel(raw, max) ?? current ?? 0) + delta)),
         rowClass,
@@ -194,8 +191,8 @@ const JellyTab = () => {
                                 (owned, _, upgradeId) => owned + getOrCreateState(upgradeStates, upgradeId).val,
                                 0
                             )
-                                ? "UNLOCKED"
-                                : "LOCKED",
+                                ? "Unlocked"
+                                : "Locked",
                         valueState: getOrCreateState(cellStates, id),
                         max: CELL_LEVEL_LIMIT,
                         write: async (next) => {

@@ -396,7 +396,7 @@ const PrayersTab = () => {
             disabled: () => loading.val || Boolean(error.val) || !snapshot.val,
             rowClass: "prayer-row account-row--wide-controls",
             inputProps: { "aria-label": `${cleanName(metadata.val[0])} level` },
-            maxAction: { label: "Max", value: Number.MAX_SAFE_INTEGER },
+            maxAction: { label: "Max", value: () => Number(metadata.val[9]) },
             renderInfo: () =>
                 div(
                     { class: "account-row__name-group" },
@@ -416,8 +416,8 @@ const PrayersTab = () => {
                             `Unlock: ${snapshot.val?.trialNames?.[Number(metadata.val[8])] || `Trial ${metadata.val[8]}`}, wave ${metadata.val[7]}`
                     )
                 ),
-            renderBadge: () =>
-                `LV ${level.val}/${metadata.val[9]}${level.val === 0 ? " · LOCKED" : ""}${isEquipped() ? " · EQUIPPED" : ""}`,
+            cap: () => Number(metadata.val[9]),
+            renderBadge: () => (level.val === 0 ? "Locked" : isEquipped() ? "Equipped" : ""),
             renderExtraActions: () =>
                 ActionButton({
                     label: () => (isEquipped() ? "Unequip" : "Equip"),
