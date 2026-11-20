@@ -12,7 +12,7 @@ import {
     getOrCreateState,
     resolveNumberInput,
     toInt,
-    writeManyVerified,
+    writeChangedFields,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -32,6 +32,7 @@ const buildKitchenEntries = (rawCooking) =>
             key: `kitchen:${kitchenIndex}:${field.key}`,
             path: `${COOKING_PATH}[${kitchenIndex}][${field.index}]`,
             value: toInt(kitchen[field.index], { min: 0 }),
+            fromGame: (raw) => toInt(raw, { min: 0 }),
         }));
 
         return {
@@ -62,10 +63,7 @@ const KitchenRow = ({ entry, fieldStates }) => {
             }
             return nextValues;
         },
-        write: async (nextValues) => {
-            await writeManyVerified(fields.map((field) => ({ path: field.path, value: nextValues[field.key] })));
-            return nextValues;
-        },
+        write: (nextValues) => writeChangedFields(fields, nextValues),
         info: [
             span({ class: "account-row__index" }, `#${entry.index + 1}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),

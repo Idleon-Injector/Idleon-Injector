@@ -123,7 +123,7 @@ const MarketsTab = () => {
             reconcileRows();
 
             for (const entry of [...marketEntries.val, ...nightMarketEntries.val]) {
-                getOrCreateState(levelStates, entry.pathIndex).val = Math.min(entry.maxLevel, entry.level);
+                getOrCreateState(levelStates, entry.pathIndex).val = entry.level;
             }
         });
 

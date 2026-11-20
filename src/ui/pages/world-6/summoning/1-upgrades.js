@@ -29,7 +29,6 @@ const UpgradeRow = ({ entry, levelState }) =>
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${entry.maxLevel}`,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
         maxAction: true,
@@ -131,7 +130,7 @@ const UpgradesTab = () => {
             entries.val = buildUpgradeEntries(rawDefinitions, rawLevels);
 
             for (const entry of entries.val) {
-                getOrCreateState(levelStates, entry.index).val = Math.min(entry.maxLevel, entry.level);
+                getOrCreateState(levelStates, entry.index).val = entry.level;
             }
 
             reconcileSections();

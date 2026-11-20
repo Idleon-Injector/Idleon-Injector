@@ -15,7 +15,7 @@ import {
     getOrCreateState,
     readLevelDefinitions,
     toInt,
-    writeManyVerified,
+    writeChangedFields,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, option, select, span } = van.tags;
@@ -63,6 +63,7 @@ const buildPlayerChipEntries = (rawLab, chipOptions) =>
                 label: `Slot ${slotIndex + 1}`,
                 path: `Lab[${playerIndex}][${slotIndex}]`,
                 value: toInt(rawSlots[slotIndex], { min: -1 }),
+                fromGame: (raw) => toInt(raw, { min: -1 }),
                 min: -1,
                 max: maxChipIndex,
                 options: chipOptions,
@@ -109,10 +110,7 @@ const PlayerChipsRow = ({ entry, fieldStates }) => {
             }
             return nextValues;
         },
-        write: async (nextValues) => {
-            await writeManyVerified(fields.map((field) => ({ path: field.path, value: nextValues[field.key] })));
-            return nextValues;
-        },
+        write: (nextValues) => writeChangedFields(fields, nextValues),
         info: [
             span({ class: "account-row__index" }, `#${entry.playerNumber}`),
             div(
@@ -121,7 +119,7 @@ const PlayerChipsRow = ({ entry, fieldStates }) => {
             ),
         ],
         badge: () =>
-            `${entry.fields.filter((field) => toInt(getOrCreateState(fieldStates, field.key).val, { min: -1 }) >= 0).length} EQUIPPED`,
+            `${entry.fields.filter((field) => toInt(getOrCreateState(fieldStates, field.key).val, { min: -1 }) >= 0).length} equipped`,
         controlsClass: "account-row__controls--stack-action",
         renderControls: ({ draftStates }) =>
             div({ class: "account-stacked-fields" }, ...fields.map((field) => ChipSlotSelect({ field, draftStates }))),

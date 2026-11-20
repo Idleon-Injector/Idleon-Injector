@@ -57,8 +57,61 @@ export const StartupCheats = (list) => {
         list.push(val);
     };
 
+    const ParamRow = (i) =>
+        li(
+            { class: "cheat-item-row startup-cheat-param-row" },
+            input({
+                type: "text",
+                class: "startup-cheat-input startup-cheat-command-input",
+                value: () => parseStartupAction(list[i]).command,
+                onchange: (e) => {
+                    const current = parseStartupAction(list[i]);
+                    list[i] = buildStartupAction(e.target.value, current.value);
+                },
+            }),
+            input({
+                type: "text",
+                class: "startup-cheat-input startup-cheat-value-input",
+                placeholder: "Value",
+                title: "This startup cheat requires a value",
+                value: () => parseStartupAction(list[i]).value,
+                onchange: (e) => {
+                    const current = parseStartupAction(list[i]);
+                    list[i] = buildStartupAction(current.command, e.target.value);
+                },
+            }),
+            button(
+                {
+                    type: "button",
+                    class: "btn-danger btn-sm remove-cheat-button",
+                    onclick: () => list.splice(i, 1),
+                },
+                "Remove"
+            )
+        );
+
+    const PlainRow = (i) =>
+        li(
+            { class: "cheat-item-row" },
+            input({
+                type: "text",
+                class: "startup-cheat-input",
+                value: () => parseStartupAction(list[i]).command,
+                onchange: (e) => (list[i] = e.target.value),
+            }),
+            button(
+                {
+                    type: "button",
+                    class: "btn-danger btn-sm remove-cheat-button",
+                    onclick: () => list.splice(i, 1),
+                },
+                "Remove"
+            )
+        );
+
+    // Only adding or removing a cheat rebuilds the list. An edit updates its own row's fields, so the field the
+    // player tabbed or clicked into keeps focus; a row is rebuilt only when it starts or stops taking a value.
     const element = div({ class: "startup-cheats-editor" }, () => {
-        // Accessing length triggers reactivity when items are added/removed
         if (list.length === 0) {
             return EmptyState({
                 title: "NO STARTUP CHEATS",
@@ -67,60 +120,9 @@ export const StartupCheats = (list) => {
         }
         return ul(
             { class: "startup-cheats-list" },
-            ...list.map((v, i) => {
-                const parsed = parseStartupAction(v);
-
-                if (parsed.needsParam) {
-                    return li(
-                        { class: "cheat-item-row startup-cheat-param-row" },
-                        input({
-                            type: "text",
-                            class: "startup-cheat-input startup-cheat-command-input",
-                            value: parsed.command,
-                            onchange: (e) => {
-                                const current = parseStartupAction(list[i]);
-                                list[i] = buildStartupAction(e.target.value, current.value);
-                            },
-                        }),
-                        input({
-                            type: "text",
-                            class: "startup-cheat-input startup-cheat-value-input",
-                            placeholder: "Value",
-                            title: "This startup cheat requires a value",
-                            value: parsed.value,
-                            onchange: (e) => {
-                                const current = parseStartupAction(list[i]);
-                                list[i] = buildStartupAction(current.command, e.target.value);
-                            },
-                        }),
-                        button(
-                            {
-                                type: "button",
-                                class: "btn-danger btn-sm remove-cheat-button",
-                                onclick: () => list.splice(i, 1),
-                            },
-                            "Remove"
-                        )
-                    );
-                }
-
-                return li(
-                    { class: "cheat-item-row" },
-                    input({
-                        type: "text",
-                        class: "startup-cheat-input",
-                        value: parsed.command,
-                        onchange: (e) => (list[i] = e.target.value),
-                    }),
-                    button(
-                        {
-                            type: "button",
-                            class: "btn-danger btn-sm remove-cheat-button",
-                            onclick: () => list.splice(i, 1),
-                        },
-                        "Remove"
-                    )
-                );
+            ...Array.from({ length: list.length }, (_, i) => {
+                const needsParam = van.derive(() => parseStartupAction(list[i]).needsParam);
+                return () => (needsParam.val ? ParamRow(i) : PlainRow(i));
             })
         );
     });
