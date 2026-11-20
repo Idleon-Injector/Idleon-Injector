@@ -90,6 +90,8 @@ async function until(check, what) {
 }
 const running = (cheat) => getAutomations().find((entry) => entry.cheat === cheat).on;
 const sent = (key) => updates.at(-1)?.cheatConfig.automation[key];
+// The list the last save sent, once a save after `since` (updates.length before the change) has gone out.
+const sentSince = (since, key) => (updates.length > since ? sent(key) : undefined);
 const fileSent = (key) => saves.findLast((body) => body.cheatConfig)?.cheatConfig.automation[key];
 // The option shown; the page binds each option's `selected` (an attribute in this fake DOM).
 const selected = (node) => elements(node).find((o) => o.nodeName === "option" && o.attributes.selected === true);
@@ -144,22 +146,31 @@ test("switching an upgrade on keeps the preset, saves it, and switches Orion on 
 
 test("a priority saves on change; Balanced leaves no priority in the list", async () => {
     const pick = byTag(orion("Feather Cheapener"), "select");
+    let since = updates.length;
     await pick.listeners.change({ target: { value: "2" } });
-    await until(() => sent("orion").some(({ id, priority }) => id === "3" && priority === 2), "Low to save");
+    await until(
+        () => sentSince(since, "orion")?.some(({ id, priority }) => id === "3" && priority === 2),
+        "Low to save"
+    );
     assert.equal(text(selected(orion("Feather Cheapener"))), "Low");
 
+    since = updates.length;
     await byTag(orion("Feather Restart"), "select").listeners.change({ target: { value: "" } });
-    await until(() => !sent("orion").some(({ id }) => id === "4"), "Balanced to drop the off, plain row");
+    await until(() => sentSince(since, "orion")?.every(({ id }) => id !== "4"), "Balanced to drop the off, plain row");
     assert.equal(text(selected(orion("Feather Restart"))), "Balanced");
 });
 
 test("two quick priority picks save in order, and the last one stands", async () => {
     slowUpdate = 40;
     const pick = byTag(orion("Shiny Feathers"), "select");
+    const since = updates.length;
     const first = pick.listeners.change({ target: { value: "1" } });
     const second = pick.listeners.change({ target: { value: "2" } });
     await Promise.all([first, second]);
-    await until(() => sent("orion").find(({ id }) => id === "6")?.priority === 2, "the second pick to save last");
+    await until(
+        () => sentSince(since, "orion")?.find(({ id }) => id === "6")?.priority === 2,
+        "the second pick to save last"
+    );
     await settle(100);
     slowUpdate = 0;
     assert.equal(sent("orion").find(({ id }) => id === "6").priority, 2);
@@ -204,10 +215,20 @@ test("a stop-at level saves on Enter, empty is no limit", async () => {
     await type(node, "40");
     assert.equal(sent("orion").find(({ id }) => id === "0").stopAt, 40);
     await type(node, "");
-    assert.equal(sent("orion").find(({ id }) => id === "0").stopAt, undefined);
+    // An off row with no limit and no priority leaves the list, which is no limit too.
+    assert.equal(sent("orion").find(({ id }) => id === "0")?.stopAt, undefined);
 });
 
 test("Disable all asks Click again, then switches every upgrade off and keeps the priorities", async () => {
+    // An upgrade on and Feather Cheapener Low, whatever ran before.
+    let since = updates.length;
+    await checkbox(orion("Feather Generation")).listeners.change({ target: { checked: true } });
+    await until(() => sentSince(since, "orion"), "Feather Generation to save");
+    since = updates.length;
+    await byTag(orion("Feather Cheapener"), "select").listeners.change({ target: { value: "2" } });
+    await until(() => sentSince(since, "orion"), "Low to save");
+    await until(() => button(owl, "Disable all"), "Disable all");
+
     const disable = button(owl, "Disable all");
     const before = updates.length;
     await disable.listeners.click({ preventDefault() {} });
