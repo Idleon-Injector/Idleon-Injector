@@ -101,11 +101,13 @@ const NumericRow = ({ field, valueState, badge }) =>
     });
 
 const IslandsTab = () => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Islands" });
     const unlockBulk = useWriteStatus();
     const garbageBulk = useWriteStatus();
     const randoBulk = useWriteStatus();
     const shimmerBulk = useWriteStatus();
+    const bulkRunning = () =>
+        [unlockBulk, garbageBulk, randoBulk, shimmerBulk].some(({ status }) => status.val === "loading");
+    const { loading, error, run: runLoad, reload } = useAccountLoad({ label: "Islands", busy: bulkRunning });
     const valueStates = new Map();
     const unlocksState = van.state("");
     const bribeState = van.state(0);
@@ -117,8 +119,6 @@ const IslandsTab = () => {
     // A bulk action waits for a read, and Refresh for a bulk action, so an older read can't land over a newer write.
     // After a failed read the values shown may be old, so the bulk actions wait for one that works.
     const readPending = () => loading.val || Boolean(error.val);
-    const bulkRunning = () =>
-        [unlockBulk, garbageBulk, randoBulk, shimmerBulk].some(({ status }) => status.val === "loading");
 
     const load = async () =>
         runLoad(async () => {
@@ -153,8 +153,8 @@ const IslandsTab = () => {
                 getPath: (field) => `OptionsListAccount[${field.index}]`,
             })
         );
-        // Some of it may have landed: the rows show what the game holds.
-        if (!result.ok && !result.cancelled) await load();
+        // Some of it may have landed: the rows show what the game holds, read once every other Set all ended too.
+        if (!result.ok && !result.cancelled) reload();
     };
 
     load();

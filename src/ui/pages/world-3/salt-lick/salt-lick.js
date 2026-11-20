@@ -46,12 +46,14 @@ const SaltLickRow = ({ index, name, maxLevel, levelState }) =>
     });
 
 const SaltLickTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Salt Lick" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
+    const { loading, error, run } = useAccountLoad({ label: "Salt Lick", busy: () => bulkStatus.val === "loading" });
     const getLevelState = createIndexedStateGetter();
     const rowList = div({ class: "account-list" });
     let upgradesMeta = [];
     const reconcileRows = createStaticRowReconciler(rowList);
+    // After a read that failed, the levels shown may be old: the bulk actions wait for one that works.
+    const readPending = () => loading.val || Boolean(error.val);
 
     const doSetAll = async (targetLevel) => {
         if (!upgradesMeta.length) return;
@@ -116,7 +118,7 @@ const SaltLickTab = () => {
                 {
                     label: "Max all",
                     status: bulkStatus,
-                    disabled: () => loading.val,
+                    disabled: readPending,
                     tooltip: "Set every Salt Lick upgrade to its max level",
                     onClick: () => doSetAll(null),
                 },
@@ -124,7 +126,7 @@ const SaltLickTab = () => {
                     label: "Reset all",
                     variant: "danger",
                     status: bulkStatus,
-                    disabled: () => loading.val,
+                    disabled: readPending,
                     tooltip: "Reset every Salt Lick upgrade to 0",
                     confirm: "reset every Salt Lick upgrade to 0.",
                     onClick: () => doSetAll(0),

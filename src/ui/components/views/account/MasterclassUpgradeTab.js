@@ -286,8 +286,8 @@ export const MasterclassUpgradeTab = ({
     onUpgradeChanged = null,
     onBulkChanged = null,
 }) => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: title });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
+    const { loading, error, run: runLoad } = useAccountLoad({ label: title, busy: () => bulkStatus.val === "loading" });
     const upgrades = van.state([]);
     const searchQuery = van.state("");
     const activeCurrencyTab = van.state(currencyTabs[0]?.id ?? null);

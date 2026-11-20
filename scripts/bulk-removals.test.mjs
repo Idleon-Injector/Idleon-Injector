@@ -45,14 +45,38 @@ const holdNext = (matches) => {
     held = { matches, gate, reached: false, release };
     return held;
 };
+// holdAnswers(matches): every request `matches` picks is sent at once, but its answer waits until `release()`; `count`
+// says how many were sent. So a read held this way reads the game as it was when it was sent.
+let answersHeld = null;
+const holdAnswers = (matches) => {
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    answersHeld = { matches, gate, count: 0 };
+    const hold = answersHeld;
+    return {
+        count: () => hold.count,
+        release: () => {
+            if (answersHeld === hold) answersHeld = null;
+            release();
+        },
+    };
+};
 const send = globalThis.fetch;
 globalThis.fetch = async (url, options = {}) => {
+    const body = options.body ? JSON.parse(options.body) : {};
     const hold = held;
-    if (hold?.matches(url, options.body ? JSON.parse(options.body) : {})) {
+    if (hold?.matches(url, body)) {
         held = null;
         hold.reached = true;
         const answer = await hold.gate;
         if (answer) return answer;
+    }
+    const answers = answersHeld;
+    if (answers?.matches(url, body)) {
+        answers.count++;
+        const response = await send(url, options);
+        await answers.gate;
+        return response;
     }
     return send(url, options);
 };
@@ -474,5 +498,116 @@ test("islands: the bulk actions wait while the page shows a failed read", async 
         );
     } finally {
         held = null;
+    }
+});
+
+// CodeRabbit on #110: a read after a refused Max all that fails too leaves Max all and Reset all waiting for a read
+// that works.
+test("salt-lick.js: Max all and Reset all wait while the read after a refused Max all failed", async () => {
+    const levels = game.gga.SaltLick;
+    const caps = [0, 1].map((index) => Number(game.gga.CustomLists.h.SaltLicks[index][4]));
+    levels[0] = caps[0] + 5;
+    const kept = caps[1] + 5;
+    Object.defineProperty(levels, 1, { get: () => kept, set() {}, configurable: true });
+    try {
+        const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
+        const named = (label) => buttonsNamed(root, label);
+        const bulk = () => [...named("Max all"), ...named("Reset all")];
+        await until(
+            () => bulk().every((node) => !node.attributes.disabled) && text(root).includes(`LV ${caps[0] + 5}`),
+            "Salt Lick"
+        );
+        const reread = holdNext((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        const pressed = click(named("Max all")[0]);
+        await until(() => reread.reached, "the read after the refused Max all");
+        reread.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));
+        await pressed;
+        await until(() => /SALT LICK READ FAILED/.test(text(root)), "the failed read to be said");
+        await until(
+            () => bulk().every((node) => node.attributes.disabled),
+            "the bulk actions to wait after the failed read"
+        );
+        await named("Refresh")[0].listeners.click({});
+        await until(
+            () => bulk().every((node) => !node.attributes.disabled),
+            "the bulk actions after a read that worked"
+        );
+    } finally {
+        held = null;
+        Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
+        levels[0] = 0;
+    }
+});
+
+// CodeRabbit on #110: the read after a refused Set all waits for another Set all still running, so it can't read that
+// one's old values and show them after it landed.
+test("islands: the read after a refused Set all waits for another Set all still running", async () => {
+    const options = game.gga.OptionsListAccount;
+    options[163] = 3;
+    options[166] = 4;
+    Object.defineProperty(options, 164, { get: () => 5, set() {}, configurable: true });
+    try {
+        const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+        const setAll = () => buttonsNamed(root, "Set all");
+        await until(() => setAll().length === 3 && setAll().every((node) => !node.attributes.disabled), "Islands");
+        const slow = holdNext(
+            (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
+        );
+        const rando = click(setAll()[1]);
+        await until(() => slow.reached, "Rando's Set all to be sent");
+        const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
+        const garbage = click(setAll()[0]);
+        await until(() => options[163] === 200, "Garbage's first value to land");
+        slow.release();
+        await rando;
+        await until(() => reads.count() > 0, "the read after the refused Set all");
+        reads.release();
+        await garbage;
+        await until(() => !buttonsNamed(root, "Refresh")[0].attributes.disabled, "the read to end");
+        assert.match(text(root), /% Loot200/, "Rando's Set all stays shown");
+    } finally {
+        held = null;
+        answersHeld = null;
+        Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
+        options[163] = 0;
+        options[166] = 0;
+        options[167] = 0;
+    }
+});
+
+// CodeRabbit on #110: a reload an undo asks for while a Set all runs waits for it, so it can't read the old values and
+// show them after the Set all landed.
+test("islands: a reload after an undo waits for a Set all still running", async () => {
+    const options = game.gga.OptionsListAccount;
+    options[166] = 4;
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+    const named = (label) => buttonsNamed(root, label);
+    await until(() => named("Unlock all").length && !named("Unlock all")[0].attributes.disabled, "Islands");
+    const unlocks = options[169];
+    try {
+        await click(named("Unlock all")[0]);
+        await until(() => options[169] === "abcde_", "the unlocks to land");
+        const [action] = (await fetchChanges()).actions;
+        const slow = holdNext(
+            (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
+        );
+        const rando = click(named("Set all")[1]);
+        await until(() => slow.reached, "Rando's Set all to be sent");
+        const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
+        await undoAction(action.id);
+        slow.release();
+        await rando;
+        await until(() => reads.count() > 0, "the reload after the undo");
+        reads.release();
+        await until(() => !named("Refresh")[0].attributes.disabled, "the reload to end");
+        assert.match(text(root), /% Loot200/, "Rando's Set all stays shown");
+    } finally {
+        held = null;
+        answersHeld = null;
+        options[169] = unlocks;
+        options[166] = 0;
+        options[167] = 0;
     }
 });
