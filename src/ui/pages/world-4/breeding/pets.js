@@ -110,7 +110,9 @@ const PetRow = ({ entry, fieldStates }) => {
             return nextValues;
         },
         write: async (nextValues) => {
-            await writeManyVerified(fields.map((field) => ({ path: field.path, value: nextValues[field.key] })));
+            // Only the changed fields: the game moves the rest on while the page is open.
+            const changed = fields.filter((field) => nextValues[field.key] !== field.valueState.val);
+            await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
             return nextValues;
         },
         info: [
