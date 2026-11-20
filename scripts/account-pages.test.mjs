@@ -121,12 +121,17 @@ test("task board: Refresh shows the game's new progress, and Target follows the 
 });
 
 const CARDS = "src/ui/pages/account/card-search/cards.js";
-const regionSelect = (root) =>
-    elements(root).find((node) => node.nodeName === "select" && classes(node).includes("card-region__tier-select"));
+const regionSelects = (root) =>
+    elements(root).filter((node) => node.nodeName === "select" && classes(node).includes("card-region__tier-select"));
+const regionSelect = (root) => regionSelects(root)[0];
+// A region's tier is a pick, then Set all beside it.
 const pick = (select, tierIndex) => {
     select.value = String(tierIndex);
-    return select.listeners.change({ target: select });
+    select.listeners.change({ target: select });
 };
+const setAllOf = (select) => button(select.parentNode, "Set all");
+const press = (node) => node.listeners.click({ preventDefault() {}, currentTarget: node });
+const cardWrites = () => requests.filter((entry) => /write/.test(entry)).length;
 const refuseWrites = (object, key) => {
     const kept = object[key];
     Object.defineProperty(object, key, { get: () => kept, set() {}, configurable: true, enumerable: true });
@@ -134,84 +139,124 @@ const refuseWrites = (object, key) => {
         Object.defineProperty(object, key, { value: kept, writable: true, configurable: true, enumerable: true });
 };
 
-test("card search: a region tier that would lower cards asks first, and lowers them on the second pick", async () => {
+test("card search: a region Set all that would lower cards asks first, and lowers them on the second press", async () => {
     const cards = gga.Cards[0].h;
     cards.mob0 = 37;
     cards.mob1 = 74;
     const root = await openPage(CARDS);
     const select = regionSelect(root);
+    const setAll = setAllOf(select);
 
-    await pick(select, 0);
-    assert.equal(select.attributes["data-again"], "Click again", "the first pick asks");
-    assert.match(select.attributes["aria-label"], /^Click again to lower \d+ cards in BLUNDER HILLS W1 to tier 1\.$/);
-    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "nothing written");
+    pick(select, 0);
+    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "picking a tier writes nothing");
+    const before = cardWrites();
+    await press(setAll);
+    assert.equal(setAll.attributes["data-again"], "Click again", "the first press asks");
+    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in BLUNDER HILLS W1 to tier 1.");
+    assert.equal(cardWrites(), before, "nothing written");
 
-    await pick(select, 0);
-    assert.equal(cards.mob0, 6);
-    assert.equal(cards.mob1, 6);
-});
-
-test("card search: an arrow key on the closed region select can ask, but never answers the question", async () => {
-    const cards = gga.Cards[0].h;
-    cards.mob0 = 37;
-    cards.mob1 = 74;
-    const root = await openPage(CARDS);
-    const select = regionSelect(root);
-    // Chromium changes a closed select on each arrow press, inside that key's keydown, and the pick resets it, so
-    // every press lands on TIER 1.
-    const arrow = () => {
-        select.listeners.keydown({ key: "ArrowDown", target: select });
-        return pick(select, 0);
-    };
-
-    await arrow();
-    await arrow();
-    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "nothing written");
-    assert.equal(select.attributes["data-again"], "Click again", "it still asks");
-
-    await new Promise((resolve) => setTimeout(resolve)); // the key's task ends
-    await pick(select, 0); // picked from the open list, by Enter or a click
+    await press(setAll);
     assert.deepEqual([cards.mob0, cards.mob1], [6, 6]);
 });
 
-test("card search: a region tier that only raises runs on one pick", async () => {
+test("card search: a region Set all that only raises runs on one press", async () => {
     const cards = gga.Cards[0].h;
     cards.mob0 = 0;
     cards.mob1 = 0;
     const root = await openPage(CARDS);
     const select = regionSelect(root);
-    await pick(select, 0);
-    assert.equal(select.attributes["data-again"], undefined, "it didn't ask");
+    const setAll = setAllOf(select);
+    pick(select, 0);
+    await press(setAll);
+    assert.equal(setAll.attributes["data-again"], undefined, "it didn't ask");
     assert.deepEqual([cards.mob0, cards.mob1], [6, 6]);
 });
 
-test("card search: a refused region tier says why under the region, and the next pick clears it", async () => {
+test("card search: changing the region's pick between the two presses asks again", async () => {
     const cards = gga.Cards[0].h;
+    cards.mob0 = 37;
+    cards.mob1 = 74;
+    const root = await openPage(CARDS);
+    const select = regionSelect(root);
+    const setAll = setAllOf(select);
+
+    pick(select, 0);
+    await press(setAll);
+    pick(select, 1);
+    await press(setAll);
+    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in BLUNDER HILLS W1 to tier 2.");
+    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "the new pick asked instead of running");
+
+    await press(setAll);
+    assert.deepEqual([cards.mob0, cards.mob1], [21, 21]);
+});
+
+test("card search: arrow keys on the closed region select only move the pick", async () => {
+    const cards = gga.Cards[0].h;
+    cards.mob0 = 37;
+    cards.mob1 = 74;
+    const root = await openPage(CARDS);
+    const select = regionSelect(root);
+    const before = cardWrites();
+    // Chromium changes a closed select on each arrow press; every press used to land on TIER 1 and apply it.
+    for (const tierIndex of [0, 0, 1]) {
+        select.listeners.keydown?.({ key: "ArrowDown", target: select });
+        pick(select, tierIndex);
+    }
+    assert.equal(cardWrites(), before, "nothing written");
+    assert.deepEqual([cards.mob0, cards.mob1], [37, 74]);
+    assert.equal(setAllOf(select).attributes["data-again"], undefined, "nothing asked either");
+});
+
+test("card search: Set all with no tier picked, or one that isn't a tier, is refused and writes nothing", async () => {
+    const cards = gga.Cards[0].h;
+    cards.mob0 = 0;
+    cards.mob1 = 0;
+    const root = await openPage(CARDS);
+    const select = regionSelect(root);
+    const setAll = setAllOf(select);
+    const { TooltipContainer } = await importRepo("src/ui/components/Tooltip.js");
+    const tooltip = TooltipContainer();
+    const before = cardWrites();
+
+    await press(setAll);
+    assert.equal(select.attributes["data-refused"], "", "the pick pulses");
+    await until(() => text(tooltip) === "Pick a tier first", "the pick to say why");
+    pick(select, 9);
+    await press(setAll);
+    assert.equal(cardWrites(), before, "nothing written");
+    assert.deepEqual([cards.mob0, cards.mob1], [0, 0]);
+    assert.equal(setAll.attributes["data-again"], undefined);
+});
+
+test("card search: a refused region Set all says why under the region, and the next press clears it", async () => {
+    const cards = gga.Cards[0].h;
+    cards.mob0 = 0;
+    cards.mob1 = 0;
     const root = await openPage(CARDS);
     const select = regionSelect(root);
     const region = elements(root).find((node) => classes(node).split(" ").includes("card-region"));
     const reason = () => text(byClass(region, "card-region__said")[0]);
     const restore = refuseWrites(cards, "mob0");
     try {
-        await pick(select, 3);
+        pick(select, 3);
+        await press(setAllOf(select));
         await until(() => reason() !== "", "the reason");
         assert.match(reason(), /game kept old value/);
     } finally {
         restore();
     }
-    await pick(select, 5);
+    pick(select, 5);
+    await press(setAllOf(select));
     assert.equal(reason(), "", "the retry cleared it");
 });
 
-test("card search: a tier picked in a second region while the first saves waits its turn instead of being dropped", async () => {
+test("card search: a Set all pressed in a second region while the first saves waits its turn instead of being dropped", async () => {
     const cards = gga.Cards[0].h;
     for (const id of Object.keys(cards)) cards[id] = 0;
     const root = await openPage(CARDS);
-    const [first, second] = elements(root).filter(
-        (node) => node.nodeName === "select" && classes(node).includes("card-region__tier-select")
-    );
-    const writes = () => requests.filter((entry) => /write/.test(entry)).length;
-    const before = writes();
+    const [first, second] = regionSelects(root);
+    const before = cardWrites();
     let release;
     const gate = new Promise((resolve) => (release = resolve));
     const realFetch = globalThis.fetch;
@@ -223,17 +268,19 @@ test("card search: a tier picked in a second region while the first saves waits 
         }
         return realFetch(url, options);
     };
-    let picks;
+    let presses;
     try {
-        const firstPick = pick(first, 5); // the top tier only raises, so neither asks
+        pick(first, 5); // the top tier only raises, so neither asks
+        pick(second, 5);
+        const firstPress = press(setAllOf(first));
         await until(() => held, "the first region's write to start");
-        picks = Promise.all([firstPick, pick(second, 5)]);
+        presses = Promise.all([firstPress, press(setAllOf(second))]);
     } finally {
         globalThis.fetch = realFetch;
         release();
     }
-    await picks;
-    assert.equal(writes() - before, 2, "both regions were written");
+    await presses;
+    assert.equal(cardWrites() - before, 2, "both regions were written");
 });
 
 const BUNDLES = "src/ui/pages/account/bundles/bundles.js";
