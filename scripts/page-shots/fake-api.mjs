@@ -4,6 +4,8 @@
  * without doing it.
  */
 import { createRequire } from "node:module";
+import os from "node:os";
+import path from "node:path";
 import { createFakeGame } from "./fake-game.mjs";
 
 const require = createRequire(import.meta.url);
@@ -28,6 +30,8 @@ export async function createFakeApi(fixture) {
         startupCheats: [...config.startupCheats],
         injectorConfig: { ...config.injectorConfig },
         cdpPort: 0,
+        // Not the repo's folder; nothing is written there unless the fake game cloud-saves.
+        saveCopiesDir: path.join(os.tmpdir(), `idleon-fake-save-copies-${process.pid}`),
     });
     // Later registrations replace earlier ones (TinyRouter keeps one handler per path).
     router.get("/api/update/check", (req, res) =>

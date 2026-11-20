@@ -23,6 +23,7 @@ export async function createFakeGame(fixture = fakeGameData()) {
     const { getGgaKeys, searchGga } = await importRepo("src/cheats/api/search.js");
     const { getBundleCatalog } = await importRepo("src/cheats/helpers/bundles.js");
     const { getHookFailures } = await importRepo("src/cheats/core/hooks.js");
+    const { readSave, takeSaveCopy } = await importRepo("src/cheats/core/saveCopy.js");
 
     const gga = fixture.gga;
     const computed = fixture.computed ?? {};
@@ -75,6 +76,8 @@ export async function createFakeGame(fixture = fakeGameData()) {
         getGgaKeys,
         searchGga,
         getHookFailures,
+        readSave,
+        takeSaveCopy,
         cheatStateList: () => structuredClone(fixture.cheatStates ?? {}),
         cheat: (action) => ({ ok: true, message: `${action} (fake game)` }),
         readCheatConfig: () => "{}",

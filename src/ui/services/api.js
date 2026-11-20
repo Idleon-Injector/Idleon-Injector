@@ -432,3 +432,43 @@ export async function readComputedMany(namespace, name, argSets = []) {
     });
     return data.value || [];
 }
+
+/**
+ * The save copies the injector keeps (one per cloud save), newest first, and the last failure to store one.
+ * @returns {Promise<{ copies: Array<{ id: string, time: number, character: string, size: number }>, warning: string|null }>}
+ */
+export async function fetchSaveCopies() {
+    return _request("/save-copies");
+}
+
+/**
+ * Every difference between a save copy and the save now, by top-level save key. Values marked `neverRestored`
+ * (gems and bundles received from the server, the time-away stamps) and others not `restorable` are shown only.
+ * Rejects when the copy was taken while playing another character.
+ *
+ * @param {string} id
+ * @returns {Promise<{ id: string, character: string, groups: Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, restorable: boolean }> }> }>}
+ */
+export async function compareSaveCopy(id) {
+    return _request("/save-copies/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+    });
+}
+
+/**
+ * Put a save copy's values back, through the same game write as ggaMany, each read back and checked.
+ * `select` is "all" or a list of paths from compareSaveCopy (a path selects everything under it, e.g. "Cards").
+ *
+ * @param {string} id
+ * @param {"all" | string[]} select
+ * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }> }>}
+ */
+export async function restoreSaveCopy(id, select) {
+    return _request("/save-copies/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, select }),
+    });
+}

@@ -44,6 +44,7 @@ import { getHookFailures, installEarlyHooks } from "./core/hooks.js";
 // Every hook file in src/cheats/hooks/, found by the build (rollup.config.mjs)
 import "virtual:hooks";
 import { getAutomations } from "./core/automations.js";
+import { readSave, takeSaveCopy } from "./core/saveCopy.js";
 // Every automation file in src/cheats/automations/, found by the build (rollup.config.mjs)
 import "virtual:automations";
 
@@ -102,6 +103,10 @@ window.readComputedValues = readComputedMany;
 window.deleteGamePath = deletePath;
 window.writeGamePath = writePath;
 window.writeGamePaths = writePaths;
+
+// Save copies API (the server pulls each cloud save's copy, and reads the save now for a compare)
+window.takeSaveCopy = takeSaveCopy;
+window.readSave = readSave;
 
 // Monitor API
 window.monitorWrap = (id, path) => monitor.wrap(id, path);

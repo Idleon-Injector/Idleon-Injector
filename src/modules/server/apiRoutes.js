@@ -8,6 +8,7 @@ const { setupCheatRoutes } = require("./routes/cheats");
 const { setupSearchRoutes } = require("./routes/search");
 const { setupConfigRoutes } = require("./routes/config");
 const { setupUpdateRoutes } = require("./routes/updates");
+const { setupSaveCopyRoutes } = require("./routes/saveCopies");
 const { gameClosed } = require("./wsServer");
 
 const log = createLogger("API");
@@ -22,6 +23,7 @@ const log = createLogger("API");
  * @param {Array} config.startupCheats - Array of startup cheat names
  * @param {Object} config.injectorConfig - Injector configuration
  * @param {number} config.cdpPort - Chrome DevTools Protocol port
+ * @param {string} [config.saveCopiesDir] - Where save copies go (the injector's folder by default)
  */
 function setupApiRoutes(app, context, client, config) {
     const gameBridge = createGameBridge(client.Runtime, context);
@@ -32,11 +34,13 @@ function setupApiRoutes(app, context, client, config) {
     setupGameRoutes(app, gameBridge);
     setupSearchRoutes(app, gameBridge);
     setupConfigRoutes(app, gameBridge, config);
+    const saveCopies = setupSaveCopyRoutes(app, gameBridge, config.saveCopiesDir);
 
     // Nothing re-attaches after the game closes, so the status stays "game closed" until a restart.
     let gameOpen = true;
     client.on("disconnect", () => {
         gameOpen = false;
+        saveCopies.stop();
         void gameClosed();
     });
 
