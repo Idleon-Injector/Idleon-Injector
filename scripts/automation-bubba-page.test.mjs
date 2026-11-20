@@ -29,6 +29,26 @@ test("the tab shows the Bubba switch, meat, the saving % and every upgrade with 
     );
 });
 
+test("small amounts show whole, like the game: a cost rounded up, the meat held rounded down", async () => {
+    const block = kit.fixture.computed._customBlock_Bubbastuff;
+    const cost = block.UpgCost;
+    const meat = kit.gga.Bubba[0][0];
+    block.UpgCost = (i, ...rest) => (i === 0 ? 39.2 : cost(i, ...rest));
+    kit.gga.Bubba[0][0] = 149.36;
+    try {
+        await kit.button(page, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+        assert.match(text(row("Grand Stone")), /Next level 40 meat/);
+        assert.match(text(page), /149 owned/);
+        assert.doesNotMatch(text(page), /149\.36|39\.2/);
+    } finally {
+        block.UpgCost = cost;
+        kit.gga.Bubba[0][0] = meat;
+        await kit.button(page, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+    }
+});
+
 test("switching an upgrade on saves the list and switches Bubba on, now and at start", async () => {
     await kit.flip(row("Grand Stone"), true);
     assert.deepEqual(sent("bubba"), [{ id: "0", on: true }]);

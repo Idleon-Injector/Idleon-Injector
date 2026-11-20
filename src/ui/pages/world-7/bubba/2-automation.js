@@ -32,6 +32,10 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 
 const { div, span } = van.tags;
 
+// Like the game's own panels, small amounts show whole: a cost rounded up, what is held rounded down.
+const costText = (value) => formatNumber(value < 1000 ? Math.ceil(value) : value);
+const heldText = (value) => formatNumber(value < 1000 ? Math.floor(value) : value);
+
 const CHEAT = "automation bubba";
 
 const BubbaAutomationTab = () => {
@@ -62,7 +66,7 @@ const BubbaAutomationTab = () => {
                             const { level, max, cost, unlockAt, unlocked } = upgrade.val;
                             if (max !== null && level >= max) return "Max level";
                             if (!unlocked) return `Unlocks at ${formatNumber(unlockAt)} meat made`;
-                            return `Next level ${formatNumber(cost)} meat`;
+                            return `Next level ${costText(cost)} meat`;
                         },
                     });
                 })
@@ -86,7 +90,7 @@ const BubbaAutomationTab = () => {
         if (!ids.val.some((id) => picks.get(id).on.val)) return "Nothing switched on";
         if (!read.goal) return "Buying cheapest first";
         const goal = read.upgrades.find(({ id }) => id === read.goal.id);
-        return `Saving for ${cleanName(goal.name)} (${formatNumber(read.goal.cost)} meat)`;
+        return `Saving for ${cleanName(goal.name)} (${costText(read.goal.cost)} meat)`;
     };
 
     const bulk = usePicksBulk({
@@ -116,7 +120,7 @@ const BubbaAutomationTab = () => {
             AccountSection({
                 title: "MEAT",
                 meta: span({ class: "account-row__sub-label" }, () =>
-                    data.val ? `${formatNumber(data.val.meat)} owned` : ""
+                    data.val ? `${heldText(data.val.meat)} owned` : ""
                 ),
                 body: [
                     () =>
