@@ -10,20 +10,14 @@
  * Perfect Equipped rebuilds the gear in play the same way: its writes, the stat update, then the food stacks.
  *
  * Saved loadouts and the largest golden food stack per character are cheatConfig.wide.wardrobe, saved to
- * config.custom.js from a fresh read of the whole config, as the Pets page saves its pets.
+ * config.custom.js and the session from a fresh read, as the Pets page saves its pets.
  *
  * Reads: readComputed("wardrobe", status | preview | capture | food | perfect | perfectFood) and the config.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import {
-    executeCheatAction,
-    fetchConfig,
-    readComputed,
-    saveConfigFile,
-    updateSessionConfig,
-} from "../../../services/api.js";
+import { executeCheatAction, fetchConfig, readComputed, saveConfigPart } from "../../../services/api.js";
 import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
@@ -92,44 +86,33 @@ const WardrobePage = () => {
 
     // --- The config: saved loadouts and golden food ---
 
-    const readSaved = async () => {
-        const config = await fetchConfig();
+    const wardrobeOf = (config) => {
         const wardrobe = config?.cheatConfig?.wide?.wardrobe ?? {};
-        saved.val = Array.isArray(wardrobe.loadouts) ? wardrobe.loadouts : [];
-        goldenFood = wardrobe.goldenfood && typeof wardrobe.goldenfood === "object" ? wardrobe.goldenfood : {};
+        return {
+            loadouts: Array.isArray(wardrobe.loadouts) ? wardrobe.loadouts : [],
+            goldenfood: wardrobe.goldenfood && typeof wardrobe.goldenfood === "object" ? wardrobe.goldenfood : {},
+        };
+    };
+    const readSaved = async (read = fetchConfig()) => {
+        ({ loadouts: saved.val, goldenfood: goldenFood } = wardrobeOf(await read));
     };
 
-    // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config, read again
-    // after the session took the change. `change(wardrobe)` gets the saved wardrobe settings as they are now. A file
-    // that didn't take it puts the session's loadouts back, so trying again saves one loadout, not two; a list another
-    // tab saved since then (the session replaces the whole list) stays as it is. A session that can't be read is put
-    // back too, as nothing better is known.
-    // ponytail: read-then-write, so a save landing between the two is still lost; the server has no compare-and-set.
+    // `change(wardrobe)` gets the saved wardrobe settings as they are now and returns them changed; only they are sent.
+    // ponytail: read-then-write; the menu's saves run one at a time, but another browser tab's save landing between this
+    // read and this save is still lost (the server has no compare-and-set).
     const persist = async (change) => {
-        await readSaved();
-        const before = saved.val.slice();
-        const wardrobe = change({ loadouts: before.slice(), goldenfood: { ...goldenFood } });
-        const result = await updateSessionConfig({ cheatConfig: { wide: { wardrobe } } });
-        if (!result?.message) throw new Error("The injector didn't take the change");
         try {
-            const config = await fetchConfig();
-            if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
-            await saveConfigFile({
-                cheatConfig: config.cheatConfig,
-                startupCheats: config.startupCheats,
-                injectorConfig: config.injectorConfig,
-            });
+            const { result, config } = await saveConfigPart((now) => ({
+                cheatConfig: { wide: { wardrobe: change(wardrobeOf(now)) } },
+            }));
+            // The game holds the whole config: the next read would take its old wardrobe back, and a save after it
+            // would write that to the file.
+            if (result.message.includes("kept its old settings")) throw new Error(result.message);
+            await readSaved(config);
         } catch (caught) {
-            const now = await fetchConfig().catch(() => null);
-            const submitted = JSON.stringify(wardrobe.loadouts);
-            if (!now || JSON.stringify(now.cheatConfig?.wide?.wardrobe?.loadouts) === submitted)
-                await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: before } } } }).catch(
-                    () => {}
-                );
             await readSaved().catch(() => {});
             throw caught;
         }
-        await readSaved();
     };
 
     // The largest golden food stack seen for a character, so a loadout's golden food keeps that size. A larger one

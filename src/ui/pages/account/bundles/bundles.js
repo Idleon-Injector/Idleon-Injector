@@ -121,11 +121,13 @@ const BundlesTab = () => {
         return bundleStates.get(code);
     };
 
+    const isBuyable = (bundle) => {
+        const state = getBundleState(bundle.code, bundle.owned);
+        return !isOwned(state.owned.val) && !state.pending.val;
+    };
+    // Buy all and its count cover the bundles the search shows.
     const getBuyableBundles = () =>
-        catalogState.val.filter((bundle) => {
-            const state = getBundleState(bundle.code, bundle.owned);
-            return !isOwned(state.owned.val) && !state.pending.val;
-        });
+        catalogState.val.filter((bundle) => matchesSearch(bundle, searchQuery.val) && isBuyable(bundle));
 
     const buyableCount = van.derive(() => getBuyableBundles().length);
 
@@ -155,13 +157,15 @@ const BundlesTab = () => {
             return undefined;
         }
         buyAllSaid.clear();
-        const outcome = await buyAllBundles();
+        // The bundles the second press confirmed, though the search changes while it runs.
+        const outcome = await buyAllBundles(bundles);
         if (outcome?.error) buyAllSaid.say("failed", saveFailureReason(outcome.error));
         return outcome;
     };
 
+    // Counted over the bundles the search shows, like Buy all.
     const totals = van.derive(() => {
-        const bundles = catalogState.val;
+        const bundles = catalogState.val.filter((bundle) => matchesSearch(bundle, searchQuery.val));
         const owned = bundles.filter((bundle) => isOwned(getBundleState(bundle.code).owned.val)).length;
         const queued = bundles.filter((bundle) => getBundleState(bundle.code).pending.val).length;
         return { total: bundles.length, owned, queued };
@@ -247,14 +251,15 @@ const BundlesTab = () => {
         );
     }
 
-    async function buyAllBundles() {
+    async function buyAllBundles(confirmed) {
         if (buyAllStatus.val === "loading") return;
         return runBuyAll(async () => {
             if (!(await ensurePlayerSelected())) {
                 throw new Error(purchaseBlockMessage.val ?? NO_CHARACTER);
             }
 
-            const bundles = getBuyableBundles();
+            // One bought or queued meanwhile (its own Buy) is left out.
+            const bundles = confirmed.filter(isBuyable);
             if (!bundles.length) return;
 
             let queueTail = Promise.resolve();

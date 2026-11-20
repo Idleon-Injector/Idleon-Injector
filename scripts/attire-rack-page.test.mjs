@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
-import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { createFakeApi, saveToSession } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
 const fixture = fakeGameData();
@@ -39,9 +39,11 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     }
     return toggle(req, res);
 });
+// The fake save writes no file, and takes what it's sent into the session, as the server's save does.
 router.routes.POST.set("/api/config/save", async (req, res) => {
-    saves.push(await req.json());
-    res.json({ ok: true });
+    const body = await req.json();
+    saves.push(body);
+    res.json(await saveToSession(router, body));
 });
 // `holdWrite`: a promise the next attire write (write-many) waits on before it runs. `failReadAfterWrite`: the next
 // status read after the next write fails.
@@ -144,7 +146,9 @@ test("the cards are the outfits; with all saved and the cheat on, every bonus sh
     assert.match(text(card(page, names[2])), /worn/, "the outfit the character in play wears");
 });
 
-test("a card click turns its bonus off: session config, cheat and config file, as Pets saves", async () => {
+// One config save, which writes the file first, so a save that fails there changes nothing, and then takes the choice
+// into the session (and the game); then the cheat.
+test("a card click turns its bonus off: config file, session config and cheat, as Pets saves", async () => {
     const since = requests.length;
     await card(page, names[0]).listeners.click({});
     await until(() => !pressed(page, names[0]), "the card to show off");
@@ -152,10 +156,13 @@ test("a card click turns its bonus off: session config, cheat and config file, a
     assert.equal(await savedOutfits(), ids);
     assert.deepEqual(
         requests.slice(since).filter((entry) => entry.startsWith("POST")),
-        ["POST /api/config/update", "POST /api/toggle", "POST /api/config/save"]
+        ["POST /api/config/save", "POST /api/toggle"]
     );
     assert.match(text(page), /7 of 8 outfit bonuses are on/);
     assert.deepEqual(startup(), ["wide attire"], "chosen outfits turn the cheat on at start");
+    // Only what it changed: a whole config read before another page's change would put that change back.
+    assert.deepEqual(saves.at(-1).cheatConfig, { wide: { attire: { outfits: ids } } });
+    assert.equal(saves.at(-1).injectorConfig, undefined);
 });
 
 test("clicking it again turns every outfit on, so outfits a game update adds count too", async () => {
@@ -324,30 +331,30 @@ test("give everyone says so when everyone already wears it", async () => {
 
 test("an outfit choice the config refuses is said above the cards, and the card stays as it was", async () => {
     const routes = router.routes.POST;
-    const update = routes.get("/api/config/update");
-    routes.set("/api/config/update", (req, res) => res.status(500).json({ error: "Config is read-only" }));
+    const save = routes.get("/api/config/save");
+    routes.set("/api/config/save", (req, res) => res.status(500).json({ error: "Config is read-only" }));
     try {
         const before = pressed(page, names[1]);
         await card(page, names[1]).listeners.click({});
         await until(() => /Config is read-only/.test(text(page)), "the reason to be said");
         assert.equal(pressed(page, names[1]), before);
     } finally {
-        routes.set("/api/config/update", update);
+        routes.set("/api/config/save", save);
     }
 });
 
-// A click a test holds at the config update until it calls the returned release().
-const holdConfigUpdate = () => {
+// A click a test holds at the config save until it calls the returned release().
+const holdConfigSave = () => {
     const routes = router.routes.POST;
-    const update = routes.get("/api/config/update");
+    const save = routes.get("/api/config/save");
     let release;
     const held = new Promise((resolve) => (release = resolve));
-    routes.set("/api/config/update", async (req, res) => {
+    routes.set("/api/config/save", async (req, res) => {
         await held;
-        return update(req, res);
+        return save(req, res);
     });
     return () => {
-        routes.set("/api/config/update", update);
+        routes.set("/api/config/save", save);
         release();
     };
 };
@@ -384,9 +391,9 @@ const holdReloads = () => {
 
 test("while an outfit choice saves, the cards stay enabled and their group says it is busy", async () => {
     const group = elements(page).find((node) => node.attributes["aria-label"] === "Outfit bonuses");
-    const updates = () => requests.filter((entry) => entry === "POST /api/config/update").length;
+    const updates = () => requests.filter((entry) => entry === "POST /api/config/save").length;
     const before = updates();
-    const release = holdConfigUpdate();
+    const release = holdConfigSave();
     try {
         card(page, names[5]).listeners.click({});
         await until(() => updates() === before + 1, "the save to start");
@@ -500,11 +507,11 @@ test("a reload that read the choice before a card save ended doesn't undo the ca
     const [action] = (await fetchChanges()).actions;
 
     const reloads = holdReloads();
-    const releaseUpdate = holdConfigUpdate();
+    const releaseUpdate = holdConfigSave();
     // A wait that fails lets both held requests go, so later tests don't wait on them.
     try {
         void card(root, names[0]).listeners.click({});
-        await until(() => requests.at(-1) === "POST /api/config/update", "the card save to wait");
+        await until(() => requests.at(-1) === "POST /api/config/save", "the card save to wait");
         reloads.hold();
         await undoAction(action.id);
         await until(() => reloads.holding() > 0, "the reload to read the choice");
@@ -534,12 +541,12 @@ test("a reload that read the choice before a refused card save doesn't put the c
     const [action] = (await fetchChanges()).actions;
 
     const reloads = holdReloads();
-    const releaseUpdate = holdConfigUpdate();
+    const releaseUpdate = holdConfigSave();
     // A wait that fails lets both held requests go, so later tests don't wait on them.
     try {
         refuseAttire = 1;
         void card(root, names[0]).listeners.click({});
-        await until(() => requests.at(-1) === "POST /api/config/update", "the card save to wait");
+        await until(() => requests.at(-1) === "POST /api/config/save", "the card save to wait");
         reloads.hold();
         await undoAction(action.id);
         await until(() => reloads.holding() > 0, "the reload to read the choice");
@@ -566,7 +573,7 @@ test("a card click leaves All outfits and No outfits quiet", async () => {
     const lit = () => header.some((node) => /account-btn--(loading|success|error)/.test(classes(node)));
     const group = elements(root).find((node) => node.attributes["aria-label"] === "Outfit bonuses");
     const was = pressed(root, names[1]);
-    const release = holdConfigUpdate();
+    const release = holdConfigSave();
     let saved;
     try {
         saved = card(root, names[1]).listeners.click({});
@@ -895,4 +902,29 @@ test("a stat update one character owes isn't cleared by another character's upda
     await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run Main's owed stat update");
     await until(() => !/save-state--error/.test(saveState(main)), "Main's reason to go once its stats ran");
     gga.EquipmentOrder[0][15] = live;
+});
+
+// Review of #147: a click built its change from the choice it read before the save's turn, so a choice saved in
+// between (the Config page, another tab) was lost; it's now built from the config read in the save's turn.
+test("a card click keeps an outfit choice saved elsewhere between its read and its save", async (t) => {
+    await saveToSession(router, { cheatConfig: { wide: { attire: { outfits: "EquipmentGown4" } } } });
+    const root = await open();
+    const config = router.routes.GET.get("/api/config");
+    let reads = 0;
+    router.routes.GET.set("/api/config", async (req, res) => {
+        let answer;
+        const capture = { status: () => capture, json: (data) => (answer = structuredClone(data)) };
+        await config(req, capture);
+        // The click's first read has its answer; another page's save lands before the save's turn reads again.
+        if (++reads === 1)
+            await saveToSession(router, {
+                cheatConfig: { wide: { attire: { outfits: "EquipmentGown4,EquipmentGown5" } } },
+            });
+        return res.json(answer);
+    });
+    t.after(() => router.routes.GET.set("/api/config", config));
+
+    await card(root, names[2]).listeners.click({});
+    await until(() => pressed(root, names[2]), "the card to show on");
+    assert.equal(await savedOutfits(), "EquipmentGown3,EquipmentGown4,EquipmentGown5");
 });

@@ -458,7 +458,8 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
             const result = await task();
             if (result?.cancelled) {
                 end("cancelled");
-                status.val = null;
+                // A run started since says how it went (or still runs): a cancelled older one leaves its status.
+                if (id === status.runs) status.val = null;
                 return { ok: false, cancelled: true, result };
             }
             end("success");

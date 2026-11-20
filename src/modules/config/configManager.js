@@ -210,9 +210,13 @@ async function writeConfiguration(receivedFullConfig, gameBridge) {
     const uiStartupCheats = receivedFullConfig.startupCheats || startupCheats;
     const uiInjectorConfig = receivedFullConfig.injectorConfig || injectorConfig;
 
-    // Only settings the injector has are taken.
+    // Only settings the injector has are taken, and any key of a map a page fills (a setting whose default is {}).
     const parsedUiCheatConfig =
-        filterByTemplate(reviveRegExps(parseConfigFromJson(receivedFullConfig.cheatConfig || {})), cheatConfig) || {};
+        filterByTemplate(
+            reviveRegExps(parseConfigFromJson(receivedFullConfig.cheatConfig || {})),
+            cheatConfig,
+            defaultConfig?.cheatConfig
+        ) || {};
     const mergedCheatConfig = deepMerge(deepClone(cheatConfig), parsedUiCheatConfig);
 
     // Keep loaded custom-only fields when a UI save omits them.

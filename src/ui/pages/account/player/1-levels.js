@@ -4,6 +4,7 @@ import { gga, readCList, readComputed, readGgaEntries } from "../../../services/
 import { toIndexedArray } from "../../../utils/index.js";
 import { formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { captureGesture } from "../../../services/changeLog.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     CHARACTER_CHANGED,
@@ -58,6 +59,9 @@ const PlayerTab = () => {
     };
     const saveValue = async (name, index, next) => {
         if (unavailable()) throw new Error("Player data is unavailable. Refresh and try again.");
+        // Its write joins its own row's action after the reads below, though another row's save waits meanwhile:
+        // so the row offers Undo.
+        const inOwnAction = captureGesture();
         busy.val = true;
         try {
             const active = await readCharacterInPlay(current.val);
@@ -75,7 +79,7 @@ const PlayerTab = () => {
             }
             writes.push({ path: `${root}${field}`, value: next });
             // The game writes only while `active` is still in play, checked as it writes.
-            await writeManyVerified(writes, { character: active });
+            await inOwnAction(() => writeManyVerified(writes, { character: active }));
             return next;
         } catch (caught) {
             message.val =

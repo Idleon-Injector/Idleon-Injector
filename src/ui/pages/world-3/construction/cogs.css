@@ -229,7 +229,7 @@
     width: fit-content;
     border: 1px solid var(--c-accent);
     color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-ui-blue) 10%, var(--c-panel));
+    background: #1e293a;
     padding: 3px 8px;
     font-size: 0.875rem;
     letter-spacing: 0.04em;

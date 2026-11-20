@@ -32,27 +32,27 @@
 /* Tier-based border + background tint */
 .sigil-card--unlocked {
     border-color: var(--c-ui-blue);
-    background: color-mix(in srgb, var(--c-ui-blue) 8%, var(--c-panel));
+    background: #1d2636;
 }
 
 .sigil-card--boosted {
     border-color: var(--c-ui-yellow);
-    background: color-mix(in srgb, var(--c-ui-yellow) 8%, var(--c-panel));
+    background: #292924;
 }
 
 .sigil-card--ionized {
     border-color: var(--c-ui-red);
-    background: color-mix(in srgb, var(--c-ui-red) 8%, var(--c-panel));
+    background: #29222b;
 }
 
 .sigil-card--ethereal {
     border-color: var(--c-ui-purple);
-    background: color-mix(in srgb, var(--c-ui-purple) 8%, var(--c-panel));
+    background: #252336;
 }
 
 .sigil-card--eclectic {
     border-color: var(--c-ui-green);
-    background: color-mix(in srgb, var(--c-ui-green) 8%, var(--c-panel));
+    background: #1b2b2c;
 }
 
 /* Tier badge colors */
