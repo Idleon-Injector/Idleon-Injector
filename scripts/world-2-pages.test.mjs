@@ -372,7 +372,7 @@ test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the g
     ola[123] = 2;
 });
 
-test("pay 2 win: Raise on a count past 4 leaves it, and Lower steps it down without writing past 4", async () => {
+test("pay 2 win: Raise on a count past 4 leaves it, and Lower takes one off and saves it", async () => {
     ola[123] = 9;
     const root = await openPage(
         "src/ui/pages/world-2/cauldrons/pay-2-win.js",
@@ -390,9 +390,9 @@ test("pay 2 win: Raise on a count past 4 leaves it, and Lower steps it down with
     await until(() => shown(input) !== "9", "the field to show the steps");
     assert.equal(shown(input), "8", "Raise didn't pull the count down to 4");
     leave(row, input);
-    await until(() => stateOf(row) === "error", "the save to be refused");
-    assert.equal(ola[123], 9, "nothing was written");
-    assert.equal(writes(), before);
+    await until(() => stateOf(row) === "success", "the stepped-down count to save");
+    assert.equal(ola[123], 8, "Lower saved one less, still above the max");
+    assert.ok(writes() > before);
     ola[123] = 2;
 });
 

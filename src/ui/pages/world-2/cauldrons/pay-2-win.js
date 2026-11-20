@@ -112,7 +112,10 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
         normalize: (rawValue) => {
             const parsed = Math.max(0, Math.round(Number(rawValue)));
             const max = Number(maxState.val);
-            return Number.isNaN(parsed) ? null : max > 0 ? Math.min(max, parsed) : parsed;
+            if (Number.isNaN(parsed)) return null;
+            // A count the game holds above the max may come down step by step (Lower); nothing goes up past the max.
+            if (max > 0 && parsed > max && parsed < Number(valueState.val ?? 0)) return parsed;
+            return max > 0 ? Math.min(max, parsed) : parsed;
         },
         write: async (nextValue) => writeVerified(writePath, nextValue),
         renderInfo: () => span({ class: "account-row__name" }, label),
@@ -126,7 +129,7 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             const max = Number(maxState.val);
             const updated = Math.max(0, next + delta);
-            // A count the game holds past the max: Raise leaves it, Lower steps it (normalize refuses saving it).
+            // A count the game holds past the max: Raise leaves it, Lower takes one off and saves it.
             if (max > 0 && next > max) return delta > 0 ? next : updated;
             return max > 0 ? Math.min(max, updated) : updated;
         },
