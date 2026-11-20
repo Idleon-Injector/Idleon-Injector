@@ -121,6 +121,7 @@ export default definePage({
     id: "w1.owl",
     world: 1,
     system: "Owl",
+    tab: "Orion",
     description: "Orion the owl's upgrades, stats and permanent bonuses.",
     keywords: ["Orion", "Great Horned Owl", "Feathers"],
     component: OrionTab,
