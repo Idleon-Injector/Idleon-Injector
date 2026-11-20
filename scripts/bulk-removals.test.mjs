@@ -31,6 +31,9 @@ const fieldValue = (root, name) => {
         .at(-1);
     return String(elements(row).find(isField)?.value ?? "");
 };
+// The level the index-th row's field shows (the cap sits beside the field, not in its text).
+const levelShown = (root, index) =>
+    String(elements(root).filter((node) => node.nodeName === "input")[index]?.attributes.value ?? "");
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 const writes = () => requests.filter((entry) => /write/.test(entry)).length;
 
@@ -381,13 +384,11 @@ test("salt-lick.js: a Max all the game refused in part shows the levels the game
     try {
         const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
         const max = () => buttonsNamed(root, "Max all").find((node) => !node.attributes.disabled);
-        const badge = (index) =>
-            text(elements(root).filter((node) => /account-row__badge/.test(node.attributes.class ?? ""))[index]);
-        await until(() => max() && badge(0).includes(`LV ${caps[0] + 5}`), "Salt Lick");
+        await until(() => max() && levelShown(root, 0) === String(caps[0] + 5), "Salt Lick");
         await click(max());
         await until(() => levels[0] === caps[0], "the first level to land");
-        await until(() => badge(0).includes(`LV ${caps[0]} `), "the row to show what the game holds");
-        assert.ok(badge(1).includes(`LV ${kept} `), "the refused level still shows what the game kept");
+        await until(() => levelShown(root, 0) === String(caps[0]), "the row to show what the game holds");
+        assert.equal(levelShown(root, 1), String(kept), "the refused level still shows what the game kept");
     } finally {
         Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
         levels[0] = 0;
@@ -406,9 +407,7 @@ test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait 
         const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
         const named = (label) => buttonsNamed(root, label);
         const max = () => named("Max all").find((node) => !node.attributes.disabled);
-        const badge = (index) =>
-            text(elements(root).filter((node) => /account-row__badge/.test(node.attributes.class ?? ""))[index]);
-        await until(() => max() && badge(0).includes(`LV ${caps[0] + 5}`), "Salt Lick");
+        await until(() => max() && levelShown(root, 0) === String(caps[0] + 5), "Salt Lick");
         const write = holdNext((url) => url.endsWith("/game/gga/write-many"));
         const pressed = click(max());
         await until(() => write.reached, "the Max all write to be sent");
@@ -422,7 +421,7 @@ test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait 
         );
         reread.release();
         await pressed;
-        await until(() => max() && badge(0).includes(`LV ${caps[0]} `), "the row to show what the game holds");
+        await until(() => max() && levelShown(root, 0) === String(caps[0]), "the row to show what the game holds");
     } finally {
         held = null;
         Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
@@ -516,7 +515,7 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
         const named = (label) => buttonsNamed(root, label);
         const bulk = () => [...named("Max all"), ...named("Reset all")];
         await until(
-            () => bulk().every((node) => !node.attributes.disabled) && text(root).includes(`LV ${caps[0] + 5}`),
+            () => bulk().every((node) => !node.attributes.disabled) && levelShown(root, 0) === String(caps[0] + 5),
             "Salt Lick"
         );
         const reread = holdNext((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
@@ -673,7 +672,7 @@ test("salt-lick.js: the reload after an undo and the read after a refused Max al
     try {
         const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
         const max = () => buttonsNamed(root, "Max all").find((node) => !node.attributes.disabled);
-        await until(() => max() && text(root).includes(`LV ${caps[0] + 5}`), "Salt Lick");
+        await until(() => max() && levelShown(root, 0) === String(caps[0] + 5), "Salt Lick");
         // A change to undo, made on this page.
         await withAction({ label: "level" }, () => writeManyVerified([{ path: "OptionsListAccount[399]", value: 1 }]));
         const [action] = (await fetchChanges()).actions;
