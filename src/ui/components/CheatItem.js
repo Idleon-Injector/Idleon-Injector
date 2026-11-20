@@ -15,6 +15,8 @@ export const CheatItem = (cheat) => {
     const needsValue = cheat.needsParam === true;
     const hasConfig = store.hasConfigEntry(cheat.value);
     const { said, say } = useSaid();
+    // A result or a refusal is short and rides on the row's end; a failure gets its own line under the row,
+    // so its reason reads in full even at 400 px.
 
     // Use direct DOM reference instead of van.state to save thousands of listeners
     const inputRef = needsValue
@@ -77,7 +79,10 @@ export const CheatItem = (cheat) => {
     };
 
     return div(
-        { class: "cheat-item-container", "data-cheat": cheat.value },
+        {
+            class: () => `cheat-item-container ${said.val?.kind === "refused" ? "is-waiting-value" : ""}`,
+            "data-cheat": cheat.value,
+        },
         button(
             {
                 class: () =>
@@ -88,7 +93,7 @@ export const CheatItem = (cheat) => {
                 { class: "cheat-button-text" },
                 cheat.message && cheat.message !== cheat.value ? `${cheat.value} - ${cheat.message}` : cheat.value
             ),
-            Said({ said, className: "said--row" }),
+            Said({ said, className: "said--row", kinds: ["done", "refused"] }),
             hasConfig
                 ? span(
                       {
@@ -111,6 +116,7 @@ export const CheatItem = (cheat) => {
                 },
             },
             Icons.Star()
-        )
+        ),
+        Said({ said, className: "said--line said--row-failed", kinds: ["failed"] })
     );
 };

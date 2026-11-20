@@ -124,7 +124,7 @@ const systemProblems = () => {
         // A hook's id names its cheats ("w5.holes", "w4.labpx, w2.sigilspeed").
         const cheats = [...new Set(hooks.flatMap((line) => line.split(": ")[0].split(/,\s*/)))];
         problems.push({
-            short: `${plural(hooks.length, "HOOK")} FAILED`,
+            short: hooks.length === 1 ? "HOOK FAILED" : "HOOKS FAILED",
             title: `${plural(hooks.length, "game hook")} didn't install`,
             body: () => [
                 p("So these cheats won't work:"),

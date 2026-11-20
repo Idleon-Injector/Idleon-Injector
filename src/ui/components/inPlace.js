@@ -55,32 +55,34 @@ export const plainReason = (message) =>
 
 /**
  * The line itself: a mark (✓, or the warning sign) and the words. It keeps its node, so screen readers hear
- * each new result.
+ * each new result. `kinds` limits it to some kinds (a row's end shows results, its line under shows failures).
  */
-export const Said = ({ said, className = "" }) =>
-    span(
+export const Said = ({ said, className = "", kinds = null }) => {
+    const shown = () => (said.val && (!kinds || kinds.includes(said.val.kind)) ? said.val : null);
+    return span(
         {
             class: () =>
-                `said ${className} ${said.val ? `said--${said.val.kind}` : "said--empty"}${
-                    said.val?.leaving ? " is-leaving" : ""
+                `said ${className} ${shown() ? `said--${shown().kind}` : "said--empty"}${
+                    shown()?.leaving ? " is-leaving" : ""
                 }`,
             role: "status",
-            title: () => said.val?.text ?? "",
+            title: () => shown()?.text ?? "",
         },
         () =>
-            said.val
+            shown()
                 ? span(
                       { class: "said__body" },
                       span(
                           { class: "said__mark", "aria-hidden": "true" },
-                          said.val.kind === "done"
+                          shown().kind === "done"
                               ? Icons.Check({ class: "said__icon" })
                               : Icons.Warning({ class: "said__icon" })
                       ),
-                      span({ class: "said__text" }, said.val.text)
+                      span({ class: "said__text" }, shown().text)
                   )
                 : span()
     );
+};
 
 // The one live region for click-again questions, so a keyboard player hears what the second click will do.
 let askRegion = null;

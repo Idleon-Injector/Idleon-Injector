@@ -872,8 +872,8 @@ export const SavedResultsSection = ({ ui, handlers }) => {
             )
         ),
         div(
-            Note(() => ui.savedRefreshError),
             { class: "saved-results-content scroll-container" },
+            Note(() => ui.savedRefreshError),
             div(
                 { class: "list-filter-row" },
                 input({
