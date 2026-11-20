@@ -29,15 +29,15 @@ export { readPath, readPaths, readEntries, deletePath, writePath } from "../util
 
 /**
  * Write many game values (see pathResolver's writePaths). With `character`, the one the writes were planned for:
- * when another character is in play, nothing is written and the error says who is. The check and the writes run in
- * this one call, so the player can't switch characters between them.
+ * when another character is in play, nothing is written and the error (marked `refused`) says who is. The check and
+ * the writes run in this one call, so the player can't switch characters between them.
  */
 export function writePaths(writes, character) {
     if (character !== undefined) {
         try {
             characterInPlay(character);
         } catch (error) {
-            return { error: error.message };
+            return { error: error.message, refused: true };
         }
     }
     return writeAllPaths(writes);

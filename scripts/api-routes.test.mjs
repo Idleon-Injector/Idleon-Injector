@@ -144,23 +144,28 @@ test("game routes preserve Haxe array normalization, batch failures, and write v
     ]);
 });
 
-test("write-many hands the game the character a write is for, and says the game's refusal", async () => {
+test("write-many hands the game the character a write is for, and answers its refusal with 409", async () => {
     const router = new TinyRouter();
     const calls = [];
     const refusal = "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt.";
+    let answer = { value: { error: refusal, refused: true } };
     setupGameRoutes(router, {
         callHelper: async (...args) => {
             calls.push(args);
-            return { value: { error: refusal } };
+            return answer;
         },
     });
     const writes = [{ path: "Lv0[0]", value: 1 }];
     const notAName = await request(router, "POST", "/api/game/gga/write-many", { writes, character: 7 });
     assert.equal(notAName.statusCode, 400);
     const refused = await request(router, "POST", "/api/game/gga/write-many", { writes, character: "Lumi_Main" });
-    assert.equal(refused.statusCode, 500);
-    assert.equal(refused.body.error, refusal);
+    assert.equal(refused.statusCode, 409);
+    assert.deepEqual(refused.body, { error: refusal });
     assert.deepEqual(calls, [["writeGamePaths", [writes, "Lumi_Main"]]]);
+    // Anything else the game says is still a fault: 500.
+    answer = { value: { error: "Batch write failed: boom" } };
+    const failed = await request(router, "POST", "/api/game/gga/write-many", { writes, character: "Lumi_Main" });
+    assert.equal(failed.statusCode, 500);
 });
 
 test("configuration routes share live objects and retain server updates when game context is lost", async () => {
