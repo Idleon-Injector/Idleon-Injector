@@ -68,6 +68,15 @@ const bought = Object.fromEntries(CLICKER_KEYS.map((key) => [key, 0])); // level
 const unlocked = (clicker, i, row) =>
     clicker.isUnlocked ? clicker.isUnlocked(i) : clicker.progress() >= clicker.unlockAt(i, row);
 const label = (row) => String(row[0]).replace(/_/g, " ");
+// The game's number style, as the page's formatNumber writes it (game code can't import page code):
+// 3 digits with K, M, B, T, Q, QQ, QQQ, then 1.23E27.
+const SUFFIXES = ["", "K", "M", "B", "T", "Q", "QQ", "QQQ"];
+const notate = (n) => {
+    const tier = n < 1000 ? 0 : Math.floor(Math.log10(n) / 3);
+    if (tier === 0) return String(Math.ceil(n));
+    if (tier >= SUFFIXES.length) return n.toExponential(2).toUpperCase().replace("E+", "E");
+    return parseFloat((n / 1000 ** tier).toPrecision(3)) + SUFFIXES[tier];
+};
 
 /** The upgrades that may be bought now: switched on, unlocked, below their stop-at, and allowed by the game. */
 function buyable(key) {
@@ -120,7 +129,7 @@ export const clickerStatus = (key) => () => {
     const waiting = CLICKERS[key].waiting?.();
     if (waiting) return waiting;
     const goal = nextGoal(buyable(key));
-    const doing = goal ? `Saving for ${goal.name}` : "Buying cheapest first";
+    const doing = goal ? `Saving for ${goal.name} (${notate(goal.cost)})` : "Buying cheapest first";
     const levels = bought[key] === 1 ? "1 level" : `${bought[key]} levels`;
     return bought[key] ? `${doing}; ${levels} bought since it started` : doing;
 };

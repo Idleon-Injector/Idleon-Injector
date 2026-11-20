@@ -195,7 +195,7 @@ test("High buys first, Low is saved for, and Balanced may spend only saving % of
     // Saving for the 400 restart: Balanced may cost up to 40, so 10, 20, 30, 40 buy and 50 waits.
     assert.deepEqual(events, ["a0", "a0", "a0", "a0"]);
     assert.equal(gga.OptionsListAccount[253], 200);
-    assert.match(entry("orion").status, /^Saving for Feather Restart/);
+    assert.equal(entry("orion").status, "Saving for Feather Restart (400); 4 levels bought since it started");
 
     gga.OptionsListAccount[253] = 400;
     mock.timers.tick(1000);
@@ -206,6 +206,12 @@ test("High buys first, Low is saved for, and Balanced may spend only saving % of
     gga.OptionsListAccount[253] = 5000;
     mock.timers.tick(1000);
     assert.equal(events[0], "a8", "an affordable High goes before cheaper upgrades");
+
+    // The goal's cost reads the way the game writes numbers.
+    gga.OptionsListAccount[253] = 0;
+    gga.OptionsListAccount[258] = 12344; // Feather Restart costs 400 × 12345
+    gga.OptionsListAccount[262] = 1e6;
+    assert.match(entry("orion").status, /^Saving for Feather Restart \(4\.94M\);/);
     await cheat("automation orion", false);
 });
 
