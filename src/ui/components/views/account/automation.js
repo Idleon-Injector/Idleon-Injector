@@ -99,7 +99,7 @@ export const useStillWaiting = () => {
     };
     const over = (said) => ({
         get val() {
-            return notice.val === null ? said.val : { kind: "failed", text: notice.val };
+            return notice.val === null ? said.val : { kind: "waiting", text: notice.val };
         },
     });
     return { notice, onLate, over };
@@ -253,7 +253,7 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
             { class: "account-row__name-group" },
             span({ class: "account-row__name" }, name),
             span({ class: "automation-row__status", role: "status" }, line),
-            Said({ said: late.over(said.said), className: "said--line", kinds: ["failed"] })
+            Said({ said: late.over(said.said), className: "said--line", kinds: ["failed", "waiting"] })
         ),
         controls: label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" })),
     });
@@ -440,7 +440,7 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     const waiting = () => late.notice.val !== null;
     const status = {
         get val() {
-            if (waiting()) return "error";
+            if (waiting()) return "loading"; // a wait isn't a failure: it keeps the saving look
             const shown = save.status.val === "error" && save.reason.val === fileOnly;
             return shown && !picks.fileBehind() ? null : save.status.val;
         },

@@ -1570,3 +1570,64 @@ test("reader 3: the Shops tab says its read after a switch is still waiting", as
     );
     await ui.switchAutomation("automation shops", false);
 });
+
+// A wait isn't a failure: the notice has the "saving…" look (muted words, no warning mark), on every surface.
+const looksWaiting = (node) =>
+    byClass(node, "said--waiting").length > 0 &&
+    !byClass(node, "said--failed").length &&
+    !byClass(byClass(node, "said--waiting")[0], "said__mark").length;
+
+test("reader 3: the waiting notice looks like saving, not like a failure", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) === "Off", "the overview to read Shops off");
+
+    // A switch row.
+    let release;
+    holdNextOnAnswer = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
+            await until(() => /still waiting/.test(text(row(overview, "Shops"))), "the switch row's notice");
+        });
+        assert.ok(looksWaiting(row(overview, "Shops")), "the switch row's notice is muted, with no warning mark");
+    } finally {
+        release();
+    }
+    await until(() => !/still waiting/.test(text(row(overview, "Shops"))), "the switch's outcome");
+
+    // An item row.
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+            await until(() => /still waiting/.test(text(pickRow("Sleepy Fang"))), "the item row's notice");
+        });
+        assert.match(saveState("Sleepy Fang"), /save-state--loading/, "the item row keeps the saving look");
+        assert.doesNotMatch(saveState("Sleepy Fang"), /save-state--error/);
+        assert.doesNotMatch(classes(metric("Sleepy Fang")), /is-save-failed/);
+    } finally {
+        release();
+    }
+    await until(() => /save-state--success/.test(saveState("Sleepy Fang")), "the item's outcome");
+
+    // The page's line.
+    holdNextListRead = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+            await until(
+                () => byClass(shops, "said--line").some((line) => /still waiting/.test(text(line))),
+                "the page line's notice"
+            );
+        });
+        const line = byClass(shops, "said--line").find((node) => /still waiting/.test(text(node)));
+        assert.ok(looksWaiting(line), "the page line's notice is muted, with no warning mark");
+    } finally {
+        release();
+    }
+    await until(() => !/still waiting/.test(text(shops)), "the read's end");
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang off");
+    await ui.switchAutomation("automation shops", false);
+});

@@ -234,7 +234,8 @@ export const saveStateClass = (status, undo = null) =>
         .join(" ");
 
 /**
- * The save state beside a field: "saving…", a ✓ once the game reads the value back, or why it failed.
+ * The save state beside a field: "saving…" (or `reason`, when one is given while it saves: a slow save saying it is
+ * still waiting), a ✓ once the game reads the value back, or why it failed.
  * Its mark keeps a fixed slot; the words lie over the space to its left, so nothing around it moves.
  */
 export const SaveState = ({ status, reason, undo = null, className = "" }) =>
@@ -253,7 +254,10 @@ export const SaveState = ({ status, reason, undo = null, className = "" }) =>
         // The words are the live status; Undo sits beside them so its name isn't read out as one.
         span(
             { class: "save-state__label", role: "status", title: () => (status.val === "error" ? reason.val : "") },
-            () => (status.val === "error" ? reason.val : (LABEL[status.val] ?? ""))
+            () =>
+                status.val === "error" || (status.val === "loading" && reason.val)
+                    ? reason.val
+                    : (LABEL[status.val] ?? "")
         ),
         undo
             ? button(
