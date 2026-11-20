@@ -153,13 +153,14 @@ const ShopsPage = () => {
             navClass: "account-page-nav",
             buttonClass: "account-page-btn",
         }),
+        // Above the body, so it shows during the first load too.
+        topNotices: Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
         state: { loading, error },
         loadingText: "READING SHOPS",
         errorTitle: "SHOP READ FAILED",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
             AccountSection({ title: "AUTOMATION", body: switchNode }),
             ...panes
         ),

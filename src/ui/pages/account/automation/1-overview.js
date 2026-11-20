@@ -103,13 +103,14 @@ const OverviewPage = () => {
             ],
             refresh: { onClick: load, disabled: busy },
         }),
+        // Above the body, so it shows during the first load too.
+        topNotices: Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
         state: { loading, error },
         loadingText: "READING AUTOMATIONS",
         errorTitle: "AUTOMATION READ FAILED",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
             AccountSection({ title: "AUTOMATIONS", body: rowsNode })
         ),
     });

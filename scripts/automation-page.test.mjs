@@ -1513,3 +1513,37 @@ test("reader 3: a switch row's notice stays while a later click still waits, aft
 
 test("reader 3: on the Shops tab too, a later click's notice outlasts an earlier click's outcome", () =>
     laterClickKeepsNotice(shops));
+
+const shownText = (node) =>
+    node?.nodeType === 1 && classes(node).split(" ").includes("is-hidden-until-ready")
+        ? ""
+        : typeof node === "string"
+          ? node
+          : node?.nodeType === 3
+            ? node.data
+            : (node?.childNodes ?? []).map(shownText).join("");
+
+for (const [name, path] of [
+    ["the overview", "src/ui/pages/account/automation/1-overview.js"],
+    ["the Shops tab", "src/ui/pages/account/automation/2-shops.js"],
+]) {
+    test(`reader 3: ${name}'s slow first load shows that it is still waiting, outside the hidden body`, async () => {
+        let release;
+        holdNextListRead = new Promise((resolve) => (release = resolve));
+        const asked = listAsked;
+        let page;
+        try {
+            await lateBy(100, async () => {
+                page = (await importRepo(path)).default.component();
+                await until(() => listAsked > asked, "the first read to be held");
+                await until(
+                    () => /still waiting/.test(shownText(page)),
+                    () => `a shown notice, not ${shownText(page)}`
+                );
+            });
+        } finally {
+            release();
+        }
+        await until(() => !/still waiting/.test(text(page)), "the first read's end to clear the notice");
+    });
+}
