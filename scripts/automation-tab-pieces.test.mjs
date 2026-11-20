@@ -12,10 +12,17 @@ const { router } = await createFakeApi();
 const updates = [];
 const saves = [];
 let refuseUpdate = false;
+let dropNextUpdate = false; // the game takes the next update but its answer is lost
+let failConfigReads = 0; // how many of the next config reads fail
 const update = router.routes.POST.get("/api/config/update");
 router.routes.POST.set("/api/config/update", async (req, res) => {
     const body = await req.json();
     updates.push(body);
+    if (dropNextUpdate) {
+        dropNextUpdate = false;
+        await update(req, { status: () => ({ json() {} }), json() {} }); // the game takes it...
+        return res.status(500).json({ error: "the connection dropped" }); // ...but the answer is lost
+    }
     if (refuseUpdate) return res.json({ message: "Config update failed", details: "the game is busy" });
     return update(req, res);
 });
@@ -28,6 +35,7 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
 let serverCopyOnly = false; // config reads answer with the server's copy, as when the game didn't answer
 const readConfig = router.routes.GET.get("/api/config");
 router.routes.GET.set("/api/config", async (req, res) => {
+    if (failConfigReads > 0 && failConfigReads--) return res.status(500).json({ error: "the config didn't load" });
     let read;
     await readConfig(req, {
         status() {
@@ -366,4 +374,19 @@ test("a tab whose first read only reaches the server's copy reads nothing in and
     await tab.load();
     assert.equal(reads.length, 1, "Refresh reads the game");
     assert.equal(tab.error.val, null);
+});
+
+test("after a save the game didn't answer and nothing read back, the next save waits for a read", async () => {
+    const unsure = ui.createAutomationSetting("testUnsure");
+    await unsure.set(null, 0).catch(() => {}); // not read yet: refused
+    unsure.sync([5, 6]);
+    dropNextUpdate = true;
+    failConfigReads = 1;
+    await assert.rejects(unsure.set(0, 10), /connection dropped|500|error/i);
+    const since = updates.length;
+    await assert.rejects(unsure.set(1, 40), /not read from the game yet: press Refresh/);
+    assert.equal(updates.length, since, "the untouched 10 the game may hold isn't sent back as 5");
+    unsure.sync([10, 6]); // a read (Refresh) of what the game holds
+    await unsure.set(1, 40);
+    assert.deepEqual(lastUpdate("testUnsure"), [10, 40]);
 });
