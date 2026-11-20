@@ -1,5 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { captureGesture } from "../../../services/changeLog.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { parseNumber } from "../../../utils/numberFormat.js";
@@ -11,6 +12,7 @@ import {
     createStaticRowReconciler,
     largeFormatter,
     largeParser,
+    oneAtATime,
     unwrapH,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -33,13 +35,28 @@ const slotLocation = (character, kind, slot) =>
 /** Edit stored printer samples and active prints. */
 const PrinterTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Printer" });
-    const busy = van.state(false);
+    // Slot writes queued or running, and a Refresh.
+    const busy = van.state(0);
+    // Slot saves and Clears write one at a time, in the order asked, so a press made while another slot saves waits
+    // its turn instead of being dropped. Each still writes under its own row's History action (captureGesture), so
+    // every slot keeps its Undo even while another slot's action is open, waiting its turn.
+    // ponytail: the queue is the page's, not useAutoSave's; a row's own saves still take turns there first.
+    const queue = oneAtATime();
+    const inTurn = (task) => {
+        const inAction = captureGesture();
+        busy.val++;
+        return queue(() => {
+            // A write that waited behind one that failed: the page shows old values until a Refresh.
+            if (error.val || !snapshot.val) throw new Error("Refresh before editing Printer.");
+            return task(inAction);
+        }).finally(() => busy.val--);
+    };
     const snapshot = van.state(null);
     const selected = van.state(-1);
     const rows = new Map();
     const panels = new Map();
     const panelsNode = div();
-    const isBusy = () => loading.val || busy.val;
+    const isBusy = () => loading.val || busy.val > 0;
     const characterSelector = createCharacterSelector({
         id: "printer-character",
         disabled: () => isBusy() || !snapshot.val,
@@ -55,7 +72,8 @@ const PrinterTab = () => {
     let accountIdentity = "";
     let cachedCatalogue = null;
 
-    const cannotWrite = () => isBusy() || Boolean(error.val) || !snapshot.val;
+    // Not `busy`: a save asked for while another slot saves waits its turn (inTurn), so no press is lost.
+    const cannotWrite = () => loading.val || Boolean(error.val) || !snapshot.val;
     // A slot's drafts: the picked item, the quantity as typed, and the stored quantity the field showed then (its
     // rounded form, "16.2K", stands for exactly that one, even once a save in between has changed what's stored).
     const draftsOf = (state) => ({
@@ -268,7 +286,7 @@ const PrinterTab = () => {
               : typeof state.baseline.qty === "string"
                 ? String(parsed)
                 : parsed;
-        return { write: () => writeSlot(state, item, qty) };
+        return { write: () => inTurn((inAction) => writeSlot(state, item, qty, false, inAction)) };
     };
 
     // Stop and Clear ask in place (#77): the button reads "Click again" for a few seconds.
@@ -282,11 +300,11 @@ const PrinterTab = () => {
             )
         )
             return;
-        return state.write.run(() => writeSlot(state, "Blank", 0, true));
+        return state.write.run(() => inTurn((inAction) => writeSlot(state, "Blank", 0, true, inAction)));
     };
 
-    const writeSlot = async (state, item, qty, clear = false) => {
-        busy.val = true;
+    // `inAction`: runs the write under the History action of the row that asked for it.
+    const writeSlot = async (state, item, qty, clear, inAction) => {
         try {
             const next = await readFresh();
             const cap = Math.round(
@@ -298,18 +316,18 @@ const PrinterTab = () => {
             }
             const { array, index } = state.location;
             if (!(clear && next[array][index] === "Blank" && Number(next[array][index + 1]) === 0)) {
-                await applyWrites([
-                    { path: `${array}[${index}]`, value: item },
-                    { path: `${array}[${index + 1}]`, value: qty },
-                ]);
+                await inAction(() =>
+                    applyWrites([
+                        { path: `${array}[${index}]`, value: item },
+                        { path: `${array}[${index + 1}]`, value: qty },
+                    ])
+                );
             }
             updateRow(state, item, qty, true);
             state.syncOptions();
         } catch (caughtError) {
             error.val = caughtError.message;
             throw caughtError;
-        } finally {
-            busy.val = false;
         }
     };
 
@@ -453,7 +471,7 @@ const PrinterTab = () => {
                 !clickAgain(e.currentTarget, "refresh Printer and discard every character's drafts."))
         )
             return;
-        busy.val = true;
+        busy.val++;
         discardDrafts = true;
         try {
             await runLoad(async () => {
@@ -473,7 +491,7 @@ const PrinterTab = () => {
                 syncSnapshot(next, discardDrafts);
             });
         } finally {
-            busy.val = false;
+            busy.val--;
             discardDrafts = false;
         }
     };
