@@ -71,14 +71,13 @@ const buildPlayerChipEntries = (rawLab, chipOptions) =>
         };
     });
 
-const ChipSlotSelect = ({ field, draftStates, status }) =>
+const ChipSlotSelect = ({ field, draftStates }) =>
     div(
         { class: "account-stacked-field" },
         span({ class: "account-stacked-field__label" }, field.label),
         select(
             {
                 class: "select-base",
-                disabled: () => status.val === "loading",
                 onchange: (e) => (draftStates[field.key].val = Number(e.target.value)),
             },
             ...field.options.map((choice) =>
@@ -125,12 +124,8 @@ const PlayerChipsRow = ({ entry, fieldStates }) => {
         badge: () =>
             `${entry.fields.filter((field) => toInt(getOrCreateState(fieldStates, field.key).val, { min: -1 }) >= 0).length} EQUIPPED`,
         controlsClass: "account-row__controls--stack-action",
-        renderControls: ({ draftStates, status }) =>
-            div(
-                { class: "account-stacked-fields" },
-                ...fields.map((field) => ChipSlotSelect({ field, draftStates, status }))
-            ),
-        applyTooltip: "Write all equipped chip ids for this player",
+        renderControls: ({ draftStates }) =>
+            div({ class: "account-stacked-fields" }, ...fields.map((field) => ChipSlotSelect({ field, draftStates }))),
     });
 };
 

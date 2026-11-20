@@ -172,7 +172,6 @@ const MapCrystalRow = ({ map, states, talentCap }) => {
                 onClick: () => applyValue({ purple: 10000000, yellow: 10000000, blue: 10000000 }),
             }),
         ],
-        applyTooltip: `Write crystal kill counts for ${map.name} to game memory`,
     });
 };
 

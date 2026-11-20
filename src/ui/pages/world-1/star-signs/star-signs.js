@@ -27,6 +27,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { toInt, toNum, useWriteStatus, writeManyVerified } from "../../../components/views/account/accountShared.js";
+import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
 
 const { div, button, span, h4, p, select, option } = van.tags;
 
@@ -124,7 +125,20 @@ const DragList = ({ items, renderItem, onChange }) => {
 
 const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
     const players = van.state([...sign.players]);
-    const { status, run } = useWriteStatus();
+    let saved = encodeProgress(sign.players);
+    // Every change to the list saves; a change made while one saves is saved after it.
+    const { status, reason, save } = useAutoSave({
+        prepare: () => {
+            const progress = encodeProgress(players.val);
+            if (progress === saved) return { unchanged: true };
+            return {
+                write: async () => {
+                    await onSave?.({ index: sign.index, progress });
+                    saved = progress;
+                },
+            };
+        },
+    });
     const progressFill = div({ class: "starsign-progress-fill" });
 
     van.derive(() => {
@@ -132,21 +146,17 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
         progressFill.style.setProperty("--starsign-fill-width", `${pct}%`);
     });
 
+    const setPlayers = (next) => {
+        players.val = next;
+        void save();
+    };
+
     const addPlayer = (num) => {
         if (players.val.includes(num)) return;
-        players.val = [...players.val, num];
+        setPlayers([...players.val, num]);
     };
 
-    const removePlayer = (num) => {
-        players.val = players.val.filter((p) => p !== num);
-    };
-
-    const doSave = async () => {
-        await run(async () => {
-            const str = encodeProgress(players.val);
-            await onSave?.({ index: sign.index, progress: str });
-        });
-    };
+    const removePlayer = (num) => setPlayers(players.val.filter((p) => p !== num));
 
     return div(
         { class: "starsign-detail" },
@@ -188,9 +198,7 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
                     );
                     return row;
                 },
-                onChange: (newOrder) => {
-                    players.val = newOrder;
-                },
+                onChange: setPlayers,
             });
         },
 
@@ -236,19 +244,7 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
             );
         }),
 
-        div(
-            { class: "starsign-detail-actions" },
-            ActionButton({
-                label: () => (status.val === "success" ? "✓ SAVED" : "SAVE"),
-                status,
-                tooltip: "Write star sign progress to game memory",
-                onClick: doSave,
-            }),
-            () =>
-                status.val === "error"
-                    ? span({ class: "write-status write-status--error" }, "Save failed — check game is running")
-                    : null
-        )
+        div({ class: "starsign-detail-actions" }, SaveState({ status, reason, className: "save-state--inline" }))
     );
 };
 
@@ -372,8 +368,8 @@ const StarSignsTab = () => {
 
             await writeManyVerified(writes);
 
+            // The open detail already shows this list; only the grid behind it changes.
             signs.val = nextSigns;
-            syncActiveSign(activeSign, nextSigns);
         } catch (error) {
             try {
                 await load();
@@ -473,21 +469,29 @@ const StarSignsTab = () => {
         });
     };
 
+    // The open detail stays the same node while its saves update the grid, so its save state stays.
+    let detail = null;
     const renderBody = () => {
         const resolved = signs.val;
         if (!resolved) return null;
 
         if (activeSign.val) {
-            return div(
-                { class: "account-list" },
-                StarSignDetail({
+            if (detail?.sign !== activeSign.val)
+                detail = {
                     sign: activeSign.val,
-                    usernames: activeSign.val.usernames ?? [],
-                    onSave: handleSave,
-                    onBack: () => (activeSign.val = null),
-                })
-            );
+                    node: div(
+                        { class: "account-list" },
+                        StarSignDetail({
+                            sign: activeSign.val,
+                            usernames: activeSign.val.usernames ?? [],
+                            onSave: handleSave,
+                            onBack: () => (activeSign.val = null),
+                        })
+                    ),
+                };
+            return detail.node;
         }
+        detail = null;
 
         return div(
             { class: "starsign-grid" },

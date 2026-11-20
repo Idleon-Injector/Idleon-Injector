@@ -263,6 +263,182 @@
     color: var(--c-danger);
 }
 
+/*
+ * Save state beside a field (useAutoSave): "saving…", a ✓ once the game reads the value back, or why the
+ * save failed. The mark keeps a fixed slot; the words lie over the space to its left (the badge, or the
+ * field's label) on the row's own surface, so nothing around them moves.
+ */
+.save-state {
+    --save-state-bg: var(--c-panel);
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.save-state__mark {
+    display: inline-flex;
+    line-height: 0;
+}
+
+.save-state__icon {
+    width: 14px;
+    height: 14px;
+}
+
+.save-state__label {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 2px);
+    display: flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+    background: var(--save-state-bg);
+    color: var(--c-text-muted);
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.save-state__label:empty {
+    display: none;
+}
+
+/* With room beside it (a card's footer), the words follow the mark instead. */
+.save-state--inline {
+    flex-direction: row-reverse;
+    gap: 6px;
+    width: auto;
+    min-height: 26px;
+}
+
+.save-state--inline .save-state__label {
+    position: static;
+    height: auto;
+    padding: 0;
+    background: none;
+    transform: none;
+}
+
+/* Quick saves never flash "saving…": it shows only once a save takes a moment. */
+.save-state--loading .save-state__label {
+    animation: save-state-wait 0.3s steps(1, end) both;
+}
+
+/* "saved" is for screen readers; the ✓ and the badge's read-back value say it on screen. */
+.save-state--success .save-state__label {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+.save-state--success .save-state__mark {
+    color: var(--c-success);
+    animation: save-state-mark 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.save-state--error .save-state__mark,
+.save-state--error .save-state__label {
+    color: var(--c-warning);
+}
+
+/* A reason runs to two short lines at most, so it fits beside the field even at 400 px; the title has it all. */
+.save-state--error .save-state__label {
+    display: -webkit-box;
+    width: max-content;
+    max-width: 18ch;
+    height: auto;
+    padding: 2px 8px;
+    overflow: hidden;
+    line-height: 1.15;
+    text-align: right;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+/* A field's own label steps aside the same way when the words lie over it. */
+.is-saving > .account-inline-field__head > :first-child {
+    animation: save-state-hide 0.3s steps(1, end) forwards;
+}
+
+.is-save-failed > .account-inline-field__head > :first-child {
+    visibility: hidden;
+}
+
+/* The badge (the stored value) steps aside while a save takes a moment and while it has failed. */
+.is-saving > .account-row__badge {
+    animation: save-state-hide 0.3s steps(1, end) forwards;
+}
+
+.is-save-failed > .account-row__badge {
+    visibility: hidden;
+}
+
+.is-save-failed .number-input-wrapper,
+.is-save-failed .number-input-wrapper:focus-within {
+    border-color: var(--c-warning);
+}
+
+@keyframes save-state-wait {
+    0% {
+        visibility: hidden;
+    }
+
+    100% {
+        visibility: visible;
+    }
+}
+
+@keyframes save-state-hide {
+    0% {
+        visibility: visible;
+    }
+
+    100% {
+        visibility: hidden;
+    }
+}
+
+@keyframes save-state-mark {
+    0% {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .save-state--success .save-state__mark {
+        animation: none;
+    }
+}
+
+/* A field with its label above it: the save state ends the label's line (a whole grid row, like the label). */
+.account-inline-field__head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+}
+
 .account-row__info {
     display: flex;
     align-items: center;
@@ -678,8 +854,46 @@
     font-family: var(--font-display);
 }
 
-.tier-card__set-btn {
-    width: 100%;
+/*
+ * A card's header has no room to spare: its save state takes none. The ✓ lies over the name's end; the
+ * words take the badge's place while it steps aside, as in a row.
+ */
+.tier-card__header .save-state {
+    justify-content: flex-end;
+    width: 0;
+    margin-left: auto;
+}
+
+.tier-card__header .save-state__mark {
+    padding: 0 4px;
+    background: inherit;
+}
+
+.tier-card__header,
+.tier-card__header .save-state {
+    background: inherit;
+}
+
+.tier-card__header .save-state__label,
+.tier-card__header .save-state--error .save-state__label {
+    right: auto;
+    left: 6px;
+    max-width: 11ch;
+    padding: 0;
+    background: none;
+    text-align: left;
+}
+
+.tier-card__header .save-state--error .save-state__mark {
+    display: none;
+}
+
+.is-saving > .tier-card__header > .tier-card__badge {
+    animation: save-state-hide 0.3s steps(1, end) forwards;
+}
+
+.is-save-failed > .tier-card__header > .tier-card__badge {
+    visibility: hidden;
 }
 
 .account-row--info {

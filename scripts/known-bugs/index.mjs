@@ -253,6 +253,10 @@ export async function loadUi(router) {
             this.childNodes = [];
             this.append(...children);
         }
+        contains(node) {
+            for (let at = node; at; at = at.parentNode) if (at === this) return true;
+            return false;
+        }
         setAttribute(name, value) {
             this.attributes[name] = value;
         }

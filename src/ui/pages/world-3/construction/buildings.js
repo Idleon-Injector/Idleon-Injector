@@ -16,7 +16,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { readComputedMany } from "../../../services/api.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -47,7 +46,6 @@ const BuildingRow = ({ index, name, maxLevel, levelState }) =>
         },
         indexLabel: `#${index + 1}`,
         name,
-        wrapApplyButton: (applyButton) => withTooltip(applyButton, `Set level (max ${maxLevel})`),
         maxAction: true,
     });
 

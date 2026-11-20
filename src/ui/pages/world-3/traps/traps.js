@@ -185,12 +185,11 @@ const TrappingRow = ({ playerName, trap, isCurrentPlayer, getValueState, onWrite
                 resetDraft,
             }),
         ],
-        renderExtraActions: ({ status }) =>
+        renderExtraActions: () =>
             ActionButton({
                 label: "FINISH",
                 status: finishStatus.status,
                 className: "trap-row__finish-btn",
-                disabled: () => status.val === "loading",
                 tooltip: "Finish this trap",
                 onClick: async (e) => {
                     e.preventDefault();

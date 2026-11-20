@@ -3,6 +3,8 @@ import van from "../vendor/van-1.6.0.js";
 const { div, input, button } = van.tags;
 const liveRawByState = new WeakMap();
 const focusedValueSetters = new WeakMap();
+// −/+ change the value without taking focus from the field being edited.
+const keepFocus = (e) => e.preventDefault();
 
 export const getNumberInputLiveRaw = (state) => liveRawByState.get(state);
 
@@ -63,13 +65,13 @@ function parseInput(raw, callerParser = null) {
  *   onIncrement {Function}  Called when the + button is clicked.
  *
  * Formatted mode behaviour:
- *   • The input always shows formatter(value.val) when not focused.
+ *   • The input shows formatter(value.val).
  *   • While the user is typing the browser owns the field entirely —
  *     no state is mutated, no reactive updates fire, cursor is never disrupted.
  *   • On blur the typed text is parsed; on success value.val is committed and
- *     the formatted display is restored; on failure the field reverts.
- *   • External value.val changes (e.g. +/− buttons) update the DOM directly
- *     only when the field is not focused.
+ *     the formatted display is restored; on failure the typed text stays
+ *     (getNumberInputLiveRaw returns it) so the save can say why.
+ *   • value.val changes update the DOM when not focused; −/+ and setNumberInputValue also while focused.
  *
  * Standard mode behaviour:
  *   • type="text" with character filtering (digits, optional leading minus,
@@ -87,6 +89,7 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
     // ── Formatted mode ────────────────────────────────────────────────────────
     if (formatter) {
         let isFocused = false;
+        let shownOnFocus = null;
 
         const tryParse = (raw) => {
             const n = parseInput(raw, parser);
@@ -102,12 +105,10 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
 
             onfocus(e) {
                 isFocused = true;
-                inputEl.value = formatter(value.val);
+                // Text that didn't parse stays for the player to fix.
+                if (!liveRawByState.has(value)) inputEl.value = formatter(value.val);
                 liveRawByState.set(value, inputEl.value);
-                focusedValueSetters.set(value, (nextValue) => {
-                    inputEl.value = formatter(nextValue);
-                    liveRawByState.set(value, inputEl.value);
-                });
+                shownOnFocus = inputEl.value;
                 if (userOnfocus) userOnfocus(e);
             },
 
@@ -122,27 +123,38 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
 
             onblur(e) {
                 isFocused = false;
-                const parsed = tryParse(e.target.value);
+                // Text left as it was shown ("1.03K") keeps the exact value behind it, not a rounded one.
+                const parsed = e.target.value === shownOnFocus ? null : tryParse(e.target.value);
+                // Text that doesn't parse stays as typed (and as the live draft) so its save can say why.
                 if (parsed !== null) {
                     value.val = parsed;
                     inputEl.value = formatter(parsed);
-                } else {
-                    inputEl.value = formatter(value.val);
+                    liveRawByState.delete(value);
+                } else if (e.target.value === shownOnFocus) {
+                    liveRawByState.delete(value);
                 }
-                liveRawByState.delete(value);
-                focusedValueSetters.delete(value);
                 if (userOnblur) userOnblur(e);
             },
         });
 
-        inputEl.value = formatter(value.val);
+        const show = (nextValue) => {
+            inputEl.value = formatter(nextValue);
+            if (isFocused) liveRawByState.set(value, inputEl.value);
+            else liveRawByState.delete(value);
+        };
+        show(value.val);
+        focusedValueSetters.set(value, show);
 
-        // React to external value.val changes (e.g. +/− buttons) only when
-        // the field is not focused so in-progress typing is never clobbered.
+        // Outside changes show only when the field isn't focused, so typing is never clobbered;
+        // −/+ and setNumberInputValue show theirs while focused too.
         van.derive(() => {
             const v = value.val;
-            if (!isFocused) inputEl.value = formatter(v);
+            if (!isFocused) show(v);
         });
+        const step = (handler) => () => {
+            handler?.();
+            if (isFocused) show(value.val);
+        };
 
         return div(
             { class: "number-input-wrapper" },
@@ -152,8 +164,9 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
                     type: "button",
                     class: "number-input-btn",
                     disabled: restInputProps.disabled,
-                    onclick: onDecrement,
+                    onclick: step(onDecrement),
                     tabindex: -1,
+                    onmousedown: keepFocus,
                 },
                 "−"
             ),
@@ -162,8 +175,9 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
                     type: "button",
                     class: "number-input-btn",
                     disabled: restInputProps.disabled,
-                    onclick: onIncrement,
+                    onclick: step(onIncrement),
                     tabindex: -1,
+                    onmousedown: keepFocus,
                 },
                 "+"
             )
@@ -214,6 +228,7 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
                 disabled: restInputProps.disabled,
                 onclick: onDecrement,
                 tabindex: -1,
+                onmousedown: keepFocus,
             },
             "−"
         ),
@@ -224,6 +239,7 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
                 disabled: restInputProps.disabled,
                 onclick: onIncrement,
                 tabindex: -1,
+                onmousedown: keepFocus,
             },
             "+"
         )

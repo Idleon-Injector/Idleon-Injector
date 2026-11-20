@@ -6,6 +6,7 @@ import { RefreshButton } from "../../../components/views/account/components/Acco
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 const { div, label, input, p, h3, span } = van.tags;
 
 function SushiToolsTab() {
@@ -32,6 +33,7 @@ function SushiToolsTab() {
             const config = await fetchConfig();
             const saved = config.cheatConfig.w7.sushitools;
             for (const [key, value] of Object.entries(settings)) value.val = saved[key];
+            savedDraft = JSON.stringify(Object.fromEntries(Object.keys(settings).map((key) => [key, saved[key]])));
             state.val = await command("status");
             settingsLoaded.val = true;
             enabled.val = state.val.enabled;
@@ -42,24 +44,25 @@ function SushiToolsTab() {
             pending.val = false;
         }
     }
-    async function saveSettings() {
+    // The settings as they'd be saved; throws a short reason for a value that can't be.
+    const readDraft = () => {
         const draft = Object.fromEntries(Object.entries(settings).map(([key, value]) => [key, value.val]));
-        for (const key of ["tier", "targetCount", "targetTier", "reserveSlots"]) {
-            if (String(draft[key]).trim() === "" || !Number.isInteger(Number(draft[key])))
-                throw new Error("Enter whole numbers for tiers, quantity and empty slots.");
-            draft[key] = Number(draft[key]);
+        const ranges = {
+            tier: ["purchase tier", 1, state.val.maxPurchaseTier],
+            targetTier: ["target tier", 1, state.val.maxTier + 1],
+            targetCount: ["target quantity", 1, 120],
+            reserveSlots: ["empty slots", 0, 119],
+        };
+        for (const [key, [name, min, max]] of Object.entries(ranges)) {
+            const value = Number(draft[key]);
+            if (String(draft[key]).trim() === "" || !Number.isInteger(value) || value < min || value > max)
+                throw new Error(`${name}: ${min} to ${max}`);
+            draft[key] = value;
         }
-        if (
-            draft.tier < 1 ||
-            draft.tier > state.val.maxPurchaseTier ||
-            draft.targetTier < 1 ||
-            draft.targetTier > state.val.maxTier + 1 ||
-            draft.targetCount < 1 ||
-            draft.targetCount > 120 ||
-            draft.reserveSlots < 0 ||
-            draft.reserveSlots > 119
-        )
-            throw new Error("Choose valid tiers, 1–120 target sushi and 0–119 empty slots.");
+        return draft;
+    };
+    let savedDraft = null;
+    async function saveSettings(draft = readDraft()) {
         const result = await updateSessionConfig({ cheatConfig: { w7: { sushitools: draft } } });
         // Saving rewrites all overrides, so read the complete current config first.
         const config = await fetchConfig();
@@ -68,9 +71,23 @@ function SushiToolsTab() {
             startupCheats: config.startupCheats,
             injectorConfig: config.injectorConfig,
         });
+        savedDraft = JSON.stringify(draft);
         if (result.message.includes("failed to apply in game"))
-            throw new Error("Settings saved, but could not apply in game. Reconnect and save again.");
+            throw new Error("saved, but not applied in game; reconnect");
     }
+    // The settings save on Enter, on leaving the section, or when a toggle changes.
+    const settingsSave = useAutoSave({
+        prepare: () => {
+            if (!settingsLoaded.val || enabled.val) return { unchanged: true };
+            const draft = readDraft();
+            return JSON.stringify(draft) === savedDraft ? { unchanged: true } : { write: () => saveSettings(draft) };
+        },
+        revert: () => {
+            if (!savedDraft) return;
+            const saved = JSON.parse(savedDraft);
+            for (const [key, value] of Object.entries(settings)) value.val = saved[key];
+        },
+    });
     async function command(action) {
         const response = await executeCheatAction("w7 sushitools" + (action ? " " + action : ""));
         return JSON.parse(response.message);
@@ -78,11 +95,7 @@ function SushiToolsTab() {
     async function run(action) {
         pending.val = true;
         try {
-            if (action === "save" || (action === "" && !enabled.val)) await saveSettings();
-            if (action === "save") {
-                feedback.val = "Settings saved.";
-                return;
-            }
+            if (action === "" && !enabled.val) await saveSettings();
             const result = await command(action);
             enabled.val = result.enabled;
             state.val = { ...state.val, error: null };
@@ -94,6 +107,8 @@ function SushiToolsTab() {
         }
     }
     const locked = () => enabled.val || pending.val || !settingsLoaded.val;
+    // Settings fields stay usable while they save, so a save never takes their focus away.
+    const settingsLocked = () => enabled.val || !settingsLoaded.val;
     const numberField = (title, value, min = 1) =>
         label(
             { class: "sushi-setting" },
@@ -104,7 +119,7 @@ function SushiToolsTab() {
                 min,
                 step: 1,
                 value,
-                disabled: locked,
+                disabled: settingsLocked,
                 oninput: (e) => {
                     value.val = e.target.value;
                 },
@@ -117,9 +132,10 @@ function SushiToolsTab() {
                 type: "checkbox",
                 role: "switch",
                 checked: value,
-                disabled: locked,
+                disabled: settingsLocked,
                 onchange: (e) => {
                     value.val = e.target.checked;
+                    void settingsSave.save();
                 },
             }),
             span({ class: "slider", "aria-hidden": "true" }),
@@ -134,7 +150,10 @@ function SushiToolsTab() {
                 rootClass: "sushi-automation-controls",
                 body: [
                     div(
-                        { class: "content-stack" },
+                        {
+                            class: () => `content-stack ${saveStateClass(settingsSave.status.val)}`,
+                            ...settingsSave.handlers,
+                        },
                         div(
                             { class: "sushi-settings-section" },
                             h3("PURCHASE"),
@@ -162,12 +181,8 @@ function SushiToolsTab() {
                     ),
                     div(
                         { class: "sushi-automation-footer" },
-                        p({ class: "sushi-setting__help" }, "Auto Play also saves these settings."),
-                        ActionButton({
-                            label: () => (pending.val ? "Working…" : "Save settings"),
-                            disabled: locked,
-                            onClick: () => run("save"),
-                        })
+                        p({ class: "sushi-setting__help" }, "Changes save as you make them. Auto Play saves them too."),
+                        SaveState({ ...settingsSave, className: "save-state--inline" })
                     ),
                 ],
             }),

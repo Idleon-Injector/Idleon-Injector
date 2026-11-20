@@ -328,9 +328,13 @@
     border-color: var(--c-border-strong);
 }
 
-.cogs-cog-stat-set-btn {
-    padding: 3px 8px;
-    font-size: 0.875rem;
+.cogs-cog-stat-row .save-state {
+    --save-state-bg: var(--c-panel-dim);
+}
+
+.cogs-cog-stat-row.is-save-failed .cogs-cog-stat-input,
+.cogs-tiny-editor.is-save-failed .cogs-cog-stat-input {
+    border-color: var(--c-warning);
 }
 
 .cogs-modal-footer {

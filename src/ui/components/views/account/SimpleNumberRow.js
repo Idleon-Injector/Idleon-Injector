@@ -32,6 +32,7 @@ export const SimpleNumberRow = ({ entry, valueState, renderExtraActions = null }
                 min,
                 max,
                 fallback: null,
+                strict: true,
             }),
         write: (nextValue) => writeVerified(entry.path, nextValue),
         renderInfo: () => {

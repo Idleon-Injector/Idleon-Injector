@@ -12,13 +12,13 @@ import {
     largeFormatter,
     largeParser,
     unwrapH,
-    useWriteStatus,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
-import { getNumberInputLiveRaw, NumberInput } from "../../../components/NumberInput.js";
+import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../../components/NumberInput.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 
@@ -58,7 +58,8 @@ const PrinterTab = () => {
     const isDirty = (state) => {
         state.dirty.val;
         const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
-        if (rawQty === String(state.baseline.qty)) {
+        // The field shows a rounded quantity ("16.2K"); left as shown, it is the saved quantity.
+        if (rawQty === String(state.baseline.qty) || rawQty === largeFormatter(state.baseline.qty)) {
             return state.item.val !== state.baseline.item;
         }
         const parsed = parseNumber(rawQty);
@@ -163,7 +164,7 @@ const PrinterTab = () => {
         if (!retainDraft) {
             state.baseline = { item, qty };
             state.item.val = item;
-            state.quantity.val = String(qty);
+            setNumberInputValue(state.quantity, String(qty));
             state.dirty.val++;
         }
     };
@@ -188,7 +189,15 @@ const PrinterTab = () => {
                             item: van.state("Blank"),
                             quantity: van.state("0"),
                             dirty: van.state(0),
-                            write: useWriteStatus({ errorMs: 0 }),
+                        });
+                        const created = rows.get(key);
+                        // The item and quantity save together on Enter or on leaving the row.
+                        created.write = useAutoSave({
+                            prepare: () => prepareSlot(created),
+                            revert: () => {
+                                updateRow(created, created.baseline.item, created.baseline.qty, true);
+                                created.syncOptions?.();
+                            },
                         });
                     }
                     const state = rows.get(key);
@@ -198,7 +207,6 @@ const PrinterTab = () => {
                         present ? values[location.index + 1] : 0,
                         resetDrafts
                     );
-                    if (resetDrafts) state.write.clearStatus();
                     if (state.syncOptions) state.syncOptions();
                 }
             }
@@ -233,53 +241,59 @@ const PrinterTab = () => {
         }
     };
 
-    const setSlot = async (state, clear = false) => {
-        if (cannotWrite()) return;
-        if (clear) {
-            const charName = snapshot.val?.names?.[state.character] ?? "character";
-            if (
-                !window.confirm(
-                    `${state.kind === "print" ? "Stop" : "Clear"} ${charName} ${state.kind} ${state.slot + 1}?`
-                )
-            )
-                return;
-        }
-        const item = clear ? "Blank" : state.item.val;
+    // A slot's save: nothing when the draft matches the game, the reason when it can't be saved.
+    const prepareSlot = (state) => {
+        if (cannotWrite() || !isDirty(state)) return { unchanged: true };
+        const item = state.item.val;
         const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
-        const isUnchangedQty = rawQty === String(state.baseline.qty);
         const parsed = Math.round(parseNumber(rawQty));
-        if (!clear && (!isAllowedItem(item, state) || !Number.isFinite(parsed) || parsed <= 0)) return;
-        const qty = clear
-            ? 0
-            : isUnchangedQty || parsed === Number(state.baseline.qty)
-              ? state.baseline.qty
-              : typeof state.baseline.qty === "string"
-                ? String(parsed)
-                : parsed;
+        if (!isAllowedItem(item, state)) throw new Error("pick an item");
+        if (!Number.isFinite(parsed)) throw new Error("not a number");
+        if (parsed <= 0) throw new Error("min 1");
+        const qty =
+            rawQty === String(state.baseline.qty) ||
+            rawQty === largeFormatter(state.baseline.qty) ||
+            parsed === Number(state.baseline.qty)
+                ? state.baseline.qty
+                : typeof state.baseline.qty === "string"
+                  ? String(parsed)
+                  : parsed;
+        return { write: () => writeSlot(state, item, qty) };
+    };
+
+    const clearSlot = (state) => {
+        if (cannotWrite()) return;
+        const charName = snapshot.val?.names?.[state.character] ?? "character";
+        if (
+            !window.confirm(`${state.kind === "print" ? "Stop" : "Clear"} ${charName} ${state.kind} ${state.slot + 1}?`)
+        )
+            return;
+        return state.write.run(() => writeSlot(state, "Blank", 0, true));
+    };
+
+    const writeSlot = async (state, item, qty, clear = false) => {
         busy.val = true;
         try {
-            await state.write.run(
-                async () => {
-                    const next = await readFresh();
-                    const cap = Math.round(
-                        (state.kind === "print" ? 1 : 4) + Number(next.gems[state.kind === "print" ? 111 : 112] ?? 0)
-                    );
-                    if (state.character >= next.unlocked) throw new Error("This character's Printer is locked.");
-                    if (!clear && (state.slot >= cap || !isAllowedItem(item, state, next))) {
-                        throw new Error("This slot or item is no longer available. Refresh and check the draft.");
-                    }
-                    const { array, index } = state.location;
-                    if (!(clear && next[array][index] === "Blank" && Number(next[array][index + 1]) === 0)) {
-                        await applyWrites([
-                            { path: `${array}[${index}]`, value: item },
-                            { path: `${array}[${index + 1}]`, value: qty },
-                        ]);
-                    }
-                    updateRow(state, item, qty, true);
-                    state.syncOptions();
-                },
-                { onError: (caughtError) => (error.val = caughtError.message) }
+            const next = await readFresh();
+            const cap = Math.round(
+                (state.kind === "print" ? 1 : 4) + Number(next.gems[state.kind === "print" ? 111 : 112] ?? 0)
             );
+            if (state.character >= next.unlocked) throw new Error("This character's Printer is locked.");
+            if (!clear && (state.slot >= cap || !isAllowedItem(item, state, next))) {
+                throw new Error("This slot or item is no longer available. Refresh and check the draft.");
+            }
+            const { array, index } = state.location;
+            if (!(clear && next[array][index] === "Blank" && Number(next[array][index + 1]) === 0)) {
+                await applyWrites([
+                    { path: `${array}[${index}]`, value: item },
+                    { path: `${array}[${index + 1}]`, value: qty },
+                ]);
+            }
+            updateRow(state, item, qty, true);
+            state.syncOptions();
+        } catch (caughtError) {
+            error.val = caughtError.message;
+            throw caughtError;
         } finally {
             busy.val = false;
         }
@@ -294,11 +308,12 @@ const PrinterTab = () => {
             );
             return state.slot >= kindCap;
         };
-        const unavailable = () => cannotWrite() || lockedCharacter();
+        // Fields and buttons stay enabled while a save runs (the save checks again), so they keep focus.
+        const uneditable = () => loading.val || Boolean(error.val) || !snapshot.val || lockedCharacter();
         const itemSelect = select({
             class: "select-base printer-item-select",
             "aria-label": `${name} ${slotName} item`,
-            disabled: () => unavailable() || lockedSlot(),
+            disabled: () => uneditable() || lockedSlot(),
             onchange: (event) => (state.item.val = event.target.value),
         });
         const reconcileOptions = createStaticRowReconciler(itemSelect);
@@ -318,9 +333,9 @@ const PrinterTab = () => {
         return div(
             { "data-printer-slot": `${state.kind}-${state.slot + 1}` },
             AccountRow({
-                rowClass: "printer-row account-row--wide-controls",
+                rowClass: () => `printer-row account-row--wide-controls ${saveStateClass(state.write.status.val)}`,
                 controlsClass: "account-row__controls--xl",
-                status: state.write.status,
+                rowProps: state.write.handlers,
                 info: div(
                     { class: "account-row__name-group" },
                     span(
@@ -344,6 +359,7 @@ const PrinterTab = () => {
                                 : "STORED"
                             : "EMPTY",
                 controls: [
+                    SaveState(state.write),
                     itemSelect,
                     NumberInput({
                         value: state.quantity,
@@ -351,41 +367,29 @@ const PrinterTab = () => {
                         formatter: largeFormatter,
                         parser: largeParser,
                         "aria-label": `${name} ${slotName} quantity`,
-                        disabled: () => unavailable() || lockedSlot(),
+                        disabled: () => uneditable() || lockedSlot(),
                         oninput: () => {
                             state.dirty.val++;
                         },
                         onDecrement: () => {
-                            if (unavailable() || lockedSlot()) return;
+                            if (uneditable() || lockedSlot()) return;
                             const raw = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
                             state.quantity.val = String(adjustFormattedIntInput(raw, -1, 0, { min: 0 }));
                             state.dirty.val++;
                         },
                         onIncrement: () => {
-                            if (unavailable() || lockedSlot()) return;
+                            if (uneditable() || lockedSlot()) return;
                             const raw = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
                             state.quantity.val = String(adjustFormattedIntInput(raw, 1, 0, { min: 0 }));
                             state.dirty.val++;
                         },
                     }),
                     ActionButton({
-                        label: "SET",
-                        status: state.write.status,
-                        disabled: () =>
-                            unavailable() ||
-                            !isDirty(state) ||
-                            lockedSlot() ||
-                            !isAllowedItem(state.item.val, state) ||
-                            !(Math.round(parseNumber(getNumberInputLiveRaw(state.quantity) ?? state.quantity.val)) > 0),
-                        onClick: () => setSlot(state),
-                    }),
-                    ActionButton({
                         label: state.kind === "print" ? "STOP" : "CLEAR",
-                        status: state.write.status,
                         variant: "danger",
                         disabled: () =>
-                            unavailable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),
-                        onClick: () => setSlot(state, true),
+                            uneditable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),
+                        onClick: () => clearSlot(state),
                     }),
                 ],
             })

@@ -69,7 +69,6 @@ const CapeVineTab = () => {
     const packVines = van.state(0);
     const goldenOwned = van.state(1);
     const busy = van.state(false);
-    const outOfRange = van.state(false);
     const addAll = useWriteStatus();
     const rowStates = new Map();
     const listNode = div({ class: "account-item-stack account-item-stack--dense" });
@@ -216,19 +215,14 @@ const CapeVineTab = () => {
             capes.val = eligible;
             packVines.val = Number(pack) === 1 ? 3 : 0;
             goldenOwned.val = 1 + milestones + packVines.val;
-            outOfRange.val = false;
             applyVine(vine);
         });
     };
 
-    let applyGolden = null;
     const goldenRow = EditableNumberRow({
         valueState: goldenOwned,
-        // Empty or unparseable input becomes 0, which is always below the minimum.
-        normalize: (raw) => resolveNumberInput(raw, { fallback: 0 }),
+        normalize: (raw) => resolveNumberInput(raw, { min: minGolden(), max: maxGolden(), strict: true }),
         write: async (next) => {
-            outOfRange.val = next < minGolden() || next > maxGolden();
-            if (outOfRange.val) return { cancelled: true };
             await writeVerified(MILESTONES_PATH, next - minGolden());
             return next;
         },
@@ -236,43 +230,15 @@ const CapeVineTab = () => {
             div(
                 { class: "account-row__name-group" },
                 span({ class: "account-row__name" }, "Golden Vines"),
-                // The range line turns into the error so the list below never shifts.
-                span(
-                    {
-                        class: () =>
-                            outOfRange.val ? "account-row__sub-label cape-vine-range--error" : "account-row__sub-label",
-                    },
-                    () => `${outOfRange.val ? "Must be " : ""}${minGolden()} to ${maxGolden()}`
-                ),
-                span({ class: "account-write-feedback", role: "alert" }, () =>
-                    outOfRange.val ? `Golden Vines must be ${minGolden()} to ${maxGolden()}.` : ""
-                )
+                span({ class: "account-row__sub-label" }, () => `${minGolden()} to ${maxGolden()}`)
             ),
         renderBadge: (owned) => `${owned} OWNED`,
         adjustInput: (raw, delta, current) =>
             Math.max(minGolden(), Math.min(maxGolden(), resolveNumberInput(raw, { fallback: current }) + delta)),
-        // ponytail: EditableNumberRow resets drafts on blur, so Enter is the keyboard path to SET.
-        renderExtraActions: ({ applyValue }) => {
-            applyGolden = applyValue;
-            return null;
-        },
         disabled: () => loading.val || Boolean(error.val),
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
-        inputProps: {
-            "aria-label": "Golden Vines",
-            onkeydown: (event) => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                const inputEl = event.target;
-                // Saving disables the input, which drops focus; return it once VanJS re-enables it.
-                void applyGolden().then(() =>
-                    setTimeout(() => {
-                        if (document.activeElement === document.body) inputEl.focus();
-                    })
-                );
-            },
-        },
+        inputProps: { "aria-label": "Golden Vines" },
     });
 
     load();

@@ -23,7 +23,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readGgaEntries } from "../../../services/api.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
@@ -89,7 +88,6 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
         name,
         renderBadge: (currentValue) => `LV ${currentValue} / ${maxLevelState.val}`,
         rowClass: () => (isExalted.val ? "stamp-row--exalted" : ""),
-        wrapApplyButton: (applyButton) => withTooltip(applyButton, "Set StampLevel and StampLevelMAX in game memory"),
         renderExtraActions: ({ status, run, applyValue }) => [
             ActionButton({
                 label: () => (isExalted.val ? "EXALTED ON" : "EXALTED OFF"),

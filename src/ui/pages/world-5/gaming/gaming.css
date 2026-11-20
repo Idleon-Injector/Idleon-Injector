@@ -107,6 +107,45 @@
     padding: 0 8px;
 }
 
+/* The save state shares the star's line: a mark while it goes well, the reason in its place when it fails. */
+.gaming-palette-hex__actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 24px;
+}
+
+/* On the hex's own colour, the save state takes the hex's text colour. */
+.gaming-palette-hex__actions .save-state .save-state__mark,
+.gaming-palette-hex__actions .save-state .save-state__label {
+    color: var(--hex-fg);
+}
+
+.gaming-palette-hex__actions .save-state:not(.save-state--error) .save-state__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/* A failure gives the reason the whole line; the field's warm border marks it. */
+.gaming-palette-hex__actions .save-state--error .save-state__mark {
+    display: none;
+}
+
+.gaming-palette-hex__actions .save-state--error .save-state__label {
+    max-width: 74px;
+    padding: 0;
+    font-size: 0.6875rem;
+    text-align: center;
+}
+
+.gaming-palette-hex.is-save-failed .gaming-palette-star-button {
+    display: none;
+}
+
 @media (max-width: 900px) {
     .gaming-palette-hex {
         flex-basis: 96px;

@@ -2,18 +2,19 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { getNumberInputLiveRaw, NumberInput } from "../../../components/NumberInput.js";
+import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../../components/NumberInput.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     resolveNumberInput,
+    joinClasses,
     toInt,
-    useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { SaveState, saveStateClass } from "../../../components/views/account/autoSave.js";
+import { useNumericEditor } from "../../../components/views/account/useNumericEditor.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { PaletteStarButton, usePaletteStars } from "./5-palette.js";
@@ -51,68 +52,40 @@ const sliceRows = (entries) => {
 };
 
 const PaletteHex = ({ entry, levelState, stars }) => {
-    const inputValue = van.state(String(levelState.val ?? 0));
-    const { status, run } = useWriteStatus();
-    let isInputFocused = false;
-
-    const syncInput = () => {
-        inputValue.val = String(levelState.val ?? 0);
-    };
-
-    van.derive(() => {
-        levelState.val;
-        if (!isInputFocused) syncInput();
+    const { inputValue, status, reason, handlers, focus, blur } = useNumericEditor({
+        valueState: levelState,
+        normalize: (raw) => resolveNumberInput(raw, { min: 0, fallback: null, strict: true }),
+        write: (nextLevel) => writeVerified(`${PALETTE_LEVELS_PATH}[${entry.index}]`, nextLevel),
+        format: (value) => String(value ?? 0),
     });
-
-    const applyValue = async () => {
-        const nextLevel = resolveNumberInput(getNumberInputLiveRaw(inputValue) ?? inputValue.val, {
-            min: 0,
-            fallback: null,
-        });
-        if (nextLevel === null || nextLevel === undefined || Number.isNaN(nextLevel)) return;
-
-        await run(async () => {
-            const verified = await writeVerified(`${PALETTE_LEVELS_PATH}[${entry.index}]`, nextLevel);
-            levelState.val = verified;
-            inputValue.val = String(verified);
-        });
+    const step = (delta) => () => {
+        const current = Number(getNumberInputLiveRaw(inputValue) ?? inputValue.val) || 0;
+        setNumberInputValue(inputValue, String(Math.max(0, current + delta)));
     };
 
     return div(
         {
-            class: "gaming-palette-hex",
+            class: () => joinClasses("gaming-palette-hex", saveStateClass(status.val)),
             role: "group",
             "aria-label": entry.name,
             style: `--hex-bg: rgb(${entry.rgb.join(", ")}); --hex-fg: ${getTextColor(entry.rgb)};`,
             title: `${entry.name} (${entry.rgb.join(", ")})`,
+            ...handlers,
         },
         div(
             { class: "gaming-palette-hex__editor" },
             NumberInput({
                 value: inputValue,
-                onfocus: () => {
-                    isInputFocused = true;
-                },
-                onblur: () => {
-                    isInputFocused = false;
-                    syncInput();
-                },
-                onDecrement: () => {
-                    inputValue.val = String(Math.max(0, Number(inputValue.val || levelState.val || 0) - 1));
-                },
-                onIncrement: () => {
-                    inputValue.val = String(Number(inputValue.val || levelState.val || 0) + 1);
-                },
+                onfocus: focus,
+                onblur: blur,
+                onDecrement: step(-1),
+                onIncrement: step(1),
             }),
-            ActionButton({
-                label: "SET",
-                status,
-                onClick: (e) => {
-                    e.preventDefault();
-                    void applyValue();
-                },
-            }),
-            PaletteStarButton({ stars, entry })
+            div(
+                { class: "gaming-palette-hex__actions" },
+                SaveState({ status, reason, className: "save-state--inline" }),
+                PaletteStarButton({ stars, entry })
+            )
         )
     );
 };

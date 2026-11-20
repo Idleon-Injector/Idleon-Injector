@@ -1,6 +1,6 @@
 import { useFieldEditor } from "./useFieldEditor.js";
 
-/** Own numeric drafts and commit only a writer's verified value or cancellation. */
+/** One numeric draft, saved on Enter or on leaving it; commits only a writer's verified value. */
 export const useNumericEditor = ({ valueState, normalize, write, format, disabled = null, onApplied = null }) => {
     const editor = useFieldEditor({
         fields: [{ key: "value", valueState, toDraft: format }],
@@ -19,6 +19,8 @@ export const useNumericEditor = ({ valueState, normalize, write, format, disable
     return {
         inputValue: editor.draftStates.value,
         status: editor.status,
+        reason: editor.reason,
+        handlers: editor.handlers,
         run: editor.run,
         isDisabled: editor.isDisabled,
         applyValue: async (rawValue) => {
@@ -26,10 +28,6 @@ export const useNumericEditor = ({ valueState, normalize, write, format, disable
             return outcome?.ok ? { ...outcome, result: outcome.result.value } : outcome;
         },
         focus: () => editor.setFieldFocused("value", true),
-        blur: () => {
-            editor.setFieldFocused("value", false);
-            editor.resetDraft("value");
-        },
-        statusMessage: editor.statusMessage,
+        blur: () => editor.setFieldFocused("value", false),
     };
 };

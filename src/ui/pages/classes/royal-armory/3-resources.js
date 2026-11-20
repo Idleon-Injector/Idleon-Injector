@@ -122,7 +122,6 @@ const NodeRow = ({ node, gradeState, depletedState }) => {
                 normalize: (raw) => resolveNumberInput(raw, { formatted: true, min: 0, fallback: null }),
                 rootClass: "resource-node-row__field",
                 labelClass: "resource-node-row__field-label",
-                inputClass: "resource-node-row__set",
             }),
             InlineEditableNumberField({
                 label: "COLLECTED",
@@ -132,7 +131,6 @@ const NodeRow = ({ node, gradeState, depletedState }) => {
                 normalize: (raw) => resolveNumberInput(raw, { formatted: true, float: true, min: -1, fallback: null }),
                 rootClass: "resource-node-row__field",
                 labelClass: "resource-node-row__field-label",
-                inputClass: "resource-node-row__set",
             }),
             ActionButton({
                 label: "FRESH",

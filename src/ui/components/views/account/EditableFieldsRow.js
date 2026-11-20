@@ -1,9 +1,9 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { NumberInput } from "../../NumberInput.js";
-import { adjustFormattedIntInput, largeFormatter, largeParser, toInt, toNodes } from "./accountShared.js";
+import { NumberInput, setNumberInputValue } from "../../NumberInput.js";
+import { adjustFormattedIntInput, joinClasses, largeFormatter, largeParser, toInt, toNodes } from "./accountShared.js";
+import { SaveState, saveStateClass } from "./autoSave.js";
 import { useFieldEditor } from "./useFieldEditor.js";
 import { AccountRow } from "./components/AccountRow.js";
-import { ActionButton } from "./components/ActionButton.js";
 
 const { div, span } = van.tags;
 
@@ -17,7 +17,7 @@ const defaultStackedAdjust = (field, rawValue, delta) => {
 };
 
 /** Shared staged numeric field for EditableFieldsRow controls. */
-export const StackedNumberField = ({ field, draftStates, getDraftValue = null, setFieldFocused, resetDraft }) => {
+export const StackedNumberField = ({ field, draftStates, getDraftValue = null, setFieldFocused }) => {
     const inputProps = field.inputProps ?? {};
     const formatter = field.formatter ?? (field.formatted ? largeFormatter : undefined);
     const parser = field.parser ?? (field.formatted ? largeParser : undefined);
@@ -39,22 +39,25 @@ export const StackedNumberField = ({ field, draftStates, getDraftValue = null, s
             },
             onblur: () => {
                 setFieldFocused(field.key, false);
-                resetDraft(field.key);
                 if (typeof inputProps.onblur === "function") inputProps.onblur();
             },
             onDecrement: () => {
-                draftStates[field.key].val = String(defaultStackedAdjust(field, getRawDraft(), -1));
+                setNumberInputValue(draftStates[field.key], String(defaultStackedAdjust(field, getRawDraft(), -1)));
                 if (typeof inputProps.onDecrement === "function") inputProps.onDecrement();
             },
             onIncrement: () => {
-                draftStates[field.key].val = String(defaultStackedAdjust(field, getRawDraft(), 1));
+                setNumberInputValue(draftStates[field.key], String(defaultStackedAdjust(field, getRawDraft(), 1)));
                 if (typeof inputProps.onIncrement === "function") inputProps.onIncrement();
             },
         })
     );
 };
 
-/** Shared editable row primitive for rows that stage multiple draft fields before applying them in one write. */
+/**
+ * Shared editable row for fields that save together: one write with every field's value when you press
+ * Enter or leave the row's fields (moving between them keeps editing), −/+ save at once, Escape puts the
+ * stored values back.
+ */
 export const EditableFieldsRow = ({
     fields,
     normalize,
@@ -66,41 +69,21 @@ export const EditableFieldsRow = ({
     controlsClass = "",
     renderControls,
     renderExtraActions = null,
-    applyLabel = "SET",
-    applyTooltip = null,
-    applyVariant = "apply",
-    applyClassName = "",
 }) => {
     const editor = useFieldEditor({ fields, normalize, write });
-    const { status, applyValue, isDisabled, statusMessage } = editor;
-
-    const applyButton = ActionButton({
-        label: applyLabel,
-        status,
-        disabled: isDisabled,
-        variant: applyVariant,
-        className: applyClassName,
-        tooltip: applyTooltip,
-        onClick: (e) => {
-            e.preventDefault();
-            void applyValue();
-        },
-    });
-
-    const extraActions = typeof renderExtraActions === "function" ? toNodes(renderExtraActions(editor)) : [];
+    const { status, reason, handlers } = editor;
+    // The row's buttons stay enabled while it saves, so Tab onto one never loses focus (a save during a save
+    // runs after it); the save state beside the fields shows how it went.
+    const actions = { ...editor, status: null };
+    const extraActions = typeof renderExtraActions === "function" ? toNodes(renderExtraActions(actions)) : [];
 
     return AccountRow({
-        status,
         info,
         badge,
-        rowClass,
+        rowClass: () => joinClasses(typeof rowClass === "function" ? rowClass() : rowClass, saveStateClass(status.val)),
         badgeClass,
         controlsClass,
-        controls: [
-            ...toNodes(renderControls(editor)),
-            applyButton,
-            ...extraActions,
-            span({ class: "account-write-feedback", role: "status" }, statusMessage),
-        ],
+        rowProps: handlers,
+        controls: [SaveState({ status, reason }), ...toNodes(renderControls(actions)), ...extraActions],
     });
 };

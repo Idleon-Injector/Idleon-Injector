@@ -10,7 +10,6 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { BulkActionBar, SetAllSelectControl } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -22,6 +21,7 @@ import {
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 
 const { div, span, select, option } = van.tags;
 
@@ -41,7 +41,20 @@ const getTierInfo = (value) => SIGIL_TIERS.find((tier) => tier.value === Number(
 const SigilCard = ({ index, tierState, nameState }) => {
     const tierInput = van.state(String(tierState.val));
     const isFocused = van.state(false);
-    const { status, run } = useWriteStatus();
+    // Picking a tier saves it.
+    const { status, reason, save, handlers } = useAutoSave({
+        prepare: () => {
+            const tier = Math.min(4, Math.max(-1, Math.round(Number(tierInput.val))));
+            if (tier === Number(tierState.val)) return { unchanged: true };
+            return {
+                write: async () => {
+                    await writeVerified(`CauldronP2W[4][${2 * index + 1}]`, tier);
+                    tierState.val = tier;
+                },
+            };
+        },
+        revert: () => (tierInput.val = String(tierState.val)),
+    });
 
     van.derive(() => {
         const nextValue = String(tierState.val);
@@ -50,29 +63,11 @@ const SigilCard = ({ index, tierState, nameState }) => {
         }
     });
 
-    const doSet = async () => {
-        const tier = Math.min(4, Math.max(-1, Math.round(Number(tierInput.val))));
-        if (Number.isNaN(tier)) return;
-
-        await run(async () => {
-            const path = `CauldronP2W[4][${2 * index + 1}]`;
-            await writeVerified(path, tier);
-            tierState.val = tier;
-        });
-    };
-
     return div(
         {
             class: () => {
                 const tier = getTierInfo(tierState.val);
-                return [
-                    "tier-card",
-                    `sigil-card--${tier.cls}`,
-                    status.val === "success" ? "account-row--success" : "",
-                    status.val === "error" ? "account-row--error" : "",
-                ]
-                    .filter(Boolean)
-                    .join(" ");
+                return ["tier-card", `sigil-card--${tier.cls}`, saveStateClass(status.val)].filter(Boolean).join(" ");
             },
         },
         div(
@@ -82,6 +77,7 @@ const SigilCard = ({ index, tierState, nameState }) => {
                 span({ class: "tier-card__index" }, `#${index}`),
                 span({ class: "tier-card__name" }, () => nameState.val)
             ),
+            SaveState({ status, reason }),
             span(
                 { class: () => `tier-card__badge sigil-tier-badge--${getTierInfo(tierState.val).cls}` },
                 () => getTierInfo(tierState.val).label
@@ -95,23 +91,17 @@ const SigilCard = ({ index, tierState, nameState }) => {
                 },
                 onblur: () => {
                     isFocused.val = false;
-                    tierInput.val = String(tierState.val);
                 },
-                onchange: (e) => (tierInput.val = e.target.value),
+                onkeydown: handlers.onkeydown,
+                onchange: (e) => {
+                    tierInput.val = e.target.value;
+                    void save();
+                },
             },
             ...SIGIL_TIERS.map((tier) =>
                 option({ value: tier.value, selected: () => Number(tierInput.val) === tier.value }, tier.label)
             )
-        ),
-        ActionButton({
-            label: "SET",
-            status,
-            className: "tier-card__set-btn",
-            onClick: async (e) => {
-                e.preventDefault();
-                await doSet();
-            },
-        })
+        )
     );
 };
 
