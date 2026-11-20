@@ -46,11 +46,8 @@ const AnvilRow = ({ category, valueState, onWriteApplied }) =>
             await onWriteApplied();
             return verified;
         },
-        renderInfo: () => [
-            span({ class: "account-row__name" }, category.label),
-            category.max !== null ? span({ class: "account-row__index" }, `max ${category.max}`) : null,
-        ],
-        renderBadge: category.max !== null ? (currentValue) => `${currentValue ?? 0} / ${category.max}` : null,
+        renderInfo: () => [span({ class: "account-row__name" }, category.label)],
+        cap: category.max,
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
