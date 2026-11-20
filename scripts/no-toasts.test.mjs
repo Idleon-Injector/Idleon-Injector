@@ -320,3 +320,18 @@ test("a save queued before the question was asked can't answer it; only an Enter
     await endRead();
     assert.deepEqual(written, [0], "an Enter after the question answers it");
 });
+
+test("an Enter that confirms IME input doesn't answer a typed question", async () => {
+    const { askAtField } = await importRepo("src/ui/components/inPlace.js");
+    const field = globalThis.document.createElement("input");
+    const ask = askAtField(() => field);
+    const asks = (error) => error.askAgain === true;
+    globalThis.document.activeElement = field;
+    assert.throws(() => ask("lock Big Brain Time."), asks);
+    field.listeners.keydown({ key: "Enter", isComposing: true });
+    field.listeners.keydown({ key: "Enter", keyCode: 229 });
+    assert.throws(() => ask("lock Big Brain Time."), asks, "a composition Enter doesn't answer");
+    field.listeners.keydown({ key: "Enter" });
+    assert.equal(ask("lock Big Brain Time."), true, "a plain Enter after the question does");
+    globalThis.document.activeElement = null;
+});

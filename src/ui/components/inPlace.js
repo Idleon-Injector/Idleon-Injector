@@ -169,9 +169,10 @@ export const askAtField = (field, ms = 10000) => {
         if (!askedAt.contains(e.relatedTarget)) forget();
     };
     // Only an Enter pressed after the question answers it: a save queued before it (the player left and came
-    // back while the first save read the game) can't. A held Enter's repeats don't count.
+    // back while the first save read the game) can't. A held Enter's repeats don't count, nor does an Enter that
+    // confirms IME input.
     const enter = (e) => {
-        if (e.key === "Enter" && !e.repeat) entered = true;
+        if (e.key === "Enter" && !e.repeat && !e.isComposing && e.keyCode !== 229) entered = true;
     };
     return (question) => {
         const el = field();
