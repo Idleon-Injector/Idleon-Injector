@@ -37,6 +37,7 @@ async function until(check, what) {
 const click = (button) => button.listeners.click({ preventDefault() {}, stopPropagation() {}, currentTarget: button });
 
 // holdNext(matches): the next request `matches` picks waits until its `release()`; `reached` says it was sent.
+// `release(response)` answers it with that response instead of sending it.
 let held = null;
 const holdNext = (matches) => {
     let release;
@@ -50,7 +51,8 @@ globalThis.fetch = async (url, options = {}) => {
     if (hold?.matches(url, options.body ? JSON.parse(options.body) : {})) {
         held = null;
         hold.reached = true;
-        await hold.gate;
+        const answer = await hold.gate;
+        if (answer) return answer;
     }
     return send(url, options);
 };
@@ -420,5 +422,57 @@ test("islands: Refresh waits for a bulk action, and the bulk actions wait for a 
     } finally {
         held = null;
         game.gga.OptionsListAccount[169] = unlocks;
+    }
+});
+
+// A Set all the game refused in part reads the values again, so the rows show what landed.
+test("islands: a Set all the game refused in part shows the values the game holds", async () => {
+    const options = game.gga.OptionsListAccount;
+    options[163] = 3;
+    Object.defineProperty(options, 164, { get: () => 5, set() {}, configurable: true });
+    try {
+        const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+        const isBadge = (node) => /account-row__badge/.test(node.attributes.class ?? "");
+        // The value on the row named `name`: the innermost element that starts with the name and holds a badge.
+        const badge = (name) => {
+            const row = elements(root)
+                .filter((node) => text(node).startsWith(name) && elements(node).some(isBadge))
+                .at(-1);
+            return row ? text(elements(row).find(isBadge)) : "";
+        };
+        const setAll = () => buttonsNamed(root, "Set all").filter((node) => !node.attributes.disabled);
+        await until(() => setAll().length === 3 && badge("% Garbage") === "3", "Islands");
+        await click(setAll()[0]);
+        await until(() => options[163] === 200, "the first value to land");
+        await until(() => badge("% Garbage") === "200", "the row to show what the game holds");
+    } finally {
+        Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
+        options[163] = 0;
+    }
+});
+
+// A Refresh that failed leaves values the game may have changed since; the bulk actions wait for a read that works.
+test("islands: the bulk actions wait while the page shows a failed read", async () => {
+    const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+    const named = (label) => buttonsNamed(root, label);
+    const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
+    await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
+    try {
+        const read = holdNext((url) => url.endsWith("/game/gga/read-entries"));
+        const refreshed = named("Refresh")[0].listeners.click({});
+        await until(() => read.reached, "the Refresh read to be sent");
+        read.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));
+        await refreshed;
+        await until(
+            () => bulk().every((node) => node.attributes.disabled),
+            "the bulk actions to wait after the failed read"
+        );
+        await named("Refresh")[0].listeners.click({});
+        await until(
+            () => bulk().every((node) => !node.attributes.disabled),
+            "the bulk actions after a read that worked"
+        );
+    } finally {
+        held = null;
     }
 });

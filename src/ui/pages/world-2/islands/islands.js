@@ -115,6 +115,8 @@ const IslandsTab = () => {
 
     const getValueState = (index) => getOrCreateState(valueStates, index);
     // A bulk action waits for a read, and Refresh for a bulk action, so an older read can't land over a newer write.
+    // After a failed read the values shown may be old, so the bulk actions wait for one that works.
+    const readPending = () => loading.val || Boolean(error.val);
     const bulkRunning = () =>
         [unlockBulk, garbageBulk, randoBulk, shimmerBulk].some(({ status }) => status.val === "loading");
 
@@ -143,7 +145,7 @@ const IslandsTab = () => {
         const target = resolveNumberInput(inputState.val, { min: 0, fallback: null });
         if (target === null) return;
 
-        await status.run(() =>
+        const result = await status.run(() =>
             runBulkSet({
                 entries: fields,
                 getTargetValue: () => target,
@@ -151,6 +153,8 @@ const IslandsTab = () => {
                 getPath: (field) => `OptionsListAccount[${field.index}]`,
             })
         );
+        // Some of it may have landed: the rows show what the game holds.
+        if (!result.ok && !result.cancelled) await load();
     };
 
     load();
@@ -164,7 +168,7 @@ const IslandsTab = () => {
                     {
                         label: "Unlock all",
                         status: unlockBulk.status,
-                        disabled: () => loading.val,
+                        disabled: readPending,
                         tooltip: "Write the canonical unlock string abcde_",
                         onClick: () => unlockBulk.run(() => writeUnlocks(CANONICAL_UNLOCK_ORDER, { batch: true })),
                     },
@@ -172,7 +176,7 @@ const IslandsTab = () => {
                         label: "Lock all",
                         variant: "danger",
                         status: unlockBulk.status,
-                        disabled: () => loading.val,
+                        disabled: readPending,
                         tooltip: "Clear every island unlock",
                         // It removes, so it asks in place first (#25).
                         confirm: "lock every island.",
@@ -200,7 +204,7 @@ const IslandsTab = () => {
                     label: "Set all",
                     value: garbageSetAll,
                     status: garbageBulk.status,
-                    disabled: () => loading.val,
+                    disabled: readPending,
                     onApply: () => setAll(GARBAGE_FIELDS, garbageSetAll, garbageBulk),
                 })
             ),
@@ -231,7 +235,7 @@ const IslandsTab = () => {
                     label: "Set all",
                     value: randoSetAll,
                     status: randoBulk.status,
-                    disabled: () => loading.val,
+                    disabled: readPending,
                     onApply: () => setAll(RANDO_FIELDS, randoSetAll, randoBulk),
                 })
             ),
@@ -248,7 +252,7 @@ const IslandsTab = () => {
                     label: "Set upgrades",
                     value: shimmerSetAll,
                     status: shimmerBulk.status,
-                    disabled: () => loading.val,
+                    disabled: readPending,
                     onApply: () => setAll(SHIMMER_FIELDS, shimmerSetAll, shimmerBulk),
                 })
             ),
