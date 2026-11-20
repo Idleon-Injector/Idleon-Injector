@@ -1822,3 +1822,30 @@ test("local review: Shops' Enable all stays available while Shops runs but isn't
     await until(() => !saved().some(({ on }) => on), "everything off");
     await ui.switchAutomation("automation shops", false);
 });
+
+// CodeRabbit's last look at #105.
+test("final: a pick the game applied before its save failed shows applied, and a later save keeps it", async () => {
+    const picks = await freshPicks();
+    const apply = game.page.updateCheatConfig;
+    game.page.updateCheatConfig = (config) => {
+        game.page.updateCheatConfig = apply; // only this once
+        apply(config); // the game applies it, then its answer fails
+        throw new Error("the answer was lost");
+    };
+    await assert.rejects(picks.set("1:item6", { on: true }), /lost/);
+    try {
+        assert.ok(
+            (await gameShops()).some(({ id, on }) => id === "1:item6" && on),
+            "the game runs it"
+        );
+        assert.equal(picks.get("1:item6").on.val, true, "so the row shows it on, as the game read back");
+        await picks.set("0:item1", { stopAt: 4 });
+        assert.ok(
+            saved().some(({ id, on }) => id === "1:item6" && on),
+            "and a later save doesn't switch it back off"
+        );
+    } finally {
+        await picks.set("0:item1", { stopAt: null });
+        await picks.set("1:item6", { on: false });
+    }
+});

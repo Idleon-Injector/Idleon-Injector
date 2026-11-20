@@ -340,11 +340,13 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
             // what the game holds; if that read fails, the accepted list stands.
             for (const edit of mine) queued.splice(queued.indexOf(edit), 1);
             const before = accepted;
-            const held = (await fetchConfig().catch(() => null))?.cheatConfig.automation[group];
+            const read = await fetchConfig().catch(() => null);
+            const held = read?.cheatConfig.automation[group];
             if (held) sync(held);
-            // A refused edit stays refused: the server takes an edit before the game does, so with the game out of
-            // reach the read is the server's copy, which has it.
-            if (held && before !== next)
+            // A read of the game is the truth, even after a failed save (the game may have applied it before its
+            // answer failed). A read that couldn't reach the game is the server's copy, which takes an edit before
+            // the game does: there a refused edit stays refused.
+            if (held && before !== next && !read.gameRead)
                 for (const [id] of patches) before.has(id) ? accepted.set(id, before.get(id)) : accepted.delete(id);
             show();
             // The game runs an item this save switched on: the automation goes on with it, in this same step, so a
