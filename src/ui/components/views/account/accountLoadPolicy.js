@@ -1,5 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { changesVersion, currentPlace, reloadPlace } from "../../../services/changeLog.js";
+import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
 
 /**
  * Shared account-page load helpers.
@@ -14,35 +14,31 @@ import { changesVersion, currentPlace, reloadPlace } from "../../../services/cha
  * Hook that owns account-page load state and runs a load task with standard
  * loading/error transitions and page-level logging.
  *
- * @param {{ label?: string, fallbackMessage?: string }} [opts]
+ * Loads run one after another, so the newest one answers last and its values stay. `busy()` (reactive) says a page
+ * write is running, such as a bulk action: a reload waits for it.
+ *
+ * @param {{ label?: string, fallbackMessage?: string, busy?: () => boolean }} [opts]
  * @returns {{
  *   loading: import('../../../vendor/van-1.6.0.js').State<boolean>,
  *   error: import('../../../vendor/van-1.6.0.js').State<string|null>,
  *   run: (task: () => Promise<any>) => Promise<any|undefined>,
+ *   reload: () => void,
+ *   pending: import('../../../vendor/van-1.6.0.js').State<boolean>,
  * }}
  */
-export const useAccountLoad = ({ label = "Account page", fallbackMessage } = {}) => {
+export const useAccountLoad = ({ label = "Account page", fallbackMessage, busy = () => false } = {}) => {
     const loading = van.state(true);
     const error = van.state(null);
     // A page mounts while it is open, so this is the page it loads for.
     const place = currentPlace();
     let lastTask = null;
+    let queue = Promise.resolve();
+    let queued = 0;
 
-    const run = async (task) => {
-        lastTask = task;
-        loading.val = true;
+    const load = async (task) => {
         error.val = null;
         try {
-            // A save that landed while this load ran may have been read before it landed: read again.
-            // ponytail: at most three reads; a page saved into nonstop would show the third read.
-            let result;
-            let saves;
-            let reads = 0;
-            do {
-                saves = changesVersion.rawVal;
-                result = await task();
-            } while (changesVersion.rawVal !== saves && ++reads < 3);
-            return result;
+            return await task();
         } catch (caughtError) {
             console.error(`[account-load] ${label} load failed:`, caughtError);
 
@@ -64,22 +60,48 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage } = {})
                 error.val = fallback;
             }
             return undefined;
-        } finally {
-            loading.val = false;
         }
     };
 
-    // An undo made elsewhere (History, or a bulk Undo all) changed values this page shows: read them again.
-    // One asked for while a load runs waits for it to end, as that load may have read the values before the undo.
+    // Loads run in turn. ponytail: a load task must not wait for another load of its page, which would wait for it.
+    const run = (task) => {
+        lastTask = task;
+        queued++;
+        loading.val = true;
+        // After a load that failed in a way `load` didn't catch too, so one such failure can't stop every later load.
+        queue = queue
+            .then(
+                () => load(task),
+                () => load(task)
+            )
+            .finally(() => {
+                if (--queued === 0) loading.val = false;
+            });
+        return queue;
+    };
+
+    // An undo made elsewhere (History, or a bulk Undo all) changed values this page shows: read them again. So does
+    // `reload()`, which a page asks for after a write that landed in part. A reload waits for the page's writes still
+    // running (`busy`), so it reads after they landed, and a load still running, as loads run in turn. `pending` is true
+    // until it starts, so the page can hold actions that would use the values it shows.
     // ponytail: re-runs the page's last load; a load must only read, which is how every page loads today.
     let handled = reloadPlace.rawVal;
+    const pending = van.state(false);
     van.derive(() => {
         const target = reloadPlace.val;
-        const busy = loading.val;
-        if (!target || target === handled || !lastTask || busy) return;
+        if (!target || target === handled) return;
         handled = target;
-        if (target.view === place.view && target.page === place.page) void run(lastTask);
+        if (target.view === place.view && target.page === place.page) pending.val = true;
+    });
+    // Started from a microtask: a derive that sets a state it reads stops listening to it (VanJS).
+    const start = () => {
+        if (!pending.rawVal || busy() || !lastTask) return;
+        pending.val = false;
+        void run(lastTask);
+    };
+    van.derive(() => {
+        if (pending.val && !busy()) queueMicrotask(start);
     });
 
-    return { loading, error, run };
+    return { loading, error, run, reload: () => (pending.val = true), pending };
 };

@@ -9,7 +9,8 @@ function setupConfigRoutes(app, gameBridge, config) {
 
     app.get("/api/config", async (req, res) => {
         // Settings changed in the game (like its in-game console) show up here and are kept by the next save.
-        await pullGameConfig(gameBridge, cheatConfig);
+        // `gameRead` says whether they did: without it, cheatConfig is only the injector's copy.
+        const gameRead = await pullGameConfig(gameBridge, cheatConfig);
         try {
             const serializableCheatConfig = prepareConfigForJson(cheatConfig);
 
@@ -23,6 +24,7 @@ function setupConfigRoutes(app, gameBridge, config) {
                 cheatConfig: serializableCheatConfig,
                 injectorConfig: injectorConfig,
                 defaultConfig: serializableDefaultConfig,
+                gameRead,
             };
             res.json(fullConfigResponse);
         } catch (error) {

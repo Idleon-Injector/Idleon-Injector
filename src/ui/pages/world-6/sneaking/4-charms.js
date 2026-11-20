@@ -45,6 +45,7 @@ const CharmRow = ({ entry, unlockedState }) => {
             words: ["Unlocked", "Locked"],
             name: entry.name,
             title: "Charm unlock",
+            status, // nothing else on the row reads out saving and saved
             onFlip: writeToggle,
         }),
     });

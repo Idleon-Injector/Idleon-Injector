@@ -27,7 +27,11 @@ const OmniJadeTab = () => {
     const dailyLevels = van.state(null);
     const states = new Map();
     const state = (path) => getOrCreateState(states, path);
-    const disabled = () => loading.val || saving.val;
+    // Fields and switches stay usable while a save runs (and while it reads the game again after); only a load of the
+    // page itself, or a failed one, holds them.
+    const disabled = () => loading.val && !saving.val;
+    // A write asked for while another runs waits its turn, then reads the game again.
+    const inTurn = oneAtATime();
     const list = div({ class: "account-item-stack" });
     const reconcileRows = createStaticRowReconciler(list);
 
@@ -69,6 +73,7 @@ const OmniJadeTab = () => {
                             write: (next) => save(() => writeVerified(path, next)),
                             renderInfo: () => span({ class: "account-row__name" }, `${name} bonus levels`),
                             adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
+                            disabled,
                             rowClass: "account-row--wide-controls",
                             controlsClass: "account-row__controls--xl",
                             inputProps: { "aria-label": `${name} bonus levels` },
@@ -78,8 +83,6 @@ const OmniJadeTab = () => {
             );
         });
 
-    // Saves wait their turn, so the fields stay usable while one runs; each reads the game again after it.
-    const inTurn = oneAtATime();
     const save = (task) =>
         inTurn(async () => {
             saving.val = true;
@@ -105,7 +108,8 @@ const OmniJadeTab = () => {
                 checked: () => state(path).val >= 1,
                 words: ["On", "Off"],
                 name,
-                // Enabled while a save runs, like the fields: a flip waits its turn.
+                disabled,
+                status, // nothing else on the row reads out saving and saved
                 onFlip: (on) => write(() => save(() => writeVerified(path, on ? 1 : 0))),
             }),
         });
@@ -124,7 +128,7 @@ const OmniJadeTab = () => {
         title: "OMNI JADE",
         description: () =>
             `Daily bonus levels per selected Sneaking upgrade: ${dailyLevels.val === null ? "…" : `+${dailyLevels.val}`}. Purchase costs stay the same.`,
-        actions: RefreshButton({ onRefresh: load, disabled }),
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
         state: { loading, error },
         loadingText: "READING OMNI JADE",
         errorTitle: "OMNI JADE READ FAILED",
