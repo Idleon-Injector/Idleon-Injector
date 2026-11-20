@@ -178,15 +178,18 @@ const LibraryTab = () => {
         const cap = toNum(maxBookLvState.val, 0);
         if (!currentAvailableTalentIds.length || cap <= 0) return;
 
+        // The character the rows were read for: the game checks it again as it writes.
+        const character = loadedCharacter;
         await runBulk(async () => {
             try {
-                await checkCharacter();
+                await checkCharacter(character);
             } catch (caughtError) {
                 // The page shows who is in play now.
                 await load();
                 throw caughtError;
             }
             await runBulkSet({
+                character,
                 entries: currentAvailableTalentIds,
                 getTargetValue: () => cap,
                 getValueState: (talentId) => getMaxState(talentId),

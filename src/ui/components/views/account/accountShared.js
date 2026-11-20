@@ -287,9 +287,11 @@ const toWriteEntries = (writeOrWrites) => {
  * @param {function} [opts.getWrites]
  * @param {function} [opts.shouldWrite]
  * @param {function} [opts.applyLocal]
+ * @param {string} [opts.character] - when set, the game writes only while this character is in play
  * @returns {Promise<void>}
  */
 export const runBulkSet = async ({
+    character,
     entries,
     getTargetValue,
     getValueState,
@@ -317,7 +319,7 @@ export const runBulkSet = async ({
         writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
     });
 
-    await writeManyVerified(writes);
+    await writeManyVerified(writes, { character });
 
     resolvedEntries.forEach((entry, index) => {
         const targetValue = targets[index];

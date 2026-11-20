@@ -499,6 +499,33 @@ test("Library: a save queued behind another keeps to the character it was entere
     gga.SkillLevelsMAX = mainBooks;
 });
 
+// Review of #116, third round: Max books checked the character, then wrote to whoever was in play when the game wrote.
+test("Library: a switch while Max books writes leaves the new character's books alone", async () => {
+    gga.UserInfo[0] = "Lumi_Main";
+    const { root } = await openLibrary();
+    const mainBooks = structuredClone(gga.SkillLevelsMAX);
+    const hold = holdWrites();
+    let altBooks;
+    try {
+        const maxBooks = buttonIn(root, "Max books");
+        click(maxBooks);
+        await until(() => hold.held() === 1, "Max books to reach the game");
+        gga.UserInfo[0] = "Lumi_Alt";
+        gga.SkillLevelsMAX = mainBooks.map((level) => (level > 0 ? 1 : level));
+        altBooks = structuredClone(gga.SkillLevelsMAX);
+        await quietly(async () => {
+            hold.release();
+            await until(() => settledButton(maxBooks), "Max books to finish");
+        });
+        assert.match(classes(maxBooks), /account-btn--error/);
+        assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
+    } finally {
+        hold.release();
+        gga.UserInfo[0] = "Lumi_Main";
+        gga.SkillLevelsMAX = mainBooks;
+    }
+});
+
 test("Buildings: a level save the game doesn't take leaves the level and its pending copy as they were", async () => {
     gga.TowerInfo[0] = 3;
     gga.TowerInfo[27] = 3;
