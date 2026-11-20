@@ -194,6 +194,34 @@ test("an undo refused because the value moved shows what the game holds now", as
     assert.match(text(byClass(row, "account-row__badge")[0]), /\b50\b/);
 });
 
+// CodeRabbit on #106: a field left focused through that reload kept its old value as if typed, and leaving it saved
+// that value over the game's.
+test("a field focused through a refused undo's reload, then left untouched, saves nothing", async () => {
+    ola[253] = 100;
+    const root = await openPage(OWL, rowLoaded(FEATHERS));
+    const row = findRow(root, FEATHERS);
+    const other = findRow(root, "Feathers");
+    const [input] = elements(other).filter((node) => node.nodeName === "input");
+    await saveRow(row, 47);
+    ola[254] = 50; // the game moved on
+    ola[253] = 120;
+
+    input.listeners.focus({ target: input });
+    await clickUndo(row);
+    await until(() => /\b120\b/.test(text(byClass(other, "account-row__badge")[0])), "the reload to show 120");
+    const asked = requests.length;
+    input.listeners.blur({ target: input, relatedTarget: null });
+    other.listeners.focusout({ target: input, currentTarget: other, relatedTarget: null });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(ola[253], 120, "the game's value stays");
+    assert.deepEqual(
+        requests.slice(asked).filter((entry) => entry.includes("/write")),
+        [],
+        "nothing saved"
+    );
+    assert.equal(input.value, "120", "the field shows the game's value");
+});
+
 test("an undo the game doesn't keep says so and stays in the log", async () => {
     const root = await openPage(OWL, rowLoaded(FEATHERS));
     const row = findRow(root, FEATHERS);

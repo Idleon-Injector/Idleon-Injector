@@ -246,6 +246,30 @@ test("a row with several fields saves them together, once, when you leave the ro
     assert.equal(game.gga.Cooking[0][7], 32);
 });
 
+// CodeRabbit on #106: taking back the reason put the stored value back in the corrected field, so it never saved.
+test("a refused draft fixed before moving to the row's next field keeps the fix and saves it", async () => {
+    const kitchenRow = (root) => findRow(root, "Kitchen 2");
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js", (node) => Boolean(kitchenRow(node)));
+    const row = kitchenRow(root);
+    const [speed, fire] = inputs(row);
+    focus(speed);
+    type(speed, "");
+    leave(row, speed, fire);
+    focus(fire);
+    await tick();
+    assert.equal(words(row), "enter a number");
+    leave(row, fire, speed);
+    focus(speed);
+    type(speed, 41);
+    leave(row, speed, fire);
+    focus(fire);
+    await tick();
+    assert.equal(stateOf(row), null, "the reason goes once it fits");
+    assert.equal(String(speed.attributes.value), "41", "the fix stays");
+    leave(row, fire);
+    await until(() => game.gga.Cooking[1][6] === 41, "the fix to save");
+});
+
 test("passing through a field that shows a rounded value keeps the exact value", async () => {
     ola[253] = 1234567;
     const root = await openPage(OWL, rowLoaded("Feathers"));
