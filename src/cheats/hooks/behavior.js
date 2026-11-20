@@ -4,12 +4,13 @@
  * - randomFloatBetween, randomInt, randomFloat: RNG manipulation, and the max VIP book
  * - runLater: instant divine intervention
  * - runPeriodically: instant bubo poison
- * - createRecycledActor: no damage text
+ * - createRecycledActor: no damage text; the "+n" popup of a bubble raised by automation bubbles
  */
 
 import { cheatState } from "../core/state.js";
 import { behavior, gga } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
+import { noteBubblePopup } from "../helpers/automation/bubbles.js";
 
 // Around: a forced roll replaces the game's random number, so the game's roll must not run.
 defineHook(
@@ -93,3 +94,9 @@ defineHook(
         return callOriginal();
     }
 );
+
+// A bubble upgrade spawns its "+n" popup at the menu panel's spot even with the menu closed; the automation takes it away.
+defineHook({ id: "automation.bubbles", target: () => behavior, method: "createRecycledActor" }, (base) => {
+    noteBubblePopup(base);
+    return base;
+});

@@ -14,7 +14,15 @@ import { events } from "../core/globals.js";
 import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
 import { attireStatus } from "../helpers/attire/outfits.js";
+import { getAutomationBubba } from "../helpers/automation/bubba.js";
+import { getAutomationBubbles } from "../helpers/automation/bubbles.js";
+import { getAutomationClicker } from "../helpers/automation/clickers.js";
+import { getAutomationConstruction } from "../helpers/automation/construction.js";
+import { getAutomationCooking } from "../helpers/automation/cooking.js";
+import { getAutomationGrimoire } from "../helpers/automation/grimoire.js";
 import { getAutomationShops } from "../helpers/automation/shops.js";
+import { getAutomationSneaking } from "../helpers/automation/sneaking.js";
+import { getAutomationSummoning } from "../helpers/automation/summoning.js";
 import {
     captureWardrobe,
     wardrobeFood,
@@ -51,6 +59,21 @@ const WARDROBE = {
     food: wardrobeFood,
     perfect: wardrobePerfect,
     perfectFood: wardrobePerfectFood,
+};
+
+// What each automation tab reads (#92): readComputed("automation", name).
+const AUTOMATION_TABS = {
+    shops: getAutomationShops,
+    orion: () => getAutomationClicker("orion"),
+    poppy: () => getAutomationClicker("poppy"),
+    tarpit: () => getAutomationClicker("tarpit"),
+    bubba: getAutomationBubba,
+    grimoire: getAutomationGrimoire,
+    sneaking: getAutomationSneaking,
+    summoning: getAutomationSummoning,
+    cooking: getAutomationCooking,
+    bubbles: getAutomationBubbles,
+    construction: getAutomationConstruction,
 };
 
 const COMPUTED_SOURCES = {
@@ -114,10 +137,14 @@ export function readComputed(namespace, name, args = []) {
         }
     }
 
-    // Account › Automation: its automations ("automation …" toggles) with their status, and the town shops.
-    if (namespace === "automation" && (name === "list" || name === "shops")) {
+    // Account › Automation: its automations ("automation …" toggles) with their status; and what each system's
+    // automation tab shows (the town shops, a system's currency and upgrades).
+    if (
+        namespace === "automation" &&
+        (name === "list" || Object.prototype.hasOwnProperty.call(AUTOMATION_TABS, name))
+    ) {
         try {
-            if (name === "shops") return { value: getAutomationShops() };
+            if (name !== "list") return { value: AUTOMATION_TABS[name]() };
             return { value: getAutomations().filter(({ cheat }) => cheat.startsWith("automation ")) };
         } catch (error) {
             return { error: error.message };
