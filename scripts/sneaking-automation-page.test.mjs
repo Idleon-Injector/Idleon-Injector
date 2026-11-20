@@ -26,6 +26,26 @@ test("the tab shows Sneaking's switch, the jade, the saving % and every upgrade 
     assert.ok(row("Saving"));
 });
 
+test("small amounts show whole, like the game: a cost rounded up, the jade held rounded down", async () => {
+    const block = kit.fixture.computed._customBlock_Ninja;
+    const cost = block.JadeUpgCost;
+    const jade = kit.gga.Ninja[102][1];
+    block.JadeUpgCost = () => 120.4;
+    kit.gga.Ninja[102][1] = 149.36;
+    try {
+        await kit.button(tab, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+        assert.match(text(row("Way of Stealth")), /Next level 121 jade/);
+        assert.match(text(tab), /149 JADE/);
+        assert.doesNotMatch(text(tab), /149\.36|120\.4/);
+    } finally {
+        block.JadeUpgCost = cost;
+        kit.gga.Ninja[102][1] = jade;
+        await kit.button(tab, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+    }
+});
+
 test("switching an upgrade on while Sneaking is off switches Sneaking on too, now and at start", async () => {
     await kit.flip(row("Way of Stealth"), true);
     assert.equal(kit.running("automation sneaking"), true);

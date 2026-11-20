@@ -31,6 +31,10 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 
 const { div, span } = van.tags;
 
+// Like the game's own panels, small amounts show whole: a cost rounded up, what is held rounded down.
+const costText = (value) => formatNumber(value < 1000 ? Math.ceil(value) : value);
+const heldText = (value) => formatNumber(value < 1000 ? Math.floor(value) : value);
+
 const CHEAT = "automation sneaking";
 
 // The row's first render runs before its data lands, so unlockAt may be missing.
@@ -68,7 +72,7 @@ const SneakingAutomationTab = () => {
                             span(() => cleanName(upgrade.val.bonus ?? "")),
                             span(() =>
                                 upgrade.val.unlocked
-                                    ? `Next level ${formatNumber(upgrade.val.cost)} jade`
+                                    ? `Next level ${costText(upgrade.val.cost)} jade`
                                     : lockedText(upgrade.val)
                             ),
                         ],
@@ -110,7 +114,7 @@ const SneakingAutomationTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "AUTOMATION",
-                note: () => (jade.val === null ? "" : `${formatNumber(jade.val)} JADE`),
+                note: () => (jade.val === null ? "" : `${heldText(jade.val)} JADE`),
                 body: [
                     tab.switches,
                     SettingRow({
