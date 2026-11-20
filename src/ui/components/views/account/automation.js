@@ -88,16 +88,52 @@ const changeStartup = async (cheat, on) => {
     });
 };
 
-const switchNow = async (cheat, on) => {
-    await executeCheatAction(cheat, on);
+// An automation's entry state -> what the game last said about it (`accepted`) and the clicks on its switch whose step
+// hasn't ended (`clicks`); the entry shows the newest click over the accepted entry.
+const switches = new WeakMap();
+const switchesOf = (entry) => {
+    if (!switches.has(entry)) switches.set(entry, { accepted: entry.val, clicks: [] });
+    return switches.get(entry);
+};
+const redraw = (entry) => {
+    const { accepted, clicks } = switchesOf(entry);
+    entry.val = clicks.length && accepted ? { ...accepted, on: clicks[clicks.length - 1].on } : accepted;
+};
+
+/** Show a read of an automation's entry; a click on its switch whose step hasn't ended still shows over it. */
+export const showAutomation = (entry, found) => {
+    switchesOf(entry).accepted = found;
+    redraw(entry);
+};
+
+// Run the cheat. With `entry`, the game's answer is what the entry accepts until a read; a cheat that failed may have
+// switched before it failed, so its state is not known (`on: null`) until a read.
+const toggle = async (cheat, on, entry) => {
+    let answer = null;
+    try {
+        await executeCheatAction(cheat, on);
+        answer = on;
+    } finally {
+        const known = entry && switchesOf(entry);
+        if (known?.accepted) {
+            known.accepted = { ...known.accepted, on: answer };
+            redraw(entry);
+        }
+    }
+};
+
+const switchNow = async (cheat, on, entry = null) => {
+    await toggle(cheat, on, entry);
     await changeStartup(cheat, on);
 };
 
 const findAutomation = async (cheat) =>
     (await readAutomations()).find((automation) => automation.cheat === cheat) ?? null;
 
-const ensureNow = async (cheat) => {
-    if (!(await findAutomation(cheat))?.on) await executeCheatAction(cheat, true);
+const ensureNow = async (cheat, entry = null) => {
+    const found = await findAutomation(cheat);
+    if (entry) showAutomation(entry, found);
+    if (!found?.on) await toggle(cheat, true, entry);
     await changeStartup(cheat, true);
 };
 
@@ -123,14 +159,6 @@ export const switchAll = (on) =>
         if (failure) throw failure;
     });
 
-// An automation's entry state -> its switch clicks whose step hasn't run yet; until then it shows the click.
-const clicksAhead = new WeakMap();
-
-/** Show a read of an automation's entry, unless a click on its switch is still waiting for its step. */
-export const showAutomation = (entry, found) => {
-    if (!clicksAhead.get(entry)) entry.val = found;
-};
-
 /**
  * One row per automation: its name, what it is doing, and its switch. `entry` is a state holding the game's
  * entry; `onSwitched` reads it back after a switch (queue it: it then reads what the switch did).
@@ -148,17 +176,22 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
             const on = e.target.checked;
             const cheat = entry.val.cheat;
             said.clear(); // a new try: the last failure goes
-            entry.val = { ...entry.val, on }; // what the player clicked, until the read-back
-            clicksAhead.set(entry, (clicksAhead.get(entry) ?? 0) + 1);
+            // What the player clicked shows until its step ends; then what the game answered, or a newer click.
+            const known = switchesOf(entry);
+            const click = { on };
+            known.clicks.push(click);
+            redraw(entry);
             // Clicks finish in the order they were made, so the newest click's outcome is the one left showing.
             void run(
                 async () => {
                     let failed = false;
                     try {
-                        await inTurn(() => {
-                            clicksAhead.set(entry, clicksAhead.get(entry) - 1);
-                            return switchNow(cheat, on);
-                        });
+                        await inTurn(() =>
+                            switchNow(cheat, on, entry).finally(() => {
+                                known.clicks.splice(known.clicks.indexOf(click), 1);
+                                redraw(entry);
+                            })
+                        );
                     } catch (error) {
                         failed = true;
                         throw error;
@@ -173,12 +206,13 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
                     onSuccess: () => said.clear(),
                     onError: (caught) => said.say("failed", caught.message),
                 }
-            ).then(() => (checkbox.checked = entry.val.on));
+            ).then(() => (checkbox.checked = Boolean(entry.val.on)));
         },
     });
     const line = () => {
         const { on, status: said, error } = entry.val;
         if (error) return `Last error: ${error}`;
+        if (on === null) return "Unknown: press Refresh";
         return on ? (said ?? "On") : "Off";
     };
     return AccountRow({
@@ -280,7 +314,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
             // switch the player clicks after the item still wins. The save's own failure comes first.
             if (cheat && switched.some((id) => accepted.get(id)?.on)) {
                 try {
-                    await ensureNow(cheat);
+                    await ensureNow(cheat, entry);
                 } catch (error) {
                     failure ??= error;
                 }

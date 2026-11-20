@@ -1192,3 +1192,49 @@ test("round 5: an edit made while a Refresh reads keeps what the Refresh read", 
     await typeStopAt("Lucky Whisker", "");
     await ui.switchAutomation("automation shops", false);
 });
+
+test("round 5: a switch that fails, with the read after it failing too, doesn't keep the click", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
+    failNextToggle = true;
+    failNextListRead = true; // the Shops tab's read-back after the switch
+    const box = checkbox(row(shops, "Shops"));
+    await box.listeners.change({ target: { checked: true } });
+    await until(() => /cheat broke/.test(text(row(shops, "Shops"))), "the failure to be said");
+    failNextListRead = false;
+    assert.equal(box.checked, false, "the switch doesn't show the click as if it worked");
+    assert.match(statusOf(shops), /unknown/i, "it may have switched, so it isn't known until a read");
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "the next read to show it again");
+});
+
+test("round 5: a failed switch doesn't overwrite a newer click", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) === "Off", "the overview to read Shops off");
+    let releaseOn;
+    let releaseOff;
+    holdNextOn = new Promise((resolve) => (releaseOn = resolve));
+    holdNextOff = new Promise((resolve) => (releaseOff = resolve));
+    failNextToggle = true; // the On
+    const box = checkbox(row(overview, "Shops"));
+    try {
+        const asked = commands.length;
+        void box.listeners.change({ target: { checked: true } });
+        await until(() => commands.length > asked, "the On to reach the game and be held");
+        void box.listeners.change({ target: { checked: false } });
+        releaseOn();
+        await until(() => commands.length > asked + 1, "the On to fail and the Off to reach the game");
+        await handled();
+        assert.equal(statusOf(overview), "Off", "the newer click shows, not the failed On");
+        assert.equal(box.checked, false);
+    } finally {
+        releaseOn();
+        releaseOff();
+    }
+    await queueIdle();
+    assert.equal(shopsOn(), false);
+    assert.equal(statusOf(overview), "Off");
+    assert.equal(box.checked, false);
+});
