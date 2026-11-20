@@ -347,13 +347,15 @@ const CompanionsTab = () => {
         });
     };
 
-    // The change is built after the re-read so a list saved from the Config tab isn't overwritten.
+    // The change is built after the re-read so a list saved from the Config tab, or a token picked in the game,
+    // isn't overwritten.
     const writeSelection = (getChange) =>
         runWrite(
             async () => {
                 writeError.val = "";
                 if (error.val || !companions.val.length) throw new Error("Refresh pet data before changing tiers");
-                await readSelection();
+                const [nextTokens] = await Promise.all([readComputed("companions", "petTokens"), readSelection()]);
+                tokens.val = nextTokens;
                 const { normal, plus, picks = tokens.val.picks } = getChange();
                 if (picks !== tokens.val.picks) {
                     await writeVerified(TOKEN_PATH, picks.join(",")).catch(() => {
@@ -418,6 +420,8 @@ const CompanionsTab = () => {
     const handleToken = async (companionId) => {
         if (isBusy() || tokenBlock(companionId)) return;
         await writeSelection(() => {
+            const blocked = tokenBlock(companionId); // the game's tokens may have changed since the page read them
+            if (blocked) throw new Error(blocked);
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
             normal.delete(companionId);

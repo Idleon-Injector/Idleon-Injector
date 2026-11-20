@@ -161,3 +161,34 @@ test("statues: names show the game's underscores as spaces", async () => {
     const root = await openPage(STATUES, (root) => statueRow(root, 7));
     assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "THICC SKIN");
 });
+
+const PETS = "src/ui/pages/world-1/pets/pets.js";
+const petCard = (root, id) =>
+    byClass(root, "companion-card-wrap").find((wrap) => text(byClass(wrap, "companion-card__id")[0]) === `ID ${id}`);
+const alertText = (root) => text(elements(root).find((node) => node.attributes.role === "alert"));
+// The game's trade-screen token button: adds the pet when a token is free (the fake game owns 2).
+const tokenInGame = (id) => (g.OptionsListAccount[606] = `${g.OptionsListAccount[606]},${id}`);
+
+test("pets: removing a token in the page keeps a token picked in the game since", async () => {
+    g.OptionsListAccount[606] = "2";
+    const root = await openPage(PETS, (root) => petCard(root, 2));
+    tokenInGame(9);
+    await petCard(root, 2)
+        .childNodes.find((node) => node.nodeName === "button")
+        .listeners.click({});
+    assert.equal(g.OptionsListAccount[606], "9");
+    g.OptionsListAccount[606] = "2,5";
+});
+
+test("pets: a token the game no longer has room for is refused, and says why", async () => {
+    g.OptionsListAccount[606] = "2";
+    const root = await openPage(PETS, (root) => petCard(root, 5));
+    tokenInGame(9); // the page still shows a free token
+    await elements(petCard(root, 5))
+        .find((node) => String(node.attributes["aria-label"]).startsWith("Pet token for"))
+        .listeners.click({});
+    assert.equal(g.OptionsListAccount[606], "2,9");
+    await tick();
+    assert.equal(alertText(root), "All tokens are in use. Remove one first.");
+    g.OptionsListAccount[606] = "2,5";
+});
