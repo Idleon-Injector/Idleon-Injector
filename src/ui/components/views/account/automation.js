@@ -42,7 +42,7 @@ import {
     saveConfigFile,
     updateSessionConfig,
 } from "../../../services/api.js";
-import { SaveState, saveStateClass, useAutoSave } from "./autoSave.js";
+import { SaveState, saveFailureReason, saveStateClass, useAutoSave } from "./autoSave.js";
 import { AccountRow } from "./components/AccountRow.js";
 import { useWriteStatus } from "./accountShared.js";
 import { Said, useSaid } from "../../inPlace.js";
@@ -354,14 +354,12 @@ const parseStopAt = (raw) => {
 export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => {
     const item = picks.get(id);
     const draft = item.draft;
-    let fileOnly = false; // the row's last save failed only at the file
-    const track = (task) => () => {
-        fileOnly = false;
-        return task().catch((error) => {
-            fileOnly = Boolean(error.fileOnly);
+    let fileOnly = null; // the reason shown for the row's last failure that was only at the file
+    const track = (task) => () =>
+        task().catch((error) => {
+            if (error.fileOnly) fileOnly = saveFailureReason(error);
             throw error;
         });
-    };
     const save = useAutoSave({
         prepare: () => {
             const typed = getNumberInputLiveRaw(draft) ?? draft.val;
@@ -398,7 +396,8 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     // A failure only at the file goes once a later save (any row's) writes the file.
     const status = {
         get val() {
-            return save.status.val === "error" && fileOnly && !picks.fileBehind() ? null : save.status.val;
+            const shown = save.status.val === "error" && save.reason.val === fileOnly;
+            return shown && !picks.fileBehind() ? null : save.status.val;
         },
     };
 

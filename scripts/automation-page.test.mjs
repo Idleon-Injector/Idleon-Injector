@@ -1238,3 +1238,20 @@ test("round 5: a failed switch doesn't overwrite a newer click", async () => {
     assert.equal(statusOf(overview), "Off");
     assert.equal(box.checked, false);
 });
+
+test("round 5: a stop-at that isn't a whole number is refused after the row's file failure went", async () => {
+    failSave = true;
+    await typeStopAt("Velvet Stone", "12");
+    await until(() => /disk is full/.test(text(pickRow("Velvet Stone"))), "the file failure");
+    failSave = false;
+    await typeStopAt("Royal Pebble", "7"); // another row writes the file
+    await until(() => !/save-state--error/.test(saveState("Velvet Stone")), "the file failure to go");
+    const input = field("Velvet Stone");
+    input.listeners.input({ target: { value: "-5" } }); // the field drops a "." as it is typed, not a "-"
+    metric("Velvet Stone").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => /save-state--error/.test(saveState("Velvet Stone")), "the field to refuse -5");
+    assert.match(text(pickRow("Velvet Stone")), /whole number/);
+    metric("Velvet Stone").listeners.keydown({ key: "Escape", target: input, preventDefault() {} });
+    await typeStopAt("Velvet Stone", "");
+    await typeStopAt("Royal Pebble", "");
+});
