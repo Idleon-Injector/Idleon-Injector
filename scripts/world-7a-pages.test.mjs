@@ -1,0 +1,119 @@
+// W7 pages from Gallery to Legend Talents on the fake game: what they show after a save stops part-way or a cap
+// changes, the game caches an Undo must clear, and fields that stay open while another one saves.
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { importRepo, loadUi } from "./known-bugs/index.mjs";
+import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { fakeGameData } from "./page-shots/fake-game-data.mjs";
+
+const fixture = fakeGameData();
+const { router, game } = await createFakeApi(fixture);
+await loadUi(router);
+globalThis.requestAnimationFrame = () => {};
+const gga = game.gga;
+
+const text = (node) =>
+    typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
+const elements = (node, out = []) => {
+    if (node?.nodeType !== 1) return out;
+    out.push(node);
+    for (const child of node.childNodes) elements(child, out);
+    return out;
+};
+const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
+const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
+const findRow = (root, label) =>
+    byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
+const input = (row) => elements(row).find((node) => node.nodeName === "input" && node.attributes.type !== "checkbox");
+const button = (root, label) =>
+    elements(root).find((node) => node.nodeName === "button" && text(node).trim() === label);
+const stateOf = (row) => /save-state--(\w+)/.exec(classes(byClass(row, "save-state")[0]))?.[1] ?? null;
+const isDisabled = (node) => {
+    const value = node.attributes.disabled;
+    return Boolean(typeof value === "function" ? value() : value);
+};
+
+async function until(check, what) {
+    for (let i = 0; i < 300; i++) {
+        if (check()) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.fail(`timed out waiting for ${what}`);
+}
+
+// The page shows its rows once it has read the game; until then its body is hidden.
+const pageRead = (root) =>
+    !byClass(root, "account-page-shell__body").some((node) =>
+        String(node.attributes.class).includes("is-hidden-until-ready")
+    );
+async function openPage(file, ready) {
+    const root = (await importRepo(file)).default.component();
+    await until(() => ready(root) && pageRead(root), `${file} to load`);
+    return root;
+}
+
+const type = (field, value) => {
+    field.value = String(value);
+    field.listeners.input({ target: field });
+};
+async function saveRow(row, value) {
+    const field = input(row);
+    type(field, value);
+    row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+    await until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
+}
+
+// Fail chosen game writes (by their number from now) the way a dropped connection does.
+const failWrites = (...failing) => {
+    const realFetch = globalThis.fetch;
+    let count = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && failing.includes(++count)) throw new TypeError("Failed to fetch");
+        return realFetch(url, options);
+    };
+    return () => (globalThis.fetch = realFetch);
+};
+
+// Hold the game's writes until released, to act while a save runs.
+const holdWrites = () => {
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) await gate;
+        return realFetch(url, options);
+    };
+    return () => {
+        globalThis.fetch = realFetch;
+        release();
+    };
+};
+
+// The game's lazy totals (as in its code): rebuilt from the levels only when the key is missing.
+const gameCache = (key, sum) => () => {
+    const dnsm = gga.DNSM.h;
+    if (!Object.prototype.hasOwnProperty.call(dnsm, key)) dnsm[key] = sum();
+    return dnsm[key];
+};
+
+test("Trophy Add all that stops part-way shows the trophies that landed, and Add fills the next empty slot", async (t) => {
+    gga.Spelunk[16] = [1, -1, -1, -1, -1, -1];
+    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
+        text(root).includes("CURRENT SLOTS")
+    );
+    const shown = () => byClass(page, "account-row").length;
+    assert.equal(shown(), 1);
+
+    const restore = failWrites(2); // Trophy2 lands in slot 1, Trophy3 fails for slot 2
+    t.after(restore);
+    button(page, "Add all").listeners.click({ preventDefault() {} });
+    await until(() => shown() === 2, "the page to show the trophy that landed");
+    restore();
+    assert.deepEqual(gga.Spelunk[16], [1, 2, -1, -1, -1, -1]);
+
+    const select = elements(page).find((node) => node.nodeName === "select");
+    select.listeners.change({ target: { value: "Trophy3" } });
+    button(page, "Add").listeners.click({ preventDefault() {} });
+    await until(() => shown() === 3, "the added trophy");
+    assert.deepEqual(gga.Spelunk[16], [1, 2, 3, -1, -1, -1], "Add keeps Trophy2 and fills the next empty slot");
+});
