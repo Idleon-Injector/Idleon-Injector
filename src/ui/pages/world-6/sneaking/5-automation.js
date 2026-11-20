@@ -24,9 +24,9 @@ import {
     PickRow,
     SavingRow,
     createAutomationPicks,
-    readAutomations,
     setAtStart,
     switchAutomation,
+    useAutomationEntry,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -42,16 +42,13 @@ const lockedText = ({ unlockAt: { parent, reef } = {} }) => {
 };
 
 const SneakingAutomationTab = () => {
-    const automation = van.state(null);
-    const readSwitch = async () => {
-        automation.val = (await readAutomations()).find(({ cheat }) => cheat === CHEAT) ?? null;
-    };
+    const { entry: automation, read: readSwitch } = useAutomationEntry(CHEAT);
     // Switching an upgrade on switches Sneaking on too (now and at start), so buying starts at once.
     const picks = createAutomationPicks("sneaking", {
         withSaving: true,
         onTurnedOn: async () => {
-            await readSwitch(); // the overview may have switched it since this tab read it
-            if (automation.val?.on) return setAtStart(CHEAT, true);
+            // The overview may have switched it since this tab read it.
+            if ((await readSwitch())?.on) return setAtStart(CHEAT, true);
             await switchAutomation(CHEAT, true);
             await readSwitch();
         },

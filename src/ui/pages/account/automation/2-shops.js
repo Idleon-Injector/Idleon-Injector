@@ -23,9 +23,9 @@ import {
     AutomationRow,
     PickRow,
     createAutomationPicks,
-    readAutomations,
     setAtStart,
     switchAutomation,
+    useAutomationEntry,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -37,16 +37,12 @@ const CHEAT = "automation shops";
 const WORLDS = [1, 2, 3, 4, 5, 6, 7].map((world) => ({ id: world, label: `W${world}` }));
 
 const ShopsPage = () => {
-    const automation = van.state(null);
-    const readSwitch = async () => {
-        automation.val = (await readAutomations()).find(({ cheat }) => cheat === CHEAT) ?? null;
-    };
+    const { entry: automation, read: readSwitch } = useAutomationEntry(CHEAT);
     // Switching an item on switches Shops on too (now and at start), so buying starts at once.
     const picks = createAutomationPicks("shops", {
         onTurnedOn: async () => {
-            await readSwitch(); // the overview may have switched it since this tab read it
-            // Already running (from the Cheats page, say): only make sure it starts again next time.
-            if (automation.val?.on) return setAtStart(CHEAT, true);
+            // Already running (from the Cheats page or the overview, say): only make sure it starts again next time.
+            if ((await readSwitch())?.on) return setAtStart(CHEAT, true);
             await switchAutomation(CHEAT, true);
             await readSwitch();
         },

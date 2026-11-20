@@ -600,3 +600,21 @@ test("review 3 sibling: the overview's Disable all stops every automation, even 
     );
     switchAutomation("test.kit", false);
 });
+
+// The Sneaking port's review: the system tabs read their own switch the way the overview does.
+test("review 4: a Shops tab read that started before its switch doesn't put the old state back", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off" && button(shops, "Refresh"), "the Shops tab to read Shops off");
+    let release;
+    holdNextListRead = new Promise((resolve) => (release = resolve));
+    void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => holdNextListRead === null, "the Refresh to read the switch");
+    await checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
+    await until(() => statusOf(shops) !== "Off", "the switch's own read to show Shops on");
+    release();
+    await until(() => button(shops, "Refresh"), "the Refresh to end");
+    await settle(50);
+    assert.notEqual(statusOf(shops), "Off", "the older read was dropped");
+    await ui.switchAutomation("automation shops", false);
+});

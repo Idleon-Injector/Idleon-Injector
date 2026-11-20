@@ -31,6 +31,23 @@ const PRIORITIES = [
 /** Every automation, with its status while it runs. */
 export const readAutomations = () => readComputed("automation", "list");
 
+/**
+ * A system tab's own automation: `entry` is a state with the game's entry for `cheat` (null until read). `read` reads
+ * the list again and returns the entry; a read that a newer one overtook (a Refresh, then a switch's own read) doesn't
+ * set `entry`, so an older Off can't land over a newer On.
+ */
+export const useAutomationEntry = (cheat) => {
+    const entry = van.state(null);
+    let reads = 0;
+    const read = async () => {
+        const n = ++reads;
+        const found = (await readAutomations()).find((automation) => automation.cheat === cheat) ?? null;
+        if (n === reads) entry.val = found;
+        return found;
+    };
+    return { entry, read };
+};
+
 let queue = Promise.resolve();
 // Startup changes (and the switches that make them) run one at a time from the click on, so each reads the list the
 // last one wrote, and an Off clicked while an On is still answering can't be overtaken by the On's startup change.
