@@ -502,8 +502,7 @@ const CompanionsTab = () => {
         );
     };
 
-    const subNav = div(
-        { class: "control-bar sticky-header" },
+    const toolbar = [
         SearchBar({
             placeholder: "SEARCH PETS OR BUFFS",
             onInput: (value) => (searchQuery.val = value),
@@ -521,6 +520,8 @@ const CompanionsTab = () => {
             ),
             "Hide pets that are not part of the official in-game pet groups."
         ),
+    ];
+    const bulkButtons = [
         withTooltip(
             button(
                 {
@@ -588,8 +589,8 @@ const CompanionsTab = () => {
                 "Clear Pets+"
             ),
             "Clear Pets+ selections, keeping normal selections."
-        )
-    );
+        ),
+    ];
 
     return PersistentAccountListPage({
         rootClass: "tab-container",
@@ -648,6 +649,7 @@ const CompanionsTab = () => {
                 () =>
                     `${tokens.val.picks.length} of ${tokens.val.owned} owned pet tokens used. Token pets are saved in your game.`
             ),
+            ...bulkButtons,
             RefreshButton({
                 onRefresh: load,
                 disabled: isBusy,
@@ -665,7 +667,7 @@ const CompanionsTab = () => {
                     ? WarningBanner("The W1 Companion cheat is off. Select a pet's normal or Pets+ bonus to enable it.")
                     : null
             ),
-        subNav,
+        toolbar,
         state: { loading, error },
         loadingText: "READING PETS",
         errorTitle: "PET READ FAILED",

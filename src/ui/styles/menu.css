@@ -413,11 +413,6 @@
         white-space: nowrap;
     }
 
-    /* Page headers stack: title and description, then the actions. */
-    .account-header {
-        flex-wrap: wrap;
-    }
-
     .menu-world-tile__systems {
         padding-left: 12px;
     }

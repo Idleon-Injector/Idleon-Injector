@@ -227,8 +227,11 @@ export const AccountOptionsTab = () => {
             onRefresh: loadAccountOptions,
             tooltip: "Reload from game memory",
         }),
-        subNav: div(
-            { class: "control-bar sticky-header" },
+        toolbar: [
+            SearchBar({
+                placeholder: "FILTER_INDEX",
+                onInput: (val) => (ui.filterText = val),
+            }),
             withTooltip(
                 label(
                     { class: "toggle-switch account-toggle" },
@@ -242,11 +245,7 @@ export const AccountOptionsTab = () => {
                 ),
                 "Hide AI-generated options"
             ),
-            SearchBar({
-                placeholder: "FILTER_INDEX",
-                onInput: (val) => (ui.filterText = val),
-            })
-        ),
+        ],
         state: { loading, error },
         loadingText: "READING ACCOUNT OPTIONS",
         errorTitle: "ACCOUNT OPTIONS READ FAILED",

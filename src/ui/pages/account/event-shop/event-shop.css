@@ -20,11 +20,6 @@
 }
 
 @media (max-width: 760px) {
-    .eventshop-tab .account-header {
-        align-items: flex-start;
-        flex-wrap: wrap;
-    }
-
     .eventshop-row {
         grid-template-columns: minmax(0, 1fr) auto;
     }

@@ -399,15 +399,12 @@ export const MasterclassUpgradeTab = ({
 
     load();
 
-    const subNav = div(
-        { class: "control-bar sticky-header masterclass-upgrade-controls" },
-        SearchBar({
-            placeholder: `SEARCH ${title} OR INDEX`,
-            value: searchQuery,
-            debounceMs: 0,
-            onInput: (value) => (searchQuery.val = value),
-        })
-    );
+    const toolbar = SearchBar({
+        placeholder: `SEARCH ${title} OR INDEX`,
+        value: searchQuery,
+        debounceMs: 0,
+        onInput: (value) => (searchQuery.val = value),
+    });
 
     return PersistentAccountListPage({
         title,
@@ -439,7 +436,7 @@ export const MasterclassUpgradeTab = ({
             },
         }),
         state: { loading, error },
-        subNav,
+        toolbar,
         loadingText: `READING ${title}`,
         errorTitle: `${title} READ FAILED`,
         initialWrapperClass: "masterclass-upgrade-scroll",

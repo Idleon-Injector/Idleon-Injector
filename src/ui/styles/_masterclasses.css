@@ -6,10 +6,6 @@
 }
 
 .grimoire-controls,
-.masterclass-upgrade-controls {
-    flex-shrink: 0;
-}
-
 .grimoire-scroll,
 .masterclass-upgrade-scroll {
     display: flex;
@@ -454,15 +450,6 @@
     width: 100%;
     flex: 1;
     min-height: 0;
-}
-
-.map-crystals-search-bar {
-    padding: 12px 14px 4px;
-    flex-shrink: 0;
-}
-
-.map-crystals-search-bar .search-wrapper {
-    max-width: 480px;
 }
 
 .map-crystals-list {
