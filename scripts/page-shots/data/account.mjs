@@ -1,4 +1,8 @@
-/** General pages: tasks, achievements, merit shop, cards, upgrade vault, bubba, event shop, masterclasses, attire rack. */
+/**
+ * General pages: tasks, achievements, merit shop, cards, upgrade vault, bubba, event shop, masterclasses, attire rack,
+ * wardrobe.
+ */
+import { wardrobeComputed, wardrobeDefinitions } from "../../wardrobe-fixture.mjs";
 import { fakeName, h, level, list, upgradeDefs, upgradeLevels } from "./helpers.mjs";
 import { MAPS, MONSTERS, PLAYERS } from "./shared.mjs";
 
@@ -32,21 +36,59 @@ const outfit = (i) =>
         UQ2val: i % 3 === 2 ? 4 : 0,
     });
 const attireSlot = (item) => ({
-    EquipmentOrder: [[...list(15, (i) => (i < 5 ? `SetPiece${i}` : "Blank")), item], list(8, () => "Blank")],
-    EquipmentQuantity: [[...list(15, (i) => (i < 5 ? 1 : 0)), item === "Blank" ? 0 : 1], list(8, () => 0)],
-    EquipmentMap: [list(16, () => h({})), list(8, () => h({}))],
+    EquipmentOrder: [
+        [...list(15, (i) => (i < 5 ? `SetPiece${i}` : "Blank")), item],
+        list(8, () => "Blank"),
+        list(16, () => "Blank"),
+    ],
+    EquipmentQuantity: [
+        [...list(15, (i) => (i < 5 ? 1 : 0)), item === "Blank" ? 0 : 1],
+        list(8, () => 0),
+        list(16, () => 0),
+    ],
+    EquipmentMap: [list(16, () => h({})), list(8, () => h({})), list(16, () => h({}))],
 });
 const WORN = ["EquipmentGown3", "Blank", "EquipmentGown0"];
+
+// Wardrobe: the loadout items (scripts/wardrobe-fixture.mjs), the town stones of world 7, the cards worn and the obol
+// slots. Food row 2 is in world-3.mjs, beside the rest of EquipmentOrder.
+const WORN_CARDS = [MONSTERS[0], MONSTERS[3], "B", "B", "B", "B", "B", "B"];
+const stone = (displayName, Effect) => h({ displayName, typeGen: "dStone", Trigger: 1, Effect });
+// One function for every build of the data, so two builds compare equal.
+const statCaches = () => ({ _GenINFO: { 45: h({}) } });
+const wardrobePlayer = () => ({ CardEquip: WORN_CARDS.slice(), CardPreset: [WORN_CARDS.slice()], CSetEq: h({}) });
 
 const built = (map, i) => [i + 1, i, 2, 40 * i, 12, 3, 0, 0, -1, -1, i % 3, 222211111, i % 2];
 
 export default () => ({
     gga: {
-        ItemDefinitionsGET: h(Object.fromEntries(list(OUTFITS + 1, (i) => [`EquipmentGown${i}`, outfit(i)]))),
-        PlayerDATABASE: h(Object.fromEntries(PLAYERS.map((name, i) => [name, h(attireSlot(WORN[i]))]))),
+        ItemDefinitionsGET: h({
+            ...Object.fromEntries(list(OUTFITS + 1, (i) => [`EquipmentGown${i}`, outfit(i)])),
+            ...wardrobeDefinitions(),
+            // The loadout's outfit, kept off the Attire Rack's cards (an outfit is typeGen aGown) so that page stays as
+            // its shots and tests know it.
+            EquipmentGown9: h({ ...wardrobeDefinitions().EquipmentGown9.h, typeGen: "aWardrobeOutfit" }),
+            StoneW9: stone("Weapon_Upgrade|Stone_IX", "Weapon_Power,9.Main_Stat,9"),
+            StoneA8: stone("Armor_Upgrade|Stone_VIII", "Defence,16.Main_Stat,9"),
+            StoneT8: stone("Tool_Upgrade|Stone_VIII", "Weapon_Power,9.Main_Stat,9"),
+            StonePremSTR: stone("Premium_Stone", "Main_Stat,3"),
+        }),
+        PlayerDATABASE: h(
+            Object.fromEntries(PLAYERS.map((name, i) => [name, h({ ...attireSlot(WORN[i]), ...wardrobePlayer() })]))
+        ),
         // The live copy of the character in play (world-3.mjs sets its EquipmentOrder).
-        EquipmentQuantity: attireSlot(WORN[0]).EquipmentQuantity,
+        EquipmentQuantity: [...attireSlot(WORN[0]).EquipmentQuantity.slice(0, 2), [25000, 800, ...list(14, () => 0)]],
         EquipmentMap: attireSlot(WORN[0]).EquipmentMap,
+        CardPreset: [WORN_CARDS.slice()],
+        FoodSlotsOwned: 4,
+        CurrentMap: 0,
+        ObolEquippedOrder: [
+            ["ObolBronzePop", "Blank", "Blank", "LockedSparkle"],
+            ["Blank", "Blank", "LockedHexagon", "LockedSparkle"],
+        ],
+        ObolEquippedMap: [list(4, () => h({})), list(4, () => h({}))],
+        // The game's stat caches, ready once Cards was opened.
+        PixelHelperActor: list(7, (i) => (i === 6 ? { behaviors: { getBehavior: statCaches } } : {})),
         // [0] progress and [1] stages done per world's tasks, [2] merit shop purchases per world.
         Tasks: [
             list(WORLDS, (w) => list(TASKS, (i) => (i + 1) * (w + 2) * 15)),
@@ -55,7 +97,12 @@ export default () => ({
         ],
         // -1: complete, otherwise progress.
         AchieveReg: list(WORLDS * ACHIEVEMENTS, (i) => (i % 3 === 0 ? -1 : (i * 7) % 40)),
-        Cards: [h(Object.fromEntries(MONSTERS.slice(0, 26).map((id, i) => [id, i % 6 === 5 ? 0 : (i + 1) * 37]))), []],
+        Cards: [
+            h(Object.fromEntries(MONSTERS.slice(0, 26).map((id, i) => [id, i % 6 === 5 ? 0 : (i + 1) * 37]))),
+            [],
+            WORN_CARDS.slice(),
+            h({}),
+        ],
         UpgVault: upgradeLevels(VAULT, 2),
         // Bubba: [0] run values, [1] upgrades, [2] free upgrade levels, [3] traits, [4] dice, [5] smoked meats.
         Bubba: [
@@ -95,7 +142,7 @@ export default () => ({
         MapBon: list(350, (map) => (MAPS.includes(map) ? [map * 1000, map * 500, map % 3 ? 0 : 10000000] : [])),
         CustomMaps: h({ RG_KillReq: h({ 2: 900 }) }),
         // TotStatMAP: the stat cache the Attire Rack empties after an attire change.
-        DNSM: h({ ArcMultBon: [75], TotStatMAP: h({}), TotalStatsETCmap: h({}) }),
+        DNSM: h({ ArcMultBon: [75], TotStatMAP: h({}), TotalStatsETCmap: h({}), BoxRewards: h({ OneSlot: 0.5 }) }),
         OptionsListAccount: { 311: "_bcf" },
         CustomLists: {
             h: {
@@ -115,6 +162,15 @@ export default () => ({
                 CardStuff: list(CARD_REGIONS, (r) =>
                     list(2, (i) => [MONSTERS[r * 2 + i] ?? "Blank", "0", String(5 + r * 3)])
                 ),
+                // Wardrobe: gear and tool kinds, the crafted items, card set bonuses and obol slot shapes.
+                EquiptypeGens: [
+                    ["aHelmet", "aShirt", "aPants", "aShoes", "aPendant", "aRing"],
+                    ["aPick", "aHatchet", "aFishingRod", "aBugNet", "aTrap", "aSkull"],
+                ],
+                ItemToCraftNAME: [["EquipmentShirts36", "EquipmentPants27"]],
+                CardSets: list(CARD_REGIONS, (r) => [`{%_${fakeName(r + 9)}_Set`, "6"]),
+                ObolShapes: ["Circle", "Square", "Hexagon", "Sparkle"],
+                ObolXYcoords: [list(4, (i) => [0, 0, String(i)]), list(4, (i) => [0, 0, String(i)])],
                 UpgradeVault: upgradeDefs(VAULT, 2),
                 BubbaUpg: upgradeDefs(28, 5),
                 GrimoireUpg: upgradeDefs(30, 1),
@@ -148,6 +204,6 @@ export default () => ({
             },
         },
     },
-    computed: { _customBlock_Summoning: { VaultUpgMaxLV: vaultMax } },
+    computed: { _customBlock_Summoning: { VaultUpgMaxLV: vaultMax }, ...wardrobeComputed() },
     cheatStates: { wide: { attire: true } },
 });
