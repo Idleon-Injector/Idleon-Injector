@@ -290,7 +290,7 @@ export const Config = () => {
                 SettingsTop({
                     title: "CHEAT CONFIG",
                     description:
-                        "Each cheat's own settings. Apply uses them for this session; Save settings keeps them in your config file.",
+                        "Each cheat's own settings. Apply uses them for this session only; Save settings keeps them in your config file and sends them to the running game.",
                     toolbar:
                         // Switch between forced path indicator and normal filters
                         () => {
@@ -438,7 +438,7 @@ export const Config = () => {
                     { id: "save-config-button", type: "button", class: "btn-main", onclick: (e) => save(true, e) },
                     "Save settings"
                 ),
-                "Save permanently to config file"
+                "Save to config file and send to the running game"
             )
         )
     );

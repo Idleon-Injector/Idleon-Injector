@@ -130,7 +130,7 @@ const UpgradesTab = () => {
             entries.val = buildUpgradeEntries(rawDefinitions, rawLevels);
 
             for (const entry of entries.val) {
-                getOrCreateState(levelStates, entry.index).val = Math.min(entry.maxLevel, entry.level);
+                getOrCreateState(levelStates, entry.index).val = entry.level;
             }
 
             reconcileSections();

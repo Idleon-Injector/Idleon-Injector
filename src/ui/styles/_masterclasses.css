@@ -347,6 +347,16 @@
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+/* The unit rows' own box, so a reload swaps them alone; they still sit in the units grid. */
+.outpost-map-units__list {
+    display: contents;
+}
+
+/* A card's failure line: empty, it keeps its live region but takes no room (and no gap) in the card. */
+.outpost-card__said.said--empty {
+    position: absolute;
+}
+
 .outpost-map-unit-add {
     display: grid;
     grid-column: 1 / -1;

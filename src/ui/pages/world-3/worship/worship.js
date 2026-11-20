@@ -86,10 +86,12 @@ const WorshipTab = () => {
     const getWaveState = (index) => getOrCreateState(waveStatesByIndex, index);
 
     const writeCharge = async (playerName, nextCharge) => {
-        const isActiveCharacter =
-            typeof activeCharacterNameRef.val === "string" &&
-            activeCharacterNameRef.val.length > 0 &&
-            activeCharacterNameRef.val === playerName;
+        // PlayerStuff holds the charge of the character in play now, so a save asks the game who that is first.
+        const inPlay = await gga("UserInfo[0]");
+        if (inPlay !== activeCharacterNameRef.val) {
+            throw new Error("The character in play changed. Refresh and try again.");
+        }
+        const isActiveCharacter = typeof inPlay === "string" && inPlay.length > 0 && inPlay === playerName;
 
         const writePath = isActiveCharacter ? "PlayerStuff[0]" : `PlayerDATABASE.h[${playerName}].h.PlayerStuff[0]`;
 

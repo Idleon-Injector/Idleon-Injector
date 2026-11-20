@@ -1,7 +1,7 @@
 /** Shared hooks and helpers for account feature tabs. */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { gga, ggaMany, readCList } from "../../../services/api.js";
+import { gga, ggaMany, readCList, readGgaMany } from "../../../services/api.js";
 import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
@@ -50,6 +50,25 @@ export const createStaticRowReconciler = (container) => {
         currentSignature = signature;
         container.replaceChildren(...toNodes(typeof rows === "function" ? rows() : rows));
         return true;
+    };
+};
+
+/**
+ * Build row nodes with `build(row)`, reusing the node of a row whose data is unchanged, so a redraw keeps that row's
+ * button state (a failure stays red on the row that asked). Rows are compared by their JSON, index included.
+ */
+export const createKeptRows = (build) => {
+    let kept = new Map();
+    return (rows) => {
+        const next = new Map();
+        const nodes = rows.map((row) => {
+            const key = JSON.stringify(row);
+            const node = kept.get(key) ?? build(row);
+            next.set(key, node);
+            return node;
+        });
+        kept = next;
+        return nodes;
     };
 };
 
@@ -247,9 +266,31 @@ const writeManyLogged = async (writes, change, character) => {
     const failedWrite = writes.find((entry) => normalizeGgaPath(entry.path) === failedPath);
     const expected = failedWrite?.value ?? "unknown";
 
-    const error = new Error(`Write mismatch at ${failedPath}: expected ${expected}`);
+    // An entry that never reached its slot keeps its own reason; only a value the game didn't keep is a mismatch.
+    const error = new Error(
+        failed.error === "Write mismatch" ? `Write mismatch at ${failedPath}: expected ${expected}` : failed.error
+    );
     error.results = result.results;
     throw error;
+};
+
+/**
+ * A row's save: write only the fields that changed (the game moves the rest on while the page is open), then
+ * read the rest back, so the row shows what the game holds beside its ✓. Each field's `fromGame(raw)` turns a
+ * read into the value the page shows, as its load does.
+ */
+export const writeChangedFields = async (fields, nextValues) => {
+    const changed = fields.filter((field) => nextValues[field.key] !== field.valueState.val);
+    await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
+    const rest = fields.filter((field) => !changed.includes(field));
+    if (!rest.length) return nextValues;
+    // The save landed, so a failed read keeps the values shown instead of calling the save failed.
+    const reads = await readGgaMany(rest.map((field) => field.path)).catch(() => []);
+    const values = { ...nextValues };
+    rest.forEach((field, i) => {
+        if (reads[i]?.ok) values[field.key] = field.fromGame(reads[i].value);
+    });
+    return values;
 };
 
 const toWriteEntries = (writeOrWrites) => {
@@ -268,9 +309,11 @@ const toWriteEntries = (writeOrWrites) => {
  * @param {function} [opts.getWrites]
  * @param {function} [opts.shouldWrite]
  * @param {function} [opts.applyLocal]
+ * @param {string} [opts.character] - when set, the game writes only while this character is in play
  * @returns {Promise<void>}
  */
 export const runBulkSet = async ({
+    character,
     entries,
     getTargetValue,
     getValueState,
@@ -280,28 +323,32 @@ export const runBulkSet = async ({
     applyLocal = null,
 }) => {
     const resolvedEntries = typeof entries === "function" ? entries() : (entries ?? []);
-    const targets = [];
+    // Only the entries written take the target afterwards: a skipped row saved meanwhile keeps what it saved.
+    const targets = new Map();
     const writes = [];
 
     resolvedEntries.forEach((entry, index) => {
         const targetValue = getTargetValue(entry, index);
         const valueState = getValueState(entry, index);
         const currentValue = resolveValue(valueState);
-        targets[index] = targetValue;
 
         if (typeof getWrites === "function") {
-            writes.push(...toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState })));
+            const entryWrites = toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState }));
+            if (entryWrites.length) targets.set(index, targetValue);
+            writes.push(...entryWrites);
             return;
         }
 
         if (!shouldWrite({ entry, index, currentValue, targetValue, valueState })) return;
+        targets.set(index, targetValue);
         writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
     });
 
-    await writeManyVerified(writes);
+    await writeManyVerified(writes, { character });
 
     resolvedEntries.forEach((entry, index) => {
-        const targetValue = targets[index];
+        if (!targets.has(index)) return;
+        const targetValue = targets.get(index);
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);
             return;

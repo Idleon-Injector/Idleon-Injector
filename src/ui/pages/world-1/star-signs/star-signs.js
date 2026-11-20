@@ -29,6 +29,7 @@ import { ActionButton } from "../../../components/views/account/components/Actio
 import { toInt, toNum, useWriteStatus, writeManyVerified } from "../../../components/views/account/accountShared.js";
 import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { Icons } from "../../../assets/icons.js";
+import { clickAgain } from "../../../components/inPlace.js";
 
 const { div, button, span, h4, p, select, option } = van.tags;
 
@@ -62,6 +63,24 @@ const parseProgress = (str) =>
 
 const encodeProgress = (players) => players.map(playerToLetter).filter(Boolean).join("");
 const isUnlockedByProgress = (players, playersNeeded) => players.length >= playersNeeded;
+
+// A sign with the progress the game holds for it (StarSignProg[i]).
+const withProgress = (sign, prog) => {
+    const players = parseProgress(prog?.[0]);
+    return {
+        ...sign,
+        players,
+        claimed: toInt(prog?.[1], 0),
+        unlocked: isUnlockedByProgress(players, sign.playersNeeded),
+    };
+};
+
+// The players added and removed since `base`, put on the list the game holds now, so players who completed the
+// sign in the game since stay (after the page's own order).
+const mergePlayers = (base, next, game) => [
+    ...next.filter((num) => game.includes(num) || !base.includes(num)),
+    ...game.filter((num) => !base.includes(num) && !next.includes(num)),
+];
 
 const playerName = (num, usernames) => {
     const name = usernames[num - 1];
@@ -124,9 +143,15 @@ const DragList = ({ items, renderItem, onChange }) => {
     );
 };
 
-const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
+// `current()`: the sign as the page last read it from the game.
+const StarSignDetail = ({ sign, current, usernames = [], onSave, onBack }) => {
     const players = van.state([...sign.players]);
     let saved = encodeProgress(sign.players);
+    const showGame = (read) => {
+        if (read?.index !== sign.index) return; // closed, or another sign opened
+        players.val = [...read.players];
+        saved = encodeProgress(read.players);
+    };
     // Every change to the list saves; a change made while one saves is saved after it.
     const { status, reason, save, undo } = useAutoSave({
         prepare: () => {
@@ -134,11 +159,23 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
             if (progress === saved) return { unchanged: true };
             return {
                 write: async () => {
-                    await onSave?.({ index: sign.index, progress });
-                    saved = progress;
+                    try {
+                        const written = (await onSave?.({ index: sign.index, progress, base: saved })) ?? progress;
+                        // The list shows what the game now holds, with any change made while this saved.
+                        players.val = mergePlayers(parseProgress(progress), players.val, parseProgress(written));
+                        saved = written;
+                    } catch (error) {
+                        showGame(current()); // the page read the game again
+                        throw error;
+                    }
                 },
             };
         },
+    });
+    // A reload (Refresh, an undo, a bulk action) shows what the game holds, unless a save is running.
+    van.derive(() => {
+        const read = current();
+        if (status.rawVal !== "loading") showGame(read);
     });
     const progressFill = div({ class: "starsign-progress-fill" });
 
@@ -194,7 +231,13 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
                                 type: "button",
                                 class: "btn-danger btn-icon btn-sm starsign-remove-btn",
                                 "aria-label": `Remove ${playerName(playerNum, usernames)}`,
-                                onclick: () => removePlayer(playerNum),
+                                // Taking a player off the sign asks "Click again" first; adding them back is a pick.
+                                onclick: (e) => {
+                                    const name = playerName(playerNum, usernames);
+                                    if (clickAgain(e.currentTarget, `take ${name} off this star sign.`)) {
+                                        removePlayer(playerNum);
+                                    }
+                                },
                             },
                             Icons.Close()
                         )
@@ -313,36 +356,42 @@ const StarSignsTab = () => {
             const usernames = normalizeUsernames(rawUsernames);
 
             const nextSigns = quests
-                .map((q, i) => {
-                    const playersNeeded = parseInt(q[5], 10) || 1;
-                    const players = parseProgress(prog[i]?.[0]);
-                    return {
-                        index: i,
-                        label: labels[i],
-                        desc: cleanDesc(q[7]),
-                        playersNeeded,
-                        rewardPoints: toNum(q[6], 0),
-                        claimed: toInt(prog[i]?.[1], 0),
-                        players,
-                        unlocked: isUnlockedByProgress(players, playersNeeded),
-                        usernames,
-                    };
-                })
+                .map((q, i) =>
+                    withProgress(
+                        {
+                            index: i,
+                            label: labels[i],
+                            desc: cleanDesc(q[7]),
+                            playersNeeded: parseInt(q[5], 10) || 1,
+                            rewardPoints: toNum(q[6], 0),
+                            usernames,
+                        },
+                        prog[i]
+                    )
+                )
                 .filter((s) => s.desc.length > 0);
 
             signs.val = nextSigns;
             syncActiveSign(activeSign, nextSigns);
         });
 
-    const handleSave = async ({ index, progress }) => {
+    // Saves read the game's progress first, so what changed in the game since the page read it isn't written over.
+    const readSigns = async () => {
+        const prog = toIndexedArray((await gga("StarSignProg")) ?? []);
+        return signs.val.map((sign) => withProgress(sign, prog[sign.index]));
+    };
+
+    // `base`: the list the detail last saved or read; the change from it to `progress` is the player's.
+    const handleSave = async ({ index, progress, base }) => {
         if (!signs.val) return;
 
         try {
-            const list = signs.val;
+            const list = await readSigns();
             const sign = list.find((entry) => entry.index === index);
             if (!sign) return;
 
-            const players = parseProgress(progress);
+            const players = mergePlayers(parseProgress(base), parseProgress(progress), sign.players);
+            const next = encodeProgress(players);
             const unlocked = isUnlockedByProgress(players, sign.playersNeeded);
             const claimed = unlocked ? 1 : 0;
             const nextSigns = list.map((entry) =>
@@ -357,8 +406,8 @@ const StarSignsTab = () => {
             );
 
             const writes = [];
-            if (progress !== encodeProgress(sign.players)) {
-                writes.push({ path: `StarSignProg[${sign.index}][0]`, value: progress });
+            if (next !== encodeProgress(sign.players)) {
+                writes.push({ path: `StarSignProg[${sign.index}][0]`, value: next });
             }
             if (toInt(sign.claimed, 0) !== claimed) {
                 writes.push({ path: `StarSignProg[${sign.index}][1]`, value: claimed });
@@ -372,8 +421,10 @@ const StarSignsTab = () => {
 
             await writeManyVerified(writes);
 
-            // The open detail already shows this list; only the grid behind it changes.
+            // The open detail shows the list it gets back; the grid behind it and the page's copy of the sign follow.
             signs.val = nextSigns;
+            syncActiveSign(activeSign, nextSigns);
+            return next;
         } catch (error) {
             try {
                 await load();
@@ -390,7 +441,7 @@ const StarSignsTab = () => {
         if (!signs.val) return;
         await runReset(async () => {
             try {
-                const list = signs.val;
+                const list = await readSigns();
                 const nextSigns = list.map((sign) => ({ ...sign, players: [], unlocked: false, claimed: 0 }));
                 const writes = [];
 
@@ -429,7 +480,7 @@ const StarSignsTab = () => {
         const runFn = randomize ? runRandom : runUnlock;
         await runFn(async () => {
             try {
-                const list = signs.val;
+                const list = await readSigns();
                 const writes = [];
                 const nextSigns = list.map((sign) => {
                     const pool = [...PLAYER_NUMBERS];
@@ -473,20 +524,21 @@ const StarSignsTab = () => {
         });
     };
 
-    // The open detail stays the same node while its saves update the grid, so its save state stays.
+    // The open detail stays the same node while its sign is open (saves, reloads), so its save state stays.
     let detail = null;
     const renderBody = () => {
         const resolved = signs.val;
         if (!resolved) return null;
 
         if (activeSign.val) {
-            if (detail?.sign !== activeSign.val)
+            if (detail?.index !== activeSign.val.index)
                 detail = {
-                    sign: activeSign.val,
+                    index: activeSign.val.index,
                     node: div(
                         { class: "account-list" },
                         StarSignDetail({
                             sign: activeSign.val,
+                            current: () => activeSign.val,
                             usernames: activeSign.val.usernames ?? [],
                             onSave: handleSave,
                             onBack: () => (activeSign.val = null),

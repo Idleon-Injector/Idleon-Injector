@@ -22,8 +22,9 @@ export default () => ({
         OptionsListAccount: { 606: "2,5" },
         CustomLists: {
             h: {
-                StatueInfo: ["Power", "Speed", "Mining", "Feasty", "Health", "Kachow", "Lumberbob", "Thicc_Skin"].map(
-                    (name) => [`${name}_Statue`, "1", "desc"]
+                // The game's own statue names: bare capitals, some with underscores.
+                StatueInfo: ["POWER", "SPEED", "MINING", "FEASTY", "HEALTH", "KACHOW", "LUMBERBOB", "THICC_SKIN"].map(
+                    (name) => [name, "1", "desc"]
                 ),
                 BribeDescriptions: [
                     "Insider_Trading",
