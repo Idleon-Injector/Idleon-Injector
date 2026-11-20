@@ -299,6 +299,7 @@ test("islands: Lock all asks in place, locks every island on the second click, a
 for (const [file, levels, definitions, maxIndex] of [
     ["src/ui/pages/world-3/prayers/prayers.js", "PrayersUnlocked", "PrayerInfo", 9],
     ["src/ui/pages/classes/grimoire/grimoire.js", "Grimoire", "GrimoireUpg", 4],
+    ["src/ui/pages/world-3/salt-lick/salt-lick.js", "SaltLick", "SaltLicks", 4],
 ]) {
     test(`${file.split("/").pop()}: Max all lowers a level above its max on one click`, async () => {
         const { fetchChanges } = await importRepo("src/ui/services/api.js");
@@ -316,3 +317,25 @@ for (const [file, levels, definitions, maxIndex] of [
         assert.equal(game.gga[levels][0], cap + 7, "Undo puts it back");
     });
 }
+
+// A Max all the game refused in part (one level kept) reads the levels again, so the rows show what landed.
+test("salt-lick.js: a Max all the game refused in part shows the levels the game holds", async () => {
+    const levels = game.gga.SaltLick;
+    const caps = [0, 1].map((index) => Number(game.gga.CustomLists.h.SaltLicks[index][4]));
+    levels[0] = caps[0] + 5;
+    const kept = caps[1] + 5;
+    Object.defineProperty(levels, 1, { get: () => kept, set() {}, configurable: true });
+    try {
+        const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
+        const max = () => buttonsNamed(root, "Max all").find((node) => !node.attributes.disabled);
+        const badge = (index) =>
+            text(elements(root).filter((node) => /account-row__badge/.test(node.attributes.class ?? ""))[index]);
+        await until(() => max() && badge(0).includes(`LV ${caps[0] + 5}`), "Salt Lick");
+        await click(max());
+        await until(() => levels[0] === caps[0], "the first level to land");
+        await until(() => badge(0).includes(`LV ${caps[0]} `), "the row to show what the game holds");
+    } finally {
+        Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
+        levels[0] = 0;
+    }
+});

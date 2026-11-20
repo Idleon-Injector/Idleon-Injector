@@ -55,7 +55,7 @@ const SaltLickTab = () => {
 
     const doSetAll = async (targetLevel) => {
         if (!upgradesMeta.length) return;
-        await runBulk(async () => {
+        const result = await runBulk(async () => {
             await runBulkSet({
                 entries: upgradesMeta,
                 getTargetValue: (upgrade) =>
@@ -64,6 +64,8 @@ const SaltLickTab = () => {
                 getPath: (_, index) => `SaltLick[${index}]`,
             });
         });
+        // Some of it may have landed: the rows show what the game holds.
+        if (!result.ok && !result.cancelled) await load();
     };
 
     const load = async () =>
