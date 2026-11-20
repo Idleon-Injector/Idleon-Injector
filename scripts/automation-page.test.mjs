@@ -12,7 +12,7 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 // keep the process alive. A root after() hook can't do it: with top-level awaits between tests it runs too early.
 const setIntervalReal = globalThis.setInterval;
 globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
-const { router } = await createFakeApi();
+const { router, game } = await createFakeApi();
 // The fake game's cheats don't run; this one runs the real automation switch, as the game's cheat does.
 const { getAutomations, switchAutomation } = await importRepo("src/cheats/core/automations.js");
 const commands = [];
@@ -1701,5 +1701,47 @@ test("local review: a picks save changes the server's settings, not config.js's 
         assert.ok(!defaultConfig.automation.shops.some(({ id }) => id === "0:item1"), "the defaults stay as they are");
     } finally {
         await picks.set("0:item1", { stopAt: null });
+    }
+});
+
+test("local review: a pick the game refuses after the server took it isn't sent with a later save", async () => {
+    const picks = await freshPicks();
+    const apply = game.page.updateCheatConfig;
+    game.page.updateCheatConfig = () => {
+        game.page.updateCheatConfig = apply; // only this once
+        throw new Error("the game is busy");
+    };
+    await assert.rejects(picks.set("1:item6", { on: true }), /busy/);
+    assert.equal(picks.get("1:item6").on.val, false, "it shows what the game had");
+    await picks.set("0:item1", { stopAt: 4 });
+    try {
+        assert.ok(!saved().some(({ id }) => id === "1:item6"), "the later save doesn't send it");
+        assert.ok(!(await gameShops()).some(({ id, on }) => id === "1:item6" && on), "and the game doesn't run it");
+    } finally {
+        await picks.set("0:item1", { stopAt: null });
+    }
+});
+
+test("local review: when the game can't be read either, the server's copy of a refused pick isn't taken", async () => {
+    const picks = await freshPicks();
+    const apply = game.page.updateCheatConfig;
+    const read = game.page.readCheatConfig;
+    game.page.updateCheatConfig = () => {
+        game.page.updateCheatConfig = apply;
+        // The game stops answering: its read-back gives the server's copy, which took the refused pick.
+        game.page.readCheatConfig = () => {
+            game.page.readCheatConfig = read;
+            throw new Error("the game isn't there");
+        };
+        throw new Error("the game is busy");
+    };
+    await assert.rejects(picks.set("1:item6", { on: true }), /busy/);
+    assert.equal(picks.get("1:item6").on.val, false, "it shows what the game had");
+    await picks.set("0:item1", { stopAt: 4 });
+    try {
+        assert.ok(!saved().some(({ id, on }) => id === "1:item6" && on), "the later save doesn't send it");
+    } finally {
+        await picks.set("0:item1", { stopAt: null });
+        await picks.set("1:item6", { on: false });
     }
 });
