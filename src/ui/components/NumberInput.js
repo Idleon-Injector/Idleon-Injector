@@ -89,6 +89,7 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
     // ── Formatted mode ────────────────────────────────────────────────────────
     if (formatter) {
         let isFocused = false;
+        let shownOnFocus = null;
 
         const tryParse = (raw) => {
             const n = parseInput(raw, parser);
@@ -107,6 +108,7 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
                 // Text that didn't parse stays for the player to fix.
                 if (!liveRawByState.has(value)) inputEl.value = formatter(value.val);
                 liveRawByState.set(value, inputEl.value);
+                shownOnFocus = inputEl.value;
                 if (userOnfocus) userOnfocus(e);
             },
 
@@ -121,11 +123,14 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
 
             onblur(e) {
                 isFocused = false;
-                const parsed = tryParse(e.target.value);
+                // Text left as it was shown ("1.03K") keeps the exact value behind it, not a rounded one.
+                const parsed = e.target.value === shownOnFocus ? null : tryParse(e.target.value);
                 // Text that doesn't parse stays as typed (and as the live draft) so its save can say why.
                 if (parsed !== null) {
                     value.val = parsed;
                     inputEl.value = formatter(parsed);
+                    liveRawByState.delete(value);
+                } else if (e.target.value === shownOnFocus) {
                     liveRawByState.delete(value);
                 }
                 if (userOnblur) userOnblur(e);

@@ -243,3 +243,18 @@ test("a row with several fields saves them together, once, when you leave the ro
     assert.equal(game.gga.Cooking[0][6], 31);
     assert.equal(game.gga.Cooking[0][7], 32);
 });
+
+test("passing through a field that shows a rounded value keeps the exact value", async () => {
+    ola[253] = 1234567;
+    const root = await openPage(OWL, rowLoaded("Feathers"));
+    const row = findRow(root, "Feathers");
+    const [input] = inputs(row);
+    const start = requests.length;
+    focus(input);
+    assert.equal(input.value, "1.23M");
+    press(row, input, "Enter");
+    leave(row, input);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual(writesSince(start), []);
+    assert.equal(ola[253], 1234567);
+});

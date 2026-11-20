@@ -1,10 +1,22 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { getNumberInputLiveRaw, setNumberInputValue } from "../../NumberInput.js";
-import { resolveValue } from "./accountShared.js";
+import { largeFormatter, resolveValue } from "./accountShared.js";
 import { useAutoSave } from "./autoSave.js";
 import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
 
 const defaultToDraft = (value) => String(value ?? 0);
+
+/**
+ * A field still showing the stored value (as typed back, or as its rounded display, like "1.03K") is
+ * untouched: it keeps the stored value exactly, so tabbing through a field never saves a rounded copy.
+ */
+const isUntouched = (field, raw) => {
+    const stored = field.valueState.val;
+    const text = String(raw ?? "").trim();
+    return [String(stored ?? ""), (field.toDraft ?? defaultToDraft)(stored), largeFormatter(stored ?? 0)].includes(
+        text
+    );
+};
 const sameValue = (a, b) => a === b || (a !== null && a !== undefined && String(a) === String(b));
 
 /**
@@ -42,11 +54,21 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         prepare: () => {
             if (isDisabled()) return { unchanged: true };
             const submitted = getDrafts();
-            if (Object.values(submitted).some((raw) => String(raw ?? "").trim() === ""))
+            const touched = fields.filter((field) => !isUntouched(field, submitted[field.key]));
+            if (!touched.length) {
+                fields.forEach((field) => resetDraft(field.key));
+                return { unchanged: true };
+            }
+            if (touched.some((field) => String(submitted[field.key] ?? "").trim() === ""))
                 throw new Error("enter a number");
-            const next = normalize(submitted);
-            if (next === null || next === undefined || Number.isNaN(next)) throw new Error("not a number");
-            fields.forEach((field) => refuseClamped(submitted[field.key], next[field.key]));
+            const normalized = normalize(submitted);
+            if (normalized === null || normalized === undefined || Number.isNaN(normalized))
+                throw new Error("not a number");
+            touched.forEach((field) => refuseClamped(submitted[field.key], normalized[field.key]));
+            const next = { ...normalized };
+            fields.forEach((field) => {
+                if (!touched.includes(field)) next[field.key] = field.valueState.val;
+            });
             if (fields.every((field) => sameValue(next[field.key], field.valueState.val))) {
                 fields.forEach((field) => resetDraft(field.key));
                 return { unchanged: true };
