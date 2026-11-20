@@ -17,6 +17,10 @@ const saves = [];
 // How many of the next wide attirestats (and wide attire) runs the game refuses.
 let refuseStats = 0;
 let refuseAttire = 0;
+// While set, every wide attirestats the game would run waits until the release handed to `holdStats(release)`;
+// `statsHeldAnswered` counts the held ones that answered.
+let holdStats = null;
+let statsHeldAnswered = 0;
 const toggle = router.routes.POST.get("/api/toggle");
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
@@ -30,6 +34,12 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
         return res.json({ ok: false, message: "The game is busy" });
     }
     if (action === "wide attire") fixture.cheatStates.wide.attire = on;
+    if (action === "wide attirestats" && holdStats) {
+        await new Promise((release) => holdStats(release));
+        const answer = await toggle(req, res);
+        statsHeldAnswered++;
+        return answer;
+    }
     return toggle(req, res);
 });
 router.routes.POST.set("/api/config/save", async (req, res) => {
@@ -671,4 +681,48 @@ test("give everyone writes a saved copy that still lacks the outfit the live cop
     assert.match(give.attributes["aria-label"], /^Click again to give 1 character /);
     await give.listeners.click({ currentTarget: give, preventDefault() {} });
     await until(() => gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] === item, "the saved copy");
+});
+
+// CodeRabbit on #110: a stat update Give everyone started, answering after a newer one from a row's pick was refused,
+// doesn't clear the debt the newer one left: leaving the field runs the update again. (After an undo the reload waits
+// for its own update, so the rows can't be picked meanwhile; Give everyone leaves them enabled.)
+test("an older stat update that answers after a newer one failed leaves the newer one owed", async () => {
+    const root = await open();
+    const [everyone] = elements(root).filter(
+        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
+    );
+    const worn = gga.EquipmentOrder[0][15];
+    const item = worn === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5";
+    everyone.listeners.change({ target: { value: item } });
+    const give = button(root, "Give everyone");
+    const held = [];
+    const answered = statsHeldAnswered;
+    try {
+        await give.listeners.click({ currentTarget: give, preventDefault() {} });
+        await until(() => give.attributes["data-again"] === "Click again", "the question");
+        holdStats = (release) => held.push(release);
+        void give.listeners.click({ currentTarget: give, preventDefault() {} });
+        await until(() => held.length === 1, "Give everyone's stat update to wait");
+        holdStats = null;
+        // The pick of the character in play lands; its own stat update is refused.
+        const node = row(root, "Lumi_Main");
+        const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+        const next = item === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5";
+        refuseStats = 1;
+        field.listeners.change({ target: { value: next } });
+        await until(() => /The game is busy/.test(text(node)), "the row's stat update to be refused");
+        assert.equal(gga.EquipmentOrder[0][15], next, "the pick landed");
+        // The older update answers now; the page takes its answer before a config read made after it.
+        held[0]();
+        await until(() => statsHeldAnswered === answered + 1, "the older update to answer");
+        await fetchConfig();
+        const ran = commands.length;
+        node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
+        await until(() => commands.slice(ran).includes("wide attirestats"), "leaving the field to run the owed update");
+        await until(() => /save-state--success/.test(saveState(node)), "the row to say it saved");
+    } finally {
+        holdStats = null;
+        refuseStats = 0;
+        for (const release of held) release();
+    }
 });

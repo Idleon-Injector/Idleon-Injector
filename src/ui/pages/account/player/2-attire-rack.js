@@ -288,12 +288,20 @@ const AttireRackPage = () => {
     // The stats of the character in play are owed from a change whose write landed but whose stat update failed.
     // A retry finds the game already holds the pick, so it runs the update instead of stopping there.
     let statsOwed = false;
+    // Each change that owes the stats, and each update, is newer than the last; an update clears the debt only when
+    // nothing newer started after it, so an older one answering late doesn't clear a newer one's failure.
+    let statsDebt = 0;
+    const oweStats = () => {
+        statsOwed = true;
+        return ++statsDebt;
+    };
     // The line a refused stat update left above the rows (after an undo or Give everyone); it goes once an owed update
     // runs, as does the in-play row's reason when its pick is what the game holds.
     let owedLine = null;
     const updateStats = async () => {
-        statsOwed = true;
+        const debt = oweStats();
         await executeCheatAction(STATS_CHEAT);
+        if (debt !== statsDebt) return;
         statsOwed = false;
         if (owedLine && bulkSaid.said.val === owedLine) bulkSaid.clear();
         owedLine = null;
@@ -324,7 +332,7 @@ const AttireRackPage = () => {
             return updateStats();
         }
         // A write that lands only in part still changed the character in play: its stat update is owed.
-        if (character.active) statsOwed = true;
+        if (character.active) oweStats();
         await writeManyVerified(writes).catch(async (caught) => {
             await readStatus().catch(() => {});
             throw caught;
@@ -407,7 +415,7 @@ const AttireRackPage = () => {
         let wrote = false;
         await bulkWrite.run(
             async () => {
-                if (targets.some((character) => character.active)) statsOwed = true;
+                if (targets.some((character) => character.active)) oweStats();
                 await writeManyVerified(targets.flatMap((character) => slotWrites(character, item)));
                 wrote = true;
                 await afterChange(targets);
