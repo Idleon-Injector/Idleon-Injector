@@ -368,3 +368,24 @@ test("Account Options' Undo shows the value the game got back, even when the row
     assert.equal(ola[254], 15);
     await until(() => String(field.attributes.value) === "15", "the row to show 15");
 });
+
+test("a reload asked for while the page loads runs once that load ends", async () => {
+    const { useAccountLoad } = await importRepo("src/ui/components/views/account/accountLoadPolicy.js");
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const { run } = useAccountLoad();
+    let loads = 0;
+    let finish;
+    await run(async () => loads++);
+    const slow = run(() => {
+        loads++;
+        return new Promise((resolve) => (finish = resolve));
+    });
+    reloadPlace.val = { view: "", page: "" }; // an undo elsewhere, while this page reads
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    finish();
+    await slow;
+    await until(() => loads === 3, "the reload after the load");
+    finish();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(loads, 3, "once");
+});

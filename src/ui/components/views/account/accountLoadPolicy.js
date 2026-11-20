@@ -62,11 +62,14 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage } = {})
     };
 
     // An undo made elsewhere (History, or a bulk Undo all) changed values this page shows: read them again.
+    // One asked for while a load runs waits for it to end, as that load may have read the values before the undo.
     // ponytail: re-runs the page's last load; a load must only read, which is how every page loads today.
-    const seen = reloadPlace.rawVal;
+    let handled = reloadPlace.rawVal;
     van.derive(() => {
         const target = reloadPlace.val;
-        if (!target || target === seen || !lastTask || loading.rawVal) return;
+        const busy = loading.val;
+        if (!target || target === handled || !lastTask || busy) return;
+        handled = target;
         if (target.view === place.view && target.page === place.page) void run(lastTask);
     });
 
