@@ -124,3 +124,20 @@ test("changing one chip slot keeps a chip swapped in game since the page read th
     assert.equal(gga.Lab[1][1], 2);
     assert.equal(gga.Lab[1][0], 5);
 });
+
+for (const [name, findRow, read] of [
+    ["an upgrade", (rows) => rows.find((row) => /RANK [0-9]+ ·/.test(text(row))), () => gga.CookMaster[2][0]],
+    ["the Mastery Rank", (rows) => rows.find((row) => /Mastery Rank/.test(text(row))), () => gga.CookMaster[1][0] + 1],
+]) {
+    test(`a Mastery save of ${name} that landed shows ✓ even when the points-left read fails`, async () => {
+        const root = await openPage("src/ui/pages/world-4/cooking/3-mastery.js");
+        const row = findRow(byClass(root, "account-row"));
+        const [input] = byTag(row, "input");
+        failPointsRead = true;
+        typeAndEnter(row, input, 9);
+        await settled(row);
+        assert.equal(failPointsRead, false, "the points read ran and failed");
+        assert.equal(stateOf(row), "success");
+        assert.equal(read(), 9);
+    });
+}
