@@ -103,8 +103,9 @@ const TalentRow = ({ talentId, talentName, maxState, maxBookLvState, isBookAvail
             span({ class: "account-row__index" }, `#${talentId}`),
             div({ class: "talent-row__text" }, span({ class: "account-row__name" }, talentName)),
         ],
-        // A max level of -1 is a talent the character hasn't unlocked.
+        // A max level of -1 is a talent the character hasn't unlocked: the word says so and the field shows empty.
         renderBadge: () => (maxState.val === -1 ? "Locked" : ""),
+        unset: -1,
         rowClass: "talent-row",
         controlsClass: "account-row__controls--xl",
     });

@@ -20,6 +20,8 @@ const { div, span } = van.tags;
  * - `cap` (a number or a function returning one) shows muted inside the field after the value: "2 / 15". Only a
  *   real cap, the value Max fills up to; a number that isn't a limit never gets the slash.
  * - `renderBadge(value)` is a state (Equipped, Locked), a plain muted word just before the field.
+ * - `unset` is a stored value that means "not set" (a locked talent's -1); the field shows it empty, and leaving the
+ *   empty field untouched saves nothing.
  */
 export const EditableNumberRow = ({
     valueState,
@@ -42,6 +44,7 @@ export const EditableNumberRow = ({
     inputMode = "int",
     inputProps = {},
     disabled = null,
+    unset = null,
 }) => {
     const {
         onfocus: userOnfocus,
@@ -53,7 +56,11 @@ export const EditableNumberRow = ({
         ...restInputProps
     } = inputProps;
     const formatCommittedValue = (value) =>
-        typeof formatter === "function" ? formatter(value ?? 0) : String(value ?? 0);
+        unset !== null && value === unset
+            ? ""
+            : typeof formatter === "function"
+              ? formatter(value ?? 0)
+              : String(value ?? 0);
     const { inputValue, status, reason, undo, handlers, run, isDisabled, applyValue, focus, blur } = useNumericEditor({
         valueState,
         normalize,

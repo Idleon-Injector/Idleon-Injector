@@ -32,6 +32,7 @@ export const ClampedLevelRow = ({
     inputMode = "int",
     maxAction = null,
     renderExtraActions = null,
+    unset = null,
 }) => {
     const clamp = (value, fallback = null, { strict = false } = {}) => {
         const minValue = toBound(resolveValue(min), 0);
@@ -88,5 +89,6 @@ export const ClampedLevelRow = ({
         },
         maxAction: resolvedMaxAction,
         renderExtraActions,
+        unset,
     });
 };

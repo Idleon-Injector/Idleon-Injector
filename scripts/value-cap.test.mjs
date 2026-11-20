@@ -182,7 +182,9 @@ test("library.js: a talent's field is its max level over the book cap, and its p
     const before = sent.length;
     const root = await openPage("src/ui/pages/world-3/library/library.js");
     const bookCap = text(byClass(root, "library-maxbooklv__value")[0]);
-    const row = byClass(root, "talent-row").find((candidate) => capOf(candidate) !== "");
+    const row = byClass(root, "talent-row").find(
+        (candidate) => capOf(candidate) !== "" && text(badgeOf(candidate)) === ""
+    );
     assert.ok(row, "a book talent is listed");
     const talentId = Number(text(byClass(row, "account-row__index")[0]).slice(1));
 
@@ -193,4 +195,49 @@ test("library.js: a talent's field is its max level over the book cap, and its p
         !sent.slice(before).some(({ body }) => /^gga\.SkillLevels(\[|$)/.test(String(body?.path))),
         "the talent's own points are never read"
     );
+});
+
+// A talent the character hasn't unlocked has a max level of -1: the word says Locked and the field shows empty.
+const lockedLibraryRow = async () => {
+    const root = await openPage("src/ui/pages/world-3/library/library.js");
+    const row = byClass(root, "talent-row").find((candidate) => text(badgeOf(candidate)) === "Locked");
+    assert.ok(row, "a locked talent is listed");
+    return row;
+};
+
+test("library.js: a locked talent says Locked and its field is empty, not -1, with the cap after it", async () => {
+    const row = await lockedLibraryRow();
+    assert.equal(shown(row), "");
+    assert.match(capOf(row), /^\/ \d+$/);
+});
+
+test("library.js: Enter or leaving a locked talent's untouched empty field writes nothing", async () => {
+    const row = await lockedLibraryRow();
+    const before = sent.length;
+    inputOf(row).listeners.focus({ target: inputOf(row) });
+    pressEnter(row);
+    await settled();
+    leave(row);
+    await settled();
+
+    assert.deepEqual(writesSince(before), [], "the game was never written");
+    assert.ok(!classes(row).includes("is-save-failed"), "and nothing is refused");
+    assert.equal(shown(row), "");
+    assert.equal(text(badgeOf(row)), "Locked");
+});
+
+test("library.js: typing a level into a locked talent and leaving the field sets it", async () => {
+    const row = await lockedLibraryRow();
+    const talentId = Number(text(byClass(row, "account-row__index")[0]).slice(1));
+    const before = sent.length;
+    type(row, 50);
+    leave(row);
+    await settled();
+
+    assert.deepEqual(
+        writesSince(before).map((entry) => [entry.path, entry.value]),
+        [[`gga.SkillLevelsMAX[${talentId}]`, 50]]
+    );
+    assert.equal(shown(row), "50");
+    assert.equal(text(badgeOf(row)), "", "it isn't locked any more");
 });
