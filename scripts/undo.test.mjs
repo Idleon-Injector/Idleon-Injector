@@ -484,3 +484,35 @@ test('History keeps "N more" open when the log refreshes', async () => {
     await until(() => more() && more() !== opened, "the log to refresh");
     assert.equal(more().attributes.open, true);
 });
+
+test("History shows the newest read of the log when two overlap", async () => {
+    const { History } = await importRepo("src/ui/components/views/History.js");
+    const { changesVersion } = await importRepo("src/ui/services/changeLog.js");
+    store.app.activeTab = "history-tab";
+    const root = History();
+    const listed = () => byClass(root, "change-group").length;
+    const realFetch = globalThis.fetch;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let holding = true;
+    globalThis.fetch = async (url, options = {}) => {
+        const late = holding && String(url).endsWith("/api/changes") && !options.method;
+        const response = await realFetch(url, options);
+        if (late) await held; // the older answers arrive last
+        return response;
+    };
+    try {
+        changesVersion.val++; // the older read starts
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        holding = false;
+        await withAction({ label: "test" }, () => writeVerified("OptionsListAccount[254]", ola[254] + 1));
+        const expected = (await fetchChanges()).actions.length;
+        await until(() => listed() === expected, "the newer read to show");
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        assert.equal(listed(), expected, "the older answer doesn't replace it");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+});

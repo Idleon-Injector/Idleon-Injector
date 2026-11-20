@@ -170,15 +170,19 @@ export const History = () => {
         count.val = actions.length;
     };
 
+    // Reads can overlap (a save during a read); only the newest one's answer is shown.
+    let newest = 0;
     const load = async () => {
+        const ticket = ++newest;
         try {
             const { actions } = await fetchChanges();
+            if (ticket !== newest) return;
             sync(actions);
             failed.val = "";
         } catch (error) {
-            failed.val = error?.message || "The change log couldn't be read.";
+            if (ticket === newest) failed.val = error?.message || "The change log couldn't be read.";
         } finally {
-            loaded.val = true;
+            if (ticket === newest) loaded.val = true;
         }
     };
 
