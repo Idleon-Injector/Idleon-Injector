@@ -475,21 +475,24 @@ const WeeklyBossTab = () => {
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             return Math.max(0, next + delta);
         },
-        write: async (value) => {
-            if (cannotEdit()) throw new Error("refresh first");
-            if (value === trophies.val) return { cancelled: true };
-            busy.val = true;
-            message.val = "";
-            try {
-                await submitWrites([{ path: "OptionsListAccount[188]", value }]);
-                return value;
-            } catch (caughtError) {
-                message.val = caughtError.message;
-                throw caughtError;
-            } finally {
-                busy.val = false;
-            }
-        },
+        // Takes its turn with the skin and character saves, so a switch flipped meanwhile waits instead of being
+        // dropped as busy.
+        write: (value) =>
+            inTurn(async () => {
+                if (cannotEdit()) throw new Error("refresh first");
+                if (value === trophies.val) return { cancelled: true };
+                busy.val = true;
+                message.val = "";
+                try {
+                    await submitWrites([{ path: "OptionsListAccount[188]", value }]);
+                    return value;
+                } catch (caughtError) {
+                    message.val = caughtError.message;
+                    throw caughtError;
+                } finally {
+                    busy.val = false;
+                }
+            }),
         renderInfo: () => span({ class: "account-row__name" }, "Trophies"),
         inputProps: { "aria-label": "Weekly Boss trophy balance" },
     });

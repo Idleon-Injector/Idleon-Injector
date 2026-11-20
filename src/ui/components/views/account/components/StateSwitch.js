@@ -93,6 +93,8 @@ export const StateSwitch = ({
                     own.val = outcome?.ok ? "success" : null;
                     if (own.val === "success") ownTimer = setTimeout(() => (own.val = null), SUCCESS_MS);
                 }
+                // A newer flip the game already holds: the player took the failed one back, so it isn't said.
+                if (wanted !== null) failed.val = null;
             } finally {
                 saving = false;
                 wanted = null;

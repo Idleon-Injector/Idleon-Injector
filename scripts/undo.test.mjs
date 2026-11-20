@@ -682,6 +682,64 @@ test("Printer compares a kept draft with the value the reload read", async () =>
     await until(() => gga.Printer[index] === was, "the pick to save");
 });
 
+test("Printer saves the exact quantity a rounded draft stood for, even after a save in between", async () => {
+    const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const selects = (root) => elements(root).filter((node) => classes(node).includes("printer-item-select"));
+    const root = await openPage("src/ui/pages/world-3/printer/printer.js", (node) => selects(node).length > 0);
+    const [select] = selects(root);
+    let panel = select;
+    while (!panel.attributes["data-printer-character"]) panel = panel.parentNode;
+    const index = 15 + 14 * gga.GetPlayersUsernames.indexOf(panel.attributes["data-printer-character"]); // print 1
+    let row = select;
+    while (!row.listeners.keydown) row = row.parentNode;
+    const field = elements(row).find((node) => node.nodeName === "input");
+    const before = { item: gga.Printer[index], qty: gga.Printer[index + 1] };
+    const other = elements(select)
+        .filter((node) => node.nodeName === "option")
+        .map((node) => node.attributes.value)
+        .find((id) => id !== "Blank" && id !== before.item);
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = false;
+    let answered = Promise.resolve();
+    // Hold the first save's write, so the second commit is made while it runs.
+    globalThis.fetch = (url, options) => {
+        if (held || !String(url).includes("/write") || !String(options?.body).includes("Printer[")) {
+            return realFetch(url, options);
+        }
+        held = true;
+        answered = gate.then(() => realFetch(url, options));
+        return answered;
+    };
+    const commit = (qty) => {
+        field.value = String(qty);
+        field.listeners.input({ target: field });
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+    };
+    try {
+        gga.Printer[index + 1] = 16234;
+        reloadPlace.val = { view: "", page: "" }; // read the slot again
+        await until(() => field.value === largeFormatter(16234), "the slot to show 16.2K");
+        commit(20000);
+        await until(() => held, "the first save to reach the game");
+        select.value = other;
+        select.listeners.change({ target: select });
+        commit(largeFormatter(16234)); // back to what the field showed before
+        release();
+        await answered;
+        await until(() => gga.Printer[index] === other, "the second save to land");
+        assert.equal(gga.Printer[index + 1], 16234, "the exact quantity, not 16200");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        await answered;
+        gga.Printer[index] = before.item;
+        gga.Printer[index + 1] = before.qty;
+    }
+});
+
 test("a save made while who is in play can't be read is logged without Undo", async () => {
     const [first] = gga.GetPlayersUsernames;
     const userInfo = gga.UserInfo;
@@ -700,4 +758,20 @@ test("a save made while who is in play can't be read is logged without Undo", as
     assert.equal(top.hasBefore, false, "a top-level key's owner is unknown, so no old value to put back");
     assert.equal(saved.hasBefore, true, "a saved copy names its character");
     await assert.rejects(undoAction((await newest()).id), { message: "old value unknown" });
+});
+
+// Re-read 3 of #110: a load that failed in a way the load policy didn't catch doesn't stop the page's later loads.
+test("a page's loads go on after one failed in a way the policy didn't catch", async () => {
+    const { useAccountLoad } = await importRepo("src/ui/components/views/account/accountLoadPolicy.js");
+    const { run } = useAccountLoad({ label: "Test" });
+    // An error whose message can't even be read: reading it throws inside the policy's own catch.
+    const unreadable = {
+        get message() {
+            throw new Error("unreadable");
+        },
+    };
+    await run(async () => {
+        throw unreadable;
+    }).catch(() => {});
+    assert.equal(await run(async () => "read"), "read");
 });

@@ -158,3 +158,15 @@ test("a missing config.custom.js is reported as missing, and reading a closed ga
     );
     assert.equal(JSON.stringify(config.getCheatConfig()), before);
 });
+
+test("a save that leaves out the startup cheats keeps them, loaded and in the file", async (t) => {
+    useInstall(t, 'exports.startupCheats = ["godlike reach", "automation shops"];');
+    const { config } = start();
+    const startup = ["godlike reach", "automation shops"];
+    assert.deepEqual(config.getStartupCheats(), startup);
+    // As an automation tab does: it saves only its picks.
+    await config.saveConfiguration({ cheatConfig: {} });
+    assert.deepEqual(config.getStartupCheats(), startup, "the loaded list keeps them");
+    await config.saveConfiguration({ cheatConfig: {} });
+    assert.deepEqual(start().config.getStartupCheats(), startup, "and so does the file after a second save");
+});

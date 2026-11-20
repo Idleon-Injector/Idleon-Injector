@@ -377,8 +377,8 @@ const shown = (row) => switchOf(row).attributes.checked; // what the box shows (
 // Start the change log on `page`; `done()` puts the menu back where it was, so later tests don't start elsewhere.
 const cleanups = [];
 // Last registered, first undone: a refusal comes off before the value it guarded is put back.
-const runCleanups = () => {
-    for (const cleanup of cleanups.splice(0).reverse()) cleanup();
+const runCleanups = async () => {
+    for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 };
 const startLog = async (page) => {
     const changeLog = await importRepo("src/ui/services/changeLog.js");
@@ -496,7 +496,7 @@ test("event shop: a confirmed Enable all keeps its button's action through the q
         await until(() => changeLog.lastBulkAction.val !== logged, "Enable all to log its action");
         assert.equal(changeLog.lastBulkAction.val.action.anchor, enableAll, "its Undo all sits beside the button");
     } finally {
-        runCleanups();
+        await runCleanups();
         ola[311] = before;
     }
 });
@@ -522,7 +522,7 @@ test("bribes: a queued save is logged on the page it was asked for on, after the
         await until(() => changeLog.lastBulkAction.val !== logged, "the saves to be logged");
         assert.deepEqual(changeLog.lastBulkAction.val.action.place, askedOn, "logged where it was asked for");
     } finally {
-        runCleanups();
+        await runCleanups();
         writes.all();
         resetBribes();
     }
@@ -553,28 +553,38 @@ const openStampA1 = async () => {
     return { root, row: rowNamed(root, "Stamp A1"), levels, before: before.level };
 };
 // Log the game requests in order ("switch read", "level write", …); the first that `holdIf` picks waits for
-// `release()`, and "held answered" is logged once the game answers it.
+// `release()`, and "held answered" is logged once the game answers it. `levels` lists the stamp levels written.
+// Its cleanup lets the held request go and waits for it, and for what `track()` was given, before the fixture is
+// put back (cleanups registered before it run after it).
 const watchRequests = (holdIf) => {
     const realFetch = globalThis.fetch;
     const log = [];
+    const levels = [];
+    const started = [];
     let release;
     const gate = new Promise((resolve) => (release = resolve));
     let held = 0;
     globalThis.fetch = async (url, options) => {
         const body = String(options?.body ?? "");
         const name = body.includes("Compass[4]") ? "switch" : body.includes("StampLevel") ? "level" : "other";
-        log.push(`${name} ${String(url).includes("/write") ? "write" : "read"}`);
+        const isWrite = String(url).includes("/write");
+        log.push(`${name} ${isWrite ? "write" : "read"}`);
+        if (isWrite && name === "level")
+            levels.push(JSON.parse(body).writes.find((write) => write.path.includes("StampLevel[")).value);
         if (!holdIf(String(url), body) || held++ > 0) return realFetch(url, options);
-        await gate;
-        const response = await realFetch(url, options);
+        const answered = gate.then(() => realFetch(url, options));
+        started.push(answered);
+        const response = await answered;
         log.push("held answered");
         return response;
     };
-    cleanups.push(() => {
-        globalThis.fetch = realFetch;
+    cleanups.push(async () => {
         release();
+        await Promise.allSettled(started);
+        globalThis.fetch = realFetch;
     });
-    return { log, held: () => held > 0, release };
+    const track = (operation) => (started.push(operation), operation);
+    return { log, levels, held: () => held > 0, release, track };
 };
 const isLevelWrite = (url, body) => url.includes("/write") && body.includes("StampLevel");
 // The switch asked the game something, and only once the held request was answered.
@@ -592,7 +602,7 @@ test("stamps: leaving a level field for the row's switch saves the level", async
         row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: switchOf(row) });
         await until(() => levels[0] === before + 1, "the level to save");
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -604,7 +614,7 @@ test("stamps: a switch flipped while the level saves waits for it, and says its 
         const field = typeLevel(row, before + 1);
         row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: switchOf(row) });
         await until(requests.held, "the level's write to reach the game");
-        const flipped = flip(row, true);
+        const flipped = requests.track(flip(row, true));
         requests.release();
         await flipped;
         await until(() => levels[0] === before + 1 && saveWordsOf(row) !== "saving…", "both saves to end");
@@ -612,7 +622,7 @@ test("stamps: a switch flipped while the level saves waits for it, and says its 
         assert.equal(wordsOf(row), "game kept old value", "the switch says why it wasn't saved");
         assert.equal(saveWordsOf(row), "saved", "once: the row keeps the level's ✓");
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -628,7 +638,7 @@ test("stamps: a refused level stays said when the switch flipped behind it saves
         assert.equal(field.value, String(before + 1), "the typed level is still there to fix");
         assert.equal(switchStatusOf(row), "Saved", "the switch reads out its own save");
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -636,7 +646,7 @@ test("stamps: a switch's save is read out once, by the switch", async () => {
     try {
         const { row } = await openStampA1();
         const requests = watchRequests((url, body) => url.includes("/write") && body.includes("Compass[4]"));
-        const flipped = flip(row, true);
+        const flipped = requests.track(flip(row, true));
         await until(() => requests.held() && switchStatusOf(row) === "Saving…", "the switch to say it's saving");
         assert.equal(saveWordsOf(row), "", "the row doesn't say saving… too");
         requests.release();
@@ -644,7 +654,7 @@ test("stamps: a switch's save is read out once, by the switch", async () => {
         await until(() => switchStatusOf(row) === "Saved", "the switch to say it saved");
         assert.equal(saveWordsOf(row), "", "the row doesn't say saved too");
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -656,7 +666,7 @@ test("stamps: the switch's Saved goes after as long as the row's ✓ stays", asy
         await until(() => switchStatusOf(row) === "Saved", "the switch to say it saved");
         await until(() => switchStatusOf(row) === "", "Saved to go", SUCCESS_MS / 10 + 300);
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -667,7 +677,7 @@ test("stamps: a level committed after a switch flip saves after the flip", async
         let field = typeLevel(row, before + 1);
         row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: switchOf(row) });
         await until(requests.held, "the first level's write to reach the game");
-        const flipped = flip(row, true);
+        const flipped = requests.track(flip(row, true));
         field = typeLevel(row, before + 2);
         row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
         requests.release();
@@ -676,7 +686,31 @@ test("stamps: a level committed after a switch flip saves after the flip", async
         const writes = requests.log.filter((entry) => entry.endsWith("write"));
         assert.deepEqual(writes, ["level write", "switch write", "level write"]);
     } finally {
-        runCleanups();
+        await runCleanups();
+    }
+});
+
+test("stamps: a level committed after a flip doesn't save before it, even while an earlier save repeats", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        const requests = watchRequests(isLevelWrite);
+        const commit = (value) => {
+            const field = typeLevel(row, value);
+            row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        };
+        commit(before + 1);
+        await until(requests.held, "the first level's write to reach the game");
+        commit(before + 2); // joins the running save
+        const flipped = requests.track(flip(row, true));
+        commit(before + 3); // after the flip: its own turn
+        requests.release();
+        await flipped;
+        await until(() => levels[0] === before + 3, "the last level to save");
+        assert.deepEqual(requests.levels, [before + 1, before + 2, before + 3]);
+        const writes = requests.log.filter((entry) => entry.endsWith("write"));
+        assert.deepEqual(writes, ["level write", "level write", "switch write", "level write"]);
+    } finally {
+        await runCleanups();
     }
 });
 
@@ -700,7 +734,7 @@ test("stamps: a switch's failure is said on the switch, so the level saved after
         await flip(row, true);
         await until(() => wordsOf(row) === "Exalted", "the switch's own ✓ to take its failure back");
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -717,7 +751,7 @@ test("stamps: a switch's old failure goes once a refresh shows the game holds so
         await until(() => wordsOf(row) === "Exalted", "the refresh to show the game's state");
         assert.equal(saveWordsOf(row), "");
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -736,7 +770,7 @@ test("stamps: a refused Undo of a switch flip is said once, and the next save's 
         await until(() => levels[0] === before + 1, "the level to save");
         await until(() => saveWordsOf(row) === "saved", "the level's ✓");
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
@@ -749,60 +783,68 @@ test("stamps: a switch flipped while Undo runs waits for it", async () => {
         await until(() => levels[0] === before + 1 && undoButton.attributes.hidden === false, "the save's Undo");
 
         const requests = watchRequests(isLevelWrite); // the undo's write
-        const undone = undoButton.listeners.click();
+        const undone = requests.track(undoButton.listeners.click());
         await until(requests.held, "the undo's write to reach the game");
-        const flipped = flip(row, true);
+        const flipped = requests.track(flip(row, true));
         requests.release();
         await Promise.all([undone, flipped]);
         switchStartedAfterHeld(requests.log);
         assert.equal(levels[0], before);
         assert.ok(exalted());
     } finally {
-        runCleanups();
+        await runCleanups();
     }
 });
 
 // ---- Emperor ----
 
-test("emperor: a double-click on Reset doesn't answer the Click again its first click asks", async () => {
+const EMPEROR = "src/ui/pages/world-6/emperor/emperor.js";
+// Emperor with some completed showdowns, its progress and base rewards put back afterwards.
+const openEmperor = async () => {
     const ola = game.gga.OptionsListAccount;
     const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
+    cleanups.push(() => {
+        ola[369] = before.progress;
+        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+    });
     if (!(Number(ola[369]) > 0)) ola[369] = 5;
-    const progress = ola[369];
+    const root = await openPage(EMPEROR, (root) => text(root).includes("Base daily replenishment"));
+    const row = rowNamed(root, "Completed showdowns");
+    return {
+        ola,
+        progress: ola[369],
+        row,
+        field: elements(row).find((node) => node.nodeName === "input"),
+        reset: elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset"),
+    };
+};
+const typeProgress = (row, field, value) => {
+    field.value = String(value);
+    field.listeners.input({ target: field });
+    row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+};
+
+test("emperor: a double-click on Reset doesn't answer the Click again its first click asks", async () => {
     try {
-        const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Base daily replenishment")
-        );
-        const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
+        const { ola, progress, reset } = await openEmperor();
         await Promise.all([click(reset), click(reset)]);
         assert.equal(ola[369], progress, "nothing reset");
         assert.equal(reset.attributes["data-again"], "Click again", "the first click asks");
         await click(reset);
         assert.equal(ola[369], 0, "a click after the question answers it");
     } finally {
-        ola[369] = before.progress;
-        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+        await runCleanups();
     }
 });
 
 test("emperor: Reset asking first leaves the field's failure; Reset saving takes it back", async () => {
-    const ola = game.gga.OptionsListAccount;
-    const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
-    if (!(Number(ola[369]) > 0)) ola[369] = 5;
-    const progress = ola[369];
-    const restore = refuseWrites(ola, 369);
     try {
-        const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Base daily replenishment")
-        );
-        const row = rowNamed(root, "Completed showdowns");
-        const field = elements(row).find((node) => node.nodeName === "input");
-        field.value = String(progress + 1);
-        field.listeners.input({ target: field });
-        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        const { ola, progress, row, field, reset } = await openEmperor();
+        const restore = refuseWrites(ola, 369);
+        cleanups.push(restore);
+        typeProgress(row, field, progress + 1);
         await until(() => saveWordsOf(row) === "game kept old value", "the field's failure");
 
-        const reset = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
         await click(reset); // only asks: a cancelled write answers nothing
         assert.equal(reset.attributes["data-again"], "Click again");
         await until(() => saveWordsOf(row) !== "saving…", "the ask to end");
@@ -813,90 +855,42 @@ test("emperor: Reset asking first leaves the field's failure; Reset saving takes
         assert.equal(ola[369], 0);
         await until(() => saveWordsOf(row) === "saved", "Reset's ✓");
     } finally {
-        restore();
-        ola[369] = before.progress;
-        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+        await runCleanups();
     }
 });
 
 test("emperor: Escape while Reset runs takes back the field's failure for good", async () => {
-    const ola = game.gga.OptionsListAccount;
-    const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
-    if (!(Number(ola[369]) > 0)) ola[369] = 5;
-    const progress = ola[369];
-    const restore = refuseWrites(ola, 369);
-    const realFetch = globalThis.fetch;
-    let release;
-    const gate = new Promise((resolve) => (release = resolve));
-    let holding = false;
-    let held = false;
-    globalThis.fetch = async (url, options) => {
-        if (holding && !held) {
-            held = true;
-            await gate;
-        }
-        return realFetch(url, options);
-    };
     try {
-        const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Base daily replenishment")
-        );
-        const row = rowNamed(root, "Completed showdowns");
-        const field = elements(row).find((node) => node.nodeName === "input");
-        field.value = String(progress + 1);
-        field.listeners.input({ target: field });
-        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        const { ola, progress, row, field, reset } = await openEmperor();
+        cleanups.push(refuseWrites(ola, 369));
+        typeProgress(row, field, progress + 1);
         await until(() => saveWordsOf(row) === "game kept old value", "the field's failure");
 
-        holding = true; // Reset's first read waits, so Escape comes while Reset runs
-        const reset = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
-        const clicked = click(reset);
-        await until(() => held, "Reset to reach the game");
+        const requests = watchRequests(() => true); // Reset's first read waits, so Escape comes while Reset runs
+        const clicked = requests.track(click(reset));
+        await until(requests.held, "Reset to reach the game");
         row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
-        release();
+        requests.release();
         await clicked; // only asks
         await until(() => saveWordsOf(row) !== "saving…", "Reset to end");
         assert.equal(saveWordsOf(row), "", "no failure for a draft that's gone");
     } finally {
-        globalThis.fetch = realFetch;
-        release();
-        restore();
-        ola[369] = before.progress;
-        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+        await runCleanups();
     }
 });
 
 test("emperor: Reset clicked while the typed progress saves doesn't split that save's History action", async () => {
     const { fetchChanges } = await importRepo("src/ui/services/api.js");
-    const ola = game.gga.OptionsListAccount;
-    const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
-    if (!(Number(ola[369]) > 0)) ola[369] = 5;
-    const progress = ola[369];
-    const realFetch = globalThis.fetch;
-    let release;
-    const gate = new Promise((resolve) => (release = resolve));
-    let held = false;
-    // Hold the progress save's first write, so Reset is clicked while that save runs.
-    globalThis.fetch = async (url, options) => {
-        if (!held && String(url).includes("/write") && String(options?.body).includes("OptionsListAccount[369]")) {
-            held = true;
-            await gate;
-        }
-        return realFetch(url, options);
-    };
     try {
-        const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Base daily replenishment")
+        const { ola, progress, row, field, reset } = await openEmperor();
+        // Hold the progress save's first write, so Reset is clicked while that save runs.
+        const requests = watchRequests(
+            (url, body) => url.includes("/write") && body.includes("OptionsListAccount[369]")
         );
-        const row = rowNamed(root, "Completed showdowns");
-        const field = elements(row).find((node) => node.nodeName === "input");
-        field.value = String(progress + 1);
-        field.listeners.input({ target: field });
-        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
-        await until(() => held, "the progress write to reach the game");
-        const reset = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
-        const clicked = click(reset); // waits its turn, then only asks
-        release();
+        typeProgress(row, field, progress + 1);
+        await until(requests.held, "the progress write to reach the game");
+        const clicked = requests.track(click(reset)); // waits its turn, then only asks
+        requests.release();
         await clicked;
         assert.equal(ola[369], progress + 1);
         const { actions } = await fetchChanges();
@@ -909,10 +903,217 @@ test("emperor: Reset clicked while the typed progress saves doesn't split that s
             "progress and its base rewards are one action"
         );
     } finally {
-        globalThis.fetch = realFetch;
-        release();
-        ola[369] = before.progress;
-        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+        await runCleanups();
+    }
+});
+
+test("emperor: a progress typed after Reset is clicked doesn't save before Reset asks", async () => {
+    try {
+        const { ola, progress, row, field, reset } = await openEmperor();
+        const requests = watchRequests(
+            (url, body) => url.includes("/write") && body.includes("OptionsListAccount[369]")
+        );
+        typeProgress(row, field, progress + 1);
+        await until(requests.held, "the first progress write to reach the game");
+        typeProgress(row, field, progress + 2); // joins the running save
+        const clicked = requests.track(click(reset)); // waits its turn
+        typeProgress(row, field, progress + 3); // after Reset: its own turn
+        requests.release();
+        await clicked;
+        assert.equal(ola[369], progress + 2, "Reset asked before the last typed value saved");
+        await until(() => ola[369] === progress + 3, "the last typed value to save");
+    } finally {
+        await runCleanups();
+    }
+});
+
+// ---- Local review of 2ded019 ----
+
+test("stamps: Escape drops a commit still waiting; the one already writing ends", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        const requests = watchRequests(isLevelWrite);
+        const commit = (value) => {
+            const field = typeLevel(row, value);
+            row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+            return field;
+        };
+        commit(before + 1);
+        await until(requests.held, "the first level's write to reach the game");
+        const field = commit(before + 2); // joins the running save
+        row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        requests.release();
+        await until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the first level's save to end");
+        assert.deepEqual(requests.levels, [before + 1], "the commit Escape took back isn't saved");
+    } finally {
+        await runCleanups();
+    }
+});
+
+test("stamps: a commit that joins a running save is logged on its own page after the player moved on", async () => {
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    try {
+        const { root, row, levels, before } = await openStampA1();
+        const { changeLog, store, done } = await startLog(root);
+        cleanups.push(done);
+        store.openMenu({ view: "PAGES" });
+        store.openMenu({ world: 1 });
+        const askedOn = changeLog.currentPlace();
+        const requests = watchRequests(isLevelWrite);
+        const commit = (value) => {
+            const field = typeLevel(row, value);
+            row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        };
+        commit(before + 1);
+        await until(requests.held, "the first level's write to reach the game");
+        commit(before + 2); // joins the running save
+        store.openMenu({ view: "HISTORY" }); // the player moves on before it runs
+        requests.release();
+        await until(() => levels[0] === before + 2, "the second level to save");
+        const { actions } = await fetchChanges();
+        const second = actions.find((action) =>
+            action.entries.some((entry) => entry.path === "StampLevel[0][0]" && entry.after === before + 2)
+        );
+        const { view, page } = second.place;
+        assert.deepEqual({ view, page }, { view: askedOn.view, page: askedOn.page }, "logged where it was committed");
+    } finally {
+        await runCleanups();
+    }
+});
+
+test("killroy: a failed flip the player already took back isn't said", async () => {
+    const writes = holdEachWrite();
+    let restore = () => {};
+    try {
+        ola[115] = 0;
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
+        const row = rowNamed(root, "AIRHORN RESET");
+        restore = refuseWrites(ola, 115);
+        const save = flip(row, true);
+        await until(() => writes.held() === 1, "On to reach the game");
+        void flip(row, false); // taken back while On saves; the game keeps Off
+        writes.all();
+        await save;
+        await until(() => ["Off", "game kept old value"].includes(wordsOf(row)), "the save to end");
+        assert.equal(wordsOf(row), "Off", "the game holds what was asked last");
+    } finally {
+        writes.all();
+        restore();
+        ola[115] = 0;
+    }
+});
+
+// The game takes the write but its answer is lost on the way back.
+const loseAnswers = (path) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (!String(url).includes("/write") || !String(options?.body).includes(path)) return response;
+        return new Response(JSON.stringify({ error: "connection lost" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    return () => (globalThis.fetch = realFetch);
+};
+
+test("slab: a registration whose answer was lost, but which the game kept, isn't said as failed", async () => {
+    const before = [...game.gga.Cards[1]];
+    let restore = () => {};
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-5/slab/slab.js",
+            (root) => pageRead(root) && byClass(root, "state-switch").length > 1
+        );
+        const row = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Missing");
+        restore = loseAnswers("Cards[1]");
+        await flip(row, true);
+        await until(() => wordsOf(row) !== "Missing", "the save to end");
+        assert.equal(game.gga.Cards[1].length, before.length + 1, "the game kept it");
+        assert.equal(wordsOf(row), "Registered", "read back, not said as failed");
+    } finally {
+        restore();
+        game.gga.Cards[1] = before;
+    }
+});
+
+test("account options: an on/off save whose answer was lost shows what the game holds", async () => {
+    const index = 690;
+    let restore = () => {};
+    try {
+        ola[index] = true;
+        const { AccountOptionsTab } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
+        const root = AccountOptionsTab();
+        const optionRow = () => elements(root).find((node) => node.attributes["data-index"] === index);
+        await until(() => optionRow() && switchOf(optionRow()), "Account Options to load");
+        const row = optionRow();
+        restore = loseAnswers(`OptionsListAccount[${index}]`);
+        await flip(row, false);
+        assert.equal(ola[index], false, "the game kept Off");
+        await until(() => wordsOf(row) === "Off", "the switch to show Off, read back");
+    } finally {
+        restore();
+        ola[index] = (index * 13) % 50;
+    }
+});
+
+test("weekly bosses: a skin flipped while trophies save waits and saves", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    const locked = Object.keys(weekly).filter((key) => key.startsWith("UI_") && Number(weekly[key]) === 0);
+    const trophies = ola[188];
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-2/weekly-bosses/weekly-bosses.js",
+            (root) => pageRead(root) && byClass(root, "state-switch").length > 1
+        );
+        const trophyRow = rowNamed(root, "Trophies");
+        const field = elements(trophyRow).find((node) => node.nodeName === "input");
+        const requests = watchRequests(
+            (url, body) => url.includes("/write") && body.includes("OptionsListAccount[188]")
+        );
+        field.value = String(Number(trophies) + 1);
+        field.listeners.input({ target: field });
+        trophyRow.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(requests.held, "the trophy write to reach the game");
+        const skin = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Locked");
+        const flipped = requests.track(flip(skin, true));
+        requests.release();
+        await flipped;
+        assert.equal(locked.filter((key) => Number(weekly[key]) === 1).length, 1, "the skin saved");
+    } finally {
+        await runCleanups();
+        for (const key of locked) weekly[key] = 0;
+        ola[188] = trophies;
+    }
+});
+
+test("a level row with no cap (max null or empty) shows no cap", async () => {
+    const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
+    const { ClampedLevelRow } = await importRepo("src/ui/components/views/account/ClampedLevelRow.js");
+    for (const max of [null, ""]) {
+        const row = ClampedLevelRow({ valueState: van.state(3), max, write: async (value) => value, name: "Test" });
+        const cap = byClass(row, "number-input__cap")[0];
+        assert.ok(!cap || cap.attributes.hidden, `max ${JSON.stringify(max)}`);
+    }
+});
+
+test("stamps: a queued commit that changes nothing leaves a newer typed level in the field", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        const requests = watchRequests((url, body) => url.includes("/write") && body.includes("Compass[4]"));
+        const flipped = requests.track(flip(row, true));
+        await until(requests.held, "the switch's write to reach the game");
+        const field = levelFieldOf(row);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} }); // the level as stored: waits
+        typeLevel(row, before + 2); // typed while that commit waits, not committed
+        requests.release();
+        await flipped;
+        await until(() => switchStatusOf(row) === "Saved", "the switch's save to end");
+        await until(() => saveWordsOf(row) !== "saving…", "the queued commit to run");
+        assert.equal(String(field.attributes.value), String(before + 2), "the newer draft is still there");
+        assert.equal(levels[0], before, "and not saved early");
+    } finally {
+        await runCleanups();
     }
 });
 
@@ -951,7 +1152,7 @@ test("bribes: a switch's queued second flip is logged on its page after the play
         assert.equal(bribes()[2], 0);
         assert.deepEqual(changeLog.lastBulkAction.val.action.place, askedOn, "logged on Bribes, not History");
     } finally {
-        runCleanups();
+        await runCleanups();
         writes.all();
         resetBribes();
     }

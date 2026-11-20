@@ -291,6 +291,8 @@ const ResourceNodesTab = () => {
                                 variant: "danger",
                                 tooltip: "Deplete every node in the selected world (collected = -1).",
                                 confirm: "deplete every node in this world.",
+                                // The world the question was about: another one picked meanwhile asks again.
+                                confirmTargets: activeWorld,
                                 onClick: () => void writeWorldDepleted(-1),
                             })
                         )
