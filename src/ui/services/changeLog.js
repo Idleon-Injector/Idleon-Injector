@@ -121,6 +121,24 @@ const noteGesture = (target) => {
     gesture = { count: gesture.count + 1, label: labelOf(target), target: control || target };
 };
 
+/**
+ * Keep the click or key that asked for a write, for a write that runs later (one waiting its turn): `inGesture(fn)`
+ * runs `fn` as if that click were the newest, so its save is named after, and offers Undo beside, the control that
+ * asked for it rather than whatever was clicked since.
+ */
+export const captureGesture = () => {
+    const kept = gesture;
+    return (fn) => {
+        const now = gesture;
+        gesture = kept;
+        try {
+            return fn();
+        } finally {
+            gesture = now;
+        }
+    };
+};
+
 /** The app starts the log: where saves are made (its menu state), and the clicks and keys that make them. */
 export const startChangeLog = (appState, root) => {
     app = appState;

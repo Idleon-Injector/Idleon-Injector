@@ -3,7 +3,7 @@ import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { debounce, toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "./BulkActionBar.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
-import { cleanName, createStaticRowReconciler, useWriteStatus, writeVerified } from "./accountShared.js";
+import { cleanName, createStaticRowReconciler, oneAtATime, useWriteStatus, writeVerified } from "./accountShared.js";
 import { AccountRow } from "./components/AccountRow.js";
 import { StateSwitch } from "./components/StateSwitch.js";
 import { EmptyState } from "../../EmptyState.js";
@@ -96,76 +96,84 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
         }
     };
 
-    const setItem = async (itemId, registered) => {
-        if (cannotWrite()) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            await rowStates.get(itemId).write.run(async () => applyHistory(await readHistory(), [itemId], registered), {
-                onError: (caughtError) => (message.val = caughtError.message),
-            });
-        } finally {
-            busy.val = false;
-        }
-    };
+    // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
+    const inTurn = oneAtATime();
+
+    // Returns the row's save outcome, so the switch can say why a save failed.
+    const setItem = (itemId, registered) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            busy.val = true;
+            message.val = "";
+            try {
+                return await rowStates
+                    .get(itemId)
+                    .write.run(async () => applyHistory(await readHistory(), [itemId], registered), {
+                        onError: (caughtError) => (message.val = caughtError.message),
+                    });
+            } finally {
+                busy.val = false;
+            }
+        });
 
     // `button`: the bulk button clicked, which asks in place (#77).
-    const setShown = async (registered, button) => {
-        if (cannotWrite()) return;
-        const search = (searchInputEl?.value ?? query.val).trim().toLowerCase();
-        if (searchInputEl && searchInputEl.value !== query.val) {
-            query.val = searchInputEl.value;
-        }
-        busy.val = true;
-        message.val = "";
-        const status = filter.val;
-        const getTargets = () =>
-            entries.val.filter(
-                (itemId) => matches(itemId, search, status) && rowStates.get(itemId)?.registered.val !== registered
-            );
-        try {
-            await bulk.run(
-                async () => {
-                    await readHistory();
-                    const targets = getTargets();
-                    if (!targets.length) {
-                        message.val = "No matching items need this change.";
-                        return { cancelled: true };
+    const setShown = (registered, button) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            const search = (searchInputEl?.value ?? query.val).trim().toLowerCase();
+            if (searchInputEl && searchInputEl.value !== query.val) {
+                query.val = searchInputEl.value;
+            }
+            busy.val = true;
+            message.val = "";
+            const status = filter.val;
+            const getTargets = () =>
+                entries.val.filter(
+                    (itemId) => matches(itemId, search, status) && rowStates.get(itemId)?.registered.val !== registered
+                );
+            try {
+                await bulk.run(
+                    async () => {
+                        await readHistory();
+                        const targets = getTargets();
+                        if (!targets.length) {
+                            message.val = "No matching items need this change.";
+                            return { cancelled: true };
+                        }
+                        const detail =
+                            historyPath === "Cards[1]"
+                                ? registered
+                                    ? " Adds registration history without granting physical items."
+                                    : " Removes all history occurrences for these items. Owned items may register again in W5 town."
+                                : "";
+                        if (
+                            !clickAgain(
+                                button,
+                                `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`,
+                                { targets }
+                            )
+                        ) {
+                            return { cancelled: true };
+                        }
+                        const history = await readHistory();
+                        const currentTargets = getTargets();
+                        if (
+                            targets.length !== currentTargets.length ||
+                            !targets.every((id, idx) => id === currentTargets[idx])
+                        ) {
+                            message.val = `${label} targets changed while confirming. Bulk change cancelled; review and try again.`;
+                            return { cancelled: true };
+                        }
+                        return applyHistory(history, targets, registered);
+                    },
+                    {
+                        onError: (caughtError) => (message.val = caughtError.message),
                     }
-                    const detail =
-                        historyPath === "Cards[1]"
-                            ? registered
-                                ? " Adds registration history without granting physical items."
-                                : " Removes all history occurrences for these items. Owned items may register again in W5 town."
-                            : "";
-                    if (
-                        !clickAgain(
-                            button,
-                            `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`,
-                            { targets }
-                        )
-                    ) {
-                        return { cancelled: true };
-                    }
-                    const history = await readHistory();
-                    const currentTargets = getTargets();
-                    if (
-                        targets.length !== currentTargets.length ||
-                        !targets.every((id, idx) => id === currentTargets[idx])
-                    ) {
-                        message.val = `${label} targets changed while confirming. Bulk change cancelled; review and try again.`;
-                        return { cancelled: true };
-                    }
-                    return applyHistory(history, targets, registered);
-                },
-                {
-                    onError: (caughtError) => (message.val = caughtError.message),
-                }
-            );
-        } finally {
-            busy.val = false;
-        }
-    };
+                );
+            } finally {
+                busy.val = false;
+            }
+        });
 
     const createRow = (itemId, state) => {
         const row = AccountRow({

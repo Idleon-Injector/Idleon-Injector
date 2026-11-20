@@ -102,7 +102,7 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
                         else next.delete(stampCode);
                         await writeExaltedCodes(next);
                         exaltedCodes.val = next;
-                    }),
+                    }).then(() => undefined), // the row's own save state says why a save failed
             }),
             ActionButton({
                 label: "Relock",

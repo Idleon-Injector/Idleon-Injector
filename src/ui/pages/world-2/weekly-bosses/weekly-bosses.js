@@ -8,6 +8,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import {
     cleanName,
     createStaticRowReconciler,
+    oneAtATime,
     resolveNumberInput,
     unwrapH,
     useWriteStatus,
@@ -240,105 +241,117 @@ const WeeklyBossTab = () => {
         }
     };
 
-    const setSkin = async (entry, enabled) => {
-        if (cannotWrite()) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            await skinStates.get(entry.key).write.run(
-                async () => {
-                    const snapshot = await readFresh();
-                    if ((Number(snapshot.weekly[entry.key]) === 1) === enabled) return { cancelled: true };
-                    await submitWrites([{ key: entry.key, path: `WeeklyBoss.h.${entry.key}`, value: enabled ? 1 : 0 }]);
-                },
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-        } finally {
-            busy.val = false;
-        }
-    };
+    // A switch flipped (or a pick made) while another write runs waits its turn and reads the game again then, so it
+    // isn't lost.
+    const inTurn = oneAtATime();
+
+    // Returns the row's save outcome, so the switch can say why a save failed.
+    const setSkin = (entry, enabled) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            busy.val = true;
+            message.val = "";
+            try {
+                return await skinStates.get(entry.key).write.run(
+                    async () => {
+                        const snapshot = await readFresh();
+                        if ((Number(snapshot.weekly[entry.key]) === 1) === enabled) return { cancelled: true };
+                        await submitWrites([
+                            { key: entry.key, path: `WeeklyBoss.h.${entry.key}`, value: enabled ? 1 : 0 },
+                        ]);
+                    },
+                    { onError: (caughtError) => (message.val = caughtError.message) }
+                );
+            } finally {
+                busy.val = false;
+            }
+        });
 
     // `button`: the bulk button clicked, which asks in place (#77).
-    const setAll = async (enabled, button) => {
-        if (cannotWrite()) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            const snapshot = await readFresh();
-            const targets = entries.filter(({ key }) => (Number(snapshot.weekly[key]) === 1) !== enabled);
-            if (!targets.length) {
-                message.val = "No skin unlocks need changing.";
-                return;
-            }
-            const countLabel = `${targets.length} cosmetic UI skin${targets.length === 1 ? "" : "s"}`;
-            // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
-            if (
-                !enabled &&
-                !clickAgain(
-                    button,
-                    `${enabled ? "enable" : "disable"} ${countLabel}. ` +
-                        "Trophies and character selections will stay unchanged.",
-                    { targets: targets.map(({ key }) => key) }
+    const setAll = (enabled, button) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            busy.val = true;
+            message.val = "";
+            try {
+                const snapshot = await readFresh();
+                const targets = entries.filter(({ key }) => (Number(snapshot.weekly[key]) === 1) !== enabled);
+                if (!targets.length) {
+                    message.val = "No skin unlocks need changing.";
+                    return;
+                }
+                const countLabel = `${targets.length} cosmetic UI skin${targets.length === 1 ? "" : "s"}`;
+                // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
+                if (
+                    !enabled &&
+                    !clickAgain(
+                        button,
+                        `${enabled ? "enable" : "disable"} ${countLabel}. ` +
+                            "Trophies and character selections will stay unchanged.",
+                        { targets: targets.map(({ key }) => key) }
+                    )
                 )
-            )
-                return;
-            await bulk.run(
-                async () => {
-                    const fresh = await readFresh();
-                    const currentTargets = entries.filter(({ key }) => (Number(fresh.weekly[key]) === 1) !== enabled);
-                    if (
-                        currentTargets.length !== targets.length ||
-                        currentTargets.some(({ key }, index) => key !== targets[index].key)
-                    ) {
-                        throw new Error(
-                            "Skin ownership changed while confirmation was open. Review the rows and try again."
+                    return;
+                await bulk.run(
+                    async () => {
+                        const fresh = await readFresh();
+                        const currentTargets = entries.filter(
+                            ({ key }) => (Number(fresh.weekly[key]) === 1) !== enabled
                         );
-                    }
-                    await submitWrites(
-                        currentTargets.map(({ key }) => ({
-                            key,
-                            path: `WeeklyBoss.h.${key}`,
-                            value: enabled ? 1 : 0,
-                        }))
-                    );
-                },
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-        } catch (caughtError) {
-            message.val = caughtError.message;
-        } finally {
-            busy.val = false;
-        }
-    };
+                        if (
+                            currentTargets.length !== targets.length ||
+                            currentTargets.some(({ key }, index) => key !== targets[index].key)
+                        ) {
+                            throw new Error(
+                                "Skin ownership changed while confirmation was open. Review the rows and try again."
+                            );
+                        }
+                        await submitWrites(
+                            currentTargets.map(({ key }) => ({
+                                key,
+                                path: `WeeklyBoss.h.${key}`,
+                                value: enabled ? 1 : 0,
+                            }))
+                        );
+                    },
+                    { onError: (caughtError) => (message.val = caughtError.message) }
+                );
+            } catch (caughtError) {
+                message.val = caughtError.message;
+            } finally {
+                busy.val = false;
+            }
+        });
 
     // Returns { cancelled: true } when the game already has the pick; throws when it can't save.
-    const savePlayer = async (player) => {
-        if (cannotEdit()) return { cancelled: true };
-        const state = playerStates.get(playerKey(player));
-        const draft = state.draft.val;
-        busy.val = true;
-        message.val = "";
-        try {
-            const snapshot = await readFresh();
-            const current = String(snapshot.weekly[`set${player.index}`] ?? 0);
-            if (
-                draft === current &&
-                snapshot.weekly[`set${player.index}`] !== undefined &&
-                snapshot.weekly[`set${player.index}`] !== null
-            )
-                return { cancelled: true };
-            const entry = entries.find(({ selection }) => String(selection) === draft);
-            if (draft !== "0" && (!entry || Number(snapshot.weekly[entry.key]) !== 1)) {
-                throw new Error("pick Default or an unlocked skin");
+    const savePlayer = (player) =>
+        inTurn(async () => {
+            if (cannotEdit()) return { cancelled: true };
+            const state = playerStates.get(playerKey(player));
+            const draft = state.draft.val;
+            busy.val = true;
+            message.val = "";
+            try {
+                const snapshot = await readFresh();
+                const current = String(snapshot.weekly[`set${player.index}`] ?? 0);
+                if (
+                    draft === current &&
+                    snapshot.weekly[`set${player.index}`] !== undefined &&
+                    snapshot.weekly[`set${player.index}`] !== null
+                )
+                    return { cancelled: true };
+                const entry = entries.find(({ selection }) => String(selection) === draft);
+                if (draft !== "0" && (!entry || Number(snapshot.weekly[entry.key]) !== 1)) {
+                    throw new Error("pick Default or an unlocked skin");
+                }
+                await submitWrites([{ player, path: `WeeklyBoss.h.set${player.index}`, value: Number(draft) }]);
+            } catch (caughtError) {
+                message.val = caughtError.message;
+                throw caughtError;
+            } finally {
+                busy.val = false;
             }
-            await submitWrites([{ player, path: `WeeklyBoss.h.set${player.index}`, value: Number(draft) }]);
-        } catch (caughtError) {
-            message.val = caughtError.message;
-            throw caughtError;
-        } finally {
-            busy.val = false;
-        }
-    };
+        });
 
     const renderSkin = (entry) => {
         const state = skinStates.get(entry.key);

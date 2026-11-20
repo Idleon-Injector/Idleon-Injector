@@ -7,6 +7,7 @@ import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    oneAtATime,
     toInt,
     useWriteStatus,
     writeVerified,
@@ -45,17 +46,21 @@ const toggleRoundId = (ids, id, enabled) => {
     return currentIds.filter((entry) => entry !== id);
 };
 
+// Every round lives in one list, so flips save one at a time, each from the list the game holds now.
+const inTurn = oneAtATime();
+
 const RoundRow = ({ entry, doneState, completedIdsState }) => {
     const { status, run } = useWriteStatus();
 
-    const writeToggle = async (enabled) => {
-        await run(async () => {
-            const nextIds = toggleRoundId(completedIdsState.val, entry.enemyId, enabled);
-            await writeVerified(NORMAL_ROUNDS_PATH, nextIds);
-            completedIdsState.val = nextIds;
-            doneState.val = enabled ? 1 : 0;
-        });
-    };
+    const writeToggle = (enabled) =>
+        inTurn(() =>
+            run(async () => {
+                const nextIds = toggleRoundId(await gga(NORMAL_ROUNDS_PATH), entry.enemyId, enabled);
+                await writeVerified(NORMAL_ROUNDS_PATH, nextIds);
+                completedIdsState.val = nextIds;
+                doneState.val = enabled ? 1 : 0;
+            })
+        );
 
     return AccountRow({
         info: [

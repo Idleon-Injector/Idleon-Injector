@@ -125,7 +125,7 @@ const KillroyAirhornRow = ({ valueState }) => {
 
     const doToggle = async (on) => {
         const next = on ? 1 : 0;
-        await run(async () => {
+        return run(async () => {
             const path = `OptionsListAccount[${AIRHORN_INDEX}]`;
             await writeVerified(path, next);
             valueState.val = next;

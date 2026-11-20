@@ -115,7 +115,7 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
                               const encoded = encodePrisma(next);
                               await writeVerified("OptionsListAccount[384]", encoded);
                               prismaSet.val = next;
-                          }),
+                          }).then(() => undefined), // the row's own save state says why a save failed
                   }),
     });
 };

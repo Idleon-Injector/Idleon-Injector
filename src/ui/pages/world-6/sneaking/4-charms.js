@@ -25,7 +25,7 @@ const CharmRow = ({ entry, unlockedState }) => {
     const { status, run } = useWriteStatus();
 
     const writeToggle = async (enabled) => {
-        await run(async () => {
+        return run(async () => {
             const nextValue = enabled ? 1 : 0;
             await writeVerified(`${CHARM_UNLOCK_PATH}[${entry.index}]`, nextValue);
             unlockedState.val = nextValue;

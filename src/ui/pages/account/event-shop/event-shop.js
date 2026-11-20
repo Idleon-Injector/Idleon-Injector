@@ -11,6 +11,7 @@ import { clickAgain } from "../../../components/inPlace.js";
 import {
     cleanName,
     createStaticRowReconciler,
+    oneAtATime,
     unwrapH,
     useWriteStatus,
     writeVerified,
@@ -143,83 +144,90 @@ const EventshopTab = () => {
         }
     };
 
-    // `button`: the bulk button clicked, which asks in place before a bulk change (#77).
-    const setOwnership = async (enabled, index, feedback, button = null) => {
-        if (busy.val || !ready.val) return;
-        busy.val = true;
-        notice.val = "";
-        let attemptedWrite = false;
-        try {
-            await feedback.run(async () => {
-                try {
-                    const snapshot = await readSnapshot();
-                    applySnapshot(snapshot);
-                    const targets = snapshot.catalog.filter(
-                        (entry) =>
-                            (index === null || entry.index === index) &&
-                            snapshot.ownership.includes(entry.code) !== enabled
-                    );
-                    if (!targets.length) {
-                        notice.val = "Ownership is already set. No changes made.";
-                        return { cancelled: true };
-                    }
-                    if (index === null) {
-                        const cardifierNote = targets.some((entry) => entry.index === 50) ? `\n\n${ROW_NOTES[50]}` : "";
-                        if (
-                            !clickAgain(
-                                button,
-                                `${enabled ? "enable" : "disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`,
-                                { targets: targets.map((entry) => entry.code) }
-                            )
-                        )
-                            return { cancelled: true };
-                        const fresh = await readSnapshot();
-                        applySnapshot(fresh);
-                        if (
-                            fresh.ownership !== snapshot.ownership ||
-                            JSON.stringify(fresh.catalog) !== JSON.stringify(snapshot.catalog)
-                        ) {
-                            notice.val =
-                                "Catalog or ownership changed during confirmation. Review the refreshed state and try again.";
-                            return { cancelled: true };
-                        }
-                    }
+    // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
+    const inTurn = oneAtATime();
 
-                    const targetCodes = new Set(targets.map((entry) => entry.code));
-                    const nextOwnership = enabled
-                        ? snapshot.ownership + targets.map((entry) => entry.code).join("")
-                        : Array.from(snapshot.ownership)
-                              .filter((code) => !targetCodes.has(code))
-                              .join("");
-                    attemptedWrite = true;
-                    await writeVerified(OWNERSHIP_PATH, nextOwnership);
-                    applySnapshot({ catalog: snapshot.catalog, ownership: nextOwnership });
-                    notice.val = `Verified ownership for ${targets.length} upgrade${targets.length === 1 ? "" : "s"}.`;
-                    return true;
-                } catch (caughtError) {
-                    console.error("[Eventshop] ownership action failed", caughtError);
-                    if (attemptedWrite) {
-                        try {
-                            applySnapshot(await readSnapshot());
-                            notice.val =
-                                "The write could not be verified and may have applied. Current ownership was reread.";
-                        } catch (readError) {
-                            console.error("[Eventshop] read after write failure failed", readError);
-                            ready.val = false;
-                            error.val = `Ownership verification unavailable. Refresh before editing. ${readError.message}`;
-                            notice.val = "The write may have applied. Ownership verification is unavailable.";
+    // `button`: the bulk button clicked, which asks in place before a bulk change (#77). Returns the save outcome, so a
+    // row's switch can say why a save failed.
+    const setOwnership = (enabled, index, feedback, button = null) =>
+        inTurn(async () => {
+            if (busy.val || !ready.val) return;
+            busy.val = true;
+            notice.val = "";
+            let attemptedWrite = false;
+            try {
+                return await feedback.run(async () => {
+                    try {
+                        const snapshot = await readSnapshot();
+                        applySnapshot(snapshot);
+                        const targets = snapshot.catalog.filter(
+                            (entry) =>
+                                (index === null || entry.index === index) &&
+                                snapshot.ownership.includes(entry.code) !== enabled
+                        );
+                        if (!targets.length) {
+                            notice.val = "Ownership is already set. No changes made.";
+                            return { cancelled: true };
                         }
-                    } else {
-                        ready.val = false;
-                        error.val = `Fresh read failed. Refresh before editing. ${caughtError.message}`;
+                        if (index === null) {
+                            const cardifierNote = targets.some((entry) => entry.index === 50)
+                                ? `\n\n${ROW_NOTES[50]}`
+                                : "";
+                            if (
+                                !clickAgain(
+                                    button,
+                                    `${enabled ? "enable" : "disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`,
+                                    { targets: targets.map((entry) => entry.code) }
+                                )
+                            )
+                                return { cancelled: true };
+                            const fresh = await readSnapshot();
+                            applySnapshot(fresh);
+                            if (
+                                fresh.ownership !== snapshot.ownership ||
+                                JSON.stringify(fresh.catalog) !== JSON.stringify(snapshot.catalog)
+                            ) {
+                                notice.val =
+                                    "Catalog or ownership changed during confirmation. Review the refreshed state and try again.";
+                                return { cancelled: true };
+                            }
+                        }
+
+                        const targetCodes = new Set(targets.map((entry) => entry.code));
+                        const nextOwnership = enabled
+                            ? snapshot.ownership + targets.map((entry) => entry.code).join("")
+                            : Array.from(snapshot.ownership)
+                                  .filter((code) => !targetCodes.has(code))
+                                  .join("");
+                        attemptedWrite = true;
+                        await writeVerified(OWNERSHIP_PATH, nextOwnership);
+                        applySnapshot({ catalog: snapshot.catalog, ownership: nextOwnership });
+                        notice.val = `Verified ownership for ${targets.length} upgrade${targets.length === 1 ? "" : "s"}.`;
+                        return true;
+                    } catch (caughtError) {
+                        console.error("[Eventshop] ownership action failed", caughtError);
+                        if (attemptedWrite) {
+                            try {
+                                applySnapshot(await readSnapshot());
+                                notice.val =
+                                    "The write could not be verified and may have applied. Current ownership was reread.";
+                            } catch (readError) {
+                                console.error("[Eventshop] read after write failure failed", readError);
+                                ready.val = false;
+                                error.val = `Ownership verification unavailable. Refresh before editing. ${readError.message}`;
+                                notice.val = "The write may have applied. Ownership verification is unavailable.";
+                            }
+                        } else {
+                            ready.val = false;
+                            error.val = `Fresh read failed. Refresh before editing. ${caughtError.message}`;
+                        }
+                        throw caughtError;
                     }
-                    throw caughtError;
-                }
-            });
-        } finally {
-            busy.val = false;
-        }
-    };
+                });
+            } finally {
+                busy.val = false;
+            }
+        });
 
     load();
     return PersistentAccountListPage({

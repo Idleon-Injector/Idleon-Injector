@@ -7,6 +7,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import {
     cleanName,
     createStaticRowReconciler,
+    oneAtATime,
     useWriteStatus,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -65,77 +66,84 @@ const BribesTab = () => {
         }
     };
 
-    const setBribe = async (entry, enabled) => {
-        if (cannotWrite() || entry.readOnly) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            await rowStates.get(entry.index).write.run(
-                async () => {
-                    const values = await readStatuses();
-                    const writes = [];
-                    const addWrite = (index, value) => writes.push({ index, path: `${STATUS_PATH}[${index}]`, value });
-                    if (enabled) {
-                        if (values[entry.index] === 1) return;
-                        addWrite(entry.index, 1);
-                        for (let index = entry.start; index < entry.start + entry.count; index++) {
-                            if (values[index] === -1) addWrite(index, 0);
+    // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
+    const inTurn = oneAtATime();
+
+    // Returns the row's save outcome, so the switch can say why a save failed.
+    const setBribe = (entry, enabled) =>
+        inTurn(async () => {
+            if (cannotWrite() || entry.readOnly) return;
+            busy.val = true;
+            message.val = "";
+            try {
+                return await rowStates.get(entry.index).write.run(
+                    async () => {
+                        const values = await readStatuses();
+                        const writes = [];
+                        const addWrite = (index, value) =>
+                            writes.push({ index, path: `${STATUS_PATH}[${index}]`, value });
+                        if (enabled) {
+                            if (values[entry.index] === 1) return;
+                            addWrite(entry.index, 1);
+                            for (let index = entry.start; index < entry.start + entry.count; index++) {
+                                if (values[index] === -1) addWrite(index, 0);
+                            }
+                        } else {
+                            if (values[entry.index] !== 1) return;
+                            addWrite(entry.index, 0);
                         }
-                    } else {
-                        if (values[entry.index] !== 1) return;
-                        addWrite(entry.index, 0);
-                    }
-                    await applyWrites(writes);
-                },
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-        } finally {
-            busy.val = false;
-        }
-    };
+                        await applyWrites(writes);
+                    },
+                    { onError: (caughtError) => (message.val = caughtError.message) }
+                );
+            } finally {
+                busy.val = false;
+            }
+        });
 
     // `button`: the bulk button clicked, which asks in place (#77).
-    const setAll = async (enabled, button) => {
-        if (cannotWrite()) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            const values = await readStatuses();
-            const targets = entries.filter(
-                (entry) => !entry.readOnly && (enabled ? values[entry.index] !== 1 : values[entry.index] === 1)
-            );
-            if (!targets.length) return;
-            // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
-            if (
-                !enabled &&
-                !clickAgain(
-                    button,
-                    `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${
-                        enabled
-                            ? "Grants ownership without spending coins."
-                            : "Removes ownership. Locked bribes stay locked."
-                    }`,
-                    { targets: targets.map((entry) => entry.index) }
+    const setAll = (enabled, button) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            busy.val = true;
+            message.val = "";
+            try {
+                const values = await readStatuses();
+                const targets = entries.filter(
+                    (entry) => !entry.readOnly && (enabled ? values[entry.index] !== 1 : values[entry.index] === 1)
+                );
+                if (!targets.length) return;
+                // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
+                if (
+                    !enabled &&
+                    !clickAgain(
+                        button,
+                        `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${
+                            enabled
+                                ? "Grants ownership without spending coins."
+                                : "Removes ownership. Locked bribes stay locked."
+                        }`,
+                        { targets: targets.map((entry) => entry.index) }
+                    )
                 )
-            )
-                return;
-            await bulk.run(
-                () =>
-                    applyWrites(
-                        targets.map(({ index }) => ({
-                            index,
-                            path: `${STATUS_PATH}[${index}]`,
-                            value: enabled ? 1 : 0,
-                        }))
-                    ),
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-        } catch (caughtError) {
-            message.val = caughtError.message;
-        } finally {
-            busy.val = false;
-        }
-    };
+                    return;
+                await bulk.run(
+                    () =>
+                        applyWrites(
+                            targets.map(({ index }) => ({
+                                index,
+                                path: `${STATUS_PATH}[${index}]`,
+                                value: enabled ? 1 : 0,
+                            }))
+                        ),
+                    { onError: (caughtError) => (message.val = caughtError.message) }
+                );
+            } catch (caughtError) {
+                message.val = caughtError.message;
+            } finally {
+                busy.val = false;
+            }
+        });
 
     const renderRow = (entry) => {
         const state = rowStates.get(entry.index);

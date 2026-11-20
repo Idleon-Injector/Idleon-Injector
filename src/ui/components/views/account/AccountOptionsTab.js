@@ -89,9 +89,12 @@ const createOptionRow = (index, rawValue, schema) => {
                 checked: currentValue,
                 words: ["On", "Off"],
                 name: name.val,
-                onFlip: (next) => {
+                // A save that fails or is refused puts the switch back to what the game holds.
+                onFlip: async (next) => {
                     currentValue.val = next;
-                    return save();
+                    const outcome = await save();
+                    if (!outcome?.ok) currentValue.val = valueToDisplay(editorType.val, stored());
+                    return outcome;
                 },
             });
         }

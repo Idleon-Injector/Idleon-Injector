@@ -4,6 +4,8 @@ import { gga, readCList, readComputed } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { parseNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
@@ -16,7 +18,7 @@ import { RefreshButton } from "../../../components/views/account/components/Acco
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, span, label, input } = van.tags;
+const { div, span } = van.tags;
 
 const OmniJadeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Omni Jade" });
@@ -87,46 +89,24 @@ const OmniJadeTab = () => {
         }
     };
 
+    // Saves on flip, then reads the game again; a failed save says why on the switch.
     const toggleRow = (name, path, note) => {
         const { status, run: write } = useWriteStatus();
-        const message = van.state("");
-        return div(
-            { class: "account-row" },
-            div(
-                { class: "account-row__info" },
-                div(
-                    { class: "account-row__name-group" },
-                    span({ class: "account-row__name" }, name),
-                    span({ class: "account-row__sub-label" }, note),
-                    span({ class: "account-write-feedback", role: "status" }, () => message.val)
-                )
+        return AccountRow({
+            status,
+            info: div(
+                { class: "account-row__name-group" },
+                span({ class: "account-row__name" }, name),
+                span({ class: "account-row__sub-label" }, note)
             ),
-            label(
-                { class: () => `toggle-switch state-switch${state(path).val >= 1 ? " is-on" : ""}` },
-                span({ class: "state-switch__words" }, () => (state(path).val >= 1 ? "On" : "Off")),
-                input({
-                    type: "checkbox",
-                    role: "switch",
-                    "aria-label": name,
-                    checked: () => state(path).val >= 1,
-                    disabled: () => disabled() || status.val === "loading",
-                    onchange: (event) => {
-                        const next = event.target.checked ? 1 : 0;
-                        event.target.checked = state(path).val >= 1;
-                        message.val = "Saving…";
-                        void write(() => save(() => writeVerified(path, next)), {
-                            onSuccess: () => {
-                                message.val = "Saved";
-                            },
-                            onError: (error) => {
-                                message.val = error.message;
-                            },
-                        });
-                    },
-                }),
-                span({ class: "slider" })
-            )
-        );
+            controls: StateSwitch({
+                checked: () => state(path).val >= 1,
+                words: ["On", "Off"],
+                name,
+                disabled,
+                onFlip: (on) => write(() => save(() => writeVerified(path, on ? 1 : 0))),
+            }),
+        });
     };
 
     const body = div(

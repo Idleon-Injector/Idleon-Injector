@@ -6,6 +6,7 @@ import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    oneAtATime,
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -26,17 +27,21 @@ const toggleLetter = (encoded, letter, enabled) => {
     return current.replaceAll(letter, "");
 };
 
+// Every upgrade lives in one string, so flips save one at a time, each from the string the game holds now.
+const inTurn = oneAtATime();
+
 const JadeUpgradeRow = ({ entry, boughtState, encodedState }) => {
     const { status, run } = useWriteStatus();
 
-    const writeToggle = async (enabled) => {
-        await run(async () => {
-            const nextEncoded = toggleLetter(encodedState.val, entry.letter, enabled);
-            await writeVerified(JADE_BOUGHT_PATH, nextEncoded);
-            encodedState.val = nextEncoded;
-            boughtState.val = enabled;
-        });
-    };
+    const writeToggle = (enabled) =>
+        inTurn(() =>
+            run(async () => {
+                const nextEncoded = toggleLetter(String((await gga(JADE_BOUGHT_PATH)) ?? ""), entry.letter, enabled);
+                await writeVerified(JADE_BOUGHT_PATH, nextEncoded);
+                encodedState.val = nextEncoded;
+                boughtState.val = enabled;
+            })
+        );
 
     return AccountRow({
         info: [
