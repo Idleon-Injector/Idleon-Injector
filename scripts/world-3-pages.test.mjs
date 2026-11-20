@@ -369,6 +369,98 @@ test("Library: after a character switch, saves and Max books refuse instead of c
     gga.SkillLevelsMAX = mainBooks;
 });
 
+// Review of #116: the live kills went to whoever was in play when the game wrote, checked only before the awaits.
+test("Death Note: a switch while the live kills save leaves the new character's kills alone", async () => {
+    gga.UserInfo[0] = "Lumi_Main";
+    gga.CustomLists.h.MapDetails = gga.CustomLists.h.MapDetails.map((map) => [[Number(map[0][0]), 0, 0]]);
+    const required = gga.CustomLists.h.MapDetails[0][0][0];
+    const db = gga.PlayerDATABASE.h;
+    gga.KillsLeft2Advance[0][0] = required - 2;
+    db.Lumi_Main.h.KillsLeft2Advance[0][0] = required - 2;
+    db.Lumi_Alt.h.KillsLeft2Advance[0][0] = required - 5;
+    const root = await openPage("src/ui/pages/world-3/death-note/death-note.js", (r) =>
+        byClass(r, "dn-player-row").some((row) => text(row).includes("(selected)"))
+    );
+    const mainRow = byClass(root, "dn-player-row").find(
+        (row) => text(byClass(row, "account-row__name")[0]) === "Lumi_Main"
+    );
+    const hold = holdWrites();
+    try {
+        const save = quietly(() => typeAndEnter(mainRow, 7));
+        await until(() => hold.held() === 1, "the live kills to reach the game");
+        switchCharacter("Lumi_Alt");
+        hold.release();
+        await save;
+        assert.equal(gga.KillsLeft2Advance[0][0], required - 5, "Alt, in play now, keeps its kills");
+    } finally {
+        hold.release();
+        switchCharacter("Lumi_Main");
+    }
+});
+
+const openLibrary = async () => {
+    const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
+        byClass(r, "talent-row").some((row) => elements(row).some((node) => node.nodeName === "input"))
+    );
+    const row = byClass(root, "talent-row").find((r) => elements(r).some((node) => node.nodeName === "input"));
+    return { root, row, id: Number(text(byClass(row, "account-row__index")[0]).replace("#", "")) };
+};
+
+// Review of #116: a Refresh that failed after reading the new character still took it as the one the rows show.
+test("Library: after a Refresh that fails on the new character, the old rows still refuse to save", async () => {
+    gga.UserInfo[0] = "Lumi_Main";
+    const { root, row } = await openLibrary();
+    const [mainClass, mainBooks] = [gga.CharacterClass, structuredClone(gga.SkillLevelsMAX)];
+    gga.UserInfo[0] = "Lumi_Alt";
+    gga.CharacterClass = 0; // a character the page can't show
+    try {
+        await quietly(async () => {
+            click(buttonIn(root, "Refresh"));
+            await until(() => /No active character/.test(text(root)), "the Refresh to fail");
+        });
+        await typeAndEnter(row, 5);
+        assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+        assert.deepEqual(gga.SkillLevelsMAX, mainBooks, "the character in play keeps its books");
+    } finally {
+        [gga.UserInfo[0], gga.CharacterClass, gga.SkillLevelsMAX] = ["Lumi_Main", mainClass, mainBooks];
+    }
+});
+
+// Review of #116: a Refresh that ended while the save checked who is in play made the check pass for the new one.
+test("Library: a save whose check waits through a Refresh to another character refuses", async () => {
+    gga.UserInfo[0] = "Lumi_Main";
+    const { root, row } = await openLibrary();
+    const mainBooks = structuredClone(gga.SkillLevelsMAX);
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).endsWith("/gga/read") && ++held === 1) await gate;
+        return realFetch(url, options);
+    };
+    try {
+        const save = typeAndEnter(row, 5);
+        await until(() => held === 1, "the save to check who is in play");
+        // Another character of the same class: Refresh keeps the rows.
+        gga.UserInfo[0] = "Lumi_Alt";
+        gga.SkillLevelsMAX = mainBooks.map((level) => (level > 0 ? 1 : level));
+        const altBooks = structuredClone(gga.SkillLevelsMAX);
+        const refresh = buttonIn(root, "Refresh");
+        click(refresh);
+        await until(() => held > 1 && !isDisabled(refresh), "the Refresh to finish");
+        release();
+        await save;
+        assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+        assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        gga.UserInfo[0] = "Lumi_Main";
+        gga.SkillLevelsMAX = mainBooks;
+    }
+});
+
 test("Buildings: a level save the game doesn't take leaves the level and its pending copy as they were", async () => {
     gga.TowerInfo[0] = 3;
     gga.TowerInfo[27] = 3;
@@ -553,4 +645,32 @@ test("Cogs: a tiny cog save's saving and failure stay with the slot it was for",
     open(97);
     await until(() => editor() && editor() !== shown, "slot 97's tiny editor");
     assert.doesNotMatch(stateOf(editor()), /save-state--(loading|success|error)/, "slot 97 shows nothing of it");
+});
+
+// Review of #116: the tier committed while the type saved was read from the fields after slot 97 opened, so dropped.
+test("Cogs: a tiny cog tier committed while its type saves still saves after another slot opens", async () => {
+    gga.FlagUnlock[96] = -11;
+    gga.FlagUnlock[97] = -11;
+    gga.CogOrder[228] = "CogSma0";
+    gga.CogOrder[229] = "CogSmb1";
+    const { popup, open } = await openCogs();
+    const editor = () => byClass(popup, "cogs-tiny-editor")[0];
+    open(96);
+    await until(editor, "slot 96's tiny editor");
+    const first = editor();
+    const [typeInput, tierInput] = elements(first).filter((node) => node.nodeName === "input");
+    const enter = (input, value) => {
+        input.value = value;
+        input.listeners.input({ target: input });
+        first.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    };
+    const hold = holdWrites();
+    enter(typeInput, "b");
+    await until(() => hold.held() === 1, "the type save to reach the game");
+    enter(tierInput, "3");
+    open(97);
+    await until(() => editor() && editor() !== first, "slot 97's tiny editor");
+    hold.release();
+    await until(() => gga.CogOrder[228] === "CogSmb2", "the tier to save");
+    assert.equal(gga.CogOrder[229], "CogSmb1", "slot 97 is left as it was");
 });

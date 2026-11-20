@@ -36,6 +36,7 @@ import {
     resolveFormattedIntInput,
     toInt,
     unwrapH,
+    writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -126,9 +127,12 @@ const PlayerKillRow = ({ playerName, killState, isCurrentPlayer, mob }) =>
             const newKillsLeft = mob.required - nextKills;
             const dbPath = playerDbKillsLeftPath(playerName, mob.mapIndex);
 
-            // Who is in play now, not when the page read the game: the live kills belong to that character.
+            // Who is in play now, not when the page read the game: the live kills belong to that character. The game
+            // checks again as it writes, so a switch meanwhile refuses the save instead of changing another's kills.
             if (String(await gga("UserInfo[0]")) === playerName) {
-                await writeVerified(liveKillsLeftPath(mob.mapIndex), newKillsLeft);
+                await writeManyVerified([{ path: liveKillsLeftPath(mob.mapIndex), value: newKillsLeft }], {
+                    character: playerName,
+                });
             }
 
             await writeVerified(dbPath, newKillsLeft);

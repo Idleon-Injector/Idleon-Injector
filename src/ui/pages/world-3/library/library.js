@@ -157,8 +157,10 @@ const LibraryTab = () => {
 
     // SkillLevelsMAX is the live copy of whoever is in play: a save goes there only while that is still the
     // character the page shows.
+    // The character is taken before the read: a Refresh that ends meanwhile doesn't make the rows the new one's.
     const checkCharacter = async () => {
-        if (String(await gga("UserInfo[0]")) !== loadedCharacter) {
+        const shown = loadedCharacter;
+        if (String(await gga("UserInfo[0]")) !== shown) {
             throw new Error("another character is in play; press Refresh");
         }
     };
@@ -265,7 +267,6 @@ const LibraryTab = () => {
                 throw new Error("Select a character in-game before using this tab.");
             }
 
-            loadedCharacter = String(rawUserInfo);
             const classId = toNum(rawCharClass);
             if (!classId) throw new Error("No active character loaded.");
 
@@ -321,6 +322,8 @@ const LibraryTab = () => {
                 });
             }
 
+            // Only now do the rows show this character; a Refresh that failed leaves them, and saves, with the last.
+            loadedCharacter = String(rawUserInfo);
             reconcileRows({ activeClassName, maxBookLv, groups, availableTalentIds });
         });
 

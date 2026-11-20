@@ -338,16 +338,22 @@ const CogsTab = () => {
 
     // A tiny cog's type and tier make one id: they save together on Enter or on leaving them. Each side slot has
     // its own save, so a save's saving…, ✓ or reason stays with the slot it was for.
+    const tinyDrafts = () => ({ type: tinyTypeInput.val, tier: tinyTierInput.val });
     const createTinySave = (index) =>
         useAutoSave({
-            prepare: () => {
-                // The fields show the open slot: another slot's save has nothing of its own to read.
-                if (activeSlot.val !== index) return { unchanged: true };
-                const normalizedType = String(tinyTypeInput.val ?? "")
+            // The type and tier as committed: a save waiting its turn still saves them after another slot opens.
+            capture: tinyDrafts,
+            prepare: (drafts) => {
+                // Checked without a commit (moving between the two fields), the fields show the open slot only.
+                if (!drafts) {
+                    if (activeSlot.val !== index) return { unchanged: true };
+                    drafts = tinyDrafts();
+                }
+                const normalizedType = String(drafts.type ?? "")
                     .trim()
                     .slice(0, 1);
                 if (!TINY_COG_TYPES.has(normalizedType)) throw new Error("type is _, a or b");
-                const tier = toNum(tinyTierInput.val, NaN);
+                const tier = toNum(drafts.tier, NaN);
                 if (!Number.isInteger(tier) || tier < 1 || tier > TINY_COG_MAX_TIER)
                     throw new Error(`tier 1 to ${TINY_COG_MAX_TIER}`);
                 const newId = `CogSm${normalizedType}${tier - 1}`;
