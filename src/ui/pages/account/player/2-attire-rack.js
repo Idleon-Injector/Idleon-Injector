@@ -138,8 +138,13 @@ const AttireRackPage = () => {
         }
         return writes;
     };
-    const writeSlots = (writes, item) =>
-        writeManyVerified(writes.map(({ path, value }) => ({ path, value }))).then(
+    // `inPlay`: the character in play when the writes were planned. The live copy's paths name no character, so the game
+    // writes nothing if another one is in play by then, and the refusal says who is.
+    const writeSlots = (writes, item, inPlay) =>
+        writeManyVerified(
+            writes.map(({ path, value }) => ({ path, value })),
+            { character: inPlay }
+        ).then(
             (result) => {
                 for (const entry of writes) unverified.delete(entry.path);
                 return result;
@@ -392,7 +397,7 @@ const AttireRackPage = () => {
         }
         // A write that lands only in part still changed the character in play: its stat update is owed, from when the
         // write ended, so an update that ran meanwhile (a Refresh, an undo) doesn't count for it.
-        await writeSlots(writes, item).catch(async (caught) => {
+        await writeSlots(writes, item, status.current).catch(async (caught) => {
             if (character.active) oweStats();
             await readStatus().catch(() => {});
             throw caught;
@@ -455,8 +460,10 @@ const AttireRackPage = () => {
         if (!item || busy()) return;
         bulkSaid.clear();
         let targets;
+        let inPlay;
         try {
-            const { characters } = await readStatus();
+            const { characters, current } = await readStatus();
+            inPlay = current;
             await recheck();
             targets = characters.filter((character) => changeable(character) && writesFor(character, item).length);
         } catch (caught) {
@@ -477,7 +484,8 @@ const AttireRackPage = () => {
             async () => {
                 await writeSlots(
                     targets.flatMap((character) => writesFor(character, item)),
-                    item
+                    item,
+                    inPlay
                 ).catch((caught) => {
                     if (targets.some((character) => character.active)) oweStats();
                     throw caught;

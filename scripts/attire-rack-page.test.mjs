@@ -976,3 +976,28 @@ test("two rows retrying kept fields at once both finish", async () => {
     await until(() => quantities[0][15] === 0, "Lumi_Main's retry to land");
     await until(() => /save-state--success/.test(saveState(rows[0])), "Lumi_Main's row to say it saved");
 });
+
+// CodeRabbit on #110: a pick planned for the character in play writes nothing when she switched characters before the
+// write ran, and its row says who is in play now.
+test("a pick for the character in play writes nothing on the one she switched to meanwhile", async () => {
+    const root = await open();
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const live = gga.EquipmentOrder[0][15];
+    const next = live === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    let release;
+    try {
+        holdWrite = new Promise((resolve) => (release = resolve));
+        field.listeners.change({ target: { value: next } });
+        await until(() => holdWrite === null, "the pick's write to wait");
+        gga.UserInfo[0] = "Lumi_Alt"; // she switches characters in the game
+        release();
+        await until(() => /save-state--error/.test(saveState(node)), "the refusal in the row");
+        assert.match(text(node), /Lumi_Alt is in play now, not Lumi_Main/);
+        assert.equal(gga.EquipmentOrder[0][15], live, "nothing was written on the character now in play");
+    } finally {
+        release?.();
+        holdWrite = null;
+        gga.UserInfo[0] = "Lumi_Main";
+    }
+});
