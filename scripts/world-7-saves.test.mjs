@@ -253,3 +253,43 @@ test("Sushi Tools: Refresh during a settings save keeps the typed setting, and t
     await until(() => text(byClass(root, "save-state__label")[0]) === "saved", "the toggle save to finish");
     assert.equal(await savedTier(), next, "the toggle's save keeps the tier");
 });
+
+const MENAGERIE = "src/ui/pages/world-7/menagerie/menagerie.js";
+const menagerieRead = (node) => Boolean(findRow(node, "Lumi balance"));
+
+test("Menagerie: fields stay usable while a save runs, and a second Enter saves too", async () => {
+    const root = await openPage(MENAGERIE, menagerieRead);
+    const rank = findRow(root, "Shell rank");
+    const exp = findRow(root, "Unspent Shell EXP");
+    const [rankField] = inputs(rank);
+    const [expField] = inputs(exp);
+    focus(rankField);
+    type(rankField, 77);
+    const release = hold("/write");
+    press(rank, rankField, "Enter");
+    await tick();
+    assert.equal(rankField.attributes.disabled, false, "the field the player saved stays usable");
+    assert.equal(expField.attributes.disabled, false, "the other fields stay usable");
+    focus(expField);
+    type(expField, 1234);
+    press(exp, expField, "Enter");
+    release();
+    await settled(rank);
+    await settled(exp);
+    assert.equal(stateOf(rank), "success");
+    assert.equal(stateOf(exp), "success");
+    assert.equal(Menagerie[0][2], 77);
+    assert.equal(Menagerie[0][1], 1234);
+});
+
+test("Menagerie: switching an unlock off takes back the line saying all were saved", async () => {
+    const root = await openPage(MENAGERIE, menagerieRead);
+    const line = () => byClass(root, "account-write-feedback").find((node) => text(node).includes("All 25"));
+    await buttonNamed(root, "Unlock all").listeners.click({ preventDefault() {} });
+    await until(line, "the bulk line");
+    const row = byClass(root, "account-row").find((node) => text(node).includes("Unlock #3"));
+    await until(() => inputs(row)[0].attributes.disabled === false, "the page to read again");
+    inputs(row)[0].listeners.change({ target: { checked: false } });
+    await until(() => Menagerie[2][3] === 0, "the unlock to switch off");
+    assert.equal(line(), undefined);
+});

@@ -60,7 +60,10 @@ const MenagerieTab = () => {
     const lists = Object.fromEntries(PANES.map(({ id }) => [id, div({ class: "account-item-stack" })]));
     const reconcilers = Object.fromEntries(PANES.map(({ id }) => [id, createStaticRowReconciler(lists[id])]));
     const state = (path) => getOrCreateState(states, path);
+    // Refresh and Unlock all wait for saves; fields and switches stay usable while one runs (only a Refresh holds
+    // them), so focus stays where the player put it.
     const disabled = () => loading.val || saving.val;
+    const rowDisabled = () => loading.val && !saving.val;
     let unlockCount = 0;
 
     const load = async () =>
@@ -191,15 +194,19 @@ const MenagerieTab = () => {
             ]);
         });
 
-    const save = async (task) => {
-        if (disabled()) throw new Error("Another Menagerie operation is in progress.");
+    // Saves take turns, each then reading the game again. With none running, one writes at once, so it joins the
+    // click or key that made it (its Undo shows beside its row).
+    let pendingSaves = 0;
+    let saveQueue = Promise.resolve();
+    const save = (task) => {
+        const work = pendingSaves++ === 0 ? new Promise((resolve) => resolve(task())) : saveQueue.then(task);
         saving.val = true;
-        try {
-            return await task();
-        } finally {
+        const turn = work.finally(async () => {
             await load();
-            saving.val = false;
-        }
+            if (--pendingSaves === 0) saving.val = false;
+        });
+        saveQueue = turn.catch(() => {});
+        return turn;
     };
 
     const numberRow = (name, path, integer = true, note = null, formatted = false) =>
@@ -217,7 +224,7 @@ const MenagerieTab = () => {
                 const value = numericInput(raw, integer) ?? current;
                 return Math.max(0, value + delta * (formatted ? formattedStep(value) : 1));
             },
-            disabled,
+            disabled: rowDisabled,
             rowClass: "account-row--wide-controls",
             controlsClass: "account-row__controls--xl",
             inputMode: integer ? "int" : "float",
@@ -241,8 +248,12 @@ const MenagerieTab = () => {
                 checked: () => state(path).val >= 1,
                 words: ["On", "Off"],
                 name,
-                disabled,
-                onFlip: (on) => write(() => save(() => writeVerified(path, on ? 1 : 0))),
+                disabled: rowDisabled,
+                onFlip: (on) => {
+                    // "All 25 unlocks saved." no longer holds once one changes.
+                    bulkMessage.val = "";
+                    return write(() => save(() => writeVerified(path, on ? 1 : 0)));
+                },
             }),
         });
     };
@@ -270,7 +281,7 @@ const MenagerieTab = () => {
                 ),
             ],
             adjustInput: (raw, delta, current) => Math.max(0, (numericInput(raw, true) ?? current) + delta),
-            disabled,
+            disabled: rowDisabled,
             rowClass: "account-row--wide-controls",
             controlsClass: "account-row__controls--xl",
             inputProps: { "aria-label": `Mission ${index} completions` },
