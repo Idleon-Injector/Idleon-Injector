@@ -9,19 +9,23 @@ const keepFocus = (e) => e.preventDefault();
 
 let capIds = 0;
 
+// A cap's text through the field's formatter, or "" for none: null, empty, Infinity and NaN are no cap.
+const capText = (cap, formatter) => () => {
+    const raw = typeof cap === "function" ? cap() : cap;
+    const value = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
+    return Number.isFinite(value) ? (formatter ? formatter(String(value)) : String(value)) : "";
+};
+
 /**
  * The cap ("/ 15") sits inside the field's box after the value, muted, and is never part of the typed text: Enter or
  * leaving the field saves only the number. Pressing the cap puts the caret in the field. `cap` is a number, a
- * function returning one, or null for none; it shows through the field's formatter (1.03K / 2.5M).
+ * function returning one, or null for none; it shows through the field's formatter (1.03K / 2.5M). Only a real cap
+ * gets the slash: the value Max fills up to. A number that isn't a limit is left out.
  */
 const Cap = (cap, formatter, inputRef) => {
     if (cap === null || cap === undefined) return { node: null, describedBy: {}, wrapperClass: "number-input-wrapper" };
     const id = `number-input-cap-${++capIds}`;
-    const text = () => {
-        const raw = typeof cap === "function" ? cap() : cap;
-        const value = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
-        return Number.isFinite(value) ? (formatter ? formatter(String(value)) : String(value)) : "";
-    };
+    const text = capText(cap, formatter);
     const node = span(
         {
             class: "number-input__cap",
@@ -36,6 +40,27 @@ const Cap = (cap, formatter, inputRef) => {
     );
     const wrapperClass = () => (text() ? "number-input-wrapper number-input-wrapper--capped" : "number-input-wrapper");
     return { node, describedBy: { "aria-describedby": id }, wrapperClass };
+};
+
+/**
+ * A capped value on a row with no field ("3 / 10"): the field's text without its box, the cap muted the same way.
+ * `value` and `cap` are values or functions returning them.
+ */
+export const CappedValue = ({ value, cap, formatter = null }) => {
+    const text = capText(cap, formatter);
+    const shown = () => {
+        const current = typeof value === "function" ? value() : value;
+        return formatter ? formatter(String(current ?? 0)) : String(current ?? 0);
+    };
+    return span(
+        { class: "capped-value" },
+        span(shown),
+        span(
+            { class: "number-input__cap", hidden: () => !text() },
+            span({ "aria-hidden": "true" }, () => `/ ${text()}`),
+            span({ class: "sr-only" }, () => ` of ${text()}`)
+        )
+    );
 };
 
 export const getNumberInputLiveRaw = (state) => liveRawByState.get(state);

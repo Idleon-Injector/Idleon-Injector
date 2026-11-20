@@ -18,6 +18,7 @@
  */
 
 import van from "../../../vendor/van-1.6.0.js";
+import { CappedValue } from "../../../components/NumberInput.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { readComputed, readComputedMany, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
@@ -116,7 +117,8 @@ const CloudRow = ({ entry }) => {
             span({ class: "account-row__index" }, `#${entry.cloudIndex + 1}`),
             span({ class: "account-row__name" }, entry.name),
         ],
-        badge: () => `${fmtInt(entry.progressState.val)} / ${fmtInt(entry.requiredState.val)}`,
+        // Complete fills progress up to what the cloud requires: a capped value with no field.
+        badge: () => CappedValue({ value: entry.progressState.val, cap: entry.requiredState.val, formatter: fmtInt }),
         controls: ActionButton({
             label: "Complete",
             status,

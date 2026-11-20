@@ -134,17 +134,21 @@ switches, picking the first option each time.
   inner tabs stay above the title. One thin rule runs under the whole top.
 - **Values show once.** A number lives in its field, and so does its cap: the field reads `2 / 15`, with `/ 15` muted
   and a step smaller after the value. The cap is never part of the typed text; Enter or leaving the field saves only
-  the number. A state (Equipped, Locked, Complete) is a plain muted word with no box and no colour of its own; where it
-  sits is being picked from a live concept (by the name, before the field, or a small dot after the name). A badge
-  that repeats the field is left out.
+  the number, and a typed value over the cap is refused beside the field (`max 15`). A row with a cap but no field shows
+  the same `2 / 15` as text, without the box. Nothing repeats the field.
+- **A slash means a real cap.** `/ N` only ever stands for a real limit, the value Max or Max all fills up to (a
+  prayer's max level, Library's book cap). A number that isn't a limit never gets a slash: a stamp's own max level
+  rises as it is levelled, so Stamps shows the level alone, with no note.
+- **A state is a plain word before the field:** Equipped, Locked, Complete, Owned, in normal case, muted, with no box
+  and no colour of its own. It steps aside while the row is saving and while Undo shows there.
 - **Sections** are a plain heading in small muted capitals over a thin rule, with the rows straight under it. No box
   inside the page box. The heading's row can carry the section's own controls (Set all) on the right.
 - **On/off is one switch** (`StateSwitch`) with the game's own word for the state beside it: Owned / Not owned,
   Unlocked / Locked, On / Off. It saves on flip; the row shows saving, the ✓ and Undo like any save, and the switch
   goes back if the game refuses. The words keep one width, so the switches in a list line up. A switch is reachable
   and flips from the keyboard; it has no glow.
-- **In the narrow overlay** a value row keeps its name and badge on the first line and puts the field and its buttons
-  on the line under it.
+- **In the narrow overlay** a value row keeps its name and state word on the first line and puts the field and its
+  buttons on the line under it.
 - **A search with no results** shows the shared empty state (`EmptyState`), and a save's error shows next to its field.
 
 Not switches, on purpose: picks with a limit or an order (the 2× doublers, Organic labels, palette stars, the cape

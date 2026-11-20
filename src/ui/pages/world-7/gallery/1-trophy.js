@@ -110,7 +110,7 @@ const TrophySlotRow = ({ row, onClear }) =>
         primaryLabel: row.name,
         fallbackLabel: row.itemId ?? String(row.rawValue),
         secondaryLabel: row.itemId ?? String(row.rawValue),
-        badge: row.knownCatalogMatch ? "OWNED" : "UNKNOWN",
+        badge: row.knownCatalogMatch ? "Owned" : "Unknown",
         nameGroupClass: "account-row__name-group",
         onRemove: onClear,
         isBusy: onClear.isBusy,

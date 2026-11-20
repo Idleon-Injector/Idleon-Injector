@@ -50,7 +50,7 @@ const buildCollectibleEntries = (holes, gems, start, count, sectionKey) => {
             ),
             path: `Holes[24][${index}]`,
             value: toNum(values[index], 0),
-            badge: (currentValue) => (Number(currentValue ?? 0) > 0 ? `FOUND ${currentValue}` : "MISSING"),
+            badge: (currentValue) => (Number(currentValue ?? 0) > 0 ? `Found ${currentValue}` : "Missing"),
         };
     });
 };

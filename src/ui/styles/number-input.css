@@ -69,9 +69,9 @@ input[type="number"] {
  */
 .number-input-wrapper--capped input {
     flex: 1 1 0;
-    min-width: calc(3ch + 6px);
-    /* Room for the caret after the last digit, before the slash. */
-    padding-right: 2px;
+    min-width: calc(3ch + 2px);
+    /* Right-aligned, so only the caret needs room: after the last digit, before the slash. */
+    padding: 0 2px 0 0;
     text-align: right;
 }
 
@@ -86,6 +86,10 @@ input[type="number"] {
     white-space: nowrap;
     cursor: text;
     user-select: none;
+}
+
+.capped-value .number-input__cap {
+    cursor: auto;
 }
 
 .number-input__cap[hidden] {

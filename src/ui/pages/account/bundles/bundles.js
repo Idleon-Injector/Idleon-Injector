@@ -63,14 +63,8 @@ const BundleRow = ({ bundle, state, searchQuery, buyAllStatus, onBuy, onUnbuy })
                         : null
             ),
             badge: () => {
-                if (state.pending.val) return "BUY QUEUED";
-                return isOwned(state.owned.val) ? "OWNED" : "NOT OWNED";
-            },
-            badgeClass: () => {
-                if (state.pending.val) return "bundle-row__badge bundle-row__badge--queued";
-                return isOwned(state.owned.val)
-                    ? "bundle-row__badge bundle-row__badge--owned"
-                    : "bundle-row__badge bundle-row__badge--unowned";
+                if (state.pending.val) return "Buy queued";
+                return isOwned(state.owned.val) ? "Owned" : "Not owned";
             },
             controlsClass: "bundle-row__controls",
             controls: button(

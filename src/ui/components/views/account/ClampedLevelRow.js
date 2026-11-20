@@ -26,7 +26,6 @@ export const ClampedLevelRow = ({
     name = null,
     renderBadge = null,
     cap = max,
-    renderStates = null,
     rowClass = "",
     badgeClass = "",
     controlsClass = "",
@@ -79,7 +78,6 @@ export const ClampedLevelRow = ({
         // The cap shows inside the field ("3 / 10"); with no finite cap the field shows the level alone.
         cap: () => (Number.isFinite(Number(resolveValue(cap))) ? Number(resolveValue(cap)) : null),
         renderBadge,
-        renderStates,
         rowClass,
         badgeClass,
         controlsClass,

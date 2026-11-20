@@ -94,7 +94,6 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                 () => TIERS[tierState.val]?.label ?? "Stone"
             ),
         ],
-        badge: () => `LV ${levelState.val} · FLAIR ${flairState.val} / ${FLAIR_MAX_LEVEL}`,
         renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
             div(
                 { class: "account-row__controls--stack" },
@@ -150,7 +149,7 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                         max: FLAIR_MAX_LEVEL,
                         rootClass: "statue-control-row",
                         labelClass: "statue-control-label",
-                        inputProps: { "aria-label": `Statue #${index} flair level` },
+                        inputProps: { "aria-label": `Statue #${index} flair level`, cap: FLAIR_MAX_LEVEL },
                     },
                     draftStates,
                     getDraftValue,

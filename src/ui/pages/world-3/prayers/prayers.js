@@ -422,10 +422,7 @@ const PrayersTab = () => {
                     )
                 ),
             cap: () => Number(metadata.val[9]),
-            renderStates: () => [
-                level.val === 0 ? { label: "Locked", on: false } : null,
-                isEquipped() ? { label: "Equipped", on: true } : null,
-            ],
+            renderBadge: () => (level.val === 0 ? "Locked" : isEquipped() ? "Equipped" : ""),
             renderExtraActions: () =>
                 ActionButton({
                     label: () => (isEquipped() ? "Unequip" : "Equip"),

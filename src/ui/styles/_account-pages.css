@@ -425,13 +425,11 @@
 }
 
 /* The badge (the stored value) steps aside while a save takes a moment and while it has failed. */
-.is-saving > .account-row__badge,
-.is-saving > .account-row__state--column {
+.is-saving > .account-row__badge {
     animation: save-state-hide 0.3s steps(1, end) forwards;
 }
 
-.is-save-failed > .account-row__badge,
-.is-save-failed > .account-row__state--column {
+.is-save-failed > .account-row__badge {
     visibility: hidden;
 }
 
@@ -476,10 +474,8 @@
 }
 
 .is-undo-offered > .account-row__badge,
-.is-undo-offered > .account-row__state--column,
 .is-undo-offered > .account-inline-field__head > :first-child,
 .is-undo-refused > .account-row__badge,
-.is-undo-refused > .account-row__state--column,
 .is-undo-refused > .account-inline-field__head > :first-child {
     visibility: hidden;
 }
@@ -727,107 +723,30 @@
     }
 }
 
-/*
- * A row's states (Equipped, Locked, Complete), now that the cap is in the field and the badge is gone: plain muted
- * words or a small dot, no box and no new colour. CONCEPT: the root's data-state-place shows one of three placements
- * (RowStates.js) for the maintainer to pick from.
- */
-.account-row__name-line {
-    display: flex;
-    min-width: 0;
-    align-items: baseline;
-    gap: 8px;
-}
-
-.account-row__name-line > .account-row__name {
-    flex: 0 1 auto;
-    min-width: 0;
-}
-
-.account-row__state {
-    flex-shrink: 0;
-    font-size: 0.8125rem;
-    color: var(--c-text-muted);
-    white-space: nowrap;
-}
-
-.account-row__state--column {
-    justify-self: end;
-}
-
-/* The mark follows the name, so names and the lines under them keep one left edge. */
-.account-row__mark {
-    display: inline-block;
-    flex-shrink: 0;
-    align-self: center;
-    box-sizing: border-box;
-    width: 7px;
-    height: 7px;
-    border: 1.5px solid var(--c-text-muted);
-    border-radius: 50%;
-}
-
-.account-row__mark.is-on {
-    border-color: var(--c-accent);
-    background: var(--c-accent);
-}
-
-.account-row__state[hidden],
-.account-row__mark[hidden],
-:root:not([data-state-place="name"]) .account-row__state--name,
-:root:not([data-state-place="column"]) .account-row__state--column,
-:root:not([data-state-place="mark"]) .account-row__mark {
-    display: none;
-}
-
-/* Concept only: the switch between the three placements, out of the way in the corner. */
-.concept-switch {
-    position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 50;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px;
-    padding: 4px 4px 4px 12px;
-    border: 1px solid var(--c-border);
-    border-radius: 999px;
-    background: var(--c-panel-98);
-}
-
-.concept-switch__label {
-    margin-right: 6px;
-    font-size: 0.8125rem;
-    color: var(--c-text-muted);
-}
-
-@media (max-width: 600px) {
-    .concept-switch {
-        left: 76px;
-        right: 12px;
-        bottom: 10px;
-        justify-content: center;
-    }
-
-    .concept-switch .btn-sm {
-        padding: 0 9px;
-    }
-}
-
 .account-row__badge:empty {
     display: none;
 }
 
+/*
+ * The badge is a row's state (Equipped, Locked, Complete): a plain muted word just before the field, with no box and
+ * no colour of its own. The value and its cap live in the field ("2 / 15"); a row with no field shows them here as
+ * text the same way (CappedValue).
+ */
 .account-row__badge {
+    justify-self: end;
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    color: var(--c-text-muted);
+    white-space: nowrap;
+}
+
+/* A capped value with no field (a read-only row): the field's text without its box. */
+.capped-value {
+    display: inline-flex;
+    align-items: baseline;
     font-family: var(--font-mono);
     font-size: 0.875rem;
-    color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
-    border: 1px solid var(--c-accent);
-    padding: 2px 8px;
-    white-space: nowrap;
-    flex-shrink: 0;
+    color: var(--c-text-main);
 }
 
 /* In the narrow overlay a value row keeps its name and badge on the first line and puts the field and its buttons on
@@ -838,14 +757,10 @@
         row-gap: 6px;
     }
 
-    .account-row--value > .account-row__badge,
-    .account-row--value > .account-row__state--column {
+    /* The state word keeps to the end of the name's line. */
+    .account-row--value > .account-row__badge {
         grid-column: 2;
         grid-row: 1;
-    }
-
-    /* A state word keeps to the name's line, like the badge did. */
-    .account-row--value > .account-row__state--column {
         align-self: start;
         padding-top: 1px;
     }
@@ -855,20 +770,17 @@
         flex-wrap: wrap;
     }
 
-    /* The save's words (saving…, the reason, Undo) lie at the end of the name's line, where the badge steps aside,
-     * since the field's line has no room beside it. */
+    /* The save state (the mark, saving…, the reason, Undo) lies at the end of the name's line, where the state word
+     * steps aside while it shows, so the field's line keeps its whole width for the field and its buttons. */
     .account-row--value {
         position: relative;
     }
 
     .account-row--value .save-state {
-        position: static;
-    }
-
-    .account-row--value .save-state__label,
-    .account-row--value .save-state__undo {
+        position: absolute;
         top: 19px;
-        right: 10px;
+        right: 12px;
+        transform: translateY(-50%);
     }
 }
 

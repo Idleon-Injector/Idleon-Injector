@@ -114,11 +114,8 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
         },
         write: async (nextValue) => writeVerified(writePath, nextValue),
         renderInfo: () => span({ class: "account-row__name" }, label),
-        renderBadge: (currentValue) => {
-            const cur = currentValue ?? 0;
-            const max = maxState.val;
-            return max > 0 ? `${cur} / ${max}` : "";
-        },
+        // The cauldron's max level, where −/+ stop; none until it's read.
+        cap: () => (maxState.val > 0 ? maxState.val : null),
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);

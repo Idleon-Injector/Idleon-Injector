@@ -77,9 +77,10 @@ const buildMealEntries = (rawMealInfo, rawAllocations, rawMealLevels) => {
                 path: `${MEAL_MASTERY_PATH}[${index}]`,
                 value: toInt(allocations[index], { min: 0 }),
                 formatted: false,
+                // The level is in the field; the badge adds the bonus it gives.
                 badge: (currentValue) => {
                     const level = toInt(currentValue, { min: 0 });
-                    return `LV ${level} · ${(1 + level / (level + 5)).toFixed(2)}x`;
+                    return `${(1 + level / (level + 5)).toFixed(2)}x`;
                 },
             };
         })
@@ -137,7 +138,7 @@ const RespecStatusRow = ({ respecState }) =>
                 span({ class: "account-row__sub-label" }, `${RESPEC_PATH} is managed by the game`)
             ),
         ],
-        badge: () => (respecState.val === 0 ? "READY" : "USED"),
+        badge: () => (respecState.val === 0 ? "Ready" : "Used"),
         badgeClass: () => (respecState.val === 0 ? "account-row__badge--highlight" : ""),
     });
 

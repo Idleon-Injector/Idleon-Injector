@@ -45,7 +45,7 @@ const GodProgressRow = ({ valueState }) =>
                 span({ class: "account-row__sub-label" }, "0-10 unlocks gods. Values above 10 are the God Rank level.")
             ),
         renderBadge: (currentValue) =>
-            toInt(currentValue, { min: 0 }) <= 10 ? `${currentValue ?? 0} UNLOCKED` : `RANK ${currentValue}`,
+            toInt(currentValue, { min: 0 }) <= 10 ? `${currentValue ?? 0} unlocked` : `Rank ${currentValue}`,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
     });
