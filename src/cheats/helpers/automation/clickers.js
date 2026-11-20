@@ -67,7 +67,8 @@ const bought = Object.fromEntries(CLICKER_KEYS.map((key) => [key, 0])); // level
 
 const unlocked = (clicker, i, row) =>
     clicker.isUnlocked ? clicker.isUnlocked(i) : clicker.progress() >= clicker.unlockAt(i, row);
-const label = (row) => String(row[0]).replace(/_/g, " ");
+// The game writes spaces as "_" and line breaks as "|".
+const label = (row) => String(row[0]).replace(/[_|]/g, " ");
 // The game's number style, as the page's formatNumber writes it (game code can't import page code):
 // 3 digits with K, M, B, T, Q, QQ, QQQ, then 1.23E27.
 const SUFFIXES = ["", "K", "M", "B", "T", "Q", "QQ", "QQQ"];
