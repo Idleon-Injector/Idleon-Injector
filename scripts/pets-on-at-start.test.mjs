@@ -65,6 +65,9 @@ test("clearing every pet takes w1 companion off the startup cheats", async () =>
         }),
         ["godlike reach"]
     );
+    // Only what it changed: a whole config read before another page's change would put that change back.
+    assert.deepEqual(saves.at(-1).cheatConfig, { w1: { companion: { companions: "none" } } });
+    assert.equal(saves.at(-1).injectorConfig, undefined);
 });
 
 // Unselected once the first test cleared them.
@@ -82,4 +85,30 @@ test("choosing a pet adds w1 companion to the startup cheats, once", async () =>
 test("with every W1 cheat on at start, choosing a pet adds nothing that would toggle it back off", async () => {
     await updateSessionConfig({ startupCheats: ["w1"] });
     assert.deepEqual(await saved(() => third.listeners.click({})), ["w1"]);
+});
+
+// The file and the session took the choice and the game didn't: the reason is said on the page, and the card shows the
+// read after it, what the file holds.
+test("a pet choice the game didn't take is said on the page, and its card shows what was saved", async () => {
+    await until(() => plainPets().length >= 1, "an unselected pet");
+    const [pet] = plainPets();
+    const wrap = byClass(page, "companion-card-wrap").find((card) => card.childNodes.includes(pet));
+    const routes = router.routes.POST;
+    const update = routes.get("/api/config/update");
+    routes.set("/api/config/update", async (req, res) => {
+        await update(req, { status: () => ({ json() {} }), json() {} });
+        res.json({
+            message: "Configuration updated on server, but failed to apply in game",
+            details: "The game is busy",
+        });
+    });
+    const count = saves.length;
+    try {
+        await pet.listeners.click({});
+        await until(() => /The game is busy/.test(text(page)), "the reason on the page");
+        await until(() => !/NOT SELECTED/.test(text(wrap)), "the card to show the saved choice");
+        assert.equal(saves.length, count + 1, "the file took it first");
+    } finally {
+        routes.set("/api/config/update", update);
+    }
 });

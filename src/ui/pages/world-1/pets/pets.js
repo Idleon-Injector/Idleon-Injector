@@ -20,8 +20,8 @@ import {
     readCList,
     readComputed,
     readGgaEntries,
-    saveConfigFile,
-    updateSessionConfig,
+    saveConfigPart,
+    startupWith,
 } from "../../../services/api.js";
 import { EmptyState } from "../../../components/EmptyState.js";
 import { SearchBar } from "../../../components/SearchBar.js";
@@ -283,8 +283,8 @@ const CompanionsTab = () => {
         return null;
     };
 
-    const readSelection = async () => {
-        const [config, cheatStates] = await Promise.all([fetchConfig(), fetchCheatStates()]);
+    const readSelection = async (read = fetchConfig()) => {
+        const [config, cheatStates] = await Promise.all([read, fetchCheatStates()]);
         const validIdSet = new Set(companions.val.map((companion) => companion.id));
         cheatEnabled.val = !!cheatStates?.data?.w1?.companion;
         const configured = config?.cheatConfig?.w1?.companion?.companions ?? "";
@@ -327,26 +327,6 @@ const CompanionsTab = () => {
 
     const setCompanionCheat = (wanted) => executeCheatAction(COMPANION_CHEAT, wanted);
 
-    // /api/config/save rewrites config.custom.js from whatever it is handed, so it needs
-    // the whole config - a partial would drop every other saved override. `onAtStart`: chosen pets also turn the
-    // cheat on at every start (a startup cheat); none takes it off that list. Startup cheats toggle, so a list that
-    // already has "w1" (every W1 cheat on) gets no "w1 companion", which would turn it back off.
-    const persistConfig = async (onAtStart) => {
-        const config = await fetchConfig();
-        if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
-        const startup = config.startupCheats ?? [];
-        const listed = startup.includes(COMPANION_CHEAT) || startup.includes("w1");
-        await saveConfigFile({
-            startupCheats: onAtStart
-                ? listed
-                    ? startup
-                    : [...startup, COMPANION_CHEAT]
-                : startup.filter((command) => command !== COMPANION_CHEAT),
-            cheatConfig: config.cheatConfig,
-            injectorConfig: config.injectorConfig,
-        });
-    };
-
     // The change is built after the re-read so a list saved from the Config tab isn't overwritten.
     const writeSelection = (getChange) =>
         runWrite(
@@ -364,22 +344,23 @@ const CompanionsTab = () => {
                 const entries = companions.val
                     .filter(({ id }) => normal.has(id) || plus.has(id))
                     .map(({ id }) => `${id}:${plus.has(id) ? 1 : 0}`);
-                const result = await updateSessionConfig({
+                // Chosen pets also turn the cheat on at every start; none takes it off that list.
+                const { result, config } = await saveConfigPart(({ startupCheats }) => ({
                     // An empty list would mean every pet at Pets+ once the startup cheat runs again.
                     cheatConfig: { w1: { companion: { companions: entries.join(",") || "none" } } },
-                });
+                    startupCheats: startupWith(startupCheats, COMPANION_CHEAT, entries.length > 0),
+                }));
                 if (result.message !== "Configuration updated successfully") {
                     throw new Error(result.details || result.message || "Could not apply pet tiers in game");
                 }
                 await setCompanionCheat(entries.length > 0);
-                cheatEnabled.val = entries.length > 0;
-                normalIds.val = normal;
-                plusIds.val = plus;
-                await persistConfig(entries.length > 0);
+                await readSelection(config);
             },
             {
+                // Part of it may have landed: the cards show what is saved now.
                 onError: (error) => {
                     writeError.val = error.message;
+                    void readSelection().catch(() => {});
                 },
             }
         );
