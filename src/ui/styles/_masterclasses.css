@@ -111,7 +111,7 @@
     min-height: 18px;
     padding: 2px 6px;
     border: 1px solid var(--c-accent);
-    background: rgba(99, 175, 237, 0.14);
+    background: var(--c-accent-dim);
     color: var(--c-accent);
     font-size: 0.7rem;
     font-weight: 850;
@@ -257,7 +257,7 @@
     gap: 12px;
     padding: 12px;
     border: 1px solid var(--c-border);
-    background: rgba(23, 27, 37, 0.86);
+    background: var(--c-panel-95);
 }
 
 .outpost-card__header {
@@ -367,7 +367,7 @@
     gap: 6px;
     padding: 6px;
     border: 1px solid var(--c-border);
-    background: rgba(21, 25, 35, 0.8);
+    background: var(--c-panel-80);
 }
 
 .outpost-map-unit__index {
@@ -391,7 +391,7 @@
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--c-border);
-    background: rgba(21, 25, 35, 0.8);
+    background: var(--c-panel-80);
 }
 
 .outpost-unit-config__field {
@@ -419,7 +419,7 @@
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--c-border);
-    background: rgba(21, 25, 35, 0.8);
+    background: var(--c-panel-80);
 }
 
 .outpost-vanilla-units__count,

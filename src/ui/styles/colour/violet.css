@@ -1,0 +1,36 @@
+/**
+ * Concept 2, "#2D2E4F base": Lumi's violet-navy is the page. Sections sit on it outlined, rows sit one step
+ * darker so values read against them, and inputs are the page colour again. Load with ?colour=violet.
+ * Status, world and danger colours are lifted a little where the mid-tone page would drop them below AA.
+ */
+:root {
+    --c-void: #2d2e4f;
+    --c-void-soft: #33355a;
+    --c-panel: #252641;
+    --c-panel-dim: #2d2e4f;
+    --c-panel-hover: #2f3052;
+    --c-border: #3d3f66;
+    --c-border-strong: #565987;
+
+    --c-text-main: #eeeef9;
+    --c-text-muted: #c3c4dc;
+
+    --c-danger: #ff6b6b;
+    --c-danger-soft-text: #ffb2a5;
+    --c-world-w4: #b48aea;
+    --c-world-w5: #f06a6a;
+
+    --c-accent-dim-solid: #364368;
+    --c-accent-ink: #14152a;
+    --c-success-tint: #2b3f48;
+    --c-success-flash: #325a50;
+    --c-danger-tint: #3f2e46;
+    --c-danger-flash: #5c374c;
+    --c-warning-tint: #3f3739;
+    --c-accent-tint: #2e3959;
+
+    --c-sidebar-bg: rgba(34, 35, 57, 0.97);
+    --c-panel-95: rgba(37, 38, 65, 0.95);
+    --c-panel-98: rgba(37, 38, 65, 0.98);
+    --c-panel-80: rgba(37, 38, 65, 0.8);
+}

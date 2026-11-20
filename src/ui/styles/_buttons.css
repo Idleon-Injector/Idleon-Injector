@@ -55,12 +55,12 @@ button {
 }
 
 .btn-main {
-    background: rgba(99, 175, 237, 0.14);
+    background: var(--c-accent-dim);
     color: var(--c-accent);
 }
 
 .btn-main:hover:not(:disabled) {
-    background: rgba(99, 175, 237, 0.22);
+    background: var(--c-accent-20);
     color: var(--c-accent-hover);
 }
 

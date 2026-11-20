@@ -6,8 +6,7 @@
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
-    background: #1f2a39;
-    border: 1px solid var(--c-accent);
+    border: 1px solid var(--c-border);
     font-size: 0.875rem;
 }
 
@@ -24,13 +23,13 @@
 
 .library-maxbooklv__value {
     font-weight: 700;
-    color: var(--c-accent);
+    color: var(--c-text-main);
 }
 
 .library-section-points {
     font-size: 0.875rem;
     font-weight: 700;
-    color: var(--c-accent);
+    color: var(--c-text-main);
     letter-spacing: 0.04em;
 }
 

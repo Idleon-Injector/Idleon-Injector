@@ -2,22 +2,18 @@
 
 .brewing-section--orange {
     --col-color: var(--c-cauldron-orange);
-    --col-bg: #2c2624;
 }
 
 .brewing-section--green {
     --col-color: var(--c-cauldron-green);
-    --col-bg: #1e2b2b;
 }
 
 .brewing-section--purple {
     --col-color: var(--c-cauldron-purple);
-    --col-bg: #252138;
 }
 
 .brewing-section--yellow {
     --col-color: var(--c-cauldron-yellow);
-    --col-bg: #2c2c24;
 }
 
 .brewing-sections-grid {
@@ -56,11 +52,6 @@
     text-overflow: clip;
 }
 
-.brewing-row--prisma {
-    border-color: var(--col-color, var(--c-accent));
-    background: var(--col-bg, #1f2a39);
-}
-
 .brewing-row__badge {
     grid-area: badge;
     justify-self: start;
@@ -89,26 +80,26 @@
     font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: 0.05em;
-    color: var(--col-color, var(--c-accent));
+    color: var(--c-accent);
 }
 
 .brewing-prisma-btn {
     flex: 0 0 112px;
     border: 1px solid var(--c-border);
-    background: var(--c-panel);
+    background: var(--c-panel-dim);
     color: var(--c-text-dim);
     justify-content: center;
 }
 
 .brewing-prisma-btn:hover:not(:disabled) {
-    border-color: var(--col-color, var(--c-accent));
-    color: var(--col-color, var(--c-accent));
+    border-color: var(--c-border-strong);
+    color: var(--c-text-main);
 }
 
 .brewing-prisma-btn.brewing-prisma-btn--active,
 .brewing-prisma-btn.brewing-prisma-btn--active:hover:not(:disabled) {
-    border-color: var(--col-color, var(--c-accent));
-    color: var(--col-color, var(--c-accent));
-    background: var(--col-bg, #1f2a39);
+    border-color: var(--c-accent);
+    color: var(--c-accent);
+    background: var(--c-accent-tint);
     font-weight: 700;
 }

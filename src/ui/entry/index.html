@@ -12,6 +12,23 @@
             rel="stylesheet"
         />
         <link rel="stylesheet" href="/entry/style.css" />
+        <script>
+            // Colour concept: ?colour=violet or ?colour=dusk lays that version's colours over the navy ones and
+            // remembers the pick (also for the in-game menu); ?colour=navy goes back.
+            (function () {
+                var key = "colourConcept";
+                var pick = new URLSearchParams(location.search).get("colour");
+                try {
+                    if (pick) localStorage.setItem(key, pick);
+                    else pick = localStorage.getItem(key);
+                } catch (e) {}
+                if (pick !== "violet" && pick !== "dusk") return;
+                var link = document.createElement("link");
+                link.rel = "stylesheet";
+                link.href = "/styles/colour/" + pick + ".css";
+                document.head.appendChild(link);
+            })();
+        </script>
     </head>
 
     <body>

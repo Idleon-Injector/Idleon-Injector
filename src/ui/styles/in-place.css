@@ -281,7 +281,7 @@ button[data-again] {
 
 .btn-main[data-again] {
     --again-color: var(--c-accent-hover);
-    --again-fill: rgba(99, 175, 237, 0.22);
+    --again-fill: var(--c-accent-20);
 }
 
 .btn-danger[data-again] {

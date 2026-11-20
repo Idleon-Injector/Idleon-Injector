@@ -1,0 +1,45 @@
+/**
+ * Concept 3, "Dusk": one hue. #2D2E4F is the row, the surface a player reads and changes values on; the page
+ * is the same violet a step darker, and inputs sink back to it. The accent turns lavender, so the only
+ * colours that aren't this violet are status (saved, warning, failed) and the world codes. Borders nearly
+ * dissolve: rows separate by fill. Load with ?colour=dusk.
+ */
+:root {
+    --c-void: #1c1d33;
+    --c-void-soft: #222440;
+    --c-panel: #2d2e4f;
+    --c-panel-dim: #1c1d33;
+    --c-panel-hover: #36385c;
+    --c-border: #34365b;
+    --c-border-strong: #4a4d7a;
+
+    --c-text-main: #eeedf9;
+    --c-text-muted: #c0bfdc;
+
+    --c-accent: #aaa6f7;
+    --c-accent-hover: #c9c6fb;
+    --c-accent-dim: rgba(170, 166, 247, 0.1);
+    --c-accent-06: rgba(170, 166, 247, 0.055);
+    --c-accent-20: rgba(170, 166, 247, 0.2);
+    --c-accent-25: rgba(170, 166, 247, 0.25);
+    --c-accent-40: rgba(170, 166, 247, 0.42);
+    --c-accent-glow: rgba(170, 166, 247, 0.3);
+    --c-accent-dim-solid: #333352;
+    --c-accent-ink: #0f0f1c;
+
+    --c-danger: #ff6b6b;
+    --c-danger-soft-text: #ffb2a5;
+    --c-world-w4: #b48aea;
+
+    --c-success-tint: #324655;
+    --c-success-flash: #38605a;
+    --c-danger-tint: #463552;
+    --c-danger-flash: #623d56;
+    --c-warning-tint: #463e46;
+    --c-accent-tint: #3e3f67;
+
+    --c-sidebar-bg: rgba(23, 24, 43, 0.96);
+    --c-panel-95: rgba(45, 46, 79, 0.95);
+    --c-panel-98: rgba(45, 46, 79, 0.98);
+    --c-panel-80: rgba(28, 29, 51, 0.8);
+}
