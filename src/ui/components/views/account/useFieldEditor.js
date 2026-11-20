@@ -53,15 +53,23 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const getDrafts = () => Object.fromEntries(fields.map((field) => [field.key, getDraftValue(field.key)]));
     const isDisabled = () => Boolean(resolveValue(disabled));
 
+    // Show the stored value again in each field still holding what was submitted; a draft typed since (while the save
+    // waited or ran) is the next save, so it stays.
+    const resetSubmitted = (submitted) =>
+        fields.forEach((field) => {
+            if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
+        });
+
     const autoSave = useAutoSave({
-        prepare: () => {
+        // The drafts as they were at the commit, so a later commit (made after a switch, say) can't save in its place.
+        capture: getDrafts,
+        prepare: (submitted = getDrafts()) => {
             if (isDisabled()) return { unchanged: true };
-            const submitted = getDrafts();
             const touched = fields.filter(
                 (field) => !isUntouched(field, submitted[field.key], baseByKey.get(field.key))
             );
             if (!touched.length) {
-                fields.forEach((field) => resetDraft(field.key));
+                resetSubmitted(submitted);
                 return { unchanged: true };
             }
             if (touched.some((field) => String(submitted[field.key] ?? "").trim() === ""))
@@ -75,14 +83,14 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                 if (!touched.includes(field)) next[field.key] = field.valueState.val;
             });
             if (fields.every((field) => sameValue(next[field.key], field.valueState.val))) {
-                fields.forEach((field) => resetDraft(field.key));
+                resetSubmitted(submitted);
                 return { unchanged: true };
             }
             return {
                 write: async () => {
                     const verified = await write(next);
                     if (verified?.cancelled) {
-                        fields.forEach((field) => resetDraft(field.key));
+                        resetSubmitted(submitted);
                         return verified;
                     }
                     if (
@@ -100,9 +108,8 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                     fields.forEach((field) => {
                         field.valueState.val = verified[field.key];
                         baseByKey.set(field.key, verified[field.key]);
-                        // A draft typed while this save ran is the next save; leave it.
-                        if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
                     });
+                    resetSubmitted(submitted);
                     if (typeof onApplied === "function") await onApplied(verified);
                     return verified;
                 },

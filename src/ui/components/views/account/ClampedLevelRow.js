@@ -78,7 +78,9 @@ export const ClampedLevelRow = ({
         renderBadge:
             renderBadge ??
             ((currentValue) =>
-                Number.isFinite(Number(resolveValue(max))) ? `LV ${currentValue ?? 0} / ${resolveValue(max)}` : ""),
+                Number.isFinite(toBound(resolveValue(max), Infinity))
+                    ? `LV ${currentValue ?? 0} / ${resolveValue(max)}`
+                    : ""),
         rowClass,
         badgeClass,
         controlsClass,

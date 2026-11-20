@@ -19,6 +19,7 @@ import { AccountRow } from "../../../components/views/account/components/Account
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { clickAgain } from "../../../components/inPlace.js";
+import { captureGesture } from "../../../services/changeLog.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
@@ -259,8 +260,8 @@ const WeeklyBossTab = () => {
                         await submitWrites([
                             { key: entry.key, path: `WeeklyBoss.h.${entry.key}`, value: enabled ? 1 : 0 },
                         ]);
-                    },
-                    { onError: (caughtError) => (message.val = caughtError.message) }
+                    }
+                    // The switch says why a row's save failed.
                 );
             } finally {
                 busy.val = false;
@@ -271,6 +272,9 @@ const WeeklyBossTab = () => {
     const setAll = (enabled, button) =>
         inTurn(async () => {
             if (cannotWrite()) return;
+            // The bulk action starts after a read: keep the button's click, so it's named after and offers Undo all
+            // beside the button even if something else was clicked meanwhile.
+            const inGesture = captureGesture();
             busy.val = true;
             message.val = "";
             try {
@@ -292,29 +296,31 @@ const WeeklyBossTab = () => {
                     )
                 )
                     return;
-                await bulk.run(
-                    async () => {
-                        const fresh = await readFresh();
-                        const currentTargets = entries.filter(
-                            ({ key }) => (Number(fresh.weekly[key]) === 1) !== enabled
-                        );
-                        if (
-                            currentTargets.length !== targets.length ||
-                            currentTargets.some(({ key }, index) => key !== targets[index].key)
-                        ) {
-                            throw new Error(
-                                "Skin ownership changed while confirmation was open. Review the rows and try again."
+                await inGesture(() =>
+                    bulk.run(
+                        async () => {
+                            const fresh = await readFresh();
+                            const currentTargets = entries.filter(
+                                ({ key }) => (Number(fresh.weekly[key]) === 1) !== enabled
                             );
-                        }
-                        await submitWrites(
-                            currentTargets.map(({ key }) => ({
-                                key,
-                                path: `WeeklyBoss.h.${key}`,
-                                value: enabled ? 1 : 0,
-                            }))
-                        );
-                    },
-                    { onError: (caughtError) => (message.val = caughtError.message) }
+                            if (
+                                currentTargets.length !== targets.length ||
+                                currentTargets.some(({ key }, index) => key !== targets[index].key)
+                            ) {
+                                throw new Error(
+                                    "Skin ownership changed while confirmation was open. Review the rows and try again."
+                                );
+                            }
+                            await submitWrites(
+                                currentTargets.map(({ key }) => ({
+                                    key,
+                                    path: `WeeklyBoss.h.${key}`,
+                                    value: enabled ? 1 : 0,
+                                }))
+                            );
+                        },
+                        { onError: (caughtError) => (message.val = caughtError.message) }
+                    )
                 );
             } catch (caughtError) {
                 message.val = caughtError.message;
@@ -370,6 +376,7 @@ const WeeklyBossTab = () => {
                 disabled: () => loading.val || Boolean(error.val) || signature === null,
                 title: () =>
                     state.unlocked.val ? `Lock ${entry.name}` : `Unlock ${entry.name} without spending trophies`,
+                status: state.write.status, // nothing else on the row reads out saving and saved
                 onFlip: (unlocked) => setSkin(entry, unlocked),
             }),
         });
@@ -467,21 +474,24 @@ const WeeklyBossTab = () => {
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             return Math.max(0, next + delta);
         },
-        write: async (value) => {
-            if (cannotEdit()) throw new Error("refresh first");
-            if (value === trophies.val) return { cancelled: true };
-            busy.val = true;
-            message.val = "";
-            try {
-                await submitWrites([{ path: "OptionsListAccount[188]", value }]);
-                return value;
-            } catch (caughtError) {
-                message.val = caughtError.message;
-                throw caughtError;
-            } finally {
-                busy.val = false;
-            }
-        },
+        // Takes its turn with the skin and character saves, so a switch flipped meanwhile waits instead of being
+        // dropped as busy.
+        write: (value) =>
+            inTurn(async () => {
+                if (cannotEdit()) throw new Error("refresh first");
+                if (value === trophies.val) return { cancelled: true };
+                busy.val = true;
+                message.val = "";
+                try {
+                    await submitWrites([{ path: "OptionsListAccount[188]", value }]);
+                    return value;
+                } catch (caughtError) {
+                    message.val = caughtError.message;
+                    throw caughtError;
+                } finally {
+                    busy.val = false;
+                }
+            }),
         renderInfo: () => span({ class: "account-row__name" }, "Trophies"),
         inputProps: { "aria-label": "Weekly Boss trophy balance" },
     });
