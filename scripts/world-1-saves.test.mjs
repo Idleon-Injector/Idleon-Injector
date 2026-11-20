@@ -99,15 +99,18 @@ test("stamps: a refused exalt says why on the row and shows what the game holds"
     g.Compass[4] = ["_1", "a0", "b4"];
     const root = await openPage(STAMPS, (root) => rowNamed(root, "Stamp A6"));
     const row = rowNamed(root, "Stamp A6");
+    g.Compass[4] = [...g.Compass[4], "_9"]; // exalted in the game
     const restore = refuseWrites(g.Compass, 4);
     try {
         await flip(row, true);
     } finally {
         restore();
     }
-    assert.deepEqual([...g.Compass[4]], ["_1", "a0", "b4"]);
+    assert.deepEqual([...g.Compass[4]], ["_1", "a0", "b4", "_9"]);
     assert.equal(saveState(row), "error");
     assert.equal(switchOf(row).checked, false);
+    await tick();
+    assert.equal(wordsOf(rowNamed(root, "Stamp A10")), "Exalted", "the page shows the game's own exalt too");
 });
 
 const STATUES = "src/ui/pages/world-1/statues/statues.js";
