@@ -12,6 +12,32 @@ import { wardrobeClass, primaryStats } from "./presets.js";
 const clean = (name) => String(name).replace(/[_|]/g, " ");
 // The path resolver splits names at dots and brackets, so such a character's saved copy can't be addressed.
 const ADDRESSABLE = /^[^.[\]]+$/;
+// The item kind (typeGen) each slot takes, as the game's item definitions have them; null: a slot loadouts keep.
+const TOOL_TYPES = ["aPick", "aHatchet", "aFishingRod", "aBugNet", "aTrap", "aSkull", "aDNAgun"];
+const SLOT_TYPES = [
+    // Helmet, weapon, shirt, pendant, pants, ring, shoes, ring, premium hat, keychain, trophy, keychain, cape,
+    // chat ring, nametag, outfit.
+    [
+        "aHelmet",
+        "aWeapon",
+        "aShirt",
+        "aPendant",
+        "aPants",
+        "aRing",
+        "aShoes",
+        "aRing",
+        null,
+        "aKeychain",
+        null,
+        "aKeychain",
+        null,
+        "aChatRingMTX",
+        null,
+        "aGown",
+    ],
+    TOOL_TYPES,
+    Array(16).fill("cFood"),
+];
 
 /** Explicit Wardrobe preferences, stored as modifiers. Fixed Spiritlord stats stay in definitions. */
 export function keychainRoll(item, primaryStat) {
@@ -105,6 +131,11 @@ export function planWardrobe(
             }
             if (id !== "Blank") {
                 const d = definition(id);
+                // A hand-edited saved loadout could put a shirt in the weapon slot; the game never would.
+                if (d.typeGen !== SLOT_TYPES[group][slot])
+                    throw new Error(
+                        `${clean(d.displayName)} doesn't go in ${names[group]} slot ${slot + 1}. Nothing changed.`
+                    );
                 if (group < 2) {
                     if (
                         (d.Class && d.Class !== "ALL" && d.Class !== baseClass.toUpperCase()) ||
@@ -185,7 +216,6 @@ export function planWardrobe(
     for (const slot of [9, 11]) {
         const id = requested[0][slot];
         if (id === "Keep" || id === "Blank") continue;
-        if (definition(id).typeGen !== "aKeychain") throw new Error("Invalid keychain preset.");
         const write = upgrades.get(`0.${slot}`);
         if (write)
             write.value = preset.keychainStats?.[slot] || keychainRoll(id, preset.keychainPrimaryStat || primaryStat);
@@ -368,13 +398,12 @@ export function foodStackWrites(attributes, limits) {
 }
 
 export function bestWardrobeTool(a, definitions, slot) {
-    const types = ["aPick", "aHatchet", "aFishingRod", "aBugNet", "aTrap", "aSkull", "aDNAgun"];
     const skill = [1, 3, 4, 6, 7, 9, 0][slot];
     const level = Number(a.Lv0[skill]);
     if (!Number.isFinite(level)) throw new Error("Tool skill level is unavailable.");
     const candidates = Object.entries(definitions).filter(
         ([, { h: d }]) =>
-            d.typeGen === types[slot] &&
+            d.typeGen === TOOL_TYPES[slot] &&
             Number.isFinite(Number(d.lvReqToEquip)) &&
             Number(d.lvReqToEquip) <= level &&
             (d.Class === "ALL" || d.Class === wardrobeClass(Number(a.CharacterClass)).toUpperCase())

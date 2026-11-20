@@ -230,7 +230,7 @@ test("after a loadout lands: wide wardrobestats works the stats out again, then 
     ]);
     assert.deepEqual(gga.DNSM.h.TotStatMAP.h, {});
     assert.equal(gga.DNSM.h.PrayNonEq, undefined);
-    const food = read("food", { goldenMaximum: plan.foodLimits.golden });
+    const food = read("food", { goldenMaximum: plan.foodLimits.golden, character: "Lumi" });
     assert.deepEqual(food.writes, [
         { path: "EquipmentQuantity[2][0]", value: 40000 },
         { path: "EquipmentQuantity[2][1]", value: 1500 },
@@ -238,6 +238,33 @@ test("after a loadout lands: wide wardrobestats works the stats out again, then 
     save(food.writes);
     assert.equal(readPath("gga.EquipmentQuantity[2][0]").value, 40000);
     reset();
+});
+
+test("an item that doesn't fit its slot is refused, so a hand-edited saved loadout can't put a shirt in the weapon slot", () => {
+    reset();
+    const equipment = savedLoadout().equipment.slice();
+    equipment[1] = "EquipmentShirts36";
+    assert.throws(
+        () => read("preview", { loadout: savedLoadout({ equipment }) }),
+        /Serrated Chest of the Divine doesn't go in Equipment & specials slot 2\. Nothing changed/
+    );
+    const food = savedLoadout().food.slice();
+    food[0] = "EquipmentHats1";
+    assert.throws(() => read("preview", { loadout: savedLoadout({ food }) }), /doesn't go in Food slot 1/);
+    const tools = savedLoadout().tools.slice();
+    tools[1] = "EquipmentTools15";
+    assert.throws(() => read("preview", { loadout: savedLoadout({ tools }) }), /doesn't go in Tools slot 2/);
+    // What the character wears always fits: a captured loadout plans.
+    assert.ok(read("preview", { loadout: { ...read("capture"), name: "Mine" } }).writes.length);
+});
+
+test("the food and Perfect Equipped steps refuse a character other than the one they were planned for", () => {
+    reset();
+    const before = snapshot();
+    for (const name of ["food", "perfect", "perfectFood"])
+        assert.throws(() => read(name, { character: "Lumi_Alt" }), /Lumi is in play now, not Lumi_Alt/, name);
+    assert.deepEqual(read("perfectFood", { character: "Lumi" }), [{ path: "EquipmentQuantity[2][1]", value: 1500 }]);
+    assert.deepEqual(gga.EquipmentQuantity, before.EquipmentQuantity, "nothing written");
 });
 
 test("Perfect Equipped from the page: the gear's upgrades as writes, then the food below capacity raised", () => {
@@ -251,6 +278,18 @@ test("Perfect Equipped from the page: the gear's upgrades as writes, then the fo
     assert.deepEqual([shirt.Defence, shirt.WIS, shirt.STR], [100, 68, 0], "old rolls replaced");
     save(perfect.writes);
     assert.deepEqual(read("perfectFood"), [{ path: "EquipmentQuantity[2][1]", value: 1500 }], "golden 25000 stays");
+    reset();
+});
+
+test("wide perfectequipped refuses with no character in play and changes nothing", async () => {
+    reset();
+    gga.UserInfo = [0];
+    const before = JSON.stringify(gga.EquipmentMap);
+    assert.deepEqual(await cheat("wide perfectequipped"), {
+        ok: false,
+        message: "Select a character in the game first.",
+    });
+    assert.equal(JSON.stringify(gga.EquipmentMap), before);
     reset();
 });
 

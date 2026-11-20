@@ -5,19 +5,13 @@
  */
 import { cList, events, gga, itemDefs } from "../../core/globals.js";
 import { cheatState } from "../../core/state.js";
-import { craftingBonuses, perfectEquippedWrites, perfectFoodWrites } from "./perfect.js";
+import { characterInPlay, craftingBonuses, perfectEquippedWrites, perfectFoodWrites } from "./perfect.js";
 import { equippedSpecialRolls } from "./special.js";
 import { equipmentWorld } from "./stones.js";
 import { planWardrobe, keychainRoll, foodStackLimits, foodStackWrites } from "./planner.js";
 import { wardrobeClass, wardrobePresets, primaryStats } from "./presets.js";
 
 const foodCapacity = () => Math.floor(events(12)._customBlock_MaxCapacity("cFood"));
-
-function inPlay() {
-    if (typeof gga.UserInfo[0] !== "string" || !gga.GetPlayersUsernames.includes(gga.UserInfo[0]))
-        throw new Error("Select a character in the game before using Wardrobe.");
-    return gga.UserInfo[0];
-}
 
 /** The largest golden food stack recorded for the character in play, from the page's saved `goldenFood` map. */
 const recorded = (goldenFood, character) => {
@@ -48,7 +42,7 @@ function createPlan(loadout) {
 
 /** Who is in play, the loadouts their class can take, and the food stack sizes a loadout's food gets. */
 export function wardrobeStatus({ goldenFood = {} } = {}) {
-    const character = inPlay();
+    const character = characterInPlay();
     const characterClass = Number(gga.CharacterClass);
     const baseClass = wardrobeClass(characterClass);
     return {
@@ -70,7 +64,7 @@ export function wardrobeStatus({ goldenFood = {} } = {}) {
  * the one it showed.
  */
 export function wardrobePreview({ loadout, goldenFood = {} } = {}) {
-    inPlay();
+    characterInPlay();
     const plan = createPlan(loadout);
     if (!gga.DNSM.h.TotStatMAP?.h || !gga.PixelHelperActor[6].behaviors.getBehavior("ActorEvents_312")._GenINFO[45]?.h)
         throw new Error("Game stat caches are not ready. Open Cards once, close it, and try again.");
@@ -102,9 +96,12 @@ export function wardrobePreview({ loadout, goldenFood = {} } = {}) {
     };
 }
 
-/** After a loadout landed and `wide wardrobestats` ran: each equipped food stack set to its limit. */
-export function wardrobeFood({ goldenMaximum = 0 } = {}) {
-    inPlay();
+/**
+ * After a loadout landed and `wide wardrobestats` ran: each equipped food stack set to its limit. `character` is the
+ * one the loadout was planned for; another one in play gets nothing.
+ */
+export function wardrobeFood({ goldenMaximum = 0, character } = {}) {
+    characterInPlay(character);
     const limits = foodStackLimits(gga, foodCapacity(), goldenMaximum);
     return { limits, writes: foodStackWrites(gga, limits) };
 }
@@ -119,12 +116,13 @@ export function recalculateWardrobe() {
 }
 
 /** The page's Perfect Equipped: its gear writes, then (after the stat update) its food writes. */
-export function wardrobePerfect() {
-    inPlay();
+// `character`: the one the page asked about; another one in play gets nothing.
+export function wardrobePerfect({ character } = {}) {
+    characterInPlay(character);
     return perfectEquippedWrites();
 }
-export function wardrobePerfectFood() {
-    inPlay();
+export function wardrobePerfectFood({ character } = {}) {
+    characterInPlay(character);
     return perfectFoodWrites();
 }
 

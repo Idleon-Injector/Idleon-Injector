@@ -399,8 +399,9 @@ Source: [Attire Rack bonus](../src/cheats/helpers/attire/rack.js).
 ## Apply Wardrobe loadouts as page saves
 
 Decision: the game side only plans a loadout (`readComputed("wardrobe", "preview")` returns its path writes); the
-Wardrobe page saves them through `writeManyVerified`, then runs `wide wardrobestats` and saves the food stacks it
-gets back. Perfect Equipped from the page goes the same way; `wide perfectequipped` still does it at once.
+Wardrobe page saves them through `writeManyVerified`, then runs `wide wardrobestats`, reads the food stacks from
+`readComputed("wardrobe", "food")` and saves them the same way. Perfect Equipped from the page goes the same way;
+`wide perfectequipped` still does it at once.
 
 Why: a page save is in the change log, so a loadout can be undone from History or Undo all, and a write the game
 refuses is said where the player applied it.

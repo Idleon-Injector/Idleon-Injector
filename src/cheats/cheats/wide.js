@@ -73,6 +73,8 @@ defineCheat({
         {
             name: "perfectequipped",
             message: "Permanently rebuild current gear for your class; increase food stacks.",
+            // It replaces the rolls of the gear worn, with no way back from the command line.
+            dangerous: true,
             fn: perfectEquipped,
         },
         {

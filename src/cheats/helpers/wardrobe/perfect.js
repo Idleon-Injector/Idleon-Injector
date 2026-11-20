@@ -142,6 +142,19 @@ export function planFoodStacks(attributes, foodCapacity) {
     return food;
 }
 
+/**
+ * The character in play, or an Error saying to select one. With `expected` (the character a plan was made for), an
+ * Error too when another character is in play now, so nothing meant for one character lands on another.
+ */
+export function characterInPlay(expected) {
+    const character = gga.UserInfo[0];
+    if (typeof character !== "string" || !gga.GetPlayersUsernames.includes(character))
+        throw new Error("Select a character in the game first.");
+    if (expected !== undefined && expected !== character)
+        throw new Error(`${character} is in play now, not ${expected}. Nothing was changed for ${character}.`);
+    return character;
+}
+
 /** The page's Perfect Equipped: the same plan, as writes of each rebuilt item's upgrades. */
 export function perfectEquippedWrites() {
     const plan = planPerfectEquipment(
@@ -176,6 +189,7 @@ export function perfectFoodWrites() {
 
 /** One-shot action; no toggles, character-change hooks, inventory changes, or forced saves. */
 export function perfectEquipped() {
+    characterInPlay();
     const actor12 = events(12);
     const plan = planPerfectEquipment(
         gga,
