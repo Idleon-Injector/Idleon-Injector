@@ -317,13 +317,21 @@ const AttireRackPage = () => {
     };
 
     // After attire changed: the game works out the stats of the character in play again when that one changed.
-    // The game is read again however it ends, so the row and the worn badge show what landed.
+    // The game is read again however it ends, so the row and the worn badge show what landed; a read that fails after
+    // a change that worked is said, as the page may still show the old attire.
     const afterChange = async (changed) => {
+        let failed = null;
         try {
             if (changed.some((character) => character.active)) await updateStats();
-        } finally {
-            await readStatus().catch(() => {});
+        } catch (caught) {
+            failed = caught;
         }
+        try {
+            await readStatus();
+        } catch (caught) {
+            failed ??= new Error(`saved, but the page couldn't read the game again: ${caught.message}`);
+        }
+        if (failed) throw failed;
     };
 
     // One character's pick, saved at once. Returns { cancelled: true } when the game already has it and no stat

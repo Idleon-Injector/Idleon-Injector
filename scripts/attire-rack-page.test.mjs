@@ -43,14 +43,30 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     saves.push(await req.json());
     res.json({ ok: true });
 });
-// `holdWrite`: a promise the next attire write (write-many) waits on before it runs.
+// `holdWrite`: a promise the next attire write (write-many) waits on before it runs. `failReadAfterWrite`: the next
+// status read after the next write fails.
 let holdWrite = null;
+let failReadAfterWrite = false;
+let failNextStatus = false;
+const computedRead = router.routes.POST.get("/api/game/computed/read");
+router.routes.POST.set("/api/game/computed/read", async (req, res) => {
+    const { name } = await req.json();
+    if (name === "status" && failNextStatus) {
+        failNextStatus = false;
+        return res.status(500).json({ error: "The game didn't answer" });
+    }
+    return computedRead(req, res);
+});
 const writeMany = router.routes.POST.get("/api/game/gga/write-many");
 router.routes.POST.set("/api/game/gga/write-many", async (req, res) => {
     if (holdWrite) {
         const held = holdWrite;
         holdWrite = null;
         await held;
+    }
+    if (failReadAfterWrite) {
+        failReadAfterWrite = false;
+        failNextStatus = true;
     }
     return writeMany(req, res);
 });
@@ -800,4 +816,18 @@ test("a Refresh during a pick's save leaves its stat update owed when the pick l
     const ran = commands.length;
     await refresh.listeners.click({});
     await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run the owed stat update");
+});
+
+// Local CodeRabbit review of #110: a pick that landed but whose page couldn't read the game again says so in its row,
+// instead of a ✓ beside attire the page may still show as before.
+test("a pick that landed but couldn't be read back says so in its row", async () => {
+    const wears = gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15];
+    failReadAfterWrite = true;
+    try {
+        assert.equal(await pick("Lumi_Alt", wears === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4"), "error");
+        assert.match(text(row(page, "Lumi_Alt")), /couldn't read the game again/);
+    } finally {
+        failReadAfterWrite = false;
+        failNextStatus = false;
+    }
 });
