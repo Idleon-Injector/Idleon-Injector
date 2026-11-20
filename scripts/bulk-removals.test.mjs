@@ -202,3 +202,26 @@ for (const [file, label] of [
         assert.equal(button.attributes["data-again"], undefined, "it didn't ask");
     });
 }
+
+test("bundles: Buy all asks in place with the inventory warning beside it, and buys on the second press", async () => {
+    const root = (await importRepo("src/ui/pages/account/bundles/bundles.js")).default.component();
+    const buyAll = () =>
+        elements(root).find((node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim()));
+    await until(() => buyAll() && !buyAll().attributes.disabled && text(buyAll()) !== "Buy all (0)", "Buy all");
+    await settle(100);
+    const button = buyAll();
+    const warning = () => text(elements(root).find((node) => /said--buy-all/.test(node.attributes.class ?? "")));
+    const buys = () => requests.filter((entry) => entry === "POST /api/toggle").length;
+
+    const before = buys();
+    await click(button);
+    await settle(100);
+    assert.equal(button.attributes["data-again"], "Click again", "the first press asks");
+    assert.match(warning(), /Free up inventory space first, or items may be lost\./, "and warns beside it");
+    assert.equal(buys(), before, "nothing was bought");
+
+    click(button);
+    await until(() => buys() > before, "the second press to buy");
+    assert.equal(button.attributes["data-again"], undefined);
+    assert.equal(warning(), "", "the warning goes once it buys");
+});

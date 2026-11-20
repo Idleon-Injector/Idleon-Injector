@@ -62,39 +62,27 @@
     width: 100%;
 }
 
-.bundles-buy-all-modal .modal-box {
-    border-color: var(--c-warning);
-    box-shadow: 0 0 30px color-mix(in srgb, var(--c-warning) 20%, transparent);
+/* Buy all's inventory warning, beside it while it asks "Click again". Empty, it takes no room. */
+.said--buy-all.said--empty {
+    position: absolute;
 }
 
-.bundles-buy-all-modal .modal-header {
-    background: color-mix(in srgb, var(--c-warning) 10%, var(--c-panel));
-    border-bottom-color: var(--c-warning);
-}
+/*
+ * In the narrow overlay the actions sit under the words: the warning wraps on its own line under the buttons, and
+ * takes no width of its own (nor the 8 px gap before it), so the buttons stay put.
+ */
+@media (max-width: 760px) {
+    .said--buy-all {
+        flex: 0 0 100%;
+        order: 1;
+        width: 0;
+        min-width: 100%;
+        margin-right: -8px;
+    }
 
-.bundles-buy-all-modal .modal-header h3 {
-    color: var(--c-warning);
-}
-
-.bundles-buy-all-modal__body {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.bundles-buy-all-modal__body p {
-    margin: 0;
-    line-height: 1.45;
-}
-
-.bundles-buy-all-modal__warning {
-    color: var(--c-warning);
-    font-weight: 700;
-}
-
-.bundles-buy-all-modal__countdown {
-    color: var(--c-text-muted);
-    font-family: var(--font-mono);
+    .said--buy-all .said__text {
+        white-space: normal;
+    }
 }
 
 @media (max-width: 680px) {

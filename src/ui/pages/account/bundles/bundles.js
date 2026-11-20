@@ -12,13 +12,14 @@ import {
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
+import { Said, clickAgain, useSaid } from "../../../components/inPlace.js";
 
-const { div, span, button, h3, p } = van.tags;
+const { div, span, button } = van.tags;
 
 const BUNDLES_RECEIVED_PATH = "BundlesReceived.h";
 const BUY_POLL_INTERVAL_MS = 1000;
 const BUY_POLL_ATTEMPTS = 10;
-const BUY_ALL_CONFIRMATION_SECONDS = 5;
+const BUY_ALL_WARNING = "Free up inventory space first, or items may be lost.";
 const PLAYER_SELECTION_MESSAGE =
     "Select a character in-game before buying bundles. Without an active character, bundle items would not be delivered.";
 
@@ -95,71 +96,18 @@ const BundleRow = ({ bundle, state, searchQuery, buyAllStatus, onBuy, onUnbuy })
         })
     );
 
-const BuyAllConfirmationModal = ({ open, countdown, bundleCount, status, onCancel, onConfirm }) =>
-    div(
-        {
-            class: () => `modal bundles-buy-all-modal ${open.val ? "" : "is-hidden"}`,
-            onclick: () => {
-                if (status.val !== "loading") onCancel();
-            },
-        },
-        div(
-            { class: "modal-box bundles-buy-all-modal__box", onclick: (event) => event.stopPropagation() },
-            div({ class: "modal-header" }, h3("BUY ALL BUNDLES?")),
-            div(
-                { class: "modal-body bundles-buy-all-modal__body" },
-                p(() => `Are you sure you want to buy all ${bundleCount.val} currently unowned bundles?`),
-                p(
-                    { class: "bundles-buy-all-modal__warning" },
-                    "Make sure you have a lot of inventory space for all the items in the bundles."
-                ),
-                p({ class: "bundles-buy-all-modal__countdown" }, () =>
-                    countdown.val > 0
-                        ? `You can confirm in ${countdown.val} second${countdown.val === 1 ? "" : "s"}.`
-                        : "You can now confirm."
-                )
-            ),
-            div(
-                { class: "modal-footer" },
-                button(
-                    {
-                        type: "button",
-                        class: "btn-quiet",
-                        disabled: () => status.val === "loading",
-                        onclick: onCancel,
-                    },
-                    "Cancel"
-                ),
-                button(
-                    {
-                        type: "button",
-                        class: "btn-main",
-                        disabled: () => countdown.val > 0 || status.val === "loading" || bundleCount.val === 0,
-                        onclick: onConfirm,
-                    },
-                    () => {
-                        if (status.val === "loading") return "Buying…";
-                        return countdown.val > 0 ? `OK (${countdown.val})` : "Buy all";
-                    }
-                )
-            )
-        )
-    );
-
 const BundlesTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Bundles" });
     const catalogState = van.state([]);
     const searchQuery = van.state("");
     const bundleStates = new Map();
     const purchaseBlockMessage = van.state(null);
-    const buyAllDialogOpen = van.state(false);
-    const buyAllCountdown = van.state(0);
-    const buyAllTargetCount = van.state(0);
+    // Buy all asks in place (#25): the first press reads "Click again" and says the inventory warning beside it.
+    const buyAllSaid = useSaid();
     const { status: buyAllStatus, run: runBuyAll } = useWriteStatus();
     const listNode = div({ class: "account-item-stack bundles-list" });
     const reconcileRows = createStaticRowReconciler(listNode);
     let catalogCache = [];
-    let buyAllCountdownTimer = null;
 
     const getBundleState = (code, owned = 0) => {
         if (!bundleStates.has(code)) {
@@ -199,31 +147,18 @@ const BundlesTab = () => {
         return false;
     };
 
-    const clearBuyAllCountdown = () => {
-        if (buyAllCountdownTimer !== null) {
-            clearInterval(buyAllCountdownTimer);
-            buyAllCountdownTimer = null;
+    const askThenBuyAll = async (e) => {
+        const buyButton = e.currentTarget;
+        if (buyAllStatus.val === "loading" || buyableCount.val === 0) return undefined;
+        if (!(await ensurePlayerSelected())) return undefined;
+        const bundles = getBuyableBundles();
+        const question = `buy ${bundles.length} bundle${bundles.length === 1 ? "" : "s"}. ${BUY_ALL_WARNING}`;
+        if (!clickAgain(buyButton, question, { targets: bundles.map((bundle) => bundle.code) })) {
+            buyAllSaid.say("refused", BUY_ALL_WARNING);
+            return undefined;
         }
-    };
-
-    const closeBuyAllDialog = () => {
-        clearBuyAllCountdown();
-        buyAllDialogOpen.val = false;
-        buyAllCountdown.val = 0;
-    };
-
-    const openBuyAllDialog = async () => {
-        if (buyAllStatus.val === "loading" || buyableCount.val === 0) return;
-        if (!(await ensurePlayerSelected())) return;
-
-        clearBuyAllCountdown();
-        buyAllTargetCount.val = buyableCount.val;
-        buyAllCountdown.val = BUY_ALL_CONFIRMATION_SECONDS;
-        buyAllDialogOpen.val = true;
-        buyAllCountdownTimer = setInterval(() => {
-            buyAllCountdown.val = Math.max(0, buyAllCountdown.val - 1);
-            if (buyAllCountdown.val === 0) clearBuyAllCountdown();
-        }, 1000);
+        buyAllSaid.clear();
+        return buyAllBundles();
     };
 
     const totals = van.derive(() => {
@@ -309,15 +244,13 @@ const BundlesTab = () => {
     }
 
     async function buyAllBundles() {
-        if (buyAllCountdown.val > 0 || buyAllStatus.val === "loading") return;
+        if (buyAllStatus.val === "loading") return;
         return runBuyAll(async () => {
             if (!(await ensurePlayerSelected())) {
-                closeBuyAllDialog();
                 throw new Error(purchaseBlockMessage.val ?? PLAYER_SELECTION_MESSAGE);
             }
 
             const bundles = getBuyableBundles();
-            closeBuyAllDialog();
             if (!bundles.length) return;
 
             let queueTail = Promise.resolve();
@@ -423,14 +356,6 @@ const BundlesTab = () => {
                 catalogState.val.length
                     ? listNode
                     : div({ class: "tab-empty" }, "No bundle codes were returned by the running game."),
-        }),
-        BuyAllConfirmationModal({
-            open: buyAllDialogOpen,
-            countdown: buyAllCountdown,
-            bundleCount: buyAllTargetCount,
-            status: buyAllStatus,
-            onCancel: closeBuyAllDialog,
-            onConfirm: buyAllBundles,
         })
     );
 
@@ -439,13 +364,13 @@ const BundlesTab = () => {
         description:
             "Buy bundles and see which ones your account has received. Unbuy lets you mark a bundle as not received again, but does not remove its items from the Slab.",
         actions: [
+            Said({ said: buyAllSaid.said, className: "said--buy-all" }),
             button(
                 {
                     type: "button",
                     class: "btn-quiet btn-sm bundles-buy-all-button",
-                    disabled: () =>
-                        loading.val || buyAllDialogOpen.val || buyAllStatus.val === "loading" || buyableCount.val === 0,
-                    onclick: openBuyAllDialog,
+                    disabled: () => loading.val || buyAllStatus.val === "loading" || buyableCount.val === 0,
+                    onclick: askThenBuyAll,
                 },
                 () => {
                     if (buyAllStatus.val === "loading") return "Buying all…";
