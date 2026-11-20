@@ -5,14 +5,17 @@
     overflow-wrap: anywhere;
 }
 
-/* A shop item: its stop-at field, then its switch. Narrow windows put both on a line of their own. */
-.automation-pick .account-row__controls {
+/* A shop item: its stop-at field, then its switch. Narrow windows put both on a line of their own. A system-wide
+   setting (a saving %, a target) has the same field. */
+.automation-pick .account-row__controls,
+.automation-setting .account-row__controls {
     display: flex;
     align-items: flex-end;
     gap: 16px;
 }
 
-.automation-pick .account-field-metric {
+.automation-pick .account-field-metric,
+.automation-setting .account-field-metric {
     --account-field-metric-input-width: 100%;
     width: 180px;
 }

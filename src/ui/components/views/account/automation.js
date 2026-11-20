@@ -744,7 +744,7 @@ export const SettingRow = ({ setting, index = null, name, title, detail = null, 
         fileBehind: setting.fileBehind,
     });
     return AccountRow({
-        rowClass: "account-row--wide-controls automation-pick",
+        rowClass: "account-row--wide-controls automation-setting",
         info: nameWithDetail(name, detail),
         controls: QueuedField({ field, draft, parse, title, ariaLabel: `${name} ${title.toLowerCase()}`, mode, max }),
     });
