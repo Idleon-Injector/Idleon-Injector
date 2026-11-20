@@ -25,6 +25,8 @@ export const ClampedLevelRow = ({
     indexLabel = null,
     name = null,
     renderBadge = null,
+    cap = max,
+    renderStates = null,
     rowClass = "",
     badgeClass = "",
     controlsClass = "",
@@ -74,11 +76,10 @@ export const ClampedLevelRow = ({
             return writeVerified(path, nextLevel);
         },
         renderInfo: renderInfo ?? defaultInfo,
-        // The cap badge (LV 3 / 10); with no cap the level shows once, in the field.
-        renderBadge:
-            renderBadge ??
-            ((currentValue) =>
-                Number.isFinite(Number(resolveValue(max))) ? `LV ${currentValue ?? 0} / ${resolveValue(max)}` : ""),
+        // The cap shows inside the field ("3 / 10"); with no finite cap the field shows the level alone.
+        cap: () => (Number.isFinite(Number(resolveValue(cap))) ? Number(resolveValue(cap)) : null),
+        renderBadge,
+        renderStates,
         rowClass,
         badgeClass,
         controlsClass,

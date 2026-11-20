@@ -91,7 +91,7 @@ const TaskRow = ({ entry, valueState }) =>
                     parts.push(`Target ${entry.nextTarget}`);
                 return parts.join(" / ");
             },
-            badge: (currentValue) => `${currentValue ?? 0} / ${entry.maxStages} DONE`,
+            cap: entry.maxStages,
             maxAction: {
                 value: entry.maxStages,
                 tooltip: `Set completed stages to ${entry.maxStages}`,
@@ -206,7 +206,7 @@ const AchievementRow = ({ entry, valueState }) =>
             path: entry.path,
             formatted: false,
             min: -1,
-            badge: (currentValue) => (Number(currentValue) === -1 ? "COMPLETE" : ""),
+            states: () => [Number(valueState.val) === -1 ? { label: "Complete", on: true } : null],
             maxAction: {
                 label: "Done",
                 value: -1,
@@ -339,7 +339,6 @@ const MeritShopRow = ({ entry, valueState }) =>
         ],
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
-        renderBadge: (currentValue) => `${currentValue ?? 0} / ${entry.maxPurchases}`,
         maxAction: true,
     });
 

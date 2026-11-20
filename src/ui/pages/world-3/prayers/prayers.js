@@ -421,8 +421,11 @@ const PrayersTab = () => {
                             `Unlock: ${snapshot.val?.trialNames?.[Number(metadata.val[8])] || `Trial ${metadata.val[8]}`}, wave ${metadata.val[7]}`
                     )
                 ),
-            renderBadge: () =>
-                `LV ${level.val}/${metadata.val[9]}${level.val === 0 ? " · LOCKED" : ""}${isEquipped() ? " · EQUIPPED" : ""}`,
+            cap: () => Number(metadata.val[9]),
+            renderStates: () => [
+                level.val === 0 ? { label: "Locked", on: false } : null,
+                isEquipped() ? { label: "Equipped", on: true } : null,
+            ],
             renderExtraActions: () =>
                 ActionButton({
                     label: () => (isEquipped() ? "Unequip" : "Equip"),

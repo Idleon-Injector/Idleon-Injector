@@ -132,8 +132,11 @@ switches, picking the first option each time.
   buttons don't fit beside 26rem of description, they move to the line under it, still on the right, so the description
   never becomes a thin column. Search and filters go on the line under the title (`toolbar` on the page wrapper);
   inner tabs stay above the title. One thin rule runs under the whole top.
-- **Values show once.** A number lives in its field. A badge only adds what the field doesn't say: a cap
-  (`LV 3 / 10`), or a state (Locked, Complete). A badge that repeats the field is left out.
+- **Values show once.** A number lives in its field, and so does its cap: the field reads `2 / 15`, with `/ 15` muted
+  and a step smaller after the value. The cap is never part of the typed text; Enter or leaving the field saves only
+  the number. A state (Equipped, Locked, Complete) is a plain muted word with no box and no colour of its own; where it
+  sits is being picked from a live concept (by the name, before the field, or a small dot after the name). A badge
+  that repeats the field is left out.
 - **Sections** are a plain heading in small muted capitals over a thin rule, with the rows straight under it. No box
   inside the page box. The heading's row can carry the section's own controls (Set all) on the right.
 - **On/off is one switch** (`StateSwitch`) with the game's own word for the state beside it: Owned / Not owned,

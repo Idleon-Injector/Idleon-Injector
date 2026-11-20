@@ -4,6 +4,7 @@ import { ActionButton } from "./components/ActionButton.js";
 import { joinClasses, resolveValue, toNodes } from "./accountShared.js";
 import { SaveState, saveStateClass } from "./autoSave.js";
 import { useNumericEditor } from "./useNumericEditor.js";
+import { RowStates } from "./RowStates.js";
 
 const { div, span } = van.tags;
 
@@ -17,6 +18,8 @@ const { div, span } = van.tags;
  *   the draft can't be saved (shown beside the field; the typed text stays).
  * - `write(next)` must resolve to the verified value; returning `{ cancelled: true }` leaves the stored
  *   value unchanged and resets the draft, without success feedback.
+ * - `cap` (a number or a function returning one) shows muted inside the field after the value: "2 / 15".
+ * - `renderStates()` returns the row's states ({ label, on }), such as Equipped or Locked; see RowStates.
  */
 export const EditableNumberRow = ({
     valueState,
@@ -24,6 +27,8 @@ export const EditableNumberRow = ({
     write,
     renderInfo,
     renderBadge,
+    cap = null,
+    renderStates = null,
     adjustInput = (rawValue, delta, currentValue) => {
         const base = Number(rawValue);
         const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
@@ -93,6 +98,10 @@ export const EditableNumberRow = ({
             ? toNodes(renderExtraActions({ status: null, run, inputValue, applyValue }))
             : [];
 
+    const states = renderStates ? RowStates(renderStates) : null;
+    const info = div({ class: "account-row__info" }, ...toNodes(renderInfo()));
+    states?.placeInInfo(info);
+
     return div(
         {
             class: () =>
@@ -103,7 +112,8 @@ export const EditableNumberRow = ({
                 ),
             ...handlers,
         },
-        div({ class: "account-row__info" }, ...toNodes(renderInfo())),
+        info,
+        states?.column ?? null,
         // A badge only adds what the field doesn't say (a cap, a state); the value itself shows once, in the field.
         renderBadge
             ? span(
@@ -130,6 +140,7 @@ export const EditableNumberRow = ({
                 mode: inputMode,
                 value: inputValue,
                 formatter,
+                cap,
                 ...restInputProps,
                 disabled: isDisabled,
                 onfocus: () => {

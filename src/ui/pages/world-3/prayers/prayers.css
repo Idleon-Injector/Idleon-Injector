@@ -9,12 +9,6 @@
     white-space: normal;
 }
 
-/* Keep badge and controls aligned uniformly across equipped and unequipped rows */
-.prayer-row .account-row__badge {
-    min-width: 176px;
-    text-align: center;
-}
-
 .prayer-row__equip-btn {
     width: 96px;
     min-width: 96px;
@@ -24,11 +18,6 @@
 @media (max-width: 600px) {
     .prayer-row {
         grid-template-columns: minmax(0, 1fr);
-    }
-
-    .prayer-row .account-row__badge {
-        justify-self: start;
-        min-width: auto;
     }
 
     .prayer-row .account-row__controls {

@@ -142,7 +142,6 @@ const UpgradeRow = ({ entry, onAfterSet }) =>
         },
         indexLabel: `#${entry.index + 1}`,
         name: entry.name,
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${entry.maxLevelState.val}`,
     });
 
 const buildStaticMeta = async () => {

@@ -103,6 +103,8 @@ const TalentRow = ({ talentId, talentName, curState, maxState, maxBookLvState, i
             div({ class: "talent-row__text" }, span({ class: "account-row__name" }, talentName)),
         ],
         renderBadge: () => TalentBadge({ curState, maxState }),
+        // The field is the talent's max level, so the book cap isn't shown as its cap (it can sit above it).
+        cap: null,
         rowClass: "talent-row",
         controlsClass: "account-row__controls--xl",
     });
