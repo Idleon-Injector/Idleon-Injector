@@ -64,7 +64,7 @@ const OverviewPage = () => {
             async () => {
                 bulkSaid.clear();
                 try {
-                    await switchAll(on);
+                    await switchAll(on, (cheat) => entries.get(cheat));
                 } finally {
                     await load();
                 }

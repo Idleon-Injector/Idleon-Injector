@@ -1255,3 +1255,19 @@ test("round 5: a stop-at that isn't a whole number is refused after the row's fi
     await typeStopAt("Velvet Stone", "");
     await typeStopAt("Royal Pebble", "");
 });
+
+test("round 5 sweep: the overview's Disable all shows what the game answered when the read after it fails", async () => {
+    await ui.switchAutomation("automation shops", true);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) !== "Off" && button(overview, "Disable all"), "the overview to read Shops on");
+    const disable = button(overview, "Disable all");
+    await disable.listeners.click({ preventDefault() {} });
+    failListReadAt = listAsked + 2; // the bulk switch's own read works; the page's read after it fails
+    await disable.listeners.click({ preventDefault() {} });
+    await until(() => !shopsOn() && listAnswered >= failListReadAt, "the switch and the failed read");
+    await queueIdle();
+    failListReadAt = null;
+    assert.equal(statusOf(overview), "Off", "the game answered the Off, so the row shows it");
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) === "Off" && !/didn't answer/.test(text(overview)), "a read that works");
+});

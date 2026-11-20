@@ -26,7 +26,7 @@
  *       picks.sync(config.cheatConfig.automation.sneaking);   // the accepted list; queued edits still show
  *       error.val = null;                                    // the newest read worked: an older failure goes
  *   }));
- *   switchAutomation(cheat, on), ensureOn(cheat), switchAll(on)   // queued switches, for buttons
+ *   switchAutomation(cheat, on), ensureOn(cheat), switchAll(on, entryOf)   // queued switches, for buttons
  *
  * Inside a step, call the game and the file directly (readAutomations, readComputed, fetchConfig, ...): never await
  * inTurn, switchAutomation, ensureOn, switchAll or a page's queued load, which would wait for the step itself and hold
@@ -146,15 +146,16 @@ export const ensureOn = (cheat) => inTurn(() => ensureNow(cheat));
 /**
  * Switch every automation on or off, now and at every start: those off now or at start (a startup save that failed,
  * say) for on, those on now or at start for off. Decided when the step runs, after every switch asked for before it.
- * One that fails doesn't stop the rest; the first failure is thrown once all were tried.
+ * One that fails doesn't stop the rest; the first failure is thrown once all were tried. `entryOf(cheat)` gives the
+ * entry state a page shows for an automation, so it shows the game's answer even if the page's read after it fails.
  */
-export const switchAll = (on) =>
+export const switchAll = (on, entryOf = () => null) =>
     inTurn(async () => {
         const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
         let failure = null;
         for (const { cheat, on: running } of automations) {
             if (running === on && startupCheats.includes(cheat) === on) continue;
-            await switchNow(cheat, on).catch((error) => (failure ??= error));
+            await switchNow(cheat, on, entryOf(cheat)).catch((error) => (failure ??= error));
         }
         if (failure) throw failure;
     });
