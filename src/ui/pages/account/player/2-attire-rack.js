@@ -288,8 +288,8 @@ const AttireRackPage = () => {
     // The stats of the character in play are owed from a change whose write landed but whose stat update failed.
     // A retry finds the game already holds the pick, so it runs the update instead of stopping there.
     let statsOwed = false;
-    // Each change that owes the stats, and each update, is newer than the last; an update clears the debt only when
-    // nothing newer started after it, so an older one answering late doesn't clear a newer one's failure.
+    // Each change that owes the stats, and each update, is newer than the last. An older update answering late neither
+    // clears a newer one's failure nor says its own failure once a newer one worked.
     let statsDebt = 0;
     const oweStats = () => {
         statsOwed = true;
@@ -300,7 +300,13 @@ const AttireRackPage = () => {
     let owedLine = null;
     const updateStats = async () => {
         const debt = oweStats();
-        await executeCheatAction(STATS_CHEAT);
+        try {
+            await executeCheatAction(STATS_CHEAT);
+        } catch (caught) {
+            // A newer update that worked already cleared the debt: this failure is no longer true.
+            if (statsOwed) throw caught;
+            return;
+        }
         if (debt !== statsDebt) return;
         statsOwed = false;
         if (owedLine && bulkSaid.said.val === owedLine) bulkSaid.clear();

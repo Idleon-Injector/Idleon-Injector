@@ -17,10 +17,9 @@ const saves = [];
 // How many of the next wide attirestats (and wide attire) runs the game refuses.
 let refuseStats = 0;
 let refuseAttire = 0;
-// While set, every wide attirestats the game would run waits until the release handed to `holdStats(release)`;
-// `statsHeldAnswered` counts the held ones that answered.
+// While set, every wide attirestats the game would run waits until the release handed to `holdStats(release)` is
+// called; `release(answer)` answers with that instead of running it.
 let holdStats = null;
-let statsHeldAnswered = 0;
 const toggle = router.routes.POST.get("/api/toggle");
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
@@ -35,10 +34,8 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     }
     if (action === "wide attire") fixture.cheatStates.wide.attire = on;
     if (action === "wide attirestats" && holdStats) {
-        await new Promise((release) => holdStats(release));
-        const answer = await toggle(req, res);
-        statsHeldAnswered++;
-        return answer;
+        const answer = await new Promise((release) => holdStats(release));
+        if (answer) return res.json(answer);
     }
     return toggle(req, res);
 });
@@ -703,12 +700,11 @@ test("an older stat update that answers after a newer one failed leaves the newe
     everyone.listeners.change({ target: { value: item } });
     const give = button(root, "Give everyone");
     const held = [];
-    const answered = statsHeldAnswered;
     try {
         await give.listeners.click({ currentTarget: give, preventDefault() {} });
         await until(() => give.attributes["data-again"] === "Click again", "the question");
         holdStats = (release) => held.push(release);
-        void give.listeners.click({ currentTarget: give, preventDefault() {} });
+        const given = give.listeners.click({ currentTarget: give, preventDefault() {} });
         await until(() => held.length === 1, "Give everyone's stat update to wait");
         holdStats = null;
         // The pick of the character in play lands; its own stat update is refused.
@@ -719,10 +715,9 @@ test("an older stat update that answers after a newer one failed leaves the newe
         field.listeners.change({ target: { value: next } });
         await until(() => /The game is busy/.test(text(node)), "the row's stat update to be refused");
         assert.equal(gga.EquipmentOrder[0][15], next, "the pick landed");
-        // The older update answers now; the page takes its answer before a config read made after it.
+        // The older update answers now; Give everyone ends once the page took its answer.
         held[0]();
-        await until(() => statsHeldAnswered === answered + 1, "the older update to answer");
-        await fetchConfig();
+        await given;
         const ran = commands.length;
         node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
         await until(() => commands.slice(ran).includes("wide attirestats"), "leaving the field to run the owed update");
@@ -730,6 +725,39 @@ test("an older stat update that answers after a newer one failed leaves the newe
     } finally {
         holdStats = null;
         refuseStats = 0;
+        for (const release of held) release();
+    }
+});
+
+// CodeRabbit on #110: an older stat update the game refuses after a newer one worked says nothing over that success.
+test("an older stat update refused after a newer one worked says no failure", async () => {
+    const root = await open();
+    const [everyone] = elements(root).filter(
+        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
+    );
+    const item = gga.EquipmentOrder[0][15] === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5";
+    everyone.listeners.change({ target: { value: item } });
+    const give = button(root, "Give everyone");
+    const held = [];
+    try {
+        await give.listeners.click({ currentTarget: give, preventDefault() {} });
+        await until(() => give.attributes["data-again"] === "Click again", "the question");
+        holdStats = (release) => held.push(release);
+        const given = give.listeners.click({ currentTarget: give, preventDefault() {} });
+        await until(() => held.length === 1, "Give everyone's stat update to wait");
+        holdStats = null;
+        // The pick of the character in play lands, and its own stat update works.
+        const node = row(root, "Lumi_Main");
+        const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+        field.listeners.change({ target: { value: item === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5" } });
+        await until(() => /save-state--success/.test(saveState(node)), "the row's pick to save");
+        // The older update is refused now.
+        held[0]({ ok: false, message: "The game is busy" });
+        await given;
+        await until(() => /account-btn--(success|error)/.test(classes(give)), "Give everyone to show how it ended");
+        assert.doesNotMatch(text(root), /The game is busy/);
+    } finally {
+        holdStats = null;
         for (const release of held) release();
     }
 });
