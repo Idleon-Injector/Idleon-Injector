@@ -279,3 +279,19 @@ test("a failure is said though its colour cleared before the next look", async (
     await click(button);
     await until(() => region().textContent === "Max all: failed", "the failure to be said");
 });
+
+// CodeRabbit on #149 (Sushi Station): a newer save that failed first kept its error only until the older save, now
+// cancelled, ended and cleared the shared status.
+test("an older run that ends cancelled leaves a newer run's status", async () => {
+    const { useWriteStatus } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const write = useWriteStatus({ errorMs: 0 });
+    let finishOlder;
+    const older = write.run(() => new Promise((resolve) => (finishOlder = () => resolve({ cancelled: true }))));
+    await write.run(async () => {
+        throw new Error("refused");
+    });
+    assert.equal(write.status.val, "error");
+    finishOlder();
+    await older;
+    assert.equal(write.status.val, "error", "the newer failure still shows");
+});
