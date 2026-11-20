@@ -8,26 +8,18 @@
 }
 
 .liquid-col--water-droplets {
-    --liquid-color: var(--c-liquid-water);
-    --liquid-bg: #1e2936;
     --col-color: var(--c-liquid-water);
 }
 
 .liquid-col--liquid-nitrogen {
-    --liquid-color: var(--c-liquid-nitrogen);
-    --liquid-bg: #222e3a;
     --col-color: var(--c-liquid-nitrogen);
 }
 
 .liquid-col--trench-seawater {
-    --liquid-color: var(--c-liquid-seawater);
-    --liquid-bg: #1a282e;
     --col-color: var(--c-liquid-seawater);
 }
 
 .liquid-col--toxic-mercury {
-    --liquid-color: var(--c-liquid-mercury);
-    --liquid-bg: #28263b;
     --col-color: var(--c-liquid-mercury);
 }
 
@@ -50,9 +42,6 @@
 .liquid-row__badge {
     grid-area: badge;
     justify-self: end;
-    color: var(--liquid-color, var(--c-accent));
-    border-color: var(--liquid-color, var(--c-accent));
-    background: var(--liquid-bg, #1f2a39);
 }
 
 .liquid-row__controls {

@@ -3,7 +3,7 @@
  *
  * Account-wide cheats:
  * - gembuylimit, mtx, post, guild, task, quest, star
- * - giant, gems, plunderous, candy, candytime, nodmg
+ * - giant, gems, plunderous, candy, candytime, nodmg, nogamingpop
  * - hidenames, noanim, bigmodel, eventitems, autoloot, perfectobols, autoparty
  * - arcade, eventspins, hoopshop, dartshop, guildpoints, cardcopy, cardpassive, autoboss
  * - votebonus, attire, attirestats, perfectequipped, wardrobestats
@@ -38,6 +38,7 @@ defineCheat({
         { name: "candy", message: "candy use everywhere" },
         { name: "candytime", message: "buffs 1 hr candys in minutes", configurable: true },
         { name: "nodmg", message: "no damage numbers" },
+        { name: "nogamingpop", message: "no gaming popups (bits, nuggets, acorns, cactus); nuggets still count" },
         { name: "hidenames", message: "hide player names in world and UI" },
         { name: "noanim", message: "stop all game animations" },
         { name: "bigmodel", message: "set all player model sizes on spawn", configurable: true },

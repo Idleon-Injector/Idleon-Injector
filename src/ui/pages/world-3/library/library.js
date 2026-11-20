@@ -223,7 +223,6 @@ const LibraryTab = () => {
                     .join("||"),
             () => [
                 AccountRow({
-                    rowClass: "account-row--info",
                     info: span({ class: "account-row__name" }, "Active Class"),
                     badge: () => activeClassNameState.val || "-",
                 }),

@@ -12,18 +12,6 @@
     color: var(--c-tier-zenith);
 }
 
-.account-row.tier--gold {
-    border-color: var(--c-tier-gold-35);
-}
-
-.account-row.tier--onyx {
-    border-color: var(--c-tier-onyx-35);
-}
-
-.account-row.tier--zenith {
-    border-color: var(--c-tier-zenith-35);
-}
-
 /* Base background/color/border/cursor handled by .select-base; unique properties only */
 .statue-tier-select {
     padding: 0 6px;

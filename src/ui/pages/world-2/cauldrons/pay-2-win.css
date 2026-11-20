@@ -1,5 +1,5 @@
 /* Pay 2 Win tab */
-/* Column containers use custom accent colors. Row styling now comes from the shared account-row classes. */
+/* Each column's brew or liquid name keeps its colour (--col-color); rows are the shared account rows. */
 
 .p2w-col {
     display: flex;
@@ -10,22 +10,18 @@
 
 .p2w-col--brew-power {
     --col-color: var(--c-p2w-brew-power);
-    --col-dim: var(--c-p2w-brew-power-10);
 }
 
 .p2w-col--brew-quicc {
     --col-color: var(--c-p2w-brew-quicc);
-    --col-dim: var(--c-p2w-brew-quicc-10);
 }
 
 .p2w-col--brew-high-iq {
     --col-color: var(--c-p2w-brew-high-iq);
-    --col-dim: var(--c-p2w-brew-high-iq-10);
 }
 
 .p2w-col--brew-kazam {
     --col-color: var(--c-p2w-brew-kazam);
-    --col-dim: var(--c-p2w-brew-kazam-10);
 }
 
 .p2w-col--liquid-water-droplets {

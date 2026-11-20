@@ -63,7 +63,7 @@
     height: var(--research-fill);
     position: absolute;
     inset: auto 0 0;
-    background: rgba(99, 175, 237, 0.45);
+    background: var(--c-accent-40);
 }
 
 .research-grid-tile__content {
@@ -122,7 +122,7 @@
     height: var(--research-fill);
     position: absolute;
     inset: auto 0 0;
-    background: rgba(99, 175, 237, 0.35);
+    background: var(--c-accent-25);
 }
 
 .research-grid-detail__preview-content {
@@ -200,7 +200,7 @@
 }
 
 .observation-tile--unlocked {
-    border-color: #47a066;
+    border-color: var(--c-success-40);
 }
 
 .observation-tile__header,

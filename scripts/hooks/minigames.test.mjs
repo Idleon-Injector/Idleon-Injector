@@ -306,6 +306,45 @@ test("poing: the AI paddle leaves the screen and stays there", () => {
     assert.equal(off._event_Gaming(), 55);
 });
 
+test("wide nogamingpop: hidden popups jump to age 120, the rest and the list itself are left alone", () => {
+    const gaming = (popups) => {
+        const actor = new577({ _GenINFO: indexes(60) });
+        actor._GenINFO[57] = -1; // Poing isn't running
+        actor._GenINFO[58] = [10, 20];
+        actor._GenINFO[39] = popups;
+        return actor;
+    };
+    // [value, age, x, y, type, extra]: one popup of every type the game draws
+    const types = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20];
+    const popups = () => types.map((type) => [type * 10, 5, 100, 200, type, 7]);
+    const ages = (actor) => actor._GenINFO[39].map((popup) => popup[1]);
+
+    cheatState.wide.nogamingpop = true;
+    const on = gaming(popups());
+    const list = on._GenINFO[39];
+    assert.equal(on._event_Gaming(), 55, "the game's own update still runs and its result is kept");
+    assert.equal(on._GenINFO[39], list, "the list is the game's own array");
+    assert.equal(list.length, types.length, "nothing is added or removed, so the game still saves each nugget");
+    assert.deepEqual(ages(on), [120, 120, 120, 120, 120, 120, 120, 5, 5, 5, 5, 120, 120, 5]);
+    assert.deepEqual(
+        list.map((popup) => [popup[0], popup[2], popup[3], popup[4], popup[5]]),
+        types.map((type) => [type * 10, type === 1 ? -9999 : 100, 200, type, 7]),
+        "only the age changes, and the DNA glyph (1), drawn without a fade, moves off screen"
+    );
+    assert.equal(list[types.indexOf(4)][2], 100, "a nugget is never moved");
+
+    for (const empty of [undefined, []]) {
+        const actor = gaming(empty);
+        assert.equal(actor._event_Gaming(), 55, `a ${empty ? "empty" : "missing"} list is fine`);
+        assert.deepEqual(actor._GenINFO[39], empty);
+    }
+
+    cheatState.wide.nogamingpop = false;
+    const off = gaming(popups());
+    off._event_Gaming();
+    assert.deepEqual(off._GenINFO[39], popups(), "with the cheat off nothing changes");
+});
+
 test("log: card types are shown by tint", () => {
     const cards = indexes(10).map(image);
     const actor = new577({ _GenINFO: indexes(60), _UIinventory13: { 41: cards } });

@@ -1,13 +1,11 @@
 /* Library Tab */
 
-/* Max Book Level pill shown persistently in the account-header */
+/* Max Book Level, shown in the account header as plain text */
 .library-maxbooklv {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
-    background: #1f2a39;
-    border: 1px solid var(--c-accent);
+    padding: 4px 0;
     font-size: 0.875rem;
 }
 
@@ -24,13 +22,13 @@
 
 .library-maxbooklv__value {
     font-weight: 700;
-    color: var(--c-accent);
+    color: var(--c-text-main);
 }
 
 .library-section-points {
     font-size: 0.875rem;
     font-weight: 700;
-    color: var(--c-accent);
+    color: var(--c-text-main);
     letter-spacing: 0.04em;
 }
 

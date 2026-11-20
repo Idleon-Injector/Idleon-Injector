@@ -96,7 +96,7 @@ const AnvilTab = () => {
     const body = div(
         { class: "account-list" },
         div(
-            { class: "account-row account-row--info" },
+            { class: "account-row" },
             span({ class: "account-row__name" }, "Points Remaining"),
             span({ class: "account-row__badge account-row__badge--highlight" }, () => `${statStates[0].val ?? 0} pts`)
         ),

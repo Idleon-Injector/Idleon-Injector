@@ -29,36 +29,9 @@
     }
 }
 
-/* Tier-based border + background tint */
-.sigil-card--unlocked {
-    border-color: var(--c-ui-blue);
-    background: #1d2636;
-}
-
-.sigil-card--boosted {
-    border-color: var(--c-ui-yellow);
-    background: #292924;
-}
-
-.sigil-card--ionized {
-    border-color: var(--c-ui-red);
-    background: #29222b;
-}
-
-.sigil-card--ethereal {
-    border-color: var(--c-ui-purple);
-    background: #252336;
-}
-
-.sigil-card--eclectic {
-    border-color: var(--c-ui-green);
-    background: #1b2b2c;
-}
-
-/* Tier badge colors */
+/* The tier's word keeps its colour; the card doesn't. */
 .sigil-tier-badge--locked {
     color: var(--c-text-dim);
-    border-color: var(--c-border);
 }
 
 .sigil-tier-badge--unlocked {
