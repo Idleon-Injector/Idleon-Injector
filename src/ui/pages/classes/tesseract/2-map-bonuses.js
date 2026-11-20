@@ -12,6 +12,7 @@ import { EditableFieldsRow, StackedNumberField } from "../../../components/views
 import { renderTabNav } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
+    createStaticRowReconciler,
     resolveNumberInput,
     toInt,
     useWriteStatus,
@@ -296,6 +297,8 @@ const MapCrystalsTab = () => {
 
     load();
 
+    const mapList = div({ class: "account-list map-crystals-list" });
+    const reconcileMaps = createStaticRowReconciler(mapList);
     const renderMapList = () => {
         const query = searchQuery.val.trim().toLowerCase();
         const worldMaps = getActiveWorldMaps();
@@ -310,7 +313,10 @@ const MapCrystalsTab = () => {
             });
         }
 
-        return div({ class: "account-list map-crystals-list" }, ...visibleMaps.map((map) => getMapRow(map)));
+        // A reload that shows the same rows leaves them in place: taking a row out, even to put it back, drops the
+        // focus and saves what is half typed in it.
+        reconcileMaps(visibleMaps.map((map) => map.mapIndex).join(","), () => visibleMaps.map((map) => getMapRow(map)));
+        return mapList;
     };
 
     const bulkActions = [
