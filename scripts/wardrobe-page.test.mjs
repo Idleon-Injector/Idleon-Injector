@@ -20,19 +20,33 @@ const commands = [];
 const saves = [];
 // Run once at the next wide wardrobestats (a player switching characters) and at the next config file save.
 let onStats = null;
+// While set, every wide wardrobestats waits until the release it is handed to `holdStats(release)` is called.
+let holdStats = null;
 let onSave = null;
 const toggle = router.routes.POST.get("/api/toggle");
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action } = await req.json();
     commands.push(action);
+    log.push(action);
     if (action === "wide wardrobestats" && onStats) {
         const run = onStats;
         onStats = null;
         run();
     }
+    if (action === "wide wardrobestats" && holdStats) await new Promise((release) => holdStats(release));
     return toggle(req, res);
 });
+// How many of the next config file saves fail, and what runs before the next one fails (another tab saving).
+let failSaves = 0;
+let onFail = null;
 router.routes.POST.set("/api/config/save", async (req, res) => {
+    if (failSaves > 0) {
+        failSaves--;
+        const run = onFail;
+        onFail = null;
+        await run?.();
+        return res.status(500).json({ error: "The config file is locked" });
+    }
     saves.push(await req.json());
     if (onSave) {
         const run = onSave;
@@ -40,6 +54,41 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
         run();
     }
     res.json({ ok: true });
+});
+// What the page asks the game, in order: its Wardrobe reads ("wardrobe.preview"), the cheats it runs, and its writes.
+// `holdPreview`: a promise the next preview read waits on. `failPreviews`: how many of the next preview reads fail.
+const log = [];
+let holdPreview = null;
+let failPreviews = 0;
+const computed = router.routes.POST.get("/api/game/computed/read");
+router.routes.POST.set("/api/game/computed/read", async (req, res) => {
+    const { namespace, name } = await req.json();
+    log.push(`${namespace}.${name}`);
+    if (name === "preview" && holdPreview) {
+        const held = holdPreview;
+        holdPreview = null;
+        await held;
+    }
+    if (name === "preview" && failPreviews > 0) {
+        failPreviews--;
+        return res.status(500).json({ error: "The game didn't answer" });
+    }
+    return computed(req, res);
+});
+const writeMany = router.routes.POST.get("/api/game/gga/write-many");
+router.routes.POST.set("/api/game/gga/write-many", async (req, res) => {
+    log.push("write-many");
+    return writeMany(req, res);
+});
+// How many of the next session config reads fail.
+let failConfigReads = 0;
+const readConfig = router.routes.GET.get("/api/config");
+router.routes.GET.set("/api/config", async (req, res) => {
+    if (failConfigReads > 0) {
+        failConfigReads--;
+        return res.status(500).json({ error: "The config can't be read" });
+    }
+    return readConfig(req, res);
 });
 const { requests } = await loadUi(router);
 // clickAgain shows its question in the menu's tooltip and reads it out from a live region on the page.
@@ -70,7 +119,11 @@ async function until(check, what) {
     assert.fail(`timed out waiting for ${what}`);
 }
 const button = (root, label) => elements(root).find((node) => node.nodeName === "button" && text(node) === label);
-const click = (node) => node.listeners.click({ currentTarget: node, preventDefault() {} });
+// A browser doesn't click a disabled button: wait until it is enabled (or fail), then click.
+const click = async (node) => {
+    await until(() => !node.attributes.disabled, `${text(node)} to be enabled`);
+    return node.listeners.click({ currentTarget: node, preventDefault() {} });
+};
 const after = (since, kind) => requests.slice(since).filter((entry) => entry.includes(kind));
 const titles = (root) => byClass(root, "wardrobe-group__title").map(text);
 const picker = (root) => elements(root).find((node) => node.attributes["aria-label"] === "Loadout");
@@ -87,9 +140,12 @@ const settle = async () => {
 };
 const wardrobeConfig = async () => (await fetchConfig()).cheatConfig.wide.wardrobe;
 
+// Every page a test opened; each one reloads after an undo.
+const pages = [];
 const open = async () => {
     const root = (await importRepo(PAGE)).default.component();
     await until(() => titles(root).includes("Equipment & specials"), "the page to load its preview");
+    pages.push(root);
     return root;
 };
 const page = await open();
@@ -140,6 +196,7 @@ test("Apply asks Click again first, then saves the loadout as one action and wor
     assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
     assert.deepEqual(gga.PrayersActive.slice(0, 2), [1, 2]);
     await until(() => commands.slice(before).includes("wide wardrobestats"), "the stats after the undo");
+    await settle();
 });
 
 test("a game that changed since the preview shows the new plan instead of applying the old one", async () => {
@@ -161,7 +218,13 @@ test("a write the game refuses is said where Apply was pressed", async () => {
     const kept = row[1];
     Object.defineProperty(row, 1, { get: () => kept, set() {}, configurable: true });
     const ran = commands.length;
-    const sinceFail = requests.length;
+    const sinceFail = log.length;
+    // The preview read after the refused write (Apply's own recheck comes before it).
+    const previewAfterWrite = () => {
+        const tail = log.slice(sinceFail);
+        const write = tail.indexOf("write-many");
+        return write >= 0 && tail.indexOf("wardrobe.preview", write) > write;
+    };
     try {
         const apply = button(page, "Apply");
         await click(apply);
@@ -170,7 +233,7 @@ test("a write the game refuses is said where Apply was pressed", async () => {
         assert.ok(byClass(page, "said--failed").length, "said as a failure, in place");
         // What landed before the refusal counts: the stats are worked out again and the preview read again.
         await until(() => commands.slice(ran).includes("wide wardrobestats"), "the stats after the failure");
-        await until(() => requests.slice(sinceFail).includes("POST /api/game/computed/read"), "the preview again");
+        await until(previewAfterWrite, "the preview read again after the refused write");
         assert.match(text(page), /Write mismatch at EquipmentOrder\[0\]\[1\]/, "the failure stays said");
         assert.equal(row[1], kept);
     } finally {
@@ -278,6 +341,93 @@ test("Perfect Equipped refuses before writing when another character is in play 
     }
 });
 
+// The page's requests still waiting on the fake API, and how many wardrobe previews the page has read: a refusal's
+// catch-up and an undo's reload both end by reading the preview, so a test waits for that read and no request left.
+let waiting = 0;
+const answerFetch = globalThis.fetch;
+globalThis.fetch = async (...args) => {
+    waiting++;
+    try {
+        return await answerFetch(...args);
+    } finally {
+        waiting--;
+    }
+};
+let previewReads = 0;
+const computedRead = router.routes.POST.get("/api/game/computed/read");
+router.routes.POST.set("/api/game/computed/read", async (req, res) => {
+    const { name } = await req.json();
+    const answered = await computedRead(req, res);
+    if (name === "preview") previewReads++;
+    return answered;
+});
+const previewReadSince = (reads, what) => until(() => previewReads > reads && waiting === 0, what);
+
+// The player is on Lumi_Alt just as a save reaches the game: after the page planned for Lumi_Main and the change log
+// read the old values. The game checks who is in play in the same call as the writes. `skip`: writes that land first
+// (1 lets the gear land and switches at the food). Resolves to the preview reads made before the switch.
+const switchAtNextWrite = (skip = 0) =>
+    new Promise((switched) => {
+        const write = router.routes.POST.get("/api/game/gga/write-many");
+        router.routes.POST.set("/api/game/gga/write-many", async (req, res) => {
+            if (skip-- > 0) return write(req, res);
+            router.routes.POST.set("/api/game/gga/write-many", write);
+            switched(previewReads);
+            gga.UserInfo[0] = "Lumi_Alt";
+            try {
+                return await write(req, res);
+            } finally {
+                gga.UserInfo[0] = "Lumi_Main";
+            }
+        });
+    });
+
+test("a player who switches characters as Apply writes gets no gear put on the new one", async () => {
+    await until(() => waiting === 0, "the page to finish reading the game");
+    const actions = (await fetchChanges()).actions.length;
+    const switched = switchAtNextWrite();
+    const apply = button(page, "Apply");
+    await click(apply);
+    await click(apply);
+    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    assert.ok(byClass(page, "said--failed").length, "said in place");
+    assert.equal(gga.EquipmentOrder[0][1], "EquipmentSword5");
+    assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
+    assert.equal((await fetchChanges()).actions.length, actions, "nothing logged");
+    await previewReadSince(await switched, "the page to read the game again");
+});
+
+test("a player who switches characters as Apply writes the food stacks is told the gear landed and no food was set", async () => {
+    gga.EquipmentQuantity[2][0] = 30000;
+    const switched = switchAtNextWrite(1);
+    const apply = button(page, "Apply");
+    await click(apply);
+    await click(apply);
+    const said =
+        "Rare Drops (DK / RG Primarily) landed on Lumi_Main, but its food stacks weren't set: " +
+        "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt.";
+    await until(() => text(page).includes(said), "the refusal");
+    assert.equal(gga.EquipmentOrder[0][1], "EquipmentWands9", "the gear landed on Lumi_Main");
+    assert.equal(gga.EquipmentQuantity[2][0], 30000, "no food stack set");
+    await previewReadSince(await switched, "the page to read the game again");
+    const [action] = (await fetchChanges()).actions;
+    const reads = previewReads;
+    await undoAction(action.id);
+    await previewReadSince(reads, "the page to read the game after the undo");
+    gga.EquipmentQuantity[2][0] = 25000;
+});
+
+test("a player who switches characters as Perfect Equipped writes gets no gear rebuilt on the new one", async () => {
+    gga.EquipmentMap[0][0].h = { STR: 3 };
+    const switched = switchAtNextWrite();
+    const perfect = button(page, "Perfect Equipped");
+    await click(perfect);
+    await click(perfect);
+    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    assert.equal(JSON.stringify(gga.EquipmentMap[0][0].h), JSON.stringify({ STR: 3 }));
+    await previewReadSince(await switched, "the page to read the game again");
+});
+
 test("a name typed while a loadout saves stays in the field for the next one", async () => {
     await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
@@ -289,4 +439,307 @@ test("a name typed while a loadout saves stays in the field for the next one", a
     // The fake DOM keeps a field's value as its attribute.
     await until(() => name.attributes.value === "Second", "the field to show the new name");
     await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+});
+
+const options = (root) =>
+    elements(picker(root)).filter((node) => node.nodeName === "option" && !node.attributes.hidden);
+const changeLabel = (root) => byClass(root, "wardrobe-loadout")[0].attributes["data-change-label"];
+
+// CodeRabbit on #103: two saved loadouts can share a name, so the question is about the plan, not its name.
+test("Apply asks again for another saved loadout of the same name", async () => {
+    await settle();
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    const save = button(page, "Save");
+    for (let i = 0; i < 2; i++) {
+        name.listeners.input({ target: { value: "Farm" } });
+        await click(save);
+        await until(() => /Saved Farm from Lumi_Main/.test(text(page)), "Farm to be saved");
+        await settle();
+    }
+    const farms = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Farm");
+    assert.equal(farms.length, 2);
+    try {
+        pick(page, farms[0].id);
+        await previewShown();
+        const apply = button(page, "Apply");
+        const since = requests.length;
+        await click(apply);
+        assert.equal(apply.attributes["data-again"], "Click again");
+        pick(page, farms[1].id);
+        await previewShown();
+        await click(apply);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.deepEqual(after(since, "write"), [], "the second Farm wasn't applied on the first one's question");
+        assert.equal(apply.attributes["data-again"], "Click again", "it asks about the second Farm");
+    } finally {
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #103: an Apply's recheck that comes back after a newer pick's preview doesn't replace it.
+test("an older Apply recheck doesn't put its plan under a loadout picked meanwhile", async () => {
+    await settle();
+    const [first, second] = options(page).map((node) => node.attributes.value);
+    pick(page, first);
+    await previewShown();
+    const firstLabel = changeLabel(page);
+    let release;
+    gga.Lv0[0] = 700; // the game changed since the preview, so the recheck finds a new plan
+    try {
+        holdPreview = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        void click(apply);
+        await until(() => holdPreview === null, "the recheck to wait");
+        pick(page, second);
+        await until(() => /^(?!Loadout$)/.test(changeLabel(page)), "the second pick's preview");
+        const secondLabel = changeLabel(page);
+        assert.notEqual(secondLabel, firstLabel);
+        release();
+        await until(() => button(page, "Apply").attributes["aria-busy"] === "false", "Apply to end");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.equal(changeLabel(page), secondLabel, "the newer pick's preview stays");
+    } finally {
+        release?.();
+        gga.Lv0[0] = 500;
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #110: an Apply whose recheck finds the same plan still stops quietly when another loadout was picked
+// meanwhile, instead of writing the first one.
+test("an Apply whose loadout was changed during its recheck writes nothing and says nothing", async () => {
+    await settle();
+    const [first, second] = options(page).map((node) => node.attributes.value);
+    pick(page, first);
+    await previewShown();
+    let release;
+    try {
+        holdPreview = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        const since = requests.length;
+        const pressed = click(apply);
+        await until(() => holdPreview === null, "the recheck to wait");
+        pick(page, second);
+        await until(() => /^(?!Loadout$)/.test(changeLabel(page)), "the second pick's preview");
+        release();
+        await pressed;
+        assert.deepEqual(after(since, "write"), [], "nothing was applied");
+        assert.doesNotMatch(text(page), /is on Lumi_Main|changed since this preview/);
+    } finally {
+        release?.();
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// Re-read of #110: an Apply whose pick stayed isn't dropped quietly when a reload (after an undo) showed a newer preview
+// during its recheck; it says the game changed since its preview.
+test("an undo during an Apply's recheck leaves the Apply saying what happened", async () => {
+    await settle();
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    // A change the undo puts back, which changes the plan: the preview below is made with it.
+    await withAction({ label: "level" }, () => writeManyVerified([{ path: "Lv0[0]", value: 700 }]));
+    const [action] = (await fetchChanges()).actions;
+    await click(button(page, "Refresh"));
+    await settle();
+    let release;
+    try {
+        holdPreview = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        const pressed = click(apply);
+        await until(() => holdPreview === null, "the recheck to wait");
+        const previews = () => log.filter((entry) => entry === "wardrobe.preview").length;
+        const before = previews();
+        await undoAction(action.id);
+        await until(() => previews() > before, "the reload's preview");
+        release();
+        await pressed;
+        assert.match(text(page), /changed since this preview/);
+    } finally {
+        release?.();
+        gga.Lv0[0] = 500;
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #110: when the newer preview an undo started fails during an Apply's recheck, its failure stays said,
+// not replaced by "Apply again" with no preview to apply.
+test("a newer preview that failed during an Apply's recheck keeps its failure said", async () => {
+    await settle();
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    await withAction({ label: "level" }, () => writeManyVerified([{ path: "Lv0[0]", value: 700 }]));
+    const [action] = (await fetchChanges()).actions;
+    await click(button(page, "Refresh"));
+    await settle();
+    let release;
+    try {
+        holdPreview = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        const pressed = click(apply);
+        await until(() => holdPreview === null, "the recheck to wait");
+        // Every open page reloads after the undo; their previews fail.
+        failPreviews = pages.length;
+        await undoAction(action.id);
+        await until(() => failPreviews === 0 && /The game didn't answer/.test(text(page)), "the newer preview to fail");
+        release();
+        await pressed;
+        assert.match(text(page), /The game didn't answer/);
+        assert.doesNotMatch(text(page), /Apply again/);
+    } finally {
+        release?.();
+        failPreviews = 0;
+        gga.Lv0[0] = 500;
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #103: the limit is counted on the list read just before the save, not on the page's older one.
+test("Save is refused when another tab filled the list since the page read it", async () => {
+    await settle();
+    const full = Array.from({ length: 100 }, (_, i) => ({ id: `other-${i}`, name: `Other ${i}`, classes: [] }));
+    await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: full } } } });
+    const count = saves.length;
+    try {
+        const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+        name.listeners.input({ target: { value: "One more" } });
+        await click(button(page, "Save"));
+        await until(() => /100 loadouts are saved; delete one first/.test(text(page)), "the refusal");
+        assert.equal((await wardrobeConfig()).loadouts.length, 100);
+        assert.equal(saves.length, count, "nothing went to the file");
+    } finally {
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        await click(button(page, "Refresh"));
+        await settle();
+    }
+});
+
+// CodeRabbit on #103: a file save that failed leaves nothing in the session, so trying again saves it once.
+test("a loadout whose file save failed is saved once when Save is pressed again", async () => {
+    await settle();
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Retry" } });
+    failSaves = 1;
+    try {
+        await click(button(page, "Save"));
+        await until(() => /The config file is locked/.test(text(page)), "the failure");
+        await settle();
+        await click(button(page, "Save"));
+        await until(() => /Saved Retry from Lumi_Main/.test(text(page)), "the retry");
+        const retries = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Retry");
+        assert.equal(retries.length, 1);
+        assert.equal(saves.at(-1).cheatConfig.wide.wardrobe.loadouts.length, 1);
+    } finally {
+        failSaves = 0;
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #110: a failed save puts the list back only while it is the list it submitted; one another tab saved
+// since then (the session replaces the whole list) stays. Save pressed again then saves that loadout once, not twice.
+test("a loadout another tab saved while this tab's file save failed stays in the session", async () => {
+    await settle();
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Mine" } });
+    failSaves = 1;
+    onFail = async () => {
+        const { loadouts } = await wardrobeConfig();
+        const theirs = { id: "other-tab", name: "Theirs", classes: [] };
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [...loadouts, theirs] } } } });
+    };
+    try {
+        await click(button(page, "Save"));
+        await until(() => /The config file is locked/.test(text(page)), "the failure");
+        const names = (await wardrobeConfig()).loadouts.map((loadout) => loadout.name);
+        assert.deepEqual(names, ["Mine", "Theirs"]);
+        onFail = null;
+        await settle();
+        await click(button(page, "Save"));
+        await until(() => /Saved Mine from Lumi_Main/.test(text(page)), "the retry");
+        const written = saves.at(-1).cheatConfig.wide.wardrobe.loadouts.map((loadout) => loadout.name);
+        assert.deepEqual(written, ["Mine", "Theirs"], "the file gets one Mine");
+    } finally {
+        failSaves = 0;
+        onFail = null;
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// A failed save whose check of the session can't read it puts the list back anyway, so trying again saves it once.
+test("a loadout whose file save failed is taken back when the session can't be read to check it", async () => {
+    await settle();
+    const before = (await wardrobeConfig()).loadouts;
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Unchecked" } });
+    failSaves = 1;
+    onFail = () => (failConfigReads = 1);
+    try {
+        await click(button(page, "Save"));
+        await until(() => /The config file is locked/.test(text(page)), "the failure");
+        assert.deepEqual((await wardrobeConfig()).loadouts, before);
+    } finally {
+        failSaves = 0;
+        failConfigReads = 0;
+        onFail = null;
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #103 and #110: after an undo, each open page reads its status once, after its own stat update has
+// answered. Every stat update is held and they answer one at a time, so a page that read its status first, or
+// without waiting for its own update, reads while its update is still held. A page that doesn't wait reads within
+// one config read of sending its update; `twoReads()` lets two pass before counting.
+test("after an undo each page reads its status once, after its own stat update", async () => {
+    await settle();
+    const apply = button(page, "Apply");
+    await click(apply);
+    await click(apply);
+    await until(() => /is on Lumi_Main/.test(text(page)), "the loadout to land");
+    const [action] = (await fetchChanges()).actions;
+    const since = log.length;
+    const count = (entry) => log.slice(since).filter((logged) => logged === entry).length;
+    const twoReads = async () => {
+        await fetchConfig();
+        await fetchConfig();
+    };
+    const held = [];
+    holdStats = (release) => held.push(release);
+    try {
+        await undoAction(action.id);
+        await until(() => held.length === pages.length, "every page's stat update");
+        await twoReads();
+        assert.equal(count("wardrobe.status"), 0, "no page read its status before its stat update answered");
+        // One update answers at a time: only the page that sent it reads its status.
+        for (const [index, release] of held.entries()) {
+            release();
+            await until(() => count("wardrobe.status") === index + 1, `the status read after update ${index + 1}`);
+            await twoReads();
+            assert.equal(count("wardrobe.status"), index + 1, "only the page whose update answered read its status");
+        }
+        await until(
+            () => pages.every((root) => !button(root, "Refresh").attributes.disabled),
+            "every page's reload to end"
+        );
+        assert.equal(count("wardrobe.status"), pages.length, "one status read per page");
+        assert.equal(count("wide wardrobestats"), pages.length, "one stat update per page");
+    } finally {
+        holdStats = null;
+        for (const release of held) release();
+    }
 });

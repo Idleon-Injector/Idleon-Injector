@@ -16,7 +16,16 @@ export const WORLDS = [
         label: "Account",
         name: "General",
         folder: "account",
-        systems: ["Player", "Upgrade Vault", "Card Search", "Bundles", "Task Board", "Event Shop", "Quests"],
+        systems: [
+            "Player",
+            "Upgrade Vault",
+            "Card Search",
+            "Bundles",
+            "Task Board",
+            "Event Shop",
+            "Quests",
+            "Automation",
+        ],
     },
     {
         id: 1,
