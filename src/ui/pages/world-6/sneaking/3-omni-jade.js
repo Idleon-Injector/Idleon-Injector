@@ -105,7 +105,7 @@ const OmniJadeTab = () => {
                 checked: () => state(path).val >= 1,
                 words: ["On", "Off"],
                 name,
-                disabled,
+                // Enabled while a save runs, like the fields: a flip waits its turn.
                 onFlip: (on) => write(() => save(() => writeVerified(path, on ? 1 : 0))),
             }),
         });

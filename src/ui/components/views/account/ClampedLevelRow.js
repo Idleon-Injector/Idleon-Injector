@@ -84,8 +84,10 @@ export const ClampedLevelRow = ({
         controlsClass,
         inputMode,
         adjustInput: (rawValue, delta, currentValue) => {
-            const nextValue = toNum(rawValue, toNum(currentValue, 0)) + delta;
-            return clamp(nextValue, toNum(currentValue, 0));
+            const value = toNum(rawValue, toNum(currentValue, 0));
+            const nextValue = clamp(value + delta, toNum(currentValue, 0));
+            // + on a level above the cap keeps it; Max is the way down to the cap.
+            return delta > 0 && nextValue < value ? value : nextValue;
         },
         maxAction: resolvedMaxAction,
         renderExtraActions,

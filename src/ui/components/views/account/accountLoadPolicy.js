@@ -32,12 +32,17 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage } = {})
         lastTask = task;
         loading.val = true;
         error.val = null;
-        const saves = changesVersion.rawVal;
-
         try {
-            const result = await task();
-            // A save that landed while this load ran may have been read before it landed: read once more.
-            return changesVersion.rawVal === saves ? result : await task();
+            // A save that landed while this load ran may have been read before it landed: read again.
+            // ponytail: at most three reads; a page saved into nonstop would show the third read.
+            let result;
+            let saves;
+            let reads = 0;
+            do {
+                saves = changesVersion.rawVal;
+                result = await task();
+            } while (changesVersion.rawVal !== saves && ++reads < 3);
+            return result;
         } catch (caughtError) {
             console.error(`[account-load] ${label} load failed:`, caughtError);
 

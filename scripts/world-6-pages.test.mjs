@@ -93,6 +93,34 @@ test("markets: a level above its cap shows as the game holds it, and Max brings 
     assert.equal(game.gga.FarmUpg[2], 20);
 });
 
+test("markets: Raise on a level above its cap keeps the level and saves nothing", async () => {
+    game.gga.FarmUpg[2] = 99;
+    const root = await openPage("src/ui/pages/world-6/farming/2-markets.js", (r) => Boolean(rowAt(r, 2)));
+    const row = rowAt(root, 2);
+    const [field] = inputs(row);
+    const [, raise] = buttons(row).filter((node) => text(node).trim() === "");
+    const written = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, options) => {
+        const body = String(url).includes("/gga/write") ? JSON.parse(options.body) : null;
+        if (body?.path.includes("FarmUpg[2]")) written.push(body.value);
+        return realFetch(url, options);
+    };
+    try {
+        focus(field);
+        click(raise);
+        leave(row, field);
+        // Then the player types 5 and presses Enter: that save runs after any save leaving the row started.
+        focus(field);
+        type(field, 5);
+        press(row, field, "Enter");
+        await until(() => game.gga.FarmUpg[2] === 5 && stateOf(row) === "success", "the typed level to save");
+        assert.deepEqual(written, [5], "Raise and leaving the row wrote nothing");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+});
+
 test("omni jade: the next bonus-levels field stays usable while one saves, and both save", async () => {
     const levels = game.gga.Menagerie[7];
     const root = await openPage("src/ui/pages/world-6/sneaking/3-omni-jade.js", (r) => {
@@ -101,12 +129,16 @@ test("omni jade: the next bonus-levels field stays usable while one saves, and b
     const [rowA, rowB] = byClass(root, "account-row--value");
     const [fieldA] = inputs(rowA);
     const [fieldB] = inputs(rowB);
+    // Tab from A's field lands on the next node's switch, then on its field (the -/+ are skipped).
+    const switchB = inputs(root).filter((node) => node.attributes.role === "switch")[1];
+    const rereads = hold("/computed/read");
     const writes = hold("/write");
     focus(fieldA);
     type(fieldA, 7);
-    leave(rowA, fieldA, fieldB);
-    focus(fieldB);
+    leave(rowA, fieldA, switchB);
     await until(writes.reached, "A's write to reach the game");
+    assert.equal(disabled(switchB), false, "the switch Tab moved to keeps focus while A saves");
+    focus(fieldB);
     assert.equal(disabled(fieldB), false, "the field the player moved to takes typing");
     assert.deepEqual(
         buttons(rowB)
@@ -118,6 +150,9 @@ test("omni jade: the next bonus-levels field stays usable while one saves, and b
     type(fieldB, 9);
     press(rowB, fieldB, "Enter");
     writes.release();
+    await until(rereads.reached, "the read after A's save");
+    assert.equal(disabled(switchB), false, "and while the page reads the game after it");
+    rereads.release();
     await settled(rowA);
     await settled(rowB);
     assert.equal(stateOf(rowA), "success");
@@ -165,4 +200,35 @@ test("beanstalk: a Refresh that read the game before a save landed doesn't put t
     names.release();
     await until(() => badge(row) === "LV 3 / 3" && !disabled(refresh), "the refresh to show what the game holds");
     assert.equal(levels[0], 3);
+});
+
+test("beanstalk: a save that lands during the Refresh's second read doesn't put the old level back", async () => {
+    const levels = game.gga.Ninja[104];
+    levels[0] = 0;
+    levels[1] = 0;
+    const root = await openPage("src/ui/pages/world-6/beanstalk/beanstalk.js", (r) => Boolean(rowAt(r, 1)));
+    const [row0, row1] = [rowAt(root, 0), rowAt(root, 1)];
+    const refresh = buttons(root).find((node) => text(node).trim() === "Refresh");
+    const saveThree = async (row) => {
+        const [field] = inputs(row);
+        focus(field);
+        type(field, 3);
+        press(row, field, "Enter");
+        await settled(row);
+    };
+    const firstRead = hold("/read-entries");
+    click(refresh);
+    await until(firstRead.reached, "the refresh to read the levels");
+    await saveThree(row0);
+    firstRead.release();
+    const secondRead = hold("/read-entries");
+    await until(secondRead.reached, "the refresh to read the levels again");
+    await saveThree(row1);
+    assert.equal(stateOf(row1), "success");
+    secondRead.release();
+    await until(
+        () => badge(row0) === "LV 3 / 3" && badge(row1) === "LV 3 / 3" && !disabled(refresh),
+        "the refresh to show what the game holds"
+    );
+    assert.deepEqual([levels[0], levels[1]], [3, 3]);
 });
