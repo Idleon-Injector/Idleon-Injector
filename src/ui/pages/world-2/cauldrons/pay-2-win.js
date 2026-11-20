@@ -108,22 +108,29 @@ const createSectionState = (section) => {
 const P2WRow = ({ label, valueState, maxState, writePath }) =>
     EditableNumberRow({
         valueState,
+        // A value pulled into range is refused with the bound (useFieldEditor), so nothing past the max is written.
         normalize: (rawValue) => {
             const parsed = Math.max(0, Math.round(Number(rawValue)));
-            return Number.isNaN(parsed) ? null : parsed;
+            const max = Number(maxState.val);
+            if (Number.isNaN(parsed)) return null;
+            // A count the game holds above the max may come down step by step (Lower); nothing goes up past the max.
+            if (max > 0 && parsed > max && parsed < Number(valueState.val ?? 0)) return parsed;
+            return max > 0 ? Math.min(max, parsed) : parsed;
         },
         write: async (nextValue) => writeVerified(writePath, nextValue),
         renderInfo: () => span({ class: "account-row__name" }, label),
         renderBadge: (currentValue) => {
             const cur = currentValue ?? 0;
             const max = maxState.val;
-            return max > 0 ? `${cur} / ${max}` : String(cur);
+            return max > 0 ? `${cur} / ${max}` : "";
         },
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             const max = Number(maxState.val);
             const updated = Math.max(0, next + delta);
+            // A count the game holds past the max: Raise leaves it, Lower takes one off and saves it.
+            if (max > 0 && next > max) return delta > 0 ? next : updated;
             return max > 0 ? Math.min(max, updated) : updated;
         },
         inputMode: "int",
@@ -180,10 +187,9 @@ const Pay2WinTab = () => {
 
             for (const section of sections) {
                 if (section.kind === "single") {
+                    // What the game holds, even past the max, so the row never hides it.
                     const rawValue = Number(rawDraconic ?? 0);
-                    section.valueStates[0].val = Number.isFinite(rawValue)
-                        ? Math.min(section.max, Math.max(0, rawValue))
-                        : 0;
+                    section.valueStates[0].val = Number.isFinite(rawValue) ? rawValue : 0;
                     continue;
                 }
 

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
-import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { createFakeApi, saveToSession } from "./page-shots/fake-api.mjs";
 
 const { router } = await createFakeApi();
 await loadUi(router);
@@ -13,11 +13,12 @@ globalThis.document.body = globalThis.document.createElement("body");
 globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
 const { updateSessionConfig } = await importRepo("src/ui/services/api.js");
 
-// What the page hands the config file save (the fake API's own save writes nothing).
+// What the page hands the config file save (the fake API's own save writes no file, and takes it into the session).
 const saves = [];
 router.routes.POST.set("/api/config/save", async (req, res) => {
-    saves.push(await req.json());
-    res.json({ ok: true });
+    const body = await req.json();
+    saves.push(body);
+    res.json(await saveToSession(router, body));
 });
 
 const text = (node) =>
@@ -94,12 +95,12 @@ test("a pet choice the game didn't take is said on the page, and its card shows 
     const [pet] = plainPets();
     const wrap = byClass(page, "companion-card-wrap").find((card) => card.childNodes.includes(pet));
     const routes = router.routes.POST;
-    const update = routes.get("/api/config/update");
-    routes.set("/api/config/update", async (req, res) => {
-        await update(req, { status: () => ({ json() {} }), json() {} });
+    const save = routes.get("/api/config/save");
+    routes.set("/api/config/save", async (req, res) => {
+        await save(req, { status: () => ({ json() {} }), json() {} });
         res.json({
-            message: "Configuration updated on server, but failed to apply in game",
-            details: "The game is busy",
+            message:
+                "Configuration saved to config.custom.js. The running game kept its old settings (The game is busy)",
         });
     });
     const count = saves.length;
@@ -109,6 +110,6 @@ test("a pet choice the game didn't take is said on the page, and its card shows 
         await until(() => !/NOT SELECTED/.test(text(wrap)), "the card to show the saved choice");
         assert.equal(saves.length, count + 1, "the file took it first");
     } finally {
-        routes.set("/api/config/update", update);
+        routes.set("/api/config/save", save);
     }
 });

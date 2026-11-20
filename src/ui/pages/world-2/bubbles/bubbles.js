@@ -16,15 +16,18 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar, SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
+import { BulkActionBar, SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
+    oneAtATime,
     readLevelDefinitions,
+    resolveNumberInput,
     runBulkSet,
     sortPrefixedNumericCodes,
     useWriteStatus,
@@ -65,7 +68,7 @@ function encodePrisma(set) {
     return [...set].sort(sortPrefixedNumericCodes).join(",") + ",";
 }
 
-const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
+const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
     const levelState = van.state(Number(levels.val?.[bubble.index] ?? 0));
     const prismaBlocked = bubble.isBigBubble === true;
     const isPrisma = van.derive(() => (prismaSet.val ?? new Set()).has(prismaCode(cauldron.prismaKey, bubble.index)));
@@ -93,34 +96,40 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
             span({ class: "account-row__index" }, `#${bubble.index}`),
             span({ class: "account-row__name" }, bubble.name),
             prismaBlocked ? span({ class: "account-row__sub-label" }, "BIG BUBBLE") : null,
-            () => (isPrisma.val ? span({ class: "brewing-prisma-badge" }, "PRISMA") : null),
         ],
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0}`,
         rowClass: () => `brewing-row${isPrisma.val ? " brewing-row--prisma" : ""}`,
         badgeClass: "brewing-row__badge",
         controlsClass: "brewing-row__controls account-row__controls--xl",
-        renderExtraActions: ({ status, run }) =>
+        renderExtraActions: ({ run }) =>
             prismaBlocked
                 ? null
-                : ActionButton({
-                      label: () => (isPrisma.val ? "PRISMA ON" : "PRISMA OFF"),
-                      status,
-                      variant: "switch-filled",
-                      className: () => `brewing-prisma-btn${isPrisma.val ? " brewing-prisma-btn--active" : ""}`,
-                      tooltip: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
-                      onClick: async (e) => {
-                          e.preventDefault();
-                          await run(async () => {
-                              const code = prismaCode(cauldron.prismaKey, bubble.index);
-                              const next = new Set(prismaSet.val ?? new Set());
-                              const turningOn = !next.has(code);
-                              if (turningOn) next.add(code);
-                              else next.delete(code);
-                              const encoded = encodePrisma(next);
-                              await writeVerified("OptionsListAccount[384]", encoded);
-                              prismaSet.val = next;
-                          });
-                      },
+                : StateSwitch({
+                      checked: isPrisma,
+                      words: ["Prisma", "Not prisma"],
+                      name: `${bubble.name} prisma`,
+                      title: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
+                      // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
+                      ownStatus: true,
+                      onFlip: (prisma) =>
+                          run(
+                              () =>
+                                  prismaInTurn(async () => {
+                                      const code = prismaCode(cauldron.prismaKey, bubble.index);
+                                      const held = parsePrisma(await gga("OptionsListAccount[384]"));
+                                      const next = new Set(held);
+                                      if (prisma) next.add(code);
+                                      else next.delete(code);
+                                      try {
+                                          await writeVerified("OptionsListAccount[384]", encodePrisma(next));
+                                      } catch (error) {
+                                          // A failed save leaves the switches on what the game held when it started.
+                                          prismaSet.val = held;
+                                          throw error;
+                                      }
+                                      prismaSet.val = next;
+                                  }),
+                              "switch"
+                          ),
                   }),
     });
 };
@@ -128,29 +137,38 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
 const CauldronSectionBlock = ({ cauldron, levels, defs, sectionBody, setAllInput }) => {
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
 
+    const typedLevel = () => resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
+    const levelOf = (bubble) => Number(toIndexedArray(levels.val ?? [])[bubble.index] ?? 0);
+    // Lowering takes levels away, so it asks first; raising runs on one click.
+    const confirmSetAll = () => {
+        const lvl = typedLevel();
+        if (lvl === null) return null;
+        const lowered = (defs.val ?? []).filter((bubble) => levelOf(bubble) > lvl).length;
+        return lowered
+            ? `lower ${lowered} ${cauldron.label.toLowerCase()} bubble${lowered === 1 ? "" : "s"} to level ${lvl}.`
+            : null;
+    };
+
     const doSetAll = async () => {
-        const lvl = Math.max(0, Number(setAllInput.val));
-        if (isNaN(lvl)) return;
+        const lvl = typedLevel();
+        if (lvl === null) return refuseSetAll(setAllInput);
 
-        const bubbles = defs.val ?? [];
-        if (bubbles.length === 0) return;
+        const bubblesToSet = (defs.val ?? []).filter((bubble) => levelOf(bubble) !== lvl);
+        if (bubblesToSet.length === 0) return undefined;
 
-        const currentLevels = toIndexedArray(levels.val ?? []);
-        const bubblesToSet = bubbles.filter((bubble) => Number(currentLevels[bubble.index] ?? 0) !== lvl);
-        if (bubblesToSet.length === 0) return;
-
-        await runBulk(async () => {
-            const nextLevels = [...toIndexedArray(levels.val ?? [])];
+        return runBulk(async () => {
             await runBulkSet({
                 entries: bubblesToSet,
                 getTargetValue: () => lvl,
-                getValueState: (bubble) => ({ val: currentLevels[bubble.index] ?? 0 }),
+                getValueState: (bubble) => ({ val: levelOf(bubble) }),
                 getPath: (bubble) => `CauldronInfo[${cauldron.index}][${bubble.index}]`,
+                // Only the bubbles written change: a row saved meanwhile keeps its level.
                 applyLocal: (bubble) => {
+                    const nextLevels = [...toIndexedArray(levels.val ?? [])];
                     nextLevels[bubble.index] = lvl;
+                    levels.val = nextLevels;
                 },
             });
-            levels.val = nextLevels;
         });
     };
 
@@ -161,6 +179,7 @@ const CauldronSectionBlock = ({ cauldron, levels, defs, sectionBody, setAllInput
             label: "Set all",
             status: bulkStatus,
             tooltip: "Set all bubbles in this cauldron",
+            confirm: confirmSetAll,
             onClick: async (e) => {
                 e.preventDefault();
                 await doSetAll();
@@ -177,6 +196,8 @@ const BrewingTab = () => {
     const cauldronLevels = new Map(CAULDRONS.map((c) => [c.id, van.state([])]));
     const bubbleDefs = new Map(CAULDRONS.map((c) => [c.id, van.state([])]));
     const prismaSet = van.state(new Set());
+    // Every bubble's Prisma lives in one string, so flips save one at a time, each from the string the game holds now.
+    const prismaInTurn = oneAtATime();
     const sectionsGrid = div({ class: "brewing-sections-grid grid-4col" });
     const contentNode = div({ class: "scrollable-panel" }, sectionsGrid);
     const sectionBodyNodes = new Map();
@@ -216,6 +237,7 @@ const BrewingTab = () => {
                     cauldron,
                     levels: cauldronLevels.get(cauldron.id),
                     prismaSet,
+                    prismaInTurn,
                 })
             )
         );

@@ -22,7 +22,7 @@ import { EditableNumberRow } from "../../../components/views/account/EditableNum
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { writeVerified } from "../../../components/views/account/accountShared.js";
+import { writeManyVerified } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -62,14 +62,12 @@ const LiquidControl = ({ label, valueState, writePath, writePaths = null, mode =
             const next = Math.max(0, Math.round(Number(rawValue)));
             return Number.isNaN(next) ? null : next;
         },
+        // Both copies of an upgrade go in one request, so a dropped connection can't leave them split.
         write: async (nextValue) => {
-            for (const path of paths) {
-                await writeVerified(path, nextValue);
-            }
+            await writeManyVerified(paths.map((path) => ({ path, value: nextValue })));
             return nextValue;
         },
         renderInfo: () => span({ class: "account-row__name liquid-row__label" }, label),
-        renderBadge: (currentValue) => String(currentValue ?? 0),
         rowClass: "liquid-row",
         badgeClass: "liquid-row__badge",
         controlsClass: "liquid-row__controls",

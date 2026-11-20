@@ -118,11 +118,10 @@ const CapeVineTab = () => {
 
     const appendToVine = async (vine, itemIds) => {
         if (itemIds.some((itemId) => !rowStates.has(itemId))) throw new Error("Refusing to add an ineligible cape");
-        for (let i = 0; i < itemIds.length; i++) {
-            await writeVerified(`${VINE_PATH}[${vine.length + i}]`, itemIds[i]);
-        }
-        await writeVerified(`${VINE_PATH}.length`, vine.length + itemIds.length);
-        applyVine([...vine, ...itemIds]);
+        // The whole list in one write, so its change log holds the old list for Undo.
+        const nextVine = [...vine, ...itemIds];
+        await writeVerified(VINE_PATH, nextVine);
+        applyVine(nextVine);
     };
 
     const addCape = (itemId, event) => {
@@ -228,7 +227,6 @@ const CapeVineTab = () => {
                 span({ class: "account-row__name" }, "Golden Vines"),
                 span({ class: "account-row__sub-label" }, () => `${minGolden()} to ${maxGolden()}`)
             ),
-        renderBadge: (owned) => `${owned} OWNED`,
         adjustInput: (raw, delta, current) =>
             Math.max(minGolden(), Math.min(maxGolden(), resolveNumberInput(raw, { fallback: current }) + delta)),
         disabled: () => loading.val || Boolean(error.val),

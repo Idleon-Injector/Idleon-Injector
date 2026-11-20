@@ -1,12 +1,12 @@
 /** Shared hooks and helpers for account feature tabs. */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { gga, ggaMany, readCList } from "../../../services/api.js";
+import { gga, ggaMany, readCList, readGgaMany } from "../../../services/api.js";
 import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { finishChange, startChange, withAction } from "../../../services/changeLog.js";
+import { captureGesture, finishChange, startChange, withAction } from "../../../services/changeLog.js";
 
 const { div } = van.tags;
 
@@ -50,6 +50,25 @@ export const createStaticRowReconciler = (container) => {
         currentSignature = signature;
         container.replaceChildren(...toNodes(typeof rows === "function" ? rows() : rows));
         return true;
+    };
+};
+
+/**
+ * Build row nodes with `build(row)`, reusing the node of a row whose data is unchanged, so a redraw keeps that row's
+ * button state (a failure stays red on the row that asked). Rows are compared by their JSON, index included.
+ */
+export const createKeptRows = (build) => {
+    let kept = new Map();
+    return (rows) => {
+        const next = new Map();
+        const nodes = rows.map((row) => {
+            const key = JSON.stringify(row);
+            const node = kept.get(key) ?? build(row);
+            next.set(key, node);
+            return node;
+        });
+        kept = next;
+        return nodes;
     };
 };
 
@@ -218,20 +237,22 @@ const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
  * Write many GGA paths and throw a consistent error for the first failed write.
  * Failed writes expose the original batch response on `error.results`.
  * The values that land go in the change log as one action, unless `log` is false (an undo's own writes).
+ * `character`, the one the writes were planned for: when another one is in play by the time the game writes, nothing
+ * is written and it rejects saying who is in play.
  *
  * @param {Array<{ path: string, value: any }>} writes
- * @param {{ log?: boolean }} [options]
+ * @param {{ log?: boolean, character?: string }} [options]
  * @returns {Promise<any>}
  */
-export const writeManyVerified = (writes, { log = true } = {}) => {
+export const writeManyVerified = (writes, { log = true, character } = {}) => {
     if (!writes.length) return Promise.resolve({ ok: true, results: [] });
     const change = log ? startChange(writes.map((entry) => entry.path)) : null;
-    return writeManyLogged(writes, change);
+    return writeManyLogged(writes, change, character);
 };
 
-const writeManyLogged = async (writes, change) => {
+const writeManyLogged = async (writes, change, character) => {
     if (change) await change;
-    const result = await ggaMany(writes);
+    const result = await ggaMany(writes, { character });
     if (change)
         await finishChange(
             await change,
@@ -245,9 +266,31 @@ const writeManyLogged = async (writes, change) => {
     const failedWrite = writes.find((entry) => normalizeGgaPath(entry.path) === failedPath);
     const expected = failedWrite?.value ?? "unknown";
 
-    const error = new Error(`Write mismatch at ${failedPath}: expected ${expected}`);
+    // An entry that never reached its slot keeps its own reason; only a value the game didn't keep is a mismatch.
+    const error = new Error(
+        failed.error === "Write mismatch" ? `Write mismatch at ${failedPath}: expected ${expected}` : failed.error
+    );
     error.results = result.results;
     throw error;
+};
+
+/**
+ * A row's save: write only the fields that changed (the game moves the rest on while the page is open), then
+ * read the rest back, so the row shows what the game holds beside its ✓. Each field's `fromGame(raw)` turns a
+ * read into the value the page shows, as its load does.
+ */
+export const writeChangedFields = async (fields, nextValues) => {
+    const changed = fields.filter((field) => nextValues[field.key] !== field.valueState.val);
+    await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
+    const rest = fields.filter((field) => !changed.includes(field));
+    if (!rest.length) return nextValues;
+    // The save landed, so a failed read keeps the values shown instead of calling the save failed.
+    const reads = await readGgaMany(rest.map((field) => field.path)).catch(() => []);
+    const values = { ...nextValues };
+    rest.forEach((field, i) => {
+        if (reads[i]?.ok) values[field.key] = field.fromGame(reads[i].value);
+    });
+    return values;
 };
 
 const toWriteEntries = (writeOrWrites) => {
@@ -266,9 +309,11 @@ const toWriteEntries = (writeOrWrites) => {
  * @param {function} [opts.getWrites]
  * @param {function} [opts.shouldWrite]
  * @param {function} [opts.applyLocal]
+ * @param {string} [opts.character] - when set, the game writes only while this character is in play
  * @returns {Promise<void>}
  */
 export const runBulkSet = async ({
+    character,
     entries,
     getTargetValue,
     getValueState,
@@ -278,28 +323,32 @@ export const runBulkSet = async ({
     applyLocal = null,
 }) => {
     const resolvedEntries = typeof entries === "function" ? entries() : (entries ?? []);
-    const targets = [];
+    // Only the entries written take the target afterwards: a skipped row saved meanwhile keeps what it saved.
+    const targets = new Map();
     const writes = [];
 
     resolvedEntries.forEach((entry, index) => {
         const targetValue = getTargetValue(entry, index);
         const valueState = getValueState(entry, index);
         const currentValue = resolveValue(valueState);
-        targets[index] = targetValue;
 
         if (typeof getWrites === "function") {
-            writes.push(...toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState })));
+            const entryWrites = toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState }));
+            if (entryWrites.length) targets.set(index, targetValue);
+            writes.push(...entryWrites);
             return;
         }
 
         if (!shouldWrite({ entry, index, currentValue, targetValue, valueState })) return;
+        targets.set(index, targetValue);
         writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
     });
 
-    await writeManyVerified(writes);
+    await writeManyVerified(writes, { character });
 
     resolvedEntries.forEach((entry, index) => {
-        const targetValue = targets[index];
+        if (!targets.has(index)) return;
+        const targetValue = targets.get(index);
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);
             return;
@@ -307,6 +356,23 @@ export const runBulkSet = async ({
 
         getValueState(entry, index).val = targetValue;
     });
+};
+
+/**
+ * Runs a page's writes one after another: a write asked for while another runs waits its turn instead of being
+ * dropped, so a switch flipped on one row while another row saves still saves. Each task reads the game again
+ * when its turn comes.
+ */
+export const oneAtATime = () => {
+    let last = Promise.resolve();
+    return (task) => {
+        // The write is named after, and offers Undo beside, the control that asked for it, even when it waits.
+        const inGesture = captureGesture();
+        const run = () => inGesture(task);
+        const next = last.then(run, run);
+        last = next.catch(() => {});
+        return next;
+    };
 };
 
 /**
@@ -319,6 +385,9 @@ export const runBulkSet = async ({
  */
 export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
     const status = van.state(null);
+    // How each run ended and which button press started it (`pressedBy`, set by ActionButton): a press says its own
+    // run's result, though the colour cleared already or another press's run ended first.
+    status.ended = [];
     let clearTimer = null;
 
     const clearStatus = () => {
@@ -357,19 +426,24 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
 
         status.val = loadingState;
         // A press's announcement (ActionButton) tells its own run from an earlier one's result by this count.
-        status.runs = (status.runs ?? 0) + 1;
+        const id = (status.runs = (status.runs ?? 0) + 1);
+        const by = status.pressedBy;
+        const end = (outcome) => (status.ended = [...status.ended, { id, by, outcome }].slice(-10));
 
         try {
             const result = await task();
             if (result?.cancelled) {
+                end("cancelled");
                 status.val = null;
                 return { ok: false, cancelled: true, result };
             }
+            end("success");
             status.val = successState;
             if (typeof onSuccess === "function") onSuccess(result);
             if (successMs > 0) scheduleClear(successMs);
             return { ok: true, result };
         } catch (error) {
+            end("error");
             status.val = errorState;
             if (typeof onError === "function") onError(error);
             if (errorMs > 0) scheduleClear(errorMs);

@@ -2,7 +2,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
+import { parseNumber } from "../../../utils/numberFormat.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import {
@@ -55,7 +55,6 @@ const ClamRow = ({ field, fieldState, onWrite }) =>
         onWrite,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
-        emptyBadge: "-",
     });
 
 const ClamTab = () => {
@@ -63,8 +62,8 @@ const ClamTab = () => {
     const fieldStates = new Map(ALL_FIELDS.map((field) => [field.index, van.state(undefined)]));
     const scurgeStates = new Map();
     const scurgeReady = van.state(false);
-    const saving = van.state(false);
-    const disabled = () => loading.val || saving.val;
+    // Fields stay enabled while a save runs, so the next field the player types into keeps her edit.
+    const disabled = () => loading.val;
     const scurgeList = div({ class: "account-item-stack" });
     const reconcileScurge = createStaticRowReconciler(scurgeList);
 
@@ -105,16 +104,7 @@ const ClamTab = () => {
                                 ? value
                                 : null;
                         },
-                        write: async (next) => {
-                            if (disabled()) throw new Error("Another Clam operation is in progress.");
-                            saving.val = true;
-                            try {
-                                return await writeVerified(field.path, next);
-                            } finally {
-                                await load();
-                                saving.val = false;
-                            }
-                        },
+                        write: (next) => writeVerified(field.path, next),
                         renderInfo: () =>
                             div(
                                 { class: "account-row__name-group" },
@@ -128,7 +118,6 @@ const ClamTab = () => {
                                               .replace(/[{}$]/g, "…")
                                       )
                             ),
-                        renderBadge: formatNumber,
                         adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
                         disabled,
                         rowClass: "account-row--wide-controls",

@@ -315,12 +315,15 @@ async function openTools() {
     const router = new TinyRouter();
     const client = Object.assign(new EventEmitter(), { Runtime: game.runtime });
     setupApiRoutes(router, "context", client, { cheatConfig: {}, startupCheats: [], injectorConfig: {} });
-    router.post("/api/config/save", async (req, res) => {
-        savedBodies.push(await req.json());
-        configPosts.push("save");
-        res.json({ ok: true });
-    });
     const update = router.routes.POST.get("/api/config/update");
+    router.post("/api/config/save", async (req, res) => {
+        const body = await req.json();
+        savedBodies.push(body);
+        configPosts.push("save");
+        // As the server's save does once the file is written: the session takes it and sends it to the game.
+        await update({ json: async () => body }, { status: () => ({ json() {} }), json() {} });
+        res.json({ message: "Configuration successfully saved to config.custom.js" });
+    });
     router.post("/api/config/update", (req, res) => {
         configPosts.push("update");
         return update(req, res);
@@ -387,7 +390,7 @@ test("Tools tab: a settings save sends only the tool settings, to the file and t
     assert.deepEqual(Object.keys(savedBodies.at(-1).cheatConfig), ["w7"]);
     assert.deepEqual(Object.keys(savedBodies.at(-1).cheatConfig.w7), ["sushitools"]);
     assert.equal(savedBodies.at(-1).cheatConfig.w7.sushitools.targetCount, 3);
-    assert.deepEqual(configPosts, ["save", "update"]);
+    assert.deepEqual(configPosts, ["save"], "one save, which the session takes");
     assert.equal(cheatConfig.w7.sushitools.targetCount, 3, "the game has it");
 });
 

@@ -12,6 +12,7 @@ import { InlineEditableNumberField } from "./components/InlineEditableNumberFiel
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 import {
     cleanName,
+    createStaticRowReconciler,
     getOrCreateState,
     runBulkSet,
     toInt,
@@ -129,11 +130,8 @@ const matchesSearch = (upgrade, query) => {
         .toLowerCase();
     if (!search) return true;
 
-    return (
-        upgrade.name.toLowerCase().includes(search) ||
-        String(upgrade.index).includes(search) ||
-        `#${upgrade.index}`.includes(search)
-    );
+    // The index the row shows (#1 is the first), with or without its "#".
+    return upgrade.name.toLowerCase().includes(search) || upgrade.displayIndex.toLowerCase().includes(search);
 };
 
 const UpgradeRow = ({ levelsPath, upgrade, levelState, deleteCachePaths = [], onChanged = null }) =>
@@ -194,7 +192,8 @@ const renderCurrencyField = (field, states) =>
     field.type === "toggle"
         ? AccountToggleRow({
               info: div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, field.name)),
-              badge: () => (states.get(field.key).val ? "ENABLED" : "DISABLED"),
+              words: ["Enabled", "Disabled"],
+              name: field.name,
               checked: () => Boolean(states.get(field.key).val),
               rowClass: "grimoire-currency__toggle masterclass-currency__toggle",
               title: field.title ?? field.name,
@@ -286,8 +285,8 @@ export const MasterclassUpgradeTab = ({
     onUpgradeChanged = null,
     onBulkChanged = null,
 }) => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: title });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
+    const { loading, error, run: runLoad } = useAccountLoad({ label: title, busy: () => bulkStatus.val === "loading" });
     const upgrades = van.state([]);
     const searchQuery = van.state("");
     const activeCurrencyTab = van.state(currencyTabs[0]?.id ?? null);
@@ -303,10 +302,16 @@ export const MasterclassUpgradeTab = ({
     const upgradeContent = div();
     let definitionSignature = null;
 
+    const reconcileRows = createStaticRowReconciler(upgradeRows);
     const refreshRows = () => {
         const visibleRows = upgrades.val.filter((upgrade) => matchesSearch(upgrade, searchQuery.val));
-        upgradeRows.replaceChildren(...visibleRows.map((upgrade) => rowNodes.get(upgrade.index)));
-        upgradeContent.replaceChildren(upgrades.val.length ? upgradeRows : noUpgrades);
+        // A reload that shows the same rows leaves them in place: taking a row out, even to put it back, drops the
+        // focus and saves what is half typed in it. New definitions build new rows for the same indexes.
+        reconcileRows(`${definitionSignature}#${visibleRows.map((upgrade) => upgrade.index).join(",")}`, () =>
+            visibleRows.map((upgrade) => rowNodes.get(upgrade.index))
+        );
+        const next = upgrades.val.length ? upgradeRows : noUpgrades;
+        if (upgradeContent.firstChild !== next) upgradeContent.replaceChildren(next);
     };
 
     const rebuildRows = (nextUpgrades) => {
@@ -397,15 +402,12 @@ export const MasterclassUpgradeTab = ({
 
     load();
 
-    const subNav = div(
-        { class: "control-bar sticky-header masterclass-upgrade-controls" },
-        SearchBar({
-            placeholder: `SEARCH ${title} OR INDEX`,
-            value: searchQuery,
-            debounceMs: 0,
-            onInput: (value) => (searchQuery.val = value),
-        })
-    );
+    const toolbar = SearchBar({
+        placeholder: `SEARCH ${title} OR INDEX`,
+        value: searchQuery,
+        debounceMs: 0,
+        onInput: (value) => (searchQuery.val = value),
+    });
 
     return PersistentAccountListPage({
         title,
@@ -437,7 +439,7 @@ export const MasterclassUpgradeTab = ({
             },
         }),
         state: { loading, error },
-        subNav,
+        toolbar,
         loadingText: `READING ${title}`,
         errorTitle: `${title} READ FAILED`,
         initialWrapperClass: "masterclass-upgrade-scroll",

@@ -66,8 +66,10 @@ export const currentPlace = () => {
 };
 
 let actionCount = 0;
+// Set while a deferred write runs as if asked for now (captureGesture): the page it was asked for on.
+let keptPlace = null;
 const newAction = (label, kind, anchor = null) => {
-    const place = currentPlace();
+    const place = keptPlace ?? currentPlace();
     return {
         id: `${Date.now().toString(36)}-${++actionCount}`,
         label: String(label || "").trim(),
@@ -76,7 +78,9 @@ const newAction = (label, kind, anchor = null) => {
         kind,
         // The control that made it: a bulk action's Undo all sits beside it.
         anchor,
+        // Values logged, and values the game took (logged or not: a log that fails doesn't undo a save).
         entries: 0,
+        landed: 0,
     };
 };
 
@@ -84,6 +88,8 @@ const newAction = (label, kind, anchor = null) => {
 export const lastBulkAction = van.state(null);
 /** Goes up whenever the log changes (a save, an undo), so the History page knows to read it again. */
 export const changesVersion = van.state(0);
+/** Goes up when a save is logged (not an undo, which asks its pages to reload): a page load that saw it go up reads again. */
+export let savesLogged = 0;
 
 let current = null;
 const open = new Set();
@@ -113,8 +119,36 @@ export const labelOf = (node) => {
 
 // Writes that no field or button claimed (a page's own button, say) group by the click or key that led to them.
 const noteGesture = (target) => {
-    const control = typeof target?.closest === "function" ? target.closest("button, select, label, input") : null;
+    // A switch is one control whether its words, its track or its checkbox took the click or key.
+    const control =
+        typeof target?.closest === "function"
+            ? target.closest(".toggle-switch") || target.closest("button, select, label, input")
+            : null;
     gesture = { count: gesture.count + 1, label: labelOf(target), target: control || target };
+};
+
+/**
+ * Keep what asked for a write, for a write that runs later (one waiting its turn): `inGesture(fn)` runs `fn` as if
+ * then were now. Its save joins the action that asked for it (a bulk button's), or is named after, and offers Undo
+ * beside, the control that was clicked; and it's logged on the page it was asked for on, even if the player has
+ * moved on since.
+ */
+export const captureGesture = () => {
+    const kept = gesture;
+    const keptAction = current;
+    // Inside another kept write (a switch's next flip queued again), keep the place that one kept.
+    const place = keptPlace ?? (app ? currentPlace() : null);
+    return (fn) => {
+        const now = { gesture, current, keptPlace };
+        gesture = kept;
+        if (keptAction && open.has(keptAction)) current = keptAction;
+        keptPlace = place;
+        try {
+            return fn();
+        } finally {
+            ({ gesture, current, keptPlace } = now);
+        }
+    };
 };
 
 /** The app starts the log: where saves are made (its menu state), and the clicks and keys that make them. */
@@ -160,6 +194,14 @@ export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn
     return result;
 };
 
+/**
+ * Let go of the action whose code is running: a write that waits its turn opens its own when it starts (its kept
+ * click still names it), so the action doesn't stay open meanwhile and split another save's writes from each other.
+ */
+export const releaseAction = () => {
+    if (current) open.delete(current);
+};
+
 /*
  * The action a save belongs to: the one whose code is running, else the only one still waiting on the game.
  * ponytail: two actions waiting at once (a quick tab through two fields whose pages read before writing) can't be
@@ -169,7 +211,8 @@ export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn
 const actionForWrite = () => {
     if (current) return current;
     if (open.size === 1) return [...open][0];
-    if (open.size > 1) return newAction(gesture.label, "bulk");
+    // Not named after the newest click: that click may be another control's (a pick made while this save waited).
+    if (open.size > 1) return newAction("", "bulk");
     if (!gestureAction || gestureAction.gesture !== gesture.count) {
         gestureAction = newAction(gesture.label, "bulk", gesture.target);
         gestureAction.gesture = gesture.count;
@@ -220,12 +263,14 @@ export const finishChange = async (change, values, landed = null) => {
         .filter((_entry, index) => !landed || landed[index]);
     if (!entries.length) return;
     const { action } = change;
+    action.landed += entries.length;
     try {
         await logChanges({ id: action.id, page: action.page, label: action.label, place: action.place }, entries);
         action.entries += entries.length;
         // An action still running is offered when it ends (withAction); one made by a click or key, as it logs.
         if (action.kind !== "row" && !open.has(action)) lastBulkAction.val = { action };
         changesVersion.val++;
+        savesLogged++;
     } catch (error) {
         console.warn("[changes] The change log didn't take this save; it won't be in History.", error);
     }

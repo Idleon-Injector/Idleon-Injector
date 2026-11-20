@@ -26,7 +26,7 @@ import {
 
 const { div, span } = van.tags;
 
-const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false, onAfterWrite = null }) => {
+const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false }) => {
     if (readOnly) {
         return div(
             { class: "po-currency-row feature-card po-currency-row--readonly" },
@@ -47,14 +47,12 @@ const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false, onA
         },
         write: async (nextValue) => {
             await writeVerified(writePath, nextValue);
-            if (typeof onAfterWrite === "function") onAfterWrite();
             return nextValue;
         },
         renderInfo: () => [
             span({ class: "po-currency-row__label" }, label),
             note ? span({ class: "po-currency-row__note" }, note) : null,
         ],
-        renderBadge: (currentValue) => String(currentValue ?? 0),
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
@@ -67,7 +65,7 @@ const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false, onA
     });
 };
 
-const POBoxRow = ({ box, onAfterWrite = null }) => {
+const POBoxRow = ({ box }) => {
     return ClampedLevelRow({
         valueState: box.current,
         max: () => box.cap.val,
@@ -75,7 +73,6 @@ const POBoxRow = ({ box, onAfterWrite = null }) => {
         write: async (nextValue) => {
             const path = `PostOfficeInfo[3][${box.index}][0]`;
             await writeVerified(path, nextValue);
-            if (typeof onAfterWrite === "function") onAfterWrite();
             return nextValue;
         },
         renderInfo: () => span({ class: "po-box-row__name" }, () => box.name.val),
@@ -89,11 +86,9 @@ const PostOfficeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Post Office" });
     const boxComplete = van.state(0);
     const boxStreak = van.state(0);
-    const boxMisc = van.state(0);
     const opt347 = van.state(0);
     const opt131 = van.state(0);
     const boxPoints = van.state(0);
-    const spentPoints = van.state(0);
     const boxCount = van.state(0);
     const boxStates = [];
     let boxDefsLoaded = false;
@@ -110,14 +105,13 @@ const PostOfficeTab = () => {
         }
     };
 
-    const recomputeSummary = () => {
-        let nextSpent = 0;
-        for (let index = 0; index < boxCount.val; index++) {
-            nextSpent += Number(boxStates[index]?.current.val ?? 0);
-        }
-        spentPoints.val = toInt(nextSpent, { min: 0 });
-        boxMisc.val = toInt(Number(boxPoints.val ?? 0) + Number(opt131.val ?? 0), { min: 0 });
-    };
+    // The summary follows the rows' values as they save (a row's value is set once its save is read back).
+    const spentPoints = van.derive(() => {
+        let spent = 0;
+        for (let index = 0; index < boxCount.val; index++) spent += Number(boxStates[index]?.current.val ?? 0);
+        return toInt(spent, { min: 0 });
+    });
+    const boxMisc = van.derive(() => toInt(Number(boxPoints.val ?? 0) + Number(opt131.val ?? 0), { min: 0 }));
 
     const totalEarned = van.derive(() => toInt(boxComplete.val + boxStreak.val + opt347.val + boxMisc.val, { min: 0 }));
     const availablePoints = van.derive(() => toInt(totalEarned.val - spentPoints.val));
@@ -161,7 +155,7 @@ const PostOfficeTab = () => {
                     boxesListNode.replaceChildren();
                 } else {
                     const rows = Array.from({ length: boxCount.val }, (_, index) =>
-                        POBoxRow({ box: boxStates[index], onAfterWrite: recomputeSummary })
+                        POBoxRow({ box: boxStates[index] })
                     );
                     boxesListNode.replaceChildren(div({ class: "po-boxes-grid" }, ...rows));
                 }
@@ -180,7 +174,6 @@ const PostOfficeTab = () => {
             opt347.val = toInt(rawOpts?.["347"] ?? 0, { min: 0 });
             opt131.val = toInt(rawOpts?.["131"] ?? 0, { min: 0 });
             boxPoints.val = toInt(rawBoxPts ?? 0, { min: 0 });
-            recomputeSummary();
         });
 
     const runBulkBoxWrite = async (getNextValue) => {
@@ -193,8 +186,6 @@ const PostOfficeTab = () => {
                 getValueState: (box) => box.current,
                 getPath: (_, index) => `PostOfficeInfo[3][${index}][0]`,
             });
-
-            recomputeSummary();
         });
     };
 
@@ -214,26 +205,22 @@ const PostOfficeTab = () => {
                     label: "DELIVERY COMPLETE",
                     valueState: boxComplete,
                     writePath: "CurrenciesOwned.h.DeliveryBoxComplete",
-                    onAfterWrite: recomputeSummary,
                 }),
                 CurrencyRow({
                     label: "DELIVERY STREAK",
                     valueState: boxStreak,
                     writePath: "CurrenciesOwned.h.DeliveryBoxStreak",
-                    onAfterWrite: recomputeSummary,
                 }),
                 CurrencyRow({
                     label: "BONUS POINTS",
                     valueState: opt347,
                     writePath: "OptionsListAccount[347]",
-                    onAfterWrite: recomputeSummary,
                 }),
                 div({ class: "po-section__divider" }, "MISC SOURCES (contribute to DeliveryBoxMisc)"),
                 CurrencyRow({
                     label: "MISC OPTION",
                     valueState: opt131,
                     writePath: "OptionsListAccount[131]",
-                    onAfterWrite: recomputeSummary,
                 }),
                 CurrencyRow({
                     label: "VIAL BOX POINTS",

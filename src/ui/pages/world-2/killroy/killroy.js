@@ -29,7 +29,7 @@ import { definePage } from "../../../menu/menuModel.js";
 import { gga, readGgaEntries, readCList } from "../../../services/api.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -111,8 +111,7 @@ const KillroyNumRow = ({ field, valueState, writePath, getBadgeText = null, disa
         normalize,
         write: async (nextValue) => writeVerified(writePath, nextValue),
         renderInfo: () => span({ class: "account-row__name" }, labelText),
-        renderBadge: (currentValue) =>
-            typeof getBadgeText === "function" ? getBadgeText(currentValue) : String(currentValue),
+        renderBadge: typeof getBadgeText === "function" ? getBadgeText : null,
         adjustInput: (rawValue, delta, currentValue) => {
             const next = toNum(rawValue, toNum(currentValue, 0)) + delta;
             return field.allowNegative ? next : Math.max(0, next);
@@ -124,9 +123,9 @@ const KillroyNumRow = ({ field, valueState, writePath, getBadgeText = null, disa
 const KillroyAirhornRow = ({ valueState }) => {
     const { status, run } = useWriteStatus();
 
-    const doToggle = async () => {
-        const next = toNum(valueState.val, 0) === 0 ? 1 : 0;
-        await run(async () => {
+    const doToggle = async (on) => {
+        const next = on ? 1 : 0;
+        return run(async () => {
             const path = `OptionsListAccount[${AIRHORN_INDEX}]`;
             await writeVerified(path, next);
             valueState.val = next;
@@ -137,11 +136,12 @@ const KillroyAirhornRow = ({ valueState }) => {
         rowClass: "killroy-row",
         status,
         info: span({ class: "account-row__name" }, "AIRHORN RESET"),
-        badge: () => (toNum(valueState.val, 0) === 0 ? "OFF" : "ON"),
-        controls: ActionButton({
-            label: "Toggle",
-            status,
-            onClick: doToggle,
+        controls: StateSwitch({
+            checked: () => toNum(valueState.val, 0) !== 0,
+            words: ["On", "Off"],
+            name: "Airhorn reset",
+            status, // nothing else on the row reads out saving and saved
+            onFlip: doToggle,
         }),
     });
 };

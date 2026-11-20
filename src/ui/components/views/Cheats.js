@@ -11,7 +11,7 @@ import { LazyCategory } from "../LazyCategory.js";
 import { revealFound } from "../../utils/index.js";
 import { Said, plainReason, replay, useSaid } from "../inPlace.js";
 
-const { div, button, span } = van.tags;
+const { div, button, h3, p, span } = van.tags;
 
 const QuickAccessSection = () => {
     /**
@@ -25,15 +25,15 @@ const QuickAccessSection = () => {
         const found = allCheats.find((c) => c.value === val);
         if (found) return found;
 
-        // Handle parameterized commands (e.g., "drop Copper 100" -> base "drop Copper")
-        const baseParts = val.split(" ");
-        if (baseParts.length > 1) {
-            const baseCmd = baseParts.slice(0, -1).join(" ");
-            const paramFound = allCheats.find((c) => c.value === baseCmd);
+        // Handle parameterized commands, whose value can be several words: the longest listed command it starts
+        // with ("w7 sushitools knowledge 3 500" -> "w7 sushitools knowledge", with "3 500").
+        const words = val.split(" ");
+        for (let i = words.length - 1; i > 0; i--) {
+            const paramFound = allCheats.find((c) => c.value === words.slice(0, i).join(" "));
             if (paramFound) {
                 return {
                     value: val,
-                    message: `${paramFound.message} (${baseParts[baseParts.length - 1]})`,
+                    message: `${paramFound.message} (${words.slice(i).join(" ")})`,
                     category: paramFound.category,
                 };
             }
@@ -235,35 +235,71 @@ export const Cheats = () => {
         store.openConfigDrawer();
     };
 
+    // The category chips (tab view) sit with the search, under the title.
+    const categoryChips = () => {
+        if (store.app.cheatsViewMode !== "tabs") return div();
+        const categories = Object.keys(getGroupedCheats(store.data.cheats, ui.filter));
+        if (!categories.length) return div();
+        return div(
+            { class: "tabs-bar" },
+            categories.map((cat) =>
+                button(
+                    {
+                        type: "button",
+                        class: () => `tab-btn ${ui.activeCategory === cat ? "active" : ""}`,
+                        onclick: () => handleCategorySwitch(cat),
+                    },
+                    cat
+                )
+            )
+        );
+    };
+
     return div(
         { id: "cheats-tab", class: "tab-pane" },
 
+        // The page top (#26): the title and its buttons, then search and the category chips.
         div(
-            { class: "scroll-container" },
-
+            { class: "account-page-top cheats-page-top" },
             div(
-                { class: "control-bar" },
-                searchBar,
-                button(
-                    {
-                        type: "button",
-                        class: () => `btn-quiet config-drawer-toggle ${store.app.configDrawerOpen ? "active" : ""}`,
-                        "aria-pressed": () => String(Boolean(store.app.configDrawerOpen)),
-                        onclick: handleConfigDrawerToggle,
-                        title: "Toggle config drawer",
-                    },
-                    "Config"
+                { class: "account-header account-tab-header" },
+                div(
+                    { class: "account-tab-header__main" },
+                    h3({ class: "account-tab-header__title" }, "CHEATS"),
+                    p(
+                        { class: "account-tab-header__desc" },
+                        "Click a cheat to run it in the game. A cheat with a field takes its value first; the star keeps it under Favorites."
+                    )
                 ),
-                button(
-                    {
-                        type: "button",
-                        class: "btn-quiet view-mode-toggle",
-                        onclick: store.toggleCheatsViewMode,
-                        title: "Switch between the list and the tabs",
-                    },
-                    () => (store.app.cheatsViewMode === "tabs" ? "List view" : "Tab view")
+                div(
+                    { class: "account-header__actions account-tab-header__actions" },
+                    button(
+                        {
+                            type: "button",
+                            class: () =>
+                                `btn-quiet btn-sm config-drawer-toggle ${store.app.configDrawerOpen ? "active" : ""}`,
+                            "aria-pressed": () => String(Boolean(store.app.configDrawerOpen)),
+                            onclick: handleConfigDrawerToggle,
+                            title: "Toggle config drawer",
+                        },
+                        "Config"
+                    ),
+                    button(
+                        {
+                            type: "button",
+                            class: "btn-quiet btn-sm view-mode-toggle",
+                            onclick: store.toggleCheatsViewMode,
+                            title: "Switch between the list and the tabs",
+                        },
+                        () => (store.app.cheatsViewMode === "tabs" ? "List view" : "Tab view")
+                    )
                 )
             ),
+            div({ class: "account-page-toolbar" }, searchBar, categoryChips)
+        ),
+
+        div(
+            { class: "scroll-container" },
 
             QuickAccessSection(),
 
@@ -302,19 +338,6 @@ export const Cheats = () => {
 
                 if (isTabsMode) {
                     return div(
-                        // Tabs Bar
-                        div(
-                            { class: "tabs-bar" },
-                            categories.map((cat) =>
-                                button(
-                                    {
-                                        class: () => `tab-btn ${ui.activeCategory === cat ? "active" : ""}`,
-                                        onclick: () => handleCategorySwitch(cat),
-                                    },
-                                    cat
-                                )
-                            )
-                        ),
                         // Tab Content - wrapped in reactive function to respond to category/pagination changes
                         () => {
                             const activeCheats = groupedData[ui.activeCategory] || [];

@@ -182,11 +182,14 @@ const WardrobePage = () => {
     // After gear changed: the stats again, then the food stacks the game hands back, then the stats once more (golden
     // food's bonus grows with its stack).
     const updateStats = () => executeCheatAction(STATS_CHEAT);
-    const saveFood = async (food) => {
-        await writeManyVerified(food);
+    // Each save names the character it was planned for: the game writes nothing if another one is in play by then.
+    // The food save comes after the gear landed, so its failure says so.
+    const saveFood = async (food, character, name) => {
+        await foodFor(character, name, () => writeManyVerified(food, { character }));
         await updateStats();
     };
-    // The food step of a run whose gear landed; it refuses a character other than the one planned for.
+    // The food step (its read or its save) of a run whose gear landed; it refuses a character other than the one
+    // planned for.
     const foodFor = async (character, name, read) => {
         try {
             return await read();
@@ -223,26 +226,30 @@ const WardrobePage = () => {
                 loadoutSaid.clear();
                 const shown = preview.val;
                 if (!shown) return { cancelled: true };
+                const asked = selected.val;
                 const run = previewRun;
                 const plan = await planFor();
+                // A loadout picked meanwhile isn't the one asked about: Apply stops quietly, and its preview stays.
+                if (selected.val !== asked) return { cancelled: true };
                 if (plan.fingerprint !== shown.fingerprint) {
-                    // A loadout picked meanwhile has its own preview, newer than this plan: that one stays.
-                    if (run !== previewRun) return { cancelled: true };
-                    preview.val = plan;
+                    // A newer preview of this loadout (a reload after an undo, say) shows its own plan; one that failed
+                    // keeps its reason said.
+                    if (run === previewRun) preview.val = plan;
+                    else if (!preview.val && !previewing.val) return { cancelled: true };
                     loadoutSaid.say(
                         "refused",
                         "The game changed since this preview, so it shows the new plan. Apply again."
                     );
                     return { cancelled: true };
                 }
-                await writeManyVerified(plan.writes);
+                await writeManyVerified(plan.writes, { character: plan.character });
                 await updateStats();
                 const food = await foodFor(plan.character, plan.name, () =>
                     readComputed("wardrobe", "food", [
                         { goldenMaximum: plan.foodLimits.golden, character: plan.character },
                     ])
                 );
-                await saveFood(food.writes);
+                await saveFood(food.writes, plan.character, plan.name);
                 await rememberGolden(plan.character, food.limits.golden);
                 await readStatus();
                 await showPreview();
@@ -275,27 +282,39 @@ const WardrobePage = () => {
             { onError: (caught) => loadoutSaid.say("failed", caught.message) }
         );
 
+    // A save whose file save failed may still be in the session's list (another tab's list kept it): Save pressed again
+    // with that name replaces that entry, by its id, so the file gets one copy. Two loadouts may share a name, so only
+    // that attempt's entry is replaced.
+    let unsaved = null;
     const saveCurrent = () => {
         const label = name.val.trim();
         saveSaid.clear();
         if (busy()) return;
         if (!label) return saveSaid.say("refused", "Give the loadout a name first.");
         if (label.length > 80) return saveSaid.say("refused", "A name has 80 characters at most.");
-        if (saved.val.length >= MAX_SAVED)
+        if (saved.val.length >= MAX_SAVED && unsaved?.label !== label)
             return saveSaid.say("refused", `${MAX_SAVED} loadouts are saved; delete one first.`);
         const typed = name.val;
         return saveWrite.run(
             async () => {
                 const loadout = { ...(await readComputed("wardrobe", "capture")), name: label };
+                if (unsaved?.label === label) loadout.id = unsaved.id;
                 // Counted again on the list just read: another tab may have saved meanwhile.
                 const full = `${MAX_SAVED} loadouts are saved; delete one first.`;
                 try {
                     await persist((wardrobe) => {
-                        if (wardrobe.loadouts.length >= MAX_SAVED) throw Object.assign(new Error(full), { full: true });
-                        return { ...wardrobe, loadouts: [...wardrobe.loadouts, loadout] };
+                        const loadouts = wardrobe.loadouts.some(({ id }) => id === loadout.id)
+                            ? wardrobe.loadouts.map((entry) => (entry.id === loadout.id ? loadout : entry))
+                            : [...wardrobe.loadouts, loadout];
+                        if (loadouts.length > MAX_SAVED) throw Object.assign(new Error(full), { full: true });
+                        return { ...wardrobe, loadouts };
                     });
+                    unsaved = null;
                 } catch (caught) {
-                    if (!caught.full) throw caught;
+                    if (!caught.full) {
+                        unsaved = { label, id: loadout.id };
+                        throw caught;
+                    }
                     saveSaid.say("refused", full);
                     return { cancelled: true };
                 }
@@ -322,12 +341,12 @@ const WardrobePage = () => {
                     perfectSaid.say("refused", "Nothing worn can be rebuilt.");
                     return { cancelled: true };
                 }
-                await writeManyVerified(plan.writes);
+                await writeManyVerified(plan.writes, { character });
                 await updateStats();
                 const food = await foodFor(character, "Perfect Equipped", () =>
                     readComputed("wardrobe", "perfectFood", [{ character }])
                 );
-                if (food.length) await saveFood(food);
+                if (food.length) await saveFood(food, character, "Perfect Equipped");
                 await readStatus();
                 await showPreview();
                 perfectSaid.say(

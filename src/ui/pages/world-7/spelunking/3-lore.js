@@ -21,7 +21,6 @@ const LorePageRow = ({ entry }) =>
             path: `${LORE_LEVELS_PATH}[${entry.levelIndex}]`,
             indexLabel: `#${entry.levelIndex + 1}`,
             formatted: false,
-            badge: (currentValue) => `LV ${toInt(currentValue, { min: 0 })}`,
             rowClass: "spelunking-lore-row",
         },
         valueState: entry.levelState,

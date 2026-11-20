@@ -1,18 +1,20 @@
-// Config part saves (saveConfigPart): a page sends only the settings it changed, to config.custom.js first and then
-// to the session, one save at a time across the menu, and gets the config read after it. The file below merges what
+// Config part saves (saveConfigPart): a page sends only the settings it changed, in one save that writes
+// config.custom.js and then takes them into the session, one save at a time across the menu, and gets the config read
+// after it. The file below merges what
 // it is sent as the server does: objects key by key, lists whole.
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
-import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { createFakeApi, saveToSession } from "./page-shots/fake-api.mjs";
 
 const require = createRequire(import.meta.url);
 const { deepMerge } = require("../src/modules/utils/objectUtils");
 
 const { router } = await createFakeApi();
 const file = { cheatConfig: {} };
-// Events in order: "save <names>" when a file save arrives, "saved" once it is written, "update" for the session.
+// Events in order: "save <names>" when a file save arrives, "saved" once it is written (the save then takes it into the
+// session), "update" for a separate session update, which a part save no longer sends.
 const log = [];
 let failNext = 0;
 let onFail = null;
@@ -31,7 +33,7 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     }
     deepMerge(file, body);
     log.push("saved");
-    res.json({ message: "Configuration successfully saved to config.custom.js" });
+    res.json(await saveToSession(router, body));
 });
 const update = router.routes.POST.get("/api/config/update");
 router.routes.POST.set("/api/config/update", (req, res) => {
@@ -72,7 +74,7 @@ test("two pages saving at once both land, one after the other, in the order aske
     const second = saveConfigPart(add("second"));
     held.release();
     const [, { config }] = await Promise.all([first, second]);
-    assert.deepEqual(log, ["save first", "saved", "update", "save first,second", "saved", "update"]);
+    assert.deepEqual(log, ["save first", "saved", "save first,second", "saved"]);
     assert.deepEqual(listOf(file), ["first", "second"]);
     assert.deepEqual(listOf(config), ["first", "second"], "the read after it shows what the file holds");
     assert.deepEqual(listOf(await fetchConfig()), ["first", "second"]);
@@ -141,6 +143,6 @@ test("Save settings on the Config page waits for a page's save, then saves what 
     const whole = saveButton().listeners.click({ currentTarget: saveButton() });
     held.release();
     await Promise.all([page, whole]);
-    assert.deepEqual(log.slice(0, 4), ["save page", "saved", "update", "save whole"]);
+    assert.deepEqual(log.slice(0, 3), ["save page", "saved", "save whole"]);
     assert.deepEqual(listOf(file), ["page"], "the Config page's save keeps the page's loadout");
 });

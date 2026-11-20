@@ -123,6 +123,11 @@ async function updateSessionConfiguration(
     const gameCheatConfig = receivedFullConfig.cheatConfig
         ? reviveRegExps(parseConfigFromJson(receivedFullConfig.cheatConfig))
         : cheatConfig;
+    return applyToGame(gameBridge, gameCheatConfig);
+}
+
+/** Merge cheat settings into the running game's config. */
+async function applyToGame(gameBridge, gameCheatConfig) {
     if (!(await gameBridge.isAttached())) {
         log.error("Cheat context not found in iframe. Cannot update config in game");
         return { gameApplied: false, contextLost: true };
@@ -157,26 +162,46 @@ const dropEmptyObjects = (value) => {
 /**
  * Take the settings the game changed itself (nomore lists, `<cheat> <value>`) into the injector's config,
  * so the WebUI shows them, a save keeps them and a game reload gets them. Does nothing while the game
- * isn't reachable.
+ * isn't reachable. It waits its turn with the saves: read while a save updates the game, it would merge the
+ * game's old value over the one just saved.
  * @param {Object} gameBridge - The game bridge
  * @param {Object} cheatConfig - The injector's live cheat config, merged into in place
+ * @returns {Promise<boolean>} Whether the game's config was read
  */
-async function pullGameConfig(gameBridge, cheatConfig) {
+function pullGameConfig(gameBridge, cheatConfig) {
+    const pull = () => readGameConfig(gameBridge, cheatConfig);
+    return (saving = saving.then(pull, pull));
+}
+
+async function readGameConfig(gameBridge, cheatConfig) {
     try {
         const result = await gameBridge.callHelper("readCheatConfig");
-        if (result.error || typeof result.value !== "string") return;
+        if (result.error || typeof result.value !== "string") return false;
         deepMerge(cheatConfig, reviveRegExps(dropEmptyObjects(JSON.parse(result.value))));
+        return true;
     } catch (error) {
         log.debug(`Could not read the game's config: ${error.message}`);
+        return false;
     }
 }
 
 /**
  * Persist UI overrides, then update the loaded configuration only after the write succeeds.
  * What it's sent is merged into the current settings, so a partial save keeps the rest.
- * @returns {Promise<{ brokenFileKeptAs?: string }>} Where a config.custom.js that failed to load was kept
+ * Saves run one at a time: they share one temporary file, and two at once could leave a config.custom.js
+ * that doesn't load.
+ * Given the game bridge, the saved cheat settings go to the game too; left with its old ones, the next
+ * pullGameConfig would bring them back and the save after it would write them to the file.
+ * @returns {Promise<{ brokenFileKeptAs?: string, game?: Object }>} Where a config.custom.js that failed to load
+ *   was kept, and how the game took the settings (as updateSessionConfiguration answers)
  */
-async function saveConfiguration(receivedFullConfig) {
+function saveConfiguration(receivedFullConfig, gameBridge) {
+    const save = () => writeConfiguration(receivedFullConfig, gameBridge);
+    return (saving = saving.then(save, save));
+}
+let saving = Promise.resolve();
+
+async function writeConfiguration(receivedFullConfig, gameBridge) {
     const cheatConfig = getCheatConfig();
     const startupCheats = getStartupCheats();
     const injectorConfig = getInjectorConfig();
@@ -234,13 +259,21 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
     customConfigBroken = false;
     log.info(`Configuration saved to ${savePath}`);
 
-    if (uiStartupCheats) {
+    // Only a list the save sent replaces it: without one, uiStartupCheats is this same array, which clearing would empty.
+    if (receivedFullConfig.startupCheats) {
         startupCheats.length = 0;
-        startupCheats.push(...uiStartupCheats);
+        startupCheats.push(...receivedFullConfig.startupCheats);
     }
     deepMerge(cheatConfig, parsedUiCheatConfig);
     if (filteredInjectorConfig) deepMerge(injectorConfig, filteredInjectorConfig);
-    return { brokenFileKeptAs };
+    if (!gameBridge || !receivedFullConfig.cheatConfig) return { brokenFileKeptAs };
+    // The file is written, so a game that can't be reached doesn't fail the save. A closed or reloading game
+    // throws instead of answering; like one that isn't attached, it gets the saved settings when injected again.
+    const game = await applyToGame(gameBridge, parsedUiCheatConfig).catch((error) => {
+        log.debug(`The game didn't take the saved settings: ${error.message}`);
+        return { gameApplied: false, contextLost: true };
+    });
+    return { brokenFileKeptAs, game };
 }
 
 /**

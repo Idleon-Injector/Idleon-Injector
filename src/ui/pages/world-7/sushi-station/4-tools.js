@@ -32,8 +32,13 @@ function SushiToolsTab() {
         pending.val = true;
         settingsLoaded.val = false;
         try {
-            const saved = remember(await fetchConfig());
-            for (const [key, value] of Object.entries(settings)) value.val = saved[key];
+            // A settings save running now holds the player's settings, and this read may come back from before it.
+            const keepSettings = settingsSaving();
+            const config = await fetchConfig();
+            if (!keepSettings && !settingsSaving()) {
+                const saved = remember(config);
+                for (const [key, value] of Object.entries(settings)) value.val = saved[key];
+            }
             state.val = await command("status");
             settingsLoaded.val = true;
             enabled.val = state.val.enabled;
@@ -76,8 +81,8 @@ function SushiToolsTab() {
     async function saveSettings(draft = readDraft()) {
         const { result, config } = await saveConfigPart(() => ({ cheatConfig: { w7: { sushitools: draft } } }));
         remember(config);
-        if (result.message.includes("failed to apply in game"))
-            throw new Error("saved, but not applied in game; reconnect");
+        if (result.message.includes("kept its old settings"))
+            throw new Error("saved, but the running game kept its old settings");
     }
     // The settings save on Enter, on leaving the section, or when a toggle changes.
     const settingsSave = useAutoSave({
@@ -92,6 +97,7 @@ function SushiToolsTab() {
             for (const [key, value] of Object.entries(settings)) value.val = saved[key];
         },
     });
+    const settingsSaving = () => settingsSave.isBusy() || settingsSave.status.val === "loading";
     async function command(action) {
         const response = await executeCheatAction("w7 sushitools" + (action ? " " + action : ""));
         return JSON.parse(response.message);

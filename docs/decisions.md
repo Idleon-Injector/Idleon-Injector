@@ -228,15 +228,15 @@ Why: game synchronization can fail after server state changes, so one module sho
 Alternative: keep mutation and game synchronization coordinated by the HTTP route.
 
 Trade-off: live configuration references stay shared, and server changes survive failed game synchronization.
-Saved configuration remains a separate disk operation.
+A save writes the file first; the game failing to take it doesn't undo the write.
 
 Source: [Configuration manager](../src/modules/config/configManager.js).
 
 ## The injector's configuration is the one the game gets
 
 Decision: after a cheat runs, and whenever the WebUI reads the configuration, copy the settings the game changed
-itself into the injector's configuration. A save merges what it is sent into that configuration, and every game
-load is injected from it. A broken `config.custom.js` is reported and kept as a copy when the next save replaces it.
+itself into the injector's configuration. A save merges what it is sent into that configuration and sends it to the
+game, and every game load is injected from it. A broken `config.custom.js` is reported and kept as a copy when the next save replaces it.
 
 Why: the game changes its own settings (`nomore` lists, `<cheat> <value>`), saves from different views sent
 different parts, and a reload got the startup settings, so the injector, the file and the game drifted apart.
@@ -251,7 +251,8 @@ Source: [Configuration manager](../src/modules/config/configManager.js).
 ## Pages save only their part of the configuration, file first, one at a time
 
 Decision: a page that keeps settings sends only the settings it changed, built from a read taken in its turn. It
-goes to `config.custom.js` first and then to the session and the game, and the page shows the read after it. The
+goes in one save, which writes `config.custom.js` first and then takes it into the session and the game, and the
+page shows the read after it. The
 menu's configuration reads and saves, the Config view's included, run one at a time in the order asked.
 
 Why: pages that saved the whole configuration put back what another page changed in between, and a page that

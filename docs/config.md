@@ -7,8 +7,9 @@ also writes the setting descriptions the Config editor shows. The first-run setu
 
 ## Applying and saving
 
-Apply cheat configuration to RAM when experimenting in the current session. Save to disk when you want
-the configuration available on later runs. Treat applying and saving as separate choices.
+Apply changes the cheat configuration for the current session only. Save writes `config.custom.js`, so later runs
+get it, and also sends the cheat settings to the running game. There is no way to save a setting for later runs
+without the current game getting it too.
 Restart after changing injector settings. Settings a cheat changes in the game, like a `nomore` list, show up in
 the Config view and are saved with the next save.
 

@@ -2,10 +2,6 @@
     width: 100%;
 }
 
-.bundles-search {
-    max-width: 480px;
-}
-
 .bundles-list {
     min-width: 0;
 }
@@ -97,4 +93,9 @@
     .bundle-row__controls {
         width: 100%;
     }
+}
+
+/* Why a row's last Buy or Unbuy failed. Empty, it takes no room. */
+.bundle-row__said.said--empty {
+    position: absolute;
 }

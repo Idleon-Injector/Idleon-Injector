@@ -1,4 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { NumberInput } from "../../../components/NumberInput.js";
@@ -9,7 +10,7 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { EditableFieldsRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { cleanName, writeManyVerified } from "../../../components/views/account/accountShared.js";
 
-const { div, span, input, label } = van.tags;
+const { div, span } = van.tags;
 
 const OBSERVATION_COUNT = 80;
 const OBSERVATION_FIELDS = [
@@ -68,11 +69,16 @@ const ObservationTile = ({ index, tileState }) => {
             insightExp: clampInt(rawValues.insightExp),
         }),
         write: async (nextValues) => {
-            await writeManyVerified([
-                { path: `Research[2][${index}]`, value: nextValues.unlocked },
-                { path: `Research[3][${index}]`, value: nextValues.insightExp },
-                { path: `Research[4][${index}]`, value: nextValues.insightLevel },
-            ]);
+            // Only what the player changed: the others hold the page's last read, which the game may have moved past.
+            await writeManyVerified(
+                [
+                    { key: "unlocked", path: `Research[2][${index}]` },
+                    { key: "insightExp", path: `Research[3][${index}]` },
+                    { key: "insightLevel", path: `Research[4][${index}]` },
+                ]
+                    .filter(({ key }) => nextValues[key] !== tileState[key].val)
+                    .map(({ key, path }) => ({ path, value: nextValues[key] }))
+            );
             return nextValues;
         },
         info: null,
@@ -81,31 +87,21 @@ const ObservationTile = ({ index, tileState }) => {
                 .filter(Boolean)
                 .join(" "),
         controlsClass: "observation-tile__body",
-        renderControls: ({ draftStates, resetDraft, setFieldFocused }) => [
+        renderControls: ({ draftStates, setFieldFocused }) => [
             div(
                 { class: "observation-tile__header" },
                 div(
                     { class: "observation-tile__title-group" },
                     span({ class: "observation-tile__name" }, () => tileState.name.val)
                 ),
-                span(
-                    {
-                        class: () =>
-                            `observation-tile__status ${
-                                tileState.unlocked.val === 1 ? "observation-tile__status--unlocked" : ""
-                            }`,
-                    },
-                    () => (tileState.unlocked.val === 1 ? "UNLOCKED" : "LOCKED")
-                ),
-                label(
-                    { class: "toggle-switch observation-tile__toggle", title: "Toggle unlock" },
-                    input({
-                        type: "checkbox",
-                        checked: () => Boolean(draftStates.unlocked.val),
-                        onchange: (e) => (draftStates.unlocked.val = e.target.checked),
-                    }),
-                    span({ class: "slider" })
-                )
+                StateSwitch({
+                    checked: () => Boolean(draftStates.unlocked.val),
+                    words: ["Unlocked", "Locked"],
+                    name: () => `${tileState.name.val} unlock`,
+                    className: "observation-tile__toggle",
+                    rowField: true, // a draft the tile saves with its other fields
+                    onFlip: (next) => (draftStates.unlocked.val = next),
+                })
             ),
             div(
                 { class: "observation-tile__stats" },
@@ -118,10 +114,7 @@ const ObservationTile = ({ index, tileState }) => {
                             mode: "int",
                             value: draftStates.insightLevel,
                             onfocus: () => setFieldFocused("insightLevel", true),
-                            onblur: () => {
-                                setFieldFocused("insightLevel", false);
-                                resetDraft("insightLevel");
-                            },
+                            onblur: () => setFieldFocused("insightLevel", false),
                             onDecrement: () =>
                                 (draftStates.insightLevel.val = String(
                                     Math.max(0, clampInt(draftStates.insightLevel.val) - 1)
@@ -141,10 +134,7 @@ const ObservationTile = ({ index, tileState }) => {
                             mode: "int",
                             value: draftStates.insightExp,
                             onfocus: () => setFieldFocused("insightExp", true),
-                            onblur: () => {
-                                setFieldFocused("insightExp", false);
-                                resetDraft("insightExp");
-                            },
+                            onblur: () => setFieldFocused("insightExp", false),
                             onDecrement: () =>
                                 (draftStates.insightExp.val = String(
                                     Math.max(0, clampInt(draftStates.insightExp.val) - 1)

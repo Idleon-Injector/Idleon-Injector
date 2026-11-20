@@ -6,7 +6,8 @@ import { useWriteStatus } from "../accountShared.js";
 const { div, span } = van.tags;
 
 /**
- * Shared removable stored-item row used by collection-style account tabs.
+ * Shared removable stored-item row used by collection-style account tabs. Remove takes the item off the list, so it
+ * asks "Click again" first.
  */
 export const RemovableStoredRow = ({
     index,
@@ -43,6 +44,7 @@ export const RemovableStoredRow = ({
             status,
             variant: "danger",
             disabled: () => isBusy(),
+            confirm: `remove ${primaryLabel || fallbackLabel}.`,
             onClick: removeRow,
         }),
     });

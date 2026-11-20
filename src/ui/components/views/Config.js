@@ -13,9 +13,24 @@ import { Icons } from "../../assets/icons.js";
 import { withTooltip } from "../Tooltip.js";
 import { Said, replay, useSaid } from "../inPlace.js";
 
-const { div, button, select, option, label, span } = van.tags;
+const { div, button, h3, p, select, option, label, span } = van.tags;
 
 const toPlain = (value) => JSON.parse(JSON.stringify(value));
+
+/** The page top (#26) of a settings tab: its title and description, then its search and filters. */
+const SettingsTop = ({ title, description, toolbar = null }) =>
+    div(
+        { class: "account-page-top config-page-top" },
+        div(
+            { class: "account-header account-tab-header" },
+            div(
+                { class: "account-tab-header__main" },
+                h3({ class: "account-tab-header__title" }, title),
+                p({ class: "account-tab-header__desc" }, description)
+            )
+        ),
+        toolbar ? div({ class: "account-page-toolbar" }, toolbar) : null
+    );
 
 export const Config = () => {
     const activeSubTab = van.state("cheatconfig");
@@ -269,61 +284,63 @@ export const Config = () => {
                     class: () => `config-sub-tab-pane ${activeSubTab.val === "cheatconfig" ? "active" : ""}`,
                 },
 
-                div(
-                    { class: "panel-section mb-20" },
+                SettingsTop({
+                    title: "CHEAT CONFIG",
+                    description:
+                        "Each cheat's own settings. Apply uses them for this session only; Save settings keeps them in your config file and sends them to the running game.",
+                    toolbar:
+                        // Switch between forced path indicator and normal filters
+                        () => {
+                            const forcedPath = store.app.configForcedPath;
+                            if (forcedPath && forcedPath.length > 0) {
+                                return div(
+                                    { class: "forced-path-indicator" },
+                                    span(
+                                        { class: "forced-path-text" },
+                                        `SHOWING: ${[...forcedPath].join(" ").toUpperCase()}`
+                                    ),
+                                    button(
+                                        {
+                                            type: "button",
+                                            class: "btn-quiet btn-icon btn-sm forced-path-clear",
+                                            onclick: handleClearForcedPath,
+                                            title: "Clear filter and show all",
+                                            "aria-label": "Clear filter and show all",
+                                        },
+                                        Icons.Close()
+                                    )
+                                );
+                            }
 
-                    // Switch between forced path indicator and normal filters
-                    () => {
-                        const forcedPath = store.app.configForcedPath;
-                        if (forcedPath && forcedPath.length > 0) {
                             return div(
-                                { class: "forced-path-indicator" },
-                                span(
-                                    { class: "forced-path-text" },
-                                    `SHOWING: ${[...forcedPath].join(" ").toUpperCase()}`
+                                { class: "config-filter-contents" },
+                                div(
+                                    { class: "config-filter-group" },
+                                    label({ class: "config-filter-label" }, "CATEGORY FILTER"),
+
+                                    select(
+                                        {
+                                            value: categoryFilter,
+                                            onchange: handleCategoryChange,
+                                        },
+                                        option({ value: "all" }, "ALL SECTORS"),
+                                        Object.keys(config.cheatConfig || {})
+                                            .sort()
+                                            .map((k) => option({ value: k }, k.toUpperCase()))
+                                    )
                                 ),
-                                button(
-                                    {
-                                        type: "button",
-                                        class: "btn-quiet btn-icon btn-sm forced-path-clear",
-                                        onclick: handleClearForcedPath,
-                                        title: "Clear filter and show all",
-                                        "aria-label": "Clear filter and show all",
-                                    },
-                                    Icons.Close()
+                                div(
+                                    { class: "config-filter-search" },
+                                    SearchBar({
+                                        placeholder: "SEARCH_CONFIG",
+                                        onInput: handleSearchInput,
+                                        debounceMs: 0,
+                                        value: configSearchTerm,
+                                    })
                                 )
                             );
-                        }
-
-                        return div(
-                            { class: "config-filter-contents" },
-                            div(
-                                { class: "config-filter-group" },
-                                label({ class: "config-filter-label" }, "CATEGORY FILTER"),
-
-                                select(
-                                    {
-                                        value: categoryFilter,
-                                        onchange: handleCategoryChange,
-                                    },
-                                    option({ value: "all" }, "ALL SECTORS"),
-                                    Object.keys(config.cheatConfig || {})
-                                        .sort()
-                                        .map((k) => option({ value: k }, k.toUpperCase()))
-                                )
-                            ),
-                            div(
-                                { class: "config-filter-search" },
-                                SearchBar({
-                                    placeholder: "SEARCH_CONFIG",
-                                    onInput: handleSearchInput,
-                                    debounceMs: 0,
-                                    value: configSearchTerm,
-                                })
-                            )
-                        );
-                    }
-                ),
+                        },
+                }),
                 cheatConfigNode
             ),
 
@@ -332,6 +349,10 @@ export const Config = () => {
                     class: () => `config-sub-tab-pane ${activeSubTab.val === "startupcheats" ? "active" : ""}`,
                 },
 
+                SettingsTop({
+                    title: "STARTUP CHEATS",
+                    description: "Cheats that run by themselves each time the injector attaches to the game.",
+                }),
                 startupCheatsResult.element
             ),
 
@@ -340,6 +361,10 @@ export const Config = () => {
                     class: () => `config-sub-tab-pane ${activeSubTab.val === "injectorconfig" ? "active" : ""}`,
                 },
 
+                SettingsTop({
+                    title: "INJECTOR",
+                    description: "How the injector itself runs: where it attaches, its ports, logging and the web UI.",
+                }),
                 div({ class: "warning-banner mb-20" }, Icons.Warning(), " RESTART REQUIRED FOR CHANGES TO APPLY"),
                 injectorConfigNode
             )
@@ -410,7 +435,7 @@ export const Config = () => {
                     { id: "save-config-button", type: "button", class: "btn-main", onclick: (e) => save(true, e) },
                     "Save settings"
                 ),
-                "Save permanently to config file"
+                "Save to config file and send to the running game"
             )
         )
     );

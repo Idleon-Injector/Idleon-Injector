@@ -54,7 +54,6 @@ const buildPurpleEntries = (rawNames, rawCoefficients, rawRequirements, rawLevel
             path: `${PURPLE_PATH}[${index}]`,
             value: toInt(levels[index], { min: 0 }),
             formatted: false,
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
         };
     });
 };
@@ -100,7 +99,6 @@ const MasteryRankRow = ({ rankState, refreshPointsAfterWrite }) =>
         },
         indexLabel: "#0",
         name: "Mastery Rank",
-        renderBadge: (currentValue) => `RANK ${currentValue ?? 1}`,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
     });
@@ -161,15 +159,20 @@ const MasteryTab = () => {
     const reconcilePurpleRows = createStaticRowReconciler(purpleNode);
     const reconcileMealRows = createStaticRowReconciler(mealNode);
 
+    let pointsRead = 0;
     const refreshPoints = async () => {
+        const read = ++pointsRead;
         const [purple, yellow] = await Promise.all([
             readComputed("cookingMastery", "PtsLeftCook_P"),
             readComputed("cookingMastery", "PtsLeftCook_Y"),
         ]);
+        // An older read answering last would show the points from before the newer save.
+        if (read !== pointsRead) return;
         purplePointsState.val = toInt(purple, { min: 0 });
         yellowPointsState.val = toInt(yellow, { min: 0 });
     };
-    const refreshPointsAfterWrite = refreshPoints;
+    // The save already landed; a failed points read keeps the old points until the next save or Refresh.
+    const refreshPointsAfterWrite = () => refreshPoints().catch(() => {});
 
     const expRequirement = () => {
         const storedRank = Math.max(0, toInt(rankState.val, { min: 1 }) - 1);

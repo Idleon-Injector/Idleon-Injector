@@ -13,6 +13,8 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -46,22 +48,27 @@ const SaltLickRow = ({ index, name, maxLevel, levelState }) =>
     });
 
 const SaltLickTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Salt Lick" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
+    const { loading, error, run } = useAccountLoad({ label: "Salt Lick", busy: () => bulkStatus.val === "loading" });
     const getLevelState = createIndexedStateGetter();
     const rowList = div({ class: "account-list" });
     let upgradesMeta = [];
     const reconcileRows = createStaticRowReconciler(rowList);
+    // After a read that failed, the levels shown may be old: the bulk actions wait for one that works.
+    const readPending = () => loading.val || Boolean(error.val);
 
     const doSetAll = async (targetLevel) => {
         if (!upgradesMeta.length) return;
         const result = await runBulk(async () => {
+            const fresh = toIndexedArray(await gga("SaltLick"));
             await runBulkSet({
                 entries: upgradesMeta,
                 getTargetValue: (upgrade) =>
                     toLevelInt(targetLevel === null ? upgrade.maxLevel : targetLevel, upgrade.maxLevel),
                 getValueState: (_, index) => getLevelState(index),
                 getPath: (_, index) => `SaltLick[${index}]`,
+                // Planned from the game, not the fields: a level bought there since the page read it is reset too.
+                shouldWrite: ({ index, targetValue }) => Number(fresh[index] ?? 0) !== targetValue,
             });
         });
         // Some of it may have landed: the rows show what the game holds. The bulk buttons wait for that read, so an
@@ -116,7 +123,7 @@ const SaltLickTab = () => {
                 {
                     label: "Max all",
                     status: bulkStatus,
-                    disabled: () => loading.val,
+                    disabled: readPending,
                     tooltip: "Set every Salt Lick upgrade to its max level",
                     onClick: () => doSetAll(null),
                 },
@@ -124,7 +131,7 @@ const SaltLickTab = () => {
                     label: "Reset all",
                     variant: "danger",
                     status: bulkStatus,
-                    disabled: () => loading.val,
+                    disabled: readPending,
                     tooltip: "Reset every Salt Lick upgrade to 0",
                     confirm: "reset every Salt Lick upgrade to 0.",
                     onClick: () => doSetAll(0),

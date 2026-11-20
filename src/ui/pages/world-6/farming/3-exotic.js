@@ -147,7 +147,6 @@ const buildExoticEntries = (rawDefinitions, rawLevels) => {
             rawName: String(definition[0] ?? `NAME_MAGNI_${index}`).trim(),
             name: cleanName(definition[0], `NAME MAGNI ${index + 1}`),
             level: toInt(levels[pathIndex], { min: 0 }),
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
             formatted: false,
         };
     });

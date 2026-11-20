@@ -23,6 +23,14 @@ const elements = (node, out = []) => {
 };
 const buttonsNamed = (root, label) =>
     elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === label);
+// The value in the field of the row named `name`: the innermost element that starts with the name and holds a field.
+const fieldValue = (root, name) => {
+    const isField = (node) => node.nodeName === "input";
+    const row = elements(root)
+        .filter((node) => text(node).startsWith(name) && elements(node).some(isField))
+        .at(-1);
+    return String(elements(row).find(isField)?.value ?? "");
+};
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 const writes = () => requests.filter((entry) => /write/.test(entry)).length;
 
@@ -45,14 +53,38 @@ const holdNext = (matches) => {
     held = { matches, gate, reached: false, release };
     return held;
 };
+// holdAnswers(matches): every request `matches` picks is sent at once, but its answer waits until `release()`; `count`
+// says how many were sent. So a read held this way reads the game as it was when it was sent.
+let answersHeld = null;
+const holdAnswers = (matches) => {
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    answersHeld = { matches, gate, count: 0 };
+    const hold = answersHeld;
+    return {
+        count: () => hold.count,
+        release: () => {
+            if (answersHeld === hold) answersHeld = null;
+            release();
+        },
+    };
+};
 const send = globalThis.fetch;
 globalThis.fetch = async (url, options = {}) => {
+    const body = options.body ? JSON.parse(options.body) : {};
     const hold = held;
-    if (hold?.matches(url, options.body ? JSON.parse(options.body) : {})) {
+    if (hold?.matches(url, body)) {
         held = null;
         hold.reached = true;
         const answer = await hold.gate;
         if (answer) return answer;
+    }
+    const answers = answersHeld;
+    if (answers?.matches(url, body)) {
+        answers.count++;
+        const response = await send(url, options);
+        await answers.gate;
+        return response;
     }
     return send(url, options);
 };
@@ -121,6 +153,7 @@ const removals = [
     ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear all"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear Pets+"],
+    ["src/ui/pages/account/event-shop/event-shop.js", "Disable all"],
 ];
 
 for (const [file, label, open] of removals) {
@@ -234,6 +267,7 @@ for (const [file, label] of [
     ["src/ui/pages/world-1/bribes/bribes.js", "Enable all"],
     ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Enable all"],
     ["src/ui/pages/world-3/prayers/prayers.js", "Unlock all"],
+    ["src/ui/pages/account/event-shop/event-shop.js", "Enable all"],
 ]) {
     test(`${file.split("/").pop()}: ${label} adds on one click`, async () => {
         const button = await openPage(file, label);
@@ -355,6 +389,7 @@ test("salt-lick.js: a Max all the game refused in part shows the levels the game
         await click(max());
         await until(() => levels[0] === caps[0], "the first level to land");
         await until(() => badge(0).includes(`LV ${caps[0]} `), "the row to show what the game holds");
+        assert.ok(badge(1).includes(`LV ${kept} `), "the refused level still shows what the game kept");
     } finally {
         Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
         levels[0] = 0;
@@ -432,19 +467,12 @@ test("islands: a Set all the game refused in part shows the values the game hold
     Object.defineProperty(options, 164, { get: () => 5, set() {}, configurable: true });
     try {
         const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
-        const isBadge = (node) => /account-row__badge/.test(node.attributes.class ?? "");
-        // The value on the row named `name`: the innermost element that starts with the name and holds a badge.
-        const badge = (name) => {
-            const row = elements(root)
-                .filter((node) => text(node).startsWith(name) && elements(node).some(isBadge))
-                .at(-1);
-            return row ? text(elements(row).find(isBadge)) : "";
-        };
         const setAll = () => buttonsNamed(root, "Set all").filter((node) => !node.attributes.disabled);
-        await until(() => setAll().length === 3 && badge("% Garbage") === "3", "Islands");
+        await until(() => setAll().length === 3 && fieldValue(root, "% Garbage") === "3", "Islands");
         await click(setAll()[0]);
         await until(() => options[163] === 200, "the first value to land");
-        await until(() => badge("% Garbage") === "200", "the row to show what the game holds");
+        await until(() => fieldValue(root, "% Garbage") === "200", "the row to show what the game holds");
+        assert.equal(fieldValue(root, "% Bottles"), "5", "the refused row still shows what the game kept");
     } finally {
         Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
         options[163] = 0;
@@ -474,5 +502,209 @@ test("islands: the bulk actions wait while the page shows a failed read", async 
         );
     } finally {
         held = null;
+    }
+});
+
+// CodeRabbit on #110: a read after a refused Max all that fails too leaves Max all and Reset all waiting for a read
+// that works.
+test("salt-lick.js: Max all and Reset all wait while the read after a refused Max all failed", async () => {
+    const levels = game.gga.SaltLick;
+    const caps = [0, 1].map((index) => Number(game.gga.CustomLists.h.SaltLicks[index][4]));
+    levels[0] = caps[0] + 5;
+    const kept = caps[1] + 5;
+    Object.defineProperty(levels, 1, { get: () => kept, set() {}, configurable: true });
+    try {
+        const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
+        const named = (label) => buttonsNamed(root, label);
+        const bulk = () => [...named("Max all"), ...named("Reset all")];
+        await until(
+            () => bulk().every((node) => !node.attributes.disabled) && text(root).includes(`LV ${caps[0] + 5}`),
+            "Salt Lick"
+        );
+        // Max all reads the levels first to plan its writes; the read after its refusal is the second one.
+        let reads = 0;
+        const reread = holdNext(
+            (url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick" && ++reads === 2
+        );
+        const pressed = click(named("Max all")[0]);
+        await until(() => reread.reached, "the read after the refused Max all");
+        reread.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));
+        await pressed;
+        await until(() => /SALT LICK READ FAILED/.test(text(root)), "the failed read to be said");
+        await until(
+            () => bulk().every((node) => node.attributes.disabled),
+            "the bulk actions to wait after the failed read"
+        );
+        await named("Refresh")[0].listeners.click({});
+        await until(
+            () => bulk().every((node) => !node.attributes.disabled),
+            "the bulk actions after a read that worked"
+        );
+    } finally {
+        held = null;
+        Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
+        levels[0] = 0;
+    }
+});
+
+// CodeRabbit on #110: the read after a refused Set all waits for another Set all still running, so it can't read that
+// one's old values and show them after it landed.
+test("islands: the read after a refused Set all waits for another Set all still running", async () => {
+    const options = game.gga.OptionsListAccount;
+    options[163] = 3;
+    options[166] = 4;
+    Object.defineProperty(options, 164, { get: () => 5, set() {}, configurable: true });
+    try {
+        const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+        const setAll = () => buttonsNamed(root, "Set all");
+        await until(() => setAll().length === 3 && setAll().every((node) => !node.attributes.disabled), "Islands");
+        const slow = holdNext(
+            (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
+        );
+        const rando = click(setAll()[1]);
+        await until(() => slow.reached, "Rando's Set all to be sent");
+        const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
+        await click(setAll()[0]);
+        assert.equal(options[163], 200, "Garbage's first value landed");
+        // Until that read ends, the rows may show old values: the bulk actions wait for it too.
+        const bulk = () => [...buttonsNamed(root, "Unlock all"), ...buttonsNamed(root, "Lock all"), ...setAll()];
+        await until(() => bulk().every((node) => node.attributes.disabled), "the bulk actions to wait for the read");
+        slow.release();
+        await rando;
+        await until(() => reads.count() > 0, "the read after the refused Set all");
+        reads.release();
+        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions after the read");
+        assert.equal(fieldValue(root, "% Loot"), "200", "Rando's Set all stays shown");
+    } finally {
+        held = null;
+        answersHeld = null;
+        Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
+        options[163] = 0;
+        options[166] = 0;
+        options[167] = 0;
+    }
+});
+
+// CodeRabbit on #110: a reload an undo asks for while a Set all runs waits for it, so it can't read the old values and
+// show them after the Set all landed.
+test("islands: a reload after an undo waits for a Set all still running", async () => {
+    const options = game.gga.OptionsListAccount;
+    options[166] = 4;
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+    const named = (label) => buttonsNamed(root, label);
+    await until(() => named("Unlock all").length && !named("Unlock all")[0].attributes.disabled, "Islands");
+    const unlocks = options[169];
+    try {
+        await click(named("Unlock all")[0]);
+        await until(() => options[169] === "abcde_", "the unlocks to land");
+        const [action] = (await fetchChanges()).actions;
+        const slow = holdNext(
+            (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
+        );
+        const rando = click(named("Set all")[1]);
+        await until(() => slow.reached, "Rando's Set all to be sent");
+        const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
+        await undoAction(action.id);
+        slow.release();
+        await rando;
+        await until(() => reads.count() > 0, "the reload after the undo");
+        reads.release();
+        await until(() => !named("Refresh")[0].attributes.disabled, "the reload to end");
+        assert.equal(fieldValue(root, "% Loot"), "200", "Rando's Set all stays shown");
+    } finally {
+        held = null;
+        answersHeld = null;
+        options[169] = unlocks;
+        options[166] = 0;
+        options[167] = 0;
+    }
+});
+
+// CodeRabbit on #110: an undo of this page that waits for a Set all stays queued when another page's undo comes in
+// meanwhile, so the bulk actions come back once its read ran.
+test("islands: a reload waiting for a Set all still runs after another page's undo", async () => {
+    const options = game.gga.OptionsListAccount;
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+    const named = (label) => buttonsNamed(root, label);
+    const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
+    await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
+    const unlocks = options[169];
+    // Every island locked first, so the undo's read shows in the rows.
+    options[169] = "";
+    await buttonsNamed(root, "Refresh")[0].listeners.click({});
+    await until(() => !/Unlocked/.test(text(root)) && bulk().every((node) => !node.attributes.disabled), "locked");
+    try {
+        await click(named("Unlock all")[0]);
+        await until(() => options[169] === "abcde_", "the unlocks to land");
+        const [action] = (await fetchChanges()).actions;
+        const slow = holdNext(
+            (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
+        );
+        const rando = click(named("Set all")[1]);
+        await until(() => slow.reached, "Rando's Set all to be sent");
+        await undoAction(action.id);
+        reloadPlace.val = { view: "elsewhere", page: "another page" };
+        assert.match(text(root), /Unlocked/, "the rows show the unlocks until the reload");
+        slow.release();
+        await rando;
+        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions once the reload ran");
+        assert.equal(options[169], "", "the undo landed");
+        assert.doesNotMatch(text(root), /Unlocked/, "the reload shows what the undo put back");
+    } finally {
+        held = null;
+        options[169] = unlocks;
+        options[166] = 0;
+        options[167] = 0;
+    }
+});
+
+// CodeRabbit on #110: an undo waiting for a Max all the game then refused in part, and the read after that refusal, run
+// one after the other, so the newer read answers last.
+test("salt-lick.js: the reload after an undo and the read after a refused Max all run one after the other", async () => {
+    const levels = game.gga.SaltLick;
+    const caps = [0, 1].map((index) => Number(game.gga.CustomLists.h.SaltLicks[index][4]));
+    levels[0] = caps[0] + 5;
+    const kept = caps[1] + 5;
+    Object.defineProperty(levels, 1, { get: () => kept, set() {}, configurable: true });
+    const { fetchChanges, fetchConfig } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const options = game.gga.OptionsListAccount;
+    try {
+        const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
+        const max = () => buttonsNamed(root, "Max all").find((node) => !node.attributes.disabled);
+        await until(() => max() && text(root).includes(`LV ${caps[0] + 5}`), "Salt Lick");
+        // A change to undo, made on this page.
+        await withAction({ label: "level" }, () => writeManyVerified([{ path: "OptionsListAccount[399]", value: 1 }]));
+        const [action] = (await fetchChanges()).actions;
+        const write = holdNext((url) => url.endsWith("/game/gga/write-many"));
+        const pressed = click(max());
+        await until(() => write.reached, "the Max all write to be sent");
+        await undoAction(action.id);
+        const reads = holdAnswers((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        write.release();
+        await until(() => reads.count() > 0, "a read after the refused Max all");
+        // A read that didn't wait for the first would be sent within a config read or two.
+        await fetchConfig();
+        await fetchConfig();
+        assert.equal(reads.count(), 1, "the second read waits for the first");
+        const second = holdAnswers((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        reads.release();
+        await until(() => second.count() === 1, "the second read, once the first answered");
+        second.release();
+        await pressed;
+        await until(() => max(), "the reads to end");
+    } finally {
+        held = null;
+        answersHeld = null;
+        Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
+        levels[0] = 0;
+        options[399] = 0;
     }
 });

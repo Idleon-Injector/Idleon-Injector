@@ -194,7 +194,6 @@ const GeneralTab = () => {
                         name: "Highest Pet Arena Round",
                         path: ARENA_ROUND_PATH,
                         formatted: false,
-                        badge: (currentValue) => `ROUND ${currentValue ?? 0}`,
                     },
                     valueState: arenaRoundState,
                 }),
@@ -204,7 +203,6 @@ const GeneralTab = () => {
                         name: "Highest Pet Arena Crucible Round",
                         path: ARENA_CRUCIBLE_ROUND_PATH,
                         formatted: false,
-                        badge: (currentValue) => `ROUND ${currentValue ?? 0}`,
                     },
                     valueState: arenaCrucibleRoundState,
                 })

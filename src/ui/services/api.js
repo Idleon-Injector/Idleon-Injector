@@ -118,16 +118,15 @@ export const inConfigTurn = (task) => {
 /**
  * Save the part of the config a page changed, in its turn. `change(config)` gets the config as it is now and returns
  * only what changes, like `{ cheatConfig: { w7: { sushitools } }, startupCheats }`: the server merges objects into the
- * rest key by key and takes a list (startupCheats, the Wardrobe's loadouts) whole. The part goes to config.custom.js
- * first, which takes it into the session only once the file is written, so a save that fails changed nothing and
- * trying again saves it once; then to the session again, which sends it to the game.
- * Resolves with the session's answer and the config read after it.
+ * rest key by key and takes a list (startupCheats, the Wardrobe's loadouts) whole. The server writes config.custom.js
+ * first and only then takes the part into the session and sends it to the game, so a save that fails changed nothing
+ * and trying again saves it once.
+ * Resolves with the save's answer (its message says when the running game kept its old settings) and the config read
+ * after it.
  */
 export const saveConfigPart = (change) =>
     inConfigTurn(async () => {
-        const part = change(await fetchConfig());
-        await saveConfigFile(part);
-        const result = await updateSessionConfig(part);
+        const result = await saveConfigFile(change(await fetchConfig()));
         return { result, config: await fetchConfig() };
     });
 
@@ -276,7 +275,7 @@ export const matchesVerifiedValue = (expected, actual) => {
  * Read mode:
  *   gga(path) -> returns the raw resolved value
  * Write mode:
- *   gga(path, value) -> returns true/false
+ *   gga(path, value) -> true, or false when the game kept another value; rejects when the write failed
  *
  * Verification is semantic/coercive by design for account-page workflows:
  * - numbers can match numeric strings (e.g. 1 === "1")
@@ -300,27 +299,18 @@ export async function gga(path, value) {
         return data.value;
     }
 
-    try {
-        // The game reads the value back in the same call as the write, before a game tick can change it (#78).
-        const { value: verifiedValue } = await _request("/game/gga/write", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path: ggaPath, value }),
-        });
-        const matches = matchesVerifiedValue(value, verifiedValue);
-
-        if (!matches) {
-            console.error(
-                `[gga] Write mismatch at ${path}: expected ${JSON.stringify(value)}, got ${JSON.stringify(verifiedValue)}`
-            );
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error(`[gga] Write failed at ${path}:`, error);
-        return false;
-    }
+    // The game reads the value back in the same call as the write, before a game tick can change it (#78).
+    // A write that didn't reach the game rejects with why; false is only the game keeping another value.
+    const { value: verifiedValue } = await _request("/game/gga/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: ggaPath, value }),
+    });
+    if (matchesVerifiedValue(value, verifiedValue)) return true;
+    console.error(
+        `[gga] Write mismatch at ${path}: expected ${JSON.stringify(value)}, got ${JSON.stringify(verifiedValue)}`
+    );
+    return false;
 }
 
 /** Delete a cached or derived GGA property by dot/bracket path. */
@@ -338,11 +328,13 @@ export async function deleteGga(path) {
 /**
  * Write many GGA paths in one backend/CDP round-trip and verify each against the value the game
  * read back in that same call, with the same typed comparison as single writes.
+ * With `character`, the game writes nothing unless that character is in play, and the request rejects saying who is.
  *
  * @param {Array<{ path: string, value: any }>} writes
+ * @param {{ character?: string }} [options]
  * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, actual?: any, error?: string }> }>}
  */
-export async function ggaMany(writes) {
+export async function ggaMany(writes, { character } = {}) {
     const normalizedWrites = Array.isArray(writes)
         ? writes.map((entry) => {
               const rawPath = typeof entry?.path === "string" ? entry.path : "";
@@ -357,7 +349,7 @@ export async function ggaMany(writes) {
     const writeResult = await _request("/game/gga/write-many", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ writes: normalizedWrites }),
+        body: JSON.stringify({ writes: normalizedWrites, character }),
     });
 
     const writeByPath = new Map(

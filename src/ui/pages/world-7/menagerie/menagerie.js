@@ -4,6 +4,8 @@ import { gga, readCList, readComputed, readComputedMany } from "../../../service
 import { toIndexedArray } from "../../../utils/index.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -16,13 +18,14 @@ import {
     getOrCreateState,
     largeFormatter,
     largeParser,
+    oneAtATime,
     useWriteStatus,
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { renderTabNav } from "../../../components/views/account/tabShared.js";
 
-const { div, span, label, input } = van.tags;
+const { div, span } = van.tags;
 const PANES = [
     { id: "overview", label: "OVERVIEW" },
     { id: "unlocks", label: "UNLOCKS" },
@@ -58,7 +61,11 @@ const MenagerieTab = () => {
     const lists = Object.fromEntries(PANES.map(({ id }) => [id, div({ class: "account-item-stack" })]));
     const reconcilers = Object.fromEntries(PANES.map(({ id }) => [id, createStaticRowReconciler(lists[id])]));
     const state = (path) => getOrCreateState(states, path);
-    const disabled = () => loading.val || saving.val;
+    // Fields and switches stay usable while a save runs (and while it reads the game again after); only a load of the
+    // page itself, or a failed one, holds them.
+    const disabled = () => loading.val && !saving.val;
+    // A write asked for while another runs waits its turn, then reads the game again.
+    const inTurn = oneAtATime();
     let unlockCount = 0;
 
     const load = async () =>
@@ -189,16 +196,16 @@ const MenagerieTab = () => {
             ]);
         });
 
-    const save = async (task) => {
-        if (disabled()) throw new Error("Another Menagerie operation is in progress.");
-        saving.val = true;
-        try {
-            return await task();
-        } finally {
-            await load();
-            saving.val = false;
-        }
-    };
+    const save = (task) =>
+        inTurn(async () => {
+            saving.val = true;
+            try {
+                return await task();
+            } finally {
+                await load();
+                saving.val = false;
+            }
+        });
 
     const numberRow = (name, path, integer = true, note = null, formatted = false) =>
         EditableNumberRow({
@@ -211,7 +218,6 @@ const MenagerieTab = () => {
                     span({ class: "account-row__name" }, name),
                     note ? span({ class: "account-row__sub-label" }, note) : null
                 ),
-            renderBadge: formatNumber,
             adjustInput: (raw, delta, current) => {
                 const value = numericInput(raw, integer) ?? current;
                 return Math.max(0, value + delta * (formatted ? formattedStep(value) : 1));
@@ -226,46 +232,29 @@ const MenagerieTab = () => {
             },
         });
 
+    // Saves on flip, then reads the game again; a failed save says why on the switch.
     const toggleRow = (name, path, note) => {
         const { status, run: write } = useWriteStatus();
-        const message = van.state("");
-        return div(
-            { class: "account-row" },
-            div(
-                { class: "account-row__info" },
-                div(
-                    { class: "account-row__name-group" },
-                    span({ class: "account-row__name" }, name),
-                    span({ class: "account-row__sub-label" }, note),
-                    span({ class: "account-write-feedback", role: "status" }, () => message.val)
-                )
+        return AccountRow({
+            status,
+            info: div(
+                { class: "account-row__name-group" },
+                span({ class: "account-row__name" }, name),
+                span({ class: "account-row__sub-label" }, note)
             ),
-            span({ class: "account-row__badge" }, () => (state(path).val >= 1 ? "ON" : "OFF")),
-            label(
-                { class: "toggle-switch" },
-                input({
-                    type: "checkbox",
-                    role: "switch",
-                    "aria-label": name,
-                    checked: () => state(path).val >= 1,
-                    disabled: () => disabled() || status.val === "loading",
-                    onchange: (event) => {
-                        const next = event.target.checked ? 1 : 0;
-                        event.target.checked = state(path).val >= 1;
-                        message.val = "Saving…";
-                        void write(() => save(() => writeVerified(path, next)), {
-                            onSuccess: () => {
-                                message.val = "Saved";
-                            },
-                            onError: (error) => {
-                                message.val = error.message;
-                            },
-                        });
-                    },
-                }),
-                span({ class: "slider" })
-            )
-        );
+            controls: StateSwitch({
+                checked: () => state(path).val >= 1,
+                words: ["On", "Off"],
+                name,
+                disabled,
+                status, // nothing else on the row reads out saving and saved
+                onFlip: (on) => {
+                    // "All 25 unlocks saved." no longer holds once one changes.
+                    bulkMessage.val = "";
+                    return write(() => save(() => writeVerified(path, on ? 1 : 0)));
+                },
+            }),
+        });
     };
 
     const missionRow = (text, index) =>
@@ -290,7 +279,6 @@ const MenagerieTab = () => {
                     )
                 ),
             ],
-            renderBadge: (value) => `${value} COMPLETIONS`,
             adjustInput: (raw, delta, current) => Math.max(0, (numericInput(raw, true) ?? current) + delta),
             disabled,
             rowClass: "account-row--wide-controls",
@@ -300,6 +288,7 @@ const MenagerieTab = () => {
 
     const bulk = useWriteStatus();
     const bulkMessage = van.state("");
+    const ALL_SAVED = "All 25 unlocks saved.";
     const unlockAll = ActionButton({
         label: () => (bulk.status.val === "loading" ? "Unlocking…" : "Unlock all"),
         status: bulk.status,
@@ -318,7 +307,7 @@ const MenagerieTab = () => {
                     ),
                 {
                     onSuccess: () => {
-                        bulkMessage.val = "All 25 unlocks saved.";
+                        bulkMessage.val = ALL_SAVED;
                     },
                     onError: (error) => {
                         bulkMessage.val = error.message;
@@ -346,7 +335,16 @@ const MenagerieTab = () => {
                         id === "unlocks"
                             ? [
                                   unlockAll,
-                                  span({ class: "account-write-feedback", role: "status" }, () => bulkMessage.val),
+                                  // Said only while it holds: a flip or an undo since takes it back.
+                                  span({ class: "account-write-feedback", role: "status" }, () =>
+                                      bulkMessage.val === ALL_SAVED &&
+                                      Array.from(
+                                          { length: unlockCount },
+                                          (_, i) => state(`Menagerie[2][${i}]`).val
+                                      ).some((value) => !(value >= 1))
+                                          ? ""
+                                          : bulkMessage.val
+                                  ),
                               ]
                             : null,
                     body: lists[id],
@@ -358,7 +356,7 @@ const MenagerieTab = () => {
     return PersistentAccountListPage({
         title: "LUMINOUS MENAGERIE",
         description: "Edit progression directly. Normal caps and unlock requirements do not restrict these editors.",
-        actions: RefreshButton({ onRefresh: load, disabled }),
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
         subNav: renderTabNav({
             tabs: PANES,
             activeId: activePane,

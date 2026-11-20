@@ -1,11 +1,12 @@
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
 import { Icons } from "../../assets/icons.js";
-import { NumberInput } from "../NumberInput.js";
+import { NumberInput, setNumberInputValue } from "../NumberInput.js";
 import { FunctionInput } from "../FunctionInput.js";
 import { withTooltip } from "../Tooltip.js";
 import { isFunction } from "../../utils/functionParser.js";
 import { configDescriptions } from "../../config/configDescriptions.js";
+import { StateSwitch } from "../views/account/components/StateSwitch.js";
 
 const { div, label, input, details, summary, span, button } = van.tags;
 
@@ -178,8 +179,10 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
         const targetType = isFn ? "function" : isArray ? "array" : typeof (initialValue ?? defaultVal);
 
         if (targetType === "number") {
-            val = parseFloat(rawVal);
-            if (isNaN(val)) val = rawVal; // Keep raw if invalid number
+            // Number("") is 0, and a cap of 0 (or of text) zeroes the resource it caps: only a number is kept.
+            // Infinity (1e400) is refused too: Apply sends it as null, which the game also reads as 0.
+            val = String(rawVal).trim() === "" ? NaN : Number(rawVal);
+            if (!Number.isFinite(val)) return false;
         } else if (targetType === "boolean") {
             val = Boolean(rawVal);
         } else if (targetType === "array") {
@@ -193,12 +196,19 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
         data[key] = val;
     };
 
+    // Each keystroke that reads as a number is kept (Backspace on 10000000 passes 1000, ..., 1), so a field left
+    // with text that isn't a number goes back to the setting it held when focused, or that −/+ last set.
+    let heldOnFocus;
     const handleFocus = () => {
         isFocused.val = true;
+        heldOnFocus = data[key];
     };
     const handleBlur = (e) => {
         isFocused.val = false;
-        commitValue(e.target.value);
+        if (commitValue(e.target.value) === false) {
+            data[key] = heldOnFocus;
+            setNumberInputValue(localTextState, getStringValue(heldOnFocus));
+        }
     };
     const handleInput = (e) => {
         localTextState.val = e.target.value;
@@ -209,7 +219,7 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
 
     const handleNumberDelta = (delta) => {
         const newVal = Number(data[key]) + delta;
-        data[key] = newVal;
+        data[key] = heldOnFocus = newVal;
         localTextState.val = String(newVal);
     };
 
@@ -225,19 +235,17 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
             case "function":
                 return FunctionInput({ data, dataKey: key, initialValue });
             case "boolean":
-                return label(
-                    { class: "toggle-switch" },
-                    input({
-                        type: "checkbox",
-                        checked: () => data[key],
-                        onchange: (e) => (data[key] = e.target.checked),
-                    }),
-                    span({ class: "slider" }),
-                    span({ class: "label" }, () => (data[key] ? "ENABLED" : "DISABLED"))
-                );
+                return StateSwitch({
+                    checked: () => data[key],
+                    words: ["Enabled", "Disabled"],
+                    name: key,
+                    onFlip: (next) => (data[key] = next),
+                });
             case "number":
+                // Formatted mode keeps what is typed until the field is left, so caps like 1e+21 can be edited.
                 return NumberInput({
                     value: localTextState,
+                    formatter: String,
                     onfocus: handleFocus,
                     onblur: handleBlur,
                     oninput: handleInput,
@@ -268,15 +276,25 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
         }
     };
 
+    // A setting is a row (#26): its name, description and default on the left, its control on the right. A function
+    // takes the row's full width under its name.
     return div(
         {
-            class: () => `config-item ${isModified.val ? "modified-config" : ""}`,
+            class: () =>
+                `config-item ${type === "function" ? "config-item--wide" : ""} ${isModified.val ? "modified-config" : ""}`,
             "data-config-key": fullPath,
         },
         div(
             { class: "config-item-header" },
             label(key),
             description ? span({ class: "config-description" }, description) : null,
+            div(
+                { class: () => `default-value-hint ${isModified.val ? "" : "hidden"}` },
+                () => `Default: ${getDefaultDisplayString()}`
+            )
+        ),
+        div(
+            { class: "config-item-control" },
             withTooltip(
                 button(
                     {
@@ -294,14 +312,8 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
                     "Reset"
                 ),
                 "Reset to default"
-            )
-        ),
-
-        renderInputByType(),
-
-        div(
-            { class: () => `default-value-hint ${isModified.val ? "" : "hidden"}` },
-            () => `Default: ${getDefaultDisplayString()}`
+            ),
+            renderInputByType()
         )
     );
 };

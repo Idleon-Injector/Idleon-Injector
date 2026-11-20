@@ -78,10 +78,6 @@ const BoatRow = ({ entry, valueStates }) =>
             span({ class: "account-row__index" }, `#${entry.index + 1}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () =>
-            `LOOT ${getOrCreateState(valueStates, entry.fields.loot.key).val ?? 0} / SPEED ${
-                getOrCreateState(valueStates, entry.fields.speed.key).val ?? 0
-            }`,
         controlsClass: "account-row__controls--stack",
         controls: BOAT_FIELDS.map((field) =>
             InlineEditableNumberField({
@@ -127,10 +123,12 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
         return next;
     };
 
+    // Only the fields the save changes are written, so XP a voyage gave since the page read it isn't rolled back.
     const writeCaptain = async (nextValues) => {
-        await writeManyVerified(
-            Object.values(fieldByKey).map((field) => ({ path: field.path, value: nextValues[field.key] }))
+        const changed = Object.values(fieldByKey).filter(
+            (field) => nextValues[field.key] !== getOrCreateState(valueStates, field.key).val
         );
+        await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
         return nextValues;
     };
 
@@ -156,9 +154,8 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
             span({ class: "account-row__index" }, `#${entry.index + 1}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => `LV ${getOrCreateState(valueStates, fieldByKey.level.key).val ?? 0}`,
         controlsClass: "account-row__controls--stack-action",
-        renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused, status }) =>
+        renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
             div(
                 { class: "account-stacked-fields" },
                 ...CAPTAIN_NUMBER_FIELDS.map((field) =>
@@ -177,7 +174,6 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
                         {
                             class: "select-base",
                             onchange: (e) => (draftStates[fieldByKey.bonusType1.key].val = Number(e.target.value)),
-                            disabled: () => status.val === "loading",
                         },
                         ...bonusTypes.map((bonus) =>
                             option(
@@ -210,7 +206,6 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
                         {
                             class: "select-base",
                             onchange: (e) => (draftStates[fieldByKey.bonusType2.key].val = Number(e.target.value)),
-                            disabled: () => status.val === "loading",
                         },
                         ...bonusTypes.map((bonus) =>
                             option(

@@ -14,12 +14,14 @@ import {
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { EmptyState } from "../../../components/EmptyState.js";
+import { Said, useSaid } from "../../../components/inPlace.js";
 import { gga, readCList } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { InlineEditableNumberField } from "../../../components/views/account/components/InlineEditableNumberField.js";
@@ -27,9 +29,11 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import {
     adjustFormattedIntInput,
     cleanName,
+    createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
     largeParser,
+    oneAtATime,
     resolveFormattedIntInput,
     resolveNumberInput,
     toInt,
@@ -179,10 +183,19 @@ const rowKind = (row) => {
 const getUnitTypeLabel = (type) =>
     MAP_UNIT_TYPES.find((entry) => entry.value === Number(type))?.label ?? `Unit ${type}`;
 
-const SelectWriter = ({ label, valueState, options, path, onApplied = null, className = "" }) => {
+// A map unit in the arrays the game holds now: where the page read it, or, when another unit change moved it, the
+// same kind of unit on the same map (units of one kind on one map are alike). -1 when there is none.
+const findUnit = (types, maps, unit) =>
+    Number(types[unit.unitIndex]) === unit.type && Number(maps[unit.unitIndex]) === unit.mapId
+        ? unit.unitIndex
+        : types.findIndex((type, index) => Number(type) === unit.type && Number(maps[index]) === unit.mapId);
+
+// Picks save one at a time, in the order made. A refused pick goes back to what the game holds and says why on the card.
+const SelectWriter = ({ label, name = label, said, valueState, options, write, onApplied = null, onFailed = null }) => {
     const { status, run } = useWriteStatus();
+    const queue = oneAtATime();
     return div(
-        { class: `outpost-select-field ${className}` },
+        { class: "outpost-select-field" },
         span({ class: "outpost-select-field__label" }, label),
         select(
             {
@@ -191,14 +204,22 @@ const SelectWriter = ({ label, valueState, options, path, onApplied = null, clas
                         status.val === "error" ? " is-error" : ""
                     }`,
                 value: () => String(valueState.val),
-                onchange: (e) => {
-                    const rawValue = e.target.value;
+                onchange: async (e) => {
+                    const field = e.target;
+                    const rawValue = field.value;
                     const value = Number.isFinite(Number(rawValue)) ? Number(rawValue) : rawValue;
-                    void run(async () => {
-                        await writeVerified(path, value);
-                        valueState.val = value;
-                        if (typeof onApplied === "function") await onApplied(value);
-                    });
+                    said.clear();
+                    const result = await run(() =>
+                        queue(async () => {
+                            await write(value);
+                            valueState.val = value;
+                            if (typeof onApplied === "function") await onApplied(value);
+                        })
+                    );
+                    if (result.ok) return;
+                    said.say("failed", `${name} not saved: ${saveFailureReason(result.error)}`);
+                    field.value = String(valueState.val);
+                    if (typeof onFailed === "function") await onFailed();
                 },
             },
             ...options.map((entry) => selectOption(entry, valueState.val))
@@ -206,8 +227,9 @@ const SelectWriter = ({ label, valueState, options, path, onApplied = null, clas
     );
 };
 
-const OutpostSlots = ({ mapId, slotState, barracksState }) => {
+const OutpostSlots = ({ mapId, slotState, barracksState, slotWrites, said }) => {
     const { status, run } = useWriteStatus();
+    const path = `RoyalMaps[${mapId}][11]`;
     const slots = () => decodeSlots(slotState.val);
     const unlockedSlots = () => unlockedSlotCount(barracksState.val);
 
@@ -224,15 +246,24 @@ const OutpostSlots = ({ mapId, slotState, barracksState }) => {
                     value: () => slots()[slot],
                     title: `Slot ${slot + 1}`,
                     disabled: () => slot >= unlockedSlots(),
-                    onchange: (e) => {
-                        const nextSlots = slots();
-                        nextSlots[slot] = e.target.value;
-                        const nextValue = encodeSlots(nextSlots);
-                        void run(async () => {
-                            await writeVerified(`RoyalMaps[${mapId}][11]`, nextValue);
-                            slotState.val = nextValue;
-                            await refreshRoyalGuardUnitCaches();
-                        });
+                    onchange: async (e) => {
+                        const field = e.target;
+                        const picked = field.value;
+                        said.clear();
+                        // One at a time, each from what the game holds then, so a pick made while another saves keeps both.
+                        const result = await run(() =>
+                            slotWrites(async () => {
+                                const nextSlots = decodeSlots(await gga(path));
+                                nextSlots[slot] = picked;
+                                const nextValue = encodeSlots(nextSlots);
+                                await writeVerified(path, nextValue);
+                                slotState.val = nextValue;
+                                await refreshRoyalGuardUnitCaches();
+                            })
+                        );
+                        if (result.ok) return;
+                        said.say("failed", `Slot ${slot + 1} not saved: ${saveFailureReason(result.error)}`);
+                        field.value = slots()[slot];
                     },
                 },
                 ...SLOT_TYPES.map((entry) => selectOption(entry, slots()[slot]))
@@ -241,7 +272,7 @@ const OutpostSlots = ({ mapId, slotState, barracksState }) => {
     );
 };
 
-const MapUnitAddControl = ({ outpost, onAdded }) => {
+const MapUnitAddControl = ({ outpost, changeUnits }) => {
     const arrays = MAP_UNIT_ARRAYS[outpost.world];
     const typeState = van.state(MAP_UNIT_TYPES[0].value);
     const { status, run } = useWriteStatus();
@@ -271,7 +302,7 @@ const MapUnitAddControl = ({ outpost, onAdded }) => {
             tooltip: `Add the selected map unit to ${outpost.name}.`,
             onClick: (e) => {
                 e.preventDefault();
-                void run(async () => {
+                return changeUnits("Unit not added", run, async () => {
                     const { types, maps } = await readUnitPair(arrays.typeArray, arrays.mapArray);
                     types.push(Number(typeState.val));
                     maps.push(outpost.mapId);
@@ -279,14 +310,15 @@ const MapUnitAddControl = ({ outpost, onAdded }) => {
                         { path: `RoyalG[${arrays.typeArray}]`, value: types },
                         { path: `RoyalG[${arrays.mapArray}]`, value: maps },
                     ]);
-                    if (typeof onAdded === "function") await onAdded();
                 });
             },
         })
     );
 };
 
-const MapUnitRow = ({ unit, onRemoved }) => {
+const UNIT_GONE = "that unit is no longer on this map";
+
+const MapUnitRow = ({ unit, changeUnits, unitWrites, said, reload }) => {
     const typeState = van.state(unit.type);
     const { status, run } = useWriteStatus();
 
@@ -294,9 +326,21 @@ const MapUnitRow = ({ unit, onRemoved }) => {
         { class: "outpost-map-unit", title: `RoyalG[${unit.typeArray}/${unit.mapArray}] index ${unit.unitIndex}` },
         SelectWriter({
             label: "TYPE",
+            name: "Unit type",
+            said,
             valueState: typeState,
             options: MAP_UNIT_TYPES,
-            path: `RoyalG[${unit.typeArray}][${unit.unitIndex}]`,
+            write: (value) =>
+                unitWrites(async () => {
+                    const { types, maps } = await readUnitPair(unit.typeArray, unit.mapArray);
+                    const index = findUnit(types, maps, unit);
+                    if (index < 0) throw new Error(UNIT_GONE);
+                    await writeVerified(`RoyalG[${unit.typeArray}][${index}]`, value);
+                    Object.assign(unit, { unitIndex: index, type: value });
+                }),
+            // Populate's question and preview count units from the last read.
+            onApplied: reload,
+            onFailed: reload,
         }),
         ActionButton({
             label: "Remove",
@@ -305,20 +349,19 @@ const MapUnitRow = ({ unit, onRemoved }) => {
             tooltip: "Remove this map unit and close the matching type/map array indexes.",
             onClick: (e) => {
                 e.preventDefault();
-                void run(async () => {
+                return changeUnits("Unit not removed", run, async () => {
                     const { types, maps } = await readUnitPair(unit.typeArray, unit.mapArray);
-                    if (unit.unitIndex >= types.length || unit.unitIndex >= maps.length) {
-                        throw new Error(`Map unit index ${unit.unitIndex} is no longer available.`);
-                    }
+                    // Found again in what the game holds now: another Remove may have moved it since the page read it.
+                    const index = findUnit(types, maps, unit);
+                    if (index < 0) throw new Error(UNIT_GONE);
 
-                    types.splice(unit.unitIndex, 1);
-                    maps.splice(unit.unitIndex, 1);
+                    types.splice(index, 1);
+                    maps.splice(index, 1);
 
                     await writeManyVerified([
                         { path: `RoyalG[${unit.typeArray}]`, value: types },
                         { path: `RoyalG[${unit.mapArray}]`, value: maps },
                     ]);
-                    if (typeof onRemoved === "function") await onRemoved();
                 });
             },
         })
@@ -364,13 +407,20 @@ const UnitSummaryRows = ({ summaries, mapDispNames, mapDetails }) =>
         );
     });
 
-const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, mapDetails }) => {
+const UnitBulkPanel = ({
+    royalGState,
+    onChanged,
+    outpostsByWorldState,
+    mapDispNamesState,
+    mapDetailsState,
+    unitWrites,
+}) => {
     const vanillaStatus = useWriteStatus();
     const customStatus = useWriteStatus();
     const countStates = new Map();
     const previewState = van.state({ mode: "custom", summaries: [] });
     const summaryList = div({ class: "outpost-vanilla-units__summary" });
-    const worlds = Object.keys(outpostsByWorld).map(Number);
+    const worlds = Object.keys(outpostsByWorldState.val).map(Number);
 
     worlds.forEach((world) => {
         MAP_UNIT_ORDER.forEach((unitType) => {
@@ -391,10 +441,15 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
     const refreshPreview = () => {
         previewState.val = {
             mode: "custom",
-            summaries: buildDistributedUnitArrays(royalGState.val ?? [], getWantedCounts(), outpostsByWorld).summaries,
+            summaries: buildDistributedUnitArrays(royalGState.val ?? [], getWantedCounts(), outpostsByWorldState.val)
+                .summaries,
         };
         summaryList.replaceChildren(
-            ...UnitSummaryRows({ summaries: previewState.val.summaries, mapDispNames, mapDetails })
+            ...UnitSummaryRows({
+                summaries: previewState.val.summaries,
+                mapDispNames: mapDispNamesState.val,
+                mapDetails: mapDetailsState.val,
+            })
         );
     };
 
@@ -411,6 +466,18 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
         royalGState.val;
         refreshPreview();
     });
+
+    // What Populate would take away from `royalG`: units over the counts, and unit kinds it doesn't place.
+    const unitsRemoved = (royalG, counts = getWantedCounts()) =>
+        buildDistributedUnitArrays(royalG, counts, outpostsByWorldState.val).summaries.reduce(
+            (sum, summary) =>
+                sum +
+                toIndexedArray(royalG[MAP_UNIT_ARRAYS[summary.world].typeArray] ?? []).length -
+                summary.movedExisting,
+            0
+        );
+    // How many the press was asked about (none when it didn't ask); the save takes away no more than that.
+    let confirmedRemoval = 0;
 
     return div(
         { class: "outpost-vanilla-units" },
@@ -435,9 +502,12 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
                     confirm: "rebuild every world's map units from your militia and Kingdom Sovereignty levels.",
                     onClick: (e) => {
                         e.preventDefault();
-                        void vanillaStatus.run(async () => {
-                            await resetRoyalGuardUnitsToVanilla();
-                            if (typeof onChanged === "function") await onChanged();
+                        return vanillaStatus.run(async () => {
+                            try {
+                                await unitWrites(resetRoyalGuardUnitsToVanilla);
+                            } finally {
+                                await onChanged();
+                            }
                         });
                     },
                 }),
@@ -445,21 +515,43 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
                     label: "Populate outposts",
                     status: customStatus.status,
                     tooltip: "Move existing map units first, then add any missing units to match the selected counts.",
+                    // Adding runs on one press; taking units away asks first.
+                    confirm: () => {
+                        const removed = unitsRemoved(royalGState.val ?? []);
+                        confirmedRemoval = removed;
+                        return removed > 0
+                            ? `remove ${removed} map unit${removed === 1 ? "" : "s"} from your outposts.`
+                            : null;
+                    },
                     onClick: (e) => {
                         e.preventDefault();
-                        void customStatus.run(async () => {
-                            const rawRoyalG = await gga("RoyalG");
-                            const royalG = toIndexedArray(rawRoyalG ?? []);
-                            const { rebuilt } = buildDistributedUnitArrays(royalG, getWantedCounts(), outpostsByWorld);
-                            const writes = [];
+                        // The counts and the removal as pressed, while the save waits its turn.
+                        const [confirmed, counts] = [confirmedRemoval, getWantedCounts()];
+                        return customStatus.run(async () => {
+                            try {
+                                await unitWrites(async () => {
+                                    const rawRoyalG = await gga("RoyalG");
+                                    const royalG = toIndexedArray(rawRoyalG ?? []);
+                                    // Units the game added since the page read them would go without being asked.
+                                    if (unitsRemoved(royalG, counts) > confirmed)
+                                        throw new Error("Map units changed in game. Press Populate again.");
+                                    const { rebuilt } = buildDistributedUnitArrays(
+                                        royalG,
+                                        counts,
+                                        outpostsByWorldState.val
+                                    );
+                                    const writes = [];
 
-                            Object.values(rebuilt).forEach((entry) => {
-                                writes.push({ path: `RoyalG[${entry.typeArray}]`, value: entry.types });
-                                writes.push({ path: `RoyalG[${entry.mapArray}]`, value: entry.maps });
-                            });
+                                    Object.values(rebuilt).forEach((entry) => {
+                                        writes.push({ path: `RoyalG[${entry.typeArray}]`, value: entry.types });
+                                        writes.push({ path: `RoyalG[${entry.mapArray}]`, value: entry.maps });
+                                    });
 
-                            await writeManyVerified(writes);
-                            if (typeof onChanged === "function") await onChanged();
+                                    await writeManyVerified(writes);
+                                });
+                            } finally {
+                                await onChanged();
+                            }
                         });
                     },
                 })
@@ -481,21 +573,49 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
     );
 };
 
-const BuiltOutpostRow = ({
-    outpost,
-    fieldStates,
-    slotState,
-    outpostTypeState,
-    glorifiedState,
-    mapUnits,
-    onUnitsChanged,
-}) => {
-    const syncCapacity = async (nextBarracks = fieldStates.get("barracks").val) => {
-        await syncSlotsToCapacity({
-            mapId: outpost.mapId,
-            slotState,
-            barracksLevel: nextBarracks,
-        });
+const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, glorifiedState, unitWrites, reload }) => {
+    // The card's failures, said on the card until its next save.
+    const said = useSaid();
+    const glorified = useWriteStatus();
+    // The slot value is one number: the slot picks and the barracks' slot fix save it one at a time.
+    const slotWrites = oneAtATime();
+    const syncCapacity = (nextBarracks = fieldStates.get("barracks").val) =>
+        slotWrites(() =>
+            syncSlotsToCapacity({
+                mapId: outpost.mapId,
+                slotState,
+                barracksLevel: nextBarracks,
+            })
+        );
+
+    // A unit change runs after any other on the page, then the page reads the game again, whatever happened.
+    const changeUnits = (failed, run, task) => {
+        said.clear();
+        return run(
+            async () => {
+                try {
+                    await unitWrites(task);
+                } finally {
+                    await reload();
+                }
+            },
+            { onError: (error) => said.say("failed", `${failed}: ${saveFailureReason(error)}`) }
+        );
+    };
+
+    // Only the unit list is rebuilt on a reload, and only when the game's units differ from what the rows show now
+    // (a TYPE pick changes its row's unit in place): the rest of the card stays.
+    const unitList = div({ class: "outpost-map-units__list" });
+    const unitKey = (units) => units.map((unit) => `${unit.unitIndex}:${unit.type}`).join("|");
+    let shownUnits = null;
+    const setUnits = (units) => {
+        if (shownUnits && unitKey(shownUnits) === unitKey(units)) return;
+        shownUnits = units;
+        unitList.replaceChildren(
+            ...(units.length
+                ? units.map((unit) => MapUnitRow({ unit, changeUnits, unitWrites, said, reload }))
+                : [span({ class: "outpost-map-units__empty" }, "None stationed")])
+        );
     };
 
     const fieldLabel = (field) => {
@@ -532,7 +652,9 @@ const BuiltOutpostRow = ({
             labelClass: "outpost-field__label",
         });
 
-    return div(
+    setUnits(outpost.mapUnits);
+
+    const node = div(
         { class: "outpost-card outpost-card--built" },
         div(
             { class: "outpost-card__header" },
@@ -550,6 +672,7 @@ const BuiltOutpostRow = ({
                 span({ class: "outpost-row__badge" }, () => (toInt(glorifiedState.val) === 1 ? "GLORIFIED" : "OUTPOST"))
             )
         ),
+        Said({ said: said.said, className: "said--line outpost-card__said" }),
         div(
             { class: "outpost-card__body" },
             div(
@@ -562,28 +685,41 @@ const BuiltOutpostRow = ({
                 span({ class: "outpost-card__group-title" }, "STATE"),
                 SelectWriter({
                     label: "TYPE",
+                    said,
                     valueState: outpostTypeState,
                     options: OUTPOST_TYPES,
-                    path: `RoyalMaps[${outpost.mapId}][10]`,
+                    write: (value) => writeVerified(`RoyalMaps[${outpost.mapId}][10]`, value),
                     onApplied: (value) => {
                         outpost.type = value;
                     },
+                    onFailed: reload,
                 }),
                 div(
                     { class: "outpost-select-field" },
                     span({ class: "outpost-select-field__label" }, "GLORIFIED"),
                     ActionButton({
                         label: () => (toInt(glorifiedState.val) === 1 ? "GLORIFIED" : "STANDARD"),
+                        status: glorified.status,
                         tooltip: "Toggle glorified outpost status.",
                         variant: "switch-filled",
                         className: "outpost-glorified-button",
                         onClick: async (e) => {
                             e.preventDefault();
-                            const nextValue = toInt(glorifiedState.val) === 1 ? 0 : 1;
-                            await writeVerified(`RoyalMaps[${outpost.mapId}][12]`, nextValue);
-                            glorifiedState.val = nextValue;
-                            outpost.glorified = nextValue;
-                            await refreshRoyalGuardUnitCaches();
+                            said.clear();
+                            const result = await glorified.run(
+                                async () => {
+                                    const nextValue = toInt(glorifiedState.val) === 1 ? 0 : 1;
+                                    await writeVerified(`RoyalMaps[${outpost.mapId}][12]`, nextValue);
+                                    glorifiedState.val = nextValue;
+                                    outpost.glorified = nextValue;
+                                    await refreshRoyalGuardUnitCaches();
+                                },
+                                {
+                                    onError: (error) =>
+                                        said.say("failed", `GLORIFIED not saved: ${saveFailureReason(error)}`),
+                                }
+                            );
+                            if (!result.ok) await reload();
                         },
                     })
                 )
@@ -602,26 +738,28 @@ const BuiltOutpostRow = ({
                 mapId: outpost.mapId,
                 slotState,
                 barracksState: fieldStates.get("barracks"),
+                slotWrites,
+                said,
             }),
             div(
                 { class: "outpost-map-units" },
                 span({ class: "outpost-map-units__label" }, "MAP UNITS"),
-                MapUnitAddControl({ outpost, onAdded: onUnitsChanged }),
-                mapUnits.length
-                    ? mapUnits.map((unit) => MapUnitRow({ unit, onRemoved: onUnitsChanged }))
-                    : span({ class: "outpost-map-units__empty" }, "None stationed")
+                MapUnitAddControl({ outpost, changeUnits }),
+                unitList
             )
         )
     );
+    return { node, setUnits };
 };
 
-const KillOutpostRow = ({ outpost, remainingState, onConverted }) =>
+const KillOutpostRow = ({ outpost, remainingState, killsState, onConverted }) =>
     EditableNumberRow({
         valueState: remainingState,
         normalize: (raw) => resolveFormattedIntInput(raw, null, { min: 0, max: Math.ceil(outpost.killReq) }),
         write: async (nextRemaining) => {
             const nextKills = Math.max(0, outpost.killReq - nextRemaining);
             await writeVerified(`RoyalMaps[${outpost.mapId}][0]`, nextKills);
+            killsState.val = nextKills;
             return nextRemaining;
         },
         renderInfo: () => [
@@ -631,11 +769,10 @@ const KillOutpostRow = ({ outpost, remainingState, onConverted }) =>
                 span({ class: "account-row__name" }, outpost.name),
                 span(
                     { class: "outpost-row__meta" },
-                    `Kills done ${formatAmount(outpost.kills)} / ${formatAmount(outpost.killReq)}`
+                    () => `Kills done ${formatAmount(killsState.val)} / ${formatAmount(outpost.killReq)}`
                 )
             ),
         ],
-        renderBadge: (remaining) => `LEFT ${formatAmount(remaining)}`,
         adjustInput: (rawValue, delta, currentValue) =>
             adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min: 0, max: Math.ceil(outpost.killReq) }),
         rowClass: "outpost-row outpost-row--kills",
@@ -645,17 +782,16 @@ const KillOutpostRow = ({ outpost, remainingState, onConverted }) =>
             formatter: largeFormatter,
             parser: largeParser,
         },
-        renderExtraActions: ({ status }) =>
+        // Make outpost saves with the row's own save state (saving…, or the reason), then the page reads the game again:
+        // the row turns into the outpost, or stays with the reason.
+        renderExtraActions: ({ run }) =>
             ActionButton({
                 label: "Make outpost",
-                status,
                 tooltip: "Replace this kill-counter row with a default built outpost row.",
-                onClick: (e) => {
+                onClick: async (e) => {
                     e.preventDefault();
-                    void (async () => {
-                        await writeVerified(`RoyalMaps[${outpost.mapId}]`, [...DEFAULT_OUTPOST_ROW]);
-                        onConverted();
-                    })();
+                    await run(() => writeVerified(`RoyalMaps[${outpost.mapId}]`, [...DEFAULT_OUTPOST_ROW]));
+                    await onConverted();
                 },
             }),
     });
@@ -750,60 +886,94 @@ const OutpostsTab = () => {
     const outpostTypeStates = new Map();
     const glorifiedStates = new Map();
     const remainingStates = new Map();
-    const rowNodes = new Map();
+    const killsStates = new Map();
+    // mapId -> { kind, outpost, node, setUnits }: a reload keeps each row (and what is typed or said in it).
+    const rows = new Map();
+    // Map unit arrays are shared by every outpost of a world: each change to them runs after the last one ended.
+    const unitWrites = oneAtATime();
     const rowList = div({ class: "account-item-stack account-item-stack--dense outpost-list" });
+    const reconcileRows = createStaticRowReconciler(rowList);
     const bodyContent = div();
+    let unitPanel = null;
+    let unitPanelWorlds = null;
     const noOutposts = EmptyState({
         title: "NO OUTPOST ROWS",
         subtitle: "No RoyalMaps outpost or kill-counter rows were returned for this world.",
     });
 
     const renderRows = () => {
-        if (activeWorld.val === "units")
-            return UnitBulkPanel({
-                royalGState,
-                onChanged: load,
-                outpostsByWorld: outpostsByWorldState.val,
-                mapDispNames: mapDispNamesState.val,
-                mapDetails: mapDetailsState.val,
-            });
+        if (activeWorld.val === "units") {
+            // Kept while the worlds stay the same, so the counts typed in it outlast a reload.
+            const worlds = Object.keys(outpostsByWorldState.val).join(",");
+            if (worlds !== unitPanelWorlds) {
+                unitPanelWorlds = worlds;
+                unitPanel = UnitBulkPanel({
+                    royalGState,
+                    onChanged: load,
+                    outpostsByWorldState,
+                    mapDispNamesState,
+                    mapDetailsState,
+                    unitWrites,
+                });
+            }
+            return unitPanel;
+        }
 
         const visible = outposts.val.filter((outpost) => outpost.world === activeWorld.val);
-        rowList.replaceChildren(...visible.map((outpost) => rowNodes.get(outpost.mapId)));
+        reconcileRows(
+            visible.map((outpost) => `${outpost.mapId}:${outpost.kind}`).join("|"),
+            visible.map((outpost) => rows.get(outpost.mapId).node)
+        );
         return visible.length ? rowList : noOutposts;
     };
 
     van.derive(() => {
         activeWorld.val;
         outposts.val;
-        bodyContent.replaceChildren(renderRows());
+        const next = renderRows();
+        if (bodyContent.firstChild !== next) bodyContent.replaceChildren(next);
     });
 
-    const load = () =>
-        runLoad(async () => {
+    // A row is kept across reloads while its map stays the same kind of row; it takes the new read in place.
+    const keepRow = (outpost) => {
+        const kept = rows.get(outpost.mapId);
+        if (kept?.kind !== outpost.kind) return false;
+        Object.assign(kept.outpost, outpost);
+        kept.setUnits?.(outpost.mapUnits);
+        return true;
+    };
+
+    let loads = 0;
+    const load = () => {
+        const thisLoad = ++loads;
+        return runLoad(async () => {
             const [{ outposts: nextOutposts, mapDispNames, mapDetails }, rawRoyalG, rawRoyalMaps] = await Promise.all([
                 readOutposts(),
                 gga("RoyalG"),
                 gga("RoyalMaps"),
             ]);
-            rowNodes.clear();
+            // A newer read was asked for meanwhile (two unit changes back to back): only the newest is shown.
+            if (thisLoad !== loads) return;
             royalGState.val = toIndexedArray(rawRoyalG ?? []);
-            outpostsByWorldState.val = buildOutpostsByWorld(rawRoyalMaps);
+            // Only W1-W4 have map unit arrays the page knows, so only they can be populated.
+            outpostsByWorldState.val = Object.fromEntries(
+                Object.entries(buildOutpostsByWorld(rawRoyalMaps)).filter(([world]) => MAP_UNIT_ARRAYS[world])
+            );
             mapDispNamesState.val = mapDispNames;
             mapDetailsState.val = mapDetails;
 
             nextOutposts.forEach((outpost) => {
                 if (outpost.kind === "kills") {
                     const remainingState = getOrCreateState(remainingStates, outpost.mapId);
+                    const killsState = getOrCreateState(killsStates, outpost.mapId);
                     remainingState.val = outpost.remaining;
-                    rowNodes.set(
-                        outpost.mapId,
-                        KillOutpostRow({
-                            outpost,
-                            remainingState,
-                            onConverted: load,
-                        })
-                    );
+                    killsState.val = outpost.kills;
+                    if (keepRow(outpost)) return;
+                    rows.set(outpost.mapId, {
+                        kind: outpost.kind,
+                        outpost,
+                        node: KillOutpostRow({ outpost, remainingState, killsState, onConverted: load }),
+                    });
                     return;
                 }
 
@@ -820,23 +990,26 @@ const OutpostsTab = () => {
                 slotState.val = toInt(outpost.row[11], { min: 0, fallback: 111111111 });
                 outpostTypeState.val = outpost.type;
                 glorifiedState.val = outpost.glorified;
+                if (keepRow(outpost)) return;
 
-                rowNodes.set(
-                    outpost.mapId,
-                    BuiltOutpostRow({
+                rows.set(outpost.mapId, {
+                    kind: outpost.kind,
+                    outpost,
+                    ...BuiltOutpostRow({
                         outpost,
                         fieldStates,
                         slotState,
                         outpostTypeState,
                         glorifiedState,
-                        mapUnits: outpost.mapUnits,
-                        onUnitsChanged: load,
-                    })
-                );
+                        unitWrites,
+                        reload: load,
+                    }),
+                });
             });
 
             outposts.val = nextOutposts;
         });
+    };
 
     load();
 

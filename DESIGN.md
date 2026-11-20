@@ -1,8 +1,8 @@
 # Design direction
 
 The look the WebUI is heading for, agreed with the maintainer. So far it covers buttons and icons, decided on 2026-11-20
-over four rounds of a concept board and built across the whole menu. The rest of the look (tabs, navigation, switches,
-headings, tags, layout and colour) waits for the later passes.
+over four rounds of a concept board and built across the whole menu, and the page layout (#26), chosen the same day from
+a live concept. The rest of the look (tabs, navigation, tags and colour) waits for the later passes.
 
 ## What it should feel like
 
@@ -34,7 +34,7 @@ Which kind a button is:
 - **A quiet toggle that is on** (Watching, Saved, the Config drawer) keeps its hover fill.
 - **"Click again"** (a risky press asking to be sure) lies over the button as the same pill, in the colours its kind has
   on hover, and its wash drains away.
-- Tabs, navigation, on/off switches and tiles aren't action buttons. They keep their look until the layout pass.
+- Tabs, navigation, on/off switches and tiles aren't action buttons. An on/off state is a switch (see Page layout).
 
 Values:
 
@@ -122,3 +122,27 @@ Rejected, so the design pass doesn't drift back:
 - **Rounded value rows:** chosen after comparing the menu with and without them. Value rows have 10 px corners and their
   fields 9 px, so the pill buttons don't sit in sharp boxes.
 - **Mint saved tick:** not taken. Colours come later, in their own pass.
+
+## Page layout
+
+Every page has the same parts in the same places (#26). The maintainer chose them from a live concept with four A/B
+switches, picking the first option each time.
+
+- **The top:** the title and its description on the left, the page's buttons on the right of the same row. When the
+  buttons don't fit beside 26rem of description, they move to the line under it, still on the right, so the description
+  never becomes a thin column. Search and filters go on the line under the title (`toolbar` on the page wrapper);
+  inner tabs stay above the title. One thin rule runs under the whole top.
+- **Values show once.** A number lives in its field. A badge only adds what the field doesn't say: a cap
+  (`LV 3 / 10`), or a state (Locked, Complete). A badge that repeats the field is left out.
+- **Sections** are a plain heading in small muted capitals over a thin rule, with the rows straight under it. No box
+  inside the page box. The heading's row can carry the section's own controls (Set all) on the right.
+- **On/off is one switch** (`StateSwitch`) with the game's own word for the state beside it: Owned / Not owned,
+  Unlocked / Locked, On / Off. It saves on flip; the row shows saving, the ✓ and Undo like any save, and the switch
+  goes back if the game refuses. The words keep one width, so the switches in a list line up. A switch is reachable
+  and flips from the keyboard; it has no glow.
+- **In the narrow overlay** a value row keeps its name and badge on the first line and puts the field and its buttons
+  on the line under it.
+- **A search with no results** shows the shared empty state (`EmptyState`), and a save's error shows next to its field.
+
+Not switches, on purpose: picks with a limit or an order (the 2× doublers, Organic labels, palette stars, the cape
+vine, prayer slots, bundle purchases) keep their buttons.

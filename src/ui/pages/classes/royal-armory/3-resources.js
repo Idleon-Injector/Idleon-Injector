@@ -12,6 +12,7 @@ import { ActionButton } from "../../../components/views/account/components/Actio
 import { InlineEditableNumberField } from "../../../components/views/account/components/InlineEditableNumberField.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    createStaticRowReconciler,
     getOrCreateState,
     resolveNumberInput,
     toInt,
@@ -164,6 +165,7 @@ const ResourceNodesTab = () => {
     const depletedStates = new Map();
     const rowNodes = new Map();
     const rowList = div({ class: "account-item-stack account-item-stack--dense resource-node-list" });
+    const reconcileRows = createStaticRowReconciler(rowList);
     const noNodes = EmptyState({
         title: "NO RESOURCE NODES",
         subtitle: "No RoyalResources rows were returned for this world.",
@@ -171,7 +173,12 @@ const ResourceNodesTab = () => {
 
     const renderRows = () => {
         const visible = nodes.val.filter((node) => node.world === activeWorld.val);
-        rowList.replaceChildren(...visible.map((node) => rowNodes.get(node.nodeIndex)));
+        // A reload that shows the same rows leaves them in place: taking a row out, even to put it back, drops the
+        // focus and saves what is half typed in it.
+        reconcileRows(
+            visible.map((node) => node.nodeIndex).join(","),
+            visible.map((node) => rowNodes.get(node.nodeIndex))
+        );
         return visible.length ? rowList : noNodes;
     };
 
@@ -180,7 +187,8 @@ const ResourceNodesTab = () => {
     van.derive(() => {
         activeWorld.val;
         nodes.val;
-        bodyContent.replaceChildren(renderRows());
+        const next = renderRows();
+        if (bodyContent.firstChild !== next) bodyContent.replaceChildren(next);
     });
 
     const load = () =>
