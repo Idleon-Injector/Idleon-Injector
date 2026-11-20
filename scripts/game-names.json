@@ -232,6 +232,7 @@
             "Grimoire",
             "Holes",
             "InventoryOrder",
+            "InventorySlotsOwned",
             "ItemDefinitionsGET",
             "ItemGetPixelQueue",
             "ItemQuantity",
@@ -343,6 +344,7 @@
             "_customBlock_MenagerieStuff",
             "_customBlock_Minehead",
             "_customBlock_Ninja",
+            "_customBlock_NotateNumber",
             "_customBlock_PetStuff",
             "_customBlock_PlayerHPmax",
             "_customBlock_PlayerReach",
@@ -370,7 +372,8 @@
             "_customBlock_cauldronp2wbonuses",
             "_customBlock_chipBonuses",
             "_customBlock_imginstACTOR",
-            "_customBlock_keychainn"
+            "_customBlock_keychainn",
+            "_customBlock_removeitems"
         ]
     },
     "fingerprints": {
@@ -416,6 +419,7 @@
         "_customBlock_MenagerieStuff": "f56efccd68b9b487",
         "_customBlock_Minehead": "ade6ede0098dde76",
         "_customBlock_Ninja": "f2b5e825f85a17ed",
+        "_customBlock_NotateNumber": "1b9ec5cf684a43b5",
         "_customBlock_PetStuff": "04f9466387773cbb",
         "_customBlock_PlayerHPmax": "4e54338a11f1d2f6",
         "_customBlock_PlayerReach": "15b49289e76dfcd4",
@@ -444,6 +448,7 @@
         "_customBlock_chipBonuses": "dc1cf940f3bbaae2",
         "_customBlock_imginstACTOR": "9b5829b56cb43776",
         "_customBlock_keychainn": "3ac9fc7c3e52e9d7",
+        "_customBlock_removeitems": "c58162dfb3923e5e",
         "attachImageToActor": "5f22faf0a974bc0d",
         "createFadeIn": "5781e581a6f458e4",
         "createFadeOut": "5781e581a6f458e4",

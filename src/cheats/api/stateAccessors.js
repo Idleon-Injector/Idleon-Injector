@@ -14,6 +14,7 @@ import { events } from "../core/globals.js";
 import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
 import { attireStatus } from "../helpers/attire/outfits.js";
+import { getAutomationConstruction } from "../helpers/automation/construction.js";
 import { getAutomationShops } from "../helpers/automation/shops.js";
 import {
     captureWardrobe,
@@ -96,10 +97,12 @@ export function readComputed(namespace, name, args = []) {
         }
     }
 
-    // Account › Automation: its automations ("automation …" toggles) with their status, and the town shops.
-    if (namespace === "automation" && (name === "list" || name === "shops")) {
+    // Account › Automation: its automations ("automation …" toggles) with their status, the town shops, and
+    // World 3 › Construction › Automation's buildings.
+    if (namespace === "automation" && (name === "list" || name === "shops" || name === "construction")) {
         try {
             if (name === "shops") return { value: getAutomationShops() };
+            if (name === "construction") return { value: getAutomationConstruction() };
             return { value: getAutomations().filter(({ cheat }) => cheat.startsWith("automation ")) };
         } catch (error) {
             return { error: error.message };
