@@ -1,0 +1,182 @@
+/**
+ * World 2 › Bubbles › Automation: which alchemy bubbles the bubble automation raises, with the game's own upgrade.
+ * Bubbles that have a max rise to one page-wide target % of it, the one furthest behind first; bubbles without a max
+ * need a stop-at level, which also caps any bubble. A row pays with its materials, or with particles once the
+ * particle buy is open for it. No priority and no saving.
+ *
+ * Reads readComputed("automation", "bubbles") (each cauldron's bubbles with level, % of max, costs and particle
+ * option) and saves cheatConfig.automation.bubbles (one { id: "cauldron:bubble", on, stopAt, pay } per bubble, pay
+ * left out for materials) and cheatConfig.automation.bubblesTarget.
+ */
+
+import van from "../../../vendor/van-1.6.0.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputed } from "../../../services/api.js";
+import { formatNumber } from "../../../utils/numberFormat.js";
+import { Said } from "../../../components/inPlace.js";
+import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    getOrCreateState,
+} from "../../../components/views/account/accountShared.js";
+import {
+    PickRow,
+    SettingRow,
+    createAutomationPicks,
+    createAutomationSetting,
+    useAutomationTab,
+    usePicksBulk,
+} from "../../../components/views/account/automation.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+
+const { div, span } = van.tags;
+
+const CHEAT = "automation bubbles";
+const PAY = {
+    field: "pay",
+    title: "Pay with",
+    options: [
+        { value: null, label: "Materials" },
+        { value: "particles", label: "Particles" },
+    ],
+};
+
+// A row's next cost: every slot, or the particle buy on a Particles row.
+const costText = (bubble, pay) => {
+    if (pay === "particles") {
+        if (bubble.particle.waiting) return bubble.particle.waiting;
+        const liquids = bubble.costs.filter(({ liquid }) => liquid);
+        return `Next level ${[
+            `${formatNumber(bubble.particle.cost)} particles`,
+            "1 charge",
+            ...liquids.map(({ cost, name }) => `${formatNumber(cost)} ${name}`),
+        ].join(", ")}`;
+    }
+    const short = bubble.costs.filter((slot) => slot.short).map(({ name }) => cleanName(name));
+    const costs = bubble.costs.map(({ cost, name }) => `${formatNumber(cost)} ${cleanName(name)}`).join(", ");
+    return `Next level ${costs}${short.length ? ` · not enough ${short.join(", ")}` : ""}`;
+};
+
+const BubblesAutomationPage = () => {
+    const ids = van.state([]);
+    const bubbles = new Map(); // "cauldron:bubble" -> state of what the game read
+    const particles = van.state(null);
+    const listNode = div({ class: "content-stack" });
+    const reconcile = createStaticRowReconciler(listNode);
+
+    const BubbleRow = ({ id, name }) => {
+        const item = picks.get(id);
+        const pay = picks.field(id, "pay");
+        const bubble = getOrCreateState(bubbles, id, {});
+        return PickRow({
+            picks,
+            id,
+            name,
+            stopAtTitle: "Stop at level",
+            selects: [PAY],
+            badge: () => {
+                const { level = 0, percent = null } = bubble.val;
+                return `LV ${formatNumber(level)} · ${percent === null ? "no max" : `${(Math.floor(10 * percent) / 10).toFixed(1)}%`}`;
+            },
+            detail: [
+                span(() => cleanName(bubble.val.bonus ?? "")),
+                span(() => {
+                    if (!bubble.val.costs) return "";
+                    if (!(bubble.val.level > 0)) return "Not discovered yet; it can be switched on ahead";
+                    if (bubble.val.percent === null && item.stopAt.val === null)
+                        return "No max level: set a stop-at to raise it";
+                    return costText(bubble.val, pay.val);
+                }),
+            ],
+        });
+    };
+
+    const tab = useAutomationTab({
+        label: "Bubble automation",
+        cheats: [CHEAT],
+        read: async (automation) => {
+            const data = await readComputed("automation", "bubbles");
+            picks.sync(automation.bubbles);
+            target.sync(automation.bubblesTarget);
+            particles.val = data.atoms ? { owned: data.particles, charges: data.charges } : null;
+            const all = data.cauldrons.flatMap((cauldron) => cauldron.bubbles);
+            for (const bubble of all) getOrCreateState(bubbles, bubble.id, {}).val = bubble;
+            reconcile(all.map(({ id }) => id).join("|"), () =>
+                data.cauldrons.map((cauldron) =>
+                    AccountSection({
+                        title: cauldron.name,
+                        body: div(
+                            { class: "account-item-stack" },
+                            cauldron.bubbles.map(({ id, name }) => BubbleRow({ id, name: cleanName(name) }))
+                        ),
+                    })
+                )
+            );
+            ids.val = all.map(({ id }) => id);
+        },
+    });
+    const [automation] = tab.entries;
+    // Switching a bubble on switches Bubbles on too (now and at start), in the same save; after every save the tab
+    // reads the game again.
+    const picks = createAutomationPicks("bubbles", { cheat: CHEAT, entry: automation, afterSave: tab.afterSave });
+    const target = createAutomationSetting("bubblesTarget", { afterSave: tab.afterSave });
+
+    const bulk = usePicksBulk({
+        targets: () => [[picks, ids.val]],
+        // With every bubble on it still has work while Bubbles is off now or at start: switching it on.
+        done: (on, total) => on === total && Boolean(automation.val?.on) && tab.atStart(CHEAT),
+        noun: (n) => `${n === 1 ? "1 bubble" : `all ${n} bubbles`}, in every cauldron`,
+        waiting: tab.waiting,
+    });
+    const busy = () => tab.loading.val || bulk.busy();
+
+    tab.load();
+
+    return PersistentAccountListPage({
+        title: "AUTOMATION",
+        description:
+            "Switched-on bubbles are raised with the game's own upgrade, paying materials, or particles on a Particles row once the particle buy opens; switching one on turns Bubbles on. It pauses while the alchemy menu is open or you hold Bargain Tags, which any upgrade uses up. A free extra level can pass the stop-at.",
+        actions: BulkActionBar({ actions: bulk.actions(busy), refresh: { onClick: tab.load, disabled: busy } }),
+        topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+        state: { loading: tab.loading, error: tab.error },
+        loadingText: "READING BUBBLES",
+        errorTitle: "BUBBLE READ FAILED",
+        initialWrapperClass: "scrollable-panel",
+        body: div(
+            { class: "scrollable-panel content-stack bubbles-automation" },
+            AccountSection({
+                title: "SETTINGS",
+                meta: span({ class: "account-row__sub-label" }, () =>
+                    particles.val
+                        ? `${formatNumber(particles.val.owned)} particles · ${formatNumber(particles.val.charges)} charges`
+                        : ""
+                ),
+                body: div(
+                    { class: "account-item-stack" },
+                    tab.switches,
+                    SettingRow({
+                        setting: target,
+                        name: "Target",
+                        title: "% of max",
+                        mode: "float",
+                        max: 99.9,
+                        detail: "Bubbles that have a max rise to this % of it, the one furthest behind first. A stop-at still caps a bubble.",
+                    })
+                ),
+            }),
+            listNode
+        ),
+    });
+};
+
+export default definePage({
+    id: "w2.bubbles.automation",
+    world: 2,
+    system: "Bubbles",
+    tab: "Automation",
+    description: "Alchemy bubbles raised with their own materials or particles, to a target % of their max.",
+    keywords: ["Autobuy", "Auto buy", "Auto upgrade", "Alchemy", "Particles", "Stop at"],
+    component: BubblesAutomationPage,
+});

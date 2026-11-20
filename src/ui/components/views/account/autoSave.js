@@ -91,7 +91,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
     const settle = (next, why = "", by = "save", kind = null) => {
         if (by === "switch") return;
         const fieldWrite = by === "save" || by === "button";
-        if (next === "error" && fieldWrite) held = { why, kind };
+        if (next === "error" && fieldWrite) held = { why, kind, by };
         else if ((next === "success" && fieldWrite) || (next === null && by === "save")) held = null;
         let shown = { next, why, kind };
         if (next !== "loading" && held) shown = { ...held, next: "error" };
@@ -116,7 +116,8 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             return { ok: false, error };
         }
         if (!plan || plan.unchanged) {
-            if (status.val === "error") settle(null);
+            // Nothing to save takes back only the field's own failure: a button's (Clear) or a switch's still stands.
+            if (status.val === "error" && held?.by === "save") settle(null);
             return { ok: false, cancelled: true };
         }
         return runNow(plan.write, "save");

@@ -687,9 +687,19 @@ export const PRIORITY = {
  * [{ value, label }] }, PRIORITY say) adds a pick before the stop-at that saves that setting of the item; a value of
  * null is the default, left out of the config. The switch, the picks and the stop-at share one save state, whose writes
  * take turns in the order the player made them (a stop-at, then the switch, reach the game in that order), so what it
- * shows is the newest one's outcome.
+ * shows is the newest one's outcome. `label` names the item for screen readers when `name` alone doesn't (a kitchen's
+ * "Speed" under its kitchen's heading, say).
  */
-export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], stopAtTitle = "Stop at" }) => {
+export const PickRow = ({
+    picks,
+    id,
+    name,
+    label = name,
+    badge,
+    detail = null,
+    selects = [],
+    stopAtTitle = "Stop at",
+}) => {
     const item = picks.get(id);
     const field = useQueuedField({
         value: item.stopAt,
@@ -702,7 +712,7 @@ export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], s
     const checkbox = input({
         type: "checkbox",
         role: "switch",
-        "aria-label": `Buy ${name}`,
+        "aria-label": `Buy ${label}`,
         checked: () => item.on.val,
         onchange: (e) => {
             const on = e.target.checked;
@@ -715,7 +725,7 @@ export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], s
         const pick = select(
             {
                 class: "select-base",
-                "aria-label": `${name} ${title.toLowerCase()}`,
+                "aria-label": `${label} ${title.toLowerCase()}`,
                 onchange: (e) => {
                     const next = options[Number(e.target.value)].value;
                     // What the game holds again once the save ends, taken or not.
@@ -740,7 +750,7 @@ export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], s
                 draft: item.draft,
                 parse: parseStopAt,
                 title: stopAtTitle,
-                ariaLabel: `${name} ${stopAtTitle.toLowerCase()}`,
+                ariaLabel: `${label} ${stopAtTitle.toLowerCase()}`,
                 placeholder: "No limit",
             }),
             switchLabel(checkbox),

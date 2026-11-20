@@ -224,8 +224,10 @@ const CogsTab = () => {
     van.derive(() => {
         if (shownLockStatus.val !== "error") return;
         clearTimeout(lockErrorTimer);
+        // It clears only the failure it showed: another slot's later one waits for that slot to open.
+        const shownFor = lockSlot.rawVal;
         lockErrorTimer = setTimeout(() => {
-            if (lockStatus.val === "error") clearLockStatus();
+            if (lockStatus.val === "error" && lockSlot.val === shownFor) clearLockStatus();
         }, 1200);
     });
 
