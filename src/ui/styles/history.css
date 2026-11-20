@@ -118,12 +118,14 @@
     padding: 4px 0;
 }
 
+/* Old → new sits right after its path, as a table would read; the character ends the line. */
 .change-entry {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 9rem);
-    gap: 16px;
+    grid-template-columns: minmax(0, 22rem) auto minmax(0, 1fr);
+    gap: 24px;
     align-items: baseline;
     padding: 3px 12px;
+    font-weight: 400;
 }
 
 .change-entry__path {

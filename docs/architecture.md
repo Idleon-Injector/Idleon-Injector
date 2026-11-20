@@ -21,21 +21,27 @@ Save copies cross all three: the injected code keeps the newest cloud save's cop
 over CDP and stores it in `save-copies/` next to the injector's other runtime files, and the Web UI compares and
 restores through the server.
 
+The change log spans the Web UI and the server: every page save through `writeVerified` / `writeManyVerified` reads
+the old value first and, once the game reads the new one back, logs both with the character and the user action to the
+server, which keeps them in memory for the game session (a Web UI reload keeps them, a restart doesn't). Undo writes the
+old values back through the same calls.
+
 ## Find the relevant area
 
-| Task area                         | Source                                                                                               |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Platform attachment and injection | [game modules](../src/modules/game/)                                                                 |
-| Configuration loading             | [configManager.js](../src/modules/config/configManager.js)                                           |
-| HTTP and WebSocket contracts      | [apiRoutes.js](../src/modules/server/apiRoutes.js), [wsServer.js](../src/modules/server/wsServer.js) |
-| Server Monitor lifecycle          | [monitor.js](../src/modules/server/monitor.js)                                                       |
-| Save copies                       | [saveCopies.js](../src/modules/saveCopies.js), [core/saveCopy.js](../src/cheats/core/saveCopy.js)    |
-| Console interaction               | [cliInterface.js](../src/modules/cli/cliInterface.js)                                                |
-| Command registration and state    | [cheats/core](../src/cheats/core/)                                                                   |
-| Commands and game hooks           | [cheats/cheats](../src/cheats/cheats/), [hooks](../src/cheats/hooks/)                                |
-| UI views and shared components    | [views](../src/ui/components/views/), [components](../src/ui/components/)                            |
-| UI state and communication        | [state](../src/ui/state/), [services](../src/ui/services/)                                           |
-| Styles                            | [style.css](../src/ui/entry/style.css), [styles](../src/ui/styles/)                                  |
-| Bundling and packaging            | [rollup.config.mjs](../rollup.config.mjs), [package.json](../package.json)                           |
+| Task area                         | Source                                                                                                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Platform attachment and injection | [game modules](../src/modules/game/)                                                                                                                      |
+| Configuration loading             | [configManager.js](../src/modules/config/configManager.js)                                                                                                |
+| HTTP and WebSocket contracts      | [apiRoutes.js](../src/modules/server/apiRoutes.js), [wsServer.js](../src/modules/server/wsServer.js)                                                      |
+| Server Monitor lifecycle          | [monitor.js](../src/modules/server/monitor.js)                                                                                                            |
+| Save copies                       | [saveCopies.js](../src/modules/saveCopies.js), [core/saveCopy.js](../src/cheats/core/saveCopy.js)                                                         |
+| Change log and Undo               | [changeLog.js](../src/ui/services/changeLog.js), [undo.js](../src/ui/components/views/account/undo.js), [routes](../src/modules/server/routes/changes.js) |
+| Console interaction               | [cliInterface.js](../src/modules/cli/cliInterface.js)                                                                                                     |
+| Command registration and state    | [cheats/core](../src/cheats/core/)                                                                                                                        |
+| Commands and game hooks           | [cheats/cheats](../src/cheats/cheats/), [hooks](../src/cheats/hooks/)                                                                                     |
+| UI views and shared components    | [views](../src/ui/components/views/), [components](../src/ui/components/)                                                                                 |
+| UI state and communication        | [state](../src/ui/state/), [services](../src/ui/services/)                                                                                                |
+| Styles                            | [style.css](../src/ui/entry/style.css), [styles](../src/ui/styles/)                                                                                       |
+| Bundling and packaging            | [rollup.config.mjs](../rollup.config.mjs), [package.json](../package.json)                                                                                |
 
 See the [cheats guide](cheats.md) for that area.
