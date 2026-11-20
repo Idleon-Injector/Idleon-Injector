@@ -8,6 +8,10 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 const { router, game } = await createFakeApi();
 await loadUi(router);
 const g = game.gga;
+// Click again places its tooltip on the next frame and on <body>, as in the menu.
+globalThis.requestAnimationFrame = () => {};
+globalThis.document.body = globalThis.document.createElement("body");
+globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
 
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
@@ -63,7 +67,7 @@ const switchOf = (row) => elements(row).find((node) => node.attributes.role === 
 const wordsOf = (row) => text(byClass(row, "state-switch__words")[0]);
 const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on } });
 const saveState = (node) =>
-    /save-state--(\w+)/.exec(classes(byClass(node, "save-state")[0] ?? { attributes: {} }))?.[1];
+    /save-state--(loading|success|error)/.exec(classes(byClass(node, "save-state")[0] ?? { attributes: {} }))?.[1];
 
 const STAMPS = "src/ui/pages/world-1/stamps/stamps.js";
 
@@ -191,4 +195,77 @@ test("pets: a token the game no longer has room for is refused, and says why", a
     await tick();
     assert.equal(alertText(root), "All tokens are in use. Remove one first.");
     g.OptionsListAccount[606] = "2,5";
+});
+
+const STAR_SIGNS = "src/ui/pages/world-1/star-signs/star-signs.js";
+const openSign = async (label) => {
+    const root = await openPage(STAR_SIGNS, (root) => byClass(root, "starsign-card").length > 0);
+    byClass(root, "starsign-card")
+        .find((card) => text(byClass(card, "starsign-label-badge")[0]) === label)
+        .listeners.click({});
+    await until(() => byClass(root, "starsign-detail")[0], "the sign to open");
+    return root;
+};
+const detailOf = (root) => byClass(root, "starsign-detail")[0];
+const chipLetters = (root) => byClass(detailOf(root), "starsign-player-letter").map(text);
+const removeChip = (root, at) => byClass(detailOf(root), "starsign-remove-btn")[at].listeners.click({});
+
+test("star signs: removing a player keeps a completion made in the game since", async () => {
+    const saved = [...g.StarSignProg[1]];
+    g.StarSignProg[1] = ["_", 0];
+    const root = await openSign("A-2");
+    g.StarSignProg[1] = ["_c", 1]; // character c completed it in the game
+    const detail = detailOf(root);
+    removeChip(root, 0);
+    await until(() => ["success", "error"].includes(saveState(detail)), "the save");
+    assert.equal(saveState(detail), "success");
+    assert.equal(g.StarSignProg[1][0], "c");
+    await tick();
+    assert.deepEqual(chipLetters(root), ["c"], "the open sign shows what the game holds");
+    g.StarSignProg[1] = saved;
+});
+
+test("star signs: a refused save says why in the open sign and shows the game's players", async () => {
+    const root = await openSign("B-1");
+    const detail = detailOf(root);
+    const before = chipLetters(root);
+    const restore = refuseWrites(g.StarSignProg[3], 0);
+    try {
+        removeChip(root, 0);
+        await until(() => ["success", "error"].includes(saveState(detailOf(root))), "the save");
+    } finally {
+        restore();
+    }
+    assert.equal(detailOf(root), detail, "the open sign stays, with its save state");
+    assert.equal(saveState(detail), "error");
+    assert.equal(text(byClass(detail, "save-state__label")[0]).trim(), "game kept old value");
+    await tick();
+    assert.deepEqual(chipLetters(root), before);
+});
+
+test("star signs: Undo in the open sign puts the players back and shows them", async () => {
+    const saved = [...g.StarSignProg[1]];
+    g.StarSignProg[1] = ["_a", 0];
+    const root = await openSign("A-2");
+    const detail = detailOf(root);
+    removeChip(root, 0);
+    await until(() => saveState(detail) === "success", "the save");
+    assert.equal(g.StarSignProg[1][0], "a");
+    await byClass(detail, "save-state__undo")[0].listeners.click({});
+    await until(() => g.StarSignProg[1][0] === "_a", "the undo");
+    await until(() => chipLetters(root).join("") === "_a", "the open sign to show the players again");
+    assert.equal(detailOf(root), detail);
+    g.StarSignProg[1] = saved;
+});
+
+test("star signs: Reset all clears a sign completed in the game since the page opened", async () => {
+    const saved = [...g.StarSignProg[2]];
+    g.StarSignProg[2] = ["", 0];
+    const root = await openPage(STAR_SIGNS, (root) => byClass(root, "starsign-card").length > 0);
+    g.StarSignProg[2] = ["_", 0]; // completed in the game
+    const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset all");
+    reset.listeners.click({}); // asks "Click again"
+    await reset.listeners.click({});
+    assert.equal(g.StarSignProg[2][0], "");
+    g.StarSignProg[2] = saved;
 });
