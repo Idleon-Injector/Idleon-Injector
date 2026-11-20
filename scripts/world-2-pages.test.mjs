@@ -104,6 +104,40 @@ const setAllOf = (root) => {
 };
 const notBusy = (button) => !button.attributes.disabled;
 
+test("islands: two islands unlocked close together both stay unlocked (they share one string)", async () => {
+    ola[169] = "";
+    const root = await openPage("src/ui/pages/world-2/islands/islands.js", (root) => rowNamed(root, "Rando Island"));
+    const box = (name) => inputs(rowNamed(root, name)).find((node) => node.attributes.role === "switch");
+    const hold = holdWrites();
+    const saves = [flip(box("Trash Island"), true)];
+    await until(() => hold.held() > 0, "the first save to reach the game");
+    saves.push(flip(box("Rando Island"), true));
+    hold.release();
+    await Promise.all(saves);
+    assert.equal(ola[169], "a_", "the game holds both");
+    await until(() => box("Trash Island").checked && box("Rando Island").checked, "both switches to show Unlocked");
+    ola[169] = "";
+});
+
+test("bubbles: two Prisma switches flipped close together both stay Prisma (they share one string)", async () => {
+    ola[384] = "0";
+    const root = await openPage(
+        "src/ui/pages/world-2/bubbles/bubbles.js",
+        (root) => byClass(root, "brewing-row").length > 4
+    );
+    const [first, second] = inputs(byClass(root, "brewing-section--orange")[0]).filter(
+        (node) => node.attributes.role === "switch"
+    );
+    const hold = holdWrites();
+    const saves = [flip(first, true)];
+    await until(() => hold.held() > 0, "the first save to reach the game");
+    saves.push(flip(second, true));
+    hold.release();
+    await Promise.all(saves);
+    assert.equal(String(ola[384]).split(",").filter(Boolean).length, 2, `the game holds both: ${ola[384]}`);
+    ola[384] = "0";
+});
+
 test("vials: a vial saved while Set all runs keeps the level it saved (Set all left it out)", async () => {
     const levels = game.gga.CauldronInfo[4];
     for (let i = 0; i < levels.length; i++) levels[i] = 2;

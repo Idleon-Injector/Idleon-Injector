@@ -25,6 +25,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
+    oneAtATime,
     readLevelDefinitions,
     runBulkSet,
     sortPrefixedNumericCodes,
@@ -66,7 +67,7 @@ function encodePrisma(set) {
     return [...set].sort(sortPrefixedNumericCodes).join(",") + ",";
 }
 
-const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
+const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
     const levelState = van.state(Number(levels.val?.[bubble.index] ?? 0));
     const prismaBlocked = bubble.isBigBubble === true;
     const isPrisma = van.derive(() => (prismaSet.val ?? new Set()).has(prismaCode(cauldron.prismaKey, bubble.index)));
@@ -107,15 +108,23 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
                       name: `${bubble.name} prisma`,
                       title: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
                       onFlip: (prisma) =>
-                          run(async () => {
-                              const code = prismaCode(cauldron.prismaKey, bubble.index);
-                              const next = new Set(prismaSet.val ?? new Set());
-                              if (prisma) next.add(code);
-                              else next.delete(code);
-                              const encoded = encodePrisma(next);
-                              await writeVerified("OptionsListAccount[384]", encoded);
-                              prismaSet.val = next;
-                          }).then(() => undefined), // the row's own save state says why a save failed
+                          run(() =>
+                              prismaInTurn(async () => {
+                                  const code = prismaCode(cauldron.prismaKey, bubble.index);
+                                  const held = parsePrisma(await gga("OptionsListAccount[384]"));
+                                  const next = new Set(held);
+                                  if (prisma) next.add(code);
+                                  else next.delete(code);
+                                  try {
+                                      await writeVerified("OptionsListAccount[384]", encodePrisma(next));
+                                  } catch (error) {
+                                      // A failed save leaves the switches on what the game held when it started.
+                                      prismaSet.val = held;
+                                      throw error;
+                                  }
+                                  prismaSet.val = next;
+                              })
+                          ).then(() => undefined), // the row's own save state says why a save failed
                   }),
     });
 };
@@ -172,6 +181,8 @@ const BrewingTab = () => {
     const cauldronLevels = new Map(CAULDRONS.map((c) => [c.id, van.state([])]));
     const bubbleDefs = new Map(CAULDRONS.map((c) => [c.id, van.state([])]));
     const prismaSet = van.state(new Set());
+    // Every bubble's Prisma lives in one string, so flips save one at a time, each from the string the game holds now.
+    const prismaInTurn = oneAtATime();
     const sectionsGrid = div({ class: "brewing-sections-grid grid-4col" });
     const contentNode = div({ class: "scrollable-panel" }, sectionsGrid);
     const sectionBodyNodes = new Map();
@@ -211,6 +222,7 @@ const BrewingTab = () => {
                     cauldron,
                     levels: cauldronLevels.get(cauldron.id),
                     prismaSet,
+                    prismaInTurn,
                 })
             )
         );
