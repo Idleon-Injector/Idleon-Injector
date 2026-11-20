@@ -68,6 +68,26 @@ test("an action button whose question is null runs on one click", async () => {
     assert.equal(ran, 1);
 });
 
+// Royal Armory and Map bonuses ask about "this world": a world picked after the first press asks again.
+test("a press whose targets changed since the question asks again instead of running", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const world = { val: 1 };
+    let ran = 0;
+    const button = ActionButton({
+        label: "Deplete all",
+        confirm: "deplete every node in this world.",
+        confirmTargets: world,
+        onClick: () => ran++,
+    });
+    await click(button);
+    world.val = 2;
+    await click(button);
+    assert.equal(ran, 0, "the second press asked about W2 instead");
+    assert.equal(button.attributes["data-again"], "Click again");
+    await click(button);
+    assert.equal(ran, 1, "and a third runs it");
+});
+
 const removals = [
     ["src/ui/pages/world-2/arcade-shop/arcade-shop.js", "Reset all"],
     ["src/ui/pages/world-3/atom-collider/atom-collider.js", "Reset all"],
@@ -225,3 +245,29 @@ test("bundles: Buy all asks in place with the inventory warning beside it, and b
     assert.equal(button.attributes["data-again"], undefined);
     assert.equal(warning(), "", "the warning goes once it buys");
 });
+
+// "Click again to deplete every node in this world.": the world picked between the two clicks is another question.
+for (const [file, label] of [
+    ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
+    ["src/ui/pages/classes/tesseract/2-map-bonuses.js", "Clear world (0)"],
+]) {
+    test(`${file.split("/").pop()}: ${label} asks again for a world picked after the first click`, async () => {
+        const root = (await importRepo(file)).default.component();
+        const enabled = () => buttonsNamed(root, label).find((node) => !node.attributes.disabled);
+        const pickWorld = async (name) => {
+            await until(() => buttonsNamed(root, name).length, name);
+            await click(buttonsNamed(root, name)[0]);
+            await until(enabled, `${label} in ${name}`);
+            await settle(100);
+        };
+        await pickWorld("W1");
+        const button = enabled();
+        const before = writes();
+        await click(button);
+        await pickWorld("W2");
+        await click(button);
+        await settle(100);
+        assert.equal(writes(), before, "W2 was not changed on W1's question");
+        assert.equal(button.attributes["data-again"], "Click again", "it asks about W2");
+    });
+}

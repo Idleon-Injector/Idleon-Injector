@@ -39,6 +39,7 @@ export const BulkActionBar = ({ leading = null, actions = [], refresh = null }) 
                     onClick: (e) => action.onClick(e),
                     preventMouseDown: action.preventMouseDown !== false,
                     confirm: action.confirm ?? null,
+                    confirmTargets: action.confirmTargets ?? null,
                 })
             ),
         refresh

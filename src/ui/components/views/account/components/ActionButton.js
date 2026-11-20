@@ -44,7 +44,8 @@ const pressedBy = new WeakMap();
 /**
  * Shared action button for account feature tabs. `confirm` (a question, or a function that returns one or null) makes
  * the press ask in place first (#25): the first press reads "Click again" and only a second one runs `onClick`. Bulk
- * removals pass it; additions run on one press.
+ * removals pass it; additions run on one press. `confirmTargets` (a value, or a function that returns one) is what the
+ * change touches that the question doesn't name, such as the world picked: a change to it asks again.
  */
 export const ActionButton = ({
     label,
@@ -58,6 +59,7 @@ export const ActionButton = ({
     type = "button",
     buttonProps = {},
     confirm = null,
+    confirmTargets = null,
 }) => {
     const shared = Object(status) === status;
     let buttonNode = null;
@@ -93,7 +95,8 @@ export const ActionButton = ({
                           const question = typeof confirm === "function" ? confirm() : confirm;
                           // A question that went away (Set count raised after it asked) takes "Click again" with it.
                           if (!question) disarm(buttonNode);
-                          else if (!clickAgain(buttonNode, question)) return undefined;
+                          else if (!clickAgain(buttonNode, question, { targets: resolveValue(confirmTargets) }))
+                              return undefined;
                       }
                       if (shared) pressedBy.set(status, buttonNode);
                       const name = String(resolveValue(label)).trim();

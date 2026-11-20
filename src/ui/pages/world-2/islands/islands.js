@@ -169,6 +169,8 @@ const IslandsTab = () => {
                         variant: "danger",
                         status: unlockBulk.status,
                         tooltip: "Clear every island unlock",
+                        // It removes, so it asks in place first (#25).
+                        confirm: "lock every island.",
                         onClick: () => unlockBulk.run(() => writeUnlocks("", { batch: true })),
                     },
                 ],
