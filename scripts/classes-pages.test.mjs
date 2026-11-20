@@ -422,7 +422,7 @@ test("map bonuses: a reload leaves the rows in the page", async () => {
 });
 
 test("masterclass pages: a reload leaves the rows in the page", async () => {
-    const root = (await importRepo("src/ui/pages/classes/grimoire/grimoire.js")).default.component();
+    const root = (await importRepo("src/ui/pages/classes/grimoire/1-grimoire.js")).default.component();
     await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
     const row = byClass(root, "masterclass-upgrade-row")[0];
     const takenOut = watchTakenOut(row);
@@ -432,7 +432,7 @@ test("masterclass pages: a reload leaves the rows in the page", async () => {
 });
 
 test("masterclass pages: a search by index finds the row with that number", async () => {
-    const root = (await importRepo("src/ui/pages/classes/grimoire/grimoire.js")).default.component();
+    const root = (await importRepo("src/ui/pages/classes/grimoire/1-grimoire.js")).default.component();
     await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
     const search = elements(root).find(
         (node) => node.nodeName === "input" && String(node.attributes.placeholder ?? "").includes("OR INDEX")
