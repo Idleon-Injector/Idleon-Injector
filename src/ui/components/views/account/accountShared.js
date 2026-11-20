@@ -1,7 +1,7 @@
 /** Shared hooks and helpers for account feature tabs. */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { gga, ggaMany, readCList, readGgaMany } from "../../../services/api.js";
+import { gga, ggaMany, readCList, readComputed, readGgaMany } from "../../../services/api.js";
 import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
@@ -217,8 +217,10 @@ export const renderAccountError = (message) => EmptyState({ failed: true, title:
 /**
  * Write a value through gga (or a compatible writer) and fail if verification
  * reports a mismatch. A value that lands goes in the change log (History, Undo).
+ * With `character`, the game writes it only while that character is in play (as writeManyVerified).
  */
-export const writeVerified = (path, value, { write = gga } = {}) => {
+export const writeVerified = (path, value, { write = gga, character } = {}) => {
+    if (character !== undefined) return writeManyVerified([{ path, value }], { character }).then(() => value);
     // Claimed now, while the caller's code runs, so the save joins the user action that made it. A custom writer
     // (a row handing the write to its page) saves through writeVerified itself, so only the game write logs.
     const change = write === gga ? startChange([path]) : null;
@@ -238,6 +240,22 @@ const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
  * page says these words; the game's own refusal (characterInPlay in src/cheats) says the same, pinned by a test.
  */
 export const CHARACTER_CHANGED = "Character changed. Refresh.";
+
+/**
+ * What a page says when no character is in play, such as at character select: there the per-character values are
+ * placeholders the game drops on PLAY, so a page shows this instead of them and refuses the save. Every page says
+ * these words; the game's own refusal (characterInPlay in src/cheats) says the same, pinned by a test.
+ */
+export const NO_CHARACTER = "No character in play.";
+
+/**
+ * The character in play, by the game's own check (characterInPlay). Rejects with NO_CHARACTER when none is, and with
+ * CHARACTER_CHANGED when `expected` (the one the page shows) is no longer the one in play.
+ * @param {string} [expected]
+ * @returns {Promise<string>}
+ */
+export const readCharacterInPlay = (expected) =>
+    readComputed("player", "inPlay", expected === undefined ? [] : [expected]);
 
 /**
  * Write many GGA paths and throw a consistent error for the first failed write.

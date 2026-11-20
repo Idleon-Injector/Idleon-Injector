@@ -17,10 +17,12 @@ import { RefreshButton, WarningBanner } from "../../../components/views/account/
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    NO_CHARACTER,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
+    readCharacterInPlay,
     resolveFormattedIntInput,
     toInt,
     useWriteStatus,
@@ -48,7 +50,7 @@ const statueValues = (levels, tier, flair) => ({
     flair: toInt(flair, { min: 0 }),
 });
 
-const StatueRow = ({ index, nameState, levelState, depositedState, tierState, flairState }) =>
+const StatueRow = ({ index, nameState, levelState, depositedState, tierState, flairState, getCharacter }) =>
     EditableFieldsRow({
         fields: [
             {
@@ -100,13 +102,23 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                     ...(await Promise.all([gga(`StatueLevels[${index}]`), gga(paths.tier), gga(paths.flair)]))
                 );
             try {
+                // StatueLevels is the character in play's own: the game writes only while that is still the one read.
                 await writeManyVerified(
                     Object.keys(paths)
                         .filter((key) => next[key] !== stored[key].val)
-                        .map((key) => ({ path: paths[key], value: next[key] }))
+                        .map((key) => ({ path: paths[key], value: next[key] })),
+                    { character: getCharacter() }
                 );
             } catch (error) {
-                const now = await read().catch(() => null);
+                // What the game holds now, only while the row's character is still the one in play: another one's
+                // values (a save refused because the character changed) stay out of these rows.
+                const now = await readCharacterInPlay(getCharacter())
+                    .then(async () => {
+                        const values = await read();
+                        await readCharacterInPlay(getCharacter());
+                        return values;
+                    })
+                    .catch(() => null);
                 if (now) Object.keys(stored).forEach((key) => (stored[key].val = now[key]));
                 throw error;
             }
@@ -182,6 +194,12 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
 
 const StatuesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Statues" });
+    // The character the page read: its saves go to it only while it is in play, and none go before a read.
+    let character;
+    const getCharacter = () => {
+        if (character === undefined) throw new Error(NO_CHARACTER);
+        return character;
+    };
 
     const nameStates = new Map();
     const levelStates = new Map();
@@ -209,6 +227,7 @@ const StatuesTab = () => {
                     depositedState: getOrCreateState(depositedStates, statue.index),
                     tierState: getOrCreateState(tierStates, statue.index),
                     flairState: getOrCreateState(flairStates, statue.index),
+                    getCharacter,
                 })
             );
         });
@@ -216,6 +235,7 @@ const StatuesTab = () => {
 
     const load = async () =>
         run(async () => {
+            const loadedCharacter = await readCharacterInPlay();
             const [rawInfo, rawLevels, rawTiers, rawFlair, rawFlairUnlock] = await Promise.all([
                 readCList("StatueInfo"),
                 gga("StatueLevels"),
@@ -223,6 +243,9 @@ const StatuesTab = () => {
                 gga("RoyalG[22]"),
                 gga(FLAIR_UNLOCK_PATH),
             ]);
+            // Still the same character once the reads are in, so an edit saves for the one whose values it shows.
+            await readCharacterInPlay(loadedCharacter);
+            character = loadedCharacter;
             const info = toIndexedArray(rawInfo);
             const levels = toIndexedArray(rawLevels);
             const tiers = toIndexedArray(rawTiers);

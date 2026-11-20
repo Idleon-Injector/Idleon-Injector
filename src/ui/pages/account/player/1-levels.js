@@ -8,11 +8,13 @@ import { captureGesture } from "../../../services/changeLog.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     CHARACTER_CHANGED,
+    NO_CHARACTER,
     createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
     largeParser,
     oneAtATime,
+    readCharacterInPlay,
     unwrapH,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -62,10 +64,8 @@ const PlayerTab = () => {
         const inOwnAction = captureGesture();
         busy.val = true;
         try {
-            const active = await gga("UserInfo[0]");
-            if (active !== current.val || name !== selected.val) {
-                throw new Error(CHARACTER_CHANGED);
-            }
+            const active = await readCharacterInPlay(current.val);
+            if (name !== selected.val) throw new Error(CHARACTER_CHANGED);
             const root = name === active ? "" : `PlayerDATABASE.h[${name}].h.`;
             const field = index === null ? "Money" : `Lv0[${index}]`;
             const before = await gga(`${root}${field}`);
@@ -78,17 +78,12 @@ const PlayerTab = () => {
                 writes.push({ path: `${root}ExpReq0[${index}]`, value: required });
             }
             writes.push({ path: `${root}${field}`, value: next });
-            if ((await gga("UserInfo[0]")) !== active) {
-                throw new Error(CHARACTER_CHANGED);
-            }
-            await inOwnAction(() => writeManyVerified(writes));
-            if ((await gga("UserInfo[0]")) !== active) {
-                throw new Error(CHARACTER_CHANGED);
-            }
+            // The game writes only while `active` is still in play, checked as it writes.
+            await inOwnAction(() => writeManyVerified(writes, { character: active }));
             return next;
         } catch (caught) {
             message.val =
-                caught.message === CHARACTER_CHANGED
+                caught.message === CHARACTER_CHANGED || caught.message === NO_CHARACTER
                     ? caught.message
                     : `${caught.message} Refresh to reload player values; some writes may have applied.`;
             throw caught;
@@ -136,10 +131,10 @@ const PlayerTab = () => {
         // Cleared by the player's own load only: the read again after a save that landed in part keeps its warning.
         message.val = "";
         await run(async () => {
-            const active = await gga("UserInfo[0]");
+            const active = await readCharacterInPlay();
             const [rawNames, rawSkills] = await Promise.all([gga("GetPlayersUsernames"), readCList("SkillNames")]);
             const names = toIndexedArray(rawNames).filter((name) => typeof name === "string" && name.length > 0);
-            if (!names.includes(active)) throw new Error("No active player. Enter the game and refresh.");
+            if (!names.includes(active)) throw new Error(NO_CHARACTER);
             if (!names.includes(selected.val)) selected.val = active;
             const name = selected.val;
             // The shared resolver treats dots and brackets as separators, even inside a name.
@@ -157,7 +152,7 @@ const PlayerTab = () => {
             if (!levels.length || !Number.isFinite(money) || !levels.every(Number.isFinite)) {
                 throw new Error("Player data is incomplete. Refresh after entering the game.");
             }
-            if ((await gga("UserInfo[0]")) !== active) throw new Error(CHARACTER_CHANGED);
+            await readCharacterInPlay(active);
             current.val = active;
             const fields = [
                 { index: null, title: "Money", value: money },

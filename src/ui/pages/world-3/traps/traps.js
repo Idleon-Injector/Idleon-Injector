@@ -3,7 +3,7 @@
  *
  * Data sources:
  *   gga.GetPlayersUsernames                              - all character names
- *   gga.UserInfo[0]                                      - currently selected character name
+ *   readCharacterInPlay()                                - the character in play; rejects at character select
  *   gga.PlayerDATABASE.h[playerName].h.PldTraps         - stored traps per character
  *   gga.PlacedTraps                                      - live traps for currently selected character
  *
@@ -31,11 +31,11 @@ import { AccountExpandableGroup } from "../../../components/views/account/compon
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
-    CHARACTER_CHANGED,
     adjustFormattedIntInput,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    readCharacterInPlay,
     resolveFormattedIntInput,
     toInt,
     unwrapH,
@@ -268,12 +268,10 @@ const TrappingTab = () => {
 
     // PlacedTraps holds the traps of the character in play now, so a save asks the game who that is first.
     const onWriteField = async (playerName, trapIndex, fieldIndex, value) => {
-        const inPlay = await gga("UserInfo[0]");
-        if ((typeof inPlay === "string" ? inPlay : "") !== latestSnapshot.currentPlayer) {
-            throw new Error(CHARACTER_CHANGED);
-        }
+        const inPlay = await readCharacterInPlay(latestSnapshot.currentPlayer);
         if (playerName === inPlay) {
-            await writeVerified(`PlacedTraps[${trapIndex}][${fieldIndex}]`, value);
+            // The game refuses it if another character is in play by the time it writes.
+            await writeVerified(`PlacedTraps[${trapIndex}][${fieldIndex}]`, value, { character: inPlay });
         }
 
         const dbPath = `${trapBasePath(playerName, trapIndex)}[${fieldIndex}]`;
@@ -317,11 +315,10 @@ const TrappingTab = () => {
 
     const load = async () =>
         run(async () => {
-            const [rawNames, rawCurrentPlayer] = await Promise.all([gga("GetPlayersUsernames"), gga("UserInfo[0]")]);
+            const [rawNames, currentPlayer] = await Promise.all([gga("GetPlayersUsernames"), readCharacterInPlay()]);
             const playerNames = toIndexedArray(rawNames ?? []).filter(
                 (name) => typeof name === "string" && name.trim().length > 0 && !name.startsWith("__")
             );
-            const currentPlayer = typeof rawCurrentPlayer === "string" ? rawCurrentPlayer : "";
 
             const [playerEntries, liveTraps] = await Promise.all([
                 playerNames.length ? readGgaEntries("PlayerDATABASE.h", playerNames, ["PldTraps"]) : {},

@@ -18,7 +18,7 @@ import { EditableNumberRow } from "../../../components/views/account/EditableNum
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { writeVerified } from "../../../components/views/account/accountShared.js";
+import { NO_CHARACTER, readCharacterInPlay, writeVerified } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
@@ -32,7 +32,7 @@ const CATEGORIES = [
 
 const clampCategoryValue = (category, value) => Math.max(0, Math.min(category.max ?? Infinity, value));
 
-const AnvilRow = ({ category, valueState, onWriteApplied }) =>
+const AnvilRow = ({ category, valueState, getCharacter, onWriteApplied }) =>
     EditableNumberRow({
         valueState,
         normalize: (rawValue) => {
@@ -42,7 +42,8 @@ const AnvilRow = ({ category, valueState, onWriteApplied }) =>
         },
         write: async (nextValue) => {
             const path = `AnvilPAstats[${category.index}]`;
-            const verified = await writeVerified(path, nextValue);
+            // AnvilPAstats is the character in play's own: the game writes it only while that is still the one read.
+            const verified = await writeVerified(path, nextValue, { character: getCharacter() });
             await onWriteApplied();
             return verified;
         },
@@ -60,11 +61,21 @@ const AnvilRow = ({ category, valueState, onWriteApplied }) =>
 const AnvilTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Anvil" });
     const statStates = Array.from({ length: 6 }, () => van.state(0));
+    // The character the page read: its saves go to it only while it is in play, and none go before a read.
+    let character;
+    const getCharacter = () => {
+        if (character === undefined) throw new Error(NO_CHARACTER);
+        return character;
+    };
 
     const load = async () =>
         run(async () => {
+            const loadedCharacter = await readCharacterInPlay();
             const raw = await gga("AnvilPAstats");
             const arr = toIndexedArray(raw);
+            // Still the same character once the reads are in, so an edit saves for the one whose values it shows.
+            await readCharacterInPlay(loadedCharacter);
+            character = loadedCharacter;
             for (let i = 0; i < statStates.length; i++) {
                 statStates[i].val = Number(arr[i] ?? 0);
             }
@@ -93,6 +104,7 @@ const AnvilTab = () => {
             AnvilRow({
                 category: cat,
                 valueState: statStates[cat.index],
+                getCharacter,
                 onWriteApplied: refreshRemainingPoints,
             })
         )

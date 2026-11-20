@@ -58,10 +58,29 @@ test("status: who is in play, the loadouts a mage can take, and the food stack s
     assert.deepEqual(read("status").foodLimits, { golden: 25000, regular: 1500 }, "the golden stack worn now");
 });
 
-test("no character in play: the Wardrobe says to pick one", () => {
+test("no character in play: the Wardrobe says so", () => {
     reset();
     gga.UserInfo = [0];
-    assert.throws(() => read("status"), /Select a character in the game/);
+    assert.throws(() => read("status"), /^Error: No character in play\.$/);
+    reset();
+});
+
+// At character select UserInfo[0] already names the character clicked, but its values are placeholders until PLAY.
+test("at character select, with a character clicked, the Wardrobe and Perfect Equipped say no character is in play", async () => {
+    reset();
+    for (const scene of ["PlayerSelect", "PlayerSwap"]) {
+        game.returns.getCurrentSceneName = scene;
+        try {
+            assert.throws(() => read("status"), /^Error: No character in play\.$/, scene);
+            assert.throws(() => read("capture"), /^Error: No character in play\.$/, scene);
+            const before = JSON.stringify(gga.EquipmentMap);
+            assert.deepEqual(await cheat("wide perfectequipped"), { ok: false, message: "No character in play." });
+            assert.equal(JSON.stringify(gga.EquipmentMap), before, `${scene}: the gear is as it was`);
+        } finally {
+            delete game.returns.getCurrentSceneName;
+        }
+    }
+    assert.equal(read("status").character, "Lumi", "in a map the character is in play again");
     reset();
 });
 
@@ -287,7 +306,7 @@ test("wide perfectequipped refuses with no character in play and changes nothing
     const before = JSON.stringify(gga.EquipmentMap);
     assert.deepEqual(await cheat("wide perfectequipped"), {
         ok: false,
-        message: "Select a character in the game first.",
+        message: "No character in play.",
     });
     assert.equal(JSON.stringify(gga.EquipmentMap), before);
     reset();

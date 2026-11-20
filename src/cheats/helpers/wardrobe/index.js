@@ -129,7 +129,7 @@ export function wardrobePerfectFood({ character } = {}) {
 /** The loadout the character in play wears, as a saved loadout. Applying it rebuilds the gear, never old rolls. */
 export function captureWardrobe(a = gga, lists = cList) {
     const player = a.GetPlayersUsernames.indexOf(a.UserInfo[0]);
-    if (player < 0) throw new Error("Select a character before saving a loadout.");
+    if (player < 0) throw new Error("No character in play.");
     const equipment = a.EquipmentOrder[0].slice(0, 16);
     for (const slot of [8, 10, 12, 14]) equipment[slot] = "Keep";
     const setKeys = Object.keys(a.Cards[3].h);
