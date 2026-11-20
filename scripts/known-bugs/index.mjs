@@ -305,6 +305,8 @@ export async function loadUi(router) {
         removeEventListener(type, listener) {
             this.handlers[type] = this.handlers[type]?.filter((handler) => handler !== listener);
         }
+        // Nothing scrolls here; the menu's tab rows call it (Pages.js).
+        scrollIntoView() {}
     }
     // A page always has a body: the UI's one live region (inPlace's announce) goes there.
     const body = new Element("body");
