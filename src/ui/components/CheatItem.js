@@ -18,17 +18,21 @@ export const CheatItem = (cheat) => {
     // A result or a refusal is short and rides on the row's end; a failure gets its own line under the row,
     // so its reason reads in full even at 400 px.
 
-    // Use direct DOM reference instead of van.state to save thousands of listeners
+    // Only a cheat that takes a value keeps its draft in a state: the star reads it, so it lights as the value is
+    // typed. The rest (most rows) need no state, which saves thousands of listeners.
+    const draft = needsValue ? van.state("") : null;
     const inputRef = needsValue
         ? input({
               type: "text",
               class: "cheat-input",
               placeholder: "Val",
               "aria-label": `Value for ${cheat.value}`,
+              value: draft,
+              oninput: (e) => (draft.val = e.target.value),
           })
         : null;
 
-    const getInputValue = () => (inputRef ? inputRef.value.trim() : "");
+    const getInputValue = () => (draft ? draft.val.trim() : "");
 
     // A refusal: the value field (the row's hint) pulses and the row says why.
     const refuse = (text) => {
