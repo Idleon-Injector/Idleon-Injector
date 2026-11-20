@@ -146,6 +146,13 @@ const IslandsTab = () => {
             unlocksState.val = canonical;
         });
 
+    // Lowering takes upgrade levels away, so it asks first; raising runs on one click.
+    const confirmSetAll = (fields, inputState) => () => {
+        const target = resolveNumberInput(inputState.val, { min: 0, fallback: null });
+        const lowered = fields.filter((field) => Number(getValueState(field.index).val) > target).length;
+        return lowered ? `lower ${lowered} upgrade${lowered === 1 ? "" : "s"} to ${target}.` : null;
+    };
+
     const setAll = async (fields, inputState, status) => {
         const target = resolveNumberInput(inputState.val, { min: 0, fallback: null });
         if (target === null) return;
@@ -204,6 +211,7 @@ const IslandsTab = () => {
                     value: garbageSetAll,
                     status: garbageBulk.status,
                     onApply: () => setAll(GARBAGE_FIELDS, garbageSetAll, garbageBulk),
+                    confirm: confirmSetAll(GARBAGE_FIELDS, garbageSetAll),
                 })
             ),
             body: div(
@@ -235,6 +243,7 @@ const IslandsTab = () => {
                     value: randoSetAll,
                     status: randoBulk.status,
                     onApply: () => setAll(RANDO_FIELDS, randoSetAll, randoBulk),
+                    confirm: confirmSetAll(RANDO_FIELDS, randoSetAll),
                 })
             ),
             body: div(
@@ -251,6 +260,7 @@ const IslandsTab = () => {
                     value: shimmerSetAll,
                     status: shimmerBulk.status,
                     onApply: () => setAll(SHIMMER_FIELDS, shimmerSetAll, shimmerBulk),
+                    confirm: confirmSetAll(SHIMMER_FIELDS, shimmerSetAll),
                 })
             ),
             body: div(

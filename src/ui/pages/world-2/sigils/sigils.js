@@ -132,8 +132,16 @@ const SigilTab = () => {
             }
         });
 
+    const pickedTier = () => Math.min(4, Math.max(-1, Math.round(Number(setAllTier.val))));
+    // Lowering (locking included) takes tiers away, so it asks first; raising runs on one click.
+    const confirmSetAll = () => {
+        const tier = pickedTier();
+        const lowered = sigilTier.filter((state) => Number(state.val) > tier).length;
+        return lowered ? `lower ${lowered} sigil${lowered === 1 ? "" : "s"} to ${getTierInfo(tier).label}.` : null;
+    };
+
     const doSetAll = async () => {
-        const tier = Math.min(4, Math.max(-1, Math.round(Number(setAllTier.val))));
+        const tier = pickedTier();
         if (Number.isNaN(tier)) return;
 
         await runSetAll(async () => {
@@ -166,6 +174,7 @@ const SigilTab = () => {
                 options: SIGIL_TIERS,
                 status: setAllStatus,
                 onApply: doSetAll,
+                confirm: confirmSetAll,
             }),
             refresh: { onClick: load },
         }),

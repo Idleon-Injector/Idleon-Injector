@@ -16,7 +16,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar, SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
+import { BulkActionBar, SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
@@ -27,6 +27,7 @@ import {
     cleanName,
     oneAtATime,
     readLevelDefinitions,
+    resolveNumberInput,
     runBulkSet,
     sortPrefixedNumericCodes,
     useWriteStatus,
@@ -132,29 +133,38 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
 const CauldronSectionBlock = ({ cauldron, levels, defs, sectionBody, setAllInput }) => {
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
 
+    const typedLevel = () => resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
+    const levelOf = (bubble) => Number(toIndexedArray(levels.val ?? [])[bubble.index] ?? 0);
+    // Lowering takes levels away, so it asks first; raising runs on one click.
+    const confirmSetAll = () => {
+        const lvl = typedLevel();
+        if (lvl === null) return null;
+        const lowered = (defs.val ?? []).filter((bubble) => levelOf(bubble) > lvl).length;
+        return lowered
+            ? `lower ${lowered} ${cauldron.label.toLowerCase()} bubble${lowered === 1 ? "" : "s"} to level ${lvl}.`
+            : null;
+    };
+
     const doSetAll = async () => {
-        const lvl = Math.max(0, Number(setAllInput.val));
-        if (isNaN(lvl)) return;
+        const lvl = typedLevel();
+        if (lvl === null) return refuseSetAll(setAllInput);
 
-        const bubbles = defs.val ?? [];
-        if (bubbles.length === 0) return;
+        const bubblesToSet = (defs.val ?? []).filter((bubble) => levelOf(bubble) !== lvl);
+        if (bubblesToSet.length === 0) return undefined;
 
-        const currentLevels = toIndexedArray(levels.val ?? []);
-        const bubblesToSet = bubbles.filter((bubble) => Number(currentLevels[bubble.index] ?? 0) !== lvl);
-        if (bubblesToSet.length === 0) return;
-
-        await runBulk(async () => {
-            const nextLevels = [...toIndexedArray(levels.val ?? [])];
+        return runBulk(async () => {
             await runBulkSet({
                 entries: bubblesToSet,
                 getTargetValue: () => lvl,
-                getValueState: (bubble) => ({ val: currentLevels[bubble.index] ?? 0 }),
+                getValueState: (bubble) => ({ val: levelOf(bubble) }),
                 getPath: (bubble) => `CauldronInfo[${cauldron.index}][${bubble.index}]`,
+                // Only the bubbles written change: a row saved meanwhile keeps its level.
                 applyLocal: (bubble) => {
+                    const nextLevels = [...toIndexedArray(levels.val ?? [])];
                     nextLevels[bubble.index] = lvl;
+                    levels.val = nextLevels;
                 },
             });
-            levels.val = nextLevels;
         });
     };
 
@@ -165,6 +175,7 @@ const CauldronSectionBlock = ({ cauldron, levels, defs, sectionBody, setAllInput
             label: "Set all",
             status: bulkStatus,
             tooltip: "Set all bubbles in this cauldron",
+            confirm: confirmSetAll,
             onClick: async (e) => {
                 e.preventDefault();
                 await doSetAll();

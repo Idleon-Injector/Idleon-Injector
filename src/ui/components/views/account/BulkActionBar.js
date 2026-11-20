@@ -2,7 +2,9 @@ import van from "../../../vendor/van-1.6.0.js";
 import { NumberInput } from "../../NumberInput.js";
 import { ActionButton } from "./components/ActionButton.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
-import { toNodes } from "./accountShared.js";
+import { resolveNumberInput, resolveValue, toNodes } from "./accountShared.js";
+import { announce, replay } from "../../inPlace.js";
+import { hideTooltip, showTooltip } from "../../Tooltip.js";
 
 const { div, span, select, option } = van.tags;
 
@@ -50,6 +52,25 @@ export const BulkActionBar = ({ leading = null, actions = [], refresh = null }) 
             : null
     );
 
+// The field each Set all value is typed in, so a press with no number there can point at it (refuseSetAll).
+const fieldByValue = new WeakMap();
+const isNumber = (value) => resolveNumberInput(value.val, { fallback: null }) !== null;
+
+/** A Set all pressed with no number in its field: nothing is written, and the field pulses and says why. */
+export const refuseSetAll = (value) => {
+    const why = "Type a number first";
+    announce(why);
+    const field = fieldByValue.get(value);
+    if (!field) return;
+    replay(field, "refused");
+    showTooltip(field, why);
+    setTimeout(() => hideTooltip(field), 4000);
+};
+
+/**
+ * A typed value every row gets. An empty or invalid value is refused at the field, never written as 0. `confirm`
+ * (see ActionButton) asks only while the field holds a number.
+ */
 export const SetAllNumberControl = ({
     label,
     value,
@@ -59,32 +80,45 @@ export const SetAllNumberControl = ({
     confirm = null,
     min = 0,
     max = Infinity,
-}) =>
-    div(
+}) => {
+    const field = NumberInput({
+        mode: "int",
+        value,
+        oninput: (e) => (value.val = e.target.value),
+        onDecrement: () => {
+            const n = Number(value.val);
+            const base = Number.isFinite(n) ? n : min;
+            value.val = String(Math.max(min, base - 1));
+        },
+        onIncrement: () => {
+            const n = Number(value.val);
+            const base = Number.isFinite(n) ? n : min;
+            value.val = String(Math.min(max, base + 1));
+        },
+    });
+    fieldByValue.set(value, field);
+    return div(
         { class: "account-setall-row" },
         span({ class: "account-setall-row__label" }, label),
-        div(
-            { class: "account-setall-row__input" },
-            NumberInput({
-                mode: "int",
-                value,
-                oninput: (e) => (value.val = e.target.value),
-                onDecrement: () => {
-                    const n = Number(value.val);
-                    const base = Number.isFinite(n) ? n : min;
-                    value.val = String(Math.max(min, base - 1));
-                },
-                onIncrement: () => {
-                    const n = Number(value.val);
-                    const base = Number.isFinite(n) ? n : min;
-                    value.val = String(Math.min(max, base + 1));
-                },
-            })
-        ),
-        SetAllApplyButton({ label: applyLabel, status, onApply, confirm })
+        div({ class: "account-setall-row__input" }, field),
+        SetAllApplyButton({
+            label: applyLabel,
+            status,
+            onApply: onApply && (() => (isNumber(value) ? onApply() : refuseSetAll(value))),
+            confirm: confirm && (() => (isNumber(value) ? resolveValue(confirm) : null)),
+        })
     );
+};
 
-export const SetAllSelectControl = ({ label, value, options, status = null, applyLabel = "Set all", onApply }) =>
+export const SetAllSelectControl = ({
+    label,
+    value,
+    options,
+    status = null,
+    applyLabel = "Set all",
+    onApply,
+    confirm = null,
+}) =>
     div(
         { class: "account-setall-row" },
         span({ class: "account-setall-row__label" }, label),
@@ -97,5 +131,5 @@ export const SetAllSelectControl = ({ label, value, options, status = null, appl
                 option({ value: entry.value, selected: () => String(value.val) === String(entry.value) }, entry.label)
             )
         ),
-        SetAllApplyButton({ label: applyLabel, status, onApply })
+        SetAllApplyButton({ label: applyLabel, status, onApply, confirm })
     );

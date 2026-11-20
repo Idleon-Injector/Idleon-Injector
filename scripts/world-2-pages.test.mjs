@@ -104,6 +104,32 @@ const setAllOf = (root) => {
 };
 const notBusy = (button) => !button.attributes.disabled;
 
+test("sigils: Set all asks before it lowers any sigil, and raising runs on one press", async () => {
+    const tiers = game.gga.CauldronP2W[4];
+    for (let i = 0; i < 24; i++) tiers[2 * i + 1] = 3;
+    const root = await openPage(
+        "src/ui/pages/world-2/sigils/sigils.js",
+        (root) => byClass(root, "sigil-tier-badge--ethereal").length === 24
+    );
+    const all = (tier) => Array.from({ length: 24 }, (_, i) => tiers[2 * i + 1]).every((value) => value === tier);
+    const picker = byClass(root, "account-setall-row__select")[0];
+    const setAll = buttonNamed(root, "Set all");
+
+    picker.listeners.change({ target: { value: "-1" } });
+    const before = writes();
+    await click(setAll);
+    assert.ok(asks(setAll), "the first press asks");
+    assert.equal(writes(), before, "nothing was written");
+    assert.ok(all(3));
+    await click(setAll);
+    await until(() => all(-1) && notBusy(setAll), "the second press to lock them");
+
+    picker.listeners.change({ target: { value: "4" } });
+    await click(setAll);
+    assert.ok(!asks(setAll), "raising didn't ask");
+    await until(() => all(4), "the raise to land");
+});
+
 test("islands: two islands unlocked close together both stay unlocked (they share one string)", async () => {
     ola[169] = "";
     const root = await openPage("src/ui/pages/world-2/islands/islands.js", (root) => rowNamed(root, "Rando Island"));
@@ -117,6 +143,28 @@ test("islands: two islands unlocked close together both stay unlocked (they shar
     assert.equal(ola[169], "a_", "the game holds both");
     await until(() => box("Trash Island").checked && box("Rando Island").checked, "both switches to show Unlocked");
     ola[169] = "";
+});
+
+test("islands: Set all asks before it lowers an upgrade, and an empty field writes nothing", async () => {
+    ola[163] = 500;
+    ola[164] = 500;
+    const root = await openPage(
+        "src/ui/pages/world-2/islands/islands.js",
+        (root) => rowNamed(root, "% Bottles") && String(inputs(rowNamed(root, "% Bottles"))[0].value) === "500"
+    );
+    const { input, field, button } = setAllOf(root);
+    const before = writes();
+    typeInto(input, "");
+    await click(button);
+    assert.equal(writes(), before, "an empty field wrote nothing");
+    assert.notEqual(field.attributes["data-refused"], undefined, "the field says it needs a number");
+
+    typeInto(input, "200");
+    await click(button);
+    assert.ok(asks(button), "lowering asks");
+    assert.equal(writes(), before);
+    await click(button);
+    await until(() => ola[163] === 200 && ola[164] === 200, "the second press to lower them");
 });
 
 test("bubbles: two Prisma switches flipped close together both stay Prisma (they share one string)", async () => {
@@ -136,6 +184,94 @@ test("bubbles: two Prisma switches flipped close together both stay Prisma (they
     await Promise.all(saves);
     assert.equal(String(ola[384]).split(",").filter(Boolean).length, 2, `the game holds both: ${ola[384]}`);
     ola[384] = "0";
+});
+
+test("bubbles: Set all with an empty field writes nothing, lowering asks first, raising runs on one press", async () => {
+    const levels = game.gga.CauldronInfo[0];
+    for (let i = 0; i < levels.length; i++) levels[i] = 120;
+    const root = await openPage(
+        "src/ui/pages/world-2/bubbles/bubbles.js",
+        (root) => byClass(root, "brewing-row").length > 4
+    );
+    const orange = byClass(root, "brewing-section--orange")[0];
+    const shownRows = () => byClass(orange, "brewing-row").length;
+    const all = (level) => levels.slice(0, shownRows()).every((value) => value === level);
+    const { input, field } = setAllOf(root);
+    const button = buttonNamed(orange, "Set all");
+
+    const before = writes();
+    typeInto(input, "");
+    await click(button);
+    assert.equal(writes(), before, "an empty field wrote nothing");
+    assert.ok(all(120));
+    assert.notEqual(field.attributes["data-refused"], undefined, "the field says it needs a number");
+
+    typeInto(input, "5");
+    await click(button);
+    assert.ok(asks(button), "lowering asks");
+    assert.equal(writes(), before);
+    await click(button);
+    await until(() => all(5) && notBusy(button), "the second press to lower them");
+
+    typeInto(input, "50");
+    await click(button);
+    assert.ok(!asks(button), "raising didn't ask");
+    await until(() => all(50), "the raise to land");
+});
+
+test("bubbles: a bubble saved while its cauldron's Set all runs keeps the level it saved", async () => {
+    const levels = game.gga.CauldronInfo[0];
+    for (let i = 0; i < levels.length; i++) levels[i] = 10;
+    levels[0] = 50000; // already at the Set all level, so Set all leaves it out
+    const root = await openPage(
+        "src/ui/pages/world-2/bubbles/bubbles.js",
+        (root) => byClass(root, "brewing-row").length > 4
+    );
+    const orange = byClass(root, "brewing-section--orange")[0];
+    const [row, other] = byClass(orange, "brewing-row");
+    typeInto(setAllOf(root).input, "50000");
+
+    const hold = holdWrites("/write-many");
+    const setAll = click(buttonNamed(orange, "Set all"));
+    await until(() => hold.held() > 0, "Set all to reach the game");
+    const input = enter(row, 7);
+    await until(() => stateOf(row) === "success", "the row's save");
+    leave(row, input);
+    hold.release();
+    await setAll;
+    await until(() => shown(inputs(other)[0]) === "50000", "Set all's levels to show");
+    assert.equal(levels[0], 7);
+    assert.equal(shown(input), "7", "the row shows what the game holds");
+});
+
+test("vials: Set all with an empty field writes nothing, lowering asks first, raising runs on one press", async () => {
+    const levels = game.gga.CauldronInfo[4];
+    for (let i = 0; i < levels.length; i++) levels[i] = 13;
+    const root = await openPage(
+        "src/ui/pages/world-2/vials/vials.js",
+        (root) => byClass(root, "account-row").length > 4
+    );
+    const shownRows = byClass(root, "account-row").length;
+    const all = (level) => levels.slice(0, shownRows).every((value) => value === level);
+    const { input, field, button } = setAllOf(root);
+
+    const before = writes();
+    typeInto(input, "");
+    await click(button);
+    assert.equal(writes(), before, "an empty field wrote nothing");
+    assert.notEqual(field.attributes["data-refused"], undefined, "the field says it needs a number");
+
+    typeInto(input, "5");
+    await click(button);
+    assert.ok(asks(button), "lowering asks");
+    assert.equal(writes(), before);
+    await click(button);
+    await until(() => all(5) && notBusy(button), "the second press to lower them");
+
+    typeInto(input, "13");
+    await click(button);
+    assert.ok(!asks(button), "raising didn't ask");
+    await until(() => all(13), "the raise to land");
 });
 
 test("vials: a vial saved while Set all runs keeps the level it saved (Set all left it out)", async () => {
