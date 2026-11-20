@@ -33,6 +33,7 @@ let holdNextConfigRead = null; // a promise the next config read waits on, answe
 let failNextConfigRead = false; // the next config read fails
 let failNextListRead = false; // the next automation list read fails
 let failListReadAt = null; // the automation list read with this number (listAsked once it arrived) fails
+let shopsTickError = null; // an error the automation list reads give Shops, as after a tick that threw
 let holdNextOff = null; // a promise the next switch-off waits on before the game applies it
 let holdNextOn = null; // a promise the next switch-on waits on before the game applies it
 let holdNextOnAnswer = null; // a promise the next switch-on waits on after the game applied it, before it answers
@@ -96,6 +97,13 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
         json: (data) => (read = data),
     });
     if (hold) await hold;
+    if (shopsTickError)
+        read = {
+            ...read,
+            value: read.value.map((entry) =>
+                entry.cheat === "automation shops" ? { ...entry, error: shopsTickError } : entry
+            ),
+        };
     listAnswered++;
     order.push(["list"]);
     res.json(read);
@@ -1660,4 +1668,25 @@ test("reader 3: an item row's waiting notice is clamped like a failure's reason,
     await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
     await until(() => !saved().some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang off");
     await ui.switchAutomation("automation shops", false);
+});
+
+// CodeRabbit's sixth review of #105.
+test("round 6: a switch that may have applied shows Unknown, even over an older tick error", async () => {
+    await ui.switchAutomation("automation shops", false);
+    shopsTickError = "the shop closed";
+    try {
+        await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+        await until(() => /the shop closed/.test(statusOf(shops)), "the tab to read Shops with its tick error");
+        failNextToggle = true;
+        failNextListRead = true; // the Shops tab's read-back after the switch
+        await checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
+        await until(() => /cheat broke/.test(text(row(shops, "Shops"))), "the switch's failure to be said");
+        assert.match(statusOf(shops), /Unknown/, "not knowing whether it runs comes before the old tick error");
+    } finally {
+        failNextToggle = false;
+        failNextListRead = false;
+        shopsTickError = null;
+    }
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "a read that works to show it again");
 });

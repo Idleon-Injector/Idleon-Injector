@@ -242,8 +242,9 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
     });
     const line = () => {
         const { on, status: said, error } = entry.val;
-        if (error) return `Last error: ${error}`;
+        // Not knowing whether it runs comes first: an older tick error says nothing about that.
         if (on === null) return "Unknown: press Refresh";
+        if (error) return `Last error: ${error}`;
         return on ? (said ?? "On") : "Off";
     };
     return AccountRow({
