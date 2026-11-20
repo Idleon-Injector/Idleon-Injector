@@ -273,7 +273,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
     const items = new Map(); // id -> the states its row shows
     let accepted = new Map(); // id -> { on, stopAt }: what the game holds, as far as the page knows
     const queued = []; // [id, patch] of the edits whose step hasn't ended, oldest first
-    const fileBehind = van.state(false); // the game took the last list, the config file didn't
+    const fileBehind = van.state(false); // the game may hold a list the config file doesn't
 
     const get = (id) => {
         if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
@@ -322,11 +322,13 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
             const next = withEdits(accepted, patches);
             try {
                 const list = toConfig(next);
+                // From here until the file is written, the game may hold what the file doesn't: even a failed answer
+                // can come after the game applied the list. Enter on the same value then saves it again.
+                fileBehind.val = true;
                 const result = await updateSessionConfig({ cheatConfig: { automation: { [group]: list } } });
                 if (result.message !== "Configuration updated successfully")
                     throw new Error(result.details || result.message || "The game didn't take the change");
                 accepted = next;
-                fileBehind.val = true;
                 await saveConfigFile({ cheatConfig: { automation: { [group]: list } } }).catch((error) => {
                     throw Object.assign(new Error(`in the game, but not saved to the file: ${error.message}`), {
                         fileOnly: true,

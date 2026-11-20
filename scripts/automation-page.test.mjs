@@ -1849,3 +1849,32 @@ test("final: a pick the game applied before its save failed shows applied, and a
         await picks.set("1:item6", { on: false });
     }
 });
+
+test("final: after a stop-at the game applied but whose answer failed, Enter on it writes the file", async () => {
+    const apply = game.page.updateCheatConfig;
+    game.page.updateCheatConfig = (config) => {
+        game.page.updateCheatConfig = apply; // only this once
+        apply(config); // the game applies it, then its answer fails
+        throw new Error("the answer was lost");
+    };
+    await typeStopAt("Velvet Stone", "12");
+    await until(() => /lost/.test(text(pickRow("Velvet Stone"))), "the failure to be said");
+    assert.ok(
+        (await gameShops()).some(({ id, stopAt }) => id === "1:item7" && stopAt === 12),
+        "the game has 12"
+    );
+    assert.ok(!fileShops()?.some(({ id, stopAt }) => id === "1:item7" && stopAt === 12), "the file doesn't");
+    const before = saves.length;
+    const input = field("Velvet Stone");
+    metric("Velvet Stone").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(
+        () => saves.length > before || !/save-state--error|save-state--loading/.test(saveState("Velvet Stone")),
+        "Enter on the same value to end"
+    );
+    await queueIdle();
+    assert.ok(
+        fileShops()?.some(({ id, stopAt }) => id === "1:item7" && stopAt === 12),
+        "Enter on the same value wrote the file"
+    );
+    await typeStopAt("Velvet Stone", "");
+});
