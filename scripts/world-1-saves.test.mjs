@@ -339,6 +339,30 @@ test("pets: a click keeps a Pets+ pick saved for a pet whose token the game drop
     }
 });
 
+// Review of #147: with every pet chosen (an empty list, the cheat on), a token pet's press is worked out again on the
+// tiers read in the save's turn, where the pet, its token gone, already counts at Pets+.
+for (const [press, label, wanted] of [
+    ["a card click deselects", "card", null],
+    ["+ moves to Pets+", "Pets+ tier for", "2:1"],
+]) {
+    test(`pets: with every pet chosen, ${press} a token pet`, async () => {
+        const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+        const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "" } } } });
+        g.OptionsListAccount[606] = "2";
+        try {
+            const root = await openPage(PETS, (root) => petCard(root, 2));
+            await petControl(root, 2, label).listeners.click({});
+            const saved = String((await fetchConfig()).cheatConfig.w1.companion.companions).split(",");
+            assert.equal(g.OptionsListAccount[606], "", "the token is removed");
+            assert.equal(saved.find((entry) => entry.startsWith("2:")) ?? null, wanted, `saved: ${saved}`);
+        } finally {
+            await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+            g.OptionsListAccount[606] = "2,5";
+        }
+    });
+}
+
 const STAR_SIGNS = "src/ui/pages/world-1/star-signs/star-signs.js";
 const openSign = async (label) => {
     const root = await openPage(STAR_SIGNS, (root) => byClass(root, "starsign-card").length > 0);

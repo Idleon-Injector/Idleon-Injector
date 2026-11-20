@@ -3,8 +3,8 @@
 }
 
 .summoning-round-row--done:not(.account-row--success):not(.account-row--error) {
-    border-color: color-mix(in srgb, var(--c-accent) 55%, var(--c-border));
-    background: color-mix(in srgb, var(--c-accent) 8%, var(--c-panel));
+    border-color: #4c79a4;
+    background: #1d2735;
 }
 
 .summoning-round-row .account-row__badge {

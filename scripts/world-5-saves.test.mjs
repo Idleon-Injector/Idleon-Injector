@@ -185,6 +185,11 @@ test("boats: saving a captain's level keeps the XP a voyage gave since the page 
     assert.equal(gga.Captains[0][3], 77, "the typed level saved");
     assert.equal(gga.Captains[0][4], 9999, "the XP the game holds stays");
     assert.equal(gga.Captains[0][5], before[5], "an untouched bonus amount stays");
+    // Review of #123: the save handed back the XP read before it, so the row showed the old XP over a newer read.
+    const xp = inputs()[2];
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
+    assert.equal(String(xp.value), largeFormatter(9999), "the XP field shows the XP the game holds");
     gga.Captains[0] = before;
 });
 

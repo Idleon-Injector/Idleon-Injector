@@ -107,7 +107,7 @@
     min-height: 18px;
     padding: 2px 6px;
     border: 1px solid var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+    background: rgba(99, 175, 237, 0.14);
     color: var(--c-accent);
     font-size: 0.7rem;
     font-weight: 850;
@@ -253,7 +253,7 @@
     gap: 12px;
     padding: 12px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel) 86%, transparent);
+    background: rgba(23, 27, 37, 0.86);
 }
 
 .outpost-card__header {
@@ -373,7 +373,7 @@
     gap: 6px;
     padding: 6px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel-dim) 80%, transparent);
+    background: rgba(21, 25, 35, 0.8);
 }
 
 .outpost-map-unit__index {
@@ -397,7 +397,7 @@
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel-dim) 80%, transparent);
+    background: rgba(21, 25, 35, 0.8);
 }
 
 .outpost-unit-config__field {
@@ -425,7 +425,7 @@
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel-dim) 80%, transparent);
+    background: rgba(21, 25, 35, 0.8);
 }
 
 .outpost-vanilla-units__count,

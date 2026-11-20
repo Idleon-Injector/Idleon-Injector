@@ -141,8 +141,9 @@ const clickToken = (root, id) => byClass(petCard(root, id), "companion-token")[0
 test("pets.js: removing a pet token saves the list without it", async () => {
     ola[606] = "2,5";
     const root = await openPage("src/ui/pages/world-1/pets/pets.js", petsLoaded);
+    const since = requests.length;
     await clickToken(root, 2);
-    await until(() => ola[606] === "5" && requests.at(-1) === "POST /api/config/save", "the token save");
+    await until(() => ola[606] === "5" && requests.slice(since).includes("POST /api/config/save"), "the token save");
     assert.equal(alertText(root), "");
 });
 
@@ -151,13 +152,13 @@ test("pets.js: a token list the game doesn't keep shows the save failed", async 
     const root = await openPage("src/ui/pages/world-1/pets/pets.js", petsLoaded);
     const restore = refuseWrites(ola, 606);
     try {
-        const saves = requests.filter((entry) => entry === "POST /api/config/update").length;
+        const saves = requests.filter((entry) => entry === "POST /api/config/save").length;
         await clickToken(root, 2);
         await until(() => alertText(root), "the failure banner");
         assert.equal(alertText(root), "Could not save pet token picks");
         assert.equal(ola[606], "2,5");
         // The pet tiers aren't applied after a failed token save.
-        assert.equal(requests.filter((entry) => entry === "POST /api/config/update").length, saves);
+        assert.equal(requests.filter((entry) => entry === "POST /api/config/save").length, saves);
     } finally {
         restore();
     }

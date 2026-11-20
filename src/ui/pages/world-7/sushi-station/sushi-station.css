@@ -37,19 +37,19 @@
 }
 
 .sushi-station-tile--plate-0 {
-    border-color: color-mix(in srgb, var(--c-text-muted) 42%, var(--c-border));
+    border-color: #6c7283;
 }
 
 .sushi-station-tile--plate-1 {
-    border-color: color-mix(in srgb, var(--c-danger) 65%, var(--c-border));
+    border-color: #af4248;
 }
 
 .sushi-station-tile--plate-2 {
-    border-color: color-mix(in srgb, #4aa3ff 70%, var(--c-border));
+    border-color: #4283c9;
 }
 
 .sushi-station-tile--plate-3 {
-    border-color: color-mix(in srgb, var(--c-warning) 75%, var(--c-border));
+    border-color: #cb9712;
 }
 
 .sushi-station-tile--locked {

@@ -4,6 +4,7 @@ import { gga, readCList, readComputed, readGgaEntries } from "../../../services/
 import { toIndexedArray } from "../../../utils/index.js";
 import { formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { captureGesture } from "../../../services/changeLog.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     CHARACTER_CHANGED,
@@ -56,6 +57,9 @@ const PlayerTab = () => {
     };
     const saveValue = async (name, index, next) => {
         if (unavailable()) throw new Error("Player data is unavailable. Refresh and try again.");
+        // Its write joins its own row's action after the reads below, though another row's save waits meanwhile:
+        // so the row offers Undo.
+        const inOwnAction = captureGesture();
         busy.val = true;
         try {
             const active = await gga("UserInfo[0]");
@@ -77,7 +81,7 @@ const PlayerTab = () => {
             if ((await gga("UserInfo[0]")) !== active) {
                 throw new Error(CHARACTER_CHANGED);
             }
-            await writeManyVerified(writes);
+            await inOwnAction(() => writeManyVerified(writes));
             if ((await gga("UserInfo[0]")) !== active) {
                 throw new Error(CHARACTER_CHANGED);
             }

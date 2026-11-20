@@ -123,7 +123,7 @@
     font-family: var(--font-mono);
     font-size: 0.875rem;
     color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
+    background: #1f2a39;
     border: 1px solid var(--c-accent);
     padding: 2px 8px;
     white-space: nowrap;
@@ -155,7 +155,7 @@
 }
 
 .po-points-summary__row--highlight {
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
+    background: #1f2a39;
     border: 1px solid var(--c-accent);
     margin-top: 2px;
 }

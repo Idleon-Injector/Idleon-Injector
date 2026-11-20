@@ -122,9 +122,11 @@ const parseConfigFromJson = (obj) => {
  * Recursively filters an object to only include keys that exist in the template object.
  * @param {Object} target - The object to filter
  * @param {Object} template - The template object acting as the schema
+ * @param {Object} [defaults] - The default values: where one is {}, a map a page fills (the Wardrobe's golden food per
+ *   character), every key of the target is taken
  * @returns {Object} A new object with only the keys that exist in the template
  */
-const filterByTemplate = (target, template) => {
+const filterByTemplate = (target, template, defaults) => {
     if (target === null || target === undefined || template === null || template === undefined) {
         return undefined;
     }
@@ -145,7 +147,8 @@ const filterByTemplate = (target, template) => {
             const templateVal = template[key];
 
             if (typeof targetVal === "object" && targetVal !== null && !Array.isArray(targetVal)) {
-                const nestedFiltered = filterByTemplate(targetVal, templateVal);
+                const map = defaults?.[key]?.constructor === Object && !Object.keys(defaults[key]).length;
+                const nestedFiltered = map ? targetVal : filterByTemplate(targetVal, templateVal, defaults?.[key]);
                 if (nestedFiltered !== undefined) {
                     filtered[key] = nestedFiltered;
                 }
@@ -241,7 +244,8 @@ const validateConfig = (target, source, prefix = "") => {
         if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
 
         const fullPath = prefix ? `${prefix}.${key}` : key;
-        const targetValue = target[key];
+        // Own keys only: a saved map key such as "constructor" isn't checked against what every object inherits.
+        const targetValue = Object.prototype.hasOwnProperty.call(target, key) ? target[key] : undefined;
         const sourceValue = source[key];
 
         // Only validate if the key exists in the default config
