@@ -690,8 +690,9 @@ test("give everyone writes a saved copy that still lacks the outfit the live cop
 });
 
 // CodeRabbit on #110: a stat update Give everyone started, answering after a newer one from a row's pick was refused,
-// doesn't clear the debt the newer one left: leaving the field runs the update again. (After an undo the reload waits
-// for its own update, so the rows can't be picked meanwhile; Give everyone leaves them enabled.)
+// doesn't clear the debt the newer one left: leaving the field runs the update again. Give everyone leaves the rows
+// enabled while its update runs, so the test uses it. After an undo the reload usually waits for the update, but that
+// depends on the order VanJS runs the page's listeners; the fix covers that path too.
 test("an older stat update that answers after a newer one failed leaves the newer one owed", async () => {
     const root = await open();
     const [everyone] = elements(root).filter(
