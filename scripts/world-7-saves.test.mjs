@@ -120,3 +120,25 @@ test("Observations: saving Insight Lv keeps the Insight EXP the game gained sinc
     assert.equal(Research[3][2], 99999, "the EXP the game gained stays");
     assert.equal(writesSince(start).length, 1, "only Insight Lv is written");
 });
+
+test("Sushi General: saving Perfect keeps the knowledge XP and level the game gained since the page read", async () => {
+    // The game keeps one value per tier here (src/cheats/cheats/sushi/knowledge.js).
+    Sushi[6] = Array.from({ length: 20 }, (_, i) => i * 100);
+    Sushi[7] = Array.from({ length: 20 }, (_, i) => i % 7);
+    const tierRows = (root) => byClass(root, "account-row").filter((row) => text(row).includes("TIER"));
+    const root = await openPage("src/ui/pages/world-7/sushi-station/1-general.js", (node) => tierRows(node).length > 3);
+    const row = tierRows(root)[2];
+    const [perfect] = inputs(row);
+    await until(() => perfect.attributes.value === String(Sushi[5][2]), "the tier to show the game's values");
+    Sushi[6][2] = 987654;
+    Sushi[7][2] = 9;
+    const next = Sushi[5][2] === 1 ? 0 : 1;
+    focus(perfect);
+    type(perfect, next);
+    press(row, perfect, "Enter");
+    await settled(row);
+    assert.equal(stateOf(row), "success");
+    assert.equal(Sushi[5][2], next);
+    assert.equal(Sushi[6][2], 987654, "the XP the game gained stays");
+    assert.equal(Sushi[7][2], 9, "the level the game gained stays");
+});
