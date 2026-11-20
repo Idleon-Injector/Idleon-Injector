@@ -54,9 +54,10 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const isDisabled = () => Boolean(resolveValue(disabled));
 
     const autoSave = useAutoSave({
-        prepare: () => {
+        // The drafts as they were at the commit, so a later commit (made after a switch, say) can't save in its place.
+        capture: getDrafts,
+        prepare: (submitted = getDrafts()) => {
             if (isDisabled()) return { unchanged: true };
-            const submitted = getDrafts();
             const touched = fields.filter(
                 (field) => !isUntouched(field, submitted[field.key], baseByKey.get(field.key))
             );

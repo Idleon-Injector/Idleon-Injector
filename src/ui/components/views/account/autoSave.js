@@ -33,8 +33,9 @@ const isRowField = (node) =>
  * Save on commit, for one field or a row of fields that save together: Enter saves and keeps focus,
  * leaving the row's fields saves, Escape puts the stored value back.
  *
- * `prepare()` reads the drafts when the save starts and returns `{ unchanged: true }` (nothing to save) or
- * `{ write: async () => result }`; it throws an Error whose message is the reason a draft can't be saved.
+ * `prepare(drafts)` returns `{ unchanged: true }` (nothing to save) or `{ write: async () => result }`; it throws an
+ * Error whose message is the reason a draft can't be saved. `capture()`, when given, takes the drafts at the commit
+ * (Enter, leaving the field) and `prepare` gets them; without it `prepare` reads them when the save starts.
  * A save asked for while one is running runs once that one ends, so the last value is the one saved.
  *
  * Status: null, "loading" (saving…), "success" (read back from the game) or "error" (with `reason`). A failure of the
@@ -45,7 +46,7 @@ const isRowField = (node) =>
  * the game again, so the row shows what the game now holds. When the fields edit one of several things (the selected
  * tile, say), `subject()` names it: Undo stays with the thing it saved, so it goes when the fields move on.
  */
-export const useAutoSave = ({ prepare, revert = null, successMs = SUCCESS_MS, subject = null }) => {
+export const useAutoSave = ({ prepare, capture = null, revert = null, successMs = SUCCESS_MS, subject = null }) => {
     const status = van.state(null);
     const reason = van.state("");
     const offer = van.state(null);
@@ -102,10 +103,10 @@ export const useAutoSave = ({ prepare, revert = null, successMs = SUCCESS_MS, su
             }, successMs);
     };
 
-    const saveOnce = async () => {
+    const saveOnce = async (drafts) => {
         let plan;
         try {
-            plan = prepare();
+            plan = prepare(drafts);
         } catch (error) {
             settle("error", saveFailureReason(error), "save", "draft");
             return { ok: false, error };
@@ -179,19 +180,22 @@ export const useAutoSave = ({ prepare, revert = null, successMs = SUCCESS_MS, su
     };
 
     // A save asked for while the newest thing queued is a save joins it (it saves once more when that one ends, so
-    // the last value is the one saved); after a switch, a button or Undo, it waits its own turn behind them.
+    // the last value is the one saved); after a switch, a button or Undo, it waits its own turn behind them. Each
+    // keeps the drafts of its own last commit, so a commit made after a switch never saves before that switch.
     const save = () => {
+        const drafts = capture?.();
         if (lastSave) {
             lastSave.again = true;
+            lastSave.drafts = drafts;
             return lastSave.turn;
         }
-        const loop = { again: false };
+        const loop = { again: false, drafts };
         saveLoops++;
         loop.turn = inTurn(async () => {
             let outcome;
             do {
                 loop.again = false;
-                outcome = await saveOnce();
+                outcome = await saveOnce(loop.drafts);
             } while (loop.again);
             return outcome;
         }).finally(() => {

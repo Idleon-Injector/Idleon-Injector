@@ -56,20 +56,24 @@ const PrinterTab = () => {
     let cachedCatalogue = null;
 
     const cannotWrite = () => isBusy() || Boolean(error.val) || !snapshot.val;
-    const isDirty = (state) => {
+    // A slot's drafts: the picked item and the quantity as typed.
+    const draftsOf = (state) => ({
+        item: state.item.val,
+        rawQty: getNumberInputLiveRaw(state.quantity) ?? state.quantity.val,
+    });
+    const isDirty = (state, { item, rawQty } = draftsOf(state)) => {
         state.dirty.val;
-        const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
         // The field shows a rounded quantity ("16.2K"); left as shown, it is the saved quantity.
         if (rawQty === String(state.baseline.qty) || rawQty === largeFormatter(state.baseline.qty)) {
-            return state.item.val !== state.baseline.item;
+            return item !== state.baseline.item;
         }
         const parsed = parseNumber(rawQty);
         const qtyChanged = Number.isFinite(parsed)
             ? Math.round(parsed) !== Number(state.baseline.qty)
             : rawQty !== String(state.baseline.qty);
-        return state.item.val !== state.baseline.item || qtyChanged;
+        return item !== state.baseline.item || qtyChanged;
     };
-    const hasDrafts = () => [...rows.values()].some(isDirty);
+    const hasDrafts = () => [...rows.values()].some((state) => isDirty(state));
     const getItemDisplayName = (id) => snapshot.val?.namesById?.get(id) ?? id;
     const isAllowedItem = (item, state, snap = snapshot.val) =>
         Boolean(snap?.ids?.has(item)) || (item !== "Blank" && item === state.baseline.item);
@@ -195,7 +199,9 @@ const PrinterTab = () => {
                         const created = rows.get(key);
                         // The item and quantity save together on Enter or on leaving the row.
                         created.write = useAutoSave({
-                            prepare: () => prepareSlot(created),
+                            // The drafts as they were at the commit, so a later one can't save in its place.
+                            capture: () => draftsOf(created),
+                            prepare: (drafts) => prepareSlot(created, drafts),
                             revert: () => {
                                 updateRow(created, created.baseline.item, created.baseline.qty, true);
                                 created.syncOptions?.();
@@ -244,10 +250,9 @@ const PrinterTab = () => {
     };
 
     // A slot's save: nothing when the draft matches the game, the reason when it can't be saved.
-    const prepareSlot = (state) => {
-        if (cannotWrite() || !isDirty(state)) return { unchanged: true };
-        const item = state.item.val;
-        const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
+    const prepareSlot = (state, drafts = draftsOf(state)) => {
+        if (cannotWrite() || !isDirty(state, drafts)) return { unchanged: true };
+        const { item, rawQty } = drafts;
         const parsed = Math.round(parseNumber(rawQty));
         if (!isAllowedItem(item, state)) throw new Error("pick an item");
         if (!Number.isFinite(parsed)) throw new Error("not a number");
