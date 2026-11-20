@@ -318,6 +318,36 @@ const holdConfigUpdate = () => {
     };
 };
 
+// Holds the cheat-state reads (the choice reads of reloads) a test starts after hold(), until release(), which resolves
+// once every held read has answered and the page had a few ticks to take it. Reads after passNew() aren't held.
+const holdReloads = () => {
+    const states = router.routes.GET.get("/api/cheat-states");
+    let open;
+    const held = new Promise((resolve) => (open = resolve));
+    let holding = 0;
+    let answered = 0;
+    let passing = false;
+    return {
+        hold: () =>
+            router.routes.GET.set("/api/cheat-states", async (req, res) => {
+                if (passing) return states(req, res);
+                holding++;
+                await held;
+                const result = await states(req, res);
+                answered++;
+                return result;
+            }),
+        holding: () => holding,
+        passNew: () => (passing = true),
+        release: async () => {
+            router.routes.GET.set("/api/cheat-states", states);
+            open();
+            await until(() => answered === holding, "the held reloads to answer");
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        },
+    };
+};
+
 test("while an outfit choice saves, the cards stay enabled and their group says it is busy", async () => {
     const group = elements(page).find((node) => node.attributes["aria-label"] === "Outfit bonuses");
     const updates = () => requests.filter((entry) => entry === "POST /api/config/update").length;
@@ -435,32 +465,57 @@ test("a reload that read the choice before a card save ended doesn't undo the ca
     await until(() => /save-state--success/.test(saveState(alt)), "the row change");
     const [action] = (await fetchChanges()).actions;
 
-    const states = router.routes.GET.get("/api/cheat-states");
-    let releaseStates;
-    const held = new Promise((resolve) => (releaseStates = resolve));
-    let holding = 0;
+    const reloads = holdReloads();
     const releaseUpdate = holdConfigUpdate();
     try {
         void card(root, names[0]).listeners.click({});
         await until(() => requests.at(-1) === "POST /api/config/update", "the card save to wait");
-        // Every page open on the fake game reloads, and every reload's read waits.
-        router.routes.GET.set("/api/cheat-states", async (req, res) => {
-            holding++;
-            await held;
-            return states(req, res);
-        });
+        reloads.hold();
         await undoAction(action.id);
-        await until(() => holding > 0, "the reload to read the choice");
+        await until(() => reloads.holding() > 0, "the reload to read the choice");
         await new Promise((resolve) => setTimeout(resolve, 30));
+        reloads.passNew();
     } finally {
         releaseUpdate();
     }
     await until(() => !pressed(root, names[0]), "the card save to end");
-    router.routes.GET.set("/api/cheat-states", states);
-    releaseStates();
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await reloads.release();
     assert.equal(pressed(root, names[0]), false, "the older answer is dropped");
     assert.notEqual(await savedOutfits(), "all");
+});
+
+// The same with a card save the game refused after the session took it: the read after the failure is the newer one.
+test("a reload that read the choice before a refused card save doesn't put the card back", async () => {
+    await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: "all" } } } });
+    const root = await open();
+    await until(() => names.every((name) => pressed(root, name)), "every card on");
+    const alt = row(root, "Lumi_Alt");
+    const [field] = elements(alt).filter((entry) => entry.nodeName === "select");
+    const wears = gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15];
+    field.listeners.change({ target: { value: wears === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4" } });
+    await until(() => /save-state--success/.test(saveState(alt)), "the row change");
+    const [action] = (await fetchChanges()).actions;
+
+    const reloads = holdReloads();
+    const releaseUpdate = holdConfigUpdate();
+    try {
+        refuseAttire = 1;
+        void card(root, names[0]).listeners.click({});
+        await until(() => requests.at(-1) === "POST /api/config/update", "the card save to wait");
+        reloads.hold();
+        await undoAction(action.id);
+        await until(() => reloads.holding() > 0, "the reload to read the choice");
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        reloads.passNew(); // the read after the failure isn't held
+    } finally {
+        releaseUpdate();
+    }
+    await until(() => /The game is busy/.test(text(root)), "the failure");
+    await until(() => !pressed(root, names[0]), "the card to show what the session holds");
+    await reloads.release();
+    assert.equal(pressed(root, names[0]), false, "the older answer is dropped");
+    refuseAttire = 0;
+    await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: "all" } } } });
 });
 
 // Attire review F4: the cards' saves show on the cards, not on the header buttons.
@@ -539,4 +594,30 @@ test("Refresh runs a stat update an undo left owed, and its failure line goes on
     await button(root, "Refresh").listeners.click({});
     await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run the owed stat update");
     await until(() => !/Undone, but the stats/.test(text(root)), "the failure line to go");
+});
+
+// Reader of the leftovers, 4: once Refresh ran the owed stat update, the lines that said it failed go.
+test("Refresh clears Give everyone's stat failure and the row's reason once the owed update runs", async () => {
+    const root = await open();
+    const [everyone] = elements(root).filter(
+        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
+    );
+    const next = gga.EquipmentOrder[0][15] === "EquipmentGown2" ? "EquipmentGown3" : "EquipmentGown2";
+    everyone.listeners.change({ target: { value: next } });
+    const give = button(root, "Give everyone");
+    refuseStats = 1;
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await until(() => /The game is busy/.test(text(root)), "Give everyone's stat failure");
+    await button(root, "Refresh").listeners.click({});
+    await until(() => !/The game is busy/.test(text(root)), "the line to go once the stats ran");
+
+    // A row's pick whose stat update was refused: its reason goes too.
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    refuseStats = 1;
+    field.listeners.change({ target: { value: next === "EquipmentGown2" ? "EquipmentGown3" : "EquipmentGown2" } });
+    await until(() => /save-state--error/.test(saveState(node)), "the row's reason");
+    await button(root, "Refresh").listeners.click({});
+    await until(() => !/save-state--error/.test(saveState(node)), "the row's reason to go once the stats ran");
 });

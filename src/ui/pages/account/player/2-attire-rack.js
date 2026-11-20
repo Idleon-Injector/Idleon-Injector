@@ -174,9 +174,11 @@ const AttireRackPage = () => {
                 await persistConfig(value !== "");
             },
             {
-                // Part of it may have landed (the session took the choice): the cards show what is saved now.
+                // Part of it may have landed (the session took the choice): the cards show what is saved now, and a
+                // read started before it (a reload) is older than this one.
                 onError: (caught) => {
                     choiceSaid.say("failed", caught.message);
+                    choiceSaves++;
                     void readChoice().catch(() => {});
                 },
             }
@@ -276,7 +278,8 @@ const AttireRackPage = () => {
     // The stats of the character in play are owed from a change whose write landed but whose stat update failed.
     // A retry finds the game already holds the pick, so it runs the update instead of stopping there.
     let statsOwed = false;
-    // The line an undo's refused stat update left above the rows; it goes once an owed update runs.
+    // The line a refused stat update left above the rows (after an undo or Give everyone); it goes once an owed update
+    // runs, as does the in-play row's reason when its pick is what the game holds.
     let owedLine = null;
     const updateStats = async () => {
         statsOwed = true;
@@ -284,6 +287,8 @@ const AttireRackPage = () => {
         statsOwed = false;
         if (owedLine && bulkSaid.said.val === owedLine) bulkSaid.clear();
         owedLine = null;
+        const inPlay = rowStates.get(current.val);
+        if (inPlay?.write.status.val === "error" && inPlay.draft.val === inPlay.item.val) inPlay.write.cancel();
     };
 
     // After attire changed: the game works out the stats of the character in play again when that one changed.
@@ -387,15 +392,19 @@ const AttireRackPage = () => {
         const count = `${targets.length} character${targets.length === 1 ? "" : "s"}`;
         const question = `give ${count} ${outfitName(item)}. The attire they wear now is replaced, not moved to storage.`;
         if (!clickAgain(buttonNode, question, { targets: targets.map(({ name }) => name) })) return;
+        let wrote = false;
         await bulkWrite.run(
             async () => {
                 if (targets.some((character) => character.active)) statsOwed = true;
                 await writeManyVerified(targets.flatMap((character) => slotWrites(character, item)));
+                wrote = true;
                 await afterChange(targets);
             },
             {
                 onError: (caught) => {
                     bulkSaid.say("failed", caught.message);
+                    // Everyone has the outfit and only the stat update failed: the line goes once one runs.
+                    if (wrote && statsOwed) owedLine = bulkSaid.said.val;
                     void readStatus().catch(() => {});
                 },
             }
