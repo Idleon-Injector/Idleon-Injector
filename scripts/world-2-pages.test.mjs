@@ -154,6 +154,31 @@ test("weekly bosses: a skin picked while the last pick saves is the one saved", 
     weekly.set0 = 2;
 });
 
+test("weekly bosses: a skin unlocked while the trophies save is kept", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    const switchOf = (row) => inputs(row).find((node) => node.attributes.role === "switch");
+    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
+        byClass(root, "account-row").some(switchOf)
+    );
+    const box = byClass(root, "account-row").map(switchOf).find(Boolean);
+    const key = Object.keys(weekly).find((name) => name.startsWith("UI_"));
+    const [trophiesBefore, unlockedBefore] = [ola[188], weekly[key]];
+    weekly[key] = 0;
+    await click(buttonNamed(root, "Refresh"));
+    await until(() => !box.checked && notBusy(buttonNamed(root, "Refresh")), "the switch to show Locked");
+
+    const hold = holdWrites();
+    enter(rowNamed(root, "Trophies"), Number(ola[188]) + 50);
+    await until(() => hold.held() > 0, "the trophies save to reach the game");
+    const flipped = flip(box, true);
+    hold.release();
+    await flipped;
+    assert.equal(Number(weekly[key]), 1, "the flip was saved");
+    assert.equal(box.checked, true);
+    assert.equal(Number(ola[188]), Number(trophiesBefore) + 50, "the trophies were saved too");
+    [ola[188], weekly[key]] = [trophiesBefore, unlockedBefore];
+});
+
 test("weekly bosses: the character skins note doesn't send the player to a Save button", async () => {
     const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
         text(root).includes("Character skins")

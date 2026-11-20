@@ -245,10 +245,11 @@ const WeeklyBossTab = () => {
     // isn't lost.
     const inTurn = oneAtATime();
 
-    // Returns the row's save outcome, so the switch can say why a save failed.
+    // Returns the row's save outcome, so the switch can say why a save failed. inTurn orders it after any save
+    // running, so only a page that can't be written (loading, failed read) refuses it, and the switch says so.
     const setSkin = (entry, enabled) =>
         inTurn(async () => {
-            if (cannotWrite()) return;
+            if (cannotEdit()) throw new Error("refresh first");
             busy.val = true;
             message.val = "";
             try {
@@ -270,7 +271,7 @@ const WeeklyBossTab = () => {
     // `button`: the bulk button clicked, which asks in place (#77).
     const setAll = (enabled, button) =>
         inTurn(async () => {
-            if (cannotWrite()) return;
+            if (cannotEdit()) return;
             busy.val = true;
             message.val = "";
             try {
@@ -467,21 +468,22 @@ const WeeklyBossTab = () => {
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             return Math.max(0, next + delta);
         },
-        write: async (value) => {
-            if (cannotEdit()) throw new Error("refresh first");
-            if (value === trophies.val) return { cancelled: true };
-            busy.val = true;
-            message.val = "";
-            try {
-                await submitWrites([{ path: "OptionsListAccount[188]", value }]);
-                return value;
-            } catch (caughtError) {
-                message.val = caughtError.message;
-                throw caughtError;
-            } finally {
-                busy.val = false;
-            }
-        },
+        write: (value) =>
+            inTurn(async () => {
+                if (cannotEdit()) throw new Error("refresh first");
+                if (value === trophies.val) return { cancelled: true };
+                busy.val = true;
+                message.val = "";
+                try {
+                    await submitWrites([{ path: "OptionsListAccount[188]", value }]);
+                    return value;
+                } catch (caughtError) {
+                    message.val = caughtError.message;
+                    throw caughtError;
+                } finally {
+                    busy.val = false;
+                }
+            }),
         renderInfo: () => span({ class: "account-row__name" }, "Trophies"),
         inputProps: { "aria-label": "Weekly Boss trophy balance" },
     });
