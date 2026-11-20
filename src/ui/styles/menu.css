@@ -331,6 +331,10 @@
 }
 
 .menu-home-cheats .active-cheat-item {
+    color: var(--c-accent);
+    padding: 4px 8px;
+    background: var(--c-accent-dim);
+    border-color: var(--c-accent);
     border-width: 0 0 0 2px;
     border-style: solid;
     border-radius: 0;
