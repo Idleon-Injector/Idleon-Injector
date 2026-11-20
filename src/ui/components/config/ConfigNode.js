@@ -1,7 +1,7 @@
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
 import { Icons } from "../../assets/icons.js";
-import { NumberInput } from "../NumberInput.js";
+import { NumberInput, setNumberInputValue } from "../NumberInput.js";
 import { FunctionInput } from "../FunctionInput.js";
 import { withTooltip } from "../Tooltip.js";
 import { isFunction } from "../../utils/functionParser.js";
@@ -179,8 +179,9 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
         const targetType = isFn ? "function" : isArray ? "array" : typeof (initialValue ?? defaultVal);
 
         if (targetType === "number") {
-            val = parseFloat(rawVal);
-            if (isNaN(val)) val = rawVal; // Keep raw if invalid number
+            // Number("") is 0, and a cap of 0 (or of text) zeroes the resource it caps: only a number is kept.
+            val = String(rawVal).trim() === "" ? NaN : Number(rawVal);
+            if (isNaN(val)) return false;
         } else if (targetType === "boolean") {
             val = Boolean(rawVal);
         } else if (targetType === "array") {
@@ -199,7 +200,8 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
     };
     const handleBlur = (e) => {
         isFocused.val = false;
-        commitValue(e.target.value);
+        // Text that isn't a number goes back to the setting it would have replaced.
+        if (commitValue(e.target.value) === false) setNumberInputValue(localTextState, getStringValue(data[key]));
     };
     const handleInput = (e) => {
         localTextState.val = e.target.value;
@@ -233,8 +235,10 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
                     onFlip: (next) => (data[key] = next),
                 });
             case "number":
+                // Formatted mode keeps what is typed until the field is left, so caps like 1e+21 can be edited.
                 return NumberInput({
                     value: localTextState,
+                    formatter: String,
                     onfocus: handleFocus,
                     onblur: handleBlur,
                     oninput: handleInput,
