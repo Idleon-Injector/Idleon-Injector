@@ -257,11 +257,12 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
     deepMerge(cheatConfig, parsedUiCheatConfig);
     if (filteredInjectorConfig) deepMerge(injectorConfig, filteredInjectorConfig);
     if (!gameBridge || !receivedFullConfig.cheatConfig) return { brokenFileKeptAs };
-    // The file is written, so a game that can't be reached doesn't fail the save.
-    const game = await applyToGame(gameBridge, parsedUiCheatConfig).catch((error) => ({
-        gameApplied: false,
-        details: error.message,
-    }));
+    // The file is written, so a game that can't be reached doesn't fail the save. A closed or reloading game
+    // throws instead of answering; like one that isn't attached, it gets the saved settings when injected again.
+    const game = await applyToGame(gameBridge, parsedUiCheatConfig).catch((error) => {
+        log.debug(`The game didn't take the saved settings: ${error.message}`);
+        return { gameApplied: false, contextLost: true };
+    });
     return { brokenFileKeptAs, game };
 }
 
