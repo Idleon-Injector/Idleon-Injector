@@ -250,17 +250,12 @@ const PostOfficeTab = () => {
                 div(
                     { class: "po-points-summary__row" },
                     span({ class: "po-points-summary__label" }, "TOTAL EARNED"),
-                    span({ class: "po-points-summary__value po-points-summary__value--earned" }, () =>
-                        String(totalEarned.val)
-                    )
+                    span({ class: "po-points-summary__value" }, () => String(totalEarned.val))
                 ),
                 div(
                     { class: "po-points-summary__row" },
                     span({ class: "po-points-summary__label" }, "SPENT ON UPGRADES"),
-                    span(
-                        { class: "po-points-summary__value po-points-summary__value--spent" },
-                        () => `-${spentPoints.val}`
-                    )
+                    span({ class: "po-points-summary__value" }, () => `-${spentPoints.val}`)
                 ),
                 div(
                     { class: "po-points-summary__row po-points-summary__row--highlight" },

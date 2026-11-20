@@ -173,14 +173,6 @@
     flex-shrink: 0;
 }
 
-.po-points-summary__value--spent {
-    color: var(--c-danger);
-}
-
-.po-points-summary__value--earned {
-    color: var(--c-success);
-}
-
 .po-points-summary__value--available {
     color: var(--c-text-main);
     font-size: 0.92rem;
