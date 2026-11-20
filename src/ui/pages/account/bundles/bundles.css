@@ -51,7 +51,7 @@
 .bundle-row__badge--queued {
     color: var(--c-warning);
     border-color: var(--c-warning);
-    background: color-mix(in srgb, var(--c-warning) 12%, var(--c-panel));
+    background: #332e21;
 }
 
 .bundle-row__controls {

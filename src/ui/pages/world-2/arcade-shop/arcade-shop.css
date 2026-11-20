@@ -44,7 +44,7 @@
 .arcade-row__badge--cosmic {
     color: var(--c-ui-blue);
     border-color: var(--c-ui-blue);
-    background: color-mix(in srgb, var(--c-ui-blue) 10%, var(--c-panel));
+    background: #1e293a;
 }
 
 .arcade-row__badge--omega {

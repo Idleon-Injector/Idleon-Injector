@@ -13,7 +13,7 @@
 }
 
 .killroy-row--blur {
-    background: color-mix(in srgb, var(--c-warning) 8%, var(--c-panel));
+    background: #2a2722;
     border-left: 3px solid var(--c-warning);
 }
 

@@ -2,7 +2,7 @@
 
 .stamp-row--exalted {
     border-color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
+    background: #1f2a39;
 }
 
 .stamp-exalted-btn {
@@ -20,6 +20,6 @@
 .stamp-exalted-btn--active {
     border-color: var(--c-accent);
     color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
+    background: #1f2a39;
     font-weight: 700;
 }

@@ -49,7 +49,7 @@ Values:
 - **Press:** `scale(0.94)`.
 - **Motion:** colours and scale ease over 160 ms with `cubic-bezier(0.2, 0.7, 0.2, 1)`.
 
-Write colours as hex or `rgba()`. The Steam client runs Chromium 87, which has no `oklch()` or `color-mix()`.
+Write colours as hex or `rgba()`, in one set that the WebUI and the game share. The Steam client runs Chromium 87, which has no `oklch()` or `color-mix()`.
 
 In the code the kinds are `.btn-main`, `.btn-quiet` and `.btn-danger`, with `.btn-sm` and `.btn-icon`, in
 `src/ui/styles/_buttons.css`; an `ActionButton`'s `variant` is `main`, `quiet` or `danger` (or `switch` for an on/off
