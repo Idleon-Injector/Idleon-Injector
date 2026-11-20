@@ -117,3 +117,12 @@ test("Trophy Add all that stops part-way shows the trophies that landed, and Add
     await until(() => shown() === 3, "the added trophy");
     assert.deepEqual(gga.Spelunk[16], [1, 2, 3, -1, -1, -1], "Add keeps Trophy2 and fills the next empty slot");
 });
+
+test("Nametag 6 (the game's EquipmentNametag6b) has its row", async () => {
+    gga.Spelunk[17][6] = 3;
+    const page = await openPage("src/ui/pages/world-7/gallery/2-nametag.js", (root) =>
+        byClass(root, "account-row").some((row) => text(byClass(row, "account-row__index")[0]) === "#6")
+    );
+    const row = byClass(page, "account-row").find((node) => text(byClass(node, "account-row__index")[0]) === "#6");
+    assert.equal(input(row).attributes.value, "3");
+});
