@@ -151,7 +151,7 @@ const removals = [
     ["src/ui/pages/world-2/post-office/post-office.js", "Reset"],
     ["src/ui/pages/world-1/star-signs/star-signs.js", "Reset all"],
     ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
-    ["src/ui/pages/classes/grimoire/grimoire.js", "Reset all"],
+    ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
     ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear all"],
@@ -356,7 +356,7 @@ test("islands: Lock all asks in place, locks every island on the second click, a
 // it back.
 for (const [file, levels, definitions, maxIndex] of [
     ["src/ui/pages/world-3/prayers/prayers.js", "PrayersUnlocked", "PrayerInfo", 9],
-    ["src/ui/pages/classes/grimoire/grimoire.js", "Grimoire", "GrimoireUpg", 4],
+    ["src/ui/pages/classes/grimoire/1-grimoire.js", "Grimoire", "GrimoireUpg", 4],
     ["src/ui/pages/world-3/salt-lick/salt-lick.js", "SaltLick", "SaltLicks", 4],
 ]) {
     test(`${file.split("/").pop()}: Max all lowers a level above its max on one click`, async () => {
