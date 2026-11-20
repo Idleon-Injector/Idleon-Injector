@@ -139,6 +139,26 @@ test("if the cheat list didn't load at start, opening search loads it again", as
     store.data.cheats = loaded;
 });
 
+test("an unrelated load in progress doesn't stop the retry, and two focuses load the list once", async () => {
+    const loaded = store.data.cheats;
+    store.data.cheats = [];
+    store.app.isLoading = true; // say, Settings loading its config
+    let fetches = 0;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, ...rest) => {
+        if (String(url).includes("/api/cheats")) fetches++;
+        return realFetch(url, ...rest);
+    };
+    field.listeners.focus({});
+    field.listeners.focus({});
+    await settle();
+    globalThis.fetch = realFetch;
+    store.app.isLoading = false;
+    assert.ok(store.data.cheats.length > 0, "the list loaded although another load was running");
+    assert.equal(fetches, 1, "the second focus waited for the first load");
+    store.data.cheats = loaded;
+});
+
 test("Esc in the command box goes back to an empty search", async () => {
     ran.length = 0;
     await type("candy");

@@ -199,8 +199,17 @@ const SystemService = {
     },
 };
 
+// The cheat list's own load in flight, so a second caller waits for it instead of starting another (and an
+// unrelated load, like Settings, never stops a cheat list retry).
+let cheatsLoad = null;
+
 const CheatService = {
-    loadCheats: async () => {
+    loadCheats: () =>
+        (cheatsLoad ??= CheatService.fetchCheats().finally(() => {
+            cheatsLoad = null;
+        })),
+
+    fetchCheats: async () => {
         await Actions.withLoading(async () => {
             const hasConfig = appState.config !== null;
 

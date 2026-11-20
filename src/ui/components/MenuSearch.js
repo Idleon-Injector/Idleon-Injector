@@ -90,7 +90,7 @@ export const MenuSearch = () => {
         onfocus: () => {
             open.val = true;
             // The list loads at start; if that failed, opening search tries again (a loaded list isn't reloaded).
-            if (!store.data.cheats.length && !store.app.isLoading) store.loadCheats();
+            if (!store.data.cheats.length) store.loadCheats();
         },
         onblur: close,
         onkeydown: (e) => {
