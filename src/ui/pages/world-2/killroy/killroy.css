@@ -12,18 +12,6 @@
     width: 120px;
 }
 
-.killroy-row--blur {
-    background: color-mix(in srgb, var(--c-warning) 8%, var(--c-panel));
-    border-left: 3px solid var(--c-warning);
-}
-
-.killroy-row__locked {
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
 .killroy-best-empty {
     padding: 10px 12px;
     border: 1px solid var(--c-border);

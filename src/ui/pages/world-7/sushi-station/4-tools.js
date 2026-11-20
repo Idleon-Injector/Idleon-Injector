@@ -32,10 +32,14 @@ function SushiToolsTab() {
         pending.val = true;
         settingsLoaded.val = false;
         try {
+            // A settings save running now holds the player's settings, and this read may come back from before it.
+            const keepSettings = settingsSaving();
             const config = await fetchConfig();
             const saved = config.cheatConfig.w7.sushitools;
-            for (const [key, value] of Object.entries(settings)) value.val = saved[key];
-            savedDraft = JSON.stringify(Object.fromEntries(Object.keys(settings).map((key) => [key, saved[key]])));
+            if (!keepSettings && !settingsSaving()) {
+                for (const [key, value] of Object.entries(settings)) value.val = saved[key];
+                savedDraft = JSON.stringify(Object.fromEntries(Object.keys(settings).map((key) => [key, saved[key]])));
+            }
             state.val = await command("status");
             settingsLoaded.val = true;
             enabled.val = state.val.enabled;
@@ -95,6 +99,7 @@ function SushiToolsTab() {
             for (const [key, value] of Object.entries(settings)) value.val = saved[key];
         },
     });
+    const settingsSaving = () => settingsSave.isBusy() || settingsSave.status.val === "loading";
     async function command(action) {
         const response = await executeCheatAction("w7 sushitools" + (action ? " " + action : ""));
         return JSON.parse(response.message);

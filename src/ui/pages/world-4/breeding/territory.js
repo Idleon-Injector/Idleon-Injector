@@ -91,7 +91,7 @@ const TerritoryTab = () => {
                         path: TERRITORY_UNLOCK_PATH,
                         max: TERRITORY_NAMES.length,
                         formatted: false,
-                        badge: (currentValue) => `${currentValue ?? 0} / ${TERRITORY_NAMES.length}`,
+                        cap: TERRITORY_NAMES.length,
                     },
                     valueState: territoryUnlockState,
                 })
