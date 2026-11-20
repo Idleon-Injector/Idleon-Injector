@@ -831,3 +831,25 @@ test("a pick that landed but couldn't be read back says so in its row", async ()
         failNextStatus = false;
     }
 });
+
+// Local CodeRabbit review of #110: a field the game kept although the copy's attire id landed (its quantity, here) is
+// written again on the next try, though the id already matches.
+test("a slot field the game kept is written again on the next try, though the attire id matches", async () => {
+    const root = await open();
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const quantities = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentQuantity[0];
+    const kept = quantities[15];
+    assert.notEqual(kept, 0, "the saved copy wears an outfit");
+    Object.defineProperty(quantities, 15, { get: () => kept, set() {}, configurable: true });
+    try {
+        field.listeners.change({ target: { value: "Blank" } });
+        await until(() => /save-state--error/.test(saveState(node)), "the kept quantity's refusal in the row");
+        assert.equal(gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15], "Blank", "the saved copy's id landed");
+    } finally {
+        Object.defineProperty(quantities, 15, { value: kept, writable: true, configurable: true });
+    }
+    node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
+    await until(() => quantities[15] === 0, "leaving the field to write the quantity again");
+    await until(() => /save-state--success/.test(saveState(node)), "the row to say it saved");
+});

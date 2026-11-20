@@ -113,6 +113,35 @@ const AttireRackPage = () => {
         id === NO_ATTIRE ? "no attire" : (outfits.val.find((outfit) => outfit.id === id)?.name ?? id);
     const wornNow = () => rowStates.get(current.val)?.item.val;
 
+    // Slot fields a write couldn't verify (the game kept another value), by path, with the character and attire they
+    // were for. Another try at that attire writes them again, though the copy already holds its id; the fields that
+    // landed stay as they are, so upgrades added since aren't wiped.
+    const unverified = new Map();
+    const writesFor = (character, item) => {
+        const writes = slotWrites(character, item).map((entry) => ({ ...entry, name: character.name }));
+        for (const [path, field] of unverified) {
+            const copy = path.startsWith("PlayerDATABASE") ? character.saved : character.active;
+            if (copy && field.name === character.name && field.item === item && !writes.some((w) => w.path === path))
+                writes.push({ path, value: field.value, name: character.name });
+        }
+        return writes;
+    };
+    const writeSlots = (writes, item) =>
+        writeManyVerified(writes.map(({ path, value }) => ({ path, value }))).then(
+            (result) => {
+                for (const entry of writes) unverified.delete(entry.path);
+                return result;
+            },
+            (caught) => {
+                writes.forEach((entry, index) => {
+                    if (caught.results?.[index]?.ok === false)
+                        unverified.set(entry.path, { name: entry.name, item, value: entry.value });
+                    else unverified.delete(entry.path);
+                });
+                throw caught;
+            }
+        );
+
     // --- Outfit bonuses ---
 
     // A choice saved since this read began is newer than what it read: the read drops its answer.
@@ -256,7 +285,7 @@ const AttireRackPage = () => {
                     prepare: () =>
                         state.draft.val === state.item.val &&
                         !(statsOwed && state.character.val.active) &&
-                        !(state.write.status.val === "error" && slotWrites(state.character.val, state.draft.val).length)
+                        !(state.write.status.val === "error" && writesFor(state.character.val, state.draft.val).length)
                             ? { unchanged: true }
                             : { write: () => wear(character.name, state.draft.val) },
                     revert: () => (state.draft.val = state.item.val),
@@ -312,7 +341,7 @@ const AttireRackPage = () => {
         if (owedLine && bulkSaid.said.val === owedLine) bulkSaid.clear();
         owedLine = null;
         const inPlay = rowStates.get(current.val);
-        if (inPlay?.write.status.val === "error" && !slotWrites(inPlay.character.val, inPlay.draft.val).length)
+        if (inPlay?.write.status.val === "error" && !writesFor(inPlay.character.val, inPlay.draft.val).length)
             inPlay.write.cancel();
     };
 
@@ -340,14 +369,14 @@ const AttireRackPage = () => {
         const status = await readStatus();
         const character = status.characters.find((entry) => entry.name === name);
         if (!character || !changeable(character)) throw new Error("can't change this character here");
-        const writes = slotWrites(character, item);
+        const writes = writesFor(character, item);
         if (!writes.length) {
             if (!statsOwed) return { cancelled: true };
             return updateStats();
         }
         // A write that lands only in part still changed the character in play: its stat update is owed, from when the
         // write ended, so an update that ran meanwhile (a Refresh, an undo) doesn't count for it.
-        await writeManyVerified(writes).catch(async (caught) => {
+        await writeSlots(writes, item).catch(async (caught) => {
             if (character.active) oweStats();
             await readStatus().catch(() => {});
             throw caught;
@@ -412,7 +441,7 @@ const AttireRackPage = () => {
         let targets;
         try {
             targets = (await readStatus()).characters.filter(
-                (character) => changeable(character) && slotWrites(character, item).length
+                (character) => changeable(character) && writesFor(character, item).length
             );
         } catch (caught) {
             bulkSaid.say("failed", caught.message);
@@ -430,7 +459,10 @@ const AttireRackPage = () => {
         let wrote = false;
         await bulkWrite.run(
             async () => {
-                await writeManyVerified(targets.flatMap((character) => slotWrites(character, item))).catch((caught) => {
+                await writeSlots(
+                    targets.flatMap((character) => writesFor(character, item)),
+                    item
+                ).catch((caught) => {
                     if (targets.some((character) => character.active)) oweStats();
                     throw caught;
                 });
