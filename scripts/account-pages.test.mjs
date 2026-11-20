@@ -100,3 +100,18 @@ test("upgrade vault: Refresh while a save runs keeps that save's result on the r
     assert.match(saveState(row), /save-state--success/);
     assert.equal(gga.UpgVault[1], 55);
 });
+
+test("task board: Refresh shows the game's new progress, and Target follows the stages saved", async () => {
+    const root = await openPage("src/ui/pages/account/task-board/tasks.js");
+    const row = byClass(root, "account-row")[0];
+    const sub = () => text(byClass(row, "account-row__sub-label")[0]);
+    gga.Tasks[1][0][0] = 0;
+    gga.Tasks[0][0][0] = 77777;
+    await button(root, "Refresh").listeners.click({});
+    await until(() => /^Progress 77777 /.test(sub()), "Refresh to show the new progress");
+    // The fake game's stage targets are 10, 100, 1000, 5000.
+    assert.equal(sub(), "Progress 77777 / Target 10");
+    await saveRow(row, 2);
+    assert.match(saveState(row), /save-state--success/);
+    assert.equal(sub(), "Progress 77777 / Target 1000");
+});
