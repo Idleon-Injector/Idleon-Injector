@@ -185,7 +185,7 @@ const ensureCogsPopupHost = () => {
 const CogsEditorRow = ({ code, name, meaning, inputNode, save = null, state = save }) =>
     div(
         {
-            class: () => `cogs-cog-stat-row ${state ? saveStateClass(state.status.val) : ""}`,
+            class: () => `cogs-cog-stat-row ${state ? saveStateClass(state.status.val, state.undo) : ""}`,
             ...(save?.handlers ?? {}),
         },
         div({ class: "cogs-cog-stat-row__code" }, code),
@@ -354,7 +354,7 @@ const CogsTab = () => {
 
         return div(
             {
-                class: () => `cogs-tiny-editor ${saveStateClass(tinySave.status.val)}`,
+                class: () => `cogs-tiny-editor ${saveStateClass(tinySave.status.val, tinySave.undo)}`,
                 ...tinySave.handlers,
             },
 

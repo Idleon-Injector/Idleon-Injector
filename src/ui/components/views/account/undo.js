@@ -103,5 +103,5 @@ export const undoAction = async (id) => {
 
 /** After an undo outside the row that made the change: the page it was made on shows the game's values again. */
 export const reloadAfterUndo = (action) => {
-    if (action?.place) reloadPlace.val = { ...action.place, at: Date.now() };
+    if (action?.place) reloadPlace.val = { ...action.place };
 };

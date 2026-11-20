@@ -332,7 +332,7 @@ const EmperorTab = () => {
     );
 
     const progressRow = AccountRow({
-        rowClass: () => `account-row--wide-controls ${saveStateClass(progressWrite.status.val)}`,
+        rowClass: () => `account-row--wide-controls ${saveStateClass(progressWrite.status.val, progressWrite.undo)}`,
         rowProps: progressWrite.handlers,
         info: div(
             { class: "account-row__name-group" },
@@ -352,7 +352,7 @@ const EmperorTab = () => {
         ],
     });
     const entriesRow = AccountRow({
-        rowClass: () => `account-row--wide-controls ${saveStateClass(entriesWrite.status.val)}`,
+        rowClass: () => `account-row--wide-controls ${saveStateClass(entriesWrite.status.val, entriesWrite.undo)}`,
         rowProps: entriesWrite.handlers,
         info: div(
             { class: "account-row__name-group" },

@@ -17,6 +17,8 @@ import { Config } from "./views/Config.js";
 import { AccountOptions } from "./views/AccountOptions.js";
 import { DevTools } from "./views/DevTools.js";
 import { Search } from "./views/Search.js";
+import { History } from "./views/History.js";
+import { startChangeLog } from "../services/changeLog.js";
 
 const { div, main, button } = van.tags;
 
@@ -28,20 +30,19 @@ const viewFactories = {
     [VIEWS.ACCOUNT_OPTIONS.id]: AccountOptions,
     [VIEWS.DEVTOOLS.id]: DevTools,
     [VIEWS.SEARCH.id]: Search,
+    [VIEWS.HISTORY.id]: History,
 };
 
-const ADVANCED_TABS = AREAS.find((area) => area.id === "advanced").tabs;
-
-/** Account Options, Value search and DevTools share the Advanced area: one tab row above them. */
-const AdvancedTabs = () =>
+/** An area's views share one tab row above them (Advanced: Account Options, Value search, DevTools; History). */
+const AreaTabs = (area) =>
     div(
         {
             class: "account-sub-nav menu-tabs menu-area-tabs",
             role: "tablist",
-            "aria-label": "Advanced",
-            hidden: () => !ADVANCED_TABS.some((tab) => store.app.activeTab === VIEWS[tab.view].id),
+            "aria-label": area.label,
+            hidden: () => !area.tabs.some((tab) => store.app.activeTab === VIEWS[tab.view].id),
         },
-        ...ADVANCED_TABS.map((tab) => {
+        ...area.tabs.map((tab) => {
             const active = () => store.app.activeTab === VIEWS[tab.view].id;
             return button(
                 {
@@ -57,6 +58,7 @@ const AdvancedTabs = () =>
     );
 
 export const App = () => {
+    startChangeLog(store.app, document);
     store.initHeartbeat();
     store.loadAppInfo();
     store.checkForUpdate();
@@ -142,7 +144,11 @@ export const App = () => {
     return div(
         { class: "app-layout" },
         Sidebar(),
-        main({ class: "viewport" }, div({ class: "menu-top" }, MenuSearch(), AdvancedTabs()), tabContent),
+        main(
+            { class: "viewport" },
+            div({ class: "menu-top" }, MenuSearch(), ...AREAS.filter((area) => area.tabs).map(AreaTabs)),
+            tabContent
+        ),
         UpdateModal(),
         Toast(),
         TooltipContainer()

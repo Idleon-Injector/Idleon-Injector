@@ -7,7 +7,6 @@
  * on anything else; Undo puts back all of an action's values at once.
  */
 import van from "../vendor/van-1.6.0.js";
-import store from "../state/store.js";
 import { VIEWS } from "../state/constants.js";
 import { AREAS, pageTitle } from "../menu/menuModel.js";
 import { menuTree } from "../menu/pageRegistry.js";
@@ -38,17 +37,21 @@ export const isLiveCharacterKey = async (key, active) => {
     return perCharacterKey.get(key);
 };
 
+// The menu's state (store.app), from startChangeLog; pages load without the app in tests.
+let app = null;
+
 /** Where the player is: the view, the page id (Pages view) and the name History shows. */
-const currentPlace = () => {
-    const view = store.app.activeTab;
+export const currentPlace = () => {
+    if (!app) return { view: "", page: "", name: "" };
+    const view = app.activeTab;
     if (view !== VIEWS.PAGES.id) {
         const tab = AREAS.flatMap((area) => area.tabs || [area]).find((entry) => VIEWS[entry.view].id === view);
         return { view, page: "", name: tab ? tab.label : "" };
     }
-    const world = (menuTree.val || []).find((entry) => entry.id === store.app.menuWorld);
+    const world = (menuTree.val || []).find((entry) => entry.id === app.menuWorld);
     const systems = world ? world.systems : [];
     const pages = systems.flatMap((system) => system.pages);
-    const page = pages.find((entry) => entry.id === store.app.menuPage) || pages[0];
+    const page = pages.find((entry) => entry.id === app.menuPage) || pages[0];
     if (!page) return { view, page: "", name: "" };
     const system = systems.find((entry) => entry.pages.includes(page));
     const title = pageTitle(page, system);
@@ -80,19 +83,25 @@ const open = new Set();
 let gesture = { count: 0, label: "", target: null };
 let gestureAction = null;
 
-/** The words that name what a click or key landed on: its row's name, a field's label, or a button's text. */
+/** The words that name what a click or key landed on: its row's name, the button pressed, or a field's label. */
 export const labelOf = (node) => {
     if (!node || typeof node.closest !== "function") return "";
+    const clean = (text) =>
+        String(text || "")
+            .replace(/\s+/g, " ")
+            .trim();
     const row = node.closest(".account-row, .account-inline-field, [data-change-label]");
-    const named =
+    const rowName = clean(
         row?.getAttribute("data-change-label") ||
-        row?.querySelector(".account-row__name, .account-inline-field__head > :first-child")?.textContent ||
-        node.getAttribute("aria-label") ||
-        (node.closest("button") || node).textContent;
-    return String(named || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 80);
+            row?.querySelector(".account-row__name, .account-inline-field__head > :first-child")?.textContent
+    );
+    const control = node.closest("button");
+    const controlName =
+        control && !control.classList.contains("number-input-btn")
+            ? clean(control.getAttribute("aria-label") || control.textContent)
+            : "";
+    const fieldName = rowName || controlName ? "" : clean(node.getAttribute("aria-label"));
+    return [rowName, controlName, fieldName].filter(Boolean).join(" · ").slice(0, 80);
 };
 
 // Writes that no field or button claimed (a page's own button, say) group by the click or key that led to them.
@@ -100,14 +109,19 @@ const noteGesture = (target) => {
     const control = typeof target?.closest === "function" ? target.closest("button, select, label, input") : null;
     gesture = { count: gesture.count + 1, label: labelOf(target), target: control || target };
 };
-document.addEventListener("pointerdown", (e) => noteGesture(e.target), true);
-document.addEventListener(
-    "keydown",
-    (e) => {
-        if (e.key === "Enter" || e.key === " ") noteGesture(e.target);
-    },
-    true
-);
+
+/** The app starts the log: where saves are made (its menu state), and the clicks and keys that make them. */
+export const startChangeLog = (appState, root) => {
+    app = appState;
+    root.addEventListener("pointerdown", (e) => noteGesture(e.target), true);
+    root.addEventListener(
+        "keydown",
+        (e) => {
+            if (e.key === "Enter" || e.key === " ") noteGesture(e.target);
+        },
+        true
+    );
+};
 
 /**
  * Run `fn(action)` as one user action: every save it makes, now or after its awaits, is grouped under it.

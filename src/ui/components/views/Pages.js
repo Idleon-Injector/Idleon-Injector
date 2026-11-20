@@ -10,6 +10,8 @@ import { Loader } from "../Loader.js";
 import { menuTree, menuError } from "../../menu/pageRegistry.js";
 import { pageTitle, worldClass } from "../../menu/menuModel.js";
 import { renderLazyPanes } from "./account/tabShared.js";
+// Undo all, offered beside a page's bulk control after it changed values.
+import "./account/UndoAllOffer.js";
 
 const { div, button, span, p } = van.tags;
 

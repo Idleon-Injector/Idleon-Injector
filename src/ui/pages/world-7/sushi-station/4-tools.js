@@ -161,7 +161,7 @@ function SushiToolsTab() {
                 body: [
                     div(
                         {
-                            class: () => `content-stack ${saveStateClass(settingsSave.status.val)}`,
+                            class: () => `content-stack ${saveStateClass(settingsSave.status.val, settingsSave.undo)}`,
                             ...settingsSave.handlers,
                         },
                         div(

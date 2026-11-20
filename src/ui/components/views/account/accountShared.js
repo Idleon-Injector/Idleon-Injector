@@ -7,7 +7,7 @@ import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { finishChange, startChange } from "../../../services/changeLog.js";
+import { finishChange, startChange, withAction } from "../../../services/changeLog.js";
 
 const { div } = van.tags;
 
@@ -202,13 +202,14 @@ export const renderAccountError = (message) =>
  * reports a mismatch. A value that lands goes in the change log (History, Undo).
  */
 export const writeVerified = (path, value, { write = gga } = {}) => {
-    // Claimed now, while the caller's code runs, so the save joins the user action that made it.
-    const change = startChange([path]);
+    // Claimed now, while the caller's code runs, so the save joins the user action that made it. A custom writer
+    // (a row handing the write to its page) saves through writeVerified itself, so only the game write logs.
+    const change = write === gga ? startChange([path]) : null;
     return (async () => {
-        const before = await change;
+        const before = change && (await change);
         const ok = await write(path, value);
         if (!ok) throw new Error(`Write mismatch at ${path}`);
-        await finishChange(before, [value]);
+        if (before) await finishChange(before, [value]);
         return value;
     })();
 };
@@ -338,7 +339,10 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
         }, ms);
     };
 
-    const run = async (
+    // Everything one run saves is one action (Undo all puts it back together).
+    const run = (task, options) => withAction({}, () => runTracked(task, options));
+
+    const runTracked = async (
         task,
         {
             loadingState = "loading",

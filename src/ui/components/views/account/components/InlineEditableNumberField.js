@@ -41,7 +41,7 @@ export const InlineEditableNumberField = ({
     rootClass = "account-field-metric",
     labelClass = "account-field-metric__label",
 }) => {
-    const { inputValue, status, reason, handlers, isDisabled, focus, blur } = useNumericEditor({
+    const { inputValue, status, reason, undo, handlers, isDisabled, focus, blur } = useNumericEditor({
         valueState,
         normalize,
         write: typeof write === "function" ? write : (value) => writeVerified(path, value),
@@ -69,8 +69,8 @@ export const InlineEditableNumberField = ({
     };
 
     return div(
-        { class: () => joinClasses(rootClass, saveStateClass(status.val)), ...handlers },
-        div({ class: "account-inline-field__head" }, renderLabel(), SaveState({ status, reason })),
+        { class: () => joinClasses(rootClass, saveStateClass(status.val, undo)), ...handlers },
+        div({ class: "account-inline-field__head" }, renderLabel(), SaveState({ status, reason, undo })),
         NumberInput({
             mode: inputMode,
             value: inputValue,

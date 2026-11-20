@@ -53,18 +53,26 @@ const createOptionRow = (index, rawValue, schema) => {
     const warning = van.state(schema?.warning ?? null);
     let isFocused = false;
     const stored = () => store.data.accountOptions[index];
-    const { status, reason, save, handlers } = useAutoSave({
+    // The value before the newest save, which Undo puts back.
+    let previous;
+    const { status, reason, save, handlers, undo } = useAutoSave({
         prepare: () => {
             const nextValue = normalizeForWrite(editorType.val, currentValue.val);
             if (JSON.stringify(nextValue) === JSON.stringify(stored())) return { unchanged: true };
+            const before = stored();
             return {
                 write: async () => {
                     await writeVerified(`OptionsListAccount[${index}]`, nextValue);
                     store.data.accountOptions[index] = nextValue;
+                    previous = before;
                 },
             };
         },
         revert: () => (currentValue.val = valueToDisplay(editorType.val, stored())),
+        onUndone: () => {
+            store.data.accountOptions[index] = previous;
+            currentValue.val = valueToDisplay(editorType.val, previous);
+        },
     });
 
     const syncFromLoadedValue = (nextRawValue, nextSchema) => {
@@ -120,9 +128,10 @@ const createOptionRow = (index, rawValue, schema) => {
                     "option-item feature-card",
                     isAI.val ? "is-ai-option" : "",
                     warning.val ? "has-warning" : "",
-                    saveStateClass(status.val)
+                    saveStateClass(status.val, undo)
                 ),
             "data-index": index,
+            "data-change-label": () => `${name.val} (${index})`,
         },
         div(
             { class: "option-header" },
@@ -149,7 +158,7 @@ const createOptionRow = (index, rawValue, schema) => {
                 },
             },
             () => renderEditor(),
-            SaveState({ status, reason, className: "save-state--inline" })
+            SaveState({ status, reason, undo, className: "save-state--inline" })
         )
     );
 

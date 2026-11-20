@@ -391,6 +391,212 @@
     border-color: var(--c-warning);
 }
 
+/*
+ * Undo (#31): after a save, "↶ Undo" lies where the words do, beside the ✓, for a few seconds. An undo that lands
+ * washes the row once in accent (confirm in place); one that's refused says why there and pulses twice.
+ */
+.save-state__undo {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 2px);
+    display: inline-flex;
+    gap: 5px;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+    border: 0;
+    background: var(--save-state-bg);
+    color: var(--c-accent);
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: color 120ms ease;
+}
+
+.save-state__undo[hidden],
+.undo-all__button[hidden] {
+    display: none;
+}
+
+.save-state__undo:hover {
+    color: var(--c-accent-hover);
+}
+
+.save-state__undo:focus-visible {
+    outline: 1px solid var(--c-accent);
+    outline-offset: -1px;
+}
+
+.save-state__undo-icon {
+    width: 12px;
+    height: 12px;
+    flex: none;
+}
+
+.save-state--inline .save-state__undo {
+    position: static;
+    height: auto;
+    padding: 0;
+    background: none;
+    transform: none;
+}
+
+.is-undo-offered > .account-row__badge,
+.is-undo-offered > .account-inline-field__head > :first-child,
+.is-undo-refused > .account-row__badge,
+.is-undo-refused > .account-inline-field__head > :first-child {
+    visibility: hidden;
+}
+
+.save-state--refused .save-state__label {
+    animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.is-undone {
+    animation: confirm-wash 800ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Undo all, beside the bulk control that made the change: out of the layout, on the surface it lies over. */
+.undo-all {
+    position: absolute;
+    z-index: 2;
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+    background: var(--undo-all-bg, var(--c-panel));
+    color: var(--c-text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    justify-content: flex-end;
+    white-space: nowrap;
+    transform: translateY(-50%);
+}
+
+.undo-all__button {
+    display: inline-flex;
+    gap: 5px;
+    align-items: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--c-accent);
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: none;
+    cursor: pointer;
+    transition: color 120ms ease;
+}
+
+.undo-all__button:hover {
+    color: var(--c-accent-hover);
+}
+
+.undo-all__button:focus-visible {
+    outline: 1px solid var(--c-accent);
+    outline-offset: 3px;
+}
+
+.undo-all__icon {
+    width: 12px;
+    height: 12px;
+    flex: none;
+}
+
+.undo-all__saving,
+.undo-all--loading .undo-all__offer {
+    display: none;
+}
+
+/* Like a field's save: "saving…" only once the undo takes a moment. */
+.undo-all--loading .undo-all__saving {
+    display: inline;
+    color: var(--c-text-muted);
+    animation: save-state-wait 0.3s steps(1, end) both;
+}
+
+.undo-all--loading .undo-all__icon {
+    visibility: hidden;
+}
+
+.undo-all__status:empty,
+.undo-all__mark:empty {
+    display: none;
+}
+
+.undo-all__mark {
+    display: inline-flex;
+    line-height: 0;
+}
+
+/* Done: the ✓ and an accent wash say it; "undone" is for screen readers. */
+.undo-all--done {
+    animation: confirm-wash 800ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.undo-all--done .undo-all__mark {
+    color: var(--c-success);
+}
+
+.undo-all--done .undo-all__status {
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+.undo-all--refused {
+    color: var(--c-warning);
+}
+
+.undo-all--refused .undo-all__status {
+    animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .undo-all--done,
+    .undo-all--refused .undo-all__status {
+        animation: none;
+    }
+}
+
+@keyframes confirm-wash {
+    0% {
+        box-shadow: inset 0 0 0 100vmax var(--c-accent-20);
+    }
+
+    100% {
+        box-shadow: inset 0 0 0 100vmax transparent;
+    }
+}
+
+@keyframes refusal-pulse {
+    0%,
+    50%,
+    100% {
+        opacity: 1;
+    }
+
+    25%,
+    75% {
+        opacity: 0.22;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .is-undone,
+    .save-state--refused .save-state__label {
+        animation: none;
+    }
+}
+
 @keyframes save-state-wait {
     0% {
         visibility: hidden;

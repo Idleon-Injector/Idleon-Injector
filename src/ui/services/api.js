@@ -452,7 +452,7 @@ export async function readGgaMany(paths) {
 
 /**
  * The change log this game session, newest action first.
- * @returns {Promise<{ actions: Array<{ id: string, page: string, label: string, at: number, undoneAt?: number, entries: Array<{ path: string, before: any, hasBefore: boolean, after: any, character: string|null, live: boolean, undone: boolean }> }> }>}
+ * @returns {Promise<{ actions: Array<{ id: string, page: string, label: string, time: number, undoneAt?: number, entries: Array<{ path: string, before: any, hasBefore: boolean, after: any, character: string|null, live: boolean, undone: boolean }> }> }>}
  */
 export async function fetchChanges() {
     return _request("/changes");

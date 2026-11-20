@@ -52,7 +52,7 @@ const sliceRows = (entries) => {
 };
 
 const PaletteHex = ({ entry, levelState, stars }) => {
-    const { inputValue, status, reason, handlers, focus, blur } = useNumericEditor({
+    const { inputValue, status, reason, undo, handlers, focus, blur } = useNumericEditor({
         valueState: levelState,
         normalize: (raw) => resolveNumberInput(raw, { min: 0, fallback: null, strict: true }),
         write: (nextLevel) => writeVerified(`${PALETTE_LEVELS_PATH}[${entry.index}]`, nextLevel),
@@ -65,7 +65,7 @@ const PaletteHex = ({ entry, levelState, stars }) => {
 
     return div(
         {
-            class: () => joinClasses("gaming-palette-hex", saveStateClass(status.val)),
+            class: () => joinClasses("gaming-palette-hex", saveStateClass(status.val, undo)),
             role: "group",
             "aria-label": entry.name,
             style: `--hex-bg: rgb(${entry.rgb.join(", ")}); --hex-fg: ${getTextColor(entry.rgb)};`,
@@ -83,7 +83,7 @@ const PaletteHex = ({ entry, levelState, stars }) => {
             }),
             div(
                 { class: "gaming-palette-hex__actions" },
-                SaveState({ status, reason, className: "save-state--inline" }),
+                SaveState({ status, reason, undo, className: "save-state--inline" }),
                 PaletteStarButton({ stars, entry })
             )
         )

@@ -333,7 +333,8 @@ const PrinterTab = () => {
         return div(
             { "data-printer-slot": `${state.kind}-${state.slot + 1}` },
             AccountRow({
-                rowClass: () => `printer-row account-row--wide-controls ${saveStateClass(state.write.status.val)}`,
+                rowClass: () =>
+                    `printer-row account-row--wide-controls ${saveStateClass(state.write.status.val, state.write.undo)}`,
                 controlsClass: "account-row__controls--xl",
                 rowProps: state.write.handlers,
                 info: div(

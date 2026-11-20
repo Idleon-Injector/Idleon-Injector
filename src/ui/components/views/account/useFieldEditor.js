@@ -49,6 +49,8 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const getDraftValue = (key) => getNumberInputLiveRaw(draftStates[key]) ?? draftStates[key].val;
     const getDrafts = () => Object.fromEntries(fields.map((field) => [field.key, getDraftValue(field.key)]));
     const isDisabled = () => Boolean(resolveValue(disabled));
+    // The values before the newest save, which the row's Undo puts back.
+    let previous = null;
 
     const autoSave = useAutoSave({
         prepare: () => {
@@ -73,6 +75,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                 fields.forEach((field) => resetDraft(field.key));
                 return { unchanged: true };
             }
+            const before = Object.fromEntries(fields.map((field) => [field.key, field.valueState.val]));
             return {
                 write: async () => {
                     const verified = await write(next);
@@ -97,12 +100,22 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                         // A draft typed while this save ran is the next save; leave it.
                         if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
                     });
+                    previous = before;
                     if (typeof onApplied === "function") await onApplied(verified);
                     return verified;
                 },
             };
         },
         revert: () => fields.forEach((field) => resetDraft(field.key)),
+        onUndone: () => {
+            if (!previous) return;
+            const restored = previous;
+            fields.forEach((field) => {
+                field.valueState.val = restored[field.key];
+                resetDraft(field.key);
+            });
+            if (typeof onApplied === "function") void onApplied(restored);
+        },
     });
 
     fields.forEach((field) => {
@@ -134,6 +147,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         handlers: autoSave.handlers,
         cancel: autoSave.cancel,
         run: autoSave.run,
+        undo: autoSave.undo,
         isDisabled,
         applyValue,
     };

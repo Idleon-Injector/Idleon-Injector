@@ -1,0 +1,214 @@
+/*
+ * History › Changes (#31): one block per action, newest first. The head says when, where and what, with Undo at
+ * its end; the values below read path, old → new, and the character when a value is one character's own.
+ */
+.history-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.change-log {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.change-log:empty {
+    display: none;
+}
+
+.change-group {
+    background: var(--c-panel);
+    border: 1px solid var(--c-border);
+    transition: border-color 0.2s;
+}
+
+.change-group:hover {
+    border-color: var(--c-border-strong);
+}
+
+.change-group__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: center;
+    min-height: 40px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--c-border);
+}
+
+.change-group__time,
+.change-group__count,
+.change-group__who,
+.change-group__undo,
+.change-entry {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.change-group__time {
+    color: var(--c-text-muted);
+}
+
+.change-group__page {
+    color: var(--c-accent);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.change-group__label {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--c-text-main);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.change-group__label:empty,
+.change-group__who:empty {
+    display: none;
+}
+
+.change-group__count {
+    color: var(--c-text-muted);
+}
+
+.change-group__who {
+    padding: 1px 6px;
+    border: 1px solid var(--c-border);
+    color: var(--c-text-dim);
+}
+
+.change-group__undo {
+    display: inline-flex;
+    gap: 12px;
+    align-items: center;
+    margin-left: auto;
+    color: var(--c-text-muted);
+}
+
+.change-group__reason:empty {
+    display: none;
+}
+
+.change-group.is-refused .change-group__reason {
+    color: var(--c-warning);
+    animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.change-group.is-undone {
+    animation: confirm-wash 800ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.change-group.is-all-undone .change-group__head > :not(.change-group__undo),
+.change-group.is-all-undone .change-group__entries {
+    opacity: 0.55;
+}
+
+.change-group__entries {
+    padding: 4px 0;
+}
+
+.change-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 9rem);
+    gap: 16px;
+    align-items: baseline;
+    padding: 3px 12px;
+}
+
+.change-entry__path {
+    overflow: hidden;
+    color: var(--c-text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.change-entry__values {
+    display: inline-flex;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.change-entry__before {
+    color: var(--c-text-muted);
+}
+
+.change-entry__arrow {
+    color: var(--c-accent);
+}
+
+.change-entry__after {
+    color: var(--c-text-main);
+}
+
+.change-entry__who {
+    overflow: hidden;
+    color: var(--c-text-dim);
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.change-entry.is-undone-entry .change-entry__values {
+    text-decoration: line-through;
+    text-decoration-color: var(--c-text-muted);
+}
+
+.change-entry.is-undone-entry .change-entry__who {
+    color: var(--c-accent);
+}
+
+.change-group__more-toggle {
+    padding: 3px 12px;
+    color: var(--c-accent);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.change-group__more-toggle:hover {
+    color: var(--c-accent-hover);
+}
+
+.change-group__more-toggle:focus-visible {
+    outline: 1px solid var(--c-accent);
+    outline-offset: -1px;
+}
+
+/* The in-game overlay: a value's path takes its own line above old → new. */
+@media (max-width: 760px) {
+    .change-group__head {
+        padding: 7px 10px;
+    }
+
+    .change-entry {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 2px 12px;
+        padding: 4px 10px;
+    }
+
+    .change-entry__path {
+        grid-column: 1 / -1;
+    }
+
+    .change-entry__who {
+        text-align: right;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .change-group.is-undone,
+    .change-group.is-refused .change-group__reason {
+        animation: none;
+    }
+}

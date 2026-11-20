@@ -41,6 +41,11 @@ export const VIEWS = {
         label: "CHROMEDEBUG",
         sidebarLabel: "CHROMEDEBUG",
     },
+    HISTORY: {
+        id: "history-tab",
+        label: "HISTORY",
+        sidebarLabel: "HISTORY",
+    },
 };
 
 // Order in which tabs appear in the sidebar

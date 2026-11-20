@@ -16,7 +16,7 @@ const isEntry = (entry) =>
 
 /** @param {object} app - TinyRouter */
 function setupChangeRoutes(app) {
-    // Oldest first; each { id, page, label, place, at, entries: [{ path, before, hasBefore, after, character, live, undone }] }.
+    // Oldest first; each { id, page, label, place, time, entries: [{ path, before, hasBefore, after, character, live, undone }] }.
     const actions = [];
 
     /** Every action this session, newest first. */
@@ -43,7 +43,7 @@ function setupChangeRoutes(app) {
                 label: String(action.label ?? ""),
                 // Where it was made ({ view, page }), so an undo can have that page read the game again.
                 place: { view: String(action.place?.view ?? ""), page: String(action.place?.page ?? "") },
-                at: Date.now(),
+                time: Date.now(),
                 entries: [],
             };
             actions.push(stored);

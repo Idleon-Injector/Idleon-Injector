@@ -275,7 +275,8 @@ const GridTab = () => {
                     ),
                     div(
                         {
-                            class: () => `research-grid-detail__edit-row ${saveStateClass(detailSave.status.val)}`,
+                            class: () =>
+                                `research-grid-detail__edit-row ${saveStateClass(detailSave.status.val, detailSave.undo)}`,
                             ...detailSave.handlers,
                         },
                         span({ class: "research-grid-detail__edit-label" }, "Level"),
