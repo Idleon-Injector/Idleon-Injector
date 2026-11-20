@@ -29,6 +29,10 @@ const VARIANT_CLASS = {
     "switch-filled": "account-btn account-btn--switch account-btn--apply",
 };
 
+// Buttons that share one status (a page's bulk actions) show it only on the one pressed last; the rest stay
+// disabled while it runs.
+const pressedBy = new WeakMap();
+
 /**
  * Shared action button for account feature tabs. `confirm` (a question, or a function that returns one or null) makes
  * the press ask in place first (#25): the first press reads "Click again" and only a second one runs `onClick`. Bulk
@@ -47,13 +51,20 @@ export const ActionButton = ({
     buttonProps = {},
     confirm = null,
 }) => {
-    const buttonNode = button(
+    const shared = Object(status) === status;
+    let buttonNode = null;
+    const ownStatus = () => {
+        const now = resolveValue(status);
+        const by = shared ? pressedBy.get(status) : undefined;
+        return by && by !== buttonNode ? null : now;
+    };
+    buttonNode = button(
         {
             ...buttonProps,
             type,
             onmousedown: preventMouseDown ? (e) => e.preventDefault() : null,
             class: () => {
-                const resolvedStatus = resolveValue(status);
+                const resolvedStatus = ownStatus();
                 const kind = resolveValue(variant);
                 return joinClasses(
                     VARIANT_CLASS[kind] ?? kind,
@@ -66,7 +77,7 @@ export const ActionButton = ({
             disabled: () => {
                 return Boolean(resolveValue(disabled)) || resolveValue(status) === "loading";
             },
-            "aria-busy": () => String(resolveValue(status) === "loading"),
+            "aria-busy": () => String(ownStatus() === "loading"),
             // One press is one action: everything it saves, now or after its awaits, undoes together.
             onclick: onClick
                 ? (e) => {
@@ -76,6 +87,7 @@ export const ActionButton = ({
                           if (!question) disarm(buttonNode);
                           else if (!clickAgain(buttonNode, question)) return undefined;
                       }
+                      if (shared) pressedBy.set(status, buttonNode);
                       const name = String(resolveValue(label)).trim();
                       const result = withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e));
                       if (status) void sayResult(name, result, status);

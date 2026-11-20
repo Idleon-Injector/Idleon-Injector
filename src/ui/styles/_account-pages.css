@@ -919,11 +919,14 @@
     cursor: wait;
 }
 
-.account-btn--success:not(.account-btn--switch) {
+/* The pointer is still on the button it pressed, so the result outweighs its kind's hover colour (_buttons.css). */
+.account-btn--success:not(.account-btn--switch),
+.account-btn.account-btn--success:not(.account-btn--switch):hover {
     color: var(--c-success);
 }
 
-.account-btn--error:not(.account-btn--switch) {
+.account-btn--error:not(.account-btn--switch),
+.account-btn.account-btn--error:not(.account-btn--switch):hover {
     color: var(--c-warning);
 }
 

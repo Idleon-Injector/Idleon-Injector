@@ -56,3 +56,59 @@ test("an action button says how its press ended, for screen readers", async () =
     await settle(50);
     assert.equal(region.textContent, "Add: failed");
 });
+
+// In-game check: on Arcade Shop, "Reset all" ran and "Max all" and "Max all cosmic" flashed done, as all four bulk
+// buttons share the page's one status. The result belongs to the button that ran.
+test("buttons that share one status show its result only on the one pressed", async () => {
+    const { BulkActionBar } = await importRepo("src/ui/components/views/account/BulkActionBar.js");
+    const status = van.state(null);
+    const run = async () => {
+        status.val = "loading";
+        await settle();
+        status.val = "success";
+    };
+    const bar = BulkActionBar({
+        actions: [
+            { label: "Max all", status, onClick: run },
+            { label: "Max all cosmic", status, onClick: run },
+            { label: "Reset all", variant: "danger", status, onClick: run },
+        ],
+    });
+    const [max, cosmic, reset] = bar.childNodes;
+    const shows = (button, kind) => String(button.attributes.class).includes(`account-btn--${kind}`);
+    await click(reset);
+    await settle();
+    assert.ok(shows(reset, "success"), "the pressed button says done");
+    assert.ok(!shows(max, "success") && !shows(cosmic, "success"), "the others don't");
+
+    await click(max);
+    await settle();
+    assert.ok(shows(max, "success") && !shows(reset, "success"), "the next press takes the result with it");
+    status.val = "error";
+    await settle();
+    assert.ok(shows(max, "error") && !shows(cosmic, "error") && !shows(reset, "error"));
+});
+
+// The pointer is still on the button it just pressed, so its done colour has to beat the kind's hover colour.
+test("a pressed button's done or failed colour beats its kind's hover colour", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const css = async (file) => readFile(new URL(`../src/ui/styles/${file}`, import.meta.url), "utf8");
+    // Classes and pseudo-classes in one compound selector; :not() counts its inside (no ids or elements here).
+    const weight = (selector) => (selector.match(/\.[\w-]+|:(?!not\()[\w-]+/g) ?? []).length;
+    const selectors = (text, pattern) =>
+        [...text.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^}]*)\}/g)]
+            .filter(([, , body]) => /(^|[\s;])color:/.test(body))
+            .flatMap(([, head]) => head.split(","))
+            .map((selector) => selector.trim())
+            .filter((selector) => pattern.test(selector));
+    const hover = selectors(await css("_buttons.css"), /^\.btn-(main|quiet|danger):hover/).map(weight);
+    assert.equal(hover.length, 3, "the three kinds' hover rules");
+    const pages = await css("_account-pages.css");
+    for (const kind of ["success", "error"]) {
+        const done = selectors(pages, new RegExp(`account-btn--${kind}:.*:hover`)).map(weight);
+        assert.ok(
+            done.some((w) => w > Math.max(...hover)),
+            `account-btn--${kind} on hover outweighs the kinds' hover colour`
+        );
+    }
+});
