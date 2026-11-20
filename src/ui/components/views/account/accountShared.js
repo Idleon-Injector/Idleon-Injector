@@ -245,7 +245,10 @@ const writeManyLogged = async (writes, change) => {
     const failedWrite = writes.find((entry) => normalizeGgaPath(entry.path) === failedPath);
     const expected = failedWrite?.value ?? "unknown";
 
-    const error = new Error(`Write mismatch at ${failedPath}: expected ${expected}`);
+    // An entry that never reached its slot keeps its own reason; only a value the game didn't keep is a mismatch.
+    const error = new Error(
+        failed.error === "Write mismatch" ? `Write mismatch at ${failedPath}: expected ${expected}` : failed.error
+    );
     error.results = result.results;
     throw error;
 };

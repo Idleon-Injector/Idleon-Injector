@@ -244,7 +244,7 @@ export const matchesVerifiedValue = (expected, actual) => {
  * Read mode:
  *   gga(path) -> returns the raw resolved value
  * Write mode:
- *   gga(path, value) -> returns true/false
+ *   gga(path, value) -> true, or false when the game kept another value; rejects when the write failed
  *
  * Verification is semantic/coercive by design for account-page workflows:
  * - numbers can match numeric strings (e.g. 1 === "1")
@@ -268,27 +268,18 @@ export async function gga(path, value) {
         return data.value;
     }
 
-    try {
-        // The game reads the value back in the same call as the write, before a game tick can change it (#78).
-        const { value: verifiedValue } = await _request("/game/gga/write", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path: ggaPath, value }),
-        });
-        const matches = matchesVerifiedValue(value, verifiedValue);
-
-        if (!matches) {
-            console.error(
-                `[gga] Write mismatch at ${path}: expected ${JSON.stringify(value)}, got ${JSON.stringify(verifiedValue)}`
-            );
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error(`[gga] Write failed at ${path}:`, error);
-        return false;
-    }
+    // The game reads the value back in the same call as the write, before a game tick can change it (#78).
+    // A write that didn't reach the game rejects with why; false is only the game keeping another value.
+    const { value: verifiedValue } = await _request("/game/gga/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: ggaPath, value }),
+    });
+    if (matchesVerifiedValue(value, verifiedValue)) return true;
+    console.error(
+        `[gga] Write mismatch at ${path}: expected ${JSON.stringify(value)}, got ${JSON.stringify(verifiedValue)}`
+    );
+    return false;
 }
 
 /** Delete a cached or derived GGA property by dot/bracket path. */

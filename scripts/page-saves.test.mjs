@@ -244,3 +244,39 @@ test("prayers.js: the level field stays enabled while its save runs", async (t) 
     assert.ok(disabledDuringSave.length > 0);
     assert.deepEqual([...new Set(disabledDuringSave)], [false], "the field was never disabled");
 });
+
+// A write that never reached the game says why, not that the game kept its old value.
+const rowReason = (root, label) => text(byClass(findRow(root, label), "save-state")[0]);
+
+test("owl.js: a save the game can't be reached for says why", async () => {
+    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Feather Generation"));
+    const evaluate = game.runtime.evaluate;
+    // What chrome-remote-interface answers while the game page reloads.
+    game.runtime.evaluate = async () => {
+        throw new Error("Cannot find context with specified id");
+    };
+    try {
+        assert.equal(await setRow(root, "Feather Generation", 9), "error");
+    } finally {
+        game.runtime.evaluate = evaluate;
+    }
+    assert.match(rowReason(root, "Feather Generation"), /Cannot find context with specified id/);
+    assert.doesNotMatch(rowReason(root, "Feather Generation"), /game kept old value/);
+});
+
+test("a write to a slot that doesn't exist says so, alone or in a batch", async () => {
+    const { writeVerified, writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { saveFailureReason } = await importRepo("src/ui/components/views/account/autoSave.js");
+    const single = await writeVerified("NoSuchKey[3]", 5).catch((error) => error);
+    assert.match(saveFailureReason(single), /Cannot resolve path segment: NoSuchKey/);
+    const batch = await writeManyVerified([
+        { path: "OptionsListAccount[254]", value: 3 },
+        { path: "NoSuchKey[3][1]", value: 5 },
+    ]).catch((error) => error);
+    assert.match(saveFailureReason(batch), /Cannot resolve path segment: NoSuchKey/);
+    assert.deepEqual(
+        batch.results.map((entry) => entry.ok),
+        [true, false],
+        "the batch's results stay on the error"
+    );
+});
