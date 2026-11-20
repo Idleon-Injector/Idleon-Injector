@@ -100,8 +100,10 @@ const offer = (action, anchor) => {
     };
     const hold = (by, on) => {
         holds[by] = on;
+        // Only an offer or a refusal waits for the pointer and focus; "undone" goes on its own timer.
+        if (state.val !== "offer" && state.val !== "refused") return;
         if (held()) clearTimeout(self.timer);
-        else if (state.val === "offer" || state.val === "refused") hideIn(UNDO_MS / 2);
+        else hideIn(UNDO_MS / 2);
     };
     const undo = async () => {
         if (state.val !== "offer") return;

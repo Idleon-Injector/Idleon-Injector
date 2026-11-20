@@ -565,3 +565,40 @@ test("an undo whose History bookkeeping fails still has the page read the game a
     assert.equal(ola[254], old, "the value is back");
     assert.notEqual(reloadPlace.val, asked, "so the page reads the game again");
 });
+
+test("a finished Undo all goes on its own, even after the pointer passed over it", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    await importRepo("src/ui/components/views/account/UndoAllOffer.js"); // offers beside the bulk control
+    const settle = async () => {
+        t.mock.timers.tick(0);
+        for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+    };
+    const parent = globalThis.document.createElement("div");
+    const anchor = globalThis.document.createElement("button");
+    parent.append(anchor);
+    anchor.parentElement = parent;
+    // Just enough layout for the offer to place itself beside the control.
+    anchor.after = (node) => {
+        node.offsetParent = { clientWidth: 400 };
+        node.style = { setProperty() {} };
+        parent.append(node);
+    };
+    const old = ola[254];
+    try {
+        await withAction({ label: "bulk", anchor }, () =>
+            writeManyVerified([{ path: "OptionsListAccount[254]", value: old + 1 }])
+        );
+        await settle();
+        const offer = parent.childNodes.find((node) => node !== anchor);
+        assert.ok(offer, "Undo all is offered");
+        byClass(offer, "undo-all__button")[0].listeners.click({});
+        for (let i = 0; i < 50 && !classes(offer).includes("undo-all--done"); i++) await settle();
+        assert.equal(ola[254], old, "undone");
+        offer.listeners.mouseenter({});
+        offer.listeners.mouseleave({});
+        t.mock.timers.tick(5000);
+        assert.ok(!parent.childNodes.includes(offer), "the finished offer is gone");
+    } finally {
+        t.mock.timers.runAll(); // VanJS's own redraw timers
+    }
+});
