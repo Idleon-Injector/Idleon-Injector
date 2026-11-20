@@ -21,6 +21,10 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        sneaking: {
+            saving: 10, // Automation, Sneaking: while saving for a High or Low upgrade, Balanced ones may cost up to this % of it.
+            items: [], // Automation, Sneaking: Ninja Knowledge upgrades to buy with jade, { id: "row", on, stopAt, priority }; priority 1 is High, 2 Low, none Balanced. No max level, so give each a stopAt.
+        },
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)

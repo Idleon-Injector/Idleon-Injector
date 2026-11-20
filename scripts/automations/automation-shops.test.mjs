@@ -147,10 +147,20 @@ test("automation shops buys switched-on items into the chest each second, cheape
     ]);
     assert.equal((await cheat("automation shops")).ok, true);
     assert.equal(shops().on, true);
+    // Every system adds its own "automation …" toggle; other automations (autoboss) stay off the list.
+    const listed = readComputed("automation", "list").value;
     assert.deepEqual(
-        readComputed("automation", "list").value.map(({ id, label, on }) => [id, label, on]),
-        [["account.automation.shops", "Shops", true]],
+        listed.filter(({ id }) => id === "account.automation.shops").map(({ id, label, on }) => [id, label, on]),
+        [["account.automation.shops", "Shops", true]]
+    );
+    assert.deepEqual(
+        listed.filter(({ cheat }) => !cheat.startsWith("automation ")),
+        [],
         "the overview lists only the automation toggles"
+    );
+    assert.equal(
+        listed.some(({ id }) => id === "wide.autoboss"),
+        false
     );
 
     mock.timers.tick(1000);

@@ -94,12 +94,16 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
 
     // A group's "all on" starts its automations too, reporting the one that refused, and "all off" stops them.
     assert.deepEqual(await cheat("fixture", true), { ok: false, message: "Open the picky menu first." });
+    // The real automations (every system adds its own) stay off; only the group's own start.
     assert.deepEqual(
-        getAutomations().map(({ id, on }) => [id, on]),
+        getAutomations().filter(({ id, on }) => !id.startsWith("fixture") && on),
+        []
+    );
+    assert.deepEqual(
+        getAutomations()
+            .filter(({ id }) => id.startsWith("fixture"))
+            .map(({ id, on }) => [id, on]),
         [
-            ["w7.sushi", false],
-            ["wide.autoboss", false],
-            ["account.automation.shops", false],
             ["fixture.steady", true],
             ["fixture.flaky", true],
             ["fixture.picky", false],
@@ -173,10 +177,8 @@ test("every automation's cheat is a command, and the folder holds the real ones"
     assert.ok(automationFiles().includes("autoboss.js"), "automation files are found by scanning the folder");
     assert.ok(!automationFiles().includes("_example.js"));
     for (const { id, cheat: command } of getAutomations()) assert.ok(cheats[command], `${id}: ${command}`);
-    assert.deepEqual(
-        getAutomations()
-            .map(({ id }) => id)
-            .filter((id) => !id.startsWith("fixture")),
-        ["w7.sushi", "wide.autoboss", "account.automation.shops"]
-    );
+    const real = getAutomations()
+        .map(({ id }) => id)
+        .filter((id) => !id.startsWith("fixture"));
+    for (const id of ["w7.sushi", "wide.autoboss", "account.automation.shops"]) assert.ok(real.includes(id), id);
 });

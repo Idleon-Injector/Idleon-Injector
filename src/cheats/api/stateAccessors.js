@@ -15,6 +15,7 @@ import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
 import { attireStatus } from "../helpers/attire/outfits.js";
 import { getAutomationShops } from "../helpers/automation/shops.js";
+import { getAutomationSneaking } from "../helpers/automation/sneaking.js";
 import {
     captureWardrobe,
     wardrobeFood,
@@ -96,10 +97,12 @@ export function readComputed(namespace, name, args = []) {
         }
     }
 
-    // Account › Automation: its automations ("automation …" toggles) with their status, and the town shops.
-    if (namespace === "automation" && (name === "list" || name === "shops")) {
+    // Account › Automation: its automations ("automation …" toggles) with their status, the town shops, and each
+    // system's own tab (World 6 › Sneaking › Automation).
+    if (namespace === "automation" && (name === "list" || name === "shops" || name === "sneaking")) {
         try {
             if (name === "shops") return { value: getAutomationShops() };
+            if (name === "sneaking") return { value: getAutomationSneaking() };
             return { value: getAutomations().filter(({ cheat }) => cheat.startsWith("automation ")) };
         } catch (error) {
             return { error: error.message };
