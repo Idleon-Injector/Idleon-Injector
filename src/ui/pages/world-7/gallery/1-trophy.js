@@ -166,18 +166,30 @@ const TrophyTab = () => {
             applySlotsState(await gga(TROPHY_SLOTS_PATH));
         });
 
+    // After every add or clear, success or not: a save that stopped part-way may have filled some slots, and the
+    // next Add must not write over them. If the read fails too, the writes that landed are the best picture left.
+    const showSlotsAfterSave = async (landedSlots) => {
+        let slots = landedSlots;
+        try {
+            slots = await gga(TROPHY_SLOTS_PATH);
+        } catch {
+            // keep landedSlots
+        }
+        withPreservedScroll(() => applySlotsState(slots));
+    };
+
     const clearSlotAtIndex = async (slotIndex) => {
         if (mutating.val) return;
         const currentSlots = [...slotValues.val];
         if (slotIndex < 0 || slotIndex >= currentSlots.length || currentSlots[slotIndex] === -1) return;
 
         mutating.val = true;
+        const nextSlots = [...currentSlots];
         try {
             await writeVerified(`${TROPHY_SLOTS_PATH}[${slotIndex}]`, -1);
-            const nextSlots = [...currentSlots];
             nextSlots[slotIndex] = -1;
-            withPreservedScroll(() => applySlotsState(nextSlots));
         } finally {
+            await showSlotsAfterSave(nextSlots);
             mutating.val = false;
         }
     };
@@ -193,12 +205,12 @@ const TrophyTab = () => {
 
         await runAdd(async () => {
             mutating.val = true;
+            const nextSlots = [...slotValues.val];
             try {
                 await writeVerified(`${TROPHY_SLOTS_PATH}[${slotIndex}]`, selected.trophyNumber);
-                const nextSlots = [...slotValues.val];
                 nextSlots[slotIndex] = selected.trophyNumber;
-                withPreservedScroll(() => applySlotsState(nextSlots));
             } finally {
+                await showSlotsAfterSave(nextSlots);
                 mutating.val = false;
             }
         });
@@ -209,8 +221,8 @@ const TrophyTab = () => {
 
         await runAdd(async () => {
             mutating.val = true;
+            const nextSlots = [...slotValues.val];
             try {
-                const nextSlots = [...slotValues.val];
                 let slotIndex = firstEmptySlotIndex.val;
 
                 for (const entry of missingOptions.val) {
@@ -219,9 +231,8 @@ const TrophyTab = () => {
                     await writeVerified(`${TROPHY_SLOTS_PATH}[${slotIndex}]`, entry.trophyNumber);
                     nextSlots[slotIndex] = entry.trophyNumber;
                 }
-
-                withPreservedScroll(() => applySlotsState(nextSlots));
             } finally {
+                await showSlotsAfterSave(nextSlots);
                 mutating.val = false;
             }
         });

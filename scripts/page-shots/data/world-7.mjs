@@ -10,7 +10,8 @@ const GRID_WIDTH = 20;
 const LEGEND_TALENTS = 40;
 const SUSHI = 20;
 const TROPHIES = list(10, (i) => `Trophy${i + 1}`);
-const NAMETAGS = list(10, (i) => `EquipmentNametag${i + 1}`);
+// As in the game: nametag 6 is "EquipmentNametag6b".
+const NAMETAGS = list(10, (i) => `EquipmentNametag${i + 1}${i === 5 ? "b" : ""}`);
 const ITEM_IDS = Object.keys(ITEMS).filter((id) => id.startsWith("item"));
 
 /** A diamond of research tiles in the middle of the 20 x 12 grid; the rest of the grid is unused. */

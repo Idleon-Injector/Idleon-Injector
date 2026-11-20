@@ -137,23 +137,31 @@ export const Search = () => {
 
     // Shared write flow for both the results and saved-list editors. The target
     // path is captured before the await so a row opened/removed mid-write can't
-    // redirect the update; isSettingValue rejects overlapping writes.
-    const commitEdit = async (editState, cancel) => {
+    // redirect the update. A save asked for while a value is written runs once that write ends, if its editor is
+    // still on the same row, so the last value entered is the one written: as entered, not as typed since.
+    let askedMidWrite = null;
+    const commitEdit = async (editState, cancel, submitted = { draft: editState.draft, type: editState.type }) => {
         const path = editState.path;
-        if (!path || ui.isSettingValue) return;
+        if (!path) return;
+        if (ui.isSettingValue) {
+            askedMidWrite = { editState, cancel, path, submitted };
+            return;
+        }
 
-        const validation = validateEditDraft(editState.type, editState.draft);
+        const validation = validateEditDraft(submitted.type, submitted.draft);
         if (!validation.ok) {
             editState.error = validation.error;
             return;
         }
 
+        const sent = submitted.draft;
         try {
             ui.isSettingValue = true;
             editState.error = "";
             const resp = await store.setGgaValue(path, validation.valueToSend);
             updateValueInUi(path, resp);
-            cancel();
+            // Text typed while the value was written stays in the open editor, and so does a save queued behind this one.
+            if (editState.path === path && editState.draft === sent && askedMidWrite?.editState !== editState) cancel();
             // The new value shows in the row; the row confirms in place.
             ui.writtenPath = path;
             setTimeout(() => {
@@ -163,6 +171,9 @@ export const Search = () => {
             editState.error = e?.message || "The game didn't take the value";
         } finally {
             ui.isSettingValue = false;
+            const next = askedMidWrite;
+            askedMidWrite = null;
+            if (next && next.editState.path === next.path) commitEdit(next.editState, next.cancel, next.submitted);
         }
     };
 
