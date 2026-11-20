@@ -1,8 +1,11 @@
 /**
  * The PR rules from CONTRIBUTING.md: one kind per PR, and a new cheat or game hook needs an approved issue.
  *
- * Run by .github/workflows/pr-rules.yml (master's copy of this file) with PR_NUMBER, PR_BODY, PR_AUTHOR_ASSOCIATION,
- * GITHUB_REPOSITORY and GITHUB_TOKEN. It reads the PR's files and the linked issues from the API and exits 1 with a
+ * Every PR follows them, the maintainer's (and so the AI-written ones opened from her account) included; a PR that
+ * really has to break one is merged with the admin bypass, on purpose.
+ *
+ * Run by .github/workflows/pr-rules.yml (master's copy of this file) with PR_NUMBER, PR_BODY, GITHUB_REPOSITORY and
+ * GITHUB_TOKEN. It reads the PR's files and the linked issues from the API and exits 1 with a
  * plain message when a rule fails. scripts/pr-summary.mjs shows the same result in the PR's summary comment.
  */
 
@@ -16,10 +19,6 @@ export const APPROVED = "approved";
 const PAGES = "src/ui/pages/";
 const GAME_SIDE = ["src/cheats/cheats/", "src/cheats/hooks/", "src/cheats/automations/"];
 const NEEDS_ISSUE = ["src/cheats/cheats/", "src/cheats/hooks/"];
-// Maintainers move pages (touching scripts/rules/exceptions.json) and refactor across kinds.
-const EXEMPT = ["OWNER", "MEMBER"];
-// The repo permission GitHub reports for a user (maintain counts as write there).
-const MAINTAINER_PERMISSIONS = ["admin", "write"];
 
 // The core's paths from .github/CODEOWNERS: "/folder/" covers the folder, "/file" the file.
 export function corePaths(codeowners) {
@@ -93,15 +92,11 @@ const list = (paths) =>
 
 /**
  * The rules for one PR. issue(n) resolves to { labels: [names], isPullRequest } or null when #n doesn't exist.
- * @returns {Promise<{ kind: string, exempt: boolean, problems: string[] }>} no problems: the PR passes
+ * @returns {Promise<{ kind: string, problems: string[] }>} no problems: the PR passes
  */
-export async function checkPr({ files, body, association, permission, core, issue }) {
+export async function checkPr({ files, body, core, issue }) {
     const byKind = filesByKind(files, core);
     const kind = describeKind(byKind);
-    // A private org member's association reads CONTRIBUTOR in Actions, so write access on the repo counts too.
-    if (EXEMPT.includes(association) || MAINTAINER_PERMISSIONS.includes(permission)) {
-        return { kind, exempt: true, problems: [] };
-    }
     const problems = [];
     if (byKind.page && byKind.game) {
         problems.push(
@@ -135,7 +130,7 @@ export async function checkPr({ files, body, association, permission, core, issu
             );
         }
     }
-    return { kind, exempt: false, problems };
+    return { kind, problems };
 }
 
 // The few GitHub API calls the PR workflows make. A 404 is null.
@@ -165,9 +160,6 @@ export function githubApi({ token, repo, fetchImpl = fetch }) {
     };
     return {
         pull: (n) => call("GET", `/pulls/${n}`),
-        // admin, write, read or none; a user the repo doesn't know is none.
-        permission: async (login) =>
-            (await call("GET", `/collaborators/${encodeURIComponent(login)}/permission`))?.permission ?? "none",
         files: async (n) =>
             (await all(`/pulls/${n}/files`)).map((f) => ({
                 path: f.filename,
@@ -191,17 +183,15 @@ const annotation = (text) =>
     `::error title=PR rules::${text.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A")}`;
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-    const { PR_NUMBER, PR_BODY, PR_AUTHOR, PR_AUTHOR_ASSOCIATION, GITHUB_REPOSITORY, GITHUB_TOKEN } = process.env;
+    const { PR_NUMBER, PR_BODY, GITHUB_REPOSITORY, GITHUB_TOKEN } = process.env;
     const github = githubApi({ token: GITHUB_TOKEN, repo: GITHUB_REPOSITORY });
     const result = await checkPr({
         files: await github.files(Number(PR_NUMBER)),
         body: PR_BODY,
-        association: PR_AUTHOR_ASSOCIATION,
-        permission: await github.permission(PR_AUTHOR),
         core: readCorePaths(),
         issue: github.issue,
     });
-    console.log(`Kind: ${result.kind}${result.exempt ? " (by a maintainer, so the rules don't apply)" : ""}`);
+    console.log(`Kind: ${result.kind}`);
     for (const problem of result.problems) console.log(annotation(problem));
     if (!result.problems.length) console.log("PR rules OK");
     process.exitCode = result.problems.length ? 1 : 0;
