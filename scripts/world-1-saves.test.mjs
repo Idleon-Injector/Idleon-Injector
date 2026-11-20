@@ -200,6 +200,37 @@ test("pets: a token the game no longer has room for is refused, and says why", a
     g.OptionsListAccount[606] = "2,5";
 });
 
+const petControl = (root, id, label) =>
+    label === "card"
+        ? petCard(root, id).childNodes.find((node) => node.nodeName === "button")
+        : elements(petCard(root, id)).find((node) => String(node.attributes["aria-label"]).startsWith(label));
+
+for (const [press, label] of [
+    ["a card click", "card"],
+    ["T", "Pet token for"],
+    ["+", "Pets+ tier for"],
+]) {
+    test(`pets: ${press} on a pet tokened in the game since the page opened keeps that token`, async () => {
+        g.OptionsListAccount[606] = "2";
+        const root = await openPage(PETS, (root) => petCard(root, 12));
+        tokenInGame(12); // the page still shows pet 12 without a token
+        await petControl(root, 12, label).listeners.click({});
+        assert.equal(g.OptionsListAccount[606], "2,12");
+        g.OptionsListAccount[606] = "2,5";
+    });
+}
+
+test("pets: removing a token the game dropped since does not select the pet", async () => {
+    g.OptionsListAccount[606] = "2";
+    const root = await openPage(PETS, (root) => petCard(root, 2));
+    g.OptionsListAccount[606] = ""; // the game dropped it
+    await petControl(root, 2, "card").listeners.click({});
+    assert.equal(g.OptionsListAccount[606], "");
+    await tick();
+    assert.equal(text(byClass(petCard(root, 2), "companion-card__tier")[0]), "NOT SELECTED");
+    g.OptionsListAccount[606] = "2,5";
+});
+
 const STAR_SIGNS = "src/ui/pages/world-1/star-signs/star-signs.js";
 const openSign = async (label) => {
     const root = await openPage(STAR_SIGNS, (root) => byClass(root, "starsign-card").length > 0);
