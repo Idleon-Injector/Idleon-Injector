@@ -250,8 +250,13 @@ const AttireRackPage = () => {
                 };
                 state.write = useAutoSave({
                     // A stat update owed for the character in play is a change still to save (it shows the pick).
+                    // A failed pick whose other copy still lacks it is also one (the live copy took it, the
+                    // saved one didn't). ponytail: only after a failure, so a saved copy the game hasn't caught up
+                    // with yet isn't written each time the player leaves the field.
                     prepare: () =>
-                        state.draft.val === state.item.val && !(statsOwed && state.character.val.active)
+                        state.draft.val === state.item.val &&
+                        !(statsOwed && state.character.val.active) &&
+                        !(state.write.status.val === "error" && slotWrites(state.character.val, state.draft.val).length)
                             ? { unchanged: true }
                             : { write: () => wear(character.name, state.draft.val) },
                     revert: () => (state.draft.val = state.item.val),
@@ -293,7 +298,8 @@ const AttireRackPage = () => {
         if (owedLine && bulkSaid.said.val === owedLine) bulkSaid.clear();
         owedLine = null;
         const inPlay = rowStates.get(current.val);
-        if (inPlay?.write.status.val === "error" && inPlay.draft.val === inPlay.item.val) inPlay.write.cancel();
+        if (inPlay?.write.status.val === "error" && !slotWrites(inPlay.character.val, inPlay.draft.val).length)
+            inPlay.write.cancel();
     };
 
     // After attire changed: the game works out the stats of the character in play again when that one changed.
@@ -383,7 +389,7 @@ const AttireRackPage = () => {
         let targets;
         try {
             targets = (await readStatus()).characters.filter(
-                (character) => changeable(character) && character.item !== item
+                (character) => changeable(character) && slotWrites(character, item).length
             );
         } catch (caught) {
             bulkSaid.say("failed", caught.message);

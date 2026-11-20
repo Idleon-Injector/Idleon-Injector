@@ -626,3 +626,49 @@ test("Refresh clears Give everyone's stat failure and the row's reason once the 
     await button(root, "Refresh").listeners.click({});
     await until(() => !/save-state--error/.test(saveState(node)), "the row's reason to go once the stats ran");
 });
+
+// Second reader of the leftovers, 1: a change the saved copy refused stays shown after Refresh ran the owed stat
+// update, and leaving the field finishes it.
+test("a change the saved copy refused stays shown after Refresh, and leaving the field finishes it", async () => {
+    const root = await open();
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const slot = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0];
+    const kept = slot[15];
+    const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    Object.defineProperty(slot, 15, { get: () => kept, set() {}, configurable: true });
+    try {
+        field.listeners.change({ target: { value: next } });
+        await until(() => /save-state--error/.test(saveState(node)), "the refusal in the row");
+    } finally {
+        Object.defineProperty(slot, 15, { value: kept, writable: true, configurable: true });
+    }
+    const ran = commands.length;
+    const refresh = button(root, "Refresh");
+    await refresh.listeners.click({});
+    await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run the owed stat update");
+    await until(() => !refresh.attributes.disabled, "the reload to end");
+    assert.match(saveState(node), /save-state--error/, "the saved copy still lacks the pick, so the reason stays");
+    node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
+    await until(() => slot[15] === next, "leaving the field to write the saved copy");
+    await until(() => /save-state--success/.test(saveState(node)), "the row to say it saved");
+});
+
+// Second reader of the leftovers, 1: Give everyone counts a character whose saved copy still lacks the outfit.
+test("give everyone writes a saved copy that still lacks the outfit the live copy wears", async () => {
+    const root = await open();
+    const item = "EquipmentGown6";
+    gga.EquipmentOrder[0][15] = item;
+    gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] = "EquipmentGown2";
+    for (const name of ["Lumi_Alt", "Lumi_Third"]) gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] = item;
+    const [everyone] = elements(root).filter(
+        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
+    );
+    everyone.listeners.change({ target: { value: item } });
+    const give = button(root, "Give everyone");
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await until(() => give.attributes["data-again"] === "Click again", "the question");
+    assert.match(give.attributes["aria-label"], /^Click again to give 1 character /);
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await until(() => gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] === item, "the saved copy");
+});
