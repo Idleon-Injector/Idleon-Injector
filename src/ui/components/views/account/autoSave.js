@@ -33,8 +33,11 @@ const isEditField = (node) => /^(INPUT|SELECT|TEXTAREA)$/.test(String(node?.node
  * the old values back (on the character they were saved on) with the same saving…/✓ states, then the page reads
  * the game again, so the row shows what the game now holds. When the fields edit one of several things (the selected
  * tile, say), `subject()` names it: Undo stays with the thing it saved, so it goes when the fields move on.
+ *
+ * `queue(task)` (oneAtATime(), say) runs each save in the page's turn: rows whose saves read the game before writing
+ * share one, so the drafts are read and the Undo action opened only when the save's turn comes.
  */
-export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject = null }) => {
+export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject = null, queue = (task) => task() }) => {
     const status = van.state(null);
     const reason = van.state("");
     const offer = van.state(null);
@@ -122,14 +125,14 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
             again = true;
             return running;
         }
-        running = (async () => {
+        running = queue(async () => {
             let outcome;
             do {
                 again = false;
                 outcome = await saveOnce();
             } while (again);
             return outcome;
-        })().finally(() => (running = null));
+        }).finally(() => (running = null));
         return running;
     };
 

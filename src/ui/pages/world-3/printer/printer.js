@@ -11,6 +11,7 @@ import {
     createStaticRowReconciler,
     largeFormatter,
     largeParser,
+    oneAtATime,
     unwrapH,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -35,6 +36,13 @@ const PrinterTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Printer" });
     // Saves queued or running, and a Refresh.
     const busy = van.state(0);
+    // Slot saves and Clears run whole, one at a time in the order asked: the last one asked lands last, and each reads
+    // its drafts and opens its Undo action only when its turn comes.
+    const queue = oneAtATime();
+    const inTurn = (task) => {
+        busy.val++;
+        return queue(task).finally(() => busy.val--);
+    };
     const snapshot = van.state(null);
     const selected = van.state(-1);
     const rows = new Map();
@@ -56,7 +64,7 @@ const PrinterTab = () => {
     let accountIdentity = "";
     let cachedCatalogue = null;
 
-    // Not `busy`: a save asked for while another slot saves waits its turn (writeSlot), so no press is lost.
+    // Not `busy`: a save asked for while another slot saves waits its turn (inTurn), so no press is lost.
     const cannotWrite = () => loading.val || Boolean(error.val) || !snapshot.val;
     const isDirty = (state) => {
         state.dirty.val;
@@ -197,6 +205,7 @@ const PrinterTab = () => {
                         const created = rows.get(key);
                         // The item and quantity save together on Enter or on leaving the row.
                         created.write = useAutoSave({
+                            queue: inTurn,
                             prepare: () => prepareSlot(created),
                             revert: () => {
                                 updateRow(created, created.baseline.item, created.baseline.qty, true);
@@ -247,7 +256,9 @@ const PrinterTab = () => {
 
     // A slot's save: nothing when the draft matches the game, the reason when it can't be saved.
     const prepareSlot = (state) => {
-        if (cannotWrite() || !isDirty(state)) return { unchanged: true };
+        if (!isDirty(state)) return { unchanged: true };
+        // A save that waited its turn behind one that failed.
+        if (cannotWrite()) throw new Error("Refresh before editing Printer.");
         const item = state.item.val;
         const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
         const parsed = Math.round(parseNumber(rawQty));
@@ -276,25 +287,18 @@ const PrinterTab = () => {
             )
         )
             return;
-        return state.write.run(() => writeSlot(state, "Blank", 0, true));
-    };
-
-    // Slot saves run one at a time in the order asked, so the last one asked lands last.
-    let writing = Promise.resolve();
-    // `submittedRaw`: the quantity text as saved; a draft changed since then is kept for the save queued after it.
-    const writeSlot = (state, item, qty, clear = false, submittedRaw = null) => {
-        busy.val++;
-        const queued = writing
-            .then(() => {
+        // Not returned: the button's own History action then ends now, and the row's opens when the turn comes, so
+        // a slot save still reading the game is the only action waiting when it claims its write (its Undo stays).
+        void inTurn(() =>
+            state.write.run(() => {
                 if (cannotWrite()) throw new Error("Refresh before editing Printer.");
-                return writeSlotNow(state, item, qty, clear, submittedRaw);
+                return writeSlot(state, "Blank", 0, true);
             })
-            .finally(() => busy.val--);
-        writing = queued.catch(() => {});
-        return queued;
+        );
     };
 
-    const writeSlotNow = async (state, item, qty, clear, submittedRaw) => {
+    // `submittedRaw`: the quantity text as saved; a draft changed since then is kept for the save queued after it.
+    const writeSlot = async (state, item, qty, clear = false, submittedRaw = null) => {
         try {
             const next = await readFresh();
             const cap = Math.round(
