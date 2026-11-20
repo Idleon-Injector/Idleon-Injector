@@ -232,10 +232,12 @@ export function deletePath(path) {
 }
 
 /**
- * Write a game value by dot/bracket path string.
+ * Write a game value by dot/bracket path string, and read it back in the same call. The game's code is
+ * single-threaded, so no game tick runs between the two: `value` is what the write left, even for a value
+ * the game changes every tick (issue #78). Callers check the write against it, not against a later read.
  * @param {string} path - Path like "gga.StampLevel[0][3]"
  * @param {any} value - JSON-serializable value to write
- * @returns {{ ok: true } | { error: string }}
+ * @returns {{ ok: true, value: any } | { error: string }}
  */
 export function writePath(path, value) {
     if (value === undefined) return { error: "Missing value" };
@@ -243,18 +245,18 @@ export function writePath(path, value) {
     if (resolved.error) return resolved;
     const { target, prop } = resolved;
     target[prop] = value;
-    return { ok: true };
+    return { ok: true, value: readPath(path).value };
 }
 
 /**
  * Write many game values by dot/bracket path strings.
  *
  * Non-atomic: each entry is attempted independently; earlier successful writes
- * are not rolled back if a later entry fails. UI callers should read back each
- * path and verify before treating the batch as committed.
+ * are not rolled back if a later entry fails. Each written entry carries `value`, read back
+ * in this same call (see writePath); callers verify against it before treating the batch as committed.
  *
  * @param {Array<{ path: string, value: any }>} writes
- * @returns {{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }> } | { error: string }}
+ * @returns {{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> } | { error: string }}
  */
 export function writePaths(writes = []) {
     if (!Array.isArray(writes) || writes.length === 0) {
@@ -276,7 +278,10 @@ export function writePaths(writes = []) {
 
             const { target, prop } = resolved;
             target[prop] = entry.value;
-            return { path, ok: true };
+            const { value } = readPath(path);
+            // Keep a non-serializable value from failing the entire CDP response.
+            JSON.stringify(value);
+            return { path, ok: true, value };
         } catch (error) {
             return { path, ok: false, error: error?.message ?? String(error) };
         }

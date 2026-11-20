@@ -248,10 +248,6 @@ test("restore writes the selected values through the game's write, checks them, 
     assert.equal(res.statusCode, 200, JSON.stringify(res.body));
     assert.deepEqual(res.body, { ok: true, results: [{ path: "gga.Cards.h.Bat", ok: true }] });
     assert.deepEqual(writesSent(), ["gga.Cards.h.Bat"]);
-    assert.ok(
-        expressions.some((e) => e.startsWith("readGamePaths(")),
-        "each value is read back and checked"
-    );
     assert.equal(gga.Cards.h.Bat, atCopy.bat);
     assert.equal(gga.Cards, cardsMap, "written into the game's map, not replacing it");
     assert.equal(gga.Money, 1);
@@ -278,6 +274,36 @@ test("restore writes the selected values through the game's write, checks them, 
     res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: "all" });
     assert.deepEqual(res.body, { ok: true, results: [] });
     assert.deepEqual(writesSent(), []);
+});
+
+test("restore checks each value as the write left it: a value the game keeps raising lands, a refused one fails", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const atCopy = gga.Money;
+    gga.Money += 5;
+    // The game raises Money on every tick, and ticks only between game calls (#78).
+    const tick = game.runtime.evaluate;
+    game.runtime.evaluate = async (options) => {
+        const result = await tick(options);
+        gga.Money += 10;
+        return result;
+    };
+    try {
+        let res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Money"] });
+        assert.deepEqual(res.body, { ok: true, results: [{ path: "gga.Money", ok: true }] });
+        assert.ok(gga.Money >= atCopy);
+
+        gga.Cards.h.Bat = 99;
+        Object.defineProperty(gga.Cards.h, "Bat", { get: () => 99, set() {}, configurable: true });
+        res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Cards"] });
+        assert.deepEqual(res.body, {
+            ok: false,
+            results: [{ path: "gga.Cards.h.Bat", ok: false, error: "Write mismatch" }],
+        });
+    } finally {
+        game.runtime.evaluate = tick;
+        Object.defineProperty(gga.Cards.h, "Bat", { value: 3, writable: true, configurable: true, enumerable: true });
+    }
 });
 
 test("a selection matching only protected values writes nothing", async () => {
