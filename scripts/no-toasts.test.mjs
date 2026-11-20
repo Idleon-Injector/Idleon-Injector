@@ -127,6 +127,31 @@ test("value search: a scan waits while a value is being written, so a failed wri
     assert.equal(text(under), "the game kept 5", "and says why the value wasn't written");
 });
 
+test("value search: a NEXT scan keeps the warning that the NEW scan stopped at its limit", async (t) => {
+    const hits = [{ path: "OptionsListAccount[1]", value: 5, formattedValue: "5", type: "number" }];
+    const answers = [
+        { results: hits, totalCount: 1, truncated: true }, // NEW: hit the limit
+        { results: hits, totalCount: 1, truncated: false }, // NEXT: within those results only
+    ];
+    t.mock.method(store, "searchGga", async () => answers.shift());
+    const { Search } = await importRepo("src/ui/components/views/Search.js");
+    const page = Search();
+    for (let i = 0; !byClass(page, "search-query-input").length && i < 100; i++) await settle();
+    const query = byClass(page, "search-query-input")[0];
+    for (let i = 0; i < 100 && !find(page, (n) => /OptionsListAccount/.test(n.data ?? "")).length; i++) await settle();
+    const warned = () => /stopped at its result limit/.test(text(byClass(page, "search-note")[0]));
+
+    query.listeners.input({ target: { value: "5" } });
+    await settle();
+    query.listeners.keydown(event({ key: "Enter" }));
+    await settle(50);
+    assert.ok(warned(), "the NEW scan says some matches are missing");
+    query.listeners.keydown(event({ key: "Enter" }));
+    await settle(50);
+    assert.equal(answers.length, 0, "a NEXT scan ran");
+    assert.ok(warned(), "and they're still missing");
+});
+
 test("a risky button asks in place: CLICK AGAIN, then the second click runs it, or it runs out", async (t) => {
     const { clickAgain } = await importRepo("src/ui/components/inPlace.js");
     t.mock.timers.enable({ apis: ["setTimeout"] });

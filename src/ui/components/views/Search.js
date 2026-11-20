@@ -498,7 +498,8 @@ export const Search = () => {
             // A refusal is said in the search's own hint line, which pulses; a scan that ran clears it.
             ui.searchRefusal = feedback?.validationError || "";
             if (ui.searchRefusal) ui.refusals++;
-            else ui.truncated = Boolean(feedback?.truncated);
+            // A NEXT scan looks only within the last results, so a NEW scan's cut-off stays until the next NEW one.
+            else ui.truncated = Boolean(feedback?.truncated) || (mode === "next" && ui.truncated);
         },
     };
 
