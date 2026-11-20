@@ -39,7 +39,6 @@ const refuseClamped = (raw, value) => {
 export const useFieldEditor = ({ fields, normalize, write, disabled = null, onApplied = null }) => {
     const fieldByKey = new Map(fields.map((field) => [field.key, field]));
     const draftStates = {};
-    const focusByKey = new Map();
     // The page these fields are on, read again after a failed save.
     const place = currentPlace();
     // The stored value each draft was taken from.
@@ -125,13 +124,12 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     fields.forEach((field) => {
         draftStates[field.key] = van.state((field.toDraft ?? defaultToDraft)(field.valueState.val));
         baseByKey.set(field.key, field.valueState.val);
-        focusByKey.set(field.key, false);
-        // A reload shows the new value, unless the field is being edited or saved, or holds the player's draft.
+        // A reload shows the new value, in a focused field too, unless the field is being saved or holds the
+        // player's draft.
         van.derive(() => {
             field.valueState.val;
             const draft = getNumberInputLiveRaw(draftStates[field.key]) ?? draftStates[field.key].rawVal;
-            if (!focusByKey.get(field.key) && !autoSave.isBusy() && isUntouched(field, draft, baseByKey.get(field.key)))
-                resetDraft(field.key);
+            if (!autoSave.isBusy() && isUntouched(field, draft, baseByKey.get(field.key))) resetDraft(field.key);
         });
     });
 
@@ -147,7 +145,8 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         draftStates,
         getDraftValue,
         resetDraft,
-        setFieldFocused: (key, isFocused) => focusByKey.set(key, isFocused),
+        // ponytail: kept so the rows that report focus still work; focus no longer changes what a reload shows.
+        setFieldFocused: () => {},
         status: autoSave.status,
         reason: autoSave.reason,
         handlers: autoSave.handlers,

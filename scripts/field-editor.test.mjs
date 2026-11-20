@@ -80,6 +80,10 @@ const settled = (row) => until(() => ["success", "error"].includes(stateOf(row))
 const shown = (input) => String(input.attributes.value);
 // VanJS draws state changes on its next tick.
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const clickRefresh = (root) =>
+    elements(root)
+        .find((node) => node.nodeName === "button" && text(node).trim() === "Refresh")
+        .listeners.click({ preventDefault() {} });
 
 // Sweep shared-blocks-1: Escape put back the value from before the half-done save, and the next save wrote it.
 test("after a save the game took only part of, Escape and the next save start from what the game holds", async () => {
@@ -118,4 +122,46 @@ test("after a save the game took only part of, Escape and the next save start fr
     assert.equal(stateOf(row), "success");
     assert.equal(requests.slice(start).filter((entry) => entry.includes("/write")).length, 1);
     assert.deepEqual([kitchen[6], kitchen[7], kitchen[8]], [90, 27, 60], "Speed isn't put back to 80");
+});
+
+// Sweep shared-blocks-2: a field with focus kept its old value through a reload, and + stepped from it.
+test("a reload shows the new value in a field that has focus but no edit, and + steps from it", async () => {
+    const ola = game.gga.OptionsListAccount;
+    ola[254] = 3;
+    const root = await openPage("src/ui/pages/world-1/owl/owl.js", "Feather Generation");
+    const row = findRow(root, "Feather Generation");
+    const [input] = inputs(row);
+    focus(input);
+    ola[254] = 60;
+    clickRefresh(root);
+    await until(() => shown(input) === "60", "the field to show the reloaded value");
+    const plus = elements(row).find((node) => node.nodeName === "button" && node.attributes["aria-label"] === "Raise");
+    plus.listeners.click({ target: plus, preventDefault() {} });
+    press(row, input, "Enter");
+    await settled(row);
+    assert.equal(ola[254], 61, "+ stepped from the value the game holds, not the one from before the reload");
+});
+
+// A field that shows a rounded value ("1.23M") keeps the exact value behind it when you leave it unedited, also when
+// a reload changed that value while the field had focus.
+test("leaving a rounded field the reload changed while it had focus saves nothing", async () => {
+    const ola = game.gga.OptionsListAccount;
+    ola[253] = 1234567;
+    const root = await openPage("src/ui/pages/world-1/owl/owl.js", "Feathers");
+    const row = findRow(root, "Feathers");
+    const [input] = inputs(row);
+    await until(() => input.value === "1.23M", "the page to show the value");
+    focus(input);
+    ola[253] = 2345678;
+    clickRefresh(root);
+    await until(() => input.value === "2.35M", "the field to show the reloaded value");
+    const start = requests.length;
+    leave(row, input);
+    await tick();
+    assert.deepEqual(
+        requests.slice(start).filter((entry) => entry.includes("/write")),
+        [],
+        "no rounded copy is written"
+    );
+    assert.equal(ola[253], 2345678);
 });
