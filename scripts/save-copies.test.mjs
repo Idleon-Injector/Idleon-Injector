@@ -272,6 +272,12 @@ test("restore writes the selected values through the game's write, checks them, 
         );
     }
     assert.deepEqual(protectedNow(), before, "the never-rolled-back values are as they were");
+
+    // A second click finds nothing left to put back.
+    expressions.length = 0;
+    res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: "all" });
+    assert.deepEqual(res.body, { ok: true, results: [] });
+    assert.deepEqual(writesSent(), []);
 });
 
 test("a selection matching only protected values writes nothing", async () => {
