@@ -13,6 +13,7 @@ import {
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { Said, clickAgain, useSaid } from "../../../components/inPlace.js";
 
 const { div, span, button } = van.tags;
@@ -60,7 +61,9 @@ const BundleRow = ({ bundle, state, searchQuery, buyAllStatus, onBuy, onUnbuy })
                 () =>
                     state.pending.val
                         ? span({ class: "bundle-row__pending" }, "WAITING FOR LIVE OWNERSHIP CONFIRMATION")
-                        : null
+                        : null,
+                // Why the row's last Buy or Unbuy failed, until its next one.
+                Said({ said: state.said.said, className: "said--line bundle-row__said", kinds: ["failed"] })
             ),
             badge: () => {
                 if (state.pending.val) return "BUY QUEUED";
@@ -118,6 +121,7 @@ const BundlesTab = () => {
                 pending: van.state(false),
                 status,
                 run,
+                said: useSaid(),
             });
         }
         return bundleStates.get(code);
@@ -159,7 +163,9 @@ const BundlesTab = () => {
             return undefined;
         }
         buyAllSaid.clear();
-        return buyAllBundles();
+        const outcome = await buyAllBundles();
+        if (outcome?.error) buyAllSaid.say("failed", saveFailureReason(outcome.error));
+        return outcome;
     };
 
     const totals = van.derive(() => {
@@ -224,8 +230,14 @@ const BundlesTab = () => {
         return pendingEntries;
     };
 
+    const failed = (state, what, caughtError) => {
+        console.error(`[bundles] ${what}:`, caughtError);
+        state.said.say("failed", saveFailureReason(caughtError));
+    };
+
     async function buyBundle(bundle, state) {
         if (buyAllStatus.val === "loading" || isOwned(state.owned.val) || state.pending.val) return;
+        state.said.clear();
         return state.run(
             async () => {
                 if (!(await ensurePlayerSelected()))
@@ -240,7 +252,7 @@ const BundlesTab = () => {
                     state.pending.val = false;
                 }
             },
-            { onError: (caughtError) => console.error(`[bundles] Buy failed for ${bundle.code}:`, caughtError) }
+            { onError: (caughtError) => failed(state, `Buy failed for ${bundle.code}`, caughtError) }
         );
     }
 
@@ -271,6 +283,7 @@ const BundlesTab = () => {
                     result: null,
                 };
 
+                state.said.clear();
                 entry.result = state.run(
                     async () => {
                         try {
@@ -285,7 +298,7 @@ const BundlesTab = () => {
                             state.pending.val = false;
                         }
                     },
-                    { onError: (caughtError) => console.error(`[bundles] Buy failed for ${bundle.code}:`, caughtError) }
+                    { onError: (caughtError) => failed(state, `Buy failed for ${bundle.code}`, caughtError) }
                 );
                 return entry;
             });
@@ -314,7 +327,7 @@ const BundlesTab = () => {
 
     async function unbuyBundle(bundle, state) {
         if (buyAllStatus.val === "loading" || !isOwned(state.owned.val) || state.pending.val) return;
-
+        state.said.clear();
         return state.run(
             async () => {
                 // Unbuy is deliberately the only direct ownership write, and it can
@@ -323,7 +336,7 @@ const BundlesTab = () => {
                 state.owned.val = 0;
                 state.pending.val = false;
             },
-            { onError: (caughtError) => console.error(`[bundles] Unbuy failed for ${bundle.code}:`, caughtError) }
+            { onError: (caughtError) => failed(state, `Unbuy failed for ${bundle.code}`, caughtError) }
         );
     }
 
