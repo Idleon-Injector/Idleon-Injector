@@ -181,3 +181,50 @@ test("Printer's Clear asks Click again when the press also saves another slot's 
     assert.notEqual(gga.Printer[printerSlot(4)], "Blank", "one press clears nothing");
     assert.ok(requests.length > writes);
 });
+
+// Review of #131: an Undo's reload read the game while a slot write was still running, and its older answer put the
+// old quantity back on that row; the reload now waits for the slot writes.
+test("Printer's reload after an Undo waits for a slot write still running", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 2");
+    const realFetch = globalThis.fetch;
+    const gates = [0, 1].map(() => {
+        let open;
+        const promise = new Promise((resolve) => (open = resolve));
+        return { promise, open };
+    });
+    let writing = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("write-many")) {
+            writing = true;
+            await gates[0].promise;
+            writing = false;
+            return realFetch(url, options);
+        }
+        if (!writing) return realFetch(url, options);
+        // A read made while the slot write runs: the game answers now, the answer arrives after the write.
+        const answer = await realFetch(url, options);
+        await gates[1].promise;
+        return answer;
+    };
+    t.after(() => {
+        globalThis.fetch = realFetch;
+        gates.forEach((gate) => gate.open());
+    });
+
+    const input = inputs(row)[0];
+    type(input, 2222);
+    enter(row, input);
+    await until(() => writing, "Sample 2's save to reach the game");
+    reloadPlace.val = { view: "", page: "" }; // an Undo elsewhere changed what this page shows
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    gates[0].open();
+    await until(() => saved(row), "Sample 2's save");
+    gates[1].open();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(gga.Printer[printerSlot(2) + 1], 2222);
+    assert.equal(input.value, "2.22K", "the row shows the quantity saved, not the reload's older answer");
+});

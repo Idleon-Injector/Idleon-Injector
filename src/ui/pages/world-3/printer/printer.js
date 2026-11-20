@@ -34,9 +34,9 @@ const slotLocation = (character, kind, slot) =>
 
 /** Edit stored printer samples and active prints. */
 const PrinterTab = () => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Printer" });
-    // Slot writes queued or running, and a Refresh.
+    // Slot writes queued or running, and a Refresh. An Undo's reload waits for them, so it can't put an older value back.
     const busy = van.state(0);
+    const { loading, error, run: runLoad } = useAccountLoad({ label: "Printer", busy: () => busy.val > 0 });
     // Slot saves and Clears write one at a time, in the order asked, so a press made while another slot saves waits
     // its turn instead of being dropped. Each still writes under its own row's History action (captureGesture), so
     // every slot keeps its Undo even while another slot's action is open, waiting its turn.
