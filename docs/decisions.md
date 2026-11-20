@@ -248,6 +248,23 @@ A `nomore` pattern travels as `"/source/flags"`; only list items in that form ar
 
 Source: [Configuration manager](../src/modules/config/configManager.js).
 
+## Pages save only their part of the configuration, file first, one at a time
+
+Decision: a page that keeps settings sends only the settings it changed, built from a read taken in its turn. It
+goes to `config.custom.js` first and then to the session and the game, and the page shows the read after it. The
+menu's configuration reads and saves, the Config view's included, run one at a time in the order asked.
+
+Why: pages that saved the whole configuration put back what another page changed in between, and a page that
+updated the session first had to take a failed file save back by hand, which erased a list another tab had saved.
+The file goes first because the server takes a save into the session only once the file is written.
+
+Alternative: keep the session first and take the change back when the file save fails.
+
+Trade-off: a list is saved whole, so another browser tab's save between a page's read and its save is still lost.
+A file save that worked while the game didn't take the change leaves the change saved, with the reason said.
+
+Source: [API service](../src/ui/services/api.js).
+
 ## Share the game-helper transport
 
 Decision: route server, CLI, and WebSocket helper calls through GameBridge.

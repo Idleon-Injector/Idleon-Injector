@@ -2,7 +2,7 @@ import van from "../../vendor/van-1.6.0.js";
 import vanX from "../../vendor/van-x-0.6.3.js";
 import store from "../../state/store.js";
 import { VIEWS } from "../../state/constants.js";
-import { fetchConfig } from "../../services/api.js";
+import { fetchConfig, inConfigTurn } from "../../services/api.js";
 import { applyConfigEdits } from "../../utils/index.js";
 import { Loader } from "../Loader.js";
 import { EmptyState } from "../EmptyState.js";
@@ -49,17 +49,13 @@ export const Config = () => {
         return merged;
     };
 
-    // Run syncs and saves one at a time so an older fetch cannot land after a newer save
-    let queue = Promise.resolve();
-    const queued = (task) => (queue = queue.then(task, task));
-
     // What Apply and Save did, said beside them (#77): a ✓ with where it went, or the reason in warm.
     const { said, say } = useSaid(5000);
 
     van.derive(() => {
         const isOpen = store.app.activeTab === VIEWS.CONFIG.id || store.app.configDrawerOpen;
         if (isOpen && draftReady.val)
-            queued(syncDraft).catch((e) => say("failed", `The latest settings didn't load: ${e.message}`));
+            inConfigTurn(syncDraft).catch((e) => say("failed", `The latest settings didn't load: ${e.message}`));
     });
 
     // Handle forced config path navigation from Cheats tab
@@ -106,7 +102,8 @@ export const Config = () => {
         if (!draft) return;
         const saveButton = e?.currentTarget;
 
-        return queued(async () => {
+        // Syncs and saves run in the menu's config turn, so an older fetch can't land after a newer save.
+        return inConfigTurn(async () => {
             try {
                 const merged = await syncDraft();
                 const toSave = toPlain(merged);
