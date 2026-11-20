@@ -160,14 +160,17 @@ const dropEmptyObjects = (value) => {
  * isn't reachable.
  * @param {Object} gameBridge - The game bridge
  * @param {Object} cheatConfig - The injector's live cheat config, merged into in place
+ * @returns {Promise<boolean>} Whether the game's config was read
  */
 async function pullGameConfig(gameBridge, cheatConfig) {
     try {
         const result = await gameBridge.callHelper("readCheatConfig");
-        if (result.error || typeof result.value !== "string") return;
+        if (result.error || typeof result.value !== "string") return false;
         deepMerge(cheatConfig, reviveRegExps(dropEmptyObjects(JSON.parse(result.value))));
+        return true;
     } catch (error) {
         log.debug(`Could not read the game's config: ${error.message}`);
+        return false;
     }
 }
 
@@ -230,9 +233,10 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
     customConfigBroken = false;
     log.info(`Configuration saved to ${savePath}`);
 
-    if (uiStartupCheats) {
+    // Only a list the save sent replaces it: without one, uiStartupCheats is this same array, which clearing would empty.
+    if (receivedFullConfig.startupCheats) {
         startupCheats.length = 0;
-        startupCheats.push(...uiStartupCheats);
+        startupCheats.push(...receivedFullConfig.startupCheats);
     }
     deepMerge(cheatConfig, parsedUiCheatConfig);
     if (filteredInjectorConfig) deepMerge(injectorConfig, filteredInjectorConfig);

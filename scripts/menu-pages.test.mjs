@@ -240,13 +240,19 @@ test("search finds cheats and their settings after the menu's own places, and in
         ["combat", "Stamps"],
         ["skills", "Stamps"],
         ["misc", "Stamps"],
-        ["overview", "Menagerie"],
         ["unlocks", "Menagerie"],
         ["cells", "Jelly Operator"],
         ["units", "Outposts"],
     ]) {
         assert.equal(search(q)[0].label, system, `"${q}" (an inner tab) finds ${system}`);
     }
+    // A page's own tab comes before an inner tab of the same name.
+    assert.deepEqual(
+        search("overview")
+            .slice(0, 2)
+            .map(({ label }) => label),
+        ["Overview", "Menagerie"]
+    );
     assert.ok(search("e").length <= 8, "at most 8 results");
 });
 

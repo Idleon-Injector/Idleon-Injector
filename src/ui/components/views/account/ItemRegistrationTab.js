@@ -87,12 +87,16 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             await writeVerified(historyPath, next);
             updateHistory(next);
         } catch (caughtError) {
+            // One value (the whole history): it landed or it didn't, and reading it again says which.
+            let now;
             try {
-                await readHistory();
+                now = new Set(await readHistory());
             } catch (readError) {
                 error.val = readError.message;
+                throw new Error("not checked, refresh");
             }
-            throw new Error(`Some changes may have applied and could not be verified. ${caughtError.message}`);
+            if (targets.every((itemId) => now.has(itemId) === registered)) return undefined;
+            throw caughtError;
         }
     };
 
@@ -108,9 +112,8 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             try {
                 return await rowStates
                     .get(itemId)
-                    .write.run(async () => applyHistory(await readHistory(), [itemId], registered), {
-                        onError: (caughtError) => (message.val = caughtError.message),
-                    });
+                    // The switch says why a row's save failed.
+                    .write.run(async () => applyHistory(await readHistory(), [itemId], registered));
             } finally {
                 busy.val = false;
             }
@@ -186,15 +189,10 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             ),
             // One switch with the game's words (#26); the status words are for screen readers.
             controls: [
+                // Saving and saved, for screen readers; the switch says why a save failed.
                 span({ class: "account-write-feedback", role: "status", "aria-live": "polite" }, () => {
                     const status = state.write.status.val;
-                    return status === "loading"
-                        ? "Saving"
-                        : status === "success"
-                          ? "Saved"
-                          : status === "error"
-                            ? "Failed"
-                            : "";
+                    return status === "loading" ? "Saving" : status === "success" ? "Saved" : "";
                 }),
                 StateSwitch({
                     checked: state.registered,

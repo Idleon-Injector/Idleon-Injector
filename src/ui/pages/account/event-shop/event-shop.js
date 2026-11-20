@@ -102,7 +102,6 @@ const EventshopTab = () => {
                     span({ class: "account-write-feedback", role: "status" }, () => {
                         if (row.feedback.status.val === "loading") return "Saving…";
                         if (row.feedback.status.val === "success") return "Verified";
-                        if (row.feedback.status.val === "error") return "Failed";
                         return "";
                     }),
                     StateSwitch({

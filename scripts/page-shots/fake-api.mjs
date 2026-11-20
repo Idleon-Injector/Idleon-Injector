@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url);
 const { createWebServer, startServer } = require("../../src/modules/server/webServer");
 const { setupApiRoutes } = require("../../src/modules/server/apiRoutes");
 const { version } = require("../../package.json");
+const { deepClone } = require("../../src/modules/utils/objectUtils.js");
 
 /** Build the router with every API route on the fake game; `game.misses` lists reads the fixture lacked. */
 export async function createFakeApi(fixture) {
@@ -24,8 +25,8 @@ export async function createFakeApi(fixture) {
     };
     const router = createWebServer({ enableUI: true });
     setupApiRoutes(router, "ctx", client, {
-        // ponytail: one object for both; only a Settings save would change it, and the screenshots don't save.
-        cheatConfig: config.cheatConfig,
+        // The server's session config is its own copy: saves change it, and config.js's defaults stay as they are.
+        cheatConfig: deepClone(config.cheatConfig),
         defaultConfig: config.cheatConfig,
         startupCheats: [...config.startupCheats],
         injectorConfig: { ...config.injectorConfig },
