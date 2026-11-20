@@ -26,7 +26,9 @@ function SushiToolsTab() {
     const knowledgeTier = van.state("1");
     const knowledgeQuantity = van.state("1");
     const feedback = van.state("");
+    let actions = 0; // counts refreshes and clicks, so a status poll that started before one doesn't undo it
     async function refresh() {
+        actions++;
         pending.val = true;
         settingsLoaded.val = false;
         try {
@@ -59,6 +61,11 @@ function SushiToolsTab() {
                 throw new Error(`${name}: ${min} to ${max}`);
             draft[key] = value;
         }
+        // The board's unlocked slots, once the status has read the board.
+        const slots = state.val.working && state.val.working.length + state.val.reserved.length;
+        if (slots && draft.reserveSlots >= slots) throw new Error(`empty slots: ${slots - 1} at most on this board`);
+        if (slots && draft.targetCount > slots - draft.reserveSlots)
+            throw new Error(`target quantity: ${slots - draft.reserveSlots} at most on this board`);
         return draft;
     };
     let savedDraft = null;
@@ -71,7 +78,7 @@ function SushiToolsTab() {
             startupCheats: config.startupCheats,
             injectorConfig: config.injectorConfig,
         });
-        savedDraft = JSON.stringify(draft);
+        savedDraft = JSON.stringify({ ...JSON.parse(savedDraft), ...draft });
         if (result.message.includes("failed to apply in game"))
             throw new Error("saved, but not applied in game; reconnect");
     }
@@ -93,6 +100,7 @@ function SushiToolsTab() {
         return JSON.parse(response.message);
     }
     async function run(action) {
+        actions++;
         pending.val = true;
         try {
             if (action === "" && !enabled.val) await saveSettings();
@@ -106,6 +114,8 @@ function SushiToolsTab() {
             pending.val = false;
         }
     }
+    // "Show in-game buttons" saves one at a time, each saving the switch as it is then, so the last choice wins.
+    let buttonsSave = Promise.resolve();
     const locked = () => enabled.val || pending.val || !settingsLoaded.val;
     // Settings fields stay usable while they save, so a save never takes their focus away.
     const settingsLocked = () => enabled.val || !settingsLoaded.val;
@@ -125,7 +135,7 @@ function SushiToolsTab() {
                 },
             })
         );
-    const toggle = (title, value) =>
+    const toggle = (title, value, save = () => settingsSave.save()) =>
         label(
             { class: "toggle-switch sushi-toggle" },
             input({
@@ -135,7 +145,7 @@ function SushiToolsTab() {
                 disabled: settingsLocked,
                 onchange: (e) => {
                     value.val = e.target.checked;
-                    void settingsSave.save();
+                    void save();
                 },
             }),
             span({ class: "slider", "aria-hidden": "true" }),
@@ -208,7 +218,15 @@ function SushiToolsTab() {
                             }),
                             ActionButton({ label: "Sort", disabled: locked, onClick: () => run("sort") })
                         ),
-                        toggle("Show in-game buttons", settings.ingameButtons),
+                        // Saved on its own, so a board setting that can't be saved doesn't hold it back.
+                        toggle(
+                            "Show in-game buttons",
+                            settings.ingameButtons,
+                            () =>
+                                (buttonsSave = buttonsSave.then(() =>
+                                    settingsSave.run(() => saveSettings({ ingameButtons: settings.ingameButtons.val }))
+                                ))
+                        ),
                         div(
                             { class: "sushi-automation-info" },
                             p({ role: "status", "aria-live": "polite", class: "sushi-automation-status" }, () =>
@@ -250,6 +268,28 @@ function SushiToolsTab() {
         controls
     );
     refresh();
+    // Follow Auto Play started, stopped or progressing elsewhere (the in-game buttons) while this tab is on screen.
+    let polling = false;
+    let pollFailed = false;
+    setInterval(async () => {
+        if (polling || pending.val || !settingsLoaded.val || root.offsetParent === null || document.hidden) return;
+        polling = true;
+        const started = actions;
+        try {
+            const status = await command("status");
+            if (started !== actions) return; // a click's own answer is newer
+            if (pollFailed || status.message !== state.val.message || status.enabled !== enabled.val) feedback.val = "";
+            pollFailed = false;
+            state.val = status;
+            enabled.val = status.enabled;
+        } catch (error) {
+            if (started !== actions) return;
+            pollFailed = true;
+            feedback.val = error.message;
+        } finally {
+            polling = false;
+        }
+    }, 2000);
     return root;
 }
 

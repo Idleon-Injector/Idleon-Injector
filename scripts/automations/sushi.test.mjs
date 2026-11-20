@@ -287,3 +287,179 @@ test("out of fuel, it merges what it bought before stopping, and says so", async
     assert.deepEqual(board.slice(0, 4).sort(), [-1, -1, 0, 1], "two of them merged; the third has no pair");
     assert.deepEqual(await run("w7 sushitools"), OFF);
 });
+
+// The WebUI's Tools tab (World 7 › Sushi Station › Tools) on the real API routes and the fake station.
+const text = (node) =>
+    typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
+const elements = (node, out = []) => {
+    if (node?.nodeType !== 1) return out;
+    out.push(node);
+    for (const child of node.childNodes) elements(child, out);
+    return out;
+};
+const byClass = (root, name) =>
+    elements(root).filter((node) => String(node.attributes.class).split(" ").includes(name));
+async function until(check, what) {
+    for (let i = 0; i < 100; i++) {
+        if (check()) return;
+        await advance(50);
+    }
+    assert.fail(`timed out waiting for ${what}`);
+}
+let openRoot = null;
+async function openTools() {
+    if (openRoot) openRoot.offsetParent = null; // leave the last test's tab, so only this one polls
+    const router = new TinyRouter();
+    const client = Object.assign(new EventEmitter(), { Runtime: game.runtime });
+    setupApiRoutes(router, "context", client, { cheatConfig: {}, startupCheats: [], injectorConfig: {} });
+    router.post("/api/config/save", (req, res) => res.json({ ok: true })); // no config file in a test
+    await loadUi(router);
+    const root = (await importRepo("src/ui/pages/world-7/sushi-station/4-tools.js")).default.component();
+    openRoot = root;
+    const tab = {
+        root,
+        button: (label) => elements(root).find((node) => node.nodeName === "button" && text(node) === label),
+        status: () => text(byClass(root, "sushi-automation-status")[0]),
+        saveState: () => text(byClass(root, "save-state__label")[0]),
+        field: (title) => elements(root).find((node) => node.attributes["aria-label"] === title),
+        toggle: (title) =>
+            elements(byClass(root, "sushi-toggle").find((node) => text(node) === title)).find(
+                (node) => node.nodeName === "input"
+            ),
+    };
+    await until(() => tab.button("Enable Auto Play")?.attributes.disabled === false, "the tab to load");
+    return tab;
+}
+async function setField(tab, title, value) {
+    const input = tab.field(title);
+    input.value = String(value);
+    input.listeners.input({ target: input });
+    let row = input;
+    while (!row.listeners.keydown) row = row.parentNode; // the settings' save-on-Enter
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await advance(200);
+}
+
+// Issue #79: the settings took a target of 40 on a 33-slot board, and Enable said only that it must fit.
+test("Tools tab: a target the board can't hold isn't saved, and Enable says the most that fits", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
+    const tab = await openTools();
+    await setField(tab, "Target quantity", 40);
+    assert.equal(tab.saveState(), "target quantity: 4 at most on this board");
+    assert.equal(cheatConfig.w7.sushitools.targetCount, 2, "not saved");
+    await setField(tab, "Empty slots", 6);
+    assert.equal(tab.saveState(), "empty slots: 5 at most on this board");
+    await setField(tab, "Empty slots", 2);
+
+    tab.button("Enable Auto Play").listeners.click();
+    await advance(200);
+    assert.equal(tab.status(), "target quantity: 4 at most on this board", "said where Enable was clicked");
+    assert.equal((await run("w7 sushitools status")).enabled, false);
+
+    await setField(tab, "Target quantity", 4);
+    assert.equal(cheatConfig.w7.sushitools.targetCount, 4, "a target that fits saves");
+});
+
+// Issue #79: started from the in-game button, the tab kept showing "Enable Auto Play" until REFRESH.
+test("Tools tab: follows Auto Play started and stopped in the game, with its progress", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
+    const tab = await openTools();
+    const { startSushi, stopSushi } = await importRepo("src/cheats/helpers/sushi/autoPlay.js");
+    startSushi(); // what the in-game Start button runs
+    await until(() => tab.button("Disable Auto Play"), "the tab to see Auto Play on");
+    assert.equal(tab.field("Target quantity").attributes.disabled, true, "settings lock while it runs");
+    await until(() => tab.status().startsWith("Finished"), "the tab to show its progress");
+    assert.equal(tab.status(), "Finished: 2/2 tier 3+ sushi.");
+    stopSushi();
+    await until(() => tab.button("Enable Auto Play"), "the tab to see Auto Play off");
+    assert.equal(tab.status(), "Auto Play disabled.");
+});
+
+// Issue #79 (after #24): "Show in-game buttons" took effect only after SAVE SETTINGS.
+test("Tools tab: Show in-game buttons reaches the game at once, even beside a setting that can't save", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2, ingameButtons: false };
+    const tab = await openTools();
+    tab.field("Target quantity").value = "40";
+    tab.field("Target quantity").listeners.input({ target: tab.field("Target quantity") });
+    const toggle = tab.toggle("Show in-game buttons");
+    toggle.listeners.change({ target: { checked: true } });
+    await advance(200);
+    assert.equal(cheatConfig.w7.sushitools.ingameButtons, true);
+    assert.equal(cheatConfig.w7.sushitools.targetCount, 2, "the unsaved target stays unsaved");
+    toggle.listeners.change({ target: { checked: false } });
+    await advance(200);
+    assert.equal(cheatConfig.w7.sushitools.ingameButtons, false);
+});
+
+/**
+ * Holds the next request `match(url, body)` picks: `sent` lists every picked request's body as the server got it.
+ * Held "before", it reaches the server only on `release()`; held "after", the server answers at once and the tab
+ * gets that answer, or `release(body)` instead, only on release.
+ */
+function holdNext(match, at) {
+    const real = globalThis.fetch;
+    const held = { started: false, sent: [] };
+    const gate = new Promise((resolve) => (held.release = resolve));
+    globalThis.fetch = async (url, options = {}) => {
+        const body = JSON.parse(options.body ?? "{}");
+        if (!match(url, body)) return real(url, options);
+        const first = !held.started;
+        held.started = true;
+        if (first && at === "before") await gate;
+        held.sent.push(body);
+        const response = await real(url, options);
+        if (!first || at !== "after") return response;
+        const instead = await gate;
+        return instead
+            ? new Response(JSON.stringify(instead), { headers: { "content-type": "application/json" } })
+            : response;
+    };
+    return held;
+}
+
+// PR #86 review: two quick flips of "Show in-game buttons" saved at once, and the older save could land last.
+test("Tools tab: quick flips of Show in-game buttons save one after another, so the file keeps the last choice", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2, ingameButtons: false };
+    const tab = await openTools();
+    const saves = holdNext((url) => url.endsWith("/config/save"), "before");
+    const toggle = tab.toggle("Show in-game buttons");
+    toggle.listeners.change({ target: { checked: true } });
+    await until(() => saves.started, "the first save to reach the file");
+    toggle.listeners.change({ target: { checked: false } });
+    await advance(200);
+    saves.release();
+    await advance(400);
+    assert.deepEqual(
+        saves.sent.map((config) => config.cheatConfig.w7.sushitools.ingameButtons),
+        [true, false],
+        "the file ends with the switch as shown"
+    );
+    assert.equal(cheatConfig.w7.sushitools.ingameButtons, false);
+});
+
+// PR #86 review: a status poll that read the game before a click landed after it and undid the click on screen.
+test("Tools tab: a status poll from before a click doesn't undo the click's result or its message", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
+    const tab = await openTools();
+    const isStatus = (url, body) => body.action === "w7 sushitools status";
+    let poll = holdNext(isStatus, "after");
+    await until(() => poll.started, "a status poll"); // it has read Auto Play off
+    tab.button("Enable Auto Play").listeners.click();
+    await until(() => tab.button("Disable Auto Play"), "the click to turn Auto Play on");
+    poll.release();
+    await advance(50);
+    assert.ok(tab.button("Disable Auto Play"), "the older poll left Auto Play on");
+
+    poll = holdNext(isStatus, "after");
+    await until(() => poll.started, "another status poll");
+    tab.button("Disable Auto Play").listeners.click();
+    await until(() => tab.button("Enable Auto Play"), "the click to turn Auto Play off");
+    poll.release({ ok: false, message: "Lost the game." });
+    await advance(50);
+    assert.equal(tab.status(), "Auto Play disabled.", "the older poll's failure didn't replace the click's message");
+});
