@@ -1,11 +1,67 @@
 import van from "../vendor/van-1.6.0.js";
 import { Icons } from "../assets/icons.js";
 
-const { div, input, button } = van.tags;
+const { div, input, button, span } = van.tags;
 const liveRawByState = new WeakMap();
 const focusedValueSetters = new WeakMap();
 // −/+ change the value without taking focus from the field being edited.
 const keepFocus = (e) => e.preventDefault();
+
+let capIds = 0;
+
+// A cap's text through the field's formatter, or "" for none: null, empty, Infinity and NaN are no cap.
+const capText = (cap, formatter) => () => {
+    const raw = typeof cap === "function" ? cap() : cap;
+    const value = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
+    return Number.isFinite(value) ? (formatter ? formatter(String(value)) : String(value)) : "";
+};
+
+/**
+ * The cap ("/ 15") sits inside the field's box after the value, muted, and is never part of the typed text: Enter or
+ * leaving the field saves only the number. Pressing the cap puts the caret in the field. `cap` is a number, a
+ * function returning one, or null for none; it shows through the field's formatter (1.03K / 2.5M). Only a real cap
+ * gets the slash: the value Max fills up to. A number that isn't a limit is left out.
+ */
+const Cap = (cap, formatter, inputRef) => {
+    if (cap === null || cap === undefined) return { node: null, describedBy: {}, wrapperClass: "number-input-wrapper" };
+    const id = `number-input-cap-${++capIds}`;
+    const text = capText(cap, formatter);
+    const node = span(
+        {
+            class: "number-input__cap",
+            hidden: () => !text(),
+            onmousedown: (e) => {
+                e.preventDefault();
+                inputRef().focus();
+            },
+        },
+        span({ "aria-hidden": "true" }, () => `/ ${text()}`),
+        span({ id, class: "sr-only" }, () => `of ${text()}`)
+    );
+    const wrapperClass = () => (text() ? "number-input-wrapper number-input-wrapper--capped" : "number-input-wrapper");
+    return { node, describedBy: { "aria-describedby": id }, wrapperClass };
+};
+
+/**
+ * A capped value on a row with no field ("3 / 10"): the field's text without its box, the cap muted the same way.
+ * `value` and `cap` are values or functions returning them.
+ */
+export const CappedValue = ({ value, cap, formatter = null }) => {
+    const text = capText(cap, formatter);
+    const shown = () => {
+        const current = typeof value === "function" ? value() : value;
+        return formatter ? formatter(String(current ?? 0)) : String(current ?? 0);
+    };
+    return span(
+        { class: "capped-value" },
+        span(shown),
+        span(
+            { class: "number-input__cap", hidden: () => !text() },
+            span({ "aria-hidden": "true" }, () => `/ ${text()}`),
+            span({ class: "sr-only" }, () => ` of ${text()}`)
+        )
+    );
+};
 
 export const getNumberInputLiveRaw = (state) => liveRawByState.get(state);
 
@@ -64,6 +120,7 @@ function parseInput(raw, callerParser = null) {
  *   parser      {Function}  (displayString) → rawString | null. Required with formatter.
  *   onDecrement {Function}  Called when the − button is clicked.
  *   onIncrement {Function}  Called when the + button is clicked.
+ *   cap         {number|Function|null} The most the value can be, shown muted after it ("2 / 15").
  *
  * Formatted mode behaviour:
  *   • The input shows formatter(value.val).
@@ -80,7 +137,16 @@ function parseInput(raw, callerParser = null) {
  *   • Suffix notation (2b, 1.5k) is expanded immediately on each keystroke.
  *   • value.val is kept in sync on every input event.
  */
-export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, formatter, parser, ...inputProps }) => {
+export const NumberInput = ({
+    value,
+    mode = "int",
+    onDecrement,
+    onIncrement,
+    formatter,
+    parser,
+    cap = null,
+    ...inputProps
+}) => {
     const { oninput: userOninput, onfocus: userOnfocus, onblur: userOnblur, ...restInputProps } = inputProps;
 
     const allowDecimal = mode === "float";
@@ -100,8 +166,10 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
         // Hold a direct DOM reference so we can write inputEl.value ourselves.
         // If we used a reactive `value:` VanJS prop, any state change would let
         // VanJS overwrite input.value mid-keystroke, resetting the cursor.
+        const capped = Cap(cap, formatter, () => inputEl);
         const inputEl = input({
             type: "text",
+            ...capped.describedBy,
             ...restInputProps,
 
             onfocus(e) {
@@ -161,8 +229,9 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
         };
 
         return div(
-            { class: "number-input-wrapper" },
+            { class: capped.wrapperClass },
             inputEl,
+            capped.node,
             button(
                 {
                     type: "button",
@@ -217,16 +286,21 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
         if (userOninput) userOninput(e);
     };
 
+    const capped = Cap(cap, null, () => inputEl);
+    const inputEl = input({
+        type: "text",
+        value,
+        oninput: handleInput,
+        onfocus: userOnfocus,
+        onblur: userOnblur,
+        ...capped.describedBy,
+        ...restInputProps,
+    });
+
     return div(
-        { class: "number-input-wrapper" },
-        input({
-            type: "text",
-            value,
-            oninput: handleInput,
-            onfocus: userOnfocus,
-            onblur: userOnblur,
-            ...restInputProps,
-        }),
+        { class: capped.wrapperClass },
+        inputEl,
+        capped.node,
         button(
             {
                 type: "button",

@@ -50,6 +50,11 @@ const rowNamed = (root, name) =>
     byClass(root, "account-row").find((row) => text(byClass(row, "account-row__name")[0]).trim() === name);
 const stateOf = (row) => /save-state--(\w+)/.exec(classes(byClass(row, "save-state")[0] ?? { attributes: {} }))?.[1];
 const shown = (input) => String(input.attributes.value);
+// The cap the field shows, as the eye reads it ("/ 4"); "" when the field has none.
+const capOf = (row) => {
+    const cap = byClass(row, "number-input__cap")[0];
+    return cap && !cap.attributes.hidden ? text(cap.childNodes[0]) : "";
+};
 
 const click = (button) => button.listeners.click({ preventDefault() {}, currentTarget: button, target: button });
 const typeInto = (input, value) => {
@@ -368,7 +373,7 @@ test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the g
     leave(row, input);
     ola[123] = 9;
     await click(buttonNamed(root, "Refresh"));
-    await until(() => text(row).includes("9 / 4"), "the row to show what the game holds");
+    await until(() => shown(input) === "9" && capOf(row) === "/ 4", "the row to show what the game holds");
     ola[123] = 2;
 });
 
@@ -376,7 +381,7 @@ test("pay 2 win: Raise on a count past 4 leaves it, and Lower takes one off and 
     ola[123] = 9;
     const root = await openPage(
         "src/ui/pages/world-2/cauldrons/pay-2-win.js",
-        (root) => rowNamed(root, "COUNT") && text(rowNamed(root, "COUNT")).includes("9 / 4")
+        (root) => rowNamed(root, "COUNT") && shown(inputs(rowNamed(root, "COUNT"))[0]) === "9"
     );
     const row = rowNamed(root, "COUNT");
     const [input] = inputs(row);

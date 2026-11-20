@@ -119,7 +119,7 @@ const PlayerChipsRow = ({ entry, fieldStates }) => {
             ),
         ],
         badge: () =>
-            `${entry.fields.filter((field) => toInt(getOrCreateState(fieldStates, field.key).val, { min: -1 }) >= 0).length} EQUIPPED`,
+            `${entry.fields.filter((field) => toInt(getOrCreateState(fieldStates, field.key).val, { min: -1 }) >= 0).length} equipped`,
         controlsClass: "account-row__controls--stack-action",
         renderControls: ({ draftStates }) =>
             div({ class: "account-stacked-fields" }, ...fields.map((field) => ChipSlotSelect({ field, draftStates }))),

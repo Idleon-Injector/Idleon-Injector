@@ -38,7 +38,6 @@ const TIERS = [
 ];
 
 const TIER_ROW_CLASSES = ["", "tier--gold", "tier--onyx", "tier--zenith"];
-const TIER_BADGE_CLASSES = ["stone", "gold", "onyx", "zenith"];
 const FLAIR_MAX_LEVEL = 4;
 const FLAIR_UNLOCK_PATH = "RoyalG[2][78]";
 
@@ -114,16 +113,8 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
             return read();
         },
         rowClass: () => `account-row--wide-controls statue-row ${TIER_ROW_CLASSES[tierState.val] ?? ""}`,
-        info: [
-            span({ class: "account-row__name" }, () => nameState.val),
-            span(
-                {
-                    class: () => `statue-tier-badge tier--${TIER_BADGE_CLASSES[tierState.val] ?? "stone"}`,
-                },
-                () => TIERS[tierState.val]?.label ?? "Stone"
-            ),
-        ],
-        badge: () => `LV ${levelState.val} · FLAIR ${flairState.val} / ${FLAIR_MAX_LEVEL}`,
+        // The tier shows once, in its dropdown; the row's border colour tells the tiers apart.
+        info: [span({ class: "account-row__name" }, () => nameState.val)],
         renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
             div(
                 { class: "account-row__controls--stack" },
@@ -179,7 +170,7 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                         max: FLAIR_MAX_LEVEL,
                         rootClass: "statue-control-row",
                         labelClass: "statue-control-label",
-                        inputProps: { "aria-label": `Statue #${index} flair level` },
+                        inputProps: { "aria-label": `Statue #${index} flair level`, cap: FLAIR_MAX_LEVEL },
                     },
                     draftStates,
                     getDraftValue,

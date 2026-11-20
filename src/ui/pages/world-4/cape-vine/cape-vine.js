@@ -165,7 +165,7 @@ const CapeVineTab = () => {
             rowClass: "cape-vine-row",
             status: state.write.status,
             info: span({ class: "account-row__name" }, cape.name),
-            badge: () => (vineIndex.val.get(cape.itemId) < goldenOwned.val ? "GOLDEN" : ""),
+            badge: () => (vineIndex.val.get(cape.itemId) < goldenOwned.val ? "Golden" : ""),
             controls: [
                 ActionButton({
                     label: () => (vineIndex.val.has(cape.itemId) ? "Remove" : "Add"),

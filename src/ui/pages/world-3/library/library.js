@@ -7,7 +7,6 @@
  * Data sources:
  *   gga.UserInfo[0]                      - null when no live character is loaded
  *   gga.CharacterClass                   - active player's class ID
- *   gga.SkillLevels[talentId]            - current talent level (display only)
  *   gga.SkillLevelsMAX[talentId]         - max talent level (editable)
  *   cList.TalentOrder        - talent IDs per class page + slot
  *   cList.TalentIconNames    - talent names
@@ -26,6 +25,7 @@ import { readComputed, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { CappedValue } from "../../../components/NumberInput.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -75,13 +75,13 @@ const getBlockedLibraryTalentIds = (rawBlockedList) => {
     return out;
 };
 
-const TalentBadge = ({ curState, maxState }) =>
-    span({}, () => (maxState.val === -1 ? "LOCKED" : `${curState.val} / ${maxState.val}`));
-
+/**
+ * The field is the talent's max level (SkillLevelsMAX); its cap is the book cap, what Max books sets it to, so a row
+ * reads "150 / 200". Special talents have no book cap and show the value alone. The talent's own points aren't shown.
+ */
 const TalentRow = ({
     talentId,
     talentName,
-    curState,
     maxState,
     maxBookLvState,
     isBookAvailable,
@@ -100,7 +100,7 @@ const TalentRow = ({
                     div({ class: "talent-row__notice" }, "This is not a Library book and can't be set.")
                 ),
             ],
-            badge: TalentBadge({ curState, maxState }),
+            badge: () => (maxState.val === -1 ? "Locked" : CappedValue({ value: () => maxState.val })),
         });
     }
 
@@ -119,7 +119,9 @@ const TalentRow = ({
             span({ class: "account-row__index" }, `#${talentId}`),
             div({ class: "talent-row__text" }, span({ class: "account-row__name" }, talentName)),
         ],
-        renderBadge: () => TalentBadge({ curState, maxState }),
+        // A max level of -1 is a talent the character hasn't unlocked: the word says so and the field shows empty.
+        renderBadge: () => (maxState.val === -1 ? "Locked" : ""),
+        unset: -1,
         rowClass: "talent-row",
         controlsClass: "account-row__controls--xl",
     });
@@ -149,7 +151,6 @@ const LibraryTab = () => {
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
     const activeClassNameState = van.state("");
     const maxBookLvState = van.state(null);
-    const curStates = new Map();
     const maxStates = new Map();
     const availablePointsStates = new Map();
     const listNode = div({ class: "account-list" });
@@ -168,7 +169,6 @@ const LibraryTab = () => {
         }
     };
 
-    const getCurState = (talentId) => getOrCreateState(curStates, talentId);
     const getMaxState = (talentId) => getOrCreateState(maxStates, talentId);
     const getAvailablePointsState = (classId) => getOrCreateState(availablePointsStates, classId);
 
@@ -243,7 +243,6 @@ const LibraryTab = () => {
                                 TalentRow({
                                     talentId: talent.talentId,
                                     talentName: talent.talentName,
-                                    curState: getCurState(talent.talentId),
                                     maxState: getMaxState(talent.talentId),
                                     maxBookLvState,
                                     isBookAvailable: talent.isBookAvailable,
@@ -263,15 +262,13 @@ const LibraryTab = () => {
         run(async () => {
             if (!staticMeta) staticMeta = await buildStaticMeta();
 
-            const [rawUserInfo, rawCharClass, rawSkillLevels, rawSkillLevelsMAX, rawMaxBookLv, rawTalentDL2] =
-                await Promise.all([
-                    gga("UserInfo[0]"),
-                    gga("CharacterClass"),
-                    gga("SkillLevels"),
-                    gga("SkillLevelsMAX"),
-                    readComputed("workbench", "maxBookLv", [0, 0]),
-                    gga("DNSM.h.TalentDL2"),
-                ]);
+            const [rawUserInfo, rawCharClass, rawSkillLevelsMAX, rawMaxBookLv, rawTalentDL2] = await Promise.all([
+                gga("UserInfo[0]"),
+                gga("CharacterClass"),
+                gga("SkillLevelsMAX"),
+                readComputed("workbench", "maxBookLv", [0, 0]),
+                gga("DNSM.h.TalentDL2"),
+            ]);
 
             if (rawUserInfo === null || rawUserInfo === undefined) {
                 throw new Error("Select a character in-game before using this tab.");
@@ -281,7 +278,6 @@ const LibraryTab = () => {
             if (!classId) throw new Error("No active character loaded.");
 
             const maxBookLv = Math.max(1, toNum(rawMaxBookLv));
-            const skillLevels = toIndexedArray(rawSkillLevels ?? []);
             const skillLevelsMAX = toIndexedArray(rawSkillLevelsMAX ?? []);
             const talentDL2 = toIndexedArray(rawTalentDL2 ?? []);
             const classIds = getLibraryClassPageIds(classId);
@@ -300,7 +296,6 @@ const LibraryTab = () => {
 
                         const talentId = Number(rawTalentId);
                         const isBookAvailable = !staticMeta.blockedLibraryTalentIds.has(talentId);
-                        getCurState(talentId).val = toNum(skillLevels[talentId]);
                         getMaxState(talentId).val = toNum(skillLevelsMAX[talentId]);
                         if (isBookAvailable) availableTalentIds.push(talentId);
 
@@ -319,7 +314,6 @@ const LibraryTab = () => {
                 .slice(SPECIAL_TALENT_ORDER_START)
                 .filter((talentId) => staticMeta.talentDescriptions[talentId][0][0] !== "_")
                 .map((talentId) => {
-                    getCurState(talentId).val = toNum(skillLevels[talentId]);
                     getMaxState(talentId).val = toNum(skillLevelsMAX[talentId]);
                     return { talentId, talentName: getTalentName(talentId), isBookAvailable: true };
                 });
@@ -342,7 +336,7 @@ const LibraryTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "LIBRARY",
-        description: "Set max talent levels for the active in-game character. Current levels are read-only.",
+        description: "Set max talent levels for the active in-game character.",
         wrapActions: false,
         actions: BulkActionBar({
             leading: div(

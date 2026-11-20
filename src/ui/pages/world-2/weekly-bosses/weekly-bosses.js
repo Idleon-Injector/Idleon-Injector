@@ -1,4 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { CappedValue } from "../../../components/NumberInput.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
@@ -442,7 +443,7 @@ const WeeklyBossTab = () => {
                     getPlayerWarning
                 )
             ),
-            badge: () => (activePlayer.val === player.name ? "ACTIVE" : `CHAR ${player.index + 1}`),
+            badge: () => (activePlayer.val === player.name ? "Active" : `Character ${player.index + 1}`),
             controls: [SaveState(state.write), selectionNode],
         });
     };
@@ -529,7 +530,7 @@ const WeeklyBossTab = () => {
                                 "Resets weekly. Gates stage rewards and contributes to the Weekly Boss damage bonus."
                             )
                         ),
-                        badge: () => `${best.val}/5`,
+                        badge: () => CappedValue({ value: best.val, cap: 5 }),
                         controls: span({ class: "write-status" }, "READ ONLY"),
                     }),
                 ],

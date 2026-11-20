@@ -86,7 +86,7 @@ const RackRow = ({ row, onRemove }) => {
         primaryLabel: row.name,
         fallbackLabel: row.itemId,
         secondaryLabel: row.itemId,
-        badge: "ON RACK",
+        badge: "On rack",
         rowClass: "hat-rack-row",
         nameGroupClass: "hat-rack-row__name-group",
         onRemove,

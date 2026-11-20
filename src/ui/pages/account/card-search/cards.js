@@ -142,7 +142,7 @@ const UnresolvedCardRow = ({ card, valueState }) =>
                 span({ class: "account-row__name" }, card.monsterId),
                 span({ class: "account-row__sub-label" }, "CARD DEFINITION OR NAME UNRESOLVED")
             ),
-        renderBadge: () => "RAW ONLY",
+        renderBadge: () => "Raw only",
         rowClass: "account-row--wide-controls card-row card-row--unresolved",
         controlsClass: "account-row__controls--xl card-row__controls",
         inputProps: { "aria-label": `Card Amount for unresolved card ${card.monsterId}` },
