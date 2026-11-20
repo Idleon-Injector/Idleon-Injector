@@ -154,3 +154,33 @@ test("the read after a failed pet save can't put back what a newer save changed"
         GET.set("/api/config", config);
     }
 });
+
+// CodeRabbit on #147: a click built its list from the tiers it read before the save's turn, so a list saved in between
+// (the Config tab) lost its newer pet; it's now built from the config read in the save's turn.
+test("a pet click keeps a pet the Config tab saved between its read and its save", async (t) => {
+    await until(() => plainPets().length >= 2, "two unselected pets");
+    const [clicked, other] = plainPets();
+    const idOf = (pet) => Number(/\d+/.exec(text(byClass(pet, "companion-card__id")[0]))[0]);
+    const config = router.routes.GET.get("/api/config");
+    let reads = 0;
+    router.routes.GET.set("/api/config", async (req, res) => {
+        let answer;
+        const capture = { status: () => capture, json: (data) => (answer = structuredClone(data)) };
+        await config(req, capture);
+        // The click's first read has its answer; the Config tab then saves the other pet too.
+        if (++reads === 1) {
+            const list = String(answer.cheatConfig.w1.companion.companions).replace(/^none$/, "");
+            const companions = [list, `${idOf(other)}:0`].filter(Boolean).join(",");
+            await updateSessionConfig({ cheatConfig: { w1: { companion: { companions } } } });
+        }
+        return res.json(answer);
+    });
+    t.after(() => router.routes.GET.set("/api/config", config));
+
+    const count = saves.length;
+    clicked.listeners.click({});
+    await until(() => saves.length > count, "the config save");
+    const saved = saves.at(-1).cheatConfig.w1.companion.companions.split(",");
+    assert.ok(saved.includes(`${idOf(clicked)}:0`), "the clicked pet");
+    assert.ok(saved.includes(`${idOf(other)}:0`), "the pet the Config tab saved meanwhile");
+});

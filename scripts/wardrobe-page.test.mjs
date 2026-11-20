@@ -755,3 +755,29 @@ test("after an undo each page reads its status once, after its own stat update",
         for (const release of held) release();
     }
 });
+
+// CodeRabbit on #147: the running game holds the whole config, so a save it kept its old settings for would be undone
+// by the next read and the save after it; the page says so where Save was pressed, as Pets and Attire Rack do.
+test("a loadout save the running game kept its old settings for is said as a failure", async () => {
+    await settle();
+    const save = router.routes.POST.get("/api/config/save");
+    router.routes.POST.set("/api/config/save", async (req, res) => {
+        await save(req, { status: () => ({ json() {} }), json() {} });
+        res.json({
+            message:
+                "Configuration saved to config.custom.js. The running game kept its old settings (The game is busy)",
+        });
+    });
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Kept old" } });
+    try {
+        await click(button(page, "Save"));
+        await until(() => /The game is busy/.test(text(page)), "the reason where Save was pressed");
+        assert.doesNotMatch(text(page), /Saved Kept old/);
+    } finally {
+        router.routes.POST.set("/api/config/save", save);
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        await click(button(page, "Refresh"));
+        await settle();
+    }
+});

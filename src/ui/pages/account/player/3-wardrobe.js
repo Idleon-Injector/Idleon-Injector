@@ -102,9 +102,12 @@ const WardrobePage = () => {
     // read and this save is still lost (the server has no compare-and-set).
     const persist = async (change) => {
         try {
-            const { config } = await saveConfigPart((now) => ({
+            const { result, config } = await saveConfigPart((now) => ({
                 cheatConfig: { wide: { wardrobe: change(wardrobeOf(now)) } },
             }));
+            // The game holds the whole config: the next read would take its old wardrobe back, and a save after it
+            // would write that to the file.
+            if (result.message.includes("kept its old settings")) throw new Error(result.message);
             await readSaved(config);
         } catch (caught) {
             await readSaved().catch(() => {});

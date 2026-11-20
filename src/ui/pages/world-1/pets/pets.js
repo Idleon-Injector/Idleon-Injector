@@ -289,8 +289,12 @@ const CompanionsTab = () => {
         const writes = selectionWrites;
         const [config, cheatStates] = await Promise.all([read, fetchCheatStates()]);
         if (writes !== selectionWrites) return;
-        const validIdSet = new Set(companions.val.map((companion) => companion.id));
         cheatEnabled.val = !!cheatStates?.data?.w1?.companion;
+        showSelection(config);
+    };
+    // The tiers a config gives, against the cheat state and tokens read last.
+    const showSelection = (config) => {
+        const validIdSet = new Set(companions.val.map((companion) => companion.id));
         const configured = config?.cheatConfig?.w1?.companion?.companions ?? "";
         // A saved list stays selected while the cheat is off, so the next click can't replace it.
         const allPlus = cheatEnabled.val ? [...validIdSet] : [];
@@ -342,22 +346,29 @@ const CompanionsTab = () => {
                 // The tokens first: the saved tiers are read against them (a pet with a token has no tier).
                 tokens.val = await readComputed("companions", "petTokens");
                 await readSelection();
-                const { normal, plus, picks = tokens.val.picks } = getChange();
+                const { picks = tokens.val.picks } = getChange();
                 if (picks !== tokens.val.picks) {
                     await writeVerified(TOKEN_PATH, picks.join(",")).catch(() => {
                         throw new Error("Could not save pet token picks");
                     });
                     tokens.val = { ...tokens.val, picks };
                 }
-                const entries = companions.val
-                    .filter(({ id }) => normal.has(id) || plus.has(id))
-                    .map(({ id }) => `${id}:${plus.has(id) ? 1 : 0}`);
+                let entries;
                 // Chosen pets also turn the cheat on at every start; none takes it off that list.
-                const { result, config } = await saveConfigPart(({ startupCheats }) => ({
-                    // An empty list would mean every pet at Pets+ once the startup cheat runs again.
-                    cheatConfig: { w1: { companion: { companions: entries.join(",") || "none" } } },
-                    startupCheats: startupWith(startupCheats, COMPANION_CHEAT, entries.length > 0),
-                }));
+                const { result, config } = await saveConfigPart((now) => {
+                    // The tiers from the config as it is in the save's turn, so a list saved meanwhile (the Config
+                    // tab) isn't overwritten; the change asked for again on them.
+                    showSelection(now);
+                    const { normal, plus } = getChange();
+                    entries = companions.val
+                        .filter(({ id }) => normal.has(id) || plus.has(id))
+                        .map(({ id }) => `${id}:${plus.has(id) ? 1 : 0}`);
+                    return {
+                        // An empty list would mean every pet at Pets+ once the startup cheat runs again.
+                        cheatConfig: { w1: { companion: { companions: entries.join(",") || "none" } } },
+                        startupCheats: startupWith(now.startupCheats, COMPANION_CHEAT, entries.length > 0),
+                    };
+                });
                 if (result.message.includes("kept its old settings")) throw new Error(result.message);
                 await setCompanionCheat(entries.length > 0);
                 await readSelection(config);
