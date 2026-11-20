@@ -12,6 +12,9 @@ reviews:
         enabled: false
     poem: false
     in_progress_fortune: false
+    # Its suggestions come from who changed the files before, which is mostly the archived repo's history (it
+    # suggested MrJoiny). The maintainer reviews every PR; CODEOWNERS asks her where it's needed.
+    suggested_reviewers: false
     pre_merge_checks:
         # The PR title workflow checks the title.
         title:
@@ -28,13 +31,20 @@ reviews:
               - page saves with `gga(path, value)` or `ggaMany` instead of `writeVerified` / `writeManyVerified`;
               - mods importing each other, or imports across `src/cheats`, `src/modules` and `src/ui`;
               - returning `"Error: ..."` strings instead of throwing an `Error`;
-              - pages added to the old tab lists (`Account.js`, `W2Tab.js` to `W7Tab.js`) instead of `src/ui/pages/<world>/<page>/` with `definePage`;
-              - entries added to `scripts/rules/exceptions.json` (that list only shrinks).
-              Flag anything touching the core: `src/cheats/core/`, `src/modules/server/`, `src/modules/config/`, `src/modules/game/`,
+              - a page anywhere but `src/ui/pages/<world>/<system>/` with `export default definePage({...})`;
+              - entries added to `scripts/rules/exceptions.json` (that list only shrinks);
+              - toasts or popups (`store.notify`, `Actions.notify`, `window.confirm`, `alert`): the WebUI has none.
+                Say it where it happens: a toggle's state is its message; a short line where the player acted only when
+                the result can't be seen from there; a failure said where it happened; normal events stay silent;
+                a removal asks in place ("Click again to …").
+              The core is `src/cheats/core/`, `src/modules/server/`, `src/modules/config/`, `src/modules/game/`,
               the updater (`src/modules/autoUpdater.js`, `updateChecker.js`, `updateService.js`), `config.js`, `scripts/`,
-              `.github/`, `package.json`, `package-lock.json` and `rollup.config.mjs`. Only the maintainer changes the core;
-              a contributor PR should report a core bug as an issue instead.
-              Flag a PR that mixes kinds of mod (hook, cheat, page, automation, core): one kind per PR.
+              `.github/`, `package.json`, `package-lock.json` and `rollup.config.mjs`. Only the maintainer (`lumi-fiona`)
+              changes it: when the PR's author is someone else, flag core changes and suggest reporting the core bug as
+              an issue instead. Don't flag core changes in the maintainer's own PRs.
+              One kind per PR: flag a PR that changes a page together with game-side code (`src/cheats/cheats/`,
+              `src/cheats/hooks/`, `src/cheats/automations/`). Core files alongside one kind are fine. The `rules` check
+              enforces this and the approved-issue rule on every PR, the maintainer's included.
         - path: "src/cheats/hooks/**"
           instructions: |
               Hooks. Each file declares its hooks with `defineHook` (copy `src/cheats/hooks/_example.js`).
@@ -52,11 +62,16 @@ reviews:
               never edited by hand. A new cheat needs an approved issue naming the game function; ask for its link.
         - path: "src/ui/pages/**"
           instructions: |
-              Pages. Each page is `src/ui/pages/<world>/<system>/<page>.js` with `export default definePage({...})`.
-              It loads with `useAccountLoad` when it opens, uses the shared rows (`EditableNumberRow`, `ClampedLevelRow`,
-              `PersistentAccountListPage`) and the shared CSS rather than a page stylesheet, and saves only through
-              `writeVerified` (`writeManyVerified` for many). Check VanJS reactivity per AGENTS.md: static inputs, tight
-              reactive functions, stable row identity, accessible save feedback. The UI must work in Chromium 87.
+              Pages. Each page is `src/ui/pages/<world>/<system>/<page>.js` with `export default definePage({...})`, its
+              stylesheet next to it in the same folder. Every `.js` in a page folder loads as a page, so helpers shared by
+              pages go in the page building blocks (`src/ui/components/views/account/`), never beside a page. Several pages
+              of one system are its tabs, ordered by file name (`1-tables.js`, `2-meals.js`). A page loads with
+              `useAccountLoad` when it opens, uses the shared rows (`EditableNumberRow`, `ClampedLevelRow`,
+              `EditableFieldsRow`, `PersistentAccountListPage`) and saves only through `writeVerified` (`writeManyVerified`
+              for many). Values save on Enter or on leaving the field through the shared rows or `useAutoSave` with its
+              `SaveState`: flag any SET or SAVE button. Old injector names go in the page's keywords so search finds them.
+              Check VanJS reactivity per AGENTS.md: static inputs, tight reactive functions, stable row identity,
+              accessible save feedback. The UI must work in Chromium 87.
         - path: "src/cheats/automations/**"
           instructions: |
               Automations. Each file declares its loop with `defineAutomation({ id, tick, status })` (copy
