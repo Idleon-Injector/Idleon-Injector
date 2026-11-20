@@ -47,6 +47,7 @@ import {
 import { SaveState, saveFailureReason, saveStateClass, useAutoSave } from "./autoSave.js";
 import { AccountRow } from "./components/AccountRow.js";
 import { useWriteStatus } from "./accountShared.js";
+import { useAccountLoad } from "./accountLoadPolicy.js";
 import { Said, useSaid } from "../../inPlace.js";
 
 const { div, input, label, option, select, span } = van.tags;
@@ -787,4 +788,49 @@ export const usePicksBulk = ({ targets, done, noun, waiting }) => {
         },
     ];
     return { actions, said: bulkSaid.said, busy };
+};
+
+/**
+ * What every system's automation tab shares: the entries of its automations (`cheats`, one state each, in `entries`)
+ * with their switch rows in `switches`, and the tab's read as a step. `read(automation)` is the tab's own direct
+ * reads, handed the read of cheatConfig.automation (sync its picks and settings there). `load()` queues the read (the
+ * tab calls it once, and Refresh calls it); `afterSave` is the same read for createAutomationPicks and
+ * createAutomationSetting, so the tab follows every save and bulk save; a read that fails there is said as the tab's
+ * read error until a read works. `atStart(cheat)` is whether the last read found it in the startup cheats.
+ */
+export const useAutomationTab = ({ label, cheats, read }) => {
+    const entries = cheats.map(() => van.state(null));
+    const startup = van.state([]);
+    const waiting = useStillWaiting();
+    const { loading, error, run } = useAccountLoad({ label });
+    const switches = div();
+    const readSwitches = () =>
+        inTurn(async () => {
+            const list = await readAutomations();
+            cheats.forEach((cheat, i) =>
+                showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null)
+            );
+        }, waiting.onLate);
+    const readTab = async () => {
+        const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);
+        cheats.forEach((cheat, i) => showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null));
+        startup.val = config.startupCheats ?? [];
+        if (!switches.firstChild && entries.every((entry) => entry.val))
+            switches.append(...entries.map((entry) => AutomationRow({ entry, onSwitched: readSwitches })));
+        await read(config.cheatConfig.automation);
+        error.val = null; // this read, the newest to run, worked: an older one's failure goes
+    };
+    return {
+        entries,
+        switches,
+        waiting,
+        loading,
+        error,
+        atStart: (cheat) => startup.val.includes(cheat),
+        load: () => run(() => inTurn(readTab, waiting.onLate)),
+        afterSave: () =>
+            readTab().catch((caught) => {
+                error.val = caught.message;
+            }),
+    };
 };
