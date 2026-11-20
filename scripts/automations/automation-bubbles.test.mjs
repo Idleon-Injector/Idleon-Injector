@@ -329,7 +329,30 @@ test("bubbles have no priority: a priority in the config file doesn't move a bub
     ]);
     await cheat("automation bubbles", true);
     tick();
-    assert.deepEqual(buys, ["0:0", "0:1"], "Roid (10 of 11) is further behind than Warriors (40 of 41)");
+    assert.deepEqual(buys, ["0:0", "0:1"], "Roid (16.7% of max) is further behind than Warriors (44.4%)");
+    await cheat("automation bubbles", false);
+});
+
+test("a stop-at only caps a decay bubble; the lowest % of max still goes first", async () => {
+    setGame();
+    // Roid is 10 of its stop-at 11 but only 16.7% of max; Warriors has no stop-at and is at 44.4%.
+    setBubbles([
+        { id: "0:0", on: true, stopAt: 11 },
+        { id: "0:1", on: true },
+    ]);
+    await cheat("automation bubbles", true);
+    tick();
+    assert.equal(buys[0], "0:0", "Roid buys before Warriors takes the shared liquid");
+    assert.equal(levels()[0], 11);
+    await cheat("automation bubbles", false);
+});
+
+test("the status says 1 level after a single level", async () => {
+    setGame();
+    setBubbles([{ id: "0:0", on: true, stopAt: 11 }]);
+    await cheat("automation bubbles", true);
+    tick();
+    assert.equal(bubbles().status, "Raising 1 bubble to 90%; 1 level since it started");
     await cheat("automation bubbles", false);
 });
 

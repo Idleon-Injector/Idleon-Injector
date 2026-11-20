@@ -190,15 +190,15 @@ export function getAutomationBubbles() {
 
 /**
  * How far a switched-on bubble is towards its goal, 1 meaning done: % of max over the target for decay
- * bubbles, level over stop-at for the others, the further along of both when a decay bubble also has a stop-at.
- * null when it can't have a goal (no max and no stop-at).
+ * bubbles, where a stop-at only caps (so the lowest % of max still goes first), and level over stop-at for the
+ * others. null when it can't have a goal (no max and no stop-at).
  */
 function progress({ percent, level }, target, stopAt) {
-    const byLevel = stopAt === undefined || stopAt === null ? null : stopAt > 0 ? level / stopAt : 1;
-    if (percent === null) return byLevel;
+    const hasStop = stopAt !== undefined && stopAt !== null;
+    if (percent === null) return hasStop ? (stopAt > 0 ? level / stopAt : 1) : null;
+    if (hasStop && level >= stopAt) return 1;
     // A target of 0, or one that isn't a number, has every decay bubble done.
-    const byPercent = target > 0 ? percent / target : Infinity;
-    return byLevel === null ? byPercent : Math.max(byPercent, byLevel);
+    return target > 0 ? percent / target : Infinity;
 }
 
 /** The game's buy with the menu closed; the "+n" level popup it spawns at the panel's spot is taken away after. */
@@ -281,5 +281,5 @@ export function bubblesStatus() {
     const wait = waiting();
     if (wait) return wait;
     const raising = `Raising ${on === 1 ? "1 bubble" : `${on} bubbles`} to ${targetOf(target)}%`;
-    return bought ? `${raising}; ${bought} levels since it started` : raising;
+    return bought ? `${raising}; ${bought === 1 ? "1 level" : `${bought} levels`} since it started` : raising;
 }
