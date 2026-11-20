@@ -33,7 +33,7 @@ bridge.executeCheat = (action, on) => {
 };
 const router = new TinyRouter();
 setupCheatRoutes(router, bridge);
-const { store } = await loadUi(router);
+const { store, requests } = await loadUi(router);
 const { CheatItem } = await importRepo("src/ui/components/CheatItem.js");
 // The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
 globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
@@ -187,4 +187,20 @@ test("the version button says a failed update check, and says 'the latest' only 
     await click();
     assert.equal(version.attributes["aria-label"], "Current version: it's the latest");
     assert.doesNotMatch(classOf(version), /is-failed/);
+});
+
+test("two quick clicks on the version button share one update check, so an older answer can't land last", async () => {
+    store.app.appInfo = { version: "3.0.0" };
+    const sidebar = Sidebar();
+    const version = find(sidebar, (node) => /brand-version-button/.test(classOf(node)))[0];
+    const checks = () => requests.filter((line) => line.includes("/update/check")).length;
+    const before = checks();
+
+    await Promise.all([
+        version.listeners.click({ currentTarget: version }),
+        version.listeners.click({ currentTarget: version }),
+    ]);
+    assert.equal(checks() - before, 1, "the second click waited for the first check");
+    await version.listeners.click({ currentTarget: version });
+    assert.equal(checks() - before, 2, "a click after it ended checks again");
 });

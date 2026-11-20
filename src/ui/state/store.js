@@ -73,6 +73,8 @@ const dataState = vanX.reactive({
 const rawMonitorState = vanX.reactive({ values: {} });
 
 let appInfoRequest = null;
+// The version button's check in flight: a second click waits for it, so an older answer can't land last.
+let updateCheck = null;
 
 const Actions = {
     withLoading: async (fn) => {
@@ -156,13 +158,16 @@ const SystemService = {
      * Check for an update and open the modal when there is one; resolves whether it opened, and throws why
      * when the check failed, so a failed check never reads as being on the latest.
      */
-    openUpdateModal: async () => {
-        const updateInfo = await SystemService.checkForUpdate(true);
-        appState.updateResult = null;
-        appState.updateModalOpen = Boolean(updateInfo?.updateAvailable);
-        if (updateInfo?.error) throw new Error(updateInfo.error);
-        return appState.updateModalOpen;
-    },
+    openUpdateModal: () =>
+        (updateCheck ??= (async () => {
+            const updateInfo = await SystemService.checkForUpdate(true);
+            appState.updateResult = null;
+            appState.updateModalOpen = Boolean(updateInfo?.updateAvailable);
+            if (updateInfo?.error) throw new Error(updateInfo.error);
+            return appState.updateModalOpen;
+        })().finally(() => {
+            updateCheck = null;
+        })),
 
     closeUpdateModal: () => {
         appState.updateModalOpen = false;
