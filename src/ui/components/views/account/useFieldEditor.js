@@ -60,7 +60,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
             if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
         });
 
-    // The drafts of the save being written, while it is: a commit made meanwhile compares with them too.
+    // The drafts of the newest save that started: a commit made while it runs compares with them too.
     let writing = null;
     const draftText = (drafts, key) => String(drafts[key] ?? "").trim();
 
@@ -69,7 +69,11 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         // and the stored values they were taken from: a field untouched then stays untouched (and takes the game's
         // value) when an earlier save read the game back and moved the stored value on meanwhile. A field changed
         // since the save being written is an edit, even back to its stored value (1, save 2, then 1).
-        capture: () => ({ drafts: getDrafts(), bases: new Map(baseByKey), writing }),
+        capture: () => ({
+            drafts: getDrafts(),
+            bases: new Map(baseByKey),
+            writing: autoSave.isBusy() ? writing : null,
+        }),
         prepare: ({ drafts: submitted, bases, writing: during = null } = { drafts: getDrafts(), bases: baseByKey }) => {
             if (isDisabled()) return { unchanged: true };
             const touched = fields.filter(
@@ -95,15 +99,10 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                 resetSubmitted(submitted);
                 return { unchanged: true };
             }
+            writing = submitted;
             return {
                 write: async () => {
-                    writing = submitted;
-                    let verified;
-                    try {
-                        verified = await write(next);
-                    } finally {
-                        writing = null;
-                    }
+                    const verified = await write(next);
                     if (verified?.cancelled) {
                         resetSubmitted(submitted);
                         return verified;
