@@ -14,7 +14,12 @@ import { logChanges, readGgaMany } from "./api.js";
 
 /** The active character's live copy of a PlayerDATABASE field, where the game names them differently. */
 export const LIVE_TO_SAVED = { PrayersActive: "Prayers", PlacedTraps: "PldTraps" };
-export const SAVED_TO_LIVE = Object.fromEntries(Object.entries(LIVE_TO_SAVED).map(([live, saved]) => [saved, live]));
+export const SAVED_TO_LIVE = {
+    ...Object.fromEntries(Object.entries(LIVE_TO_SAVED).map(([live, saved]) => [saved, live])),
+    // The game saves these fields of the character in play from part of a live key (its cloud save code).
+    CardEquip: "Cards[2]",
+    CSetEq: "Cards[3]",
+};
 const SAVED_PATH = /^PlayerDATABASE\.h\[([^\]]+)\]\.h\.([^.[]+)(.*)$/;
 
 /** `PlayerDATABASE.h[name].h.Field…` -> { name, field, rest }, else null. */

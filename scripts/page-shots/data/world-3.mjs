@@ -64,7 +64,9 @@ export default () => ({
         // Slot 15 is the attire slot (account.mjs, Attire Rack).
         EquipmentOrder: [
             ["SetPiece0", "SetPiece1", "SetPiece2", "SetPiece3", "item1", ...list(10, () => "Blank"), "EquipmentGown3"],
-            ["SetPiece4"],
+            ["SetPiece4", ...list(7, () => "Blank")],
+            // Food (the Wardrobe page).
+            ["FoodG2", "FoodHealth1", ...list(14, () => "Blank")],
         ],
         TotemInfo: [[42, 30, 18, 0, 55, 12, 0, 8]],
         PrayersUnlocked: list(PRAYERS, (i) => (i % 6 === 5 ? 0 : 1 + (i % 15))),
