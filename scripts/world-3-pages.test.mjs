@@ -352,7 +352,7 @@ test("Library: after a character switch, saves and Max books refuse instead of c
 
     await typeAndEnter(row, 5);
     assert.match(classes(byClass(row, "save-state")[0]), /save-state--error/);
-    assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+    assert.match(text(byClass(row, "save-state__label")[0]), /^Character changed\. Refresh\.$/);
     assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
 
     const maxBooks = buttonIn(root, "Max books");
@@ -421,7 +421,7 @@ test("Library: after a Refresh that fails on the new character, the old rows sti
             await until(() => /No active character/.test(text(root)), "the Refresh to fail");
         });
         await typeAndEnter(row, 5);
-        assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+        assert.match(text(byClass(row, "save-state__label")[0]), /^Character changed\. Refresh\.$/);
         assert.deepEqual(gga.SkillLevelsMAX, mainBooks, "the character in play keeps its books");
     } finally {
         [gga.UserInfo[0], gga.CharacterClass, gga.SkillLevelsMAX] = ["Lumi_Main", mainClass, mainBooks];
@@ -453,7 +453,7 @@ test("Library: a save whose check waits through a Refresh to another character r
         await until(() => held > 1 && !isDisabled(refresh), "the Refresh to finish");
         release();
         await save;
-        assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+        assert.match(text(byClass(row, "save-state__label")[0]), /^Character changed\. Refresh\.$/);
         assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
     } finally {
         globalThis.fetch = realFetch;

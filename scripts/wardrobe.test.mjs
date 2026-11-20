@@ -262,7 +262,7 @@ test("the food and Perfect Equipped steps refuse a character other than the one 
     reset();
     const before = snapshot();
     for (const name of ["food", "perfect", "perfectFood"])
-        assert.throws(() => read(name, { character: "Lumi_Alt" }), /Lumi is in play now, not Lumi_Alt/, name);
+        assert.throws(() => read(name, { character: "Lumi_Alt" }), { message: "Character changed. Refresh." }, name);
     assert.deepEqual(read("perfectFood", { character: "Lumi" }), [{ path: "EquipmentQuantity[2][1]", value: 1500 }]);
     assert.deepEqual(gga.EquipmentQuantity, before.EquipmentQuantity, "nothing written");
 });

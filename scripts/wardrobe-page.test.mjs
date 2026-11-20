@@ -317,7 +317,7 @@ test("a player who switches characters while Apply runs gets no food stacks set 
     const apply = button(page, "Apply");
     await click(apply);
     await click(apply);
-    await until(() => /food stacks weren't set: Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the stop");
+    await until(() => /food stacks weren't set: Character changed\. Refresh\./.test(text(page)), "the stop");
     assert.deepEqual(after(since, "write"), ["POST /api/game/gga/write-many"], "the gear, and no food");
     assert.equal((await wardrobeConfig()).goldenfood.Lumi_Main, remembered, "nothing recorded for Lumi_Main");
     gga.UserInfo[0] = "Lumi_Main";
@@ -334,7 +334,7 @@ test("Perfect Equipped refuses before writing when another character is in play 
         await click(perfect);
         assert.match(perfect.attributes["aria-label"], /rebuild Lumi_Main's gear/);
         await click(perfect);
-        await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+        await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
         assert.deepEqual(after(since, "write"), []);
     } finally {
         gga.UserInfo[0] = "Lumi_Main";
@@ -389,7 +389,7 @@ test("a player who switches characters as Apply writes gets no gear put on the n
     const apply = button(page, "Apply");
     await click(apply);
     await click(apply);
-    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
     assert.ok(byClass(page, "said--failed").length, "said in place");
     assert.equal(gga.EquipmentOrder[0][1], "EquipmentSword5");
     assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
@@ -405,7 +405,7 @@ test("a player who switches characters as Apply writes the food stacks is told t
     await click(apply);
     const said =
         "Rare Drops (DK / RG Primarily) landed on Lumi_Main, but its food stacks weren't set: " +
-        "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt.";
+        "Character changed. Refresh.";
     await until(() => text(page).includes(said), "the refusal");
     assert.equal(gga.EquipmentOrder[0][1], "EquipmentWands9", "the gear landed on Lumi_Main");
     assert.equal(gga.EquipmentQuantity[2][0], 30000, "no food stack set");
@@ -423,7 +423,7 @@ test("a player who switches characters as Perfect Equipped writes gets no gear r
     const perfect = button(page, "Perfect Equipped");
     await click(perfect);
     await click(perfect);
-    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
     assert.equal(JSON.stringify(gga.EquipmentMap[0][0].h), JSON.stringify({ STR: 3 }));
     await previewReadSince(await switched, "the page to read the game again");
 });

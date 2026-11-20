@@ -31,6 +31,7 @@ import { AccountExpandableGroup } from "../../../components/views/account/compon
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
+    CHARACTER_CHANGED,
     adjustFormattedIntInput,
     cleanName,
     createStaticRowReconciler,
@@ -269,7 +270,7 @@ const TrappingTab = () => {
     const onWriteField = async (playerName, trapIndex, fieldIndex, value) => {
         const inPlay = await gga("UserInfo[0]");
         if ((typeof inPlay === "string" ? inPlay : "") !== latestSnapshot.currentPlayer) {
-            throw new Error("The character in play changed. Refresh and try again.");
+            throw new Error(CHARACTER_CHANGED);
         }
         if (playerName === inPlay) {
             await writeVerified(`PlacedTraps[${trapIndex}][${fieldIndex}]`, value);

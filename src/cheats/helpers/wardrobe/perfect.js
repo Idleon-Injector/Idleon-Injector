@@ -150,8 +150,8 @@ export function characterInPlay(expected) {
     const character = gga.UserInfo[0];
     if (typeof character !== "string" || !gga.GetPlayersUsernames.includes(character))
         throw new Error("Select a character in the game first.");
-    if (expected !== undefined && expected !== character)
-        throw new Error(`${character} is in play now, not ${expected}. Nothing was changed for ${character}.`);
+    // The WebUI's CHARACTER_CHANGED (the game can't import it); scripts/character-changed.test.mjs keeps them the same.
+    if (expected !== undefined && expected !== character) throw new Error("Character changed. Refresh.");
     return character;
 }
 

@@ -840,7 +840,7 @@ test("a pick that landed but couldn't be read back says so in its row", async ()
 });
 
 // CodeRabbit on #110: a pick planned for the character in play writes nothing when she switched characters before the
-// write ran, and its row says who is in play now.
+// write ran, and its row says the character changed.
 test("a pick for the character in play writes nothing on the one she switched to meanwhile", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
@@ -855,7 +855,7 @@ test("a pick for the character in play writes nothing on the one she switched to
         gga.UserInfo[0] = "Lumi_Alt"; // she switches characters in the game
         release();
         await until(() => /save-state--error/.test(saveState(node)), "the refusal in the row");
-        assert.match(text(node), /Lumi_Alt is in play now, not Lumi_Main/);
+        assert.match(text(node), /Character changed\. Refresh\./);
         assert.equal(gga.EquipmentOrder[0][15], live, "nothing was written on the character now in play");
     } finally {
         release?.();
