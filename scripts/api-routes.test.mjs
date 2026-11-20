@@ -42,6 +42,7 @@ test("API setup retains every endpoint and does not evaluate the game during reg
         actual.sort(),
         [
             "GET /api/app-info",
+            "GET /api/changes",
             "GET /api/cheat-states",
             "GET /api/cheats",
             "GET /api/config",
@@ -51,6 +52,8 @@ test("API setup retains every endpoint and does not evaluate the game during reg
             "GET /api/save-copies",
             "GET /api/search/keys",
             "GET /api/update/check",
+            "POST /api/changes",
+            "POST /api/changes/undone",
             "POST /api/config/save",
             "POST /api/config/update",
             "POST /api/game/computed/read",

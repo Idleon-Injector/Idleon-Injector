@@ -273,6 +273,8 @@ export async function loadUi(router) {
         nodeType: 9,
         createElement: (name) => new Element(name),
         createElementNS: (_, name) => new Element(name),
+        // The change log listens for clicks and keys on the page; tests call the handlers directly.
+        addEventListener() {},
     };
     globalThis.Text = class extends Node {
         nodeType = 3;

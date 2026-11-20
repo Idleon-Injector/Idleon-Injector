@@ -7,6 +7,7 @@ import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { toIndexedArray } from "../../../utils/index.js";
+import { finishChange, startChange } from "../../../services/changeLog.js";
 
 const { div } = van.tags;
 
@@ -198,13 +199,18 @@ export const renderAccountError = (message) =>
 
 /**
  * Write a value through gga (or a compatible writer) and fail if verification
- * reports a mismatch.
+ * reports a mismatch. A value that lands goes in the change log (History, Undo).
  */
-export const writeVerified = async (path, value, { write = gga } = {}) => {
-    const ok = await write(path, value);
-    if (ok) return value;
-
-    throw new Error(`Write mismatch at ${path}`);
+export const writeVerified = (path, value, { write = gga } = {}) => {
+    // Claimed now, while the caller's code runs, so the save joins the user action that made it.
+    const change = startChange([path]);
+    return (async () => {
+        const before = await change;
+        const ok = await write(path, value);
+        if (!ok) throw new Error(`Write mismatch at ${path}`);
+        await finishChange(before, [value]);
+        return value;
+    })();
 };
 
 const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
@@ -212,14 +218,27 @@ const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
 /**
  * Write many GGA paths and throw a consistent error for the first failed write.
  * Failed writes expose the original batch response on `error.results`.
+ * The values that land go in the change log as one action, unless `log` is false (an undo's own writes).
  *
  * @param {Array<{ path: string, value: any }>} writes
+ * @param {{ log?: boolean }} [options]
  * @returns {Promise<any>}
  */
-export const writeManyVerified = async (writes) => {
-    if (!writes.length) return { ok: true, results: [] };
+export const writeManyVerified = (writes, { log = true } = {}) => {
+    if (!writes.length) return Promise.resolve({ ok: true, results: [] });
+    const change = log ? startChange(writes.map((entry) => entry.path)) : null;
+    return writeManyLogged(writes, change);
+};
 
+const writeManyLogged = async (writes, change) => {
+    if (change) await change;
     const result = await ggaMany(writes);
+    if (change)
+        await finishChange(
+            await change,
+            writes.map((entry) => entry.value),
+            result.results.map((entry) => entry.ok)
+        );
     const failed = result.results.find((entry) => !entry.ok);
     if (!failed) return result;
 
