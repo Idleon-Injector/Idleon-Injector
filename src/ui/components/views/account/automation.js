@@ -73,7 +73,7 @@ export const inTurn = (task, onLate = null) => {
         let late = false;
         const timer = setTimeout(() => {
             late = true;
-            onLate(`still waiting for the game after ${steps.timeoutMs / 1000} s`);
+            onLate("still waiting for the game"); // short, so it fits beside a field in two lines
         }, steps.timeoutMs);
         const stop = () => {
             clearTimeout(timer);

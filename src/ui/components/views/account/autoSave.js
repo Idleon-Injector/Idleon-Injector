@@ -238,13 +238,16 @@ export const saveStateClass = (status, undo = null) =>
  * still waiting), a ✓ once the game reads the value back, or why it failed.
  * Its mark keeps a fixed slot; the words lie over the space to its left, so nothing around it moves.
  */
-export const SaveState = ({ status, reason, undo = null, className = "" }) =>
-    span(
+export const SaveState = ({ status, reason, undo = null, className = "" }) => {
+    // Words that say why (a failure's reason, or a slow save's notice) are clamped beside the field; the title has all.
+    const said = () => status.val === "error" || (status.val === "loading" && Boolean(reason.val));
+    return span(
         {
             class: () =>
                 [
                     "save-state",
                     status.val ? `save-state--${status.val}` : "",
+                    said() ? "save-state--said" : "",
                     undo?.refused.val && status.val === "error" ? "save-state--refused" : "",
                     className,
                 ]
@@ -252,12 +255,8 @@ export const SaveState = ({ status, reason, undo = null, className = "" }) =>
                     .trim(),
         },
         // The words are the live status; Undo sits beside them so its name isn't read out as one.
-        span(
-            { class: "save-state__label", role: "status", title: () => (status.val === "error" ? reason.val : "") },
-            () =>
-                status.val === "error" || (status.val === "loading" && reason.val)
-                    ? reason.val
-                    : (LABEL[status.val] ?? "")
+        span({ class: "save-state__label", role: "status", title: () => (said() ? reason.val : "") }, () =>
+            said() ? reason.val : (LABEL[status.val] ?? "")
         ),
         undo
             ? button(
@@ -285,3 +284,4 @@ export const SaveState = ({ status, reason, undo = null, className = "" }) =>
                   : span()
         )
     );
+};

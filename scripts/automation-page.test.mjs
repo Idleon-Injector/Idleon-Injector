@@ -1631,3 +1631,26 @@ test("reader 3: the waiting notice looks like saving, not like a failure", async
     await until(() => !saved().some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang off");
     await ui.switchAutomation("automation shops", false);
 });
+
+// The browser re-read of a0398d2: a slow item save's notice is clamped beside the field like a failure's reason (the
+// same `save-state--said` class), with the full words in its title, and short enough to fit in two lines.
+test("reader 3: an item row's waiting notice is clamped like a failure's reason, with its title", async () => {
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+            await until(() => /still waiting/.test(text(pickRow("Sleepy Fang"))), "the item row's notice");
+        });
+        assert.match(saveState("Sleepy Fang"), /save-state--said/, "the clamp a failure's reason gets");
+        const label = byClass(pickRow("Sleepy Fang"), "save-state__label")[0];
+        assert.equal(label.attributes.title, text(label), "the title has the words");
+        assert.ok(text(label).length <= 26, `two lines of the clamp hold it: "${text(label)}"`);
+    } finally {
+        release();
+    }
+    await until(() => /save-state--success/.test(saveState("Sleepy Fang")), "the item's outcome");
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang off");
+    await ui.switchAutomation("automation shops", false);
+});
