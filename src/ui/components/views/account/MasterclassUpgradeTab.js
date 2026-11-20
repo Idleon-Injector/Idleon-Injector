@@ -129,11 +129,8 @@ const matchesSearch = (upgrade, query) => {
         .toLowerCase();
     if (!search) return true;
 
-    return (
-        upgrade.name.toLowerCase().includes(search) ||
-        String(upgrade.index).includes(search) ||
-        `#${upgrade.index}`.includes(search)
-    );
+    // The index the row shows (#1 is the first), with or without its "#".
+    return upgrade.name.toLowerCase().includes(search) || upgrade.displayIndex.toLowerCase().includes(search);
 };
 
 const UpgradeRow = ({ levelsPath, upgrade, levelState, deleteCachePaths = [], onChanged = null }) =>
