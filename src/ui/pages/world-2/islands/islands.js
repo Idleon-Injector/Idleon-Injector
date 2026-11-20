@@ -100,11 +100,13 @@ const NumericRow = ({ field, valueState, badge }) =>
     });
 
 const IslandsTab = () => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Islands" });
     const unlockBulk = useWriteStatus();
     const garbageBulk = useWriteStatus();
     const randoBulk = useWriteStatus();
     const shimmerBulk = useWriteStatus();
+    const bulkRunning = () =>
+        [unlockBulk, garbageBulk, randoBulk, shimmerBulk].some(({ status }) => status.val === "loading");
+    const { loading, error, run: runLoad, reload, pending } = useAccountLoad({ label: "Islands", busy: bulkRunning });
     const valueStates = new Map();
     const unlocksState = van.state("");
     const bribeState = van.state(0);
@@ -113,6 +115,9 @@ const IslandsTab = () => {
     const shimmerSetAll = van.state("200");
 
     const getValueState = (index) => getOrCreateState(valueStates, index);
+    // A bulk action waits for a read, and Refresh for a bulk action, so an older read can't land over a newer write.
+    // After a failed read the values shown may be old, so the bulk actions wait for one that works.
+    const readPending = () => loading.val || Boolean(error.val) || pending.val;
 
     const load = async () =>
         runLoad(async () => {
@@ -157,7 +162,7 @@ const IslandsTab = () => {
         const target = resolveNumberInput(inputState.val, { min: 0, fallback: null });
         if (target === null) return;
 
-        await status.run(() =>
+        const result = await status.run(() =>
             runBulkSet({
                 entries: fields,
                 getTargetValue: () => target,
@@ -165,6 +170,8 @@ const IslandsTab = () => {
                 getPath: (field) => `OptionsListAccount[${field.index}]`,
             })
         );
+        // Some of it may have landed: the rows show what the game holds, read once every other Set all ended too.
+        if (!result.ok && !result.cancelled) reload();
     };
 
     load();
@@ -178,6 +185,7 @@ const IslandsTab = () => {
                     {
                         label: "Unlock all",
                         status: unlockBulk.status,
+                        disabled: readPending,
                         tooltip: "Write the canonical unlock string abcde_",
                         onClick: () => unlockBulk.run(() => writeUnlocks(CANONICAL_UNLOCK_ORDER, { batch: true })),
                     },
@@ -185,7 +193,10 @@ const IslandsTab = () => {
                         label: "Lock all",
                         variant: "danger",
                         status: unlockBulk.status,
+                        disabled: readPending,
                         tooltip: "Clear every island unlock",
+                        // It removes, so it asks in place first (#25).
+                        confirm: "lock every island.",
                         onClick: () => unlockBulk.run(() => writeUnlocks("", { batch: true })),
                     },
                 ],
@@ -210,6 +221,7 @@ const IslandsTab = () => {
                     label: "Set all",
                     value: garbageSetAll,
                     status: garbageBulk.status,
+                    disabled: readPending,
                     onApply: () => setAll(GARBAGE_FIELDS, garbageSetAll, garbageBulk),
                     confirm: confirmSetAll(GARBAGE_FIELDS, garbageSetAll),
                 })
@@ -242,6 +254,7 @@ const IslandsTab = () => {
                     label: "Set all",
                     value: randoSetAll,
                     status: randoBulk.status,
+                    disabled: readPending,
                     onApply: () => setAll(RANDO_FIELDS, randoSetAll, randoBulk),
                     confirm: confirmSetAll(RANDO_FIELDS, randoSetAll),
                 })
@@ -259,6 +272,7 @@ const IslandsTab = () => {
                     label: "Set upgrades",
                     value: shimmerSetAll,
                     status: shimmerBulk.status,
+                    disabled: readPending,
                     onApply: () => setAll(SHIMMER_FIELDS, shimmerSetAll, shimmerBulk),
                     confirm: confirmSetAll(SHIMMER_FIELDS, shimmerSetAll),
                 })
@@ -296,7 +310,7 @@ const IslandsTab = () => {
         actions: BulkActionBar({
             refresh: {
                 onClick: load,
-                disabled: () => loading.val,
+                disabled: () => loading.val || bulkRunning(),
                 tooltip: "Re-read Islands data from game",
             },
         }),

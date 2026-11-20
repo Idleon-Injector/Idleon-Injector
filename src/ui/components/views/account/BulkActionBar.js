@@ -8,12 +8,13 @@ import { hideTooltip, showTooltip } from "../../Tooltip.js";
 
 const { div, span, select, option } = van.tags;
 
-const SetAllApplyButton = ({ label, status, onApply, confirm = null }) =>
+const SetAllApplyButton = ({ label, status, onApply, confirm = null, disabled = false }) =>
     onApply
         ? ActionButton({
               label,
               status,
               confirm,
+              disabled,
               onClick: async (e) => {
                   e.preventDefault();
                   await onApply();
@@ -41,6 +42,7 @@ export const BulkActionBar = ({ leading = null, actions = [], refresh = null }) 
                     onClick: (e) => action.onClick(e),
                     preventMouseDown: action.preventMouseDown !== false,
                     confirm: action.confirm ?? null,
+                    confirmTargets: action.confirmTargets ?? null,
                 })
             ),
         refresh
@@ -78,6 +80,7 @@ export const SetAllNumberControl = ({
     applyLabel = "Set all",
     onApply = null,
     confirm = null,
+    disabled = false,
     min = 0,
     max = Infinity,
 }) => {
@@ -106,6 +109,7 @@ export const SetAllNumberControl = ({
             status,
             onApply: onApply && (() => (isNumber(value) ? onApply() : refuseSetAll(value))),
             confirm: confirm && (() => (isNumber(value) ? resolveValue(confirm) : null)),
+            disabled,
         })
     );
 };
