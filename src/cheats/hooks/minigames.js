@@ -18,6 +18,8 @@
  * - Gold Pot Rush (ActorEvents_670) - Instant finish minigame
  * - Event Card Game (ActorEvents_670) - Keep guesses alive
  * - Event Wheel (ActorEvents_670) - Land on the bonus line, then the bonus wheel jackpot
+ *
+ * Also here, because it hooks Poing's method: wide nogamingpop (ActorEvents_577) - hides the gaming popups.
  */
 
 import { cheatState, cheatConfig } from "../core/state.js";
@@ -469,6 +471,19 @@ defineHook(
         return callOriginal();
     }
 );
+
+// wide nogamingpop: _GenINFO[39] holds the gaming popups as [value, age, x, y, type, ...]. _event_3 draws them,
+// ages them by 0.8 a frame and removes any older than 120, saving the best nugget (type 4) as it goes.
+// Aging them to 120 here, before that draw, lets the game draw them once fully faded and remove them itself.
+// Kept: Poing (8 to 10), the level-up and crown badges (20) and the number near the mouse (7).
+const HIDDEN_GAMING_POPUPS = [0, 1, 2, 3, 4, 5, 6, 11, 12];
+defineHook({ id: "wide.nogamingpop", target: () => events(577).prototype, method: "_event_Gaming" }, function (base) {
+    if (!cheatState.wide.nogamingpop) return base;
+    for (const popup of this._GenINFO[39] ?? []) {
+        if (HIDDEN_GAMING_POPUPS.includes(popup[4])) popup[1] = 120;
+    }
+    return base;
+});
 
 // log card reveal
 defineHook({ id: "minigame", target: () => events(577).prototype, method: "_customEvent_W5stuffzz" }, function (base) {
