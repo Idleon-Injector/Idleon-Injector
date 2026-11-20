@@ -168,6 +168,18 @@ test("a stop-at and a spice's saving % save on Enter; a saving over 100 is refus
     assert.match(text(rowOf(saving)), /a whole number from 0 to 100/);
 });
 
+test("+ and - on an emptied saving % step from 0 instead of failing", async () => {
+    const saving = "Encroaching Forest Spice: % of what it saves for that Balanced items may spend";
+    const field = () => String(control(saving).attributes.value);
+    control(saving).listeners.input({ target: { value: "" } });
+    await until(() => field() === "", "the field to empty");
+    elements(rowOf(saving)).find(ariaIs("Lower")).listeners.click({});
+    await settle();
+    assert.equal(field(), "", "nothing below empty");
+    elements(rowOf(saving)).find(ariaIs("Raise")).listeners.click({});
+    await until(() => field() === "1", "+ to show 1");
+});
+
 test("a save the game refuses puts the switch back and says why at the row", async () => {
     refuseUpdate = true;
     await control("Buy Kitchen 1 Fire").listeners.change({ target: { checked: true } });

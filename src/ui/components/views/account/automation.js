@@ -271,7 +271,9 @@ const PicksField = ({
         revert: show,
     });
     const step = (delta) => () => {
-        const value = parse(getNumberInputLiveRaw(draft) ?? draft.val);
+        const raw = getNumberInputLiveRaw(draft) ?? draft.val;
+        // An empty field steps from 0 (a % has no "no limit"); its save still names what it needs.
+        const value = String(raw ?? "").trim() === "" ? null : parse(raw);
         if (value === null && delta < 0) return;
         setNumberInputValue(draft, String(Math.min(max, Math.max(0, (value ?? 0) + delta))));
     };
