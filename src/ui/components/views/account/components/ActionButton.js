@@ -6,17 +6,37 @@ import { announce, clickAgain, disarm } from "../../../inPlace.js";
 
 const { button } = van.tags;
 
-// A press's result for screen readers, once its status settles: the button itself only changes colour (#77).
-const sayResult = async (name, pending, status) => {
-    try {
-        await pending;
-    } catch {
-        // The status says it failed.
+// A press's result for screen readers: the button itself only changes colour (#77). It is the result this press
+// reached: one that only asked "Click again" says nothing, though the status still holds an earlier press's done
+// (`before`), and a failure is said even when the handler goes on re-reading the page after the status cleared.
+// A save this press started counts though its result equals `before` (a quick retry that failed again): a
+// useWriteStatus status counts its runs (`runs`, `runsBefore` at the press) and keeps how each ended and which press
+// started it (`ended`), so a press says its own run's result, not another button's, even once the colour cleared.
+// ponytail: a run belongs to the button pressed last when it starts; one whose handler read first, while another
+// button sharing the status was pressed, goes to that one (pages have no async context to tell them apart).
+const sayResult = async (name, pending, status, before, runsBefore, pressed) => {
+    let settled = false;
+    const ended = Promise.resolve(pending).then(
+        () => (settled = true),
+        () => (settled = true)
+    );
+    let started = false;
+    const say = (outcome) => announce(`${name}: ${outcome === "success" ? "done" : "failed"}`);
+    for (let i = 0; i < 1200; i++) {
+        const now = resolveValue(status);
+        if (Array.isArray(status.ended)) {
+            const own = status.ended.find((run) => run.id > (runsBefore ?? 0) && run.by === pressed);
+            if (own) return own.outcome === "cancelled" ? undefined : say(own.outcome);
+        } else {
+            if (now === "loading" || status.runs !== runsBefore) started = true;
+            if ((now === "success" || now === "error") && (started || now !== before)) return say(now);
+        }
+        if (settled && now !== "loading") return undefined;
+        // Said as soon as the handler ends, as before; a status still saving after that is looked at every 50 ms.
+        const tick = new Promise((r) => setTimeout(r, 50));
+        await (settled ? tick : Promise.race([ended, tick]));
     }
-    for (let i = 0; i < 600 && resolveValue(status) === "loading"; i++) await new Promise((r) => setTimeout(r, 100));
-    const now = resolveValue(status);
-    if (now === "success") announce(`${name}: done`);
-    else if (now === "error") announce(`${name}: failed`);
+    return undefined;
 };
 
 // The three kinds (DESIGN.md): main is an area's one blue button; quiet is any other action, Max included; danger
@@ -29,14 +49,14 @@ const VARIANT_CLASS = {
     "switch-filled": "account-btn account-btn--switch account-btn--apply",
 };
 
-// Buttons that share one status (a page's bulk actions) show it only on the one pressed last; the rest stay
-// disabled while it runs.
-const pressedBy = new WeakMap();
+// Buttons that share one status (a page's bulk actions) show it only on the one pressed last (`status.pressedBy`); the
+// rest stay disabled while it runs.
 
 /**
  * Shared action button for account feature tabs. `confirm` (a question, or a function that returns one or null) makes
  * the press ask in place first (#25): the first press reads "Click again" and only a second one runs `onClick`. Bulk
- * removals pass it; additions run on one press.
+ * removals pass it; additions run on one press. `confirmTargets` (a value, or a function that returns one) is what the
+ * change touches that the question doesn't name, such as the world picked: a change to it asks again.
  */
 export const ActionButton = ({
     label,
@@ -50,12 +70,13 @@ export const ActionButton = ({
     type = "button",
     buttonProps = {},
     confirm = null,
+    confirmTargets = null,
 }) => {
     const shared = Object(status) === status;
     let buttonNode = null;
     const ownStatus = () => {
         const now = resolveValue(status);
-        const by = shared ? pressedBy.get(status) : undefined;
+        const by = shared ? status.pressedBy : undefined;
         return by && by !== buttonNode ? null : now;
     };
     buttonNode = button(
@@ -85,12 +106,15 @@ export const ActionButton = ({
                           const question = typeof confirm === "function" ? confirm() : confirm;
                           // A question that went away (Set count raised after it asked) takes "Click again" with it.
                           if (!question) disarm(buttonNode);
-                          else if (!clickAgain(buttonNode, question)) return undefined;
+                          else if (!clickAgain(buttonNode, question, { targets: resolveValue(confirmTargets) }))
+                              return undefined;
                       }
-                      if (shared) pressedBy.set(status, buttonNode);
+                      if (shared) status.pressedBy = buttonNode;
                       const name = String(resolveValue(label)).trim();
+                      const before = resolveValue(status);
+                      const runsBefore = status?.runs;
                       const result = withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e));
-                      if (status) void sayResult(name, result, status);
+                      if (status) void sayResult(name, result, status, before, runsBefore, buttonNode);
                       return result;
                   }
                 : null,
