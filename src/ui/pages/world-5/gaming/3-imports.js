@@ -35,7 +35,6 @@ const buildImportEntries = (rawSprouts, rawNames) =>
             rawName: String(rawName ?? `Import_${index}`).trim(),
             name: cleanName(rawName, `Import ${index + 1}`),
             level: toInt(sprout[0], { min: 0 }),
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
         };
     });
 

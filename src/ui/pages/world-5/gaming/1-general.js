@@ -118,7 +118,6 @@ const buildUpgradeEntries = (rawGaming, rawUpgradeNames, fields = UPGRADE_FIELDS
             name: cleanName(rawName, `Gaming Upgrade ${field.index}`),
             formatted: false,
             showIndex: false,
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
             value: resolveNumberInput(rawGaming?.[field.index] ?? 0, {
                 min: 0,
                 max: field.max ?? Infinity,

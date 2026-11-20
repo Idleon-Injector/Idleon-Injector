@@ -721,6 +721,10 @@
     }
 }
 
+.account-row__badge:empty {
+    display: none;
+}
+
 .account-row__badge {
     font-family: var(--font-mono);
     font-size: 0.875rem;
@@ -732,9 +736,48 @@
     flex-shrink: 0;
 }
 
+/* In the narrow overlay a value row keeps its name and badge on the first line and puts the field and its buttons on
+ * the line under it, so neither squeezes the name into a sliver nor runs off the window. */
+@media (max-width: 600px) {
+    .account-row--value {
+        grid-template-columns: minmax(0, 1fr) auto;
+        row-gap: 6px;
+    }
+
+    .account-row--value > .account-row__badge {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .account-row--value > .account-row__controls {
+        grid-column: 1 / -1;
+        flex-wrap: wrap;
+    }
+
+    /* The save's words (saving…, the reason, Undo) lie at the end of the name's line, where the badge steps aside,
+     * since the field's line has no room beside it. */
+    .account-row--value {
+        position: relative;
+    }
+
+    .account-row--value .save-state {
+        position: static;
+    }
+
+    .account-row--value .save-state__label,
+    .account-row--value .save-state__undo {
+        top: 19px;
+        right: 10px;
+    }
+}
+
+/* The controls take the row's last column and sit at its right edge, so a row without a badge keeps its field where
+ * the eye expects it. */
 .account-row__controls {
     display: flex;
+    grid-column-end: -1;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
     flex-shrink: 0;
 }

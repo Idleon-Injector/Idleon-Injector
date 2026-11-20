@@ -124,7 +124,6 @@ const buildPaletteEntries = (rawLevels, rawPalette) => {
                     title: rgb.join(", "),
                 }),
             formatted: false,
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
             level: toInt(levels[index], { min: 0 }),
         };
     });

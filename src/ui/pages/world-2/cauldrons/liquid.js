@@ -69,7 +69,6 @@ const LiquidControl = ({ label, valueState, writePath, writePaths = null, mode =
             return nextValue;
         },
         renderInfo: () => span({ class: "account-row__name liquid-row__label" }, label),
-        renderBadge: (currentValue) => String(currentValue ?? 0),
         rowClass: "liquid-row",
         badgeClass: "liquid-row__badge",
         controlsClass: "liquid-row__controls",

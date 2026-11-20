@@ -4,12 +4,7 @@ import { gga } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { InlineEditableNumberField } from "../../../components/views/account/components/InlineEditableNumberField.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
-import {
-    createStaticRowReconciler,
-    getOrCreateState,
-    largeFormatter,
-    toNum,
-} from "../../../components/views/account/accountShared.js";
+import { createStaticRowReconciler, getOrCreateState, toNum } from "../../../components/views/account/accountShared.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -69,7 +64,6 @@ const AmountRow = ({ entry, valueState }) =>
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => largeFormatter(valueState.val ?? 0),
         controlsClass: "account-row__controls--stack",
         controls: InlineEditableNumberField({
             label: "Amount",
@@ -84,7 +78,6 @@ const NoteRow = ({ entry, valueStates }) =>
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => `LV ${getOrCreateState(valueStates, entry.fields.level.key).val ?? 0}`,
         controlsClass: "account-row__controls--stack",
         controls: [
             InlineEditableNumberField({

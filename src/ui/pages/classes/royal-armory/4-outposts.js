@@ -635,7 +635,6 @@ const KillOutpostRow = ({ outpost, remainingState, onConverted }) =>
                 )
             ),
         ],
-        renderBadge: (remaining) => `LEFT ${formatAmount(remaining)}`,
         adjustInput: (rawValue, delta, currentValue) =>
             adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min: 0, max: Math.ceil(outpost.killReq) }),
         rowClass: "outpost-row outpost-row--kills",

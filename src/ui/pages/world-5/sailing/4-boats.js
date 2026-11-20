@@ -78,10 +78,6 @@ const BoatRow = ({ entry, valueStates }) =>
             span({ class: "account-row__index" }, `#${entry.index + 1}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () =>
-            `LOOT ${getOrCreateState(valueStates, entry.fields.loot.key).val ?? 0} / SPEED ${
-                getOrCreateState(valueStates, entry.fields.speed.key).val ?? 0
-            }`,
         controlsClass: "account-row__controls--stack",
         controls: BOAT_FIELDS.map((field) =>
             InlineEditableNumberField({
@@ -156,7 +152,6 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
             span({ class: "account-row__index" }, `#${entry.index + 1}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => `LV ${getOrCreateState(valueStates, fieldByKey.level.key).val ?? 0}`,
         controlsClass: "account-row__controls--stack-action",
         renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused, status }) =>
             div(

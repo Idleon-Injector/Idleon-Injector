@@ -42,10 +42,14 @@ async function openPage(file, ready) {
 
 const findRow = (root, label) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
-const rowLoaded = (label) => (root) => {
-    const row = findRow(root, label);
-    return row && !/^[-—]?$/.test(text(byClass(row, "account-row__badge")[0]));
-};
+// The page shows its rows once it has read the game; until then its body is hidden.
+const pageRead = (root) =>
+    !byClass(root, "account-page-shell__body").some((node) =>
+        String(node.attributes.class).includes("is-hidden-until-ready")
+    );
+const rowLoaded = (label) => (root) => Boolean(findRow(root, label)) && pageRead(root);
+// A value shows once, in its field (VanJS writes a bound value to the attribute here).
+const fieldValue = (row) => String(elements(row).find((node) => node.nodeName === "input")?.attributes.value ?? "");
 const saveState = (row) => classes(byClass(row, "save-state")[0]);
 const undoButton = (row) => byClass(row, "save-state__undo")[0];
 const undoOffered = (row) => undoButton(row) && undoButton(row).attributes.hidden === false;
@@ -102,7 +106,7 @@ test("a saved value offers Undo beside its ✓, and Undo puts the old value back
     await clickUndo(row);
     assert.match(saveState(row), /save-state--success/, "undoing shows the same ✓");
     assert.equal(ola[254], old);
-    await until(() => text(byClass(row, "account-row__badge")[0]).includes(String(old)), "the row to show it");
+    await until(() => fieldValue(row) === String(old), "the row to show it");
     assert.equal(undoOffered(row), false, "nothing left to undo on the row");
     assert.equal((await newest()).entries[0].undone, true);
 });
@@ -395,7 +399,7 @@ test("a row's Undo shows the value the game got back, even when the row's copy w
     await saveRow(row, 20);
     await clickUndo(row);
     assert.equal(ola[254], 15);
-    await until(() => /\b15\b/.test(text(byClass(row, "account-row__badge")[0])), "the row to show 15");
+    await until(() => fieldValue(row) === "15", "the row to show 15");
 });
 
 test("Account Options' Undo shows the value the game got back, even when the row's copy was stale", async () => {
