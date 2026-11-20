@@ -206,6 +206,22 @@ export const definePage = (page) => {
 };
 
 /** A page's title: its tab name when its system has several pages, else the system name. */
+// Page id -> what runs each time that page is shown again (see whenShown).
+const shownListeners = new Map();
+
+/**
+ * Run `fn` each time the page `id` is shown again: after another page or view was shown, its pane is kept, so a page
+ * that shows what something else can change (the automation overview) reads again here. Its first showing is its
+ * mount. The menu calls pageShown.
+ */
+export const whenShown = (id, fn) => {
+    if (!shownListeners.has(id)) shownListeners.set(id, new Set());
+    shownListeners.get(id).add(fn);
+};
+
+/** The menu shows page `id` now. */
+export const pageShown = (id) => shownListeners.get(id)?.forEach((fn) => fn());
+
 export const pageTitle = (page, system) => (system.pages.length > 1 && page.tab ? page.tab : page.system);
 
 /**
