@@ -1,6 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../assets/icons.js";
-import { labelOf, withAction } from "../../../services/changeLog.js";
+import { captureGesture, labelOf, withAction } from "../../../services/changeLog.js";
 import { undoAction } from "./undo.js";
 
 const { span, button } = van.tags;
@@ -96,17 +96,42 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
             if (status.val === "error") settle(null);
             return { ok: false, cancelled: true };
         }
-        return run(plan.write);
+        return runNow(plan.write);
     };
 
-    /** Run any write (a row's toggle button, say) with this save state, as one action Undo can put back. */
-    const run = (task) => {
-        const savedFor = subject?.();
-        return withAction({ label, kind: "row" }, async (action) => {
+    const runNow = (task, savedFor = subject?.(), named = label) =>
+        withAction({ label: named, kind: "row" }, async (action) => {
             const outcome = await track(task);
             if (outcome.ok && action.entries > 0 && subject?.() === savedFor) startOffer(action);
             return outcome;
         });
+
+    // The row's saves and its buttons' writes share one save state, so they take turns: each says how it went, and a
+    // later ✓ never takes away a failure still being said (a switch flipped while the level saves waits for it).
+    // Unlike oneAtATime(), a write with nothing ahead of it starts at once, so a save reads the drafts and the
+    // subject as they are when it's asked for.
+    let tail = null;
+    const inTurn = (task) => {
+        const inGesture = captureGesture();
+        const start = () => inGesture(task);
+        const next = tail ? tail.then(start) : start();
+        const done = Promise.resolve(next)
+            .catch(() => {})
+            .then(() => {
+                if (tail === done) tail = null;
+            });
+        tail = done;
+        return next;
+    };
+
+    /**
+     * Run any write (a row's toggle button, say) with this save state, as one action Undo can put back. It waits for
+     * the row's save, or another of its writes, that is running.
+     */
+    const run = (task) => {
+        const savedFor = subject?.();
+        const named = label;
+        return inTurn(() => runNow(task, savedFor, named));
     };
 
     const track = async (task) => {
@@ -130,14 +155,14 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
             again = true;
             return running;
         }
-        running = (async () => {
+        running = inTurn(async () => {
             let outcome;
             do {
                 again = false;
                 outcome = await saveOnce();
             } while (again);
             return outcome;
-        })().finally(() => (running = null));
+        }).finally(() => (running = null));
         return running;
     };
 

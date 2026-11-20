@@ -543,6 +543,59 @@ test("stamps: leaving a level field for the row's switch saves the level", async
     }
 });
 
+test("stamps: a switch flipped while the level saves keeps its failure after the level's ✓", async () => {
+    const levels = game.gga.StampLevel[0];
+    const before = levels[0];
+    const restore = refuseWrites(game.gga.Compass, 4);
+    // Hold the level's write; count the switch's reads and writes (they name Compass[4]).
+    const realFetch = globalThis.fetch;
+    let releaseLevel;
+    const levelGate = new Promise((resolve) => (releaseLevel = resolve));
+    let levelHeld = false;
+    let switchCalls = 0;
+    globalThis.fetch = async (url, options) => {
+        const body = String(options?.body ?? "");
+        if (body.includes("Compass[4]")) switchCalls++;
+        if (String(url).includes("/write") && body.includes("StampLevel")) {
+            levelHeld = true;
+            await levelGate;
+        }
+        return realFetch(url, options);
+    };
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-1/stamps/stamps.js",
+            (root) => pageRead(root) && rowNamed(root, "Stamp A1")
+        );
+        const row = rowNamed(root, "Stamp A1");
+        const field = elements(row).find((node) => node.nodeName === "input" && node !== switchOf(row));
+        field.value = String(before + 1);
+        field.listeners.input({ target: field });
+        row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: switchOf(row) });
+        await until(() => levelHeld, "the level's write to reach the game");
+        const callsBefore = switchCalls; // the page's load read Compass[4] too
+        const flipped = flip(row, true);
+        // Before the fix the switch's save ran beside the level's and failed first.
+        const switchRanBeside = switchCalls > callsBefore;
+        if (switchRanBeside) await flipped;
+        releaseLevel();
+        await flipped;
+        // The badge shows the saved level once the level's save has ended; the words then say how the row's last write went.
+        const label = () => text(byClass(row, "save-state__label")[0]);
+        await until(
+            () => text(byClass(row, "account-row__badge")[0]).startsWith(`LV ${before + 1} `) && label() !== "saving…",
+            "both saves to end"
+        );
+        assert.equal(label(), "game kept old value");
+        assert.equal(switchRanBeside, false, "the switch waits for the level's save");
+    } finally {
+        globalThis.fetch = realFetch;
+        releaseLevel();
+        restore();
+        levels[0] = before;
+    }
+});
+
 test("a save that failed part-way says some changes may have applied, not that the game kept the old value", async () => {
     const { saveFailureReason } = await importRepo("src/ui/components/views/account/autoSave.js");
     assert.equal(
