@@ -99,6 +99,9 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
         [
             ["w7.sushi", false],
             ["wide.autoboss", false],
+            ["w1.owl.orion", false],
+            ["w2.kangaroo.poppy", false],
+            ["w2.kangaroo.tarpit", false],
             ["account.automation.shops", false],
             ["fixture.steady", true],
             ["fixture.flaky", true],
@@ -177,6 +180,13 @@ test("every automation's cheat is a command, and the folder holds the real ones"
         getAutomations()
             .map(({ id }) => id)
             .filter((id) => !id.startsWith("fixture")),
-        ["w7.sushi", "wide.autoboss", "account.automation.shops"]
+        [
+            "w7.sushi",
+            "wide.autoboss",
+            "w1.owl.orion",
+            "w2.kangaroo.poppy",
+            "w2.kangaroo.tarpit",
+            "account.automation.shops",
+        ]
     );
 });

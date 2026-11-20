@@ -16,6 +16,17 @@ export const configDescriptions = {
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
+    "cheatConfig.automation.orion":
+        "Automation: Orion upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High and 2 Low (none is Balanced).",
+    "cheatConfig.automation.orionSaving":
+        "Automation: while Orion saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
+    "cheatConfig.automation.poppy": "Automation: Poppy upgrades to buy, { id: row, on, stopAt, priority }, like orion.",
+    "cheatConfig.automation.poppySaving":
+        "Automation: while Poppy saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
+    "cheatConfig.automation.tarpit":
+        "Automation: Tar Pit upgrades to buy, { id: row, on, stopAt, priority }, like orion.",
+    "cheatConfig.automation.tarpitSaving":
+        "Automation: while the Tar Pit saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",

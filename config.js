@@ -21,6 +21,15 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        orion: [
+            { id: "8", on: false, priority: 1 },
+            { id: "4", on: false, priority: 2 },
+        ], // Automation: Orion upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High and 2 Low (none is Balanced).
+        orionSaving: 10, // Automation: while Orion saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
+        poppy: [], // Automation: Poppy upgrades to buy, { id: row, on, stopAt, priority }, like orion.
+        poppySaving: 10, // Automation: while Poppy saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
+        tarpit: [], // Automation: Tar Pit upgrades to buy, { id: row, on, stopAt, priority }, like orion.
+        tarpitSaving: 10, // Automation: while the Tar Pit saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)
