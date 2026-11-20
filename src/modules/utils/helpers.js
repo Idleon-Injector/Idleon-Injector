@@ -122,9 +122,11 @@ const parseConfigFromJson = (obj) => {
  * Recursively filters an object to only include keys that exist in the template object.
  * @param {Object} target - The object to filter
  * @param {Object} template - The template object acting as the schema
+ * @param {Object} [defaults] - The default values: where one is {}, a map a page fills (the Wardrobe's golden food per
+ *   character), every key of the target is taken
  * @returns {Object} A new object with only the keys that exist in the template
  */
-const filterByTemplate = (target, template) => {
+const filterByTemplate = (target, template, defaults) => {
     if (target === null || target === undefined || template === null || template === undefined) {
         return undefined;
     }
@@ -145,7 +147,8 @@ const filterByTemplate = (target, template) => {
             const templateVal = template[key];
 
             if (typeof targetVal === "object" && targetVal !== null && !Array.isArray(targetVal)) {
-                const nestedFiltered = filterByTemplate(targetVal, templateVal);
+                const map = defaults?.[key]?.constructor === Object && !Object.keys(defaults[key]).length;
+                const nestedFiltered = map ? targetVal : filterByTemplate(targetVal, templateVal, defaults?.[key]);
                 if (nestedFiltered !== undefined) {
                     filtered[key] = nestedFiltered;
                 }

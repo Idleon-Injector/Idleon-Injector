@@ -105,6 +105,19 @@ test("a WebUI save loads back after a restart, on top of the generated config.js
     assert.deepEqual(readdirSync(dir).sort(), ["config.custom.js", "config.js"], "no temporary file is left");
 });
 
+// A page saves only its part, to the file first: a key the injector hasn't seen yet in a map the page fills (a
+// setting whose default is {}) is kept; a key no setting has is still left out.
+test("a part save keeps a new key of a map a page fills, and still drops settings the injector doesn't have", async (t) => {
+    useInstall(t);
+    const { config } = start();
+    await config.saveConfiguration({
+        cheatConfig: { wide: { wardrobe: { goldenfood: { New_Char: 5 } } }, nosuch: { setting: 1 } },
+    });
+    const cheatConfig = start().config.getCheatConfig();
+    assert.deepEqual(cheatConfig.wide.wardrobe.goldenfood, { New_Char: 5 });
+    assert.equal(cheatConfig.nosuch, undefined);
+});
+
 test("a broken config.custom.js is named in the log and kept when the WebUI saves", async (t) => {
     const broken = "exports.cheatConfig = {\n    godlike: { respawn: (t) => 0,, },\n};\n";
     const dir = useInstall(t, broken);
