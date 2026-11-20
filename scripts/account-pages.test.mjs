@@ -332,6 +332,48 @@ test("levels: fields stay enabled while a save runs, and a second field's save w
     assert.equal(gga.Lv0[2], level);
 });
 
+test("levels: a save that waited its turn keeps the warning of the failed save before it", async () => {
+    const root = await openPage("src/ui/pages/account/player/1-levels.js");
+    const row = (label) =>
+        byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
+    const money = row("Money");
+    const mining = row("Mining level");
+    const warning = () => text(byClass(root, "write-status")[0]);
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const realFetch = globalThis.fetch;
+    let held = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("write") && !held) {
+            held = true;
+            await gate;
+        }
+        return realFetch(url, options);
+    };
+    const restore = refuseWrites(gga.Lv0, 2);
+    try {
+        const miningInput = field(mining);
+        miningInput.value = String(gga.Lv0[2] + 3);
+        miningInput.listeners.input({ target: miningInput });
+        mining.listeners.keydown({ key: "Enter", target: miningInput, preventDefault() {} });
+        await until(() => held, "the Mining write to start");
+        const moneyInput = field(money);
+        moneyInput.value = "4321";
+        moneyInput.listeners.input({ target: moneyInput });
+        money.listeners.keydown({ key: "Enter", target: moneyInput, preventDefault() {} });
+        release();
+        await until(() => /save-state--(success|error)/.test(saveState(mining)), "Mining to fail");
+        await until(() => /save-state--(success|error)/.test(saveState(money)), "Money to save");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        restore();
+    }
+    assert.match(saveState(mining), /save-state--error/);
+    assert.match(saveState(money), /save-state--success/);
+    assert.match(warning(), /some writes may have applied/);
+});
+
 test("upgrade vault: a failed Max all says why until the next press", async () => {
     const root = await openPage(VAULT);
     const maxAll = button(root, "Max all");

@@ -48,11 +48,14 @@ const PlayerTab = () => {
 
     // A save asked for while another runs waits its turn, and reads the game again then.
     const inTurn = oneAtATime();
-    const setValue = (name, index, next) => inTurn(() => saveValue(name, index, next));
+    // The line clears when a save is asked for, not at its turn, so the warning of a failed save before it stays.
+    const setValue = (name, index, next) => {
+        message.val = "";
+        return inTurn(() => saveValue(name, index, next));
+    };
     const saveValue = async (name, index, next) => {
         if (unavailable()) throw new Error("Player data is unavailable. Refresh and try again.");
         busy.val = true;
-        message.val = "";
         try {
             const active = await gga("UserInfo[0]");
             if (active !== current.val || name !== selected.val) {
