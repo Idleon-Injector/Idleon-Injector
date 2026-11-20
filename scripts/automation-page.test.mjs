@@ -20,6 +20,9 @@ const saves = [];
 const updates = [];
 let refuseUpdate = false;
 let refuseNextUpdates = 0; // how many of the next session updates the game refuses
+let refuseUpdateNumber = null; // refuse the session update with this number (updates.length once it arrived)
+let slowOnAnswer = 0; // ms the game takes to answer a switch-on it has already applied
+let holdNextListRead = null; // a promise the next automation list read waits on, answering what it read before
 let slowUpdate = 0; // ms each session update takes
 let slowSave = 0; // ms each config file save takes
 let failSave = false; // the config file save fails
@@ -31,14 +34,32 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
     commands.push([action, on]);
     const automation = getAutomations().find(({ cheat }) => cheat === action);
-    res.json(switchAutomation(automation.id, on));
+    const result = switchAutomation(automation.id, on);
+    if (on) await wait(slowOnAnswer);
+    res.json(result);
+});
+const readComputedRoute = router.routes.POST.get("/api/game/computed/read");
+router.routes.POST.set("/api/game/computed/read", async (req, res) => {
+    const { name } = await req.json();
+    const hold = name === "list" ? holdNextListRead : null;
+    if (!hold) return readComputedRoute(req, res);
+    holdNextListRead = null;
+    let read;
+    await readComputedRoute(req, {
+        status() {
+            return this;
+        },
+        json: (data) => (read = data),
+    });
+    await hold;
+    res.json(read);
 });
 const update = router.routes.POST.get("/api/config/update");
 router.routes.POST.set("/api/config/update", async (req, res) => {
     const body = await req.json();
     updates.push(body);
     await wait(slowUpdate);
-    if (refuseUpdate || refuseNextUpdates > 0) {
+    if (refuseUpdate || refuseNextUpdates > 0 || updates.length === refuseUpdateNumber) {
         refuseNextUpdates = Math.max(0, refuseNextUpdates - 1);
         return res.json({ message: "Config update failed", details: "the game is busy" });
     }
@@ -156,7 +177,7 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
 const shops = (await importRepo("src/ui/pages/account/automation/2-shops.js")).default.component();
 await until(() => row(shops, "Lucky Whisker"), "the Shops tab to load");
 const pickRow = (name) => row(shops, name);
-const saved = () => updates.at(-1).cheatConfig.automation.shops;
+const saved = () => updates.at(-1)?.cheatConfig.automation.shops ?? [];
 const field = (name) =>
     elements(pickRow(name)).find((node) => node.nodeName === "input" && node.attributes.type !== "checkbox");
 const metric = (name) => byClass(pickRow(name), "account-field-metric")[0];
@@ -277,6 +298,9 @@ test("Shops: Enable all switches every item on in one click and one save, and Sh
 });
 
 test("Shops: Disable all asks Click again, then switches every item off and keeps stop-ats", async () => {
+    // Its own items on, so it runs alone too (--test-name-pattern).
+    await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: true } });
+    await until(() => saved().some(({ id, on }) => id === "1:item7" && on), "Velvet Stone to switch on");
     await typeStopAt("Velvet Stone", "40");
     const disable = button(shops, "Disable all");
     const before = updates.length;
@@ -289,7 +313,6 @@ test("Shops: Disable all asks Click again, then switches every item off and keep
     await until(() => updates.length > before, "the items to switch off");
     await settle();
     assert.deepEqual(saved(), [{ id: "1:item7", on: false, stopAt: 40 }]);
-    assert.equal(checkbox(pickRow("Lucky Whisker")).checked, false);
     assert.equal(shopsOn(), true, "only the overview stops Shops itself");
     await switchAutomation("account.automation.shops", false);
 });
@@ -429,5 +452,54 @@ test("review: with every item on and Shops off, Enable all still switches Shops 
     await button(shops, "Disable all").listeners.click({ preventDefault() {} });
     await button(shops, "Disable all").listeners.click({ preventDefault() {} });
     await until(() => !saved().some(({ on }) => on), "everything off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+// CodeRabbit's second review of #105.
+test("review 2: an Off clicked while an On is still answering leaves the automation off, now and at start", async () => {
+    await ui.switchAutomation("automation shops", false);
+    slowOnAnswer = 40;
+    const on = ui.switchAutomation("automation shops", true);
+    await settle(5);
+    const off = ui.switchAutomation("automation shops", false);
+    await Promise.all([on, off]);
+    slowOnAnswer = 0;
+    assert.equal(shopsOn(), false);
+    assert.deepEqual(fileStartup, [], "the On's startup change didn't land after the Off");
+});
+
+test("review 2: a refused save goes back to what the game took, not to an older edit", async () => {
+    const picks = await freshPicks();
+    slowUpdate = 10;
+    // The first save sends 20 (both edits are in by then) and is taken; the second is refused.
+    refuseUpdateNumber = updates.length + 2;
+    const first = picks.set("0:item1", { stopAt: 10 });
+    const second = picks.set("0:item1", { stopAt: 20 }).catch((error) => error);
+    await first;
+    assert.match((await second).message, /busy/);
+    slowUpdate = 0;
+    refuseUpdateNumber = null;
+    assert.ok(
+        (await gameShops()).some(({ id, stopAt }) => id === "0:item1" && stopAt === 20),
+        "the game has 20"
+    );
+    assert.equal(picks.get("0:item1").stopAt.val, 20, "so the field keeps 20");
+    await picks.set("0:item1", { stopAt: null });
+});
+
+test("review 2: an overview read that started before a switch doesn't put the old state back", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) === "Off", "the overview to read Shops off");
+    let release;
+    holdNextListRead = new Promise((resolve) => (release = resolve));
+    void button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await settle(5);
+    await checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
+    await until(() => statusOf(overview) !== "Off", "the switch's own read to show Shops on");
+    release();
+    await settle(50);
+    assert.notEqual(statusOf(overview), "Off", "the older read was dropped");
+    await until(() => button(overview, "Disable all"), "Disable all to stay available");
     await ui.switchAutomation("automation shops", false);
 });

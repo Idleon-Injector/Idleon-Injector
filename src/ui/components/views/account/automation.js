@@ -50,10 +50,19 @@ export const setAtStart = (cheat, on) =>
         return on ? [...list, cheat] : list.filter((command) => command !== cheat);
     });
 
-/** Turn an automation on or off, now and at every start. */
-export async function switchAutomation(cheat, on) {
-    await executeCheatAction(cheat, on);
-    await setAtStart(cheat, on);
+let switchQueue = Promise.resolve();
+
+/**
+ * Turn an automation on or off, now and at every start. Switches run one at a time from the click on, so an Off
+ * clicked while an On is still answering can't be overtaken by the On's startup change.
+ */
+export function switchAutomation(cheat, on) {
+    const run = switchQueue.then(async () => {
+        await executeCheatAction(cheat, on);
+        await setAtStart(cheat, on);
+    });
+    switchQueue = run.catch(() => {});
+    return run;
 }
 
 /**
@@ -114,6 +123,9 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
     let queue = Promise.resolve();
     let pending = 0;
     let edits = 0; // counts saves, so a read started before one can be told apart
+    // id -> { on, stopAt } the game last took (read or saved): what a refused save puts a field back to.
+    let accepted = new Map();
+    const snapshot = () => new Map([...items].map(([id, item]) => [id, { on: item.on.val, stopAt: item.stopAt.val }]));
 
     const get = (id) => {
         if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
@@ -131,6 +143,7 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             item.stopAt.val = byId.get(id)?.stopAt ?? null;
             showStopAt(item);
         }
+        accepted = snapshot();
     };
 
     // Switched-off items stay while they carry a stop-at, so it survives.
@@ -144,9 +157,11 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             }));
 
     const persist = async () => {
+        const sent = snapshot();
         const result = await updateSessionConfig({ cheatConfig: { automation: { [group]: toConfig() } } });
         if (result.message !== "Configuration updated successfully")
             throw new Error(result.details || result.message || "The game didn't take the change");
+        accepted = sent;
         try {
             await saveFile();
         } catch (error) {
@@ -157,8 +172,9 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
         }
     };
 
-    // Apply `patches` ([id, { on } or { stopAt }]) and save them in one go. If the game refuses, each field goes back,
-    // unless a newer edit has changed it since: that edit's own save carries it.
+    // Apply `patches` ([id, { on } or { stopAt }]) and save them in one go. If the game refuses, each field goes back
+    // to what the game last took (an earlier save may already have sent this value), unless a newer edit has changed
+    // it since: that edit's own save carries it.
     const save = async (patches) => {
         edits++;
         const undo = patches.map(([id, patch]) => {
@@ -167,7 +183,7 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             Object.entries(patch).forEach(([field, value]) => (item[field].val = value));
             return () =>
                 Object.entries(before).forEach(([field, value]) => {
-                    if (item[field].val === patch[field]) item[field].val = value;
+                    if (item[field].val === patch[field]) item[field].val = accepted.get(id)?.[field] ?? value;
                 });
         });
         queue = queue.catch(() => {}).then(persist);

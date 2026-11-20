@@ -26,9 +26,12 @@ const OverviewPage = () => {
     const rowsNode = div({ class: "account-item-stack" });
     const reconcile = createStaticRowReconciler(rowsNode);
 
+    let reads = 0; // a read that a newer one overtook (a Refresh, then a switch's own read) is dropped
     const load = () =>
         run(async () => {
+            const read = ++reads;
             const automations = await readAutomations();
+            if (read !== reads) return;
             for (const automation of automations) {
                 if (!entries.has(automation.cheat)) entries.set(automation.cheat, van.state(automation));
                 else entries.get(automation.cheat).val = automation;
