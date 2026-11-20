@@ -79,17 +79,17 @@
 
 /* Nightmare clouds (display index #36+, internal index >= 35) */
 .account-row.cloud-row--nightmare:not(.account-row--success):not(.account-row--error) {
-    border-color: color-mix(in srgb, var(--c-equinox-warning) 55%, var(--c-border));
-    background: color-mix(in srgb, var(--c-equinox-warning) 7%, var(--c-panel));
+    border-color: #8a5b2c;
+    background: #242224;
 }
 
 .account-row.cloud-row--nightmare:not(.account-row--success):not(.account-row--error) .account-row__index {
-    background: color-mix(in srgb, var(--c-equinox-warning) 14%, var(--c-panel));
+    background: #312823;
     color: var(--c-warning);
 }
 
 .account-row.cloud-row--nightmare:not(.account-row--success):not(.account-row--error) .account-row__badge {
     color: var(--c-warning);
-    background: color-mix(in srgb, var(--c-equinox-warning) 10%, var(--c-panel));
-    border-color: color-mix(in srgb, var(--c-equinox-warning) 65%, var(--c-border));
+    background: #2a2423;
+    border-color: #9b6227;
 }

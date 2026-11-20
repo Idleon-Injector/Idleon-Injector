@@ -2,18 +2,22 @@
 
 .brewing-section--orange {
     --col-color: var(--c-cauldron-orange);
+    --col-bg: #2c2624;
 }
 
 .brewing-section--green {
     --col-color: var(--c-cauldron-green);
+    --col-bg: #1e2b2b;
 }
 
 .brewing-section--purple {
     --col-color: var(--c-cauldron-purple);
+    --col-bg: #252138;
 }
 
 .brewing-section--yellow {
     --col-color: var(--c-cauldron-yellow);
+    --col-bg: #2c2c24;
 }
 
 .brewing-sections-grid {
@@ -54,7 +58,7 @@
 
 .brewing-row--prisma {
     border-color: var(--col-color, var(--c-accent));
-    background: color-mix(in srgb, var(--col-color, var(--c-accent)) 10%, var(--c-panel));
+    background: var(--col-bg, #1f2a39);
 }
 
 .brewing-row > .brewing-row__badge {
