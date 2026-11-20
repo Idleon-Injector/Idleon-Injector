@@ -95,6 +95,8 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
                 words: ["Exalted", "Not exalted"],
                 name: `${name} exalted`,
                 title: `Exalted stamp (${stampCode})`,
+                // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
+                ownStatus: true,
                 onFlip: (exalted) =>
                     run(async () => {
                         const next = new Set(exaltedCodes.val);
@@ -102,7 +104,7 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
                         else next.delete(stampCode);
                         await writeExaltedCodes(next);
                         exaltedCodes.val = next;
-                    }).then(() => undefined), // the row's own save state says why a save failed
+                    }, "switch"),
             }),
             ActionButton({
                 label: "Relock",

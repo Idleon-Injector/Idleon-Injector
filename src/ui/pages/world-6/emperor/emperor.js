@@ -63,13 +63,17 @@ const EmperorTab = () => {
     const entriesDraft = van.state("0");
     // Typed values save on Enter or on leaving the field (useAutoSave); RESET and REFILL save at once.
     const progressWrite = useAutoSave({
-        prepare: () => ({ write: () => saveProgress() }),
+        // The draft as it was at the commit, so a later one (made after Reset, say) can't save in its place.
+        capture: () => progressDraft.val,
+        prepare: (draft = progressDraft.val) => ({ write: () => saveProgress(false, null, draft) }),
         revert: () => (progressDraft.val = String(snapshot.val?.progress ?? progressDraft.val)),
     });
     const entriesWrite = useAutoSave({
-        prepare: () => ({ write: () => saveEntries() }),
+        capture: () => entriesDraft.val,
+        prepare: (draft = entriesDraft.val) => ({ write: () => saveEntries(false, draft) }),
         revert: () => (entriesDraft.val = String(snapshot.val?.remaining ?? entriesDraft.val)),
     });
+    let resetting = false;
     const rewardList = div({ class: "account-item-stack" });
     const reconcileRewards = createStaticRowReconciler(rewardList);
 
@@ -210,13 +214,13 @@ const EmperorTab = () => {
 
     // Each save returns { cancelled: true } when there's nothing to write, and throws when it fails.
     // `button`: RESET, which asks in place with "Click again".
-    const saveProgress = async (reset = false, button = null) => {
+    const saveProgress = async (reset = false, button = null, draft = progressDraft.val) => {
         if (cannotWrite()) return { cancelled: true };
         busy.val = true;
         message.val = "";
         let writesStarted = false;
         try {
-            const next = reset ? 0 : wholeNumber(progressDraft.val, PROGRESS_LIMIT);
+            const next = reset ? 0 : wholeNumber(draft, PROGRESS_LIMIT);
             const before = await readSnapshot();
             showSnapshot(before);
             let fresh = before;
@@ -259,13 +263,12 @@ const EmperorTab = () => {
         }
     };
 
-    const saveEntries = async (refill = false) => {
+    const saveEntries = async (refill = false, raw = entriesDraft.val) => {
         if (cannotWriteEntries()) return { cancelled: true };
         busy.val = true;
         message.val = "";
         let writesStarted = false;
         try {
-            const raw = entriesDraft.val;
             const fresh = await readSnapshot();
             showSnapshot(fresh);
             if (fresh.cheatEnabled) throw new Error("Disable the w6 emperor cheat before editing stored entries.");
@@ -348,8 +351,12 @@ const EmperorTab = () => {
                 variant: "danger",
                 disabled: cannotEdit,
                 onClick: (e) => {
+                    // A click while a reset waits or runs isn't an answer to the "Click again" that one may ask: it
+                    // was made before the question showed (a double-click), so it's ignored.
+                    if (resetting) return;
+                    resetting = true;
                     const resetButton = e.currentTarget;
-                    return progressWrite.run(() => saveProgress(true, resetButton));
+                    return progressWrite.run(() => saveProgress(true, resetButton)).finally(() => (resetting = false));
                 },
             }),
         ],

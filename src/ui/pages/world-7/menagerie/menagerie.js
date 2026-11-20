@@ -18,6 +18,7 @@ import {
     getOrCreateState,
     largeFormatter,
     largeParser,
+    oneAtATime,
     useWriteStatus,
     writeManyVerified,
     writeVerified,
@@ -60,10 +61,11 @@ const MenagerieTab = () => {
     const lists = Object.fromEntries(PANES.map(({ id }) => [id, div({ class: "account-item-stack" })]));
     const reconcilers = Object.fromEntries(PANES.map(({ id }) => [id, createStaticRowReconciler(lists[id])]));
     const state = (path) => getOrCreateState(states, path);
-    // Refresh and Unlock all wait for saves; fields and switches stay usable while one runs (only a Refresh holds
-    // them), so focus stays where the player put it.
-    const disabled = () => loading.val || saving.val;
-    const rowDisabled = () => loading.val && !saving.val;
+    // Fields and switches stay usable while a save runs (and while it reads the game again after); only a load of the
+    // page itself, or a failed one, holds them.
+    const disabled = () => loading.val && !saving.val;
+    // A write asked for while another runs waits its turn, then reads the game again.
+    const inTurn = oneAtATime();
     let unlockCount = 0;
 
     const load = async () =>
@@ -194,20 +196,16 @@ const MenagerieTab = () => {
             ]);
         });
 
-    // A save writes at once, so it joins the click or key that made it (its Undo shows beside its row); each row
-    // already saves one value at a time. The game is then read again, one read after another, so the last is newest.
-    // ponytail: a switch flipped while Unlock all writes races it; the game keeps whichever lands last, and the page
-    // then shows that.
-    let pendingSaves = 0;
-    let reads = Promise.resolve();
-    const save = (task) => {
-        pendingSaves++;
-        saving.val = true;
-        return new Promise((resolve) => resolve(task())).finally(async () => {
-            await (reads = reads.then(load));
-            if (--pendingSaves === 0) saving.val = false;
+    const save = (task) =>
+        inTurn(async () => {
+            saving.val = true;
+            try {
+                return await task();
+            } finally {
+                await load();
+                saving.val = false;
+            }
         });
-    };
 
     const numberRow = (name, path, integer = true, note = null, formatted = false) =>
         EditableNumberRow({
@@ -224,7 +222,7 @@ const MenagerieTab = () => {
                 const value = numericInput(raw, integer) ?? current;
                 return Math.max(0, value + delta * (formatted ? formattedStep(value) : 1));
             },
-            disabled: rowDisabled,
+            disabled,
             rowClass: "account-row--wide-controls",
             controlsClass: "account-row__controls--xl",
             inputMode: integer ? "int" : "float",
@@ -248,7 +246,8 @@ const MenagerieTab = () => {
                 checked: () => state(path).val >= 1,
                 words: ["On", "Off"],
                 name,
-                disabled: rowDisabled,
+                disabled,
+                status, // nothing else on the row reads out saving and saved
                 onFlip: (on) => {
                     // "All 25 unlocks saved." no longer holds once one changes.
                     bulkMessage.val = "";
@@ -281,7 +280,7 @@ const MenagerieTab = () => {
                 ),
             ],
             adjustInput: (raw, delta, current) => Math.max(0, (numericInput(raw, true) ?? current) + delta),
-            disabled: rowDisabled,
+            disabled,
             rowClass: "account-row--wide-controls",
             controlsClass: "account-row__controls--xl",
             inputProps: { "aria-label": `Mission ${index} completions` },
@@ -357,7 +356,7 @@ const MenagerieTab = () => {
     return PersistentAccountListPage({
         title: "LUMINOUS MENAGERIE",
         description: "Edit progression directly. Normal caps and unlock requirements do not restrict these editors.",
-        actions: RefreshButton({ onRefresh: load, disabled }),
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
         subNav: renderTabNav({
             tabs: PANES,
             activeId: activePane,

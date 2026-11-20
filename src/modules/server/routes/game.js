@@ -14,15 +14,19 @@ const normalizeReadValue = (value) => {
 /**
  * Write many game paths through the game's writeGamePaths helper: the write-many route, and restoring a save copy.
  * Each written entry's `value` is read back in the game's same call, so a game tick can't change it first.
+ * With `character`, the game writes nothing unless that character is in play, checked in that same call.
  * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> }>}
- * @throws {Error} when the game couldn't run the writes at all
+ * @throws {Error} when the game couldn't run the writes at all, or refused them (`refused`: another character in play)
  */
-async function writeGamePaths(gameBridge, writes) {
-    const result = await gameBridge.callHelper("writeGamePaths", [writes]);
+async function writeGamePaths(gameBridge, writes, character) {
+    const result = await gameBridge.callHelper(
+        "writeGamePaths",
+        character === undefined ? [writes] : [writes, character]
+    );
     if (result.error) throw new Error(`Batch write failed: ${result.error.text}`);
     const data = result.value;
     if (!data || typeof data !== "object") throw new Error("Batch write returned no data");
-    if (data.error) throw new Error(data.error);
+    if (data.error) throw Object.assign(new Error(data.error), { refused: data.refused === true });
     return data;
 }
 
@@ -282,9 +286,12 @@ function setupGameRoutes(app, gameBridge) {
     });
 
     app.post("/api/game/gga/write-many", async (req, res) => {
-        const { writes } = await req.json();
+        const { writes, character } = await req.json();
         if (!Array.isArray(writes) || writes.length === 0) {
             return res.status(400).json({ error: "Missing or invalid writes (must be a non-empty array)" });
+        }
+        if (character !== undefined && (typeof character !== "string" || !character)) {
+            return res.status(400).json({ error: "character must be a non-empty string" });
         }
 
         for (const [index, entry] of writes.entries()) {
@@ -308,7 +315,7 @@ function setupGameRoutes(app, gameBridge) {
         }
 
         try {
-            const data = await writeGamePaths(gameBridge, writes);
+            const data = await writeGamePaths(gameBridge, writes, character);
             log.debug(`Batch write: ${writes.length} paths`);
             res.json({
                 ...data,
@@ -317,6 +324,11 @@ function setupGameRoutes(app, gameBridge) {
                 ),
             });
         } catch (err) {
+            // A refusal (another character in play) is an answer, not a fault: 409, and the reason for the page.
+            if (err.refused) {
+                log.warn(`Batch write refused: ${err.message}`);
+                return res.status(409).json({ error: err.message });
+            }
             log.error("Error in /api/game/gga/write-many:", err);
             res.status(500).json({ error: err.message });
         }

@@ -99,6 +99,7 @@ const ObservationTile = ({ index, tileState }) => {
                     words: ["Unlocked", "Locked"],
                     name: () => `${tileState.name.val} unlock`,
                     className: "observation-tile__toggle",
+                    rowField: true, // a draft the tile saves with its other fields
                     onFlip: (next) => (draftStates.unlocked.val = next),
                 })
             ),

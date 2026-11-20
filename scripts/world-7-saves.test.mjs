@@ -375,7 +375,14 @@ test("Menagerie: switching an unlock off takes back the line saying all were sav
     assert.equal(line(), undefined);
 });
 
-const unlockLine = (root) => byClass(root, "account-write-feedback").map(text).join("");
+// The line beside Unlock all, not a switch's own saving/saved read-out inside its row.
+const unlockLine = (root) => {
+    const inRows = new Set(byClass(root, "account-row").flatMap((row) => elements(row)));
+    return byClass(root, "account-write-feedback")
+        .filter((node) => !inRows.has(node))
+        .map(text)
+        .join("");
+};
 const unlockRow = (root, n) => byClass(root, "account-row").find((node) => text(node).includes(`Unlock #${n}`));
 
 test("Menagerie: an unlock switched off while Unlock all saves doesn't leave 'All 25 unlocks saved.'", async () => {
