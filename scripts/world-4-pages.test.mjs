@@ -215,6 +215,46 @@ test("a third kitchen save doesn't write the Speed an earlier save showed over a
     }
 });
 
+// Review of #117, fourth round: the queued save moved Speed's stored value on but left the Speed the first save showed,
+// so an edit after both saves wrote that old Speed back.
+test("a kitchen edit after two saves shows and keeps the Speed the second save read", async () => {
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
+    const row = rowByIndex(root, "#6");
+    const [speedField, fire, luck] = byTag(row, "input");
+    const realFetch = globalThis.fetch;
+    const releases = [];
+    const held = [1, 2].map(() => new Promise((resolve) => releases.push(resolve)));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) {
+            const n = ++writes;
+            if (n <= 2) await held[n - 1];
+        }
+        return realFetch(url, options);
+    };
+    let speed;
+    try {
+        typeAndEnter(row, fire, 5);
+        await until(() => writes === 1, "the Fire save to reach the game");
+        gga.Cooking[5][6] += 5;
+        typeAndEnter(row, luck, 6);
+        releases[0]();
+        await until(() => writes === 2, "the Luck save to reach the game");
+        gga.Cooking[5][6] += 5;
+        speed = gga.Cooking[5][6];
+        releases[1]();
+        await until(() => gga.Cooking[5][8] === 6 && stateOf(row) === "success", "the Luck save");
+        await settled(row);
+        assert.equal(shown(speedField), String(speed), "the Speed the second save read is shown");
+    } finally {
+        globalThis.fetch = realFetch;
+        releases.forEach((release) => release());
+    }
+    typeAndEnter(row, fire, 7);
+    await until(() => gga.Cooking[5][7] === 7 && stateOf(row) === "success", "the second Fire save");
+    assert.equal(gga.Cooking[5][6], speed, "the Speed bought in game isn't put back");
+});
+
 test("a kitchen save that landed shows ✓ even when reading back the other fields fails", async () => {
     const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
     const row = rowByIndex(root, "#2");
