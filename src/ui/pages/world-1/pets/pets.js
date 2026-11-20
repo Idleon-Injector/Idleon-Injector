@@ -395,8 +395,13 @@ const CompanionsTab = () => {
         await writeSelection(() => {
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
-            // Token pets already show as Normal, so clicking one deselects it.
-            if (shown) return { normal, plus, picks: withoutToken(companionId) };
+            // Token pets already show as Normal, so clicking one deselects it, from both tiers: once its token is
+            // gone, a saved choice of every pet would count it again.
+            if (shown) {
+                normal.delete(companionId);
+                plus.delete(companionId);
+                return { normal, plus, picks: withoutToken(companionId) };
+            }
             if (normal.has(companionId)) normal.delete(companionId);
             else normal.add(companionId);
             plus.delete(companionId);
@@ -409,7 +414,8 @@ const CompanionsTab = () => {
         const shown = isToken(companionId);
         await writeSelection(() => {
             const plus = new Set(plusIds.val);
-            if (plus.has(companionId)) plus.delete(companionId);
+            // A token pet's + moves it to Pets+, though once its token is gone a choice of every pet counts it there.
+            if (plus.has(companionId) && !shown) plus.delete(companionId);
             else plus.add(companionId);
             const normal = new Set(normalIds.val);
             normal.delete(companionId);
