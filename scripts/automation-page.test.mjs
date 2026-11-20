@@ -1439,3 +1439,38 @@ test("reader 3: a slow Refresh says it is still waiting on the page's line, not 
     await until(() => !/still waiting/.test(text(shops)), "the read's end to clear the notice");
     assert.equal(failurePanel(shops), "SHOP READ FAILED", "and the read-failed panel says nothing");
 });
+
+test("reader 3: an item row's notice stays while its second slow save still waits", async () => {
+    await ui.switchAutomation("automation shops", false);
+    let releaseFirst;
+    let releaseSecond;
+    holdNextUpdate = new Promise((resolve) => (releaseFirst = resolve));
+    const sent = updates.length;
+    try {
+        await lateBy(100, async () => {
+            void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+            await until(() => updates.length > sent, "the switch's save to reach the game and be held");
+            const input = field("Sleepy Fang");
+            input.listeners.input({ target: { value: "6" } });
+            metric("Sleepy Fang").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+            await until(() => /still waiting/.test(text(pickRow("Sleepy Fang"))), "the row to say it is still waiting");
+        });
+        holdNextUpdate = new Promise((resolve) => (releaseSecond = resolve));
+        releaseFirst();
+        await until(() => updates.length > sent + 1, "the switch to end and the stop-at's save to be held");
+        await handled();
+        assert.match(text(pickRow("Sleepy Fang")), /still waiting/, "the stop-at still waits, so the notice stays");
+    } finally {
+        releaseFirst();
+        releaseSecond?.();
+    }
+    await until(
+        () =>
+            /save-state--success/.test(saveState("Sleepy Fang")) && !/still waiting/.test(text(pickRow("Sleepy Fang"))),
+        () => `both outcomes to replace the notice, not ${text(pickRow("Sleepy Fang"))}`
+    );
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await typeStopAt("Sleepy Fang", "");
+    await until(() => !saved().some(({ id }) => id === "1:item4"), "Sleepy Fang cleared");
+    await ui.switchAutomation("automation shops", false);
+});

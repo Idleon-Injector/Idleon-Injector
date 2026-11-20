@@ -389,15 +389,14 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     const item = picks.get(id);
     const draft = item.draft;
     let fileOnly = null; // the reason shown for the row's last failure that was only at the file
-    const late = van.state(null); // the notice while this row's save still waits for the game
-    // `task(onLate)` starts the save; its outcome replaces the notice.
+    // The notice while any of this row's saves still waits for the game; then the newest outcome shows.
+    const late = useStillWaiting();
+    // `task(onLate)` starts the save.
     const track = (task) => () =>
-        task((notice) => (late.val = notice))
-            .catch((error) => {
-                if (error.fileOnly) fileOnly = saveFailureReason(error);
-                throw error;
-            })
-            .finally(() => (late.val = null));
+        task(late.onLate).catch((error) => {
+            if (error.fileOnly) fileOnly = saveFailureReason(error);
+            throw error;
+        });
     const save = useAutoSave({
         prepare: () => {
             const typed = getNumberInputLiveRaw(draft) ?? draft.val;
@@ -437,7 +436,7 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
 
     // A save still waiting for the game says so. A failure only at the file goes once a later save (any row's) writes
     // the file.
-    const waiting = () => save.status.val === "loading" && late.val !== null;
+    const waiting = () => late.notice.val !== null;
     const status = {
         get val() {
             if (waiting()) return "error";
@@ -447,7 +446,7 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     };
     const reason = {
         get val() {
-            return waiting() ? late.val : save.reason.val;
+            return waiting() ? late.notice.val : save.reason.val;
         },
     };
 
