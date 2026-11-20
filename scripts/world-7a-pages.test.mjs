@@ -8,7 +8,7 @@ import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
 const fixture = fakeGameData();
 const { router, game } = await createFakeApi(fixture);
-await loadUi(router);
+const { requests } = await loadUi(router);
 globalThis.requestAnimationFrame = () => {};
 const gga = game.gga;
 
@@ -116,6 +116,44 @@ test("Trophy Add all that stops part-way shows the trophies that landed, and Add
     button(page, "Add").listeners.click({ preventDefault() {} });
     await until(() => shown() === 3, "the added trophy");
     assert.deepEqual(gga.Spelunk[16], [1, 2, 3, -1, -1, -1], "Add keeps Trophy2 and fills the next empty slot");
+});
+
+test("Trophy Remove asks Click again first, and the second press clears the slot", async (t) => {
+    gga.Spelunk[16] = [1, 2, -1, -1, -1, -1];
+    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
+        text(root).includes("CURRENT SLOTS")
+    );
+    const [first, second] = byClass(page, "account-row");
+    const remove = button(first, "Remove");
+    const click = (node) => node.listeners.click({ preventDefault() {} });
+    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+    const before = writes();
+
+    // The first press only asks; the ask runs out after a few seconds, and the press after that asks again.
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        click(remove);
+        assert.equal(remove.attributes["data-again"], "Click again", "the first press asks");
+        assert.equal(
+            remove.attributes["aria-label"],
+            `Click again to remove ${text(byClass(first, "account-row__name")[0])}.`
+        );
+        t.mock.timers.tick(4000);
+        assert.equal(remove.attributes["data-again"], undefined, "the ask runs out");
+        click(remove);
+        assert.equal(remove.attributes["data-again"], "Click again", "the press after that asks again");
+    } finally {
+        t.mock.timers.reset();
+    }
+    const other = button(second, "Remove");
+    click(other);
+    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own trophy");
+    assert.equal(writes(), before, "nothing was written");
+    assert.deepEqual(gga.Spelunk[16], [1, 2, -1, -1, -1, -1]);
+
+    click(remove);
+    await until(() => byClass(page, "account-row").length === 1, "the second press to clear the slot");
+    assert.deepEqual(gga.Spelunk[16], [-1, 2, -1, -1, -1, -1]);
 });
 
 test("Nametag 6 (the game's EquipmentNametag6b) has its row", async () => {
