@@ -140,7 +140,8 @@ export const EditableNumberRow = ({
             NumberInput({
                 mode: inputMode,
                 value: inputValue,
-                formatter,
+                // An `unset` value's empty field stays empty.
+                formatter: formatter && ((raw) => (raw === "" ? "" : formatter(raw))),
                 cap,
                 ...restInputProps,
                 disabled: isDisabled,
