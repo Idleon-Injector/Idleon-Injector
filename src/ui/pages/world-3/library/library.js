@@ -36,7 +36,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
-    writeVerified,
+    writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -86,6 +86,7 @@ const TalentRow = ({
     maxBookLvState,
     isBookAvailable,
     isSpecial,
+    character,
     checkCharacter,
 }) => {
     if (!isBookAvailable) {
@@ -105,9 +106,12 @@ const TalentRow = ({
 
     return ClampedLevelRow({
         valueState: maxState,
+        // The character the rows were read for, kept by the save even when it waits behind another: it refuses once
+        // another is in play, and the game checks again as it writes.
         write: async (nextLevel) => {
-            await checkCharacter();
-            return writeVerified(`SkillLevelsMAX[${talentId}]`, nextLevel);
+            await checkCharacter(character);
+            await writeManyVerified([{ path: `SkillLevelsMAX[${talentId}]`, value: nextLevel }], { character });
+            return nextLevel;
         },
         max: isSpecial ? Infinity : () => maxBookLvState.val,
         integerMode: isSpecial ? "floor" : null,
@@ -158,8 +162,7 @@ const LibraryTab = () => {
     // SkillLevelsMAX is the live copy of whoever is in play: a save goes there only while that is still the
     // character the page shows.
     // The character is taken before the read: a Refresh that ends meanwhile doesn't make the rows the new one's.
-    const checkCharacter = async () => {
-        const shown = loadedCharacter;
+    const checkCharacter = async (shown = loadedCharacter) => {
         if (String(await gga("UserInfo[0]")) !== shown) {
             throw new Error("another character is in play; press Refresh");
         }
@@ -199,16 +202,19 @@ const LibraryTab = () => {
         activeClassNameState.val = activeClassName;
         maxBookLvState.val = maxBookLv;
 
+        // Another character gets new rows, so a save still waiting in the old ones stays with the old character.
         rowReconciler(
-            groups
-                .map((group) =>
-                    [
-                        group.classId,
-                        group.className,
-                        ...group.talents.map((talent) => `${talent.talentId}:${talent.isBookAvailable ? 1 : 0}`),
-                    ].join("|")
-                )
-                .join("||"),
+            loadedCharacter +
+                "||" +
+                groups
+                    .map((group) =>
+                        [
+                            group.classId,
+                            group.className,
+                            ...group.talents.map((talent) => `${talent.talentId}:${talent.isBookAvailable ? 1 : 0}`),
+                        ].join("|")
+                    )
+                    .join("||"),
             () => [
                 AccountRow({
                     rowClass: "account-row--info",
@@ -239,6 +245,7 @@ const LibraryTab = () => {
                                     maxBookLvState,
                                     isBookAvailable: talent.isBookAvailable,
                                     isSpecial: group.isSpecial,
+                                    character: loadedCharacter,
                                     checkCharacter,
                                 })
                             )

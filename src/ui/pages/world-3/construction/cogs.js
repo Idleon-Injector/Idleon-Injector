@@ -232,9 +232,11 @@ const CogsTab = () => {
     const getActiveIndex = () => activeSlot.val ?? 0;
     const getSlotCogId = (index) => String(cogOrders[index].val ?? "Blank");
 
+    // A tiny cog id being written, by slot: reopening the slot meanwhile shows it, not the one it replaces.
+    const pendingTiny = new Map();
     const syncTinyInputsFromSlot = (index) => {
         if (!isSideSlot(index)) return;
-        const cogId = getSlotCogId(index);
+        const cogId = pendingTiny.get(index) ?? getSlotCogId(index);
         const typeCode = getTinyTypeCode(cogId);
         tinyTypeInput.val = TINY_COG_TYPES.has(typeCode) ? typeCode : "_";
         tinyTierInput.val = String(clampTinyTier(getTinyTier(cogId)) + 1);
@@ -360,7 +362,12 @@ const CogsTab = () => {
                 if (newId === getSlotCogId(index)) return { unchanged: true };
                 return {
                     write: async () => {
-                        await writeVerified(`CogOrder[${getCogOrderIndex(index)}]`, newId);
+                        pendingTiny.set(index, newId);
+                        try {
+                            await writeVerified(`CogOrder[${getCogOrderIndex(index)}]`, newId);
+                        } finally {
+                            if (pendingTiny.get(index) === newId) pendingTiny.delete(index);
+                        }
                         cogOrders[index].val = newId;
                         if (activeSlot.val === index) void refreshActiveCogName(index);
                     },
