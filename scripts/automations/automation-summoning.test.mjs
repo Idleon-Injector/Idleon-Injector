@@ -3,7 +3,7 @@
 // decided with Lumi on 2026-11-10 and 2026-11-17), up to the stop-at and the max level, paused while the board is open.
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-import { importRepo, loadGame } from "../known-bugs/index.mjs";
+import { importRepo, loadCommonJs, loadGame } from "../known-bugs/index.mjs";
 
 mock.timers.enable({ apis: ["setInterval"] });
 const { gga, context, cheat, state } = await loadGame();
@@ -83,7 +83,7 @@ const setBoard = () => {
 const setPicks = (entries, saving = {}) =>
     state.updateCheatConfig({
         automation: {
-            summoning: entries,
+            summoning: { items: entries },
             summoningSaving: {
                 white: 10,
                 green: 10,
@@ -357,5 +357,20 @@ test("the Familiar rolls its tier, double and merge exactly as the board does", 
     // Two buys of 1600 for one level: the free one gave its level back, and level 4 was bought again.
     assert.equal(gga.Summon[0][2], 5);
     assert.equal(gga.Summon[2][WHITE], 0);
+    await cheat("automation summoning", false);
+});
+
+test("a 2.x config file's picks, summoning: { items }, load through the injector's merge and buy", async () => {
+    setBoard();
+    const { deepMerge } = loadCommonJs("src/modules/utils/objectUtils.js");
+    const { validateConfig } = loadCommonJs("src/modules/utils/helpers.js");
+    const defaults = loadCommonJs("config.js").cheatConfig;
+    const custom = { automation: { summoning: { items: [{ id: 1, on: true, stopAt: 2 }] } } }; // the 2.x file's shape
+    validateConfig(defaults, custom, "");
+    state.updateCheatConfig({ automation: deepMerge(defaults, custom).automation });
+    await cheat("automation summoning", true);
+    second();
+    assert.equal(gga.Summon[0][1], 2, "Cheap_Seed buys up to its stop-at");
+    assert.equal(automation().status, "Buying 1 upgrade; 2 levels bought since it started");
     await cheat("automation summoning", false);
 });

@@ -16,7 +16,7 @@ export const configDescriptions = {
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
-    "cheatConfig.automation.summoning":
+    "cheatConfig.automation.summoning.items":
         'Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.',
     "cheatConfig.automation.summoningSaving.white":
         "Automation: while a High or Low summoning upgrade saves white essence, Balanced ones may spend up to this % of its cost.",

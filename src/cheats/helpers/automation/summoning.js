@@ -5,7 +5,7 @@
  *
  * Summon[0][i] is upgrade i's level, Summon[2][c] colour c's essence, Summon[4][t] the familiars of tier t.
  * SummonUPG[i]: [2] colour, [3] name, [8] max level (9999 = none), [9] parent upgrade, [11] the board's text.
- * Settings: cheatConfig.automation.summoning, one { id: "i", on, stopAt, priority } per upgrade (stopAt is a level),
+ * Settings: cheatConfig.automation.summoning.items, one { id: "i", on, stopAt, priority } per upgrade (stopAt is a level),
  * and cheatConfig.automation.summoningSaving, the saving % of each colour by name.
  */
 
@@ -95,7 +95,7 @@ function buy(i) {
 
 /** The switched-on upgrades of one colour that may buy now: unlocked, below their max and stop-at. */
 function buyable(colour) {
-    const settings = new Map(cheatConfig.automation.summoning.map((entry) => [String(entry.id), entry]));
+    const settings = new Map(cheatConfig.automation.summoning.items.map((entry) => [String(entry.id), entry]));
     return cList.SummonUPG.flatMap((row, i) => {
         const entry = settings.get(String(i));
         if (!entry?.on || Number(row[2]) !== colour || !unlocked(i)) return [];
@@ -123,7 +123,7 @@ export function runSummoning() {
 }
 
 export function summoningStatus() {
-    const on = cheatConfig.automation.summoning.filter((entry) => entry.on).length;
+    const on = cheatConfig.automation.summoning.items.filter((entry) => entry.on).length;
     if (!on) return "No summoning upgrade is switched on";
     if (!inMap()) return "Waiting for a character to be in game";
     const paused = waiting();

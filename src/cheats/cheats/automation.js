@@ -22,10 +22,13 @@ defineCheat({
             description:
                 'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
         },
+        // { items }, the shape the 2.x automation saved, so a 2.x config file's picks still read.
         summoning: {
-            default: [],
-            description:
-                'Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.',
+            items: {
+                default: [],
+                description:
+                    'Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.',
+            },
         },
         // One saving % per essence colour, so a colour's goal never holds up another colour.
         summoningSaving: Object.fromEntries(
