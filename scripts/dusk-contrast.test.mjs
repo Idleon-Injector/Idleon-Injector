@@ -9,7 +9,9 @@ const token = (name) => {
     assert.ok(value, `${name} is defined`);
     return value.startsWith("var(") ? token(value.slice(4, -1)) : value;
 };
+// Six-digit hex only: any other form (rgba() with its alpha, say) would come out NaN and pass every check.
 const luminance = (hex) => {
+    assert.match(hex, /^#[0-9a-f]{6}$/i, `${hex} is a six-digit hex colour this test can measure`);
     const [r, g, b] = [1, 3, 5].map((i) => {
         const c = parseInt(hex.slice(i, i + 2), 16) / 255;
         return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
@@ -53,4 +55,9 @@ test("every Dusk text colour meets WCAG AA on its surface", () => {
         .filter(([, , r]) => r < 4.5)
         .map(([text, surface, r]) => `${text} on ${surface}: ${r.toFixed(2)}`);
     assert.deepEqual(failing, []);
+});
+
+// Review of #146: a token written as rgba() measured NaN, which no ratio check rejects.
+test("a colour the test can't measure fails it instead of passing", () => {
+    assert.throws(() => luminance("rgba(0, 0, 0, 0.5)"));
 });
