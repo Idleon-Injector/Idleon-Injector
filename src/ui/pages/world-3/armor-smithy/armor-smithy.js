@@ -18,7 +18,12 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
-import { unwrapH, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import {
+    createKeptRows,
+    unwrapH,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
 
 const { div } = van.tags;
@@ -296,6 +301,7 @@ const SmithyTab = () => {
         await change((stored) => stored.filter((key) => key !== setKey));
     };
     removeAtIndex.isBusy = () => mutating.val;
+    const keptRows = createKeptRows((row) => SmithyRow({ row, onRemove: removeAtIndex }));
 
     const addSelected = async () => {
         const setKey = selectedAddSetKey.val;
@@ -336,18 +342,7 @@ const SmithyTab = () => {
         AccountSection({
             title: "ON SMITHY",
             note: () => `${unlockedCount.val}/${totalSetCount.val} TOTAL`,
-            body: () => {
-                const rows = smithyRows.val;
-                return div(
-                    { class: "smithy-rows" },
-                    ...rows.map((row) =>
-                        SmithyRow({
-                            row,
-                            onRemove: removeAtIndex,
-                        })
-                    )
-                );
-            },
+            body: () => div({ class: "smithy-rows" }, ...keptRows(smithyRows.val)),
         })
     );
     scrollEl = body;

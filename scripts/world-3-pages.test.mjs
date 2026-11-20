@@ -152,6 +152,28 @@ test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pre
     assert.deepEqual([...gga.Cards[1]], []);
 });
 
+test("Hat Rack: a refused removal stays red on its row when the game changed the rack meanwhile", async () => {
+    setRack([hat(1), hat(2)], [hat(1)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    gga.Spelunk[46].push(hat(3));
+
+    const restore = failWrites(/"gga\.Cards\[1\]"/);
+    const row = rackRowFor(root, hat(1));
+    const remove = buttonIn(row, "Remove");
+    try {
+        await quietly(async () => {
+            click(remove);
+            await until(() => settledButton(remove), "Remove to finish");
+        });
+    } finally {
+        restore();
+    }
+    assert.match(classes(remove), /account-btn--error/);
+    assert.equal(rackRows(root).length, 3, "the page shows the hat the game added");
+    assert.ok(rackRows(root).includes(row), "the row that asked is still on the page");
+    assert.ok(gga.Spelunk[46].includes(hat(1)), "the hat is still on the rack");
+});
+
 const SMITHY = "src/ui/pages/world-3/armor-smithy/armor-smithy.js";
 const smithyRows = (root) => byClass(root, "smithy-row");
 
@@ -162,18 +184,48 @@ test("Smithy: Remove and Add keep a set the game stored after the page read the 
     // In game, the player completes a set and the game stores it.
     gga.OptionsListAccount[379] += ",IRON_SET";
     const gold = smithyRows(root).find((row) => text(row).includes("GOLD_SET"));
-    click(buttonIn(gold, "Remove"));
-    await until(() => !gga.OptionsListAccount[379].includes("GOLD_SET"), "Remove to finish");
+    const remove = buttonIn(gold, "Remove");
+    click(remove);
+    await until(() => settledButton(remove), "Remove to finish");
     assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,IRON_SET");
 
     gga.OptionsListAccount[379] += ",PLATINUM_SET";
-    await until(() => smithyRows(root).length === 2, "the page to read the game again");
     const addAll = buttonIn(root, "Add all");
     click(addAll);
     await until(() => settledButton(addAll), "Add all to finish");
     for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET"]) {
         assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} stays stored`);
     }
+});
+
+test("Smithy: a Remove that can't read the stored sets stays red on its row", async () => {
+    gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
+
+    const realFetch = globalThis.fetch;
+    let failed = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/gga/read") && /OptionsListAccount\[379\]/.test(options.body) && failed++ === 0) {
+            return new Response(JSON.stringify({ error: "the game is busy" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        }
+        return realFetch(url, options);
+    };
+    const row = smithyRows(root).find((node) => text(node).includes("GOLD_SET"));
+    const remove = buttonIn(row, "Remove");
+    try {
+        await quietly(async () => {
+            click(remove);
+            await until(() => settledButton(remove), "Remove to finish");
+        });
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.match(classes(remove), /account-btn--error/);
+    assert.ok(smithyRows(root).includes(row), "the row that asked is still on the page");
+    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,GOLD_SET");
 });
 
 // The game switches characters: the one in play saves its live copy, and the next one's copy becomes the live one.
@@ -377,6 +429,33 @@ test("Cogs: a Lock's result shows on the slot it was for, not on the slot opened
     open(8);
     await until(() => !/account-btn--error/.test(classes(lock)), "slot 8 to show nothing of slot 3's Lock");
     assert.ok(!isDisabled(lock), "slot 8 can be locked now");
+});
+
+test("Cogs: a Lock that fails while another slot is open shows when its slot is opened again", async () => {
+    for (const index of [4, 9]) {
+        gga.FlagUnlock[index] = -11;
+        gga.CogOrder[index] = "Blank";
+    }
+    const { popup, open } = await openCogs();
+    const lock = buttonIn(popup, "Lock");
+    open(4);
+    await until(() => !isDisabled(lock), "slot 4's Lock");
+
+    const hold = holdWrites({ fail: true });
+    click(lock);
+    await until(() => hold.held() === 1, "the Lock to reach the game");
+    open(9);
+    await quietly(async () => {
+        hold.release();
+        await until(() => !isDisabled(lock), "the Lock to finish");
+    });
+    // Longer than a result normally shows, so only a kept failure is still there.
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    assert.doesNotMatch(classes(lock), /account-btn--error/, "slot 9 shows nothing of it");
+    open(4);
+    await until(() => /account-btn--error/.test(classes(lock)), "slot 4 to show its failed Lock");
+    assert.equal(gga.FlagUnlock[4], -11);
+    await until(() => !/account-btn--error/.test(classes(lock)), "the red to clear once seen");
 });
 
 test("Cogs: a tiny cog save's saving and failure stay with the slot it was for", async () => {

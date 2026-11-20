@@ -19,7 +19,13 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { AddFromListSection } from "../../../components/views/account/components/AddFromListSection.js";
 import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
-import { cleanName, unwrapH, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import {
+    cleanName,
+    createKeptRows,
+    unwrapH,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
 
 const { div } = van.tags;
@@ -152,7 +158,7 @@ const HatRackTab = () => {
         return { rack: normalizeRackIds(rawRack), slab: normalizeRackIds(rawSlab) };
     };
 
-    // After any outcome the page shows what the game holds. The rows are drawn again only when the rack changed,
+    // After any outcome the page shows what the game holds. A row whose hat and place are unchanged keeps its node,
     // so a failed removal still has its row to say so.
     const showGame = async () => {
         try {
@@ -197,6 +203,7 @@ const HatRackTab = () => {
         });
     };
     removeAtIndex.isBusy = () => mutating.val;
+    const keptRows = createKeptRows((row) => RackRow({ row, onRemove: removeAtIndex }));
 
     const addSelected = async () => {
         const itemId = selectedAddItemId.val;
@@ -251,18 +258,7 @@ const HatRackTab = () => {
         AccountSection({
             title: "ON RACK",
             note: () => `${rackCount.val} ON RACK, ${onRackCount.val}/${eligibleCount.val} TOTAL`,
-            body: () => {
-                const rows = rackRows.val;
-                return div(
-                    { class: "hat-rack-rows" },
-                    ...rows.map((row) =>
-                        RackRow({
-                            row,
-                            onRemove: removeAtIndex,
-                        })
-                    )
-                );
-            },
+            body: () => div({ class: "hat-rack-rows" }, ...keptRows(rackRows.val)),
         })
     );
     scrollEl = body;

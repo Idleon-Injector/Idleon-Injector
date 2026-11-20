@@ -215,10 +215,19 @@ const CogsTab = () => {
     const tinyTypeInput = van.state("_");
     const tinyTierInput = van.state("1");
 
-    const { status: lockStatus, run: runLockWrite } = useWriteStatus();
-    // One Lock or Unlock runs at a time, and its result shows only on the slot it was for.
+    const { status: lockStatus, run: runLockWrite, clearStatus: clearLockStatus } = useWriteStatus({ errorMs: 0 });
+    // One Lock or Unlock runs at a time, and its result shows only on the slot it was for. A failure waits until
+    // that slot is open, then shows like any other result.
     const lockSlot = van.state(null);
     const shownLockStatus = van.derive(() => (activeSlot.val === lockSlot.val ? lockStatus.val : null));
+    let lockErrorTimer = null;
+    van.derive(() => {
+        if (shownLockStatus.val !== "error") return;
+        clearTimeout(lockErrorTimer);
+        lockErrorTimer = setTimeout(() => {
+            if (lockStatus.val === "error") clearLockStatus();
+        }, 1200);
+    });
 
     const getActiveIndex = () => activeSlot.val ?? 0;
     const getSlotCogId = (index) => String(cogOrders[index].val ?? "Blank");
