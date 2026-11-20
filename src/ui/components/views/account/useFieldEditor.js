@@ -90,7 +90,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
             }
             return {
                 write: async () => {
-                    // This save's action (autoSave runs it in one), whose entries count the values that landed.
+                    // This save's action (autoSave runs it in one), which counts the values that landed.
                     const action = withAction({ kind: "row" }, (joined) => joined);
                     let verified;
                     try {
@@ -99,7 +99,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                         // A write in several steps may have saved some fields before it failed: read the game
                         // again, so the fields (and Escape, and the next save) start from what it now holds. A save
                         // that landed nothing reads nothing, so its reason and the typed value stay in place.
-                        if (action.entries > 0) reloadPlace.val = { ...place };
+                        if (action.landed > 0) reloadPlace.val = { ...place };
                         throw error;
                     }
                     if (verified?.cancelled) {

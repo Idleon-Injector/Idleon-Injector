@@ -125,6 +125,42 @@ test("after a save the game took only part of, Escape and the next save start fr
     assert.deepEqual([kitchen[6], kitchen[7], kitchen[8]], [90, 27, 60], "Speed isn't put back to 80");
 });
 
+// Review of #115: with History down, the half-done save wasn't counted, so the page kept the old Speed.
+test("a save the game took part of reads the game again even when History can't log it", async () => {
+    const kitchen = game.gga.Cooking[0];
+    [kitchen[6], kitchen[7], kitchen[8]] = [10, 27, 53];
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js", "Kitchen 1");
+    await tick();
+    const row = findRow(root, "Kitchen 1");
+    const [speed, fire] = inputs(row);
+    const restore = refuseWrites(kitchen, 7);
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, options) =>
+        options?.method === "POST" && String(url).endsWith("/changes")
+            ? Promise.reject(new TypeError("History is down"))
+            : realFetch(url, options);
+    const reread = readAfterWrite();
+    try {
+        focus(speed);
+        type(speed, 90);
+        leave(row, speed, fire);
+        focus(fire);
+        type(fire, 40);
+        press(row, fire, "Enter");
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(kitchen[6], 90, "the game took Speed");
+        await reread.landed();
+        press(row, fire, "Escape");
+        await tick();
+        assert.equal(shown(speed), "90", "Escape shows the Speed the game now holds");
+    } finally {
+        reread.stop();
+        globalThis.fetch = realFetch;
+        restore();
+    }
+});
+
 // A reload rebuilds the rows on some pages (Upgrade Vault), which took the reason and the typed value away.
 test("a save the game refused outright keeps its reason and the typed value, and reads nothing again", async () => {
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
