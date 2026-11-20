@@ -14,11 +14,15 @@ const normalizeReadValue = (value) => {
 /**
  * Write many game paths through the game's writeGamePaths helper: the write-many route, and restoring a save copy.
  * Each written entry's `value` is read back in the game's same call, so a game tick can't change it first.
+ * With `character`, the game writes nothing unless that character is in play, checked in that same call.
  * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> }>}
  * @throws {Error} when the game couldn't run the writes at all
  */
-async function writeGamePaths(gameBridge, writes) {
-    const result = await gameBridge.callHelper("writeGamePaths", [writes]);
+async function writeGamePaths(gameBridge, writes, character) {
+    const result = await gameBridge.callHelper(
+        "writeGamePaths",
+        character === undefined ? [writes] : [writes, character]
+    );
     if (result.error) throw new Error(`Batch write failed: ${result.error.text}`);
     const data = result.value;
     if (!data || typeof data !== "object") throw new Error("Batch write returned no data");
@@ -282,9 +286,12 @@ function setupGameRoutes(app, gameBridge) {
     });
 
     app.post("/api/game/gga/write-many", async (req, res) => {
-        const { writes } = await req.json();
+        const { writes, character } = await req.json();
         if (!Array.isArray(writes) || writes.length === 0) {
             return res.status(400).json({ error: "Missing or invalid writes (must be a non-empty array)" });
+        }
+        if (character !== undefined && (typeof character !== "string" || !character)) {
+            return res.status(400).json({ error: "character must be a non-empty string" });
         }
 
         for (const [index, entry] of writes.entries()) {
@@ -308,7 +315,7 @@ function setupGameRoutes(app, gameBridge) {
         }
 
         try {
-            const data = await writeGamePaths(gameBridge, writes);
+            const data = await writeGamePaths(gameBridge, writes, character);
             log.debug(`Batch write: ${writes.length} paths`);
             res.json({
                 ...data,

@@ -218,20 +218,22 @@ const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
  * Write many GGA paths and throw a consistent error for the first failed write.
  * Failed writes expose the original batch response on `error.results`.
  * The values that land go in the change log as one action, unless `log` is false (an undo's own writes).
+ * `character`, the one the writes were planned for: when another one is in play by the time the game writes, nothing
+ * is written and it rejects saying who is in play.
  *
  * @param {Array<{ path: string, value: any }>} writes
- * @param {{ log?: boolean }} [options]
+ * @param {{ log?: boolean, character?: string }} [options]
  * @returns {Promise<any>}
  */
-export const writeManyVerified = (writes, { log = true } = {}) => {
+export const writeManyVerified = (writes, { log = true, character } = {}) => {
     if (!writes.length) return Promise.resolve({ ok: true, results: [] });
     const change = log ? startChange(writes.map((entry) => entry.path)) : null;
-    return writeManyLogged(writes, change);
+    return writeManyLogged(writes, change, character);
 };
 
-const writeManyLogged = async (writes, change) => {
+const writeManyLogged = async (writes, change, character) => {
     if (change) await change;
-    const result = await ggaMany(writes);
+    const result = await ggaMany(writes, { character });
     if (change)
         await finishChange(
             await change,
