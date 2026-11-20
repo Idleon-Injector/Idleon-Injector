@@ -31,6 +31,8 @@ let failSave = false; // the config file save fails
 let holdNextConfigRead = null; // a promise the next config read waits on, answering what it read before
 let failNextConfigRead = false; // the next config read fails
 let failNextListRead = false; // the next automation list read fails
+let failListReadAt = null; // the automation list read with this number (listAsked once it arrived) fails
+let holdNextOff = null; // a promise the next switch-off waits on before the game applies it
 // The startup cheats in the config file: a save writes them, a read gives them back.
 let fileStartup = [];
 // What the fake game has done, for tests to wait on: switches applied, automation list reads asked and answered.
@@ -38,12 +40,18 @@ const applied = [];
 let listAsked = 0;
 let listAnswered = 0;
 let configAnswered = 0;
+let configAsked = 0;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
     commands.push([action, on]);
     const automation = getAutomations().find(({ cheat }) => cheat === action);
     if (!on) await wait(slowOffBefore);
+    if (!on && holdNextOff) {
+        const hold = holdNextOff;
+        holdNextOff = null;
+        await hold;
+    }
     if (failNextToggle) {
         failNextToggle = false;
         return res.json({ ok: false, message: "the cheat broke" });
@@ -58,7 +66,7 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     const { name } = await req.json();
     if (name !== "list") return readComputedRoute(req, res);
     listAsked++;
-    if (failNextListRead) {
+    if (failNextListRead || listAsked === failListReadAt) {
         failNextListRead = false;
         listAnswered++;
         return res.status(500).json({ error: "the game didn't answer" });
@@ -97,6 +105,7 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
 });
 const readConfig = router.routes.GET.get("/api/config");
 router.routes.GET.set("/api/config", async (req, res) => {
+    configAsked++;
     const hold = holdNextConfigRead;
     holdNextConfigRead = null;
     if (failNextConfigRead) {
@@ -139,6 +148,9 @@ const button = (root, label) =>
         (node) => node.nodeName === "button" && text(node).trim() === label && !node.attributes.disabled
     );
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
+// The fake API answers in-process, so once the fake game has answered, the page's handling of it is queued as
+// promises: one timer turn later it has run, however busy the machine is.
+const handled = () => settle(0);
 async function until(check, what) {
     for (let i = 0; i < 300; i++) {
         if (check()) return;
@@ -448,16 +460,22 @@ test("review: an item switched on while Shops already runs still puts Shops in t
 });
 
 test("review: a refresh that read the config before an item saved doesn't put the old picks back", async () => {
+    // One queue: the item's save waits for the Refresh ahead of it, and the Refresh's (older) read is dropped.
     let release;
     holdNextConfigRead = new Promise((resolve) => (release = resolve));
-    await until(() => button(shops, "Refresh"), "Refresh");
-    void button(shops, "Refresh").listeners.click({ preventDefault() {} });
-    await settle(5);
-    await checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: true } });
-    await until(() => saved().some(({ id, on }) => id === "0:item1" && on), "the item to save");
-    await until(() => /save-state--success/.test(saveState("Grand Drift")), "the item save to end");
-    release();
-    await settle(50);
+    try {
+        await until(() => button(shops, "Refresh"), "Refresh");
+        const asked = configAsked;
+        void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+        await until(() => configAsked > asked, "the Refresh's config read to be held");
+        const sent = updates.length;
+        void checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: true } });
+        await handled();
+        assert.equal(updates.length, sent, "the save waits for the read queued before it");
+    } finally {
+        release();
+    }
+    await until(() => fileShops()?.some(({ id, on }) => id === "0:item1" && on), "the item to save");
     // The next save carries the whole list: Grand Drift must still be in it.
     await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
     await until(() => saved().some(({ id }) => id === "1:item4"), "the second item to save");
@@ -623,9 +641,6 @@ test("review 3 sibling: the overview's Disable all stops every automation, even 
 });
 
 // A second reader's review of 99dacf9: each sequence it reproduced.
-// The fake API answers in-process, so once the fake game has answered, the page's handling of it is queued as
-// promises: one timer turn later it has run, however busy the machine is.
-const handled = () => settle(0);
 const fieldText = (name) => {
     const input = field(name);
     return String(input.value ?? input.attributes.value ?? "");
@@ -663,8 +678,8 @@ test("reader: a refused save elsewhere leaves text typed (not yet entered) in an
 });
 
 test("reader: Shops is switched on only if the game ended up running an item a save switched on", async () => {
-    let turned = 0;
-    const picks = ui.createAutomationPicks("shops", { onTurnedOn: () => turned++ });
+    await ui.switchAutomation("automation shops", false);
+    const picks = ui.createAutomationPicks("shops", { onTurnedOn: () => ui.ensureOn("automation shops") });
     picks.sync(await gameShops());
     // A: X on and Y's stop-at, both refused: nothing runs, so Shops stays off.
     slowUpdate = 20;
@@ -673,7 +688,7 @@ test("reader: Shops is switched on only if the game ended up running an item a s
         picks.set("0:item2", { on: true }).catch(() => {}),
         picks.set("0:item0", { stopAt: 5 }).catch(() => {}),
     ]);
-    assert.equal(turned, 0, "both refused: the game runs no item");
+    assert.equal(shopsOn(), false, "both refused: the game runs no item, so Shops stays off");
     // B: X on (taken), then X off (refused): the game runs X, so Shops goes on.
     refuseUpdateNumber = updates.length + 2;
     const sent = updates.length;
@@ -686,8 +701,9 @@ test("reader: Shops is switched on only if the game ended up running an item a s
         (await gameShops()).some(({ id, on }) => id === "0:item2" && on),
         "the game runs X"
     );
-    assert.equal(turned, 1);
+    assert.equal(shopsOn(), true);
     await picks.set("0:item2", { on: false });
+    await ui.switchAutomation("automation shops", false);
 });
 
 test("reader: the Shops tab's own switch shows Shops running after an item's file save failed", async () => {
@@ -712,52 +728,50 @@ test("reader: an item switched on just after Shops' Off leaves Shops on now and 
     await ui.switchAutomation("automation shops", true);
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(shops) !== "Off", "the tab to read Shops on");
-    slowOffBefore = 60;
-    const asked = commands.length;
-    const done = applied.length;
-    void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: false } });
-    await until(() => commands.length > asked, "the Off to reach the game");
-    await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: true } });
-    // Settled once the Off is applied and the startup list agrees with what runs (the bug left Shops off but listed).
-    const settled = () =>
-        applied.slice(done).some(([, on]) => !on) && shopsOn() === fileStartup.includes("automation shops");
-    await until(
-        () => settled() && shopsOn(),
-        () => `Shops on now and at start, not ${shopsOn()} / ${JSON.stringify(fileStartup)}`
-    );
-    slowOffBefore = 0;
-    assert.equal(shopsOn(), true, "the item, clicked last, switches Shops on");
-    assert.ok(fileStartup.includes("automation shops"), "and at start, as it runs");
+    let release;
+    holdNextOff = new Promise((resolve) => (release = resolve));
+    try {
+        const asked = commands.length;
+        void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: false } });
+        await until(() => commands.length > asked, "the Off to reach the game and be held");
+        const sent = updates.length;
+        void checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: true } });
+        await handled();
+        assert.equal(updates.length, sent, "the item's save waits behind the held Off");
+        assert.equal(shopsOn(), true, "the Off isn't applied yet");
+    } finally {
+        release();
+    }
+    await until(() => /save-state--success/.test(saveState("Royal Pebble")) && shopsOn(), "the item, then Shops on");
+    assert.ok(fileStartup.includes("automation shops"), "the item, clicked last, puts Shops back at start too");
     await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: false } });
     await until(() => !saved().some(({ id, on }) => id === "1:item3" && on), "the item off");
     await ui.switchAutomation("automation shops", false);
 });
-
-test("reader: an item's failure goes once a later save stores what it wanted", async () => {
-    slowUpdate = 20;
+test("reader: a refused switch shows off with its reason, and a save elsewhere doesn't send it again", async () => {
     refuseNextUpdates = 1;
-    const sent = updates.length;
-    void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
-    await until(() => updates.length > sent, "Sleepy Fang's save to reach the game");
-    const input = field("Royal Pebble");
-    input.listeners.input({ target: { value: "7" } });
-    metric("Royal Pebble").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
-    // The refusal first, then the second save stored in the file (the game took it before): only then may the
-    // failure go. (A success state from an earlier test, or a failure not said yet, would pass too early.)
-    await until(
-        () =>
-            refuseNextUpdates === 0 &&
-            fileShops()?.some(({ id, on }) => id === "1:item4" && on) &&
-            updates.length >= sent + 2,
-        "the refusal, then the second save stored"
-    );
-    slowUpdate = 0;
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Sleepy Fang")), "the refusal");
+    assert.match(text(pickRow("Sleepy Fang")), /busy/);
+    await typeStopAt("Royal Pebble", "7");
+    assert.ok(!(await gameShops()).some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang stays off");
+    assert.match(saveState("Sleepy Fang"), /save-state--error/, "and keeps saying why");
+    await typeStopAt("Royal Pebble", "");
+});
+
+test("reader: an item's file failure goes once a later save writes the file", async () => {
+    failSave = true;
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+    await until(() => /disk is full/.test(text(pickRow("Sleepy Fang"))), "the file failure");
+    failSave = false;
+    await typeStopAt("Royal Pebble", "7");
     assert.ok(
-        (await gameShops()).some(({ id, on }) => id === "1:item4" && on),
-        "the second save stored it"
+        fileShops().some(({ id, on }) => id === "1:item4" && on),
+        "the file has it now"
     );
-    await until(() => !/save-state--error/.test(saveState("Sleepy Fang")), "its failure to go");
+    await until(() => !/save-state--error/.test(saveState("Sleepy Fang")), "its file failure to go");
     await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang off");
     await typeStopAt("Royal Pebble", "");
     await ui.switchAutomation("automation shops", false);
 });
@@ -827,4 +841,88 @@ test("walk: a switch that fails says why, even when reading the game back fails 
     await until(() => /cheat broke|didn't answer/.test(text(row(shops, "Shops"))), "a failure to be said");
     assert.match(text(row(shops, "Shops")), /cheat broke/, "the switch's own failure");
     failNextListRead = false;
+});
+
+// CodeRabbit's fourth review of #105, on the one-queue structure.
+test("round 4: Shops switched off after an item was switched on stays off", async () => {
+    await ui.switchAutomation("automation shops", true);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) !== "Off", "the tab to read Shops on");
+    slowUpdate = 30;
+    const sent = updates.length;
+    void checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: true } });
+    await until(() => updates.length > sent, "the item's save to reach the game");
+    const asked = commands.length;
+    void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: false } });
+    await until(() => commands.slice(asked).some(([, on]) => !on) && !shopsOn(), "the Off, clicked last");
+    slowUpdate = 0;
+    await until(() => /save-state--success/.test(saveState("Grand Drift")), "the item's save to end");
+    await until(() => !fileStartup.includes("automation shops"), "Shops out of the startup cheats");
+    await handled();
+    assert.equal(shopsOn(), false, "the item's follow-up didn't start Shops again");
+    await checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "0:item1" && on), "the item off");
+});
+
+test("round 4: a refused item whose read-back fails doesn't start Shops", async () => {
+    await ui.switchAutomation("automation shops", false);
+    refuseNextUpdates = 1;
+    failNextConfigRead = true; // the read-back after the refusal
+    await checkbox(pickRow("Golden Bramble")).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Golden Bramble")), "the refusal");
+    failNextConfigRead = false;
+    assert.match(text(pickRow("Golden Bramble")), /busy/, "the refusal is said");
+    assert.equal(shopsOn(), false, "the game refused the item, so Shops stays off");
+});
+
+test("round 4: when the file and the start both fail, the item's row says the file failed", async () => {
+    await ui.switchAutomation("automation shops", false);
+    failSave = true;
+    failNextToggle = true; // Shops' start
+    await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Velvet Stone")), "the failure");
+    failSave = false;
+    failNextToggle = false;
+    assert.match(text(pickRow("Velvet Stone")), /not saved to the file/, "the save's own failure comes first");
+    await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item7" && on), "the item off");
+});
+
+test("round 4: when Shops can't start and its read-back fails too, the item's row says why it couldn't start", async () => {
+    await ui.switchAutomation("automation shops", false);
+    failNextToggle = true; // Shops' start
+    failListReadAt = listAsked + 2; // ensureOn's own read works; the Shops tab's read-back after it fails
+    await checkbox(pickRow("Lucky Whisker")).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Lucky Whisker")), "the failure");
+    failListReadAt = null;
+    failNextToggle = false;
+    assert.match(text(pickRow("Lucky Whisker")), /cheat broke/, "the start's failure, not the read's");
+    await checkbox(pickRow("Lucky Whisker")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "0:item0" && on), "the item off");
+});
+
+test("round 4: Enable all after switching one automation off switches it back on with the rest", async () => {
+    // test.kit, the second automation, is defined by the Disable all test above.
+    switchAutomation("account.automation.shops", true);
+    switchAutomation("test.kit", false);
+    fileStartup = ["automation shops"];
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => row(overview, "Test kit") && button(overview, "Enable all"), "both rows and Enable all");
+    slowOffBefore = 30;
+    const asked = commands.length;
+    void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: false } });
+    await until(() => commands.length > asked, "the Off to reach the game");
+    await button(overview, "Enable all").listeners.click({ preventDefault() {} });
+    const on = () =>
+        getAutomations()
+            .filter(({ on }) => on)
+            .map(({ id }) => id);
+    await until(
+        () => commands.slice(asked).filter(([, on]) => on).length >= 2 && on().length === 2,
+        () => `both on, not ${on()}`
+    );
+    slowOffBefore = 0;
+    assert.deepEqual(fileStartup.sort(), ["automation shops", "automation testkit"]);
+    switchAutomation("account.automation.shops", false);
+    switchAutomation("test.kit", false);
 });

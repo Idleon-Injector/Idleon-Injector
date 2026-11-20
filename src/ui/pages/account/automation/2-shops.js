@@ -23,8 +23,9 @@ import {
     AutomationRow,
     PickRow,
     createAutomationPicks,
-    readAutomations,
     ensureOn,
+    inTurn,
+    readAutomations,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -37,16 +38,17 @@ const WORLDS = [1, 2, 3, 4, 5, 6, 7].map((world) => ({ id: world, label: `W${wor
 
 const ShopsPage = () => {
     const automation = van.state(null);
-    let reads = 0; // a read that a newer one overtook is dropped
-    const readSwitch = async () => {
-        const read = ++reads;
-        const found = (await readAutomations()).find(({ cheat }) => cheat === CHEAT) ?? null;
-        if (read === reads) automation.val = found;
-    };
-    // Switching an item on switches Shops on too (now and at start), so buying starts at once.
+    const findShops = async () => (await readAutomations()).find(({ cheat }) => cheat === CHEAT) ?? null;
+    // Queued like everything else, so it reads what the steps before it did.
+    const readSwitch = () =>
+        inTurn(async () => {
+            automation.val = await findShops();
+        });
+    // Switching an item on switches Shops on too (now and at start), so buying starts at once. The tab's own switch
+    // reads the game back either way; if that read fails too, the start's own failure is the one said.
     const picks = createAutomationPicks("shops", {
-        // Checked and switched in turn with the switches; the tab's own switch reads the game back either way.
-        onTurnedOn: () => ensureOn(CHEAT).finally(readSwitch),
+        onTurnedOn: () =>
+            ensureOn(CHEAT).then(readSwitch, (error) => readSwitch().finally(() => Promise.reject(error))),
     });
     const ids = van.state([]); // every item on the page, all worlds
     const bulk = useWriteStatus();
@@ -59,45 +61,52 @@ const ShopsPage = () => {
     const panes = renderPersistentPagePanes({ tabs: WORLDS, activeId: activeWorld });
     const reconcilers = panes.map(createStaticRowReconciler);
 
+    // A step: it reads after every save and switch asked for before it.
     const load = () =>
-        run(async () => {
-            const since = picks.edits(); // a save that ends while this reads makes the read old
-            const [shops, config] = await Promise.all([readComputed("automation", "shops"), fetchConfig()]);
-            await readSwitch();
-            picks.sync(config.cheatConfig.automation.shops, since);
-            if (!switchNode.firstChild && automation.val)
-                switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
+        inTurn(() =>
+            run(async () => {
+                const since = picks.edits(); // an edit made while this reads is newer than it
+                const [shops, config, found] = await Promise.all([
+                    readComputed("automation", "shops"),
+                    fetchConfig(),
+                    findShops(),
+                ]);
+                automation.val = found;
+                picks.sync(config.cheatConfig.automation.shops, since);
+                if (!switchNode.firstChild && automation.val)
+                    switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
 
-            WORLDS.forEach(({ id: world }, i) => {
-                const worldShops = shops.filter((shop) => shop.world === world);
-                reconcilers[i](
-                    worldShops.map((shop) => `${shop.shop}:${shop.items.map(({ item }) => item)}`).join("|"),
-                    () =>
-                        worldShops.map((shop) =>
-                            AccountSection({
-                                title: cleanName(shop.town).toUpperCase(),
-                                body: div(
-                                    { class: "account-item-stack" },
-                                    shop.items.map(({ item, name }) => {
-                                        const id = `${shop.shop}:${item}`;
-                                        const left = getOrCreateState(stock, id);
-                                        return PickRow({
-                                            picks,
-                                            id,
-                                            name: cleanName(name),
-                                            badge: () => `Left ${formatNumber(left.val)}`,
-                                        });
-                                    })
-                                ),
-                            })
-                        )
-                );
-            });
-            for (const shop of shops)
-                for (const { item, stock: left } of shop.items)
-                    getOrCreateState(stock, `${shop.shop}:${item}`).val = left;
-            ids.val = shops.flatMap((shop) => shop.items.map(({ item }) => `${shop.shop}:${item}`));
-        });
+                WORLDS.forEach(({ id: world }, i) => {
+                    const worldShops = shops.filter((shop) => shop.world === world);
+                    reconcilers[i](
+                        worldShops.map((shop) => `${shop.shop}:${shop.items.map(({ item }) => item)}`).join("|"),
+                        () =>
+                            worldShops.map((shop) =>
+                                AccountSection({
+                                    title: cleanName(shop.town).toUpperCase(),
+                                    body: div(
+                                        { class: "account-item-stack" },
+                                        shop.items.map(({ item, name }) => {
+                                            const id = `${shop.shop}:${item}`;
+                                            const left = getOrCreateState(stock, id);
+                                            return PickRow({
+                                                picks,
+                                                id,
+                                                name: cleanName(name),
+                                                badge: () => `Left ${formatNumber(left.val)}`,
+                                            });
+                                        })
+                                    ),
+                                })
+                            )
+                    );
+                });
+                for (const shop of shops)
+                    for (const { item, stock: left } of shop.items)
+                        getOrCreateState(stock, `${shop.shop}:${item}`).val = left;
+                ids.val = shops.flatMap((shop) => shop.items.map(({ item }) => `${shop.shop}:${item}`));
+            })
+        );
 
     // Enable all runs on one click; Disable all asks "Click again" first (#25).
     const setAll = (on) =>

@@ -12,7 +12,7 @@ import { Said, useSaid } from "../../../components/inPlace.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { createStaticRowReconciler, useWriteStatus } from "../../../components/views/account/accountShared.js";
-import { AutomationRow, readAutomations, switchAutomation } from "../../../components/views/account/automation.js";
+import { AutomationRow, inTurn, readAutomations, switchAll } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
@@ -27,40 +27,40 @@ const OverviewPage = () => {
     const rowsNode = div({ class: "account-item-stack" });
     const reconcile = createStaticRowReconciler(rowsNode);
 
-    let reads = 0; // a read that a newer one overtook (a Refresh, then a switch's own read) is dropped
+    // A step: it reads after every switch asked for before it.
     const load = () =>
-        run(async () => {
-            const read = ++reads;
-            const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
-            if (read !== reads) return;
-            for (const automation of automations) {
-                if (!entries.has(automation.cheat)) entries.set(automation.cheat, van.state(automation));
-                else entries.get(automation.cheat).val = automation;
-            }
-            list.val = automations.map((automation) => ({
-                ...automation,
-                atStart: startupCheats.includes(automation.cheat),
-            }));
-            reconcile(automations.map(({ cheat }) => cheat).join("|"), () =>
-                automations.length
-                    ? automations.map(({ cheat }) => AutomationRow({ entry: entries.get(cheat), onSwitched: load }))
-                    : [EmptyState({ title: "No automations yet" })]
-            );
-        });
+        inTurn(() =>
+            run(async () => {
+                const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
+                for (const automation of automations) {
+                    if (!entries.has(automation.cheat)) entries.set(automation.cheat, van.state(automation));
+                    else entries.get(automation.cheat).val = automation;
+                }
+                list.val = automations.map((automation) => ({
+                    ...automation,
+                    atStart: startupCheats.includes(automation.cheat),
+                }));
+                reconcile(automations.map(({ cheat }) => cheat).join("|"), () =>
+                    automations.length
+                        ? automations.map(({ cheat }) => AutomationRow({ entry: entries.get(cheat), onSwitched: load }))
+                        : [EmptyState({ title: "No automations yet" })]
+                );
+            })
+        );
 
-    // Off now or at start (a startup save that failed, say) still needs the switch.
+    // For the buttons: off now or at start (a startup save that failed, say) still needs the switch.
     const behind = (on) => list.val.filter((automation) => automation.on !== on || automation.atStart !== on);
-    // Enable all runs on one click; Disable all asks "Click again" first (#25). One that fails doesn't stop the rest;
-    // the list is read back after, so each row shows what runs, and the first failure is said.
+    // Enable all runs on one click; Disable all asks "Click again" first (#25). Which automations it switches is decided
+    // when its step runs; the list is read back after it, so each row shows what runs, and a failure is said.
     const setAll = (on) =>
         bulk.run(
             async () => {
                 bulkSaid.clear();
-                let failure = null;
-                for (const { cheat } of behind(on))
-                    await switchAutomation(cheat, on).catch((error) => (failure ??= error));
-                await load();
-                if (failure) throw failure;
+                try {
+                    await switchAll(on);
+                } finally {
+                    await load();
+                }
             },
             { onError: (caught) => bulkSaid.say("failed", caught.message) }
         );
