@@ -477,6 +477,7 @@ test("a reload that read the choice before a card save ended doesn't undo the ca
 
     const reloads = holdReloads();
     const releaseUpdate = holdConfigUpdate();
+    // A wait that fails lets both held requests go, so later tests don't wait on them.
     try {
         void card(root, names[0]).listeners.click({});
         await until(() => requests.at(-1) === "POST /api/config/update", "the card save to wait");
@@ -485,13 +486,15 @@ test("a reload that read the choice before a card save ended doesn't undo the ca
         await until(() => reloads.holding() > 0, "the reload to read the choice");
         await new Promise((resolve) => setTimeout(resolve, 30));
         reloads.passNew();
+        releaseUpdate();
+        await until(() => !pressed(root, names[0]), "the card save to end");
+        await reloads.release();
+        assert.equal(pressed(root, names[0]), false, "the older answer is dropped");
+        assert.notEqual(await savedOutfits(), "all");
     } finally {
         releaseUpdate();
+        await reloads.release();
     }
-    await until(() => !pressed(root, names[0]), "the card save to end");
-    await reloads.release();
-    assert.equal(pressed(root, names[0]), false, "the older answer is dropped");
-    assert.notEqual(await savedOutfits(), "all");
 });
 
 // The same with a card save the game refused after the session took it: the read after the failure is the newer one.
@@ -508,6 +511,7 @@ test("a reload that read the choice before a refused card save doesn't put the c
 
     const reloads = holdReloads();
     const releaseUpdate = holdConfigUpdate();
+    // A wait that fails lets both held requests go, so later tests don't wait on them.
     try {
         refuseAttire = 1;
         void card(root, names[0]).listeners.click({});
@@ -517,15 +521,17 @@ test("a reload that read the choice before a refused card save doesn't put the c
         await until(() => reloads.holding() > 0, "the reload to read the choice");
         await new Promise((resolve) => setTimeout(resolve, 30));
         reloads.passNew(); // the read after the failure isn't held
+        releaseUpdate();
+        await until(() => /The game is busy/.test(text(root)), "the failure");
+        await until(() => !pressed(root, names[0]), "the card to show what the session holds");
+        await reloads.release();
+        assert.equal(pressed(root, names[0]), false, "the older answer is dropped");
     } finally {
         releaseUpdate();
+        await reloads.release();
+        refuseAttire = 0;
+        await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: "all" } } } });
     }
-    await until(() => /The game is busy/.test(text(root)), "the failure");
-    await until(() => !pressed(root, names[0]), "the card to show what the session holds");
-    await reloads.release();
-    assert.equal(pressed(root, names[0]), false, "the older answer is dropped");
-    refuseAttire = 0;
-    await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: "all" } } } });
 });
 
 // Attire review F4: the cards' saves show on the cards, not on the header buttons.
