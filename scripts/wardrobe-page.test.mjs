@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
-import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { createFakeApi, saveToSession } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 import { wardrobeComputed, wardrobeDefinitions, wardrobeGga, wardrobeLists } from "./wardrobe-fixture.mjs";
 
@@ -47,13 +47,15 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
         await run?.();
         return res.status(500).json({ error: "The config file is locked" });
     }
-    saves.push(await req.json());
+    const body = await req.json();
+    saves.push(body);
     if (onSave) {
         const run = onSave;
         onSave = null;
         run();
     }
-    res.json({ ok: true });
+    // As the server's save does once the file is written: the session takes it.
+    res.json(await saveToSession(router, body));
 });
 // What the page asks the game, in order: its Wardrobe reads ("wardrobe.preview"), the cheats it runs, and its writes.
 // `holdPreview`: a promise the next preview read waits on. `failPreviews`: how many of the next preview reads fail.
@@ -260,6 +262,10 @@ test("Save keeps what the character wears as a loadout, in the config file, and 
     assert.equal(loadout.equipment[1], "EquipmentSword5");
     assert.ok(saves.length > count);
     assert.deepEqual(saves.at(-1).cheatConfig.wide.wardrobe.loadouts, [loadout], "the whole list goes to the file");
+    // Only the wardrobe settings: a whole config read before another page's change would put that change back.
+    assert.deepEqual(Object.keys(saves.at(-1)), ["cheatConfig"]);
+    assert.deepEqual(Object.keys(saves.at(-1).cheatConfig), ["wide"]);
+    assert.deepEqual(Object.keys(saves.at(-1).cheatConfig.wide), ["wardrobe"]);
     // It is picked, previewed, and shows up again on a page opened later.
     await until(() => button(page, "Delete"), "the Delete button of a saved loadout");
     const again = await open();
@@ -317,7 +323,7 @@ test("a player who switches characters while Apply runs gets no food stacks set 
     const apply = button(page, "Apply");
     await click(apply);
     await click(apply);
-    await until(() => /food stacks weren't set: Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the stop");
+    await until(() => /food stacks weren't set: Character changed\. Refresh\./.test(text(page)), "the stop");
     assert.deepEqual(after(since, "write"), ["POST /api/game/gga/write-many"], "the gear, and no food");
     assert.equal((await wardrobeConfig()).goldenfood.Lumi_Main, remembered, "nothing recorded for Lumi_Main");
     gga.UserInfo[0] = "Lumi_Main";
@@ -334,7 +340,7 @@ test("Perfect Equipped refuses before writing when another character is in play 
         await click(perfect);
         assert.match(perfect.attributes["aria-label"], /rebuild Lumi_Main's gear/);
         await click(perfect);
-        await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+        await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
         assert.deepEqual(after(since, "write"), []);
     } finally {
         gga.UserInfo[0] = "Lumi_Main";
@@ -389,7 +395,7 @@ test("a player who switches characters as Apply writes gets no gear put on the n
     const apply = button(page, "Apply");
     await click(apply);
     await click(apply);
-    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
     assert.ok(byClass(page, "said--failed").length, "said in place");
     assert.equal(gga.EquipmentOrder[0][1], "EquipmentSword5");
     assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
@@ -405,7 +411,7 @@ test("a player who switches characters as Apply writes the food stacks is told t
     await click(apply);
     const said =
         "Rare Drops (DK / RG Primarily) landed on Lumi_Main, but its food stacks weren't set: " +
-        "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt.";
+        "Character changed. Refresh.";
     await until(() => text(page).includes(said), "the refusal");
     assert.equal(gga.EquipmentOrder[0][1], "EquipmentWands9", "the gear landed on Lumi_Main");
     assert.equal(gga.EquipmentQuantity[2][0], 30000, "no food stack set");
@@ -423,7 +429,7 @@ test("a player who switches characters as Perfect Equipped writes gets no gear r
     const perfect = button(page, "Perfect Equipped");
     await click(perfect);
     await click(perfect);
-    await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+    await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
     assert.equal(JSON.stringify(gga.EquipmentMap[0][0].h), JSON.stringify({ STR: 3 }));
     await previewReadSince(await switched, "the page to read the game again");
 });
@@ -647,29 +653,35 @@ test("a loadout whose file save failed is saved once when Save is pressed again"
     }
 });
 
-// CodeRabbit on #110: a failed save puts the list back only while it is the list it submitted; one another tab saved
-// since then (the session replaces the whole list) stays. Save pressed again then saves that loadout once, not twice.
-test("a loadout another tab saved while this tab's file save failed stays in the session", async () => {
+// CodeRabbit on #110: a failed save sends nothing more (the file goes first, so there is nothing to put back), and a
+// list another tab saved meanwhile stays as it is. Save pressed again then saves that loadout once.
+test("a loadout another tab saved while this tab's file save failed stays in the session, alone", async () => {
     await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
     name.listeners.input({ target: { value: "Mine" } });
     failSaves = 1;
     onFail = async () => {
         const { loadouts } = await wardrobeConfig();
-        const theirs = { id: "other-tab", name: "Theirs", classes: [] };
+        const theirs = { id: "other-tab", name: "Theirs", classes: ["Mage"] };
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [...loadouts, theirs] } } } });
     };
     try {
         await click(button(page, "Save"));
         await until(() => /The config file is locked/.test(text(page)), "the failure");
         const names = (await wardrobeConfig()).loadouts.map((loadout) => loadout.name);
-        assert.deepEqual(names, ["Mine", "Theirs"]);
+        assert.deepEqual(names, ["Theirs"]);
+        const options = () =>
+            elements(picker(page))
+                .filter((node) => node.nodeName === "option")
+                .map(text);
+        await until(() => options().includes("Theirs"), "the page to read the list again");
+        assert.ok(!options().includes("Mine"), "the page shows the list the file holds");
         onFail = null;
         await settle();
         await click(button(page, "Save"));
         await until(() => /Saved Mine from Lumi_Main/.test(text(page)), "the retry");
         const written = saves.at(-1).cheatConfig.wide.wardrobe.loadouts.map((loadout) => loadout.name);
-        assert.deepEqual(written, ["Mine", "Theirs"], "the file gets one Mine");
+        assert.deepEqual(written.sort(), ["Mine", "Theirs"], "the file gets one Mine");
     } finally {
         failSaves = 0;
         onFail = null;
@@ -679,8 +691,8 @@ test("a loadout another tab saved while this tab's file save failed stays in the
     }
 });
 
-// A failed save whose check of the session can't read it puts the list back anyway, so trying again saves it once.
-test("a loadout whose file save failed is taken back when the session can't be read to check it", async () => {
+// A failed save leaves the session as it was, even when the read after it fails.
+test("a loadout whose file save failed isn't in the session, though the read after the failure failed", async () => {
     await settle();
     const before = (await wardrobeConfig()).loadouts;
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
@@ -741,5 +753,31 @@ test("after an undo each page reads its status once, after its own stat update",
     } finally {
         holdStats = null;
         for (const release of held) release();
+    }
+});
+
+// CodeRabbit on #147: the running game holds the whole config, so a save it kept its old settings for would be undone
+// by the next read and the save after it; the page says so where Save was pressed, as Pets and Attire Rack do.
+test("a loadout save the running game kept its old settings for is said as a failure", async () => {
+    await settle();
+    const save = router.routes.POST.get("/api/config/save");
+    router.routes.POST.set("/api/config/save", async (req, res) => {
+        await save(req, { status: () => ({ json() {} }), json() {} });
+        res.json({
+            message:
+                "Configuration saved to config.custom.js. The running game kept its old settings (The game is busy)",
+        });
+    });
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Kept old" } });
+    try {
+        await click(button(page, "Save"));
+        await until(() => /The game is busy/.test(text(page)), "the reason where Save was pressed");
+        assert.doesNotMatch(text(page), /Saved Kept old/);
+    } finally {
+        router.routes.POST.set("/api/config/save", save);
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        await click(button(page, "Refresh"));
+        await settle();
     }
 });

@@ -12,7 +12,7 @@ import {
     largeFormatter,
     resolveNumberInput,
     toInt,
-    writeManyVerified,
+    writeChangedFields,
 } from "../../../components/views/account/accountShared.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
@@ -94,8 +94,10 @@ const BoatRow = ({ entry, valueStates }) =>
 const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
     const fields = Object.values(entry.fields).map((field) => ({
         key: field.key,
+        path: field.path,
         valueState: getOrCreateState(valueStates, field.key),
         toDraft: (value) => (field.formatted ? largeFormatter(value ?? 0) : String(value ?? 0)),
+        fromGame: (raw) => fieldValue([raw], 0, field),
     }));
     const fieldByKey = entry.fields;
 
@@ -123,15 +125,6 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
         return next;
     };
 
-    // Only the fields the save changes are written, so XP a voyage gave since the page read it isn't rolled back.
-    const writeCaptain = async (nextValues) => {
-        const changed = Object.values(fieldByKey).filter(
-            (field) => nextValues[field.key] !== getOrCreateState(valueStates, field.key).val
-        );
-        await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
-        return nextValues;
-    };
-
     const getDraftBonusRange = (getDraftValue, bonusTypeKey) =>
         getCaptainBonusRange(
             toInt(getDraftValue(fieldByKey.rarity.key), { min: fieldByKey.rarity.min }),
@@ -149,7 +142,9 @@ const CaptainRow = ({ entry, valueStates, bonusTypes }) => {
     return EditableFieldsRow({
         fields,
         normalize: normalizeCaptain,
-        write: writeCaptain,
+        // Only the fields the save changes are written, so XP a voyage gave since the page read it isn't rolled
+        // back; the rest are read back, so the row shows that XP too.
+        write: (nextValues) => writeChangedFields(fields, nextValues),
         info: [
             span({ class: "account-row__index" }, `#${entry.index + 1}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),

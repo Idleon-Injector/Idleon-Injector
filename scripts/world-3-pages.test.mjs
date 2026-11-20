@@ -1,7 +1,7 @@
 // World 3 pages on the fake game (review sweep, world-3a): a change starts from what the game holds now, goes to the
 // character or slot it was asked for, and its result shows where the player acted.
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { afterEach, test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
@@ -352,7 +352,7 @@ test("Library: after a character switch, saves and Max books refuse instead of c
 
     await typeAndEnter(row, 5);
     assert.match(classes(byClass(row, "save-state")[0]), /save-state--error/);
-    assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+    assert.match(text(byClass(row, "save-state__label")[0]), /^Character changed\. Refresh\.$/);
     assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
 
     const maxBooks = buttonIn(root, "Max books");
@@ -421,7 +421,7 @@ test("Library: after a Refresh that fails on the new character, the old rows sti
             await until(() => /No active character/.test(text(root)), "the Refresh to fail");
         });
         await typeAndEnter(row, 5);
-        assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+        assert.match(text(byClass(row, "save-state__label")[0]), /^Character changed\. Refresh\.$/);
         assert.deepEqual(gga.SkillLevelsMAX, mainBooks, "the character in play keeps its books");
     } finally {
         [gga.UserInfo[0], gga.CharacterClass, gga.SkillLevelsMAX] = ["Lumi_Main", mainClass, mainBooks];
@@ -453,7 +453,7 @@ test("Library: a save whose check waits through a Refresh to another character r
         await until(() => held > 1 && !isDisabled(refresh), "the Refresh to finish");
         release();
         await save;
-        assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+        assert.match(text(byClass(row, "save-state__label")[0]), /^Character changed\. Refresh\.$/);
         assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
     } finally {
         globalThis.fetch = realFetch;
@@ -529,7 +529,7 @@ test("Library: a switch while Max books writes leaves the new character's books 
 test("Buildings: a level save the game doesn't take leaves the level and its pending copy as they were", async () => {
     gga.TowerInfo[0] = 3;
     gga.TowerInfo[27] = 3;
-    const root = await openPage("src/ui/pages/world-3/construction/buildings.js", (r) =>
+    const root = await openPage("src/ui/pages/world-3/construction/1-buildings.js", (r) =>
         byClass(r, "account-row").some((row) => text(row).includes("#1"))
     );
     const row = byClass(root, "account-row").find((r) => text(byClass(r, "account-row__index")[0]) === "#1");
@@ -548,7 +548,7 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
 
-const COGS = "src/ui/pages/world-3/construction/cogs.js";
+const COGS = "src/ui/pages/world-3/construction/2-cogs.js";
 globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
 const openCogs = async () => {
     const root = await openPage(COGS, (r) => byClass(r, "cogs-slot").length > 0);
@@ -609,14 +609,22 @@ const holdWrites = ({ fail = false } = {}) => {
             headers: { "content-type": "application/json" },
         });
     };
-    return {
+    const hold = {
         held: () => held,
         release: () => {
             globalThis.fetch = realFetch;
             open();
         },
     };
+    holding = hold;
+    return hold;
 };
+// A test that fails while it holds writes still lets them go, so the next test doesn't hang on them.
+let holding = null;
+afterEach(() => {
+    holding?.release();
+    holding = null;
+});
 const isDisabled = (node) =>
     Boolean(typeof node.attributes.disabled === "function" ? node.attributes.disabled() : node.attributes.disabled);
 
@@ -676,6 +684,41 @@ test("Cogs: a Lock that fails while another slot is open shows when its slot is 
     await until(() => /account-btn--error/.test(classes(lock)), "slot 4 to show its failed Lock");
     assert.equal(gga.FlagUnlock[4], -11);
     await until(() => !/account-btn--error/.test(classes(lock)), "the red to clear once seen");
+});
+
+// Review of #116: the first failure's timer cleared the second one before its slot was opened.
+test("Cogs: a shown Lock failure's timer doesn't clear another slot's later failure", async () => {
+    for (const index of [5, 10, 11]) {
+        gga.FlagUnlock[index] = -11;
+        gga.CogOrder[index] = "Blank";
+    }
+    const { popup, open } = await openCogs();
+    const lock = buttonIn(popup, "Lock");
+    open(5);
+    await until(() => !isDisabled(lock), "slot 5's Lock");
+    await quietly(async () => {
+        const first = holdWrites({ fail: true });
+        click(lock);
+        await until(() => first.held() === 1, "slot 5's Lock to reach the game");
+        first.release();
+        await until(() => /account-btn--error/.test(classes(lock)), "slot 5 to show its failed Lock");
+    });
+
+    open(10);
+    await until(() => !isDisabled(lock), "slot 10's Lock");
+    const second = holdWrites({ fail: true });
+    click(lock);
+    await until(() => second.held() === 1, "slot 10's Lock to reach the game");
+    open(11);
+    await quietly(async () => {
+        second.release();
+        await until(() => !isDisabled(lock), "slot 10's Lock to finish");
+    });
+    // Past the moment slot 5's failure clears.
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    open(10);
+    await until(() => /account-btn--error/.test(classes(lock)), "slot 10 to show its failed Lock");
+    assert.equal(gga.FlagUnlock[10], -11);
 });
 
 test("Cogs: a tiny cog save's saving and failure stay with the slot it was for", async () => {

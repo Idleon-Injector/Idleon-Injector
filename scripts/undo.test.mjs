@@ -79,7 +79,7 @@ const switchCharacter = (name) => {
     gga.UserInfo[0] = name;
 };
 
-const OWL = "src/ui/pages/world-1/owl/owl.js";
+const OWL = "src/ui/pages/world-1/owl/1-orion.js";
 const FEATHERS = "Feather Generation";
 
 test("a saved value offers Undo beside its ✓, and Undo puts the old value back", async () => {
@@ -242,6 +242,23 @@ test("an undo the game doesn't keep says so and stays in the log", async () => {
     } finally {
         Object.defineProperty(ola, 254, { value: kept, writable: true, configurable: true });
     }
+});
+
+// CodeRabbit on #149: an undo whose value the game kept differently left the page showing what it had before.
+test("an undo the game doesn't keep has the page read the game again", async () => {
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const old = ola[254];
+    await withAction({ label: "test" }, () => writeVerified("OptionsListAccount[254]", old + 1));
+    const action = await newest();
+    const asked = reloadPlace.val;
+    const kept = ola[254];
+    Object.defineProperty(ola, 254, { get: () => kept, set() {}, configurable: true });
+    try {
+        await assert.rejects(undoAction(action.id));
+    } finally {
+        Object.defineProperty(ola, 254, { value: old, writable: true, configurable: true });
+    }
+    assert.notEqual(reloadPlace.val, asked, "so the page reads the game again");
 });
 
 test("an undo for a character whose saved entry is now in play goes to its live copy", async () => {

@@ -13,6 +13,7 @@ import { WarningBanner } from "../../../components/views/account/components/Acco
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
+    CHARACTER_CHANGED,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
@@ -136,7 +137,7 @@ const PrayersTab = () => {
         const trialMonsters =
             trialKeys.length > 0 ? await readGgaEntries("MonsterDefinitionsGET.h", trialKeys, ["Name"]) : {};
         if (!names.includes(current) || (await gga("UserInfo[0]")) !== current) {
-            throw new Error("The active character changed while reading. Refresh and try again.");
+            throw new Error(CHARACTER_CHANGED);
         }
         const levels = toIndexedArray(rawLevels).map(Number);
         const definitions = toIndexedArray(rawDefinitions)
@@ -207,7 +208,7 @@ const PrayersTab = () => {
 
     const checkContext = async (current, target) => {
         if (selected.val !== target || (await gga("UserInfo[0]")) !== current) {
-            throw new Error("The character changed during the operation. Refresh and try again.");
+            throw new Error(CHARACTER_CHANGED);
         }
     };
 
@@ -238,7 +239,7 @@ const PrayersTab = () => {
         try {
             initial = await readSnapshot();
             if (initial.current !== snapshot.val.current) {
-                throw new Error("The active character changed. Refresh and try again.");
+                throw new Error(CHARACTER_CHANGED);
             }
             let plan = buildPlan(initial);
             if (plan.cancelled) {

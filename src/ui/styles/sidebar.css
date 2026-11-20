@@ -236,16 +236,15 @@
     opacity: 1;
 }
 
+/* Where you are: the row fill and main text, no side bar. A world's code keeps its own colour, so on a W4 page the
+   orchid code never sits beside the lavender accent. */
 .tab-button.active {
-    background: var(--c-accent-dim);
-    border-color: var(--c-accent-20);
-    color: var(--c-accent);
-    box-shadow: inset 2px 0 0 var(--c-accent);
+    background: var(--c-panel);
+    color: var(--c-text-main);
 }
 
 .tab-button.active svg {
     opacity: 1;
-    filter: drop-shadow(0 0 4px var(--c-accent));
 }
 
 /* --- ACTIVE CHEATS --- */

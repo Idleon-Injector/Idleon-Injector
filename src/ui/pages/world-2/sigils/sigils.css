@@ -29,36 +29,9 @@
     }
 }
 
-/* Tier-based border + background tint */
-.sigil-card--unlocked {
-    border-color: var(--c-ui-blue);
-    background: color-mix(in srgb, var(--c-ui-blue) 8%, var(--c-panel));
-}
-
-.sigil-card--boosted {
-    border-color: var(--c-ui-yellow);
-    background: color-mix(in srgb, var(--c-ui-yellow) 8%, var(--c-panel));
-}
-
-.sigil-card--ionized {
-    border-color: var(--c-ui-red);
-    background: color-mix(in srgb, var(--c-ui-red) 8%, var(--c-panel));
-}
-
-.sigil-card--ethereal {
-    border-color: var(--c-ui-purple);
-    background: color-mix(in srgb, var(--c-ui-purple) 8%, var(--c-panel));
-}
-
-.sigil-card--eclectic {
-    border-color: var(--c-ui-green);
-    background: color-mix(in srgb, var(--c-ui-green) 8%, var(--c-panel));
-}
-
-/* Tier badge colors */
+/* The tier's word keeps its colour; the card doesn't. */
 .sigil-tier-badge--locked {
     color: var(--c-text-dim);
-    border-color: var(--c-border);
 }
 
 .sigil-tier-badge--unlocked {

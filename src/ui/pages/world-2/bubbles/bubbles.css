@@ -52,9 +52,9 @@
     text-overflow: clip;
 }
 
+/* Prisma on: the accent, like every on-state; the cauldron's colour stays on its name. */
 .brewing-row--prisma {
-    border-color: var(--col-color, var(--c-accent));
-    background: color-mix(in srgb, var(--col-color, var(--c-accent)) 10%, var(--c-panel));
+    border-color: var(--c-accent);
 }
 
 .brewing-row > .brewing-row__badge {
@@ -79,4 +79,10 @@
 
 .brewing-section .account-section__title {
     color: var(--col-color, var(--c-accent));
+}
+
+/* Automation tab: a bubble's bonus and next cost wrap instead of being cut off. */
+.bubbles-automation .automation-pick__detail {
+    white-space: normal;
+    overflow-wrap: anywhere;
 }

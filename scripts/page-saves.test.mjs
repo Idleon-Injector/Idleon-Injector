@@ -65,8 +65,8 @@ async function setRow(root, label, value) {
 }
 
 const ROW_PAGES = [
-    { file: "src/ui/pages/world-1/owl/owl.js", label: "Feather Generation", index: 254 },
-    { file: "src/ui/pages/world-2/kangaroo/kangaroo.js", label: "Fisheroo Reset Level", index: 274 },
+    { file: "src/ui/pages/world-1/owl/1-orion.js", label: "Feather Generation", index: 254 },
+    { file: "src/ui/pages/world-2/kangaroo/1-poppy.js", label: "Fisheroo Reset Level", index: 274 },
     { file: "src/ui/pages/world-7/clam-work/clam-work.js", label: "Clam Comrades", index: 456 },
 ];
 
@@ -109,8 +109,8 @@ const tickBetweenCalls = (list, index, step) => {
     return () => (game.runtime.evaluate = evaluate);
 };
 
-test("owl.js: a save of a value the game keeps raising shows success", async () => {
-    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Filler Bar"));
+test("1-orion.js: a save of a value the game keeps raising shows success", async () => {
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Filler Bar"));
     const stop = tickBetweenCalls(ola, 263, 1e7);
     try {
         assert.equal(await setRow(root, "Filler Bar", 1.69e12), "success");
@@ -120,8 +120,8 @@ test("owl.js: a save of a value the game keeps raising shows success", async () 
     }
 });
 
-test("owl.js: a value the game keeps raising still shows failed when the game refuses the write", async () => {
-    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Filler Bar"));
+test("1-orion.js: a value the game keeps raising still shows failed when the game refuses the write", async () => {
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Filler Bar"));
     ola[263] = 5;
     const restore = refuseWrites(ola, 263);
     try {
@@ -141,8 +141,9 @@ const clickToken = (root, id) => byClass(petCard(root, id), "companion-token")[0
 test("pets.js: removing a pet token saves the list without it", async () => {
     ola[606] = "2,5";
     const root = await openPage("src/ui/pages/world-1/pets/pets.js", petsLoaded);
+    const since = requests.length;
     await clickToken(root, 2);
-    await until(() => ola[606] === "5" && requests.at(-1) === "POST /api/config/save", "the token save");
+    await until(() => ola[606] === "5" && requests.slice(since).includes("POST /api/config/save"), "the token save");
     assert.equal(alertText(root), "");
 });
 
@@ -151,13 +152,13 @@ test("pets.js: a token list the game doesn't keep shows the save failed", async 
     const root = await openPage("src/ui/pages/world-1/pets/pets.js", petsLoaded);
     const restore = refuseWrites(ola, 606);
     try {
-        const saves = requests.filter((entry) => entry === "POST /api/config/update").length;
+        const saves = requests.filter((entry) => entry === "POST /api/config/save").length;
         await clickToken(root, 2);
         await until(() => alertText(root), "the failure banner");
         assert.equal(alertText(root), "Could not save pet token picks");
         assert.equal(ola[606], "2,5");
         // The pet tiers aren't applied after a failed token save.
-        assert.equal(requests.filter((entry) => entry === "POST /api/config/update").length, saves);
+        assert.equal(requests.filter((entry) => entry === "POST /api/config/save").length, saves);
     } finally {
         restore();
     }
@@ -269,13 +270,13 @@ test("a save for the character in play lands and goes in the change log", () =>
         assert.equal(await logged(), actions + 1);
     }));
 
-test("a save for another character than the one in play writes nothing and says who is in play", () =>
+test("a save for another character than the one in play writes nothing and says the character changed", () =>
     playing("Lumi_Alt", async () => {
         const before = ola[OLA];
         const actions = await logged();
         await assert.rejects(
             writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 62 }], { character: "Lumi_Main" }),
-            { message: "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt." }
+            { message: "Character changed. Refresh." }
         );
         assert.equal(ola[OLA], before);
         assert.equal(await logged(), actions, "nothing logged");
@@ -293,7 +294,7 @@ test("a switch after the change log read the old values, before the game writes,
         try {
             await assert.rejects(
                 writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 63 }], { character: "Lumi_Main" }),
-                /Lumi_Alt is in play now, not Lumi_Main/
+                /Character changed\. Refresh\./
             );
         } finally {
             game.runtime.evaluate = evaluate;
@@ -318,7 +319,7 @@ test("a save that names no character lands whoever is in play, with the request 
 const rowReason = (root, label) => text(byClass(findRow(root, label), "save-state")[0]);
 
 test("owl.js: a save the game can't be reached for says why", async () => {
-    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Feather Generation"));
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Feather Generation"));
     const evaluate = game.runtime.evaluate;
     // What chrome-remote-interface answers while the game page reloads.
     game.runtime.evaluate = async () => {

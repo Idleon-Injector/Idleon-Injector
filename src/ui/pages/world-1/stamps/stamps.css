@@ -2,5 +2,4 @@
 
 .stamp-row--exalted {
     border-color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
 }

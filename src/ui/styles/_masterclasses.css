@@ -105,23 +105,15 @@
     justify-content: center;
     min-width: 28px;
     min-height: 18px;
-    padding: 2px 6px;
-    border: 1px solid var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 14%, transparent);
-    color: var(--c-accent);
+    padding: 2px 0;
+    color: var(--c-text-main);
     font-size: 0.7rem;
     font-weight: 850;
     line-height: 1;
     white-space: nowrap;
 }
 
-.outpost-field__rank {
-    border-color: var(--c-border);
-}
-
 .outpost-field__next {
-    border-color: var(--c-border);
-    background: transparent;
     color: var(--c-text-muted);
 }
 
@@ -226,9 +218,8 @@
 .outpost-row__badge {
     min-width: 120px;
     display: inline-block;
-    padding: 6px 10px;
-    border: 1px solid var(--c-accent);
-    color: var(--c-accent);
+    padding: 6px 0;
+    color: var(--c-text-main);
     font-weight: 850;
     text-align: center;
 }
@@ -253,7 +244,7 @@
     gap: 12px;
     padding: 12px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel) 86%, transparent);
+    background: var(--c-panel-95);
 }
 
 .outpost-card__header {
@@ -289,7 +280,7 @@
 }
 
 .outpost-card__group-title {
-    color: var(--c-accent);
+    color: var(--c-text-main);
     font-size: 0.75rem;
     font-weight: 900;
     letter-spacing: 0.05em;
@@ -373,7 +364,7 @@
     gap: 6px;
     padding: 6px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel-dim) 80%, transparent);
+    background: var(--c-panel-80);
 }
 
 .outpost-map-unit__index {
@@ -397,7 +388,7 @@
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel-dim) 80%, transparent);
+    background: var(--c-panel-80);
 }
 
 .outpost-unit-config__field {
@@ -425,7 +416,7 @@
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--c-border);
-    background: color-mix(in srgb, var(--c-panel-dim) 80%, transparent);
+    background: var(--c-panel-80);
 }
 
 .outpost-vanilla-units__count,

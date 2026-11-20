@@ -63,7 +63,7 @@
     height: var(--research-fill);
     position: absolute;
     inset: auto 0 0;
-    background: color-mix(in srgb, var(--c-accent) 45%, transparent);
+    background: var(--c-accent-40);
 }
 
 .research-grid-tile__content {
@@ -122,7 +122,7 @@
     height: var(--research-fill);
     position: absolute;
     inset: auto 0 0;
-    background: color-mix(in srgb, var(--c-accent) 35%, transparent);
+    background: var(--c-accent-25);
 }
 
 .research-grid-detail__preview-content {
@@ -200,7 +200,7 @@
 }
 
 .observation-tile--unlocked {
-    border-color: color-mix(in srgb, var(--c-success) 55%, var(--c-border));
+    border-color: var(--c-success-40);
 }
 
 .observation-tile__header,

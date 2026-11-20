@@ -91,7 +91,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
     const settle = (next, why = "", by = "save", kind = null) => {
         if (by === "switch") return;
         const fieldWrite = by === "save" || by === "button";
-        if (next === "error" && fieldWrite) held = { why, kind };
+        if (next === "error" && fieldWrite) held = { why, kind, by };
         else if ((next === "success" && fieldWrite) || (next === null && by === "save")) held = null;
         let shown = { next, why, kind };
         if (next !== "loading" && held) shown = { ...held, next: "error" };
@@ -101,7 +101,8 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         refused.val = shown.kind === "undo";
         draftRefused = shown.kind === "draft";
         if (shown.next !== "success") endOffer();
-        if (shown.next === "success" && successMs > 0)
+        // A ✓ with words (an undo's warning) stays until the next save says something else.
+        if (shown.next === "success" && successMs > 0 && !shown.why)
             clearTimer = setTimeout(() => {
                 if (status.val === "success" && !offer.val) status.val = null;
             }, successMs);
@@ -116,7 +117,8 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             return { ok: false, error };
         }
         if (!plan || plan.unchanged) {
-            if (status.val === "error") settle(null);
+            // Nothing to save takes back only the field's own failure: a button's (Clear) or a switch's still stands.
+            if (status.val === "error" && held?.by === "save") settle(null);
             return { ok: false, cancelled: true };
         }
         return runNow(plan.write, "save");
@@ -175,7 +177,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
                 settle(null, "", by);
                 return { ok: false, cancelled: true, result };
             }
-            settle("success", "", by);
+            settle("success", result?.warning ?? "", by);
             return { ok: true, result };
         } catch (error) {
             settle("error", saveFailureReason(error), by, failKind);
@@ -294,7 +296,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         cancel,
         handlers,
         isBusy: () => saveLoops > 0,
-        undo: { offer, washed, refused, run: undo, hold },
+        undo: { offer, washed, refused, reason, run: undo, hold },
     };
 };
 
@@ -310,6 +312,8 @@ export const saveStateClass = (status, undo = null) =>
         status === "error" ? (undo?.refused.val ? "is-undo-refused" : "is-save-failed") : "",
         undo?.offer.val && status !== "loading" && status !== "error" ? "is-undo-offered" : "",
         undo?.washed.val ? "is-undone" : "",
+        // A ✓ with words (an undo that landed but left the game's totals): the badge steps aside for them.
+        status === "success" && undo?.reason.val ? "is-undo-warned" : "",
     ]
         .filter(Boolean)
         .join(" ");
@@ -320,8 +324,9 @@ export const saveStateClass = (status, undo = null) =>
  * Its mark keeps a fixed slot; the words lie over the space to its left, so nothing around it moves.
  */
 export const SaveState = ({ status, reason, undo = null, className = "" }) => {
-    // Words that say why (a failure's reason, or a slow save's notice) are clamped beside the field; the title has all.
-    const said = () => status.val === "error" || (status.val === "loading" && Boolean(reason.val));
+    // Words that say why (a failure's reason, a slow save's notice, or a ✓'s warning) are clamped beside the field;
+    // the title has all.
+    const said = () => status.val === "error" || (status.val !== null && Boolean(reason.val));
     return span(
         {
             class: () =>

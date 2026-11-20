@@ -337,6 +337,68 @@ test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why
     }
 });
 
+// #28: the count and Buy all covered every bundle, whatever the search showed.
+test("bundles: the count and Buy all follow the search, and a search changed before the second press asks again", async () => {
+    const root = await openPage(BUNDLES);
+    const received = gga.BundlesReceived.h;
+    const search = elements(root).find((node) => node.attributes.placeholder === "SEARCH BUNDLES OR CODES");
+    const typeSearch = (value) => search.listeners.input({ target: { value } });
+    const buyAll = () =>
+        elements(root).find((node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim()));
+    const shownCount = () => Number(/\((\d+)\)/.exec(text(buyAll()))[1]);
+    const note = () => text(elements(root).find((node) => /^\d+ BUNDLES, /.test(text(node))));
+    const press = () => buyAll().listeners.click({ currentTarget: buyAll() });
+    const codes = byClass(root, "bundle-row__code").map(text);
+    const notOwned = codes.filter((code) => !received[code]);
+    assert.ok(notOwned.length >= 2, "the fixture has two bundles to buy");
+    const [first, second] = notOwned;
+    const allBuyable = shownCount();
+
+    // The game takes a buy as its cheat would: the bundle is received.
+    const bought = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/toggle")) return realFetch(url, options);
+        const code = JSON.parse(options.body).action.replace(/^buy /, "");
+        bought.push(code);
+        received[code] = 1;
+        return new Response(JSON.stringify({ ok: true, message: "bought" }), {
+            headers: { "content-type": "application/json" },
+        });
+    };
+    try {
+        typeSearch(first);
+        await until(() => shownCount() === 1, "Buy all to count the one bundle shown");
+        assert.match(note(), /^1 BUNDLES, 0 OWNED, 1 NOT OWNED/);
+
+        typeSearch("no bundle is called this");
+        await until(() => shownCount() === 0, "Buy all to count nothing");
+        assert.equal(buyAll().attributes.disabled, true, "nothing shown, nothing to buy");
+        assert.match(note(), /^0 BUNDLES/);
+
+        typeSearch("");
+        await until(() => shownCount() === allBuyable, "a cleared search to count every bundle again");
+
+        // Asked about the first, then the search moved on: the second press asks about the second.
+        typeSearch(first);
+        await until(() => shownCount() === 1, "the first bundle alone");
+        await press();
+        assert.equal(buyAll().attributes["data-again"], "Click again");
+        typeSearch(second);
+        await until(() => shownCount() === 1 && note().startsWith("1 BUNDLES"), "the second bundle alone");
+        await press();
+        assert.deepEqual(bought, [], "a changed search asks again instead of buying");
+        await press();
+        await until(() => bought.length === 1 && shownCount() === 0, "the second bundle bought");
+        assert.deepEqual(bought, [second], "only the bundle shown at the second press");
+        assert.equal(received[first] ?? 0, 0, "the first one stays not owned");
+    } finally {
+        globalThis.fetch = realFetch;
+        for (const code of bought) received[code] = 0;
+        typeSearch("");
+    }
+});
+
 test("levels: fields stay enabled while a save runs, and a second field's save waits its turn", async () => {
     const root = await openPage("src/ui/pages/account/player/1-levels.js");
     const row = (label) =>

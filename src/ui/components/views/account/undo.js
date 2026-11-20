@@ -65,13 +65,24 @@ const CACHES = [
     [/^Research\[16\](\[|$)/, "DNSM.h.CellLV_tot"],
     [/^Research\[17\](\[[89]\])?$/, "DNSM.h.JellySlotz"],
 ];
-const clearCaches = (paths) =>
-    Promise.all(
-        CACHES.filter(([pattern]) => paths.some((path) => pattern.test(path))).map(([, cache]) => deleteGga(cache))
-    );
+// A clean-up that fails is tried once more by itself (clearing a cache already gone is fine). Resolves to false when
+// the game didn't clear one either time: the values are back by then, so that is a warning, not a failure.
+const clearCaches = async (paths) => {
+    const caches = CACHES.filter(([pattern]) => paths.some((path) => pattern.test(path))).map(([, cache]) => cache);
+    const clear = () =>
+        Promise.all(caches.map((cache) => deleteGga(cache))).then(
+            () => true,
+            () => false
+        );
+    return (await clear()) || clear();
+};
+
+/** What an undo says when it landed but the game's cached totals weren't cleared, even on the second try. */
+export const TOTALS_NOT_CLEARED = "Undone. Totals may be off.";
 
 /**
- * Undo every entry of the action not undone yet. Resolves to the action; rejects with an Error whose message
+ * Undo every entry of the action not undone yet. Resolves to the action (with `warning` when the cached totals
+ * weren't cleared: its entries are undone, so there is nothing to try again); rejects with an Error whose message
  * is the reason, short enough to show beside a field. Nothing is written when a value changed since, so a
  * refused undo leaves the game as it was (and the entry in the log). Once any old value is back, the page it
  * was made on reads the game again, even when the rest is refused.
@@ -127,10 +138,17 @@ export const undoAction = async (id) => {
         );
         const landed = todo.filter((_entry, i) => kept.has(targets[i])).map((entry) => entry.index);
         const moved = (error.results ?? []).some((result) => result.error === "changed since");
-        if (kept.size || moved) reloadPlaceOf(action);
+        // A value the game kept differently changed it too: the page reads it again.
+        const mismatched = (error.results ?? []).some((result) => result.error === "Write mismatch");
+        if (kept.size || moved || mismatched) reloadPlaceOf(action);
         if (landed.length) await markChangesUndone(id, landed);
         changesVersion.val++;
-        await clearCaches([...kept]);
+        // A value the game kept differently was still written, so the totals built from it are cleared too.
+        await clearCaches(
+            (error.results ?? [])
+                .filter((result) => result.ok || result.error === "Write mismatch")
+                .map((result) => result.path.replace(/^gga\./, ""))
+        );
         const missed = writes.length - kept.size;
         throw new Error(
             !error.results
@@ -148,6 +166,6 @@ export const undoAction = async (id) => {
         todo.map((entry) => entry.index)
     );
     changesVersion.val++;
-    await clearCaches(writes.map((write) => write.path));
+    if (!(await clearCaches(writes.map((write) => write.path)))) return { ...action, warning: TOTALS_NOT_CLEARED };
     return action;
 };

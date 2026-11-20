@@ -147,7 +147,7 @@ test("game routes preserve Haxe array normalization, batch failures, and write v
 test("write-many hands the game the character a write is for, and answers its refusal with 409", async () => {
     const router = new TinyRouter();
     const calls = [];
-    const refusal = "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt.";
+    const refusal = "Character changed. Refresh.";
     let answer = { value: { error: refusal, refused: true } };
     setupGameRoutes(router, {
         callHelper: async (...args) => {

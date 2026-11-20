@@ -1,8 +1,0 @@
-/* Poppy tab */
-.poppy-section--spiral .account-section__title {
-    color: var(--c-accent);
-}
-
-.poppy-section--tar .account-section__title {
-    color: var(--c-warning);
-}

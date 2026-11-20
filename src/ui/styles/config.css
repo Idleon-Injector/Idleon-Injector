@@ -207,7 +207,7 @@
 
 .default-value-hint {
     font-size: 0.875rem;
-    color: var(--c-accent);
+    color: var(--c-text-muted);
     font-family: var(--font-mono);
 }
 
@@ -246,7 +246,7 @@
     flex: 1;
     font-size: 0.875rem;
     letter-spacing: 0.08em;
-    color: var(--c-accent);
+    color: var(--c-text-main);
     font-weight: 700;
 }
 
@@ -276,6 +276,6 @@
     flex: 1;
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--c-accent);
+    color: var(--c-text-main);
     letter-spacing: 0.05em;
 }

@@ -274,14 +274,14 @@
  */
 button[data-again] {
     --again-color: var(--c-text-main);
-    --again-fill: rgba(255, 255, 255, 0.1);
+    --again-fill: var(--c-white-10);
     position: relative;
     color: transparent;
 }
 
 .btn-main[data-again] {
     --again-color: var(--c-accent-hover);
-    --again-fill: rgba(99, 175, 237, 0.22);
+    --again-fill: var(--c-accent-20);
 }
 
 .btn-danger[data-again] {
@@ -443,7 +443,7 @@ button[data-again]::after {
 .status-details__cheats li {
     padding: 2px 6px;
     background: var(--c-accent-dim);
-    color: var(--c-accent);
+    color: var(--c-text-main);
     font-family: var(--font-mono);
     font-size: 0.8rem;
 }

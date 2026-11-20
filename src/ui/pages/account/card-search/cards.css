@@ -25,12 +25,12 @@
 
 .card-region--success {
     border-color: var(--c-success);
-    background: color-mix(in srgb, var(--c-success) 8%, var(--c-panel-dim));
+    background: var(--c-success-tint);
 }
 
 .card-region--error {
     border-color: var(--c-danger);
-    background: color-mix(in srgb, var(--c-danger) 8%, var(--c-panel-dim));
+    background: var(--c-danger-tint);
 }
 
 .card-region__toggle {
@@ -96,13 +96,11 @@
     border-color: var(--c-danger-40);
 }
 
+/* The tier class on the same badge sets the colour; this is the fallback for a badge without one. */
 .card-row .account-row__badge {
-    --card-tier-color: var(--c-text-muted);
     display: flex;
     align-items: center;
-    color: var(--card-tier-color);
-    background: color-mix(in srgb, var(--card-tier-color) 10%, var(--c-panel));
-    border-color: color-mix(in srgb, var(--card-tier-color) 70%, var(--c-border));
+    color: var(--card-tier-color, var(--c-text-muted));
 }
 
 .card-tier-display {
@@ -147,8 +145,6 @@
 
 .card-row--unresolved .account-row__badge {
     color: var(--c-danger-soft-text);
-    background: var(--c-danger-10);
-    border-color: var(--c-danger-40);
 }
 
 .card-tier-select {

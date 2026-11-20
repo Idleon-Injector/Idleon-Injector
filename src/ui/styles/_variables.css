@@ -1,8 +1,8 @@
 /**
  * CSS Custom Properties (Design Tokens)
- * Cyber Industrial Theme
- * Default: RGB/RGBA fallback for older embedded Chromium
- * Modern browsers: OKLCH overrides in @supports block
+ * Dusk: one violet family. Colour means something (status, on/off, the worlds, names that identify a thing);
+ * everything else is six surfaces and two text colours.
+ * One set in hex/rgba: the Steam client runs Chromium 87 (no oklch or color-mix), so the WebUI uses the same values.
  */
 
 :root {
@@ -10,59 +10,68 @@
     --c-white: #ffffff;
     --c-black: #000000;
 
-    /* -- CORE PALETTE -- */
-    --c-void: #10121a;
-    --c-void-soft: #1a1e2a;
-    --c-panel: #171b25;
-    --c-panel-dim: #151923;
-    --c-panel-dark-dim: #13171f;
-    --c-panel-hover: #202534;
-    --c-border: #30384a;
-    --c-border-strong: #505050;
+    /* -- SURFACES -- */
+    /* Six roles. The row (#2d2e4f) is where a player reads and changes values; the page is the same violet a
+       step darker, sections sit between, and inputs sink back to the page. Borders nearly dissolve: rows are
+       told apart by their fill. */
+    --c-void: #1c1d33; /* page */
+    --c-void-soft: #222440; /* section */
+    --c-panel: #2d2e4f; /* row, card */
+    --c-panel-hover: #36385c; /* row hover */
+    --c-border: #34365b;
+    --c-border-strong: #4a4d7a;
+    --c-panel-dim: var(--c-void); /* input wells, sub-navs */
+    --c-panel-dark-dim: var(--c-void);
+    --c-bg: var(--c-void);
 
-    /* -- THEME ACCENT (runtime-overridable) -- */
-    /* A lighter take on Luminate's blue (Lumi's pick over #46aae1): accent, soft (dim) .102, wash (06) .055, edge (40) .42, ink for text on it. */
-    --c-accent: #63afed;
-    --c-accent-dim: rgba(99, 175, 237, 0.102);
-    --c-accent-dim-solid: rgba(34, 49, 67, 0.9);
-    --c-accent-glow: rgba(99, 175, 237, 0.3);
-    --c-accent-hover: #9acbf3;
-    --c-accent-06: rgba(99, 175, 237, 0.055);
-    --c-accent-20: rgba(99, 175, 237, 0.2);
-    --c-accent-25: rgba(99, 175, 237, 0.25);
-    --c-accent-40: rgba(99, 175, 237, 0.42);
-    --c-accent-ink: #090b10;
+    /* -- ACCENT -- */
+    /* Lavender: what you can press, what is on, where you are. */
+    --c-accent: #aaa6f7;
+    --c-accent-hover: #c9c6fb;
+    --c-accent-dim: rgba(170, 166, 247, 0.1);
+    --c-accent-dim-solid: #333352;
+    --c-accent-glow: rgba(170, 166, 247, 0.3);
+    --c-accent-06: rgba(170, 166, 247, 0.055);
+    --c-accent-20: rgba(170, 166, 247, 0.2);
+    --c-accent-25: rgba(170, 166, 247, 0.25);
+    --c-accent-40: rgba(170, 166, 247, 0.42);
+    --c-accent-ink: #0f0f1c;
 
-    /* -- SEMANTIC STATES (fixed) -- */
+    /* -- STATUS -- */
     --c-success: #59f57d;
     --c-warning: #ffb700;
-    --c-danger: #f34747;
+    --c-danger: #ff8585;
     --c-success-10: rgba(89, 245, 125, 0.1);
+    --c-success-20: rgba(89, 245, 125, 0.2);
     --c-success-40: rgba(89, 245, 125, 0.4);
-    --c-danger-05: rgba(243, 71, 71, 0.05);
-    --c-danger-10: rgba(243, 71, 71, 0.1);
-    --c-danger-20: rgba(243, 71, 71, 0.2);
-    --c-danger-40: rgba(243, 71, 71, 0.4);
-    --c-warning-10: rgba(255, 183, 0, 0.1);
-    --c-warning-20: rgba(255, 183, 0, 0.2);
+    --c-danger-05: rgba(255, 133, 133, 0.05);
+    --c-danger-10: rgba(255, 133, 133, 0.1);
+    --c-danger-20: rgba(255, 133, 133, 0.2);
+    --c-danger-40: rgba(255, 133, 133, 0.4);
     --c-warning-40: rgba(255, 183, 0, 0.4);
+    /* Status fills: the row with a little of the status colour, solid so text on them is measured (AA). */
+    --c-success-tint: #324655;
+    --c-success-flash: #345454;
+    --c-danger-tint: #3f324d;
+    --c-danger-flash: #4e3652;
+    --c-warning-tint: #463e46;
+    --c-accent-tint: #3e3f67;
 
     /* -- TEXT -- */
-    --c-text-main: #eceff8;
-    --c-text-dim: #d8dbe5;
-    --c-text-muted: #bec3d1;
+    /* Two colours: main and muted. */
+    --c-text-main: #eeedf9;
+    --c-text-muted: #c0bfdc;
+    --c-text-dim: var(--c-text-muted);
     --c-text: var(--c-text-main);
+    --c-text-disabled: rgba(238, 237, 249, 0.34); /* disabled: exempt from AA */
     --c-danger-soft-text: #ffb2a5;
 
-    /* -- FEATURE TAB ACCENT COLORS -- */
+    /* -- NAMES THAT IDENTIFY A THING -- */
+    /* Tiers, signs, cauldrons, liquids, brews and the worlds keep their colour, lifted to AA on a row. */
     --c-tier-stone: #8a9bb0;
     --c-tier-gold: #ffb700;
-    --c-tier-onyx: #b06aff;
+    --c-tier-onyx: #bf85ff;
     --c-tier-zenith: #00e5ff;
-    --c-tier-gold-35: rgba(255, 183, 0, 0.35);
-    --c-tier-onyx-35: rgba(176, 106, 255, 0.35);
-    --c-tier-zenith-35: rgba(0, 229, 255, 0.35);
-    --c-tier-zenith-10: rgba(0, 229, 255, 0.1);
     --c-sign-a: #4fc3f7;
     --c-sign-b: #a5d6a7;
     --c-sign-c: #ffb74d;
@@ -71,83 +80,35 @@
     --c-sign-f: #80cbc4;
     --c-cauldron-orange: #e8841a;
     --c-cauldron-green: #5cb85c;
-    --c-cauldron-purple: #a259e6;
+    --c-cauldron-purple: #b983f0;
     --c-cauldron-yellow: #e6c319;
-    --c-cauldron-orange-12: rgba(232, 132, 26, 0.12);
-    --c-cauldron-green-12: rgba(92, 184, 92, 0.12);
-    --c-cauldron-purple-12: rgba(162, 89, 230, 0.12);
-    --c-cauldron-yellow-12: rgba(230, 195, 25, 0.12);
     --c-liquid-water: #5ba6d3;
-    --c-liquid-water-10: rgba(91, 166, 211, 0.1);
     --c-liquid-nitrogen: #82d9f5;
-    --c-liquid-nitrogen-10: rgba(130, 217, 245, 0.1);
-    --c-liquid-seawater: #3a9e80;
-    --c-liquid-seawater-10: rgba(58, 158, 128, 0.1);
+    --c-liquid-seawater: #45b08f;
     --c-liquid-mercury: #c084fc;
-    --c-liquid-mercury-10: rgba(192, 132, 252, 0.1);
     --c-p2w-brew-power: #f87171;
-    --c-p2w-brew-power-10: rgba(248, 113, 113, 0.1);
     --c-p2w-brew-quicc: #4ade80;
-    --c-p2w-brew-quicc-10: rgba(74, 222, 128, 0.1);
     --c-p2w-brew-high-iq: #60a5fa;
-    --c-p2w-brew-high-iq-10: rgba(96, 165, 250, 0.1);
     --c-p2w-brew-kazam: #c084fc;
-    --c-p2w-brew-kazam-10: rgba(192, 132, 252, 0.1);
     --c-ui-blue: #60a5fa;
-    --c-ui-blue-10: rgba(96, 165, 250, 0.1);
-    --c-ui-blue-04: rgba(96, 165, 250, 0.04);
     --c-ui-blue-45: rgba(96, 165, 250, 0.45);
     --c-ui-green: #4ade80;
-    --c-ui-green-03: rgba(74, 222, 128, 0.03);
-    --c-ui-green-04: rgba(74, 222, 128, 0.04);
-    --c-ui-green-07: rgba(74, 222, 128, 0.07);
-    --c-ui-green-12: rgba(74, 222, 128, 0.12);
-    --c-ui-green-35: rgba(74, 222, 128, 0.35);
-    --c-ui-green-40: rgba(74, 222, 128, 0.4);
     --c-ui-green-45: rgba(74, 222, 128, 0.45);
     --c-ui-red: #f87171;
-    --c-ui-red-04: rgba(248, 113, 113, 0.04);
     --c-ui-red-45: rgba(248, 113, 113, 0.45);
     --c-ui-purple: #c084fc;
-    --c-ui-purple-04: rgba(192, 132, 252, 0.04);
-    --c-ui-purple-45: rgba(192, 132, 252, 0.45);
     --c-ui-yellow: #facc15;
-    --c-ui-yellow-04: rgba(250, 204, 21, 0.04);
     --c-ui-yellow-45: rgba(250, 204, 21, 0.45);
-    --c-arcade-cosmic: var(--brand-info, #3b82f6);
-    --c-arcade-cosmic-bg: rgba(43, 88, 118, 0.15);
-    --c-arcade-cosmic-20: rgba(59, 130, 246, 0.2);
-    --c-arcade-cosmic-40: rgba(59, 130, 246, 0.4);
-    --c-arcade-omega: #f252a3;
-    --c-arcade-omega-bg: rgba(242, 82, 163, 0.12);
-    --c-arcade-omega-35: rgba(242, 82, 163, 0.35);
-    --c-postoffice-accent-green: var(--accent-green, #4caf50);
-    --c-equinox-warning: #d47814;
-    --c-equinox-warning-10: rgba(210, 120, 20, 0.1);
-    --c-refinery-polymer: #7e57c2;
-    --c-refinery-polymer-06: rgba(126, 87, 194, 0.06);
-    --c-sailing-not-found-border: rgba(160, 160, 160, 0.3);
-    --c-sailing-not-found-bg: rgba(160, 160, 160, 0.06);
-    --c-sailing-found-border: rgba(140, 140, 140, 0.55);
-    --c-sailing-found-bg: rgba(140, 140, 140, 0.2);
-    --c-sailing-ancient-border: var(--c-ui-yellow-45);
-    --c-sailing-ancient-bg: rgba(250, 204, 21, 0.12);
-    --c-sailing-eldritch-border: var(--c-ui-red-45);
-    --c-sailing-eldritch-bg: rgba(248, 113, 113, 0.14);
-    --c-sailing-sovereign-border: var(--c-ui-green-45);
-    --c-sailing-sovereign-bg: rgba(74, 222, 128, 0.14);
-    --c-sailing-omnipotent-border: var(--c-ui-blue-45);
-    --c-sailing-omnipotent-bg: rgba(96, 165, 250, 0.14);
-    --c-sailing-transcendent-border: rgba(192, 192, 192, 0.55);
-    --c-sailing-transcendent-bg: rgba(192, 192, 192, 0.2);
-    --c-sailing-badge-not-found: #9ca3af;
-    --c-sailing-badge-found: #d4d4d4;
-    --c-sailing-badge-transcendent: #e5e7eb;
+    --c-arcade-cosmic: #6aa4ff;
+    --c-arcade-omega: #f566b0;
+    --c-refinery-polymer: #a184e0;
     --c-world-w1: #e8854a;
     --c-world-w2: #d4a83a;
     --c-world-w3: #6ec5e0;
-    --c-world-w4: #a06ee0;
-    --c-world-w5: #e05050;
+    /* W4 is a saturated orchid, away from the lavender accent (dE 27) and from W7 (dE 15); W5 is lifted to
+       AA on a row. */
+    --c-world-w4: #b787ff;
+    --c-world-w5: #f27a6e;
     --c-world-w6: #59c46a;
     --c-world-w7: #c580e0;
 
@@ -163,25 +124,16 @@
     --c-black-40: rgba(0, 0, 0, 0.4);
     --c-black-45: rgba(0, 0, 0, 0.45);
     --c-black-50: rgba(0, 0, 0, 0.5);
-    --c-black-60: rgba(0, 0, 0, 0.6);
     --c-black-80: rgba(0, 0, 0, 0.8);
-    --c-sidebar-bg: rgba(22, 24, 33, 0.95);
-    --c-header-bg: rgba(16, 18, 26, 0.8);
-    --c-panel-95: rgba(23, 27, 37, 0.95);
-    --c-panel-98: rgba(23, 27, 37, 0.98);
-    --c-control-border-strong: #505050;
-    --c-control-thumb: #9a9a9a;
-    --c-scrollbar-thumb: #505050;
-    --c-hover: var(--c-white-04);
+    --c-sidebar-bg: rgba(23, 24, 43, 0.96);
+    --c-panel-95: rgba(45, 46, 79, 0.95);
+    --c-panel-98: rgba(45, 46, 79, 0.98);
+    --c-panel-80: rgba(28, 29, 51, 0.8);
+    --c-control-border-strong: var(--c-border-strong);
+    --c-control-thumb: var(--c-text-muted);
+    --c-scrollbar-thumb: var(--c-border-strong);
     --c-border-faint: var(--c-white-05);
-    --c-success-08: rgba(72, 187, 120, 0.08);
-    --c-danger-08: rgba(245, 101, 101, 0.08);
-    --c-cogs-warning-border: rgba(245, 158, 11, 0.55);
-    --c-cogs-warning-bg: #46361e;
-    --c-cogs-warning-text: #f0e4c5;
-    --c-cogs-error-border: rgba(239, 68, 68, 0.55);
-    --c-cogs-success-border: rgba(34, 197, 94, 0.55);
-    --c-cogs-selected-ring: rgba(96, 165, 250, 0.75);
+    --c-cogs-selected-ring: var(--c-accent);
 
     /* -- DIMENSIONS & FONTS -- */
     --nav-width: 240px;
@@ -192,132 +144,4 @@
 
     /* -- TRANSITIONS -- */
     --ease-tech: cubic-bezier(0.2, 0.6, 0.3, 1);
-}
-
-@supports (color: oklch(50% 0 0)) and (color: color-mix(in oklch, white 50%, black)) {
-    :root {
-        --c-white: oklch(100% 0 0);
-        --c-black: oklch(0% 0 0);
-        --c-void: oklch(11.63% 0.0062 285.4);
-        --c-void-soft: oklch(18.4% 0.0167 273.73);
-        --c-panel: oklch(16.97% 0.0105 276.32);
-        --c-panel-dim: oklch(15.57% 0.0108 276.2);
-        --c-panel-dark-dim: oklch(14.31% 0.0028 145.43);
-        --c-panel-hover: oklch(21.12% 0.0181 274.98);
-        --c-border: oklch(29.28% 0.02 281);
-        --c-border-strong: oklch(38.67% 0 89.88);
-        --c-accent: oklch(73.03% 0.118 245.03);
-        --c-accent-dim: color-mix(in oklch, var(--c-accent) 10.2%, transparent);
-        /* Mixed in srgb: in oklch the panel's hue greys the blue out. */
-        --c-accent-dim-solid: color-mix(in srgb, var(--c-accent) 15%, var(--c-panel) 85%);
-        --c-accent-glow: color-mix(in oklch, var(--c-accent) 30%, transparent);
-        /* Mixed by hand: color-mix with white in oklch drags the hue toward white's hue 0 (purple). */
-        --c-accent-hover: oklch(82.18% 0.0764 245.03);
-        --c-accent-06: color-mix(in oklch, var(--c-accent) 5.5%, transparent);
-        --c-accent-20: color-mix(in oklch, var(--c-accent) 20%, transparent);
-        --c-accent-25: color-mix(in oklch, var(--c-accent) 25%, transparent);
-        --c-accent-40: color-mix(in oklch, var(--c-accent) 42%, transparent);
-        --c-accent-ink: oklch(14.98% 0.0113 267.69);
-        --c-success: oklch(93.07% 0.2286 123.09);
-        --c-warning: oklch(82.53% 0.1709 80.01);
-        --c-danger: oklch(63.17% 0.2544 21.75);
-        --c-success-10: color-mix(in oklch, var(--c-success) 10%, transparent);
-        --c-success-40: color-mix(in oklch, var(--c-success) 40%, transparent);
-        --c-danger-05: color-mix(in oklch, var(--c-danger) 5%, transparent);
-        --c-danger-10: color-mix(in oklch, var(--c-danger) 10%, transparent);
-        --c-danger-20: color-mix(in oklch, var(--c-danger) 20%, transparent);
-        --c-danger-40: color-mix(in oklch, var(--c-danger) 40%, transparent);
-        --c-warning-10: color-mix(in oklch, var(--c-warning) 10%, transparent);
-        --c-warning-20: color-mix(in oklch, var(--c-warning) 20%, transparent);
-        --c-warning-40: color-mix(in oklch, var(--c-warning) 40%, transparent);
-        --c-text-main: oklch(92.24% 0.0115 252.09);
-        --c-text-dim: color-mix(in oklch, var(--c-text-main) 93%, transparent);
-        --c-text-muted: color-mix(in oklch, var(--c-text-main) 88%, transparent);
-        --c-danger-soft-text: oklch(88.97% 0.058 18.3);
-        --c-tier-stone: oklch(69.79% 0.0284 251.03);
-        --c-tier-gold: oklch(82.53% 0.1709 80.01);
-        --c-tier-onyx: oklch(67.86% 0.1798 310.11);
-        --c-tier-zenith: oklch(85.98% 0.1143 219.1);
-        --c-tier-gold-35: oklch(82.53% 0.1709 80.01 / 0.35);
-        --c-tier-onyx-35: oklch(67.86% 0.1798 310.11 / 0.35);
-        --c-tier-zenith-35: oklch(85.98% 0.1143 219.1 / 0.35);
-        --c-tier-zenith-10: oklch(85.98% 0.1143 219.1 / 0.1);
-        --c-cauldron-orange: oklch(70.51% 0.1603 62.63);
-        --c-cauldron-green: oklch(71.65% 0.145 143.71);
-        --c-cauldron-purple: oklch(62.39% 0.2053 308.67);
-        --c-cauldron-yellow: oklch(83.48% 0.1676 95.53);
-        --c-cauldron-orange-12: color-mix(in oklch, var(--c-cauldron-orange) 12%, transparent);
-        --c-cauldron-green-12: color-mix(in oklch, var(--c-cauldron-green) 12%, transparent);
-        --c-cauldron-purple-12: color-mix(in oklch, var(--c-cauldron-purple) 12%, transparent);
-        --c-cauldron-yellow-12: color-mix(in oklch, var(--c-cauldron-yellow) 12%, transparent);
-        --c-liquid-water-10: color-mix(in oklch, var(--c-liquid-water) 10%, transparent);
-        --c-liquid-nitrogen-10: color-mix(in oklch, var(--c-liquid-nitrogen) 10%, transparent);
-        --c-liquid-seawater-10: color-mix(in oklch, var(--c-liquid-seawater) 10%, transparent);
-        --c-liquid-mercury-10: color-mix(in oklch, var(--c-liquid-mercury) 10%, transparent);
-        --c-p2w-brew-power-10: color-mix(in oklch, var(--c-p2w-brew-power) 10%, transparent);
-        --c-p2w-brew-quicc-10: color-mix(in oklch, var(--c-p2w-brew-quicc) 10%, transparent);
-        --c-p2w-brew-high-iq-10: color-mix(in oklch, var(--c-p2w-brew-high-iq) 10%, transparent);
-        --c-p2w-brew-kazam-10: color-mix(in oklch, var(--c-p2w-brew-kazam) 10%, transparent);
-        --c-ui-blue-04: color-mix(in oklch, var(--c-ui-blue) 4%, transparent);
-        --c-ui-blue-10: color-mix(in oklch, var(--c-ui-blue) 10%, transparent);
-        --c-ui-blue-45: color-mix(in oklch, var(--c-ui-blue) 45%, transparent);
-        --c-ui-green-03: color-mix(in oklch, var(--c-ui-green) 3%, transparent);
-        --c-ui-green-04: color-mix(in oklch, var(--c-ui-green) 4%, transparent);
-        --c-ui-green-07: color-mix(in oklch, var(--c-ui-green) 7%, transparent);
-        --c-ui-green-12: color-mix(in oklch, var(--c-ui-green) 12%, transparent);
-        --c-ui-green-35: color-mix(in oklch, var(--c-ui-green) 35%, transparent);
-        --c-ui-green-40: color-mix(in oklch, var(--c-ui-green) 40%, transparent);
-        --c-ui-green-45: color-mix(in oklch, var(--c-ui-green) 45%, transparent);
-        --c-ui-red-04: color-mix(in oklch, var(--c-ui-red) 4%, transparent);
-        --c-ui-red-45: color-mix(in oklch, var(--c-ui-red) 45%, transparent);
-        --c-ui-purple-04: color-mix(in oklch, var(--c-ui-purple) 4%, transparent);
-        --c-ui-purple-45: color-mix(in oklch, var(--c-ui-purple) 45%, transparent);
-        --c-ui-yellow-04: color-mix(in oklch, var(--c-ui-yellow) 4%, transparent);
-        --c-ui-yellow-45: color-mix(in oklch, var(--c-ui-yellow) 45%, transparent);
-        --c-arcade-cosmic-20: color-mix(in oklch, var(--c-arcade-cosmic) 20%, transparent);
-        --c-arcade-cosmic-40: color-mix(in oklch, var(--c-arcade-cosmic) 40%, transparent);
-        --c-arcade-omega-bg: color-mix(in oklch, var(--c-arcade-omega) 12%, transparent);
-        --c-arcade-omega-35: color-mix(in oklch, var(--c-arcade-omega) 35%, transparent);
-        --c-equinox-warning: oklch(65.52% 0.1457 59.92);
-        --c-equinox-warning-10: color-mix(in oklch, var(--c-equinox-warning) 10%, transparent);
-        --c-refinery-polymer: oklch(53.09% 0.1436 304.63);
-        --c-refinery-polymer-06: color-mix(in oklch, var(--c-refinery-polymer) 6%, transparent);
-        --c-world-w1: oklch(71.81% 0.1605 52.18);
-        --c-world-w2: oklch(75.57% 0.1235 83.16);
-        --c-world-w3: oklch(78.87% 0.0894 223.28);
-        --c-world-w4: oklch(63.29% 0.1724 305.47);
-        --c-world-w5: oklch(62.96% 0.2087 24.91);
-        --c-world-w6: oklch(74.34% 0.1545 143.96);
-        --c-world-w7: oklch(71.89% 0.134 312.64);
-        --c-white-02: color-mix(in oklch, var(--c-white) 2%, transparent);
-        --c-white-03: color-mix(in oklch, var(--c-white) 3%, transparent);
-        --c-white-04: color-mix(in oklch, var(--c-white) 4%, transparent);
-        --c-white-05: color-mix(in oklch, var(--c-white) 5%, transparent);
-        --c-white-10: color-mix(in oklch, var(--c-white) 10%, transparent);
-        --c-black-10: color-mix(in oklch, var(--c-black) 10%, transparent);
-        --c-black-20: color-mix(in oklch, var(--c-black) 20%, transparent);
-        --c-black-30: color-mix(in oklch, var(--c-black) 30%, transparent);
-        --c-black-40: color-mix(in oklch, var(--c-black) 40%, transparent);
-        --c-black-45: color-mix(in oklch, var(--c-black) 45%, transparent);
-        --c-black-50: color-mix(in oklch, var(--c-black) 50%, transparent);
-        --c-black-60: color-mix(in oklch, var(--c-black) 60%, transparent);
-        --c-black-80: color-mix(in oklch, var(--c-black) 80%, transparent);
-        --c-sidebar-bg: oklch(15.09% 0.0109 276.17 / 0.95);
-        --c-header-bg: oklch(11.63% 0.0062 285.4 / 0.8);
-        --c-panel-95: oklch(16.97% 0.0105 276.32 / 0.95);
-        --c-panel-98: oklch(16.97% 0.0105 276.32 / 0.98);
-        --c-control-border-strong: oklch(32.11% 0 89.88);
-        --c-control-thumb: oklch(62.68% 0 89.88);
-        --c-scrollbar-thumb: oklch(32.11% 0 89.88);
-        --c-hover: var(--c-white-04);
-        --c-border-faint: var(--c-white-05);
-        --c-success-08: color-mix(in oklch, var(--c-success) 8%, transparent);
-        --c-danger-08: color-mix(in oklch, var(--c-danger) 8%, transparent);
-        --c-cogs-warning-border: color-mix(in oklch, oklch(79.56% 0.1468 74.35) 55%, transparent);
-        --c-cogs-warning-bg: color-mix(in oklch, var(--c-panel-dim) 78%, oklch(75.24% 0.1623 68.77) 22%);
-        --c-cogs-warning-text: color-mix(in oklch, var(--c-text-main) 76%, oklch(87.2% 0.1392 92.77) 24%);
-        --c-cogs-error-border: color-mix(in oklch, var(--c-danger) 55%, transparent);
-        --c-cogs-success-border: color-mix(in oklch, var(--c-success) 55%, transparent);
-        --c-cogs-selected-ring: color-mix(in oklch, var(--c-ui-blue) 75%, transparent);
-    }
 }

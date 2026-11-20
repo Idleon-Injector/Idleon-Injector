@@ -254,6 +254,7 @@ export default definePage({
     id: "w7.bubba",
     world: 7,
     system: "Bubba",
+    tab: "Bubba",
     description: "Bubba resources, upgrades, charisma, gifts, dice and smoked meat.",
     keywords: ["Clicker"],
     component: BubbaTab,

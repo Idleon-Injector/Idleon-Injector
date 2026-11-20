@@ -234,6 +234,12 @@ export const writeVerified = (path, value, { write = gga } = {}) => {
 const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
 
 /**
+ * What a page says when the game has another character in play than the one it shows, so it refuses the save. Every
+ * page says these words; the game's own refusal (characterInPlay in src/cheats) says the same, pinned by a test.
+ */
+export const CHARACTER_CHANGED = "Character changed. Refresh.";
+
+/**
  * Write many GGA paths and throw a consistent error for the first failed write.
  * Failed writes expose the original batch response on `error.results`.
  * The values that land go in the change log as one action, unless `log` is false (an undo's own writes).
@@ -434,7 +440,8 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
             const result = await task();
             if (result?.cancelled) {
                 end("cancelled");
-                status.val = null;
+                // A run started since says how it went (or still runs): a cancelled older one leaves its status.
+                if (id === status.runs) status.val = null;
                 return { ok: false, cancelled: true, result };
             }
             end("success");
