@@ -45,6 +45,8 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
     let clearTimer = null;
     let offerTimer = null;
     let label = "";
+    // The error shown is prepare()'s reason a draft can't be saved, not a failed write or undo.
+    let draftRefused = false;
     // The pointer and focus each keep Undo; it goes only once neither is on it.
     const holds = { pointer: false, focus: false };
 
@@ -65,6 +67,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         status.val = next;
         reason.val = why;
         refused.val = false;
+        draftRefused = false;
         if (next !== "success") endOffer();
         if (next === "success" && successMs > 0)
             clearTimer = setTimeout(() => {
@@ -78,6 +81,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
             plan = prepare();
         } catch (error) {
             settle("error", saveFailureReason(error));
+            draftRefused = true;
             return { ok: false, error };
         }
         if (!plan || plan.unchanged) {
@@ -181,10 +185,21 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
                 void save();
             }
         },
-        // Moving between the row's own fields keeps editing; anything else (Undo too) saves.
+        // Moving between the row's own fields keeps editing, but says at once why the drafts can't be saved (or
+        // takes back a reason they no longer have); anything else (Undo too) saves.
         onfocusout: (e) => {
             const next = e.relatedTarget;
-            if (next && isEditField(next) && e.currentTarget.contains(next)) return;
+            if (next && isEditField(next) && e.currentTarget.contains(next)) {
+                if (running || status.val === "loading") return;
+                try {
+                    prepare();
+                    if (draftRefused) settle(null);
+                } catch (error) {
+                    settle("error", saveFailureReason(error));
+                    draftRefused = true;
+                }
+                return;
+            }
             if (isEditField(e.target)) label = labelOf(e.target) || label;
             void save();
         },

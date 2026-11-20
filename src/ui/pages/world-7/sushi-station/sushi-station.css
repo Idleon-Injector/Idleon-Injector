@@ -190,6 +190,15 @@
     flex: 1;
     min-width: 220px;
 }
+/* The footer has room, so a reason wraps and reads whole instead of the two clamped lines beside a field. */
+.sushi-automation-footer .save-state--error .save-state__label {
+    display: block;
+    max-width: 36ch;
+    padding: 0;
+    overflow: visible;
+    text-align: left;
+    -webkit-line-clamp: none;
+}
 .sushi-automation-info {
     border-top: 1px solid var(--c-border);
     padding-top: 12px;
