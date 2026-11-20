@@ -20,3 +20,30 @@
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
 }
+
+/* An upgrade's High / Low / Balanced choice, beside its stop-at. */
+.automation-pick .automation-pick__priority {
+    width: 100%;
+}
+
+/* The saving % row's explanation wraps instead of being cut. */
+.automation-saving .account-row__sub-label {
+    white-space: normal;
+}
+
+/* Phone width: the stop-at takes its own line, the priority and the switch share the next. */
+@media (max-width: 760px) {
+    .automation-pick--priority .account-row__controls {
+        flex-wrap: wrap;
+    }
+
+    .automation-pick--priority .account-field-metric {
+        flex: 1 1 100%;
+        width: auto;
+    }
+
+    .automation-pick--priority .automation-pick__priority-field {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+}
