@@ -269,6 +269,7 @@
             "Printer",
             "PrinterXtra",
             "QuestComplete",
+            "QuestStatus",
             "Refinery",
             "Research",
             "Ribbon",
@@ -313,6 +314,7 @@
             "_customBlock_Breeding",
             "_customBlock_Bubbastuff",
             "_customBlock_CauldronStats",
+            "_customBlock_CommaNotation",
             "_customBlock_CookingR",
             "_customBlock_CreateMonster",
             "_customBlock_CritChance",
@@ -369,8 +371,10 @@
             "_customBlock_WorkbenchStuff",
             "_customBlock_cauldronp2wbonuses",
             "_customBlock_chipBonuses",
+            "_customBlock_getbonus2",
             "_customBlock_imginstACTOR",
-            "_customBlock_keychainn"
+            "_customBlock_keychainn",
+            "_customBlock_timeDisp2"
         ]
     },
     "fingerprints": {
@@ -386,6 +390,7 @@
         "_customBlock_Breeding": "b1de6c0d29dfbc5b",
         "_customBlock_Bubbastuff": "8354c6b121294062",
         "_customBlock_CauldronStats": "7622f76d25e00920",
+        "_customBlock_CommaNotation": "75ed9065a01b8074",
         "_customBlock_CookingR": "a204ab840c717ff9",
         "_customBlock_CreateMonster": "a4b6eaaa91d9daf4",
         "_customBlock_CritChance": "972318badd2b3f65",
@@ -442,8 +447,10 @@
         "_customBlock_WorkbenchStuff": "38418bc70d3bba09",
         "_customBlock_cauldronp2wbonuses": "66f655a55534cba3",
         "_customBlock_chipBonuses": "dc1cf940f3bbaae2",
+        "_customBlock_getbonus2": "0265d9df53b235e8",
         "_customBlock_imginstACTOR": "9b5829b56cb43776",
         "_customBlock_keychainn": "3ac9fc7c3e52e9d7",
+        "_customBlock_timeDisp2": "70caef0d6025c64e",
         "attachImageToActor": "5f22faf0a974bc0d",
         "createFadeIn": "5781e581a6f458e4",
         "createFadeOut": "5781e581a6f458e4",

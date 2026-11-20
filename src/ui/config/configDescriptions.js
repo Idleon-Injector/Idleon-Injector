@@ -16,6 +16,24 @@ export const configDescriptions = {
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
+    "cheatConfig.automation.summoning":
+        'Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.',
+    "cheatConfig.automation.summoningSaving.white":
+        "Automation: while a High or Low summoning upgrade saves white essence, Balanced ones may spend up to this % of its cost.",
+    "cheatConfig.automation.summoningSaving.green":
+        "Automation: while a High or Low summoning upgrade saves green essence, Balanced ones may spend up to this % of its cost.",
+    "cheatConfig.automation.summoningSaving.yellow":
+        "Automation: while a High or Low summoning upgrade saves yellow essence, Balanced ones may spend up to this % of its cost.",
+    "cheatConfig.automation.summoningSaving.blue":
+        "Automation: while a High or Low summoning upgrade saves blue essence, Balanced ones may spend up to this % of its cost.",
+    "cheatConfig.automation.summoningSaving.purple":
+        "Automation: while a High or Low summoning upgrade saves purple essence, Balanced ones may spend up to this % of its cost.",
+    "cheatConfig.automation.summoningSaving.red":
+        "Automation: while a High or Low summoning upgrade saves red essence, Balanced ones may spend up to this % of its cost.",
+    "cheatConfig.automation.summoningSaving.cyan":
+        "Automation: while a High or Low summoning upgrade saves cyan essence, Balanced ones may spend up to this % of its cost.",
+    "cheatConfig.automation.summoningSaving.teal":
+        "Automation: while a High or Low summoning upgrade saves teal essence, Balanced ones may spend up to this % of its cost.",
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",

@@ -21,6 +21,17 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        summoning: [], // Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        summoningSaving: {
+            white: 10, // Automation: while a High or Low summoning upgrade saves white essence, Balanced ones may spend up to this % of its cost.
+            green: 10, // Automation: while a High or Low summoning upgrade saves green essence, Balanced ones may spend up to this % of its cost.
+            yellow: 10, // Automation: while a High or Low summoning upgrade saves yellow essence, Balanced ones may spend up to this % of its cost.
+            blue: 10, // Automation: while a High or Low summoning upgrade saves blue essence, Balanced ones may spend up to this % of its cost.
+            purple: 10, // Automation: while a High or Low summoning upgrade saves purple essence, Balanced ones may spend up to this % of its cost.
+            red: 10, // Automation: while a High or Low summoning upgrade saves red essence, Balanced ones may spend up to this % of its cost.
+            cyan: 10, // Automation: while a High or Low summoning upgrade saves cyan essence, Balanced ones may spend up to this % of its cost.
+            teal: 10, // Automation: while a High or Low summoning upgrade saves teal essence, Balanced ones may spend up to this % of its cost.
+        },
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)

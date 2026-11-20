@@ -123,6 +123,7 @@ const startup = () => fileStartup;
 // The shop list the last config file save that carried one wrote.
 const fileShops = () => saves.findLast((body) => body.cheatConfig)?.cheatConfig.automation.shops;
 const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation shops").on;
+const summoningOn = () => getAutomations().find(({ cheat }) => cheat === "automation summoning").on;
 
 const overview = (await importRepo("src/ui/pages/account/automation/1-overview.js")).default.component();
 await until(() => row(overview, "Shops"), "the overview to list Shops");
@@ -130,7 +131,7 @@ await until(() => row(overview, "Shops"), "the overview to list Shops");
 test("the overview lists the automation toggles only, each with its status", () => {
     assert.deepEqual(
         byClass(overview, "account-row__name").map(text),
-        ["Shops"],
+        ["Shops", "Summoning"],
         "Sushi Auto Play and autoboss are not automation toggles"
     );
     assert.equal(text(byClass(row(overview, "Shops"), "automation-row__status")[0]), "Off");
@@ -159,8 +160,8 @@ test("a switch turns the automation on now and at every start, and off again", a
 test("Enable all runs on one click; Disable all asks Click again and writes nothing until the second", async () => {
     await until(() => button(overview, "Enable all"), "Enable all");
     await button(overview, "Enable all").listeners.click({ preventDefault() {} });
-    await until(() => shopsOn() && button(overview, "Disable all"), "every automation to run");
-    assert.deepEqual(startup(), ["automation shops"]);
+    await until(() => shopsOn() && summoningOn() && button(overview, "Disable all"), "every automation to run");
+    assert.deepEqual(startup(), ["automation shops", "automation summoning"]);
 
     const since = commands.length;
     const disable = button(overview, "Disable all");
@@ -171,8 +172,11 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
     assert.equal(shopsOn(), true);
 
     await disable.listeners.click({ preventDefault() {} });
-    await until(() => !shopsOn(), "the automation to stop");
-    assert.deepEqual(commands.slice(since), [["automation shops", false]]);
+    await until(() => !shopsOn() && !summoningOn(), "the automations to stop");
+    assert.deepEqual(commands.slice(since), [
+        ["automation shops", false],
+        ["automation summoning", false],
+    ]);
     assert.deepEqual(startup(), []);
 });
 
