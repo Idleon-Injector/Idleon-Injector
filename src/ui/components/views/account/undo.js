@@ -74,10 +74,13 @@ export const undoAction = async (id) => {
     if (changed.length === 1 && todo.length === 1) throw new Error(`changed since: now ${shortValue(now[0].value)}`);
     if (changed.length) throw new Error(`${changed.length} of ${todo.length} changed since`);
 
-    // A value saved to both copies of the character in play goes back once.
+    // A value saved to both copies of the character in play goes back once, as the live copy had it: the game
+    // keeps that one, so the saved copy's old value may be stale.
     const writes = [];
     targets.forEach((path, i) => {
-        if (!writes.some((write) => write.path === path)) writes.push({ path, value: todo[i].before });
+        const write = writes.find((entry) => entry.path === path);
+        if (!write) writes.push({ path, value: todo[i].before });
+        else if (todo[i].live) write.value = todo[i].before;
     });
     try {
         await writeManyVerified(writes, { log: false });

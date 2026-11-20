@@ -259,3 +259,20 @@ test("a character's undo is refused when who is in play can't be read", async ()
     assert.equal((await newest()).entries[0].undone, false);
     saved.Lv0[2] = savedBefore;
 });
+
+test("a value saved to both copies of the character in play goes back as the live copy had it", async () => {
+    const [first] = gga.GetPlayersUsernames;
+    const saved = gga.PlayerDATABASE.h[first].h;
+    const old = gga.Lv0[2];
+    saved.Lv0[2] = old - 4; // the saved copy lags behind the live one
+    // The saved copy first, as Prayers writes them.
+    await withAction({ label: "test" }, () =>
+        writeManyVerified([
+            { path: `PlayerDATABASE.h[${first}].h.Lv0[2]`, value: old + 3 },
+            { path: "Lv0[2]", value: old + 3 },
+        ])
+    );
+    await undoAction((await newest()).id);
+    assert.equal(gga.Lv0[2], old);
+    saved.Lv0[2] = old;
+});
