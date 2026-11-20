@@ -10,6 +10,7 @@ import {
     getOrCreateState,
     largeFormatter,
     largeParser,
+    oneAtATime,
     unwrapH,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -29,7 +30,8 @@ const PlayerTab = () => {
     const values = new Map();
     const rows = div({ class: "account-list" });
     const reconcileRows = createStaticRowReconciler(rows);
-    const unavailable = () => loading.val || busy.val || Boolean(error.val);
+    // Fields stay enabled while a save runs, so focus stays where the player put it (AGENTS.md).
+    const unavailable = () => loading.val || Boolean(error.val);
     const characterSelector = createCharacterSelector({
         id: "player-character",
         selected,
@@ -44,10 +46,16 @@ const PlayerTab = () => {
                 : "SAVED CHARACTER. Open this character in-game before closing to save level edits.",
     });
 
-    const setValue = async (name, index, next) => {
-        if (unavailable()) throw new Error("Player data is busy or unavailable. Refresh and try again.");
-        busy.val = true;
+    // A save asked for while another runs waits its turn, and reads the game again then.
+    const inTurn = oneAtATime();
+    // The line clears when a save is asked for, not at its turn, so the warning of a failed save before it stays.
+    const setValue = (name, index, next) => {
         message.val = "";
+        return inTurn(() => saveValue(name, index, next));
+    };
+    const saveValue = async (name, index, next) => {
+        if (unavailable()) throw new Error("Player data is unavailable. Refresh and try again.");
+        busy.val = true;
         try {
             const active = await gga("UserInfo[0]");
             if (active !== current.val || name !== selected.val) {
@@ -117,6 +125,8 @@ const PlayerTab = () => {
 
     const load = async () => {
         if (busy.val) return;
+        // Cleared by the player's own load only: the read again after a save that landed in part keeps its warning.
+        message.val = "";
         await run(async () => {
             const active = await gga("UserInfo[0]");
             const [rawNames, rawSkills] = await Promise.all([gga("GetPlayersUsernames"), readCList("SkillNames")]);
@@ -167,7 +177,6 @@ const PlayerTab = () => {
             fields.forEach(({ index, value }) => {
                 getOrCreateState(values, index).val = value;
             });
-            message.val = "";
         });
     };
 
