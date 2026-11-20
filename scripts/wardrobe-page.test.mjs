@@ -56,9 +56,10 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     res.json({ ok: true });
 });
 // What the page asks the game, in order: its Wardrobe reads ("wardrobe.preview"), the cheats it runs, and its writes.
-// `holdPreview`: a promise the next preview read waits on.
+// `holdPreview`: a promise the next preview read waits on. `failPreviews`: how many of the next preview reads fail.
 const log = [];
 let holdPreview = null;
+let failPreviews = 0;
 const computed = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     const { namespace, name } = await req.json();
@@ -67,6 +68,10 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
         const held = holdPreview;
         holdPreview = null;
         await held;
+    }
+    if (name === "preview" && failPreviews > 0) {
+        failPreviews--;
+        return res.status(500).json({ error: "The game didn't answer" });
     }
     return computed(req, res);
 });
@@ -472,6 +477,40 @@ test("an undo during an Apply's recheck leaves the Apply saying what happened", 
         assert.match(text(page), /changed since this preview/);
     } finally {
         release?.();
+        gga.Lv0[0] = 500;
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #110: when the newer preview an undo started fails during an Apply's recheck, its failure stays said,
+// not replaced by "Apply again" with no preview to apply.
+test("a newer preview that failed during an Apply's recheck keeps its failure said", async () => {
+    await settle();
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    await withAction({ label: "level" }, () => writeManyVerified([{ path: "Lv0[0]", value: 700 }]));
+    const [action] = (await fetchChanges()).actions;
+    await click(button(page, "Refresh"));
+    await settle();
+    let release;
+    try {
+        holdPreview = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        const pressed = click(apply);
+        await until(() => holdPreview === null, "the recheck to wait");
+        // Every open page reloads after the undo; their previews fail.
+        failPreviews = pages.length;
+        await undoAction(action.id);
+        await until(() => failPreviews === 0 && /The game didn't answer/.test(text(page)), "the newer preview to fail");
+        release();
+        await pressed;
+        assert.match(text(page), /The game didn't answer/);
+        assert.doesNotMatch(text(page), /Apply again/);
+    } finally {
+        release?.();
+        failPreviews = 0;
         gga.Lv0[0] = 500;
         pick(page, "rare-drops");
         await previewShown();

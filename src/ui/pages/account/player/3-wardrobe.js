@@ -249,8 +249,10 @@ const WardrobePage = () => {
                 // A loadout picked meanwhile isn't the one asked about: Apply stops quietly, and its preview stays.
                 if (selected.val !== asked) return { cancelled: true };
                 if (plan.fingerprint !== shown.fingerprint) {
-                    // A newer preview of this loadout (a reload after an undo, say) shows its own plan.
+                    // A newer preview of this loadout (a reload after an undo, say) shows its own plan; one that failed
+                    // keeps its reason said.
                     if (run === previewRun) preview.val = plan;
+                    else if (!preview.val && !previewing.val) return { cancelled: true };
                     loadoutSaid.say(
                         "refused",
                         "The game changed since this preview, so it shows the new plan. Apply again."
