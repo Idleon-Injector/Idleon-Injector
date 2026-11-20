@@ -86,11 +86,16 @@ test("value search: a refused scan is said in its hint line, a bad value under i
     assert.equal(under().attributes.role, "status", "screen readers hear it");
     assert.match(text(under()), /number/i);
     assert.ok(field(), "the field stays open to fix it");
+    assert.equal(field().attributes["aria-invalid"], "true", "the field says it's invalid");
+    assert.match(under().id, /^search-edit-error-\d+$/);
+    assert.equal(field().attributes["aria-describedby"], under().id, "and points at why");
 
     // Typing again clears it; a good value is written and the row confirms in place.
     field().listeners.input({ target: { value: "7" } });
     await settle();
     assert.equal(under(), undefined);
+    assert.equal(field().attributes["aria-invalid"], "false");
+    assert.equal(field().attributes["aria-describedby"], "");
     field().listeners.keydown(event({ key: "Enter" }));
     for (let i = 0; field() && i < 100; i++) await settle();
     assert.equal(field(), undefined, "the field closes once the game took it");

@@ -63,12 +63,23 @@ const useCopy = (path) => {
     return { copyFeedback, handleCopy, copySaid: Said({ said, className: "said--bare said--copy" }) };
 };
 
-/** Why the value in the field wasn't written, under the field while it's open. */
-const EditError = (isEditing, editState) =>
-    Said({
+/**
+ * Why the value in the field wasn't written, under the field while it's open. `fieldProps` go on the field, so
+ * screen readers hear it's invalid and why when they come back to it.
+ */
+let editErrors = 0;
+const EditError = (isEditing, editState) => {
+    const line = Said({
         said: van.derive(() => (isEditing() && editState.error ? { kind: "failed", text: editState.error } : null)),
         className: "said--under",
     });
+    line.id = `search-edit-error-${++editErrors}`;
+    const fieldProps = {
+        "aria-invalid": () => String(Boolean(editState.error)),
+        "aria-describedby": () => (editState.error ? line.id : ""),
+    };
+    return { line, fieldProps };
+};
 
 /** A list's own warning line (the scan hit its limit, the saved list didn't refresh); empty takes no room. */
 const Note = (text) =>
@@ -80,6 +91,7 @@ const ResultItem = ({ result, ui, handlers }) => {
     const { copyFeedback, handleCopy, copySaid } = useCopy(result.path);
 
     const isEditing = () => ui.edit.path === result.path;
+    const editError = EditError(isEditing, ui.edit);
     const isInSavedList = () => ui.savedResults.some((entry) => entry.path === result.path);
 
     const handleAddToList = (e) => {
@@ -131,6 +143,7 @@ const ResultItem = ({ result, ui, handlers }) => {
                 class: "result-edit-input",
                 value: () => ui.edit.draft,
                 "aria-label": `New value for ${result.path}`,
+                ...editError.fieldProps,
                 oninput: (e) => {
                     ui.edit.draft = e.target.value;
                     ui.edit.error = "";
@@ -197,7 +210,7 @@ const ResultItem = ({ result, ui, handlers }) => {
             );
         })
     );
-    return div({ class: "search-result-entry" }, row, EditError(isEditing, ui.edit));
+    return div({ class: "search-result-entry" }, row, editError.line);
 };
 
 const SearchButton = ({
@@ -581,6 +594,7 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
     const { copyFeedback, handleCopy, copySaid } = useCopy(path);
 
     const isEditing = () => ui.savedEdit.path === path;
+    const editError = EditError(isEditing, ui.savedEdit);
 
     const monitorData = () => store.monitors.get(path);
     const isMonitorEnabled = () => entryState.val.monitorEnabled === true;
@@ -696,6 +710,7 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                 class: "result-edit-input",
                 value: () => ui.savedEdit.draft,
                 "aria-label": `New value for ${path}`,
+                ...editError.fieldProps,
                 oninput: (e) => {
                     ui.savedEdit.draft = e.target.value;
                     ui.savedEdit.error = "";
@@ -774,7 +789,7 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                 )
             );
         }),
-        EditError(isEditing, ui.savedEdit)
+        editError.line
     );
 
     return { node, sync: (nextEntry) => (entryState.val = nextEntry) };
