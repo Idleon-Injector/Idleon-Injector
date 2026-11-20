@@ -113,7 +113,11 @@ export const labelOf = (node) => {
 
 // Writes that no field or button claimed (a page's own button, say) group by the click or key that led to them.
 const noteGesture = (target) => {
-    const control = typeof target?.closest === "function" ? target.closest("button, select, label, input") : null;
+    // A switch is one control whether its words, its track or its checkbox took the click or key.
+    const control =
+        typeof target?.closest === "function"
+            ? target.closest(".toggle-switch") || target.closest("button, select, label, input")
+            : null;
     gesture = { count: gesture.count + 1, label: labelOf(target), target: control || target };
 };
 

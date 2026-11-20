@@ -26,6 +26,7 @@ import { gga, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -89,22 +90,19 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
         renderBadge: (currentValue) => `LV ${currentValue} / ${maxLevelState.val}`,
         rowClass: () => (isExalted.val ? "stamp-row--exalted" : ""),
         renderExtraActions: ({ status, run, applyValue }) => [
-            ActionButton({
-                label: () => (isExalted.val ? "EXALTED ON" : "EXALTED OFF"),
-                status,
-                variant: "switch",
-                className: () => `stamp-exalted-btn ${isExalted.val ? "stamp-exalted-btn--active" : ""}`.trim(),
-                tooltip: `Toggle exalted stamp (${stampCode})`,
-                onClick: async (e) => {
-                    e.preventDefault();
-                    await run(async () => {
+            StateSwitch({
+                checked: isExalted,
+                words: ["Exalted", "Not exalted"],
+                name: `${name} exalted`,
+                title: `Exalted stamp (${stampCode})`,
+                onFlip: (exalted) =>
+                    run(async () => {
                         const next = new Set(exaltedCodes.val);
-                        if (next.has(stampCode)) next.delete(stampCode);
-                        else next.add(stampCode);
+                        if (exalted) next.add(stampCode);
+                        else next.delete(stampCode);
                         await writeExaltedCodes(next);
                         exaltedCodes.val = next;
-                    });
-                },
+                    }),
             }),
             ActionButton({
                 label: "Relock",

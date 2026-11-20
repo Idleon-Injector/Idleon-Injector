@@ -2,7 +2,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList, readComputed } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
+import { parseNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
@@ -65,7 +65,6 @@ const OmniJadeTab = () => {
                             },
                             write: (next) => save(() => writeVerified(path, next)),
                             renderInfo: () => span({ class: "account-row__name" }, `${name} bonus levels`),
-                            renderBadge: formatNumber,
                             adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
                             disabled,
                             rowClass: "account-row--wide-controls",
@@ -102,9 +101,9 @@ const OmniJadeTab = () => {
                     span({ class: "account-write-feedback", role: "status" }, () => message.val)
                 )
             ),
-            span({ class: "account-row__badge" }, () => (state(path).val >= 1 ? "ON" : "OFF")),
             label(
-                { class: "toggle-switch" },
+                { class: () => `toggle-switch state-switch${state(path).val >= 1 ? " is-on" : ""}` },
+                span({ class: "state-switch__words" }, () => (state(path).val >= 1 ? "On" : "Off")),
                 input({
                     type: "checkbox",
                     role: "switch",

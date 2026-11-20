@@ -194,7 +194,8 @@ const renderCurrencyField = (field, states) =>
     field.type === "toggle"
         ? AccountToggleRow({
               info: div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, field.name)),
-              badge: () => (states.get(field.key).val ? "ENABLED" : "DISABLED"),
+              words: ["Enabled", "Disabled"],
+              name: field.name,
               checked: () => Boolean(states.get(field.key).val),
               rowClass: "grimoire-currency__toggle masterclass-currency__toggle",
               title: field.title ?? field.name,

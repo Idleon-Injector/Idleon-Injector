@@ -6,7 +6,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { clickAgain } from "../../../components/inPlace.js";
 import {
     cleanName,
@@ -97,20 +97,23 @@ const EventshopTab = () => {
         reconcileRows(catalog.map((entry) => entry.index).join(","), () =>
             catalog.map(({ index }) => {
                 const row = rows.get(index);
-                const action = ActionButton({
-                    label: () => {
+                const action = [
+                    span({ class: "account-write-feedback", role: "status" }, () => {
                         if (row.feedback.status.val === "loading") return "Saving…";
                         if (row.feedback.status.val === "success") return "Verified";
                         if (row.feedback.status.val === "error") return "Failed";
-                        return row.owned.val ? "Disable" : "Enable";
-                    },
-                    variant: () => (row.owned.val ? "danger" : "quiet"),
-                    status: row.feedback.status,
-                    disabled: () => busy.val || !ready.val,
-                    tooltip: () =>
-                        `${row.owned.val ? "Disable" : "Enable"} ownership for ${row.entry.val.name}. No event points spent.`,
-                    onClick: () => setOwnership(!row.owned.val, index, row.feedback),
-                });
+                        return "";
+                    }),
+                    StateSwitch({
+                        checked: () => row.owned.val,
+                        words: ["Owned", "Not owned"],
+                        name: () => row.entry.val.name,
+                        disabled: () => !ready.val,
+                        title: () =>
+                            `${row.owned.val ? "Remove" : "Grant"} ownership of ${row.entry.val.name}. No event points spent.`,
+                        onFlip: (owned) => setOwnership(owned, index, row.feedback),
+                    }),
+                ];
                 return AccountRow({
                     rowClass: "eventshop-row",
                     status: row.feedback.status,
@@ -121,8 +124,6 @@ const EventshopTab = () => {
                         span({ class: "account-row__sub-label" }, () => `Cost: ${row.entry.val.cost} event points`),
                         ROW_NOTES[index] ? span({ class: "eventshop-row__note" }, ROW_NOTES[index]) : null
                     ),
-                    badge: () => (row.owned.val ? "OWNED" : "NOT OWNED"),
-                    badgeClass: () => (row.owned.val ? "account-row__badge--highlight" : ""),
                     controls: action,
                 });
             })
@@ -224,7 +225,7 @@ const EventshopTab = () => {
     return PersistentAccountListPage({
         title: "EVENTSHOP",
         description:
-            "Edit account ownership without spending event points. Effects may require reopening the relevant game screen or reentering town. Disabling ownership does not undo rewards already received.",
+            "Edit account ownership without spending event points. Effects may require reopening the relevant game screen or reentering town. Turning ownership off does not undo rewards already received.",
         rootClass: "tab-container eventshop-tab",
         actions: BulkActionBar({
             actions: [

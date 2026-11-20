@@ -145,10 +145,10 @@
 }
 
 .grimoire-currency__toggle {
-    grid-template-columns: max-content max-content;
+    grid-template-columns: max-content;
     grid-template-areas:
-        "info info"
-        "badge controls";
+        "info"
+        "controls";
     gap: 6px;
     justify-content: start;
     padding: 0;
@@ -160,14 +160,14 @@
     grid-area: info;
 }
 
-.grimoire-currency__toggle .account-row__badge {
-    grid-area: badge;
-    justify-self: start;
-}
-
 .grimoire-currency__toggle .account-row__controls {
     grid-area: controls;
     justify-self: start;
+}
+
+/* In the currency fields the switch sits under its label, so its words keep their own width. */
+.grimoire-currency__toggle .state-switch__words {
+    min-width: 0;
 }
 
 .grimoire-upgrade-list,

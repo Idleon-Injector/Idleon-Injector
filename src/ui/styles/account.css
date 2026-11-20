@@ -21,6 +21,7 @@
 }
 
 .toggle-switch {
+    position: relative;
     display: inline-flex;
     align-items: center;
     cursor: pointer;
@@ -31,8 +32,29 @@
 .toggle-switch.account-toggle {
     margin-left: 25px;
 }
+/* The checkbox stays in the page, out of sight on the switch's end, so a switch is reachable and flips from the
+ * keyboard, and an Undo offered after a flip finds the switch's words on its line and lies over them. */
 .toggle-switch input {
-    display: none;
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 36px;
+    height: 18px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+/* "~", not "+": an Undo offer is placed right after the checkbox for a few seconds. */
+.toggle-switch input:focus-visible ~ .slider {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+
+.toggle-switch input:disabled ~ .slider {
+    opacity: 0.5;
+    cursor: default;
 }
 
 .toggle-switch .slider {
@@ -57,15 +79,35 @@
     transition: 0.3s;
 }
 
-.toggle-switch input:checked + .slider {
+.toggle-switch input:checked ~ .slider {
     background: var(--c-accent-20);
     border-color: var(--c-accent);
 }
 
-.toggle-switch input:checked + .slider::before {
+.toggle-switch input:checked ~ .slider::before {
     transform: translateX(18px);
     background: var(--c-accent);
-    box-shadow: 0 0 5px var(--c-accent);
+}
+
+/* The on/off switch (#26): the game's word for the state, then the switch. The words keep one width, so the
+ * switches in a list line up. */
+.state-switch {
+    gap: 12px;
+}
+
+.state-switch__words {
+    min-width: 5.5em;
+    color: var(--c-text-muted);
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+    transition: color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.state-switch.is-on .state-switch__words {
+    color: var(--c-text-main);
 }
 
 .toggle-switch .label {

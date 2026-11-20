@@ -15,8 +15,8 @@ import {
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { clickAgain } from "../../../components/inPlace.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -350,14 +350,14 @@ const WeeklyBossTab = () => {
                 span({ class: "account-row__sub-label" }, `${entry.cost} trophies`),
                 entry.description ? span({ class: "account-row__sub-label" }, entry.description) : null
             ),
-            badge: () => (state.unlocked.val ? "UNLOCKED" : "LOCKED"),
-            controls: ActionButton({
-                label: () => (state.unlocked.val ? "Disable" : "Enable"),
-                variant: () => (state.unlocked.val ? "danger" : "quiet"),
-                status: state.write.status,
-                disabled: cannotWrite,
-                tooltip: () => `${state.unlocked.val ? "Disable" : "Enable"} ${entry.name} without spending trophies`,
-                onClick: () => setSkin(entry, !state.unlocked.val),
+            controls: StateSwitch({
+                checked: () => state.unlocked.val,
+                words: ["Unlocked", "Locked"],
+                name: entry.name,
+                disabled: () => loading.val || Boolean(error.val) || signature === null,
+                title: () =>
+                    state.unlocked.val ? `Lock ${entry.name}` : `Unlock ${entry.name} without spending trophies`,
+                onFlip: (unlocked) => setSkin(entry, unlocked),
             }),
         });
     };
@@ -470,7 +470,6 @@ const WeeklyBossTab = () => {
             }
         },
         renderInfo: () => span({ class: "account-row__name" }, "Trophies"),
-        renderBadge: (value) => String(value),
         inputProps: { "aria-label": "Weekly Boss trophy balance" },
     });
 
@@ -478,7 +477,7 @@ const WeeklyBossTab = () => {
     return PersistentAccountListPage({
         title: "WEEKLY BOSS",
         description:
-            "Edit trophies and cosmetic main-bar skins. Enable and Disable change unlocks without spending trophies.",
+            "Edit trophies and cosmetic main-bar skins. Each skin's switch unlocks or locks it without spending trophies.",
         actions: BulkActionBar({ refresh: { onClick: load, disabled: isBusy } }),
         wrapActions: false,
         state: { loading, error },
@@ -513,7 +512,7 @@ const WeeklyBossTab = () => {
             }),
             AccountSection({
                 title: "UI skins",
-                note: "Shop prices are shown for reference. Default is free. Disabling an equipped skin preserves its selection.",
+                note: "Shop prices are shown for reference. Default is free. Locking an equipped skin keeps its selection.",
                 meta: BulkActionBar({
                     actions: [
                         {

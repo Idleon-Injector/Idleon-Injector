@@ -11,7 +11,7 @@ import {
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { clickAgain } from "../../../components/inPlace.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
@@ -147,11 +147,10 @@ const BribesTab = () => {
                 span({ class: "account-row__name" }, entry.name),
                 span({ class: "bribes-row__bonus" }, entry.bonus)
             ),
-            badge: () => (state.value.val === 1 ? "OWNED" : state.value.val === 0 ? "AVAILABLE" : "LOCKED"),
             controls: entry.readOnly
                 ? span({ class: "write-status" }, "READ ONLY")
                 : [
-                      span({ class: "write-status", role: "status" }, () => {
+                      span({ class: "account-write-feedback", role: "status" }, () => {
                           const status = state.write.status.val;
                           return status === "loading"
                               ? "SAVING"
@@ -161,16 +160,17 @@ const BribesTab = () => {
                                   ? "FAILED"
                                   : "";
                       }),
-                      ActionButton({
-                          label: () => (state.value.val === 1 ? "Disable" : "Enable"),
-                          variant: () => (state.value.val === 1 ? "danger" : "quiet"),
-                          status: state.write.status,
-                          disabled: cannotWrite,
-                          tooltip: () =>
+                      StateSwitch({
+                          checked: () => state.value.val === 1,
+                          words: () =>
+                              state.value.val === 1 ? "Owned" : state.value.val === 0 ? "Not owned" : "Locked",
+                          name: entry.name,
+                          disabled: () => loading.val || Boolean(error.val) || !entries.length,
+                          title: () =>
                               state.value.val === 1
-                                  ? `Disable ${entry.name}`
-                                  : `Enable ${entry.name} without spending coins`,
-                          onClick: () => setBribe(entry, state.value.val !== 1),
+                                  ? `Remove ${entry.name}`
+                                  : `Own ${entry.name} without spending coins`,
+                          onFlip: (owned) => setBribe(entry, owned),
                       }),
                   ],
         });
