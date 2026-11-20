@@ -561,17 +561,24 @@ test("a reload that read the choice before a refused card save doesn't put the c
 // Attire review F4: the cards' saves show on the cards, not on the header buttons.
 test("a card click leaves All outfits and No outfits quiet", async () => {
     const root = await open();
+    await until(() => !button(root, "Refresh").attributes.disabled, "the page's first read to end");
     const header = ["All outfits", "No outfits"].map((label) => button(root, label));
     const lit = () => header.some((node) => /account-btn--(loading|success|error)/.test(classes(node)));
-    let seen = false;
-    const look = setInterval(() => (seen ||= lit()), 2);
+    const group = elements(root).find((node) => node.attributes["aria-label"] === "Outfit bonuses");
+    const was = pressed(root, names[1]);
+    const release = holdConfigUpdate();
+    let saved;
     try {
-        await card(root, names[1]).listeners.click({});
-        await new Promise((resolve) => setTimeout(resolve, 60));
+        saved = card(root, names[1]).listeners.click({});
+        // The cards say they're busy in the same redraw that would light a header button.
+        await until(() => group.attributes["aria-busy"] === true, "the card's save to run");
+        assert.equal(lit(), false, "quiet while the card saves");
     } finally {
-        clearInterval(look);
+        release();
     }
-    assert.equal(seen, false);
+    await saved;
+    await until(() => group.attributes["aria-busy"] === false && pressed(root, names[1]) !== was, "the card to change");
+    assert.equal(lit(), false, "quiet once the card saved");
     await card(root, names[1]).listeners.click({});
 });
 
