@@ -211,6 +211,43 @@ test("statues: Flair set back to its first value while the change saves is saved
     }
 });
 
+// Review of #117 (same field editor), third round: a deposit shown again after the first save's read-back counted
+// as an edit in the third save.
+test("statues: a third Flair save doesn't write the deposit an earlier save showed over a newer one", async () => {
+    const saved = [[...g.StatueLevels[4]], g.RoyalG[22][4]];
+    g.RoyalG[22][4] = 1;
+    const root = await openPage(STATUES, (root) => statueRow(root, 4));
+    const row = statueRow(root, 4);
+    const realFetch = globalThis.fetch;
+    const releases = [];
+    const gates = [1, 2].map(() => new Promise((resolve) => releases.push(resolve)));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) {
+            const n = ++writes;
+            if (n <= 2) await gates[n - 1];
+        }
+        return realFetch(url, options);
+    };
+    try {
+        typeFlair(row, "2");
+        await until(() => writes === 1, "the first save to reach the game");
+        g.StatueLevels[4][1] = 77777; // deposited in the game while the first save runs
+        typeFlair(row, "3");
+        releases[0]();
+        await until(() => writes === 2, "the second save to reach the game");
+        g.StatueLevels[4][1] = 88888; // and again while the second runs
+        typeFlair(row, "4");
+        releases[1]();
+        await until(() => g.RoyalG[22][4] === 4 && saveState(row) === "success", "the third save");
+        assert.equal(g.StatueLevels[4][1], 88888, "the game's newer deposit isn't put back");
+    } finally {
+        globalThis.fetch = realFetch;
+        releases.forEach((release) => release());
+        [g.StatueLevels[4], g.RoyalG[22][4]] = saved;
+    }
+});
+
 test("statues: names show the game's underscores as spaces", async () => {
     const root = await openPage(STATUES, (root) => statueRow(root, 7));
     assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "THICC SKIN");
