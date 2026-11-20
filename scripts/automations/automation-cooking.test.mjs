@@ -304,6 +304,41 @@ test("Food Lust stacks: the priciest affordable meal buys first, then the rest a
     await cheat("automation cooking", false);
 });
 
+test("stacks over the Food Lust level count for nothing: meals go cheapest first", async () => {
+    setGame();
+    gga.OptionsListAccount[193] = 4; // Dream[11] stays 0: no Food Lust levels, so no discount
+    gga.Meals[0] = [10, 1, 0, 21];
+    gga.Meals[2] = [1e9, 0, 0, 1e9];
+    setPicks({
+        meals: [
+            { id: "0", on: true, stopAt: 11 },
+            { id: "3", on: true, stopAt: 22 },
+        ],
+    });
+    await cheat("automation cooking", true);
+    tick();
+    // Meal 3 (22) before meal 0 (55): their milestones come in that order.
+    assert.deepEqual(
+        calls.filter(([kind]) => kind === "ach"),
+        [
+            ["ach", 233, 2],
+            ["ach", 231, 2],
+        ]
+    );
+    await cheat("automation cooking", false);
+});
+
+test("the Oinkin quest counts only the first ten meals", async () => {
+    setGame();
+    gga.Meals[0] = [1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 5];
+    gga.Meals[2] = [1000, 0, 0, 0];
+    setPicks({ meals: [{ id: "0", on: true, stopAt: 2 }] });
+    await cheat("automation cooking", true);
+    tick();
+    assert.equal(gga.QuestStatus.h.Oinkin1[0], 1, "meal 10 at level 5 isn't one of the ten");
+    await cheat("automation cooking", false);
+});
+
 test("the meal milestones and the daily task advance like a click", async () => {
     setGame();
     gga.Meals[0] = [10, 15, 0, 21];
