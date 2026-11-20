@@ -16,6 +16,12 @@ export const configDescriptions = {
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
+    "cheatConfig.automation.kitchens":
+        "Automation: kitchen upgrades to level, { id: 3 * kitchen + slot (0 Speed, 1 Fire, 2 Luck), on, stopAt, priority (1 High, 2 Low) }.",
+    "cheatConfig.automation.kitchenSaving":
+        "Automation: per spice, the % of what it saves for that Balanced kitchen upgrades may spend meanwhile.",
+    "cheatConfig.automation.meals":
+        "Automation: meals to level with their own quantity, { id: meal index, on, stopAt }.",
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",

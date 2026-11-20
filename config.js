@@ -21,6 +21,9 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        kitchens: [], // Automation: kitchen upgrades to level, { id: 3 * kitchen + slot (0 Speed, 1 Fire, 2 Luck), on, stopAt, priority (1 High, 2 Low) }.
+        kitchenSaving: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10], // Automation: per spice, the % of what it saves for that Balanced kitchen upgrades may spend meanwhile.
+        meals: [], // Automation: meals to level with their own quantity, { id: meal index, on, stopAt }.
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)
