@@ -139,11 +139,47 @@ test("a failure is said even when the status clears while the page reads again",
 // Bribes: Enable all succeeds, and Disable all pressed within 1.2 s only asks "Click again" in its own handler.
 test("a press that only asks says nothing of an earlier press's done", async () => {
     const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const { announce } = await importRepo("src/ui/components/inPlace.js");
     const status = van.state("success"); // Enable all's result, still showing
-    const button = ActionButton({ label: "Disable all", status, onClick: async () => settle() });
+    // Bribes reads the game, then asks "Click again" in its own handler (clickAgain marks the button).
+    const button = ActionButton({
+        label: "Disable all",
+        status,
+        onClick: async () => {
+            await settle();
+            button.setAttribute("data-again", "Click again");
+        },
+    });
+    announce(""); // the live region, made on its first use
     const region = elements(globalThis.document.body).find((node) => node.attributes.role === "status");
-    region.textContent = "";
     await click(button);
     await settle(150);
     assert.equal(region.textContent, "", "nothing said");
+});
+
+// A retry within the 1.2 s the failure shows, whose write fails as quickly: the status is never seen saving, and the
+// retry's failure is still said.
+test("a quick retry that fails again is said", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const { useWriteStatus } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { announce } = await importRepo("src/ui/components/inPlace.js");
+    const write = useWriteStatus();
+    const button = ActionButton({
+        label: "Max all",
+        status: write.status,
+        onClick: async () => {
+            await settle(20); // the page reads the game first
+            await write.run(async () => {
+                await settle(10); // the write is refused quickly
+                throw new Error("The game is busy");
+            });
+        },
+    });
+    await click(button);
+    await settle(60);
+    announce("");
+    const region = elements(globalThis.document.body).find((node) => node.attributes.role === "status");
+    await click(button);
+    await settle(60);
+    assert.equal(region.textContent, "Max all: failed");
 });
