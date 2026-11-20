@@ -5,7 +5,6 @@
 
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
-import { VIEWS } from "../../state/constants.js";
 import { Icons } from "../../assets/icons.js";
 import { Loader } from "../Loader.js";
 import { menuTree, menuError } from "../../menu/pageRegistry.js";
@@ -17,7 +16,8 @@ import "./account/UndoAllOffer.js";
 
 const { div, button, span, p } = van.tags;
 
-const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label }) => {
+// `picked`: the rows' picked tabs, so the view scrolls them into view again as it shows (WorldFrame).
+const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label, picked }) => {
     const buttons = tabs.map((tab) =>
         button(
             {
@@ -33,7 +33,10 @@ const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label }) => {
     // A narrow menu (400 px) scrolls the row sideways: the picked tab is scrolled into view once the row is in the
     // page, as the Cheats page does for its category tabs.
     const active = buttons[tabs.findIndex(isActive)];
-    if (active) queueMicrotask(() => active.scrollIntoView({ block: "nearest", inline: "center" }));
+    if (active) {
+        picked.push(active);
+        queueMicrotask(() => active.scrollIntoView({ block: "nearest", inline: "center" }));
+    }
     return div({ class: `account-sub-nav menu-tabs ${navClass}`, role: "tablist", "aria-label": label }, ...buttons);
 };
 
@@ -57,9 +60,13 @@ const WorldFrame = (tree) => {
         const pages = pagesOf(worldNow());
         return (pages.find((page) => page.id === store.app.menuPage) || pages[0] || { id: "" }).id;
     });
-    // Each time a page is shown (picked, or the Pages view shown again), the pages that asked are told.
+    let picked = [];
+    // Each time a page is shown (picked, or the Pages view shown again), the pages that asked are told. A row built
+    // while the view was hidden scrolled nothing, so its picked tab scrolls into view as the view shows.
     van.derive(() => {
-        if (store.app.activeTab === VIEWS.PAGES.id) pageShown(activePage.val);
+        if (store.app.activeTab !== VIEWS.PAGES.id) return;
+        pageShown(activePage.val);
+        queueMicrotask(() => picked.forEach((tab) => tab.scrollIntoView({ block: "nearest", inline: "center" })));
     });
 
     return div(
@@ -68,6 +75,7 @@ const WorldFrame = (tree) => {
             const world = worldNow();
             if (!world.systems.length) return NoPages(world);
             const system = world.systems.find((s) => s.pages.some((page) => page.id === activePage.val));
+            picked = [];
             return div(
                 { class: "menu-world__nav" },
                 TabRow({
@@ -77,6 +85,7 @@ const WorldFrame = (tree) => {
                     tabs: world.systems.map((s) => ({ ...s, label: s.name })),
                     isActive: (s) => s.name === system.name,
                     onPick: (s) => store.openMenu({ world: world.id, page: s.pages[0].id }),
+                    picked,
                 }),
                 system.pages.length > 1
                     ? TabRow({
@@ -86,6 +95,7 @@ const WorldFrame = (tree) => {
                           tabs: system.pages.map((page) => ({ ...page, label: pageTitle(page, system) })),
                           isActive: (page) => page.id === activePage.val,
                           onPick: (page) => store.openMenu({ world: world.id, page: page.id }),
+                          picked,
                       })
                     : span()
             );
@@ -103,18 +113,7 @@ const WorldFrame = (tree) => {
     );
 };
 
-export const Pages = () => {
-    const root = div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
+export const Pages = () =>
+    div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
         menuTree.val ? WorldFrame(menuTree.val) : div({ class: "account-loader" }, Loader({ text: "LOADING PAGES" }))
     );
-    // A tab row built while this view was hidden scrolled nothing: the picked tabs scroll into view as it shows.
-    van.derive(() => {
-        if (store.app.activeTab !== VIEWS.PAGES.id) return;
-        queueMicrotask(() =>
-            root
-                .querySelectorAll(".menu-tabs .active")
-                .forEach((tab) => tab.scrollIntoView({ block: "nearest", inline: "center" }))
-        );
-    });
-    return root;
-};
