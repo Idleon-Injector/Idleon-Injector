@@ -158,3 +158,18 @@ test("a typed value that needs confirming asks beside its field; only Enter agai
     assert.throws(() => ask("lower showdowns from 9 to 3."), "back in the field, it asks before it answers");
     assert.equal(ask("lower showdowns from 9 to 3."), true);
 });
+
+test("leaving the field forgets the question, even if the player is back in it when that save asks", async () => {
+    const { askAtField } = await importRepo("src/ui/components/inPlace.js");
+    const field = globalThis.document.createElement("input");
+    const ask = askAtField(() => field);
+    globalThis.document.activeElement = field;
+    assert.throws(() => ask("lower showdowns from 9 to 3."), "Enter asks");
+
+    // Tab away: leaving saves, and that save reads the game before it asks; the player clicks back meanwhile.
+    globalThis.document.activeElement = null;
+    field.listeners.focusout({ relatedTarget: null });
+    globalThis.document.activeElement = field;
+    assert.throws(() => ask("lower showdowns from 9 to 3."), "the save from leaving only asks again");
+    assert.equal(ask("lower showdowns from 9 to 3."), true, "an Enter after that answers");
+});

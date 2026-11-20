@@ -148,26 +148,36 @@ export const clickAgain = (button, question, ms = 4000) => {
  */
 export const askAtField = (field, ms = 10000) => {
     let asked = "";
+    let askedAt = null;
     let timer = null;
+    const forget = () => {
+        clearTimeout(timer);
+        asked = "";
+        if (!askedAt) return;
+        askedAt.removeEventListener("focusout", left);
+        hideTooltip(askedAt);
+        askedAt = null;
+    };
+    // Leaving the field forgets the question, so the save that leaving starts can't answer it, even when the
+    // player is back in the field by the time that save asks.
+    const left = (e) => {
+        if (!askedAt.contains(e.relatedTarget)) forget();
+    };
     return (question) => {
         const el = field();
         const inField = Boolean(el?.contains(document.activeElement));
         if (asked === question && inField) {
-            asked = "";
-            clearTimeout(timer);
-            hideTooltip(el);
+            forget();
             return true;
         }
         // The question is asked where the player is. Leaving the field only leaves "Enter again" beside it, so
         // the next Enter there shows the question before one more Enter answers it.
-        clearTimeout(timer);
-        asked = "";
+        forget();
         if (inField) {
             asked = question;
-            timer = setTimeout(() => {
-                asked = "";
-                hideTooltip(el);
-            }, ms);
+            askedAt = el;
+            el.addEventListener("focusout", left);
+            timer = setTimeout(forget, ms);
             showTooltip(el, `Enter again to ${question}`);
             announce(`Enter again to ${question}`);
         }
