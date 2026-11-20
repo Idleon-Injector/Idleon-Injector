@@ -213,6 +213,31 @@ test("one button's question running out doesn't hide another button's question",
     assert.doesNotMatch(classOf(tooltip), /\bvisible\b/, "and goes when it runs out itself");
 });
 
+test("a question hidden before its tooltip is placed stays hidden", async (t) => {
+    const { hideTooltip, showTooltip, TooltipContainer } = await importRepo("src/ui/components/Tooltip.js");
+    const tooltip = TooltipContainer();
+    await settle(); // the container becomes the tooltip that gets placed
+    const box = () => ({ top: 100, bottom: 120, left: 100, right: 200, width: 100, height: 20 });
+    tooltip.getBoundingClientRect = box;
+    const field = globalThis.document.createElement("input");
+    field.getBoundingClientRect = box;
+    const frames = [];
+    t.mock.method(globalThis, "requestAnimationFrame", (frame) => frames.push(frame));
+    globalThis.window ??= { innerWidth: 800, innerHeight: 600 };
+
+    // The field asks, and the player leaves it before the next frame places the tooltip.
+    showTooltip(field, "Enter again to lock Big Brain Time.");
+    hideTooltip(field);
+    frames.splice(0).forEach((frame) => frame());
+    await Promise.resolve();
+    assert.doesNotMatch(classOf(tooltip), /\bvisible\b/, "the queued frame doesn't bring it back");
+
+    showTooltip(field, "Enter again to lock Big Brain Time.");
+    frames.splice(0).forEach((frame) => frame());
+    await Promise.resolve();
+    assert.match(classOf(tooltip), /\bvisible\b/, "a question still showing is placed");
+});
+
 test("a typed value that needs confirming asks beside its field; only Enter again in the field answers", async () => {
     const { askAtField } = await importRepo("src/ui/components/inPlace.js");
     const field = globalThis.document.createElement("input");

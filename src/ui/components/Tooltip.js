@@ -83,9 +83,12 @@ const calculatePosition = (targetEl, preferredPosition, tooltipEl) => {
 let tooltipElement = null;
 // The element the tooltip is showing for, so one control's timer can't hide another's tooltip.
 let shownFor = null;
+// Counts shows and hides, so a frame queued by an older show can't bring back a tooltip hidden since.
+let shows = 0;
 
 export const showTooltip = (targetEl, text, position = "top") => {
     shownFor = targetEl;
+    const show = ++shows;
     // First render off-screen to measure size, then position correctly
     tooltipState.val = {
         visible: true,
@@ -96,7 +99,7 @@ export const showTooltip = (targetEl, text, position = "top") => {
     };
 
     requestAnimationFrame(() => {
-        if (tooltipElement) {
+        if (tooltipElement && show === shows) {
             const pos = calculatePosition(targetEl, position, tooltipElement);
             tooltipState.val = { visible: true, text, ...pos };
         }
@@ -106,6 +109,7 @@ export const showTooltip = (targetEl, text, position = "top") => {
 /** Hide the tooltip; given `targetEl`, only while it's still that element's. */
 export const hideTooltip = (targetEl = null) => {
     if (targetEl && targetEl !== shownFor) return;
+    shows++;
     tooltipState.val = { ...tooltipState.val, visible: false };
 };
 
