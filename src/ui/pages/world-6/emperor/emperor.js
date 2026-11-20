@@ -354,10 +354,7 @@ const EmperorTab = () => {
                     if (resetting) return;
                     resetting = true;
                     const resetButton = e.currentTarget;
-                    // Reset writes the field's own value, so its ✓ answers the field's failure (and the other way round).
-                    return progressWrite
-                        .run(() => saveProgress(true, resetButton), "field")
-                        .finally(() => (resetting = false));
+                    return progressWrite.run(() => saveProgress(true, resetButton)).finally(() => (resetting = false));
                 },
             }),
         ],
@@ -387,7 +384,7 @@ const EmperorTab = () => {
                 label: "Refill",
                 disabled: () =>
                     cannotEdit() || snapshot.val.cheatEnabled || snapshot.val.remaining >= snapshot.val.capacity,
-                onClick: () => entriesWrite.run(() => saveEntries(true), "field"),
+                onClick: () => entriesWrite.run(() => saveEntries(true)),
             }),
         ],
     });

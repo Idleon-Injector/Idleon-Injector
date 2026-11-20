@@ -106,6 +106,7 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
                       words: ["Prisma", "Not prisma"],
                       name: `${bubble.name} prisma`,
                       title: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
+                      // The switch says why its save failed; the row's save state says saving… and ✓.
                       onFlip: (prisma) =>
                           run(async () => {
                               const code = prismaCode(cauldron.prismaKey, bubble.index);
@@ -115,7 +116,7 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
                               const encoded = encodePrisma(next);
                               await writeVerified("OptionsListAccount[384]", encoded);
                               prismaSet.val = next;
-                          }).then(() => undefined), // the row's own save state says why a save failed
+                          }, "switch"),
                   }),
     });
 };

@@ -543,7 +543,7 @@ test("stamps: leaving a level field for the row's switch saves the level", async
     }
 });
 
-test("stamps: a switch flipped while the level saves keeps its failure after the level's ✓", async () => {
+test("stamps: a switch flipped while the level saves waits for it, and says its own failure", async () => {
     const levels = game.gga.StampLevel[0];
     const before = levels[0];
     const restore = refuseWrites(game.gga.Compass, 4);
@@ -580,13 +580,14 @@ test("stamps: a switch flipped while the level saves keeps its failure after the
         if (switchRanBeside) await flipped;
         releaseLevel();
         await flipped;
-        // The badge shows the saved level once the level's save has ended; the words then say how the row's last write went.
+        // The badge shows the saved level once the level's save has ended.
         const label = () => text(byClass(row, "save-state__label")[0]);
         await until(
             () => text(byClass(row, "account-row__badge")[0]).startsWith(`LV ${before + 1} `) && label() !== "saving…",
             "both saves to end"
         );
-        assert.equal(label(), "game kept old value");
+        assert.equal(wordsOf(row), "game kept old value", "the switch says why it wasn't saved");
+        assert.equal(label(), "", "once: the row doesn't say it too");
         assert.equal(switchRanBeside, false, "the switch waits for the level's save");
     } finally {
         globalThis.fetch = realFetch;
@@ -617,7 +618,7 @@ const openStampA1 = async () => {
         levels[0] = before.level;
         game.gga.Compass[4] = before.exalted;
     });
-    return { row, levels, before: before.level };
+    return { root, row, levels, before: before.level };
 };
 const exalted = () => game.gga.Compass[4].includes("_0");
 
@@ -636,27 +637,61 @@ test("stamps: a level the game refused stays said when the switch flipped behind
     }
 });
 
-test("stamps: a switch's failure stays said after a later level save, until the switch saves", async () => {
+test("stamps: a switch's failure is said on the switch, so the level saved after it shows its ✓", async () => {
     try {
         const { row, levels, before } = await openStampA1();
         const restore = refuseWrites(game.gga.Compass, 4);
         cleanups.push(restore);
         await flip(row, true);
-        await until(() => saveWordsOf(row) === "game kept old value", "the switch's failure");
+        await until(() => wordsOf(row) === "game kept old value", "the switch's failure, on the switch");
+        assert.equal(saveWordsOf(row), "", "said once");
 
         const field = typeLevel(row, before + 1);
         row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
-        await until(
-            () => text(byClass(row, "account-row__badge")[0]).startsWith(`LV ${before + 1} `),
-            "the level to save"
-        );
-        await until(() => saveWordsOf(row) !== "saving…", "the level's save to end");
+        await until(() => saveWordsOf(row) === "saved", "the level's ✓");
         assert.equal(levels[0], before + 1);
-        assert.equal(saveWordsOf(row), "game kept old value", "the level's ✓ doesn't take the switch's failure");
+        assert.equal(wordsOf(row), "game kept old value", "the switch still says its failure");
+        assert.equal(byClass(row, "save-state__undo")[0].attributes.hidden, false, "Undo for the level");
 
         restore();
         await flip(row, true);
-        await until(() => saveWordsOf(row) === "saved", "the switch's own ✓ to take it back");
+        await until(() => wordsOf(row) === "Exalted", "the switch's own ✓ to take its failure back");
+    } finally {
+        for (const cleanup of cleanups.splice(0)) cleanup();
+    }
+});
+
+test("stamps: a switch's old failure goes once a refresh shows the game holds something else", async () => {
+    try {
+        const { root, row } = await openStampA1();
+        const restore = refuseWrites(game.gga.Compass, 4);
+        cleanups.push(restore);
+        await flip(row, true);
+        await until(() => wordsOf(row) === "game kept old value", "the switch's failure");
+        restore();
+        game.gga.Compass[4] = [...game.gga.Compass[4], "_0"]; // exalted elsewhere (in the game, say)
+        click(buttonNamed(root, "Refresh"));
+        await until(() => wordsOf(row) === "Exalted", "the refresh to show the game's state");
+        assert.equal(saveWordsOf(row), "");
+    } finally {
+        for (const cleanup of cleanups.splice(0)) cleanup();
+    }
+});
+
+test("stamps: a refused Undo of a switch flip is said once, and the next save's ✓ follows it", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        await flip(row, true);
+        const undoButton = byClass(row, "save-state__undo")[0];
+        await until(() => exalted() && undoButton.attributes.hidden === false, "the flip's Undo");
+        cleanups.push(refuseWrites(game.gga.Compass, 4));
+        await undoButton.listeners.click();
+        await until(() => !["", "saving…", "saved"].includes(saveWordsOf(row)), "the refusal");
+
+        const field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => levels[0] === before + 1, "the level to save");
+        await until(() => saveWordsOf(row) === "saved", "the level's ✓");
     } finally {
         for (const cleanup of cleanups.splice(0)) cleanup();
     }
@@ -722,7 +757,7 @@ test("emperor: a double-click on Reset doesn't answer the Click again its first 
     }
 });
 
-test("emperor: Reset, which writes the field's own value, takes back the field's failure when it saves", async () => {
+test("emperor: Reset asking first leaves the field's failure; Reset saving takes it back", async () => {
     const ola = game.gga.OptionsListAccount;
     const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
     if (!(Number(ola[369]) > 0)) ola[369] = 5;
@@ -739,9 +774,13 @@ test("emperor: Reset, which writes the field's own value, takes back the field's
         row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
         await until(() => saveWordsOf(row) === "game kept old value", "the field's failure");
 
-        restore();
         const reset = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
-        await click(reset); // asks
+        await click(reset); // only asks: a cancelled write answers nothing
+        assert.equal(reset.attributes["data-again"], "Click again");
+        await until(() => saveWordsOf(row) !== "saving…", "the ask to end");
+        assert.equal(saveWordsOf(row), "game kept old value", "the typed value is still unsaved");
+
+        restore();
         await click(reset); // answers
         assert.equal(ola[369], 0);
         await until(() => saveWordsOf(row) === "saved", "Reset's ✓");
