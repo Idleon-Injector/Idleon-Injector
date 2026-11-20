@@ -40,7 +40,6 @@ const getTierInfo = (value) => SIGIL_TIERS.find((tier) => tier.value === Number(
 
 const SigilCard = ({ index, tierState, nameState }) => {
     const tierInput = van.state(String(tierState.val));
-    const isFocused = van.state(false);
     // Picking a tier saves it.
     const { status, reason, save, handlers, undo } = useAutoSave({
         prepare: () => {
@@ -56,12 +55,8 @@ const SigilCard = ({ index, tierState, nameState }) => {
         revert: () => (tierInput.val = String(tierState.val)),
     });
 
-    van.derive(() => {
-        const nextValue = String(tierState.val);
-        if (!isFocused.val && tierInput.val !== nextValue) {
-            tierInput.val = nextValue;
-        }
-    });
+    // A choice saves as it's picked, so there is no draft to keep: show the game's tier, with focus too.
+    van.derive(() => (tierInput.val = String(tierState.val)));
 
     return div(
         {
@@ -88,12 +83,6 @@ const SigilCard = ({ index, tierState, nameState }) => {
         select(
             {
                 class: "tier-card__select select-base",
-                onfocus: () => {
-                    isFocused.val = true;
-                },
-                onblur: () => {
-                    isFocused.val = false;
-                },
                 onkeydown: handlers.onkeydown,
                 onchange: (e) => {
                     tierInput.val = e.target.value;

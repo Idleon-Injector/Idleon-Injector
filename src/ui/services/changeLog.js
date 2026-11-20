@@ -78,7 +78,9 @@ const newAction = (label, kind, anchor = null) => {
         kind,
         // The control that made it: a bulk action's Undo all sits beside it.
         anchor,
+        // Values logged, and values the game took (logged or not: a log that fails doesn't undo a save).
         entries: 0,
+        landed: 0,
     };
 };
 
@@ -259,6 +261,7 @@ export const finishChange = async (change, values, landed = null) => {
         .filter((_entry, index) => !landed || landed[index]);
     if (!entries.length) return;
     const { action } = change;
+    action.landed += entries.length;
     try {
         await logChanges({ id: action.id, page: action.page, label: action.label, place: action.place }, entries);
         action.entries += entries.length;

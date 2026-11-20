@@ -3,6 +3,7 @@ import { getNumberInputLiveRaw, setNumberInputValue } from "../../NumberInput.js
 import { largeFormatter, resolveValue } from "./accountShared.js";
 import { useAutoSave } from "./autoSave.js";
 import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
+import { currentPlace, reloadPlace, withAction } from "../../../services/changeLog.js";
 
 const defaultToDraft = (value) => String(value ?? 0);
 
@@ -38,7 +39,8 @@ const refuseClamped = (raw, value) => {
 export const useFieldEditor = ({ fields, normalize, write, disabled = null, onApplied = null }) => {
     const fieldByKey = new Map(fields.map((field) => [field.key, field]));
     const draftStates = {};
-    const focusByKey = new Map();
+    // The page these fields are on, read again after a failed save.
+    const place = currentPlace();
     // The stored value each draft was taken from.
     const baseByKey = new Map();
 
@@ -88,7 +90,18 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
             }
             return {
                 write: async () => {
-                    const verified = await write(next);
+                    // This save's action (autoSave runs it in one), which counts the values that landed.
+                    const action = withAction({ kind: "row" }, (joined) => joined);
+                    let verified;
+                    try {
+                        verified = await write(next);
+                    } catch (error) {
+                        // A write in several steps may have saved some fields before it failed: read the game
+                        // again, so the fields (and Escape, and the next save) start from what it now holds. A save
+                        // that landed nothing reads nothing, so its reason and the typed value stay in place.
+                        if (action.landed > 0) reloadPlace.val = { ...place };
+                        throw error;
+                    }
                     if (verified?.cancelled) {
                         resetSubmitted(submitted);
                         return verified;
@@ -121,13 +134,12 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     fields.forEach((field) => {
         draftStates[field.key] = van.state((field.toDraft ?? defaultToDraft)(field.valueState.val));
         baseByKey.set(field.key, field.valueState.val);
-        focusByKey.set(field.key, false);
-        // A reload shows the new value, unless the field is being edited or saved, or holds the player's draft.
+        // A reload shows the new value, in a focused field too, unless the field is being saved or holds the
+        // player's draft.
         van.derive(() => {
             field.valueState.val;
             const draft = getNumberInputLiveRaw(draftStates[field.key]) ?? draftStates[field.key].rawVal;
-            if (!focusByKey.get(field.key) && !autoSave.isBusy() && isUntouched(field, draft, baseByKey.get(field.key)))
-                resetDraft(field.key);
+            if (!autoSave.isBusy() && isUntouched(field, draft, baseByKey.get(field.key))) resetDraft(field.key);
         });
     });
 
@@ -143,7 +155,8 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         draftStates,
         getDraftValue,
         resetDraft,
-        setFieldFocused: (key, isFocused) => focusByKey.set(key, isFocused),
+        // ponytail: kept so the rows that report focus still work; focus no longer changes what a reload shows.
+        setFieldFocused: () => {},
         status: autoSave.status,
         reason: autoSave.reason,
         handlers: autoSave.handlers,
