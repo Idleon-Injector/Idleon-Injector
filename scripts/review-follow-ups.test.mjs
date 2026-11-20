@@ -102,7 +102,10 @@ test("a field left with nothing to save keeps a button's failure, and takes back
 // #126 (#114): a failed Prisma save showed the set remembered from before it, though the write had landed.
 test("bubbles: a Prisma save whose answer is lost shows what the game holds", async () => {
     ola[384] = "0";
-    const root = await openPage("src/ui/pages/world-2/bubbles/bubbles.js", (r) => byClass(r, "brewing-row").length > 4);
+    const root = await openPage(
+        "src/ui/pages/world-2/bubbles/1-bubbles.js",
+        (r) => byClass(r, "brewing-row").length > 4
+    );
     const [box] = switches(byClass(root, "brewing-section--orange")[0]);
     const restore = landThenFail("OptionsListAccount[384]");
     try {
