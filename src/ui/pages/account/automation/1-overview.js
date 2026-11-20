@@ -6,6 +6,7 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { fetchConfig } from "../../../services/api.js";
 import { EmptyState } from "../../../components/EmptyState.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
@@ -30,13 +31,16 @@ const OverviewPage = () => {
     const load = () =>
         run(async () => {
             const read = ++reads;
-            const automations = await readAutomations();
+            const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
             if (read !== reads) return;
             for (const automation of automations) {
                 if (!entries.has(automation.cheat)) entries.set(automation.cheat, van.state(automation));
                 else entries.get(automation.cheat).val = automation;
             }
-            list.val = automations;
+            list.val = automations.map((automation) => ({
+                ...automation,
+                atStart: startupCheats.includes(automation.cheat),
+            }));
             reconcile(automations.map(({ cheat }) => cheat).join("|"), () =>
                 automations.length
                     ? automations.map(({ cheat }) => AutomationRow({ entry: entries.get(cheat), onSwitched: load }))
@@ -44,23 +48,24 @@ const OverviewPage = () => {
             );
         });
 
-    // Enable all runs on one click; Disable all asks "Click again" first (#25).
+    // Off now or at start (a startup save that failed, say) still needs the switch.
+    const behind = (on) => list.val.filter((automation) => automation.on !== on || automation.atStart !== on);
+    // Enable all runs on one click; Disable all asks "Click again" first (#25). One that fails doesn't stop the rest;
+    // the list is read back after, so each row shows what runs, and the first failure is said.
     const setAll = (on) =>
         bulk.run(
             async () => {
                 bulkSaid.clear();
-                const targets = list.val.filter((automation) => automation.on !== on);
-                // A switch can fail part-way; the list is read back either way, so each row shows what runs.
-                try {
-                    for (const { cheat } of targets) await switchAutomation(cheat, on);
-                } finally {
-                    await load();
-                }
+                let failure = null;
+                for (const { cheat } of behind(on))
+                    await switchAutomation(cheat, on).catch((error) => (failure ??= error));
+                await load();
+                if (failure) throw failure;
             },
             { onError: (caught) => bulkSaid.say("failed", caught.message) }
         );
     const busy = () => loading.val || bulk.status.val === "loading";
-    const running = () => list.val.filter((automation) => automation.on).length;
+    const running = () => behind(false).length;
 
     load();
 
@@ -73,7 +78,7 @@ const OverviewPage = () => {
                 {
                     label: "Enable all",
                     status: bulk.status,
-                    disabled: () => busy() || list.val.every((automation) => automation.on),
+                    disabled: () => busy() || !behind(true).length,
                     onClick: () => setAll(true),
                 },
                 {

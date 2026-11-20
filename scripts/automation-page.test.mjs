@@ -70,7 +70,7 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     await wait(slowSave);
     if (failSave) return res.status(500).json({ error: "the disk is full" });
     saves.push(body);
-    fileStartup = body.startupCheats;
+    fileStartup = body.startupCheats ?? fileStartup; // the server merges a partial save into the file
     res.json({ ok: true });
 });
 const readConfig = router.routes.GET.get("/api/config");
@@ -119,7 +119,9 @@ async function until(check, what) {
     }
     assert.fail(`timed out waiting for ${typeof what === "function" ? what() : what}`);
 }
-const startup = () => saves.at(-1).startupCheats;
+const startup = () => fileStartup;
+// The shop list the last config file save that carried one wrote.
+const fileShops = () => saves.findLast((body) => body.cheatConfig)?.cheatConfig.automation.shops;
 const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation shops").on;
 
 const overview = (await importRepo("src/ui/pages/account/automation/1-overview.js")).default.component();
@@ -238,8 +240,8 @@ test("an item's switch and stop-at save the shop list to the game and the config
 
     await typeStopAt("Lucky Whisker", "250");
     assert.deepEqual(saved(), [{ id: "0:item0", on: true, stopAt: 250 }]);
-    await until(() => saves.at(-1).cheatConfig.automation.shops[0]?.stopAt === 250, "the file save");
-    assert.deepEqual(saves.at(-1).cheatConfig.automation.shops, [{ id: "0:item0", on: true, stopAt: 250 }]);
+    await until(() => fileShops()?.[0]?.stopAt === 250, "the file save");
+    assert.deepEqual(fileShops(), [{ id: "0:item0", on: true, stopAt: 250 }]);
 
     // A switched-off item keeps its stop-at; an empty stop-at is no limit.
     await checkbox(pickRow("Lucky Whisker")).listeners.change({ target: { checked: false } });
@@ -354,6 +356,7 @@ test("review: a failed save doesn't undo an edit made after it", async () => {
 });
 
 test("review: a file save that fails after the game took the change shows what the game has, and why", async () => {
+    await ui.switchAutomation("automation shops", false);
     failSave = true;
     const box = checkbox(pickRow("Tiny Spark"));
     await box.listeners.change({ target: { checked: true } });
@@ -364,6 +367,7 @@ test("review: a file save that fails after the game took the change shows what t
         "the game buys it"
     );
     assert.equal(box.checked, true, "so the switch stays on");
+    assert.equal(shopsOn(), true, "and Shops starts with it, as when the file saves");
 
     // The overview's switch: the game runs Shops, the file didn't save; the row says both.
     await checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
@@ -502,4 +506,91 @@ test("review 2: an overview read that started before a switch doesn't put the ol
     assert.notEqual(statusOf(overview), "Off", "the older read was dropped");
     await until(() => button(overview, "Disable all"), "Disable all to stay available");
     await ui.switchAutomation("automation shops", false);
+});
+
+// CodeRabbit's third review of #105, and the same mistakes elsewhere on the pages.
+test("review 3: two refused saves leave the stop-at at what the game holds, not at the first edit", async () => {
+    const picks = await freshPicks();
+    assert.equal(picks.get("0:item1").stopAt.val, null);
+    slowUpdate = 10;
+    refuseNextUpdates = 2;
+    const first = picks.set("0:item1", { stopAt: 10 }).catch((error) => error);
+    const second = picks.set("0:item1", { stopAt: 20 }).catch((error) => error);
+    await Promise.all([first, second]);
+    slowUpdate = 0;
+    assert.ok(!(await gameShops()).some(({ id }) => id === "0:item1"), "the game took neither");
+    assert.equal(picks.get("0:item1").stopAt.val, null, "so the field shows no limit");
+});
+
+test("review 3: after the file failed, Enter on the same stop-at saves it to the file", async () => {
+    failSave = true;
+    await typeStopAt("Lucky Whisker", "10");
+    assert.match(text(pickRow("Lucky Whisker")), /disk is full/);
+    failSave = false;
+    const before = saves.length;
+    const input = field("Lucky Whisker");
+    metric("Lucky Whisker").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(
+        () => saves.length > before,
+        () => `the file save, not ${saveState("Lucky Whisker")}`
+    );
+    assert.ok(fileShops().some(({ id, stopAt }) => id === "0:item0" && stopAt === 10));
+    await typeStopAt("Lucky Whisker", "");
+});
+
+test("review 3 sibling: Shops' Enable all starts Shops even when the file save fails", async () => {
+    await ui.switchAutomation("automation shops", false);
+    failSave = true;
+    await until(() => button(shops, "Enable all"), "Enable all");
+    await button(shops, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => /disk is full/.test(text(shops)), "the failure to be said");
+    failSave = false;
+    assert.equal(shopsOn(), true, "the game took every item, so Shops runs");
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await until(() => !saved().some(({ on }) => on), "everything off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("review 3 sibling: the overview's Enable all puts a running automation back in the startup cheats", async () => {
+    switchAutomation("account.automation.shops", true); // running, but its startup save failed earlier
+    fileStartup = [];
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => button(overview, "Enable all"), "Enable all, though Shops runs");
+    await button(overview, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => fileStartup.includes("automation shops"), "Shops to be in the startup cheats");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("review 3 sibling: the overview's Disable all stops every automation, even after one's file save fails", async () => {
+    // A second automation, so the bulk switch has one after the failing one.
+    const { defineAutomation } = await importRepo("src/cheats/core/automations.js");
+    defineAutomation({
+        id: "test.kit",
+        cheat: "automation testkit",
+        label: "Test kit",
+        interval: 1000,
+        tick() {},
+        status: () => "Ticking",
+    });
+    switchAutomation("account.automation.shops", true);
+    switchAutomation("test.kit", true);
+    fileStartup = ["automation shops", "automation testkit"];
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => row(overview, "Test kit") && button(overview, "Disable all"), "both rows and Disable all");
+    failSave = true;
+    const disable = button(overview, "Disable all");
+    await disable.listeners.click({ preventDefault() {} });
+    await disable.listeners.click({ preventDefault() {} });
+    await until(() => /disk is full/.test(text(overview)), "the failure to be said");
+    failSave = false;
+    const on = () =>
+        getAutomations()
+            .filter(({ on }) => on)
+            .map(({ id }) => id);
+    await until(
+        () => !on().length,
+        () => `every automation to stop, not ${on()}`
+    );
+    switchAutomation("test.kit", false);
 });

@@ -24,46 +24,33 @@ const { div, input, label, span } = van.tags;
 /** Every automation, with its status while it runs. */
 export const readAutomations = () => readComputed("automation", "list");
 
-let fileQueue = Promise.resolve();
-
-/**
- * Save the whole file: /api/config/save rewrites config.custom.js from what it is handed. `startup(list)` changes the
- * startup cheats, or returns null when they need no change and nothing is written. Saves run one at a time, each
- * reading the file the last one wrote, so two that overlap can't drop each other's change.
- */
-const saveFile = (startup = (list) => list) => {
-    const run = fileQueue.then(async () => {
-        const config = await fetchConfig();
-        if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
-        const startupCheats = startup(config.startupCheats ?? []);
-        if (startupCheats === null) return;
-        await saveConfigFile({ startupCheats, cheatConfig: config.cheatConfig, injectorConfig: config.injectorConfig });
-    });
-    fileQueue = run.catch(() => {});
+let queue = Promise.resolve();
+// Startup changes (and the switches that make them) run one at a time from the click on, so each reads the list the
+// last one wrote, and an Off clicked while an On is still answering can't be overtaken by the On's startup change.
+const inTurn = (task) => {
+    const run = queue.then(task);
+    queue = run.catch(() => {});
     return run;
 };
 
+// The server merges what a save sends into the rest of the file, so only the startup list is read and written back.
+const changeStartup = async (cheat, on) => {
+    const { startupCheats = [] } = await fetchConfig();
+    if (startupCheats.includes(cheat) === on) return;
+    await saveConfigFile({
+        startupCheats: on ? [...startupCheats, cheat] : startupCheats.filter((command) => command !== cheat),
+    });
+};
+
 /** Keep an automation in the startup cheats (or out of them), without running it now. */
-export const setAtStart = (cheat, on) =>
-    saveFile((list) => {
-        if (list.includes(cheat) === on) return null;
-        return on ? [...list, cheat] : list.filter((command) => command !== cheat);
-    });
+export const setAtStart = (cheat, on) => inTurn(() => changeStartup(cheat, on));
 
-let switchQueue = Promise.resolve();
-
-/**
- * Turn an automation on or off, now and at every start. Switches run one at a time from the click on, so an Off
- * clicked while an On is still answering can't be overtaken by the On's startup change.
- */
-export function switchAutomation(cheat, on) {
-    const run = switchQueue.then(async () => {
+/** Turn an automation on or off, now and at every start. */
+export const switchAutomation = (cheat, on) =>
+    inTurn(async () => {
         await executeCheatAction(cheat, on);
-        await setAtStart(cheat, on);
+        await changeStartup(cheat, on);
     });
-    switchQueue = run.catch(() => {});
-    return run;
-}
 
 /**
  * One row per automation: its name, what it is doing, and its switch. `entry` is a state holding the game's
@@ -115,17 +102,16 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
 
 /**
  * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, kept as states by id.
- * Saves run one at a time and each sends the whole list, so the newest values always win. `onTurnedOn` runs after
- * a save that switched an item on (the system's own switch goes on with it, so buying starts at once).
+ * Edits show at once and their saves run one at a time, each sending the whole list. When a save fails, the controls
+ * read back what the game holds, so they never show a value it didn't take. `onTurnedOn` runs when a save leaves an
+ * item it switched on running in the game (the system's own switch goes on with it, so buying starts at once).
  */
 export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
     const items = new Map();
     let queue = Promise.resolve();
     let pending = 0;
     let edits = 0; // counts saves, so a read started before one can be told apart
-    // id -> { on, stopAt } the game last took (read or saved): what a refused save puts a field back to.
-    let accepted = new Map();
-    const snapshot = () => new Map([...items].map(([id, item]) => [id, { on: item.on.val, stopAt: item.stopAt.val }]));
+    let fileBehind = false; // the game took the last list, the config file didn't
 
     const get = (id) => {
         if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
@@ -143,7 +129,6 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             item.stopAt.val = byId.get(id)?.stopAt ?? null;
             showStopAt(item);
         }
-        accepted = snapshot();
     };
 
     // Switched-off items stay while they carry a stop-at, so it survives.
@@ -157,54 +142,51 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             }));
 
     const persist = async () => {
-        const sent = snapshot();
-        const result = await updateSessionConfig({ cheatConfig: { automation: { [group]: toConfig() } } });
+        const list = toConfig();
+        const result = await updateSessionConfig({ cheatConfig: { automation: { [group]: list } } });
         if (result.message !== "Configuration updated successfully")
             throw new Error(result.details || result.message || "The game didn't take the change");
-        accepted = sent;
+        fileBehind = true;
         try {
-            await saveFile();
+            await saveConfigFile({ cheatConfig: { automation: { [group]: list } } });
         } catch (error) {
-            // The game runs the change already, so the controls keep it; only the file is behind.
-            throw Object.assign(new Error(`in the game, but not saved to the file: ${error.message}`), {
-                applied: true,
-            });
+            throw new Error(`in the game, but not saved to the file: ${error.message}`);
         }
+        fileBehind = false;
     };
 
-    // Apply `patches` ([id, { on } or { stopAt }]) and save them in one go. If the game refuses, each field goes back
-    // to what the game last took (an earlier save may already have sent this value), unless a newer edit has changed
-    // it since: that edit's own save carries it.
+    // Apply `patches` ([id, { on } or { stopAt }]) and save them with every other edit.
     const save = async (patches) => {
         edits++;
-        const undo = patches.map(([id, patch]) => {
-            const item = get(id);
-            const before = Object.fromEntries(Object.keys(patch).map((field) => [field, item[field].val]));
-            Object.entries(patch).forEach(([field, value]) => (item[field].val = value));
-            return () =>
-                Object.entries(before).forEach(([field, value]) => {
-                    if (item[field].val === patch[field]) item[field].val = accepted.get(id)?.[field] ?? value;
-                });
-        });
+        for (const [id, patch] of patches)
+            Object.entries(patch).forEach(([field, value]) => (get(id)[field].val = value));
         queue = queue.catch(() => {}).then(persist);
         pending++;
+        let failure = null;
         try {
             await queue;
         } catch (error) {
-            if (!error.applied) undo.forEach((putBack) => putBack());
-            throw error;
+            failure = error;
         } finally {
             pending--;
         }
-        if (patches.some(([, patch]) => patch.on)) await onTurnedOn?.();
+        // A save still queued carries these edits and reports its own outcome; otherwise the game is the truth.
+        if (failure && !pending) {
+            const since = edits;
+            sync((await fetchConfig()).cheatConfig.automation[group], since);
+        }
+        if (patches.some(([id, patch]) => patch.on && get(id).on.val)) await onTurnedOn?.();
+        if (failure) throw failure;
     };
 
     /** Change one item's fields (`patch`: { on } or { stopAt }). */
     const set = (id, patch) => save([[id, patch]]);
     /** Switch every item in `ids` on or off with one save. */
     const setAll = (ids, on) => save(ids.map((id) => [id, { on }]));
+    /** Send the list again: after a file save failed, the field's Enter retries it. */
+    const resave = () => save([]);
 
-    return { get, sync, set, setAll, edits: () => edits };
+    return { get, sync, set, setAll, resave, edits: () => edits, fileBehind: () => fileBehind };
 };
 
 /** Put an item's saved stop-at back in its field ("" is no limit). */
@@ -230,7 +212,8 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             const next = parseStopAt(typed);
             if (next === item.stopAt.val) {
                 showStopAt(item);
-                return { unchanged: true };
+                // The game has it but the file may not: Enter saves the list again.
+                return picks.fileBehind() ? { write: () => picks.resave() } : { unchanged: true };
             }
             // A value typed while this one saves stays in the field for the save after it.
             const stillTyped = () => (getNumberInputLiveRaw(draft) ?? draft.val) === typed;
