@@ -14,6 +14,8 @@ export const configDescriptions = {
     "cheatConfig.maxval.totaltach": "Maximum limit for total tachyon across all characters",
     "cheatConfig.maxval.creditcap": "Maximum credit capacity for dungeons",
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
+    "cheatConfig.automation.shops":
+        'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",

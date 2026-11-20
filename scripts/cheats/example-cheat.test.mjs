@@ -7,7 +7,7 @@ test("the example cheat works as a copy would, but the build leaves it out", asy
     const { cheatFiles } = await importRepo("rollup.config.mjs");
     assert.ok(cheatFiles().includes("worlds.js"), "cheat files are found by scanning the folder");
     assert.ok(!cheatFiles().includes("_example.js"));
-    assert.ok(!cheatFiles().includes("automation.js"), "files in helper folders like sushi/ are not cheat files");
+    assert.ok(!cheatFiles().includes("knowledge.js"), "files in helper folders like sushi/ are not cheat files");
 
     const { cheat, gga, state } = await loadGame();
     await importRepo("src/cheats/cheats/_example.js");

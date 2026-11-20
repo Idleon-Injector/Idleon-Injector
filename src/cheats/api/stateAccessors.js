@@ -9,11 +9,12 @@
  */
 
 import { cheatState } from "../core/state.js";
-import { withAutomations } from "../core/automations.js";
+import { getAutomations, withAutomations } from "../core/automations.js";
 import { events } from "../core/globals.js";
 import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
 import { attireStatus } from "../helpers/attire/outfits.js";
+import { getAutomationShops } from "../helpers/automation/shops.js";
 import {
     captureWardrobe,
     wardrobeFood,
@@ -90,6 +91,16 @@ export function readComputed(namespace, name, args = []) {
     if (namespace === "wardrobe" && Object.prototype.hasOwnProperty.call(WARDROBE, name)) {
         try {
             return { value: WARDROBE[name](...args) };
+        } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    // Account › Automation: its automations ("automation …" toggles) with their status, and the town shops.
+    if (namespace === "automation" && (name === "list" || name === "shops")) {
+        try {
+            if (name === "shops") return { value: getAutomationShops() };
+            return { value: getAutomations().filter(({ cheat }) => cheat.startsWith("automation ")) };
         } catch (error) {
             return { error: error.message };
         }
