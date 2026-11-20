@@ -249,3 +249,34 @@ test("a save the running game refuses is still written, and says the game kept i
     assert.equal((await save("d")).body.message, plain);
     assert.match(readFileSync(join(dir, "config.custom.js"), "utf8"), /islands: "d"/);
 });
+
+// Review of #127: a config read during a save's game update merged the game's old value over the one just saved,
+// and the next partial save wrote that old value to the file.
+test("a config read while a save updates the game keeps the saved value, in the injector and the file", async (t) => {
+    const dir = useInstall(t);
+    const { config } = start();
+    let gameIslands = "x";
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let updating;
+    const updateStarted = new Promise((resolve) => (updating = resolve));
+    const game = {
+        callHelper: async () => ({ value: JSON.stringify({ unlock: { islands: gameIslands } }) }),
+        isAttached: async () => true,
+        updateConfig: async (cheatConfig) => {
+            updating();
+            await held;
+            gameIslands = cheatConfig.unlock.islands;
+            return { value: "ok" };
+        },
+    };
+    const save = config.saveConfiguration({ cheatConfig: { unlock: { islands: "a" } } }, game);
+    await updateStarted;
+    const read = config.pullGameConfig(game, config.getCheatConfig());
+    release();
+    await Promise.all([save, read]);
+    assert.equal(config.getCheatConfig().unlock.islands, "a", "the injector keeps the saved value");
+    // A save that leaves the setting out, as an automation tab's does.
+    await config.saveConfiguration({ cheatConfig: {} });
+    assert.match(readFileSync(join(dir, "config.custom.js"), "utf8"), /islands: "a"/);
+});

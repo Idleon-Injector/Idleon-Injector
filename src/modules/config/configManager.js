@@ -162,12 +162,18 @@ const dropEmptyObjects = (value) => {
 /**
  * Take the settings the game changed itself (nomore lists, `<cheat> <value>`) into the injector's config,
  * so the WebUI shows them, a save keeps them and a game reload gets them. Does nothing while the game
- * isn't reachable.
+ * isn't reachable. It waits its turn with the saves: read while a save updates the game, it would merge the
+ * game's old value over the one just saved.
  * @param {Object} gameBridge - The game bridge
  * @param {Object} cheatConfig - The injector's live cheat config, merged into in place
  * @returns {Promise<boolean>} Whether the game's config was read
  */
-async function pullGameConfig(gameBridge, cheatConfig) {
+function pullGameConfig(gameBridge, cheatConfig) {
+    const pull = () => readGameConfig(gameBridge, cheatConfig);
+    return (saving = saving.then(pull, pull));
+}
+
+async function readGameConfig(gameBridge, cheatConfig) {
     try {
         const result = await gameBridge.callHelper("readCheatConfig");
         if (result.error || typeof result.value !== "string") return false;
