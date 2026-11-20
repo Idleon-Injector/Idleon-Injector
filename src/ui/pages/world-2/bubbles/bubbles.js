@@ -37,10 +37,10 @@ import {
 const { div, span } = van.tags;
 
 const CAULDRONS = [
-    { id: "orange", label: "ORANGE", index: 0, prismaKey: "_" },
-    { id: "green", label: "GREEN", index: 1, prismaKey: "a" },
-    { id: "purple", label: "PURPLE", index: 2, prismaKey: "b" },
-    { id: "yellow", label: "YELLOW", index: 3, prismaKey: "c" },
+    { id: "orange", label: "Orange", index: 0, prismaKey: "_" },
+    { id: "green", label: "Green", index: 1, prismaKey: "a" },
+    { id: "purple", label: "Purple", index: 2, prismaKey: "b" },
+    { id: "yellow", label: "Yellow", index: 3, prismaKey: "c" },
 ];
 
 function parsePrisma(str) {
@@ -95,7 +95,7 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
         renderInfo: () => [
             span({ class: "account-row__index" }, `#${bubble.index}`),
             span({ class: "account-row__name" }, bubble.name),
-            prismaBlocked ? span({ class: "account-row__sub-label" }, "BIG BUBBLE") : null,
+            prismaBlocked ? span({ class: "account-row__sub-label" }, "Big bubble") : null,
         ],
         rowClass: () => `brewing-row${isPrisma.val ? " brewing-row--prisma" : ""}`,
         badgeClass: "brewing-row__badge",
@@ -296,19 +296,19 @@ const BrewingTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "ALCHEMY - BREWING",
+        title: "Alchemy - brewing",
         description: "Set bubble levels and toggle Prisma upgrades.",
         wrapActions: false,
         actions: BulkActionBar({
             leading: SetAllNumberControl({
-                label: "SET ALL LEVEL:",
+                label: "Set all level:",
                 value: setAllInput,
             }),
             refresh: { onClick: load },
         }),
         state: { loading, error },
-        loadingText: "READING BREWING",
-        errorTitle: "BREWING READ FAILED",
+        loadingText: "Reading brewing",
+        errorTitle: "Brewing read failed",
         initialWrapperClass: "scrollable-panel",
         body: contentNode,
     });

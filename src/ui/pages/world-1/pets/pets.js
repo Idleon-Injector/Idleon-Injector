@@ -148,18 +148,18 @@ const buildSections = (pets, rawSetsInfo) => {
     });
 
     const leftoverIds = fallbackIds.filter((id) => !seenIds.has(id));
-    if (leftoverIds.length) pushSection(sections.length ? "OTHER" : "ALL PETS", leftoverIds);
+    if (leftoverIds.length) pushSection(sections.length ? "Other" : "All pets", leftoverIds);
 
     return sections;
 };
 
 const tierLabel = ({ id, isNormal, isPlus, isToken, ownedPet }) => {
-    if (isToken(id)) return span({ class: "companion-card__tier" }, "TOKEN · NORMAL");
-    if (isPlus(id)) return span({ class: "companion-card__tier" }, "PETS+");
-    if (isNormal(id)) return span({ class: "companion-card__tier" }, "NORMAL");
+    if (isToken(id)) return span({ class: "companion-card__tier" }, "Token · normal");
+    if (isPlus(id)) return span({ class: "companion-card__tier" }, "Pets+");
+    if (isNormal(id)) return span({ class: "companion-card__tier" }, "Normal");
     const owned = ownedPet(id);
-    if (owned) return span({ class: "companion-card__tier" }, owned.plus ? "OWNED · PETS+" : "OWNED");
-    return span({ class: "companion-card__tier" }, "NOT SELECTED");
+    if (owned) return span({ class: "companion-card__tier" }, owned.plus ? "Owned · Pets+" : "Owned");
+    return span({ class: "companion-card__tier" }, "Not selected");
 };
 
 const CompanionCard = ({
@@ -277,7 +277,7 @@ const CompanionsTab = () => {
         if (tokens.val.blacklist.includes(id)) return "The game doesn't allow a token on this pet.";
         if (tokens.val.picks.length >= tokens.val.owned) {
             return tokens.val.missing.length
-                ? "No free token. Use GRANT MISSING TOKEN first."
+                ? "No free token. Use Grant missing token first."
                 : "All tokens are in use. Remove one first.";
         }
         return null;
@@ -478,7 +478,7 @@ const CompanionsTab = () => {
 
         if (!visibleSections.length) {
             return EmptyState({
-                title: "NO MATCHING PETS",
+                title: "No matching pets",
                 subtitle: query
                     ? "No pets matched your current search."
                     : "No pets remain after the current filters were applied.",
@@ -514,7 +514,7 @@ const CompanionsTab = () => {
 
     const toolbar = [
         SearchBar({
-            placeholder: "SEARCH PETS OR BUFFS",
+            placeholder: "Search pets or buffs",
             onInput: (value) => (searchQuery.val = value),
         }),
         withTooltip(
@@ -526,7 +526,7 @@ const CompanionsTab = () => {
                     onchange: (e) => (hideUnused.val = e.target.checked),
                 }),
                 span({ class: "slider" }),
-                span({ class: "label" }, "HIDE UNUSED")
+                span({ class: "label" }, "Hide unused")
             ),
             "Hide pets that are not part of the official in-game pet groups."
         ),
@@ -604,19 +604,19 @@ const CompanionsTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container",
-        title: "PETS",
+        title: "Pets",
         description: [
             "Click a card for Normal or + for Pets+. T spends a pet token on that pet. Click again to deselect.",
             span(
                 { class: "pets-legend" },
                 span(
                     { class: "pets-legend__key pets-legend__key--live" },
-                    "NORMAL · PETS+ ",
+                    "Normal · pets+ ",
                     span({ class: "pets-legend__dim" }, "only while the injector runs")
                 ),
                 span(
                     { class: "pets-legend__key pets-legend__key--token" },
-                    "TOKEN ",
+                    "Token ",
                     span({ class: "pets-legend__dim" }, "saved in your game")
                 )
             ),
@@ -638,7 +638,7 @@ const CompanionsTab = () => {
             withTooltip(
                 span(
                     { class: "pets-token-meter" },
-                    "TOKENS",
+                    "Tokens",
                     span({ class: "pets-token-meter__count" }, () => `${tokens.val.picks.length}/${tokens.val.owned}`),
                     () =>
                         span(
@@ -679,8 +679,8 @@ const CompanionsTab = () => {
             ),
         toolbar,
         state: { loading, error },
-        loadingText: "READING PETS",
-        errorTitle: "PET READ FAILED",
+        loadingText: "Reading pets",
+        errorTitle: "Pet read failed",
         body: div(
             { class: "scrollable-panel companions-scroll", "aria-busy": () => writeStatus.val === "loading" },
             () => renderSearchResults()

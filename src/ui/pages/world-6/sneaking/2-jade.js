@@ -123,7 +123,7 @@ const JadeTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "JADE EMPORIUM",
+            title: "Jade Emporium",
             note: () =>
                 `${entries.val.filter((entry) => getOrCreateState(boughtStates, entry.index, false).val).length} / ${
                     entries.val.length
@@ -133,15 +133,15 @@ const JadeTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "JADE",
+        title: "Jade",
         description: "Toggle Jade Emporium upgrades stored in Ninja[102][9] using Number2Letter encoding.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING JADE EMPORIUM",
-        errorTitle: "JADE EMPORIUM READ FAILED",
+        loadingText: "Reading Jade Emporium",
+        errorTitle: "Jade Emporium read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

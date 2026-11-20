@@ -1,67 +1,10 @@
 /**
- * World Tabs — Shared Chrome
- *
- * Covers: top account sub-nav (Account Options / W1…W7),
- * world tab shells (inner sub-nav, panes).
+ * Page panes: the views that hold one page at a time (a world's pages, Advanced's views) and the per-world colour.
+ * There are no tab rows: a world's systems and a page's sections are lists in the sidebar.
  *
  * Per-world colours are driven by a single --world-color custom property
  * set on each .wN-world-tab root element — no per-world rule duplication.
  */
-
-/* ── Top account sub-nav ─────────────────────────────────────────────────── */
-
-.account-sub-nav {
-    display: flex;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-    gap: 4px;
-    padding: 10px 10px 0;
-    border-bottom: 1px solid var(--c-border);
-    background: var(--c-panel);
-    position: sticky;
-    top: 0;
-    z-index: 1001;
-}
-
-.account-sub-tab-btn {
-    background: var(--c-panel-dim);
-    border: 1px solid var(--c-border);
-    border-bottom: none;
-    color: var(--tab-nav-color, var(--c-text-muted));
-    padding: var(--tab-nav-padding, 6px 14px);
-    font-size: var(--tab-nav-font-size, 0.875rem);
-    font-family: var(--tab-nav-font-family, var(--font-display));
-    letter-spacing: var(--tab-nav-letter-spacing, 0.04em);
-    cursor: pointer;
-    transition:
-        color 0.15s,
-        background 0.15s;
-    position: relative;
-    bottom: -1px;
-}
-
-.account-sub-tab-btn:hover {
-    color: var(--tab-nav-hover-color, var(--c-text-main));
-    background: var(--tab-nav-hover-bg, var(--c-panel-hover));
-}
-
-.account-sub-tab-btn.active {
-    color: var(--tab-nav-active-color, var(--c-text-main));
-    border-color: var(--c-border);
-    border-bottom-color: var(--tab-nav-active-bg, var(--c-panel));
-    background: var(--tab-nav-active-bg, var(--c-panel));
-}
-
-.account-sub-tab-btn.active::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background: var(--tab-nav-active-indicator, var(--world-color, var(--c-accent)));
-    box-shadow: var(--tab-nav-active-glow, none);
-}
 
 /* ── Top account panes ───────────────────────────────────────────────────── */
 
@@ -124,28 +67,6 @@
     min-height: 0;
 }
 
-/* ── World inner sub-nav ─────────────────────────────────────────────────── */
-
-.world-sub-nav {
-    gap: 4px;
-    padding: 8px 16px 0;
-    border-bottom: 1px solid var(--c-border);
-    background: var(--c-panel-dim);
-}
-
-.account-world-sub-tab-btn {
-    --tab-nav-active-bg: var(--c-panel-dim);
-    --tab-nav-active-indicator: var(--world-color, var(--c-accent));
-}
-
-.account-world-sub-tab-btn--stub {
-    color: var(--c-text-muted);
-    cursor: default;
-}
-.account-world-sub-tab-btn--stub:hover {
-    color: var(--c-text-muted);
-}
-
 /* ── World inner panes ───────────────────────────────────────────────────── */
 
 .world-sub-content {
@@ -179,33 +100,14 @@
 }
 
 .world-empty-label {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-weight: 700;
-    letter-spacing: 0.08em;
     margin: 0;
 }
 .world-empty-desc {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     margin: 0;
     text-align: center;
     max-width: 340px;
     color: var(--c-text-muted);
-}
-
-/* Inline stub inside W1 for unimplemented sub-tabs */
-.world-sub-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 10px;
-    color: var(--c-text-muted);
-}
-
-.world-sub-placeholder__label {
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    margin: 0;
 }

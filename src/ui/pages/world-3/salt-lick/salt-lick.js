@@ -115,7 +115,7 @@ const SaltLickTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "SALT LICK",
+        title: "Salt Lick",
         description: "Set Salt Lick upgrade levels.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -143,8 +143,8 @@ const SaltLickTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING SALT LICK",
-        errorTitle: "SALT LICK READ FAILED",
+        loadingText: "Reading Salt Lick",
+        errorTitle: "Salt Lick read failed",
         initialWrapperClass: "account-list",
         body: rowList,
     });

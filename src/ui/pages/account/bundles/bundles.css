@@ -23,7 +23,6 @@
     color: var(--c-warning);
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
 }
 
 /* The state (Owned, Not owned, Buy queued) is the plain muted word every row uses, at one width so the buttons align. */

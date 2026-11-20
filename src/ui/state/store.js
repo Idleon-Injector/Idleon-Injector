@@ -4,7 +4,7 @@ import { VIEWS } from "./constants.js";
 import { getCheatConfigPath, configPathExists } from "../utils/index.js";
 import { formatDisplayValue } from "../components/views/search/valueUtils.js";
 import { createLiveMonitor } from "./liveMonitor.js";
-import { findWorld } from "../menu/menuModel.js";
+import { findWorld, menuLevelOf } from "../menu/menuModel.js";
 import {
     initWebSocket,
     onStateUpdate,
@@ -39,6 +39,9 @@ const appState = vanX.reactive({
     // Pages view: the world shown (1-7, "account", "classes") and the page id open in it ("" = its first page).
     menuWorld: savedMenu.world ?? null,
     menuPage: typeof savedMenu.page === "string" ? savedMenu.page : "",
+    // The list the sidebar shows: null (the top list), a world's id or a drill area's id. Opening a place shows its
+    // list; picking a world only shows its list and leaves the page as it is.
+    menuLevel: null,
     configDrawerOpen: false,
     isLoading: false,
     heartbeat: false,
@@ -60,6 +63,12 @@ const appState = vanX.reactive({
     cheatFocus: { cheat: "", setting: "", focus: false, n: 0 },
     cheatsViewMode: localStorage.getItem("cheatsViewMode") || "tabs",
 });
+
+// The menu opens on the list of the place it opens on.
+appState.menuLevel =
+    appState.activeTab === VIEWS.PAGES.id
+        ? menuLevelOf({ world: appState.menuWorld })
+        : menuLevelOf({ view: Object.keys(VIEWS).find((key) => VIEWS[key].id === appState.activeTab) });
 
 const dataState = vanX.reactive({
     cheats: [],
@@ -453,11 +462,14 @@ const store = {
     },
 
     /**
-     * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }` (page "" or null = the world's first page).
+     * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }`, and show that place's list in the
+     * sidebar. `{ world }` with no page only shows the world's list: the page on screen stays until a page is picked.
      * `{ view: "CHEATS", cheat, setting, focus }` shows that cheat's row, and with `setting` opens its settings drawer;
      * `focus` (picked by keyboard) also focuses the row or the setting's field. It never runs the cheat.
      */
     openMenu: (target) => {
+        appState.menuLevel = menuLevelOf(target);
+        if (!target.view && !target.page) return;
         if (target.view) {
             appState.activeTab = VIEWS[target.view].id;
             if (target.cheat) {
@@ -469,8 +481,13 @@ const store = {
             return;
         }
         appState.menuWorld = target.world;
-        appState.menuPage = target.page || "";
+        appState.menuPage = target.page;
         appState.activeTab = VIEWS.PAGES.id;
+    },
+
+    /** Show a list in the sidebar (null: the top list) without changing the page. */
+    showMenuLevel: (key) => {
+        appState.menuLevel = key;
     },
 
     /** Remember where the menu is, so it opens there next time. */

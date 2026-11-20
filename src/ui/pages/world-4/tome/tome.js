@@ -230,23 +230,23 @@ const TomeTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "TOME",
+            title: "Tome",
             note: () =>
-                `${entries.val.filter((entry) => entry.editor).length} EDITABLE / ${entries.val.length} VALUES FROM ${TOME_VALUES_PATH}`,
+                `${entries.val.filter((entry) => entry.editor).length} editable / ${entries.val.length} values from ${TOME_VALUES_PATH}`,
             body: tomeRows,
         })
     );
 
     return PersistentAccountListPage({
-        title: "TOME",
+        title: "Tome",
         description: "View W4 Tome values from DNSM. Editable rows write to their real backing paths.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING TOME",
-        errorTitle: "TOME READ FAILED",
+        loadingText: "Reading Tome",
+        errorTitle: "Tome read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

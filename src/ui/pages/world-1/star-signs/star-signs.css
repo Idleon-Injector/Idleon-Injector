@@ -44,7 +44,6 @@
 .starsign-label-badge {
     font-size: 0.875rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
     padding: 2px 8px;
     border: 1px solid currentColor;
 }
@@ -72,7 +71,6 @@
 .starsign-status {
     font-size: 0.875rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
 }
 
 .starsign-status.unlocked {
@@ -149,8 +147,6 @@
 .starsign-section-label {
     font-size: 0.875rem;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--c-text-dim);
     margin: 12px 0 6px;
 }

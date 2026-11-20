@@ -100,7 +100,7 @@ const CharmsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "PRISTINE CHARMS",
+            title: "Pristine Charms",
             note: () =>
                 `${entries.val.filter((entry) => getOrCreateState(unlockedStates, entry.index).val).length} / ${
                     entries.val.length
@@ -110,15 +110,15 @@ const CharmsTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "CHARMS",
+        title: "Charms",
         description: "Toggle Pristine Charm unlocks from Ninja[107]. Names come from NjTrP0 through NjTrP22.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SNEAKING CHARMS",
-        errorTitle: "SNEAKING CHARMS READ FAILED",
+        loadingText: "Reading sneaking charms",
+        errorTitle: "Sneaking charms read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

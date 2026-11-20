@@ -97,20 +97,20 @@ const EngineerTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "ENGINEER",
+        title: "Engineer",
         description: "Toggle Engineer schematic unlock flags from Holes[13].",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING HOLE ENGINEER",
-        errorTitle: "HOLE ENGINEER READ FAILED",
+        loadingText: "Reading hole engineer",
+        errorTitle: "Hole engineer read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "SCHEMATICS",
+                title: "Schematics",
                 note: () => `${entries.val.length} SCHEMATICS`,
                 body: listNode,
             })

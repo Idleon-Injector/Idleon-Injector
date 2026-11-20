@@ -127,26 +127,26 @@ const HarpTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "THE HARP",
+        title: "The Harp",
         description: "Edit Harp note amounts, note levels, and EXP from Holes[9] and Holes[19].",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING HOLE HARP",
-        errorTitle: "HOLE HARP READ FAILED",
+        loadingText: "Reading hole harp",
+        errorTitle: "Hole harp read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "NOTE AMOUNTS",
+                title: "Note amounts",
                 note: () => `${amountEntries.val.length} NOTES`,
                 body: amountNode,
             }),
             AccountSection({
-                title: "NOTE LEVELS",
-                note: () => `${noteEntries.val.length} LETTERED NOTES`,
+                title: "Note levels",
+                note: () => `${noteEntries.val.length} lettered notes`,
                 body: noteNode,
             })
         ),

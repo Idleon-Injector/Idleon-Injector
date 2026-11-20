@@ -86,22 +86,22 @@ const BeanstackTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "GOLD FOOD",
-            note: () => `${entries.val.length} GOLD FOODS FROM Ninja[104]`,
+            title: "Gold Food",
+            note: () => `${entries.val.length} Gold Foods from Ninja[104]`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "BEANSTACK",
+        title: "Beanstack",
         description: "Edit Beanstack gold food levels from Ninja[104]. Names resolve through ItemDefinitionsGET.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING BEANSTACK",
-        errorTitle: "BEANSTACK READ FAILED",
+        loadingText: "Reading beanstack",
+        errorTitle: "Beanstack read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

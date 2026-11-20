@@ -14,7 +14,7 @@ const { div } = van.tags;
 const SKILL_SECTIONS = [
     {
         key: "motherlode",
-        title: "MOTHERLODE",
+        title: "Motherlode",
         fields: [
             { key: "current-ore", index: 0, name: "Current Ore Mined", path: "Holes[11][0]", group: 11 },
             { key: "layers", index: 1, name: "Layers Completed", path: "Holes[11][1]", group: 11 },
@@ -22,7 +22,7 @@ const SKILL_SECTIONS = [
     },
     {
         key: "hive",
-        title: "HIVE",
+        title: "Hive",
         fields: [
             { key: "current-bugs", index: 2, name: "Current Fractal Fly Bugs Caught", path: "Holes[11][2]", group: 11 },
             { key: "harvests", index: 3, name: "Harvests Completed", path: "Holes[11][3]", group: 11 },
@@ -30,7 +30,7 @@ const SKILL_SECTIONS = [
     },
     {
         key: "evertree",
-        title: "EVERTREE",
+        title: "Evertree",
         fields: [
             { key: "everlog", index: 4, name: "Current Everlog Chopped", path: "Holes[11][4]", group: 11 },
             { key: "trunks", index: 5, name: "Trunks Whittled", path: "Holes[11][5]", group: 11 },
@@ -38,7 +38,7 @@ const SKILL_SECTIONS = [
     },
     {
         key: "trench",
-        title: "TRENCH",
+        title: "Trench",
         fields: [
             { key: "fish", index: 6, name: "Current Trench Fish Caught", path: "Holes[11][6]", group: 11 },
             { key: "layers", index: 7, name: "Fish Layers Completed", path: "Holes[11][7]", group: 11 },
@@ -85,12 +85,12 @@ const SkillTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "SKILL",
+        title: "Skill",
         description: "Edit Motherlode, Hive, Evertree, and Trench counters from Holes[11].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE SKILL",
-        errorTitle: "HOLE SKILL READ FAILED",
+        loadingText: "Reading hole skill",
+        errorTitle: "Hole skill read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },

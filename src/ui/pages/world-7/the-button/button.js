@@ -48,7 +48,7 @@ const ButtonPage = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "BUTTON",
+            title: "Button",
             note: "OptionsListAccount[594] / [595]",
             body: div(
                 { class: "account-item-stack" },
@@ -62,15 +62,15 @@ const ButtonPage = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "THE BUTTON",
+        title: "The Button",
         description: "Set W7 Button presses done and remaining charges from OptionsListAccount[594] and [595].",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING BUTTON",
-        errorTitle: "BUTTON READ FAILED",
+        loadingText: "Reading button",
+        errorTitle: "Button read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

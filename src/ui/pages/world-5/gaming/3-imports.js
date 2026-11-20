@@ -68,22 +68,22 @@ const ImportsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "IMPORTS",
-            note: () => `${entries.val.length} IMPORTS FROM GamingSprout[25+]`,
+            title: "Imports",
+            note: () => `${entries.val.length} imports from GamingSprout[25+]`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "IMPORTS",
+        title: "Imports",
         description: "Edit Gaming import levels from GamingSprout[25+] using RandoListo2 names.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING GAMING IMPORTS",
-        errorTitle: "GAMING IMPORTS READ FAILED",
+        loadingText: "Reading gaming imports",
+        errorTitle: "Gaming imports read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

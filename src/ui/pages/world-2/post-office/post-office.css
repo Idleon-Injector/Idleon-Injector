@@ -40,8 +40,6 @@
     font-size: 0.875rem;
     font-weight: 700;
     color: var(--c-text-main);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -68,9 +66,7 @@
 .po-section__divider {
     font-size: 0.875rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
     color: var(--c-text-dim);
-    text-transform: uppercase;
     padding: 4px 2px 2px;
     border-bottom: 1px solid var(--c-border);
     margin-top: 2px;
@@ -102,9 +98,7 @@
 .po-currency-row__label {
     font-size: 0.875rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
     color: var(--c-text-dim);
-    text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -159,7 +153,6 @@
 .po-points-summary__label {
     font-size: 0.875rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
     color: var(--c-text-dim);
     white-space: nowrap;
     flex-shrink: 0;

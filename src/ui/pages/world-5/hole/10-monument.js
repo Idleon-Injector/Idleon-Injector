@@ -25,9 +25,9 @@ const MONUMENT_FIELDS = [
     { key: "wisdom-time", index: 13, name: "Wisdom Time Since Last Run", path: "Holes[11][13]", group: 11 },
 ];
 const BONUS_SECTIONS = [
-    { key: "bravery", title: "BRAVERY BONUSES", start: 0 },
-    { key: "justice", title: "JUSTICE BONUSES", start: 10 },
-    { key: "wisdom", title: "WISDOM BONUSES", start: 20 },
+    { key: "bravery", title: "Bravery bonuses", start: 0 },
+    { key: "justice", title: "Justice bonuses", start: 10 },
+    { key: "wisdom", title: "Wisdom bonuses", start: 20 },
 ];
 
 const MonumentRow = ({ entry, valueState }) =>
@@ -57,7 +57,7 @@ const MonumentTab = () => {
     const sections = [
         {
             key: "monument-general",
-            title: "MONUMENT",
+            title: "Monument",
             entries: van.state([]),
             node: div({ class: "account-item-stack" }),
         },
@@ -100,12 +100,12 @@ const MonumentTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "MONUMENT",
+        title: "Monument",
         description: "Edit monument AFK, rerun timers, and bonuses from Holes[14], Holes[11], and Holes[15].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE MONUMENT",
-        errorTitle: "HOLE MONUMENT READ FAILED",
+        loadingText: "Reading hole monument",
+        errorTitle: "Hole monument read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },

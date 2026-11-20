@@ -1,7 +1,9 @@
 /**
  * CSS Custom Properties (Design Tokens)
- * Dusk: one violet family. Colour means something (status, on/off, the worlds, names that identify a thing);
- * everything else is six surfaces and two text colours.
+ * Ink: a near-black violet ground with bright text on it. The value is the brightest thing on a row, in the one filled
+ * shape (the field); lavender marks only where you are and what is on; other colour means trouble (failed red, warning
+ * amber) or names a thing (the worlds' codes, tiers, cauldrons, signs). scripts/ink-contrast.test.mjs measures every
+ * text colour on every surface it sits on.
  * One set in hex/rgba: the Steam client runs Chromium 87 (no oklch or color-mix), so the WebUI uses the same values.
  */
 
@@ -11,31 +13,34 @@
     --c-black: #000000;
 
     /* -- SURFACES -- */
-    /* Six roles. The row (#2d2e4f) is where a player reads and changes values; the page is the same violet a
-       step darker, sections sit between, and inputs sink back to the page. Borders nearly dissolve: rows are
-       told apart by their fill. */
-    --c-void: #1c1d33; /* page */
-    --c-void-soft: #222440; /* section */
-    --c-panel: #2d2e4f; /* row, card */
-    --c-panel-hover: #36385c; /* row hover */
-    --c-border: #34365b;
-    --c-border-strong: #4a4d7a;
+    /* Rows, sections and headings sit straight on the page with no fill or outline. The value field is the one filled
+       shape on a row; a row under the pointer lifts a breath. Panels that float (dropdowns, cards of special pages)
+       keep a surface so they still group. */
+    --c-void: #0f0e1c; /* page */
+    --c-void-soft: #15142a; /* floating panels, special pages' cards */
+    --c-panel: #1e1c3a; /* where you are in the sidebar, a card */
+    --c-panel-hover: #26244a;
+    --c-lift: #171628; /* a row under the pointer or holding focus */
+    --c-field: #23204a; /* the value field and the search field */
+    --c-leader: rgba(168, 166, 196, 0.16); /* the dotted line from a row's name to its value */
+    --c-border: #221f3d;
+    --c-border-strong: #3a3766;
     --c-panel-dim: var(--c-void); /* input wells, sub-navs */
     --c-panel-dark-dim: var(--c-void);
     --c-bg: var(--c-void);
 
     /* -- ACCENT -- */
-    /* Lavender: what you can press, what is on, where you are. */
-    --c-accent: #aaa6f7;
-    --c-accent-hover: #c9c6fb;
-    --c-accent-dim: rgba(170, 166, 247, 0.1);
-    --c-accent-dim-solid: #333352;
-    --c-accent-glow: rgba(170, 166, 247, 0.3);
-    --c-accent-06: rgba(170, 166, 247, 0.055);
-    --c-accent-20: rgba(170, 166, 247, 0.2);
-    --c-accent-25: rgba(170, 166, 247, 0.25);
-    --c-accent-40: rgba(170, 166, 247, 0.42);
-    --c-accent-ink: #0f0f1c;
+    /* Lavender: where you are and what is on (a switch, Prisma, an exalted stamp). */
+    --c-accent: #a89fff;
+    --c-accent-hover: #cfccff;
+    --c-accent-dim: rgba(168, 159, 255, 0.1);
+    --c-accent-dim-solid: #1f1d3d;
+    --c-accent-glow: rgba(168, 159, 255, 0.3);
+    --c-accent-06: rgba(168, 159, 255, 0.055);
+    --c-accent-20: rgba(168, 159, 255, 0.2);
+    --c-accent-25: rgba(168, 159, 255, 0.25);
+    --c-accent-40: rgba(168, 159, 255, 0.42);
+    --c-accent-ink: #0a0914;
 
     /* -- STATUS -- */
     --c-success: #59f57d;
@@ -49,21 +54,25 @@
     --c-danger-20: rgba(255, 133, 133, 0.2);
     --c-danger-40: rgba(255, 133, 133, 0.4);
     --c-warning-40: rgba(255, 183, 0, 0.4);
-    /* Status fills: the row with a little of the status colour, solid so text on them is measured (AA). */
-    --c-success-tint: #324655;
-    --c-success-flash: #345454;
-    --c-danger-tint: #3f324d;
-    --c-danger-flash: #4e3652;
-    --c-warning-tint: #463e46;
-    --c-accent-tint: #3e3f67;
+    /* Status fills: the page with a little of the status colour, solid so text on them is measured (AA). A saved row
+       takes none: its tick is in the text colour. */
+    --c-success-tint: #162526;
+    --c-success-flash: #1c3330;
+    --c-danger-tint: #311f2b;
+    --c-danger-flash: #442833;
+    --c-warning-tint: #2e2310;
+    --c-accent-tint: #1f1d3d;
 
     /* -- TEXT -- */
-    /* Two colours: main and muted. */
-    --c-text-main: #eeedf9;
-    --c-text-muted: #c0bfdc;
+    /* Bright, softer (a row's name), quieter (descriptions, states, controls) and faint (indices, caps). */
+    --c-text-bright: #ffffff; /* the page title and the value in its field */
+    --c-text-main: #efedff;
+    --c-text-name: #cfcbea;
+    --c-text-muted: #a8a6c4; /* near-neutral, so quiet words never pass for the lavender accent */
+    --c-text-faint: #8e8ab8;
     --c-text-dim: var(--c-text-muted);
     --c-text: var(--c-text-main);
-    --c-text-disabled: rgba(238, 237, 249, 0.34); /* disabled: exempt from AA */
+    --c-text-disabled: rgba(239, 237, 255, 0.32); /* disabled: exempt from AA */
     --c-danger-soft-text: #ffb2a5;
 
     /* -- NAMES THAT IDENTIFY A THING -- */
@@ -125,18 +134,45 @@
     --c-black-45: rgba(0, 0, 0, 0.45);
     --c-black-50: rgba(0, 0, 0, 0.5);
     --c-black-80: rgba(0, 0, 0, 0.8);
-    --c-sidebar-bg: rgba(23, 24, 43, 0.96);
-    --c-panel-95: rgba(45, 46, 79, 0.95);
-    --c-panel-98: rgba(45, 46, 79, 0.98);
-    --c-panel-80: rgba(28, 29, 51, 0.8);
-    --c-control-border-strong: var(--c-border-strong);
-    --c-control-thumb: var(--c-text-muted);
+    --c-sidebar-bg: #0a0914; /* the frame: darker than the page, so the page reads as the lit area */
+    --c-panel-95: rgba(30, 28, 58, 0.95);
+    --c-panel-98: rgba(30, 28, 58, 0.98);
+    --c-panel-80: rgba(15, 14, 28, 0.8);
+    --c-control-border-strong: #605f7b; /* the off switch's track: grey, quiet, 3:1 on the page */
+    --c-control-thumb: #c4c2dc;
     --c-scrollbar-thumb: var(--c-border-strong);
     --c-border-faint: var(--c-white-05);
     --c-cogs-selected-ring: var(--c-accent);
 
+    /* -- TYPE -- */
+    /* The page area's and the sidebar's sizes and weights. A new look changes these, not the rules that use them. */
+    --text-title: 2rem; /* the page title */
+    --text-heading: 1.2rem; /* a section heading, a world on Home */
+    --text-value: 1.2rem; /* the value in its field */
+    --text-name: 1.05rem; /* a row's name */
+    --text-body: 1rem; /* descriptions, the search field, Home's systems */
+    --text-nav: 0.9rem; /* the sidebar's rows */
+    --text-small: 0.875rem; /* states, notes, a list's sub-entries */
+    --text-index: 0.8rem; /* number tags, codes, caps */
+    --text-tiny: 0.75rem; /* save words */
+    --weight-title: 700;
+    --weight-heading: 600;
+    --weight-name: 600;
+    --weight-value: 700;
+
+    /* -- SHAPES -- */
+    --radius-field: 10px; /* a field, a row's hover lift, a card */
+    --radius-item: 8px; /* a small item: a Home system, an active cheat, a search result */
+    --radius-panel: 12px; /* a floating panel: search results, the rail's list */
+    --radius-pill: 999px; /* buttons */
+    --row-min-height: 46px;
+    --field-height: 36px;
+    --search-height: 40px;
+
     /* -- DIMENSIONS & FONTS -- */
     --nav-width: 240px;
+    --page-pad: 40px; /* the page area's side gutter; fills start on it, words 12 px in */
+    --measure: 56rem; /* the page's width: a row's name stays near its value */
     --radius-sm: 2px;
     --radius-md: 4px;
     --font-display: "Rajdhani", sans-serif;
@@ -144,4 +180,11 @@
 
     /* -- TRANSITIONS -- */
     --ease-tech: cubic-bezier(0.2, 0.6, 0.3, 1);
+    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (max-width: 760px) {
+    :root {
+        --page-pad: 16px;
+    }
 }

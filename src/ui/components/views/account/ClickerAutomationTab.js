@@ -75,7 +75,7 @@ const ClickerGroup = ({ key, currency, upgradesTitle, lockedText, entry, afterSa
         apply,
         nodes: [
             AccountSection({
-                title: currency.toUpperCase(),
+                title: currency,
                 meta: span({ class: "account-row__sub-label" }, owned),
                 body: SettingRow({ setting: saving, name: "Saving", title: "% of the goal", detail: SAVING_DETAIL }),
             }),
@@ -120,12 +120,12 @@ export const ClickerAutomationTab = ({ title, description, groups: specs }) => {
         }),
         topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
         state: { loading: tab.loading, error: tab.error },
-        loadingText: `READING ${title}`,
-        errorTitle: `${title} READ FAILED`,
+        loadingText: `Reading ${title}`,
+        errorTitle: `${title} read failed`,
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "AUTOMATION", body: tab.switches }),
+            AccountSection({ title: "Automation", body: tab.switches }),
             ...groups.flatMap(({ nodes }) => nodes)
         ),
     });

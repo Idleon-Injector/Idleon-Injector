@@ -1,27 +1,25 @@
 /**
  * Buttons (DESIGN.md): three kinds, all pills in Rajdhani 600, in normal case.
  *
- *   .btn-main    the one blue button an area has (Save settings, Enable Auto Play, First scan)
+ *   .btn-main    the one lavender button an area has (Save settings, Enable Auto Play, First scan)
  *   .btn-quiet   plain words at rest, a soft light fill on hover (Max, Max all, Register, Refresh, Undo)
  *   .btn-danger  like quiet at rest; soft red words on a faint red wash on hover (anything that removes or lowers)
  *
  *   .btn-sm      the small size, for rows and page headers
  *   .btn-icon    a round button that holds one icon (the − / + beside a value field, copy, close)
  *
- * Tabs, navigation, on/off switches and tiles aren't action buttons: they keep the look below until the layout
- * pass (#26).
+ * Navigation, on/off switches and tiles aren't action buttons. Every button is in normal case; only the sidebar's
+ * rows show capitals (menu.css).
  */
 
 /* --- EVERY BUTTON --- */
 button {
     font-family: var(--font-display);
-    text-transform: uppercase;
     font-weight: 600;
-    letter-spacing: 0.05em;
     cursor: pointer;
     border-radius: var(--radius-sm);
     transition: all 0.2s;
-    font-size: 0.9rem;
+    font-size: var(--text-nav);
 }
 
 /* --- THE THREE KINDS --- */
@@ -37,7 +35,7 @@ button {
     height: 36px;
     padding: 0 18px;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--c-text-dim);
     font-family: var(--font-display);

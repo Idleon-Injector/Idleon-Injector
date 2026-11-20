@@ -366,24 +366,24 @@ const BoatsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "BOATS",
+            title: "Boats",
             note: () => `${boatEntries.val.length} BOATS`,
             body: boatListNode,
         }),
         AccountSection({
-            title: "CAPTAINS",
+            title: "Captains",
             note: () => `${captainEntries.val.length} CAPTAINS`,
             body: captainListNode,
         }),
         AccountSection({
-            title: "RECRUITMENT SHOP",
+            title: "Recruitment shop",
             note: () => `${recruitmentEntries.val.length} CAPTAINS`,
             body: recruitmentListNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "BOATS",
+        title: "Boats",
         description:
             "Edit Sailing boat loot/speed levels and captain fields. Set a captain's rarity to -1 to remove them. Slots 31–34 are recruitment shop offers.",
         actions: RefreshButton({
@@ -391,8 +391,8 @@ const BoatsTab = () => {
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SAILING BOATS",
-        errorTitle: "SAILING BOATS READ FAILED",
+        loadingText: "Reading sailing boats",
+        errorTitle: "Sailing boats read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

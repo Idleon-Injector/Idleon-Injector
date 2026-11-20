@@ -60,17 +60,17 @@ const RoyalStatuesTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "ROYAL STATUES",
+        title: "Royal Statues",
         description: "Set Royal Statue levels.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         topNotices: WarningBanner("Royal level 0 locks a statue; level 1 unlocks it."),
         state: { loading, error },
-        loadingText: "READING ROYAL STATUES",
-        errorTitle: "ROYAL STATUES READ FAILED",
+        loadingText: "Reading Royal Statues",
+        errorTitle: "Royal Statues read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "ROYAL STATUES", body: royalList })
+            AccountSection({ title: "Royal Statues", body: royalList })
         ),
     });
 };

@@ -26,7 +26,7 @@ const RiftTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "RIFTS",
+            title: "Rifts",
             note: "Rift[0]",
             body: div(
                 { class: "account-item-stack" },
@@ -44,15 +44,15 @@ const RiftTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "RIFT",
+        title: "Rift",
         description: "Edit W4 Rift unlock progress.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING RIFT",
-        errorTitle: "RIFT READ FAILED",
+        loadingText: "Reading Rift",
+        errorTitle: "Rift read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

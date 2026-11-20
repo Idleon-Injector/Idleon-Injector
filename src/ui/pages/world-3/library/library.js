@@ -220,14 +220,14 @@ const LibraryTab = () => {
                     .join("||"),
             () => [
                 AccountRow({
-                    info: span({ class: "account-row__name" }, "Active Class"),
+                    info: span({ class: "account-row__name" }, "Active class"),
                     badge: () => activeClassNameState.val || "-",
                 }),
                 ...groups.map((group) =>
                     AccountSection({
                         title: group.className,
                         note: group.isSpecial
-                            ? "Individual maximums only. Excluded from MAX BOOKS and the Library book cap."
+                            ? "Individual maximums only. Excluded from Max books and the Library book cap."
                             : null,
                         meta: group.isSpecial
                             ? null
@@ -319,7 +319,7 @@ const LibraryTab = () => {
             if (specialTalents.length) {
                 groups.push({
                     classId: "special",
-                    className: "SPECIAL TALENTS",
+                    className: "Special talents",
                     isSpecial: true,
                     talents: specialTalents,
                 });
@@ -334,7 +334,7 @@ const LibraryTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "LIBRARY",
+        title: "Library",
         description: "Set max talent levels for the active in-game character.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -363,8 +363,8 @@ const LibraryTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING LIBRARY",
-        errorTitle: "LIBRARY READ FAILED",
+        loadingText: "Reading library",
+        errorTitle: "Library read failed",
         initialWrapperClass: "account-list",
         body: listNode,
     });

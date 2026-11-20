@@ -23,15 +23,15 @@ import {
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { renderTabNav } from "../../../components/views/account/tabShared.js";
+import { pageSection, sectionTitle } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 const PANES = [
-    { id: "overview", label: "OVERVIEW" },
-    { id: "unlocks", label: "UNLOCKS" },
-    { id: "upgrades", label: "BOOSTS" },
-    { id: "missions", label: "MISSIONS" },
-    { id: "jellies", label: "SIDE JELLIES" },
+    { id: "overview", label: "Overview" },
+    { id: "unlocks", label: "Unlocks" },
+    { id: "upgrades", label: "Boosts" },
+    { id: "missions", label: "Missions" },
+    { id: "jellies", label: "Side Jellies" },
 ];
 const YELLOW_NAMES = [
     "Build rate bonus level",
@@ -52,7 +52,7 @@ const numericInput = (raw, integer) => {
 
 const MenagerieTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Menagerie" });
-    const activePane = van.state("overview");
+    const activePane = pageSection("w7.menagerie", PANES[0].id);
     const saving = van.state(false);
     const lumiRate = van.state(0);
     const states = new Map();
@@ -149,18 +149,18 @@ const MenagerieTab = () => {
             reconcilers.missions(JSON.stringify(missions), () => missions.map((text, i) => missionRow(text, i)));
             reconcilers.jellies(JSON.stringify(caves), () => [
                 AccountSection({
-                    title: "PURPLE / PINK JELLYFISH",
+                    title: "Purple / pink jellyfish",
                     body: [
                         numberRow("Shell purchase count", "Menagerie[0][3]"),
                         numberRow("Lumi bonus level", "Menagerie[0][4]"),
                     ],
                 }),
                 AccountSection({
-                    title: "BLUE JELLYFISH",
+                    title: "Blue jellyfish",
                     body: numberRow("Deposited ladles", "Menagerie[0][5]", false),
                 }),
                 AccountSection({
-                    title: "RED JELLYFISH",
+                    title: "Red jellyfish",
                     note: "Readings consume all accumulated rest days. Deposited materials persist.",
                     body: [
                         numberRow("Accumulated rest days", "Menagerie[0][6]"),
@@ -175,21 +175,21 @@ const MenagerieTab = () => {
                     ],
                 }),
                 AccountSection({
-                    title: "SILVER JELLYFISH",
+                    title: "Silver jellyfish",
                     body: [
                         numberRow("Miscellaneous Obol multiplier level", "Menagerie[0][9]", true, "Normal cap: 100"),
                         numberRow("Obol auto-trash rate level", "Menagerie[0][10]", true, "Normal cap: 190"),
                     ],
                 }),
                 AccountSection({
-                    title: "YELLOW JELLYFISH",
+                    title: "Yellow jellyfish",
                     body: [
                         ...YELLOW_NAMES.map((name, i) => numberRow(name, `Menagerie[0][${11 + i}]`)),
                         numberRow("Accumulated build progress", "Menagerie[0][15]", false),
                     ],
                 }),
                 AccountSection({
-                    title: "GREEN JELLYFISH",
+                    title: "Green jellyfish",
                     note: "Collect the nametag in-game at 12 progress.",
                     body: numberRow("Spelunking progress", "Spelunk[17][28]"),
                 }),
@@ -354,18 +354,12 @@ const MenagerieTab = () => {
     );
     load();
     return PersistentAccountListPage({
-        title: "LUMINOUS MENAGERIE",
+        title: sectionTitle("Luminous Menagerie", PANES, activePane),
         description: "Edit progression directly. Normal caps and unlock requirements do not restrict these editors.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
-        subNav: renderTabNav({
-            tabs: PANES,
-            activeId: activePane,
-            navClass: "account-nested-sub-nav",
-            buttonClass: "account-nested-sub-tab-btn",
-        }),
         state: { loading, error },
-        loadingText: "READING MENAGERIE",
-        errorTitle: "MENAGERIE READ FAILED",
+        loadingText: "Reading Menagerie",
+        errorTitle: "Menagerie read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });
@@ -377,5 +371,7 @@ export default definePage({
     system: "Menagerie",
     description: "Menagerie progress: unlocks, boosts, missions and side jellies.",
     keywords: ["Overview", "Unlocks", "Boosts", "Missions", "Side Jellies"],
+    sections: PANES,
+    sectionMode: "switch",
     component: MenagerieTab,
 });

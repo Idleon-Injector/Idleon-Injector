@@ -149,32 +149,32 @@ const CoralKidTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "UNLOCK",
+            title: "Unlock",
             note: "OptionsListAccount[426] + [433]",
             body: div({ class: "account-item-stack" }, UnlockRow({ unlockedState })),
         }),
         AccountSection({
-            title: "UPGRADES",
+            title: "Upgrades",
             note: "OptionsListAccount[427-432]",
             body: listNode,
         }),
         AccountSection({
-            title: "SINGULARITY UPGRADES",
+            title: "Singularity upgrades",
             note: "OptionsListAccount[616-621] · currency: Singularity Spirals (CKsing)",
             body: singularityListNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "CORAL KID",
+        title: "Coral Kid",
         description: "Toggle Coral Kid unlock flags and edit Coral Kid upgrade levels from OptionsListAccount.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING CORAL KID",
-        errorTitle: "CORAL KID READ FAILED",
+        loadingText: "Reading Coral Kid",
+        errorTitle: "Coral Kid read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

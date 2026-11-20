@@ -60,7 +60,7 @@ const BundleRow = ({ bundle, state, searchQuery, buyAllStatus, onBuy, onUnbuy })
                 span({ class: "account-row__sub-label bundle-row__code" }, bundle.code),
                 () =>
                     state.pending.val
-                        ? span({ class: "bundle-row__pending" }, "WAITING FOR LIVE OWNERSHIP CONFIRMATION")
+                        ? span({ class: "bundle-row__pending" }, "Waiting for live ownership confirmation")
                         : null,
                 // Why the row's last Buy or Unbuy failed, until its next one.
                 Said({ said: state.said.said, className: "said--line bundle-row__said", kinds: ["failed"] })
@@ -346,34 +346,34 @@ const BundlesTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack bundles-scroll" },
         AccountSection({
-            title: "BUNDLE CATALOG",
+            title: "Bundle catalog",
             note: () => {
                 const value = totals.val;
                 const queueLabel = value.queued ? `, ${value.queued} QUEUED` : "";
-                return `${value.total} BUNDLES, ${value.owned} OWNED, ${value.total - value.owned} NOT OWNED${queueLabel}`;
+                return `${value.total} bundles, ${value.owned} owned, ${value.total - value.owned} not owned${queueLabel}`;
             },
             body: () =>
                 catalogState.val.length
                     ? listNode
                     : EmptyState({
-                          title: "NO BUNDLES",
+                          title: "No bundles",
                           subtitle: "No bundle codes were returned by the running game.",
                       }),
         }),
         div(
             { hidden: () => !catalogState.val.length || !noMatches() },
-            EmptyState({ title: "NO MATCHING BUNDLES", subtitle: "No bundles matched your search." })
+            EmptyState({ title: "No matching bundles", subtitle: "No bundles matched your search." })
         )
     );
 
     return PersistentAccountListPage({
         toolbar: SearchBar({
-            placeholder: "SEARCH BUNDLES OR CODES",
+            placeholder: "Search bundles or codes",
             value: searchQuery,
             debounceMs: 0,
             onInput: (value) => (searchQuery.val = value),
         }),
-        title: "BUNDLES",
+        title: "Bundles",
         description:
             "Buy bundles and see which ones your account has received. Unbuy lets you mark a bundle as not received again, but does not remove its items from the Slab.",
         actions: [
@@ -399,8 +399,8 @@ const BundlesTab = () => {
         ],
         topNotices: [WarningBanner("Bundles do not provide gems or pets."), playerSelectionWarning],
         state: { loading, error },
-        loadingText: "READING BUNDLES",
-        errorTitle: "BUNDLE READ FAILED",
+        loadingText: "Reading bundles",
+        errorTitle: "Bundle read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

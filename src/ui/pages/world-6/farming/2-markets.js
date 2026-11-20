@@ -132,27 +132,27 @@ const MarketsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "MARKET UPGRADES",
-            note: () => `${marketEntries.val.length} UPGRADES FROM FarmUpg[2-9]`,
+            title: "Market Upgrades",
+            note: () => `${marketEntries.val.length} upgrades from FarmUpg[2-9]`,
             body: marketListNode,
         }),
         AccountSection({
-            title: "NIGHT MARKET UPGRADES",
-            note: () => `${nightMarketEntries.val.length} UPGRADES FROM FarmUpg[10-17]`,
+            title: "Night Market Upgrades",
+            note: () => `${nightMarketEntries.val.length} upgrades from FarmUpg[10-17]`,
             body: nightMarketListNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "MARKETS",
+        title: "Markets",
         description: "Set Farming market and night market upgrade levels. Max levels are read from FarmingStuffs.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING FARMING MARKETS",
-        errorTitle: "FARMING MARKETS READ FAILED",
+        loadingText: "Reading farming markets",
+        errorTitle: "Farming markets read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

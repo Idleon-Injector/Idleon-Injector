@@ -15,14 +15,14 @@ export default definePage({
     keywords: ["Orion", "Autobuy", "Auto buy", "Clicker", "Feather Restart", "Mega Reset", "Stop at"],
     component: () =>
         ClickerAutomationTab({
-            title: "AUTOMATION",
+            title: "Automation",
             description:
                 "Switched-on upgrades are bought with feathers, and switching one on turns Orion's automation on. It saves for the cheapest High or Low upgrade (an affordable High one goes first) while Balanced ones are bought cheapest first. Buying stops at the stop-at level; leave it empty for no limit.",
             groups: [
                 {
                     key: "orion",
                     currency: "feathers",
-                    upgradesTitle: "UPGRADES",
+                    upgradesTitle: "Upgrades",
                     lockedText: ({ unlockAt }) => `Unlocks at ${formatNumber(unlockAt)} feathers produced`,
                 },
             ],

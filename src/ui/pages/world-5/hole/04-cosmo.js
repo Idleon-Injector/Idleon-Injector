@@ -17,9 +17,9 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 const { div } = van.tags;
 
 const COSMO_SECTIONS = [
-    { key: "hole", title: "HOLE MAJIK", holeIndex: 4 },
-    { key: "village", title: "VILLAGE MAJIK", holeIndex: 5 },
-    { key: "idleon", title: "IDLEON MAJIK", holeIndex: 6 },
+    { key: "hole", title: "Hole majik", holeIndex: 4 },
+    { key: "village", title: "Village majik", holeIndex: 5 },
+    { key: "idleon", title: "Idleon majik", holeIndex: 6 },
 ];
 
 const CosmoRow = ({ entry, valueState }) =>
@@ -69,12 +69,12 @@ const CosmoTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "COSMO",
+        title: "Cosmo",
         description: "Edit Conjuror Majik upgrades from Holes[4], Holes[5], and Holes[6].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE COSMO",
-        errorTitle: "HOLE COSMO READ FAILED",
+        loadingText: "Reading hole cosmo",
+        errorTitle: "Hole cosmo read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },

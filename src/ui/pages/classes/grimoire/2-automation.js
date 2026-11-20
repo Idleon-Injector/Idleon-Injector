@@ -123,20 +123,20 @@ const GrimoireAutomationPage = () => {
     tab.load();
 
     return PersistentAccountListPage({
-        title: "AUTOMATION",
+        title: "Automation",
         description:
             "Switched-on upgrades are bought with bones, each bone type on its own, and switching one on turns the automation on. Each bone type saves for its cheapest High or Low upgrade (High first once affordable) and buys Balanced ones cheapest first, up to the stop-at level. Bones only drop while your Death Bringer plays; buying works on any character.",
         actions: BulkActionBar({ actions: bulk.actions(busy), refresh: { onClick: tab.load, disabled: busy } }),
         topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
         state: { loading: tab.loading, error: tab.error },
-        loadingText: "READING THE GRIMOIRE",
-        errorTitle: "GRIMOIRE READ FAILED",
+        loadingText: "Reading the Grimoire",
+        errorTitle: "Grimoire read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "AUTOMATION", body: tab.switches }),
+            AccountSection({ title: "Automation", body: tab.switches }),
             AccountSection({
-                title: "BONES",
+                title: "Bones",
                 body: div(
                     { class: "account-item-stack" },
                     BONES.map(BoneRow),
@@ -148,7 +148,7 @@ const GrimoireAutomationPage = () => {
                     })
                 ),
             }),
-            AccountSection({ title: "UPGRADES", body: listNode })
+            AccountSection({ title: "Upgrades", body: listNode })
         ),
     });
 };

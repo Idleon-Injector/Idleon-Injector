@@ -179,7 +179,7 @@ const IslandsTab = () => {
     const content = div(
         { class: "islands-content scrollable-panel content-stack" },
         AccountSection({
-            title: "ISLAND UNLOCKS",
+            title: "Island unlocks",
             meta: BulkActionBar({
                 actions: [
                     {
@@ -207,14 +207,14 @@ const IslandsTab = () => {
             ),
         }),
         AccountSection({
-            title: "CURRENCIES & UNCOLLECTED",
+            title: "Currencies & uncollected",
             body: div(
                 { class: "account-list" },
                 ...CURRENCY_FIELDS.map((field) => NumericRow({ field, valueState: getValueState(field.index) }))
             ),
         }),
         AccountSection({
-            title: "GARBAGE UPGRADES",
+            title: "Garbage upgrades",
             meta: div(
                 { class: "islands-section__controls" },
                 SetAllNumberControl({
@@ -247,7 +247,7 @@ const IslandsTab = () => {
             ),
         }),
         AccountSection({
-            title: "RANDO UPGRADES",
+            title: "Rando upgrades",
             meta: div(
                 { class: "islands-section__controls" },
                 SetAllNumberControl({
@@ -265,7 +265,7 @@ const IslandsTab = () => {
             ),
         }),
         AccountSection({
-            title: "SHIMMER STATUS & UPGRADES",
+            title: "Shimmer status & upgrades",
             meta: div(
                 { class: "islands-section__controls" },
                 SetAllNumberControl({
@@ -291,7 +291,7 @@ const IslandsTab = () => {
             ),
         }),
         AccountSection({
-            title: "FRACTAL ISLE",
+            title: "Fractal isle",
             body: div(
                 { class: "account-list" },
                 NumericRow({
@@ -304,7 +304,7 @@ const IslandsTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "islands-tab tab-container",
-        title: "ISLANDS",
+        title: "Islands",
         description: "Manage Fishing Islands unlocks, currencies, upgrades, and AFK time.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -315,8 +315,8 @@ const IslandsTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING ISLANDS",
-        errorTitle: "ISLANDS READ FAILED",
+        loadingText: "Reading islands",
+        errorTitle: "Islands read failed",
         body: content,
     });
 };

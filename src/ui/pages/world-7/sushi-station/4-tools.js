@@ -161,7 +161,7 @@ function SushiToolsTab() {
         div(
             { class: "sushi-tools-layout" },
             AccountSection({
-                title: "AUTOMATION SETTINGS",
+                title: "Automation settings",
                 rootClass: "sushi-automation-controls",
                 body: [
                     div(
@@ -171,12 +171,12 @@ function SushiToolsTab() {
                         },
                         div(
                             { class: "sushi-settings-section" },
-                            h3("PURCHASE"),
+                            h3("Purchase"),
                             div({ class: "sushi-settings-grid" }, numberField("Purchase tier", settings.tier))
                         ),
                         div(
                             { class: "sushi-settings-section" },
-                            h3("GOAL & BOARD"),
+                            h3("Goal & board"),
                             div(
                                 { class: "sushi-settings-grid" },
                                 numberField("Target tier", settings.targetTier),
@@ -186,7 +186,7 @@ function SushiToolsTab() {
                         ),
                         div(
                             { class: "sushi-settings-section" },
-                            h3("EAST WIND"),
+                            h3("East wind"),
                             div(
                                 { class: "account-item-stack" },
                                 toggle("Extended East Wind chain", settings.extendChain),
@@ -204,7 +204,7 @@ function SushiToolsTab() {
             div(
                 { class: "content-stack" },
                 AccountSection({
-                    title: "AUTOMATION",
+                    title: "Automation",
                     rootClass: "sushi-automation-controls",
                     body: [
                         AccountRow({
@@ -243,7 +243,7 @@ function SushiToolsTab() {
                     ],
                 }),
                 AccountSection({
-                    title: "KNOWLEDGE XP",
+                    title: "Knowledge XP",
                     rootClass: "sushi-automation-controls",
                     body: [
                         p({ class: "sushi-setting__help" }, "Requires Knowledge. Adds crafting-tree XP only."),
@@ -266,7 +266,7 @@ function SushiToolsTab() {
     const root = div(
         { class: "tab-container" },
         AccountTabHeader({
-            title: "SUSHI TOOLS",
+            title: "Sushi tools",
             description: "Keep the in-game Sushi board open in sushi-move mode for Sort and Auto Play.",
             actions: RefreshButton({ onRefresh: refresh, disabled: () => pending.val }),
         }),

@@ -114,7 +114,7 @@ export const StartupCheats = (list) => {
     const element = div({ class: "startup-cheats-editor" }, () => {
         if (list.length === 0) {
             return EmptyState({
-                title: "NO STARTUP CHEATS",
+                title: "No startup cheats",
                 subtitle: "Add cheats that will run automatically on injection",
             });
         }

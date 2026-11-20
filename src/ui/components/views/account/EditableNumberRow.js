@@ -103,12 +103,20 @@ export const EditableNumberRow = ({
         typeof renderExtraActions === "function"
             ? toNodes(renderExtraActions({ status: null, run, inputValue, applyValue }))
             : [];
+    const endActions = [
+        ...toNodes(renderBuiltInAction(maxAction, "Max")),
+        ...toNodes(renderBuiltInAction(resetAction, "Reset", 0, "danger")),
+        ...extraActions,
+    ];
+    // A row ending in a remove-or-lower button (Relock, Reset): in the narrow overlay it moves up to the name's line.
+    const endsInDanger = Boolean(endActions[endActions.length - 1]?.classList?.contains("btn-danger"));
 
     return div(
         {
             class: () =>
                 joinClasses(
                     "account-row account-row--value",
+                    endsInDanger && "account-row--end-danger",
                     typeof rowClass === "function" ? rowClass() : rowClass,
                     saveStateClass(status.val, undo)
                 ),
@@ -156,9 +164,7 @@ export const EditableNumberRow = ({
                 onDecrement: step(-1, userOnDecrement),
                 onIncrement: step(1, userOnIncrement),
             }),
-            ...toNodes(renderBuiltInAction(maxAction, "Max")),
-            ...toNodes(renderBuiltInAction(resetAction, "Reset", 0, "danger")),
-            ...extraActions
+            ...endActions
         )
     );
 };

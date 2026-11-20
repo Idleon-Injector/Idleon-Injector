@@ -46,34 +46,34 @@ import { toIndexedArray } from "../../../utils/index.js";
 
 const { div, span } = van.tags;
 
-const CURRENCY_FIELDS = [{ index: 105, label: "KILLROY SKULLS" }];
+const CURRENCY_FIELDS = [{ index: 105, label: "Killroy skulls" }];
 
 const SHOP_FIELDS = [
-    { index: 106, label: "TIMER LEVEL" },
-    { index: 107, label: "TALENT DROPS LEVEL" },
-    { index: 108, label: "BONUS SKULLS LEVEL" },
-    { index: 109, label: "RESPAWN LEVEL" },
-    { index: 110, label: "DUNGEON DROPS LEVEL" },
-    { index: 111, label: "PEARL DROPS LEVEL" },
+    { index: 106, label: "Timer level" },
+    { index: 107, label: "Talent drops level" },
+    { index: 108, label: "Bonus skulls level" },
+    { index: 109, label: "Respawn level" },
+    { index: 110, label: "Dungeon drops level" },
+    { index: 111, label: "Pearl drops level" },
 ];
 
 const META_FIELDS = [
-    { index: 227, label: "3RD WEEKLY FIGHT UNLOCK FLAG" },
-    { index: 228, label: "ARTIFACT FIND CHANCE BONUS" },
-    { index: 229, label: "CROP EVOLUTION CHANCE BONUS" },
-    { index: 230, label: "JADE GAIN BONUS" },
-    { index: 467, label: "GALLERY BONUS" },
-    { index: 468, label: "MASTERCLASS BONUS" },
-    { index: 469, label: "W7 SKILL XP BONUS" },
-    { index: 470, label: "W7 DAILY CORAL BONUS" },
+    { index: 227, label: "3rd weekly fight unlock flag" },
+    { index: 228, label: "Artifact find chance bonus" },
+    { index: 229, label: "Crop evolution chance bonus" },
+    { index: 230, label: "Jade gain bonus" },
+    { index: 467, label: "Gallery bonus" },
+    { index: 468, label: "Masterclass bonus" },
+    { index: 469, label: "W7 skill XP bonus" },
+    { index: 470, label: "W7 daily coral bonus" },
 ];
 
-const RECORD_FIELDS = [{ index: 112, label: "TOTAL FINISHED RUNS" }];
+const RECORD_FIELDS = [{ index: 112, label: "Total finished runs" }];
 
 const PB_TOME_FIELDS = [
-    { key: "melee", label: "HIGHEST KILLROY SCORE ON A WARRIOR", scoreIndex: 204, tomeIndex: 27 },
-    { key: "ranged", label: "HIGHEST KILLROY SCORE ON AN ARCHER", scoreIndex: 205, tomeIndex: 28 },
-    { key: "magic", label: "HIGHEST KILLROY SCORE ON A MAGE", scoreIndex: 206, tomeIndex: 29 },
+    { key: "melee", label: "Highest Killroy score on a warrior", scoreIndex: 204, tomeIndex: 27 },
+    { key: "ranged", label: "Highest Killroy score on an archer", scoreIndex: 205, tomeIndex: 28 },
+    { key: "magic", label: "Highest Killroy score on a mage", scoreIndex: 206, tomeIndex: 29 },
 ];
 
 const AIRHORN_INDEX = 115;
@@ -119,7 +119,7 @@ const KillroyAirhornRow = ({ valueState }) => {
     return AccountRow({
         rowClass: "killroy-row",
         status,
-        info: span({ class: "account-row__name" }, "AIRHORN RESET"),
+        info: span({ class: "account-row__name" }, "Airhorn reset"),
         controls: StateSwitch({
             checked: () => toNum(valueState.val, 0) !== 0,
             words: ["On", "Off"],
@@ -238,7 +238,7 @@ const KillroyTab = () => {
         { class: "scrollable-panel content-stack" },
 
         AccountSection({
-            title: "CURRENCY / AVAILABILITY",
+            title: "Currency / availability",
             note: "Most-used Killroy currencies and weekly reset flag",
             body: div(
                 { class: "killroy-rows" },
@@ -254,7 +254,7 @@ const KillroyTab = () => {
         }),
 
         AccountSection({
-            title: "SHOP UPGRADES",
+            title: "Shop upgrades",
             note: "Classic Killroy shop level tracks",
             body: div(
                 { class: "killroy-rows" },
@@ -269,7 +269,7 @@ const KillroyTab = () => {
         }),
 
         AccountSection({
-            title: "META BONUSES",
+            title: "Meta bonuses",
             note: "Account-wide Killroy bonus values",
             body: div(
                 { class: "killroy-rows" },
@@ -284,7 +284,7 @@ const KillroyTab = () => {
         }),
 
         AccountSection({
-            title: "RECORDS / TOME",
+            title: "Records / Tome",
             note: "Finished runs and class-specific personal best summaries",
             body: div(
                 { class: "killroy-rows" },
@@ -306,13 +306,13 @@ const KillroyTab = () => {
         }),
 
         AccountSection({
-            title: "BEST KILLS BY MOB",
+            title: "Best kills by mob",
             note: "Editable KRbest.h entries for all allowed Killroy mobs",
             body: bestMobRowsNode,
         })
     );
     return PersistentAccountListPage({
-        title: "KILLROY STATE LIBRARY",
+        title: "Killroy state library",
         description: "Currencies, upgrades, meta bonuses, and records for W2 Killroy.",
         actions: RefreshButton({ onRefresh: load }),
         state: { loading, error },

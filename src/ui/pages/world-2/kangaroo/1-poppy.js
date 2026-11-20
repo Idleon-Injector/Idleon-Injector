@@ -99,21 +99,21 @@ const PoppyTab = () => {
     const rowList = div(
         { class: "account-list poppy-list" },
         AccountSection({
-            title: "PERMANENT / SENSITIVE",
+            title: "Permanent / sensitive",
             note: "Edit with care",
             body: PINNED_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
         }),
         AccountSection({
-            title: "MAIN POPPY PROGRESS",
+            title: "Main Poppy progress",
             body: CORE_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
         }),
         AccountSection({
-            title: "SPIRAL UPGRADES",
+            title: "Spiral upgrades",
             rootClass: "poppy-section poppy-section--spiral",
             body: SPIRAL_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
         }),
         AccountSection({
-            title: "TAR PIT",
+            title: "Tar Pit",
             rootClass: "poppy-section poppy-section--tar",
             body: TAR_PIT_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
         })
@@ -123,7 +123,7 @@ const PoppyTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "poppy-tab tab-container",
-        title: "POPPY",
+        title: "Poppy",
         description: "Poppy clicker values and Tar Pit progression controls",
         actions: RefreshButton({
             onRefresh: load,
@@ -139,8 +139,8 @@ const PoppyTab = () => {
             " is also permanent progression."
         ),
         state: { loading, error },
-        loadingText: "READING POPPY",
-        errorTitle: "POPPY READ FAILED",
+        loadingText: "Reading Poppy",
+        errorTitle: "Poppy read failed",
         body: rowList,
     });
 };

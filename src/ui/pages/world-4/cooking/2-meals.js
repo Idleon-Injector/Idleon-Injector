@@ -155,22 +155,22 @@ const MealsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "MEALS",
-            note: () => `${mealEntries.val.length} NAMED MEALS FROM MealINFO`,
+            title: "Meals",
+            note: () => `${mealEntries.val.length} named meals from MealINFO`,
             body: mealRows,
         })
     );
 
     return PersistentAccountListPage({
-        title: "COOKING MEALS",
+        title: "Cooking meals",
         description: "Edit W4 Cooking meal levels, amounts, and ribbon levels.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING COOKING MEALS",
-        errorTitle: "COOKING MEAL READ FAILED",
+        loadingText: "Reading cooking meals",
+        errorTitle: "Cooking meal read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

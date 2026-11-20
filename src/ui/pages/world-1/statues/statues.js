@@ -247,7 +247,7 @@ const StatuesTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container statues-tab",
-        title: "STATUES",
+        title: "Statues",
         description: "Set statue levels, deposited amounts, tiers, and Statue Flair levels.",
         actions: [
             button(
@@ -300,8 +300,8 @@ const StatuesTab = () => {
             )
         ),
         state: { loading, error },
-        loadingText: "READING STATUES",
-        errorTitle: "STATUES READ FAILED",
+        loadingText: "Reading statues",
+        errorTitle: "Statues read failed",
         initialWrapperClass: "account-list",
         body: listNode,
     });

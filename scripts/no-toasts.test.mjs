@@ -64,7 +64,7 @@ test("value search: a refused scan is said in its hint line, a bad value under i
     await settle(50);
     const hint = byClass(page, "search-type-hint")[0];
     assert.equal(hint.attributes.role, "status");
-    assert.equal(text(hint), "Enter a value for FIND VALUE, or choose UNKNOWN INITIAL VALUE");
+    assert.equal(text(hint), "Enter a value for Find Value, or choose Unknown Initial Value");
     assert.ok(byClass(hint, "search-refusal").length, "it pulses (a refusal)");
 
     // Typing takes the refusal back; a scan finds values.

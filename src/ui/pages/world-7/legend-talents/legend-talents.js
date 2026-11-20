@@ -14,11 +14,11 @@ const { div, span } = van.tags;
 const LEGEND_TALENT_LEVELS_PATH = "Spelunk[18]";
 const SECTION_SIZE = 10;
 const SECTION_DEFS = [
-    { id: "yellow", title: "YELLOW TALENTS", sliceStart: 0 },
-    { id: "red", title: "RED TALENTS", sliceStart: 10 },
-    { id: "brown", title: "BROWN TALENTS", sliceStart: 20 },
-    { id: "green", title: "GREEN TALENTS", sliceStart: 30 },
-    { id: "white", title: "WHITE TALENTS", sliceStart: 40 },
+    { id: "yellow", title: "Yellow talents", sliceStart: 0 },
+    { id: "red", title: "Red talents", sliceStart: 10 },
+    { id: "brown", title: "Brown talents", sliceStart: 20 },
+    { id: "green", title: "Green talents", sliceStart: 30 },
+    { id: "white", title: "White talents", sliceStart: 40 },
 ];
 
 const buildTalentRows = (rawDefinitions, rawOrder, rawLevels, rawMaxResults) => {
@@ -165,7 +165,7 @@ const LegendTalentTab = () => {
     });
 
     return PersistentAccountListPage({
-        title: "LEGEND TALENTS",
+        title: "Legend Talents",
         description:
             "Set W7 Legend Talent levels from Spelunk[18]. Display order comes from Spelunky[26], split into five color sections.",
         actions: RefreshButton({
@@ -173,8 +173,8 @@ const LegendTalentTab = () => {
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING LEGEND TALENTS",
-        errorTitle: "LEGEND TALENT READ FAILED",
+        loadingText: "Reading Legend Talents",
+        errorTitle: "Legend Talent read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

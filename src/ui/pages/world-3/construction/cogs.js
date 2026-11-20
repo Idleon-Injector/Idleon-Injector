@@ -152,9 +152,9 @@ const formatSideCharge = (rawValue, index) => {
 };
 
 const stateLabel = (state) => {
-    if (state === "unlocked") return "UNLOCKED";
-    if (state === "locked") return "LOCKED";
-    return "UNLOCKING";
+    if (state === "unlocked") return "Unlocked";
+    if (state === "locked") return "Locked";
+    return "Unlocking";
 };
 
 const isPlayerCog = (cogId) => String(cogId ?? "").startsWith("Player_");
@@ -630,7 +630,7 @@ const CogsTab = () => {
                     ? div(
                           { class: "cogs-flag-indicator" },
                           Cogs.FlagIcon({ class: "cogs-flag-indicator__icon", width: "14", height: "14" }),
-                          span("FLAG PLACED")
+                          span("Flag placed")
                       )
                     : null,
                 !showMainMode && isUnlocked ? renderTinyEditor() : null,
@@ -686,9 +686,9 @@ const CogsTab = () => {
             div(
                 { class: "cogs-modal-footer-right" },
                 renderWriteStatus(shownLockStatus, {
-                    loading: "SAVING...",
-                    success: "SAVED",
-                    error: "WRITE FAILED",
+                    loading: "Saving...",
+                    success: "Saved",
+                    error: "Write failed",
                 }),
                 button({ type: "button", class: "btn-quiet btn-sm", onclick: closeSlotPopup }, "Close")
             )
@@ -718,7 +718,7 @@ const CogsTab = () => {
     van.add(popupHost, popup);
 
     return PersistentAccountListPage({
-        title: "CONSTRUCTION - COGS",
+        title: "Construction - cogs",
         description: "Click a slot to view details and edit CogMap fields.",
         actions: RefreshButton({ onRefresh: load }),
         state: { loading, error },

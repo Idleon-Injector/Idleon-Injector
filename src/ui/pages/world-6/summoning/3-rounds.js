@@ -194,20 +194,20 @@ const RoundsTab = () => {
                 .join("||"),
             () => [
                 AccountSection({
-                    title: "ENDLESS",
+                    title: "Endless",
                     note: "OptionsListAccount[319]",
                     body: endlessNode,
                 }),
                 AccountSection({
-                    title: "NORMAL ROUNDS",
-                    note: `${entries.val.length} ROUND DEFINITIONS LOADED`,
+                    title: "Normal rounds",
+                    note: `${entries.val.length} round definitions loaded`,
                     body: div({ class: "tab-empty" }, "Coming soon"),
                 }),
                 div(
                     { hidden: true },
                     ...sections.map((section) =>
                         AccountSection({
-                            title: `${section.sectionName.toUpperCase()} ROUNDS`,
+                            title: `${section.sectionName} rounds`,
                             note: () =>
                                 `${
                                     section.sectionEntries.filter(
@@ -251,7 +251,7 @@ const RoundsTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "ROUNDS",
+        title: "Rounds",
         description:
             "Toggle normal round completion from Summon[1] and set endless rounds from OptionsListAccount[319]. Normal sections follow the in-game stone order.",
         actions: RefreshButton({
@@ -259,8 +259,8 @@ const RoundsTab = () => {
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SUMMONING ROUNDS",
-        errorTitle: "SUMMONING ROUNDS READ FAILED",
+        loadingText: "Reading summoning rounds",
+        errorTitle: "Summoning rounds read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

@@ -6,10 +6,10 @@ import { SimpleAccountListPage } from "../../../components/views/account/compone
 
 const OpalsTab = () =>
     SimpleAccountListPage({
-        title: "OPALS",
+        title: "Opals",
         description: "Edit opals found per cavern from Holes[7].",
         label: "Hole Opals",
-        sectionTitle: "OPALS FOUND",
+        sectionTitle: "Opals found",
         loadEntries: async () => {
             const [holes, caves] = await Promise.all([gga("Holes"), readCList("HolesInfo[68]")]);
             const values = toIndexedArray(toIndexedArray(holes)[7]);

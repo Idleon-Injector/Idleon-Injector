@@ -15,10 +15,10 @@ const TEMPLE_FIELDS = [
 
 const TempleTab = () =>
     SimpleAccountListPage({
-        title: "TEMPLE",
+        title: "Temple",
         description: "Edit Temple counters from Holes[11].",
         label: "Hole Temple",
-        sectionTitle: "THE TEMPLE",
+        sectionTitle: "The Temple",
         loadEntries: async () => {
             const holes = await gga("Holes");
             const stats = toIndexedArray(toIndexedArray(holes)[11]);

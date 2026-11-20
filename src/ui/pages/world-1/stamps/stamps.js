@@ -37,14 +37,13 @@ import {
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { renderPersistentPagePanes, renderTabNav } from "../../../components/views/account/tabShared.js";
 
-const { div } = van.tags;
+const { div, h2 } = van.tags;
 
 const PAGES = [
-    { id: 0, label: "COMBAT" },
-    { id: 1, label: "SKILLS" },
-    { id: 2, label: "MISC" },
+    { id: 0, section: "combat", label: "Combat" },
+    { id: 1, section: "skills", label: "Skills" },
+    { id: 2, section: "misc", label: "Misc" },
 ];
 const PAGE_LETTERS = ["A", "B", "C"];
 const EXALTED_PAGE_PREFIXES = ["_", "a", "b"];
@@ -88,7 +87,6 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
         },
         indexLabel: `#${order}`,
         name,
-        rowClass: () => (isExalted.val ? "stamp-row--exalted" : ""),
         renderExtraActions: ({ status, run, applyValue }) => [
             StateSwitch({
                 checked: isExalted,
@@ -114,7 +112,6 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
 };
 
 const StampsTab = () => {
-    const activePage = van.state(0);
     const { loading, error, run } = useAccountLoad({ label: "Stamps" });
     const exaltedCodes = van.state(new Set());
     const levelStatesByPage = PAGE_LETTERS.map(() => []);
@@ -150,10 +147,8 @@ const StampsTab = () => {
             "switch"
         );
 
-    const pageContainers = renderPersistentPagePanes({
-        tabs: PAGES,
-        activeId: activePage,
-    });
+    // One long page: each stamp page is a section under its own heading; the system list jumps between them.
+    const pageContainers = PAGES.map(() => div({ class: "account-page-pane" }));
 
     const load = async () =>
         run(async () => {
@@ -225,25 +220,28 @@ const StampsTab = () => {
 
     load();
 
-    const body = div({ class: "account-list" }, ...pageContainers);
+    const body = div(
+        { class: "account-list" },
+        ...PAGES.map((page, i) =>
+            div(
+                { class: "page-section" },
+                h2({ class: "page-section__title", "data-section": page.section, tabindex: "-1" }, page.label),
+                pageContainers[i]
+            )
+        )
+    );
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "STAMPS",
-        description: "Change stamp levels and toggle exalted stamps",
+        title: "Stamps",
+        description: "Change stamp levels and toggle exalted stamps.",
         actions: RefreshButton({
             onRefresh: load,
             tooltip: "Re-read stamp data from game memory",
         }),
-        subNav: renderTabNav({
-            tabs: PAGES,
-            activeId: activePage,
-            navClass: "account-page-nav",
-            buttonClass: "account-page-btn",
-        }),
         state: { loading, error },
-        loadingText: "READING STAMPS",
-        errorTitle: "STAMP READ FAILED",
+        loadingText: "Reading stamps",
+        errorTitle: "Stamp read failed",
         initialWrapperClass: "account-list",
         body,
     });
@@ -255,5 +253,6 @@ export default definePage({
     system: "Stamps",
     description: "Stamp levels and exalted stamps.",
     keywords: ["Exalted", "Combat", "Skills", "Misc"],
+    sections: PAGES.map((page) => ({ id: page.section, label: page.label })),
     component: StampsTab,
 });

@@ -104,7 +104,7 @@ function SpelunkingLoreTab() {
                   { class: "account-item-stack account-item-stack--dense" },
                   ...groups.map((group) =>
                       AccountSection({
-                          title: `CHAPTER ${group.chapterNumber}`,
+                          title: `Chapter ${group.chapterNumber}`,
                           note: () =>
                               `${group.pages.reduce(
                                   (sum, page) => sum + toInt(page.levelState.val, { min: 0 }),
@@ -123,7 +123,7 @@ function SpelunkingLoreTab() {
     });
 
     return PersistentAccountListPage({
-        title: "SPELUNKING LORE",
+        title: "Spelunking lore",
         description:
             "Set Lore Journal chapter page levels from Spelunk[8]. Each SpelunkChapters entry maps to four consecutive page levels.",
         actions: RefreshButton({
@@ -131,8 +131,8 @@ function SpelunkingLoreTab() {
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SPELUNKING LORE",
-        errorTitle: "SPELUNKING LORE READ FAILED",
+        loadingText: "Reading spelunking lore",
+        errorTitle: "Spelunking lore read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

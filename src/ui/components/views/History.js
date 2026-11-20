@@ -202,16 +202,16 @@ export const History = () => {
             div(
                 { class: "account-sub-tab-pane active history-pane" },
                 AccountTabHeader({
-                    title: "HISTORY - CHANGES",
+                    title: "History - changes",
                     description:
                         "Every value saved from these pages this game session, newest first. Undo puts the old values back on the character they were saved on.",
                 }),
                 () =>
                     failed.val
-                        ? EmptyState({ failed: true, title: "HISTORY NOT READ", subtitle: failed.val })
+                        ? EmptyState({ failed: true, title: "History not read", subtitle: failed.val })
                         : loaded.val && !count.val
                           ? EmptyState({
-                                title: "NO CHANGES YET",
+                                title: "No changes yet",
                                 subtitle: "Values you save on any page show here, ready to undo.",
                             })
                           : span(),

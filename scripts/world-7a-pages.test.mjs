@@ -99,7 +99,7 @@ const gameCache = (key, sum) => () => {
 test("Trophy Add all that stops part-way shows the trophies that landed, and Add fills the next empty slot", async (t) => {
     gga.Spelunk[16] = [1, -1, -1, -1, -1, -1];
     const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
-        text(root).includes("CURRENT SLOTS")
+        text(root).includes("Current slots")
     );
     const shown = () => byClass(page, "account-row").length;
     assert.equal(shown(), 1);
@@ -121,7 +121,7 @@ test("Trophy Add all that stops part-way shows the trophies that landed, and Add
 test("Trophy Remove asks Click again first, and the second press clears the slot", async (t) => {
     gga.Spelunk[16] = [1, 2, -1, -1, -1, -1];
     const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
-        text(root).includes("CURRENT SLOTS")
+        text(root).includes("Current slots")
     );
     const [first, second] = byClass(page, "account-row");
     const remove = button(first, "Remove");

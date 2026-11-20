@@ -19,9 +19,9 @@ const { div, span } = van.tags;
 
 const SUPERBITS_PATH = "Gaming[12]";
 const SUPERBIT_SECTIONS = [
-    { key: "super", title: "SUPERBITS", start: 0, end: 24 },
-    { key: "duper", title: "DUPERBITS", start: 24, end: 48 },
-    { key: "zuper", title: "ZUPERBITS", start: 48, end: Infinity },
+    { key: "super", title: "Superbits", start: 0, end: 24 },
+    { key: "duper", title: "Duperbits", start: 24, end: 48 },
+    { key: "zuper", title: "Zuperbits", start: 48, end: Infinity },
 ];
 
 const toggleLetter = (encoded, letter, enabled) => {
@@ -150,15 +150,15 @@ const SuperbitsTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "SUPERBITS",
+        title: "Superbits",
         description: "Toggle Gaming superbit unlocks from Gaming[12]. Names come from GamingUpg.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING GAMING SUPERBITS",
-        errorTitle: "GAMING SUPERBITS READ FAILED",
+        loadingText: "Reading gaming superbits",
+        errorTitle: "Gaming superbits read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

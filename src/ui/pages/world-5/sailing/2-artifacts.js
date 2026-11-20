@@ -75,22 +75,22 @@ const ArtifactsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "SAILING ARTIFACTS",
-            note: () => `${entries.val.length} ARTIFACTS FROM ArtifactInfo`,
+            title: "Sailing artifacts",
+            note: () => `${entries.val.length} artifacts from ArtifactInfo`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "ARTIFACTS",
+        title: "Artifacts",
         description: "Edit Sailing artifact levels from Sailing[3]. Names come from ArtifactInfo.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SAILING ARTIFACTS",
-        errorTitle: "SAILING ARTIFACTS READ FAILED",
+        loadingText: "Reading sailing artifacts",
+        errorTitle: "Sailing artifacts read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

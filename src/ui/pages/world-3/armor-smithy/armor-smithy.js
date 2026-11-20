@@ -324,9 +324,9 @@ const SmithyTab = () => {
         () => (writeWarning.val ? div({ class: "warning-banner" }, Icons.Warning(), " ", writeWarning.val) : null),
 
         AddFromListSection({
-            title: "ADD EQUIPMENT SET",
+            title: "Add equipment set",
             note: () => `${addableCount.val} AVAILABLE`,
-            selectLabel: "SELECT SET",
+            selectLabel: "Select set",
             selectedValue: selectedAddSetKey,
             options: addOptions,
             emptyOptionLabel: "No equipment sets left to add",
@@ -340,7 +340,7 @@ const SmithyTab = () => {
         }),
 
         AccountSection({
-            title: "ON SMITHY",
+            title: "On smithy",
             note: () => `${unlockedCount.val}/${totalSetCount.val} TOTAL`,
             body: () => div({ class: "smithy-rows" }, ...keptRows(smithyRows.val)),
         })
@@ -348,7 +348,7 @@ const SmithyTab = () => {
     scrollEl = body;
 
     return PersistentAccountListPage({
-        title: "SMITHY",
+        title: "Smithy",
         description: "Manage Armor Set Smithy equipment sets. Remove stored sets, or add sets from the game list.",
         actions: RefreshButton({
             onRefresh: () => {
@@ -358,8 +358,8 @@ const SmithyTab = () => {
             disabled: () => loading.val || mutating.val,
         }),
         state: { loading, error },
-        loadingText: "READING SMITHY",
-        errorTitle: "SMITHY READ FAILED",
+        loadingText: "Reading smithy",
+        errorTitle: "Smithy read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

@@ -106,22 +106,22 @@ const TablesTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "KITCHEN TABLES",
-            note: () => `${kitchenEntries.val.length} KITCHENS FROM Cooking[i][6-8]`,
+            title: "Kitchen tables",
+            note: () => `${kitchenEntries.val.length} kitchens from Cooking[i][6-8]`,
             body: kitchenRows,
         })
     );
 
     return PersistentAccountListPage({
-        title: "COOKING TABLES",
+        title: "Cooking tables",
         description: "Edit W4 Cooking kitchen table upgrade levels.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING COOKING TABLES",
-        errorTitle: "COOKING TABLE READ FAILED",
+        loadingText: "Reading cooking tables",
+        errorTitle: "Cooking table read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

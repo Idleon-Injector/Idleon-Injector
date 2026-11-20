@@ -78,7 +78,6 @@
     color: var(--c-text-muted);
     font-size: 0.75rem;
     font-weight: 800;
-    letter-spacing: 0.05em;
 }
 
 .masterclass-currency__label,
@@ -283,7 +282,6 @@
     color: var(--c-text-main);
     font-size: 0.75rem;
     font-weight: 900;
-    letter-spacing: 0.05em;
 }
 
 .outpost-select-field__select,

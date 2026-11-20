@@ -9,7 +9,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
-import { renderTabNav } from "../../../components/views/account/tabShared.js";
+import { pageSection, sectionTitle } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -22,14 +22,14 @@ import {
 const { div, span } = van.tags;
 
 const WORLD_TABS = [
-    { id: "all", label: "ALL" },
-    { id: "w1", label: "W1" },
-    { id: "w2", label: "W2" },
-    { id: "w3", label: "W3" },
-    { id: "w4", label: "W4" },
-    { id: "w5", label: "W5" },
-    { id: "w6", label: "W6" },
-    { id: "w7", label: "W7" },
+    { id: "all", label: "All worlds" },
+    { id: "w1", label: "World 1" },
+    { id: "w2", label: "World 2" },
+    { id: "w3", label: "World 3" },
+    { id: "w4", label: "World 4" },
+    { id: "w5", label: "World 5" },
+    { id: "w6", label: "World 6" },
+    { id: "w7", label: "World 7" },
 ];
 
 /** Calculate Arcane crystal stat multiplier (%) given kill count. */
@@ -179,7 +179,7 @@ const MapCrystalsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Arcane Map Crystals" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
 
-    const activeTab = van.state(WORLD_TABS[0].id);
+    const activeTab = pageSection("classes.tesseract.mapbonuses", WORLD_TABS[0].id);
     const searchQuery = van.state("");
     const allMaps = van.state([]);
     const talentCap = van.state(null);
@@ -308,7 +308,7 @@ const MapCrystalsTab = () => {
 
         if (visibleMaps.length === 0) {
             return EmptyState({
-                title: "NO MAPS FOUND",
+                title: "No maps found",
                 subtitle: query ? "Adjust your search filter" : "No maps available for this world",
             });
         }
@@ -359,7 +359,7 @@ const MapCrystalsTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container",
         wrapActions: false,
-        title: "MAP CRYSTALS",
+        title: sectionTitle("Map Bonuses", WORLD_TABS, activeTab),
         description: () => {
             const base =
                 "Edit Arcane Cultist crystal kill progression (Purple: Drop Rate, Yellow: EXP, Blue: AFK). In-game displays values as a total multiplier.";
@@ -377,20 +377,14 @@ const MapCrystalsTab = () => {
                 tooltip: "Re-read map crystal data from game memory",
             },
         }),
-        subNav: renderTabNav({
-            tabs: WORLD_TABS,
-            activeId: activeTab,
-            navClass: "account-page-nav",
-            buttonClass: "account-page-btn",
-        }),
         toolbar: SearchBar({
-            placeholder: "SEARCH MAPS OR INDEX",
+            placeholder: "Search maps or index",
             value: searchQuery,
             onInput: (val) => (searchQuery.val = val),
         }),
         state: { loading, error },
-        loadingText: "READING MAP CRYSTALS",
-        errorTitle: "MAP CRYSTAL READ FAILED",
+        loadingText: "Reading Map Crystals",
+        errorTitle: "Map crystal read failed",
         initialWrapperClass: "map-crystals-container",
         body,
     });
@@ -403,5 +397,7 @@ export default definePage({
     tab: "Map Bonuses",
     description: "The Arcane Cultist's per-map drop, EXP and AFK bonuses.",
     keywords: ["Map Crystals", "Maps", "MapBon"],
+    sections: WORLD_TABS,
+    sectionMode: "switch",
     component: MapCrystalsTab,
 });

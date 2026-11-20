@@ -134,7 +134,7 @@ const UpgradeVaultTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "UPGRADE VAULT",
+        title: "Upgrade Vault",
         description:
             "Set levels for all vault upgrades. Real max includes applicable trade, bundle, research, and event bonuses.",
         wrapActions: false,

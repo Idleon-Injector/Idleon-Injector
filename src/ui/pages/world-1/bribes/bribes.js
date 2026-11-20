@@ -163,12 +163,12 @@ const BribesTab = () => {
                 span({ class: "bribes-row__bonus" }, entry.bonus)
             ),
             controls: entry.readOnly
-                ? span({ class: "write-status" }, "READ ONLY")
+                ? span({ class: "write-status" }, "Read only")
                 : [
                       // Saving and saved, for screen readers; the switch says why a save failed.
                       span({ class: "account-write-feedback", role: "status" }, () => {
                           const status = state.write.status.val;
-                          return status === "loading" ? "SAVING" : status === "success" ? "SAVED" : "";
+                          return status === "loading" ? "Saving" : status === "success" ? "Saved" : "";
                       }),
                       StateSwitch({
                           checked: () => state.value.val === 1,
@@ -231,7 +231,7 @@ const BribesTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "bribes-tab tab-container",
-        title: "BRIBES",
+        title: "Bribes",
         description:
             "Edit account-wide ownership without spending coins. Enabling an expansion unlocks its next group.",
         wrapActions: false,
@@ -254,8 +254,8 @@ const BribesTab = () => {
             refresh: { onClick: load, disabled: isBusy },
         }),
         state: { loading, error },
-        loadingText: "READING BRIBES",
-        errorTitle: "BRIBES READ FAILED",
+        loadingText: "Reading bribes",
+        errorTitle: "Bribes read failed",
         body: div(
             { class: "scrollable-panel content-stack" },
             div({ class: "write-status write-status--error", role: "alert" }, () => message.val),

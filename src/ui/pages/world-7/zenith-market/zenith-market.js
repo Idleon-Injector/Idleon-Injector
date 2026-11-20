@@ -103,27 +103,27 @@ const ZenithTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "CURRENCY",
+            title: "Currency",
             note: "OptionsListAccount[486]",
             body: div({ class: "account-item-stack" }, ZenithClustersRow({ valueState: clusterState })),
         }),
         AccountSection({
-            title: "ZENITH UPGRADES",
-            note: () => `${entriesState.val.length} MARKET UPGRADES`,
+            title: "Zenith upgrades",
+            note: () => `${entriesState.val.length} market upgrades`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "ZENITH",
+        title: "Zenith",
         description: "Set W7 Zenith market levels from Spelunk[45]. Max levels come from ZenithMarket definitions.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING ZENITH",
-        errorTitle: "ZENITH READ FAILED",
+        loadingText: "Reading Zenith",
+        errorTitle: "Zenith read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

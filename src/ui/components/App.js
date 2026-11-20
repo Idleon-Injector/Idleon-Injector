@@ -1,12 +1,12 @@
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { VIEWS } from "../state/constants.js";
-import { AREAS } from "../menu/menuModel.js";
 import { loadPages } from "../menu/pageRegistry.js";
 
 // Components
 import { Sidebar } from "./Sidebar.js";
 import { MenuSearch } from "./MenuSearch.js";
+import { SystemBar } from "./MenuLevels.js";
 import { TooltipContainer } from "./Tooltip.js";
 import { UpdateModal } from "./UpdateModal.js";
 import { Home } from "./views/Home.js";
@@ -19,7 +19,7 @@ import { Search } from "./views/Search.js";
 import { History } from "./views/History.js";
 import { startChangeLog } from "../services/changeLog.js";
 
-const { div, main, button } = van.tags;
+const { div, main } = van.tags;
 
 const viewFactories = {
     [VIEWS.HOME.id]: Home,
@@ -31,30 +31,6 @@ const viewFactories = {
     [VIEWS.SEARCH.id]: Search,
     [VIEWS.HISTORY.id]: History,
 };
-
-/** An area's views share one tab row above them (Advanced: Account Options, Value search, DevTools; History). */
-const AreaTabs = (area) =>
-    div(
-        {
-            class: "account-sub-nav menu-tabs menu-area-tabs",
-            role: "tablist",
-            "aria-label": area.label,
-            hidden: () => !area.tabs.some((tab) => store.app.activeTab === VIEWS[tab.view].id),
-        },
-        ...area.tabs.map((tab) => {
-            const active = () => store.app.activeTab === VIEWS[tab.view].id;
-            return button(
-                {
-                    type: "button",
-                    role: "tab",
-                    class: () => `account-sub-tab-btn account-world-sub-tab-btn ${active() ? "active" : ""}`,
-                    "aria-selected": () => String(active()),
-                    onclick: () => store.openMenu({ view: tab.view }),
-                },
-                tab.label
-            );
-        })
-    );
 
 export const App = () => {
     startChangeLog(store.app, document);
@@ -78,10 +54,8 @@ export const App = () => {
 
         if (isInputFocused) return;
 
-        if (e.key === "1") store.app.activeTab = VIEWS.CHEATS.id;
-        if (e.key === "3") store.app.activeTab = VIEWS.CONFIG.id;
-        if (e.key === "4") store.app.activeTab = VIEWS.SEARCH.id;
-        if (e.key === "5") store.app.activeTab = VIEWS.DEVTOOLS.id;
+        const view = { 1: "CHEATS", 3: "CONFIG", 4: "SEARCH", 5: "DEVTOOLS" }[e.key];
+        if (view) store.openMenu({ view });
 
         if (e.key === "/") {
             e.preventDefault();
@@ -144,7 +118,8 @@ export const App = () => {
         Sidebar(),
         main(
             { class: "viewport" },
-            div({ class: "menu-top" }, MenuSearch(), ...AREAS.filter((area) => area.tabs).map(AreaTabs)),
+            // An area's views and a world's pages are lists in the sidebar, so the page area has no tab rows.
+            div({ class: "menu-top" }, MenuSearch(), SystemBar()),
             tabContent
         ),
         UpdateModal(),

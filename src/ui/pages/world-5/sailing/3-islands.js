@@ -98,7 +98,7 @@ const IslandsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "SAILING ISLANDS",
+            title: "Sailing islands",
             note: () =>
                 `${entries.val.filter((entry) => getOrCreateState(unlockedStates, entry.index).val === -1).length} / ${
                     entries.val.length
@@ -108,15 +108,15 @@ const IslandsTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "ISLANDS",
+        title: "Islands",
         description: "Toggle Sailing island unlocks. Unlock flags are stored as -1 for unlocked and 0 for locked.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SAILING ISLANDS",
-        errorTitle: "SAILING ISLANDS READ FAILED",
+        loadingText: "Reading sailing islands",
+        errorTitle: "Sailing islands read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

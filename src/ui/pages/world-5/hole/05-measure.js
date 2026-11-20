@@ -6,10 +6,10 @@ import { SimpleAccountListPage } from "../../../components/views/account/compone
 
 const MeasureTab = () =>
     SimpleAccountListPage({
-        title: "MEASURE",
+        title: "Measure",
         description: "Edit Villager Measure upgrade levels from Holes[22].",
         label: "Hole Measure",
-        sectionTitle: "MEASURE UPGRADES",
+        sectionTitle: "Measure upgrades",
         loadEntries: async () => {
             const [holes, effects] = await Promise.all([gga("Holes"), readCList("HolesInfo[54]")]);
             const values = toIndexedArray(toIndexedArray(holes)[22]);

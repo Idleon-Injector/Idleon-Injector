@@ -203,15 +203,15 @@ const ObservationsTab = () => {
     });
 
     return PersistentAccountListPage({
-        title: "OBSERVATIONS",
+        title: "Observations",
         description: "Edit unlock, insight level, and insight EXP per observation tile.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING OBSERVATIONS",
-        errorTitle: "OBSERVATION READ FAILED",
+        loadingText: "Reading observations",
+        errorTitle: "Observation read failed",
         initialWrapperClass: "scrollable-panel",
         body: tileGrid,
     });

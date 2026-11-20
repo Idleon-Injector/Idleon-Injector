@@ -30,12 +30,12 @@ import {
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { renderPersistentPagePanes, renderTabNav } from "../../../components/views/account/tabShared.js";
+import { pageSection, renderPersistentPagePanes, sectionTitle } from "../../../components/views/account/tabShared.js";
 
 const { div } = van.tags;
 
 const CHEAT = "automation shops";
-const WORLDS = [1, 2, 3, 4, 5, 6, 7].map((world) => ({ id: world, label: `W${world}` }));
+const WORLDS = [1, 2, 3, 4, 5, 6, 7].map((world) => ({ id: `w${world}`, label: `World ${world}`, world }));
 
 const ShopsPage = () => {
     const automation = van.state(null);
@@ -55,7 +55,7 @@ const ShopsPage = () => {
     const bulk = useWriteStatus();
     const bulkSaid = useSaid();
     const stock = new Map(); // "shop:item" -> state of today's stock
-    const activeWorld = van.state(1);
+    const activeWorld = pageSection("account.automation.shops", WORLDS[0].id);
     const { loading, error, run } = useAccountLoad({ label: "Shop automation" });
 
     const switchNode = div();
@@ -77,14 +77,14 @@ const ShopsPage = () => {
                 if (!switchNode.firstChild && automation.val)
                     switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
 
-                WORLDS.forEach(({ id: world }, i) => {
+                WORLDS.forEach(({ world }, i) => {
                     const worldShops = shops.filter((shop) => shop.world === world);
                     reconcilers[i](
                         worldShops.map((shop) => `${shop.shop}:${shop.items.map(({ item }) => item)}`).join("|"),
                         () =>
                             worldShops.map((shop) =>
                                 AccountSection({
-                                    title: cleanName(shop.town).toUpperCase(),
+                                    title: cleanName(shop.town),
                                     body: div(
                                         { class: "account-item-stack" },
                                         shop.items.map(({ item, name }) => {
@@ -125,7 +125,7 @@ const ShopsPage = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "SHOPS",
+        title: sectionTitle("Shops", WORLDS, activeWorld),
         description:
             "Switched-on items are bought into the storage chest with chest coins whenever the shop has stock, cheapest first, and switching one on turns Shops on. Buying stops once the chest holds the stop-at amount; leave it empty for no limit. Enable all and Disable all cover every world.",
         actions: BulkActionBar({
@@ -150,21 +150,15 @@ const ShopsPage = () => {
             ],
             refresh: { onClick: load, disabled: busy },
         }),
-        subNav: renderTabNav({
-            tabs: WORLDS,
-            activeId: activeWorld,
-            navClass: "account-page-nav",
-            buttonClass: "account-page-btn",
-        }),
         // Above the body, so it shows during the first load too.
         topNotices: Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
         state: { loading, error },
-        loadingText: "READING SHOPS",
-        errorTitle: "SHOP READ FAILED",
+        loadingText: "Reading shops",
+        errorTitle: "Shop read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "AUTOMATION", body: switchNode }),
+            AccountSection({ title: "Automation", body: switchNode }),
             ...panes
         ),
     });
@@ -177,5 +171,7 @@ export default definePage({
     tab: "Shops",
     description: "Town shop items bought into the chest with chest coins, by world, each up to its stop-at.",
     keywords: ["Autobuy", "Auto buy", "Vendor", "Town shop", "Stop at"],
+    sections: WORLDS.map(({ id, label }) => ({ id, label })),
+    sectionMode: "switch",
     component: ShopsPage,
 });

@@ -42,8 +42,8 @@ const PlayerTab = () => {
         },
         info: () =>
             selected.val === current.val
-                ? "ACTIVE CHARACTER"
-                : "SAVED CHARACTER. Open this character in-game before closing to save level edits.",
+                ? "Active character"
+                : "Saved character. Open this character in-game before closing to save level edits.",
     });
 
     // A save asked for while another runs waits its turn, and reads the game again then.
@@ -182,17 +182,17 @@ const PlayerTab = () => {
 
     load();
     return PersistentAccountListPage({
-        title: "PLAYER",
+        title: "Player",
         description: "Edit levels and money. Level edits reset XP and leave talent points unchanged.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy.val }),
         state: { loading, error },
-        loadingText: "READING PLAYER",
-        errorTitle: "PLAYER READ FAILED",
+        loadingText: "Reading player",
+        errorTitle: "Player read failed",
         body: div(
             { class: "scrollable-panel content-stack" },
             characterSelector.node,
             div({ class: "write-status", role: "status", "aria-live": "polite" }, message),
-            AccountSection({ title: "LEVELS & MONEY", body: rows })
+            AccountSection({ title: "Levels & money", body: rows })
         ),
     });
 };

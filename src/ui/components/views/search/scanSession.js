@@ -63,7 +63,7 @@ export const createScanSession = ({ search, state }) => {
         const inputless = isInputlessScanType(scanType);
 
         if (scanType === "exact_value" && queryTrimmed === "") {
-            return { validationError: "Enter a value for FIND VALUE, or choose UNKNOWN INITIAL VALUE" };
+            return { validationError: "Enter a value for Find Value, or choose Unknown Initial Value" };
         }
         if (!inputless && scanType !== "exact_value" && queryTrimmed === "") {
             return { validationError: "Enter a value for this scan type" };
@@ -73,10 +73,10 @@ export const createScanSession = ({ search, state }) => {
         }
         if (requiresSecondaryInput(scanType)) {
             if (queryTrimmed === "" || query2Trimmed === "") {
-                return { validationError: "Enter both values for VALUE BETWEEN" };
+                return { validationError: "Enter both values for Value Between" };
             }
             if (Number.isNaN(Number(queryTrimmed)) || Number.isNaN(Number(query2Trimmed))) {
-                return { validationError: "VALUE BETWEEN requires numeric bounds" };
+                return { validationError: "Value Between needs two numbers" };
             }
         }
         if (isNext && needsPreviousSnapshot(scanType) && Object.keys(previousSnapshot).length === 0) {

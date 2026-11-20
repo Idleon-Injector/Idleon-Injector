@@ -168,7 +168,7 @@ const ArcadeTab = () => {
     const content = div(
         { class: "arcade-content scrollable-panel content-stack" },
         AccountSection({
-            title: "BALL COUNTS",
+            title: "Ball counts",
             note: "Normal, golden, cosmic, and Omega arcade balls, plus lifetime Omega drops",
             body: div(
                 { class: "account-list" },
@@ -176,7 +176,7 @@ const ArcadeTab = () => {
             ),
         }),
         AccountSection({
-            title: "BONUS UPGRADES",
+            title: "Bonus upgrades",
             note: "Level 101 grants the cosmic bonus. Level 102 grants Omega status with a 6x bonus, or 12x with Companion 27.",
             body: () => {
                 return div({ class: "account-list" }, ...upgradeEntries.val.map((entry) => ArcadeRow({ entry })));
@@ -186,7 +186,7 @@ const ArcadeTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "arcade-tab tab-container",
-        title: "ARCADE UPGRADES",
+        title: "Arcade upgrades",
         description: "Manage Arcade balls and upgrade levels.",
         wrapActions: false,
         actions: BulkActionBar({

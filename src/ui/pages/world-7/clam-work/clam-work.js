@@ -137,7 +137,7 @@ const ClamTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "PEARLS",
+            title: "Pearls",
             note: "OptionsListAccount[454]",
             body: div(
                 { class: "account-item-stack" },
@@ -149,7 +149,7 @@ const ClamTab = () => {
             ),
         }),
         AccountSection({
-            title: "CLAMWORKS",
+            title: "Clamworks",
             note: () => `${CLAMWORKS_FIELDS.length} UPGRADES`,
             body: div(
                 { class: "account-item-stack" },
@@ -163,7 +163,7 @@ const ClamTab = () => {
             ),
         }),
         AccountSection({
-            title: "SCURGE",
+            title: "Scurge",
             note: () =>
                 scurgeReady.val
                     ? "Clamworks promotion resets Scurge EXP, level, and these upgrades."
@@ -175,15 +175,15 @@ const ClamTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "CLAM",
+        title: "Clam",
         description: "Set Pearls, Clamworks upgrades, and Scurge EXP, level, and upgrades.",
         actions: RefreshButton({
             onRefresh: load,
             disabled,
         }),
         state: { loading, error },
-        loadingText: "READING CLAM",
-        errorTitle: "CLAM READ FAILED",
+        loadingText: "Reading clam",
+        errorTitle: "Clam read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

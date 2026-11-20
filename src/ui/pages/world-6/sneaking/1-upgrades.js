@@ -74,22 +74,22 @@ const UpgradesTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "SNEAKING UPGRADES",
-            note: () => `${entries.val.length} UPGRADES FROM Ninja[103]`,
+            title: "Sneaking Upgrades",
+            note: () => `${entries.val.length} upgrades from Ninja[103]`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "UPGRADES",
+        title: "Upgrades",
         description: "Edit Sneaking upgrade levels from Ninja[103]. Names come from NinjaUpg.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SNEAKING UPGRADES",
-        errorTitle: "SNEAKING UPGRADES READ FAILED",
+        loadingText: "Reading Sneaking Upgrades",
+        errorTitle: "Sneaking Upgrades read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

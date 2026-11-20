@@ -26,12 +26,12 @@ import { SaveState, saveStateClass, useAutoSave } from "../../../components/view
 const { div, span, select, option } = van.tags;
 
 const SIGIL_TIERS = [
-    { value: -1, label: "LOCKED", cls: "locked" },
-    { value: 0, label: "UNLOCKED", cls: "unlocked" },
-    { value: 1, label: "BOOSTED", cls: "boosted" },
-    { value: 2, label: "IONIZED", cls: "ionized" },
-    { value: 3, label: "ETHEREAL", cls: "ethereal" },
-    { value: 4, label: "ECLECTIC", cls: "eclectic" },
+    { value: -1, label: "Locked", cls: "locked" },
+    { value: 0, label: "Unlocked", cls: "unlocked" },
+    { value: 1, label: "Boosted", cls: "boosted" },
+    { value: 2, label: "Ionized", cls: "ionized" },
+    { value: 3, label: "Ethereal", cls: "ethereal" },
+    { value: 4, label: "Eclectic", cls: "eclectic" },
 ];
 
 const SIGIL_COUNT = 24;
@@ -106,7 +106,7 @@ const SigilTab = () => {
                 selectLevels: (_, levels) => levels[4],
                 mapEntry: ({ definition, levels, index }) => ({
                     tier: toNum(levels[2 * index + 1], -1),
-                    name: cleanName(definition[0], `#${index}`).toUpperCase(),
+                    name: cleanName(definition[0], `#${index}`),
                 }),
             });
 
@@ -148,12 +148,12 @@ const SigilTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "ALCHEMY - SIGILS",
+        title: "Alchemy - sigils",
         description: "Manage tier and unlock status for all 24 alchemy sigils.",
         wrapActions: false,
         actions: BulkActionBar({
             leading: SetAllSelectControl({
-                label: "SET ALL TIERS TO",
+                label: "Set all tiers to",
                 value: setAllTier,
                 options: SIGIL_TIERS,
                 status: setAllStatus,

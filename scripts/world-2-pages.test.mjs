@@ -363,8 +363,8 @@ test("vials: a vial saved while Set all runs keeps the level it saved (Set all l
 
 test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the game shows as it is", async () => {
     ola[123] = 2;
-    const root = await openPage("src/ui/pages/world-2/cauldrons/pay-2-win.js", (root) => rowNamed(root, "COUNT"));
-    const row = rowNamed(root, "COUNT");
+    const root = await openPage("src/ui/pages/world-2/cauldrons/pay-2-win.js", (root) => rowNamed(root, "Count"));
+    const row = rowNamed(root, "Count");
     const input = enter(row, 9);
     await until(() => stateOf(row) === "error", "the save to be refused");
     assert.equal(ola[123], 2, "nothing was written");
@@ -381,9 +381,9 @@ test("pay 2 win: Raise on a count past 4 leaves it, and Lower takes one off and 
     ola[123] = 9;
     const root = await openPage(
         "src/ui/pages/world-2/cauldrons/pay-2-win.js",
-        (root) => rowNamed(root, "COUNT") && shown(inputs(rowNamed(root, "COUNT"))[0]) === "9"
+        (root) => rowNamed(root, "Count") && shown(inputs(rowNamed(root, "Count"))[0]) === "9"
     );
-    const row = rowNamed(root, "COUNT");
+    const row = rowNamed(root, "Count");
     const [input] = inputs(row);
     const stepper = (label) =>
         elements(row).find((node) => node.nodeName === "button" && node.attributes["aria-label"] === label);
@@ -412,19 +412,19 @@ test("post office: the points summary follows a box or misc save as soon as it's
                 .replace(label, "")
                 .replace(/[^0-9-]/g, "")
         );
-    const spent = summary("SPENT ON UPGRADES");
-    const earned = summary("TOTAL EARNED");
+    const spent = summary("Spent on upgrades");
+    const earned = summary("Total earned");
     const box = byClass(root, "account-row").find((row) => byClass(row, "po-box-row__name").length);
     const boxValue = Number(game.gga.PostOfficeInfo[3][0][0]);
     enter(box, boxValue - 3);
     await until(() => stateOf(box) === "success", "the box save");
-    await until(() => summary("SPENT ON UPGRADES") === spent + 3, "SPENT to drop by 3"); // shown as -spent
+    await until(() => summary("Spent on upgrades") === spent + 3, "SPENT to drop by 3"); // shown as -spent
 
     const misc =
-        rowNamed(root, "MISC OPTION") ?? byClass(root, "account-row").find((row) => text(row).includes("MISC"));
+        rowNamed(root, "Misc option") ?? byClass(root, "account-row").find((row) => text(row).includes("Misc option"));
     enter(misc, Number(ola[131] ?? 0) + 100);
     await until(() => stateOf(misc) === "success", "the misc save");
-    await until(() => summary("TOTAL EARNED") === earned + 100, "TOTAL EARNED to rise by 100");
+    await until(() => summary("Total earned") === earned + 100, "TOTAL EARNED to rise by 100");
 });
 
 test("liquid: a connection lost while CAP UPGRADE saves writes neither of its two copies", async () => {

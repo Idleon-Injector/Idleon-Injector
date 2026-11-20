@@ -538,7 +538,7 @@ export const Search = () => {
                 { class: "account-header account-tab-header" },
                 div(
                     { class: "account-tab-header__main" },
-                    h3({ class: "account-tab-header__title" }, "VALUE SEARCH"),
+                    h3({ class: "account-tab-header__title" }, "Value search"),
                     p(
                         { class: "account-tab-header__desc" },
                         "Find where the game keeps a value: scan the keys you pick, change the value in game, then scan again to narrow the results."

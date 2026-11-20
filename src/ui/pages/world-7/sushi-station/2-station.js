@@ -195,15 +195,15 @@ function SushiStationTab() {
     );
 
     return PersistentAccountListPage({
-        title: "SUSHI STATION",
+        title: "Sushi Station",
         description: "Edit Sushi[0] slot tiers. Plate types from Sushi[1] and fireplaces from Sushi[3] are read-only.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SUSHI STATION",
-        errorTitle: "SUSHI STATION READ FAILED",
+        loadingText: "Reading Sushi Station",
+        errorTitle: "Sushi Station read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

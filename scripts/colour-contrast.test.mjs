@@ -1,4 +1,6 @@
-// Dusk: every text colour meets WCAG AA (4.5:1) on the surface it sits on, status text on the status fills included.
+// Every text colour meets WCAG AA (4.5:1) on the surfaces in _variables.css, status text on the status fills included.
+// The colours are placeholders until the new look lands; its own test (every text on every surface it sits on, the
+// switch and focus ring at 3:1) comes with it.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -47,7 +49,7 @@ const pairs = [
     ["--c-arcade-omega", "--c-panel"],
 ];
 
-test("every Dusk text colour meets WCAG AA on its surface", () => {
+test("every text colour meets WCAG AA on its surface", () => {
     const failing = pairs
         .map(([text, surface]) => [text, surface, ratio(text, surface)])
         .filter(([, , r]) => r < 4.5)

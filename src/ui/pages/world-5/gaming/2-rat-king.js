@@ -210,7 +210,7 @@ const RatKingTab = () => {
             { class: "rat-king-progress-wrapper" },
             div(
                 { class: "rat-king-progress-header" },
-                span("COLLECTION PROGRESS"),
+                span("Collection progress"),
                 span(() => `${crownsSet.val.size}%`)
             ),
             div(
@@ -331,7 +331,7 @@ const RatKingTab = () => {
                                 ),
                             title: () =>
                                 `Crown ${crownId} - Plant ${p + 1} ${label}\nStatus: ${
-                                    crownsSet.val.has(crownId) ? "RECLAIMED" : "NOT RECLAIMED"
+                                    crownsSet.val.has(crownId) ? "Reclaimed" : "Not reclaimed"
                                 }\nLog Book: ${m < getUnlockedMutationCount(logbookStr.val, p) ? "Discovered" : "Locked"}\n(Click to toggle)`,
                             onclick: () => toggleCrown(crownId),
                         },
@@ -345,7 +345,7 @@ const RatKingTab = () => {
 
     const logbookSection = () =>
         AccountSection({
-            title: "LOG BOOK DISCOVERY SYNC",
+            title: "Log Book discovery sync",
             note: "Gaming[11] plant mutation discoveries",
             body: div(
                 { class: "account-item-stack" },
@@ -377,12 +377,12 @@ const RatKingTab = () => {
         });
 
     return PersistentAccountListPage({
-        title: "RAT KING",
+        title: "Rat King",
         description: "Manage Reclaimed Rat King Crowns (Research[11]) and Garden Log Book discoveries.",
         actions: RefreshButton({ onRefresh: load, disabled: isWriting }),
         state: { loading, error },
-        loadingText: "READING GAMING RAT KING",
-        errorTitle: "GAMING RAT KING READ FAILED",
+        loadingText: "Reading gaming Rat King",
+        errorTitle: "Gaming Rat King read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack rat-king-dashboard" },
@@ -390,15 +390,15 @@ const RatKingTab = () => {
             progressBar(),
             bulkActionsBar(),
             AccountSection({
-                title: "RECLAIMED RAT CROWNS MATRIX",
+                title: "Reclaimed rat crowns matrix",
                 note: "Research[11] (10 plants x 10 mutations = 100 crowns)",
                 meta: () => {
                     const s = matrixStatus.status.val;
                     if (s === "error") {
-                        return span({ class: "rat-king-matrix-status rat-king-matrix-status--error" }, "SAVE FAILED");
+                        return span({ class: "rat-king-matrix-status rat-king-matrix-status--error" }, "Save failed");
                     }
                     if (s === "loading") {
-                        return span({ class: "rat-king-matrix-status rat-king-matrix-status--loading" }, "SAVING...");
+                        return span({ class: "rat-king-matrix-status rat-king-matrix-status--loading" }, "Saving...");
                     }
                     return "";
                 },

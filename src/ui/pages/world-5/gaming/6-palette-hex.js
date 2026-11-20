@@ -131,7 +131,7 @@ const PaletteHexTab = () => {
     const body = div({ class: "scrollable-panel gaming-palette-hex-panel" }, gridNode);
 
     return PersistentAccountListPage({
-        title: "PALETTE HEX",
+        title: "Palette Hex",
         description:
             "Edit Gaming Palette levels and Black Stars in the in-game hex layout. Order follows GamingPalette rows.",
         actions: RefreshButton({
@@ -139,8 +139,8 @@ const PaletteHexTab = () => {
             disabled: () => loading.val || stars.status.val === "loading",
         }),
         state: { loading, error },
-        loadingText: "READING GAMING PALETTE HEX",
-        errorTitle: "GAMING PALETTE HEX READ FAILED",
+        loadingText: "Reading gaming Palette Hex",
+        errorTitle: "Gaming Palette Hex read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

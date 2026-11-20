@@ -32,7 +32,7 @@ export const PersistentAccountListPage = ({
     subNav = null,
     toolbar = null,
     loadingText = null,
-    errorTitle = "LOAD FAILED",
+    errorTitle = "Load failed",
     initialWrapperClass = null,
 }) =>
     AccountPageShell({

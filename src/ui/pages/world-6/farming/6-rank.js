@@ -57,7 +57,7 @@ const RankTile = ({ entry, levelState }) =>
         },
         div(
             { class: "farming-grid-tile__header" },
-            span({ class: "farming-grid-tile__title" }, `RANK ${entry.index + 1}`),
+            span({ class: "farming-grid-tile__title" }, `Rank ${entry.index + 1}`),
             span({ class: "farming-grid-tile__coord" }, `R${entry.row + 1} C${entry.column + 1}`)
         ),
         RankLevelRow({ entry, levelState })
@@ -120,15 +120,15 @@ const RankTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "RANK",
+        title: "Rank",
         description: "Edit the 5x4 Land Rank Database from FarmRank[2]. The fifth column uses the live max level cap.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING FARMING RANKS",
-        errorTitle: "FARMING RANKS READ FAILED",
+        loadingText: "Reading farming ranks",
+        errorTitle: "Farming ranks read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

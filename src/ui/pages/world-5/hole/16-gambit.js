@@ -15,10 +15,10 @@ const GAMBIT_FIELDS = [
 
 const GambitTab = () =>
     SimpleAccountListPage({
-        title: "GAMBIT",
+        title: "Gambit",
         description: "Edit Gambit times from Holes[11][65] through Holes[11][70].",
         label: "Hole Gambit",
-        sectionTitle: "THE GAMBIT",
+        sectionTitle: "The Gambit",
         loadEntries: async () => {
             const holes = await gga("Holes");
             const stats = toIndexedArray(toIndexedArray(holes)[11]);

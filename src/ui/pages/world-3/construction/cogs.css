@@ -183,7 +183,6 @@
 .cogs-selection-state {
     font-family: var(--font-mono);
     font-size: 0.875rem;
-    letter-spacing: 0.04em;
     padding: 2px 7px;
     border: 1px solid currentColor;
 }
@@ -214,8 +213,6 @@
 
 .cogs-selection-charge__label {
     color: var(--c-text-dim);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
 }
 
 .cogs-selection-charge__value {
@@ -229,7 +226,6 @@
     width: fit-content;
     color: var(--c-text-main);
     font-size: 0.875rem;
-    letter-spacing: 0.04em;
     font-family: var(--font-mono);
 }
 
@@ -282,7 +278,6 @@
     font-size: 0.875rem;
     font-family: var(--font-mono);
     color: var(--c-text-muted);
-    text-transform: uppercase;
 }
 
 .cogs-cog-stat-row__text {

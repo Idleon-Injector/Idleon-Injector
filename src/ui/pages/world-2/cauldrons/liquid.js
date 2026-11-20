@@ -87,13 +87,13 @@ const LiquidColumn = ({ liquid, states }) =>
         },
         div({ class: "col-header" }, span({ class: "col-header__name" }, liquid.label)),
         LiquidControl({
-            label: "AMOUNT",
+            label: "Amount",
             valueState: states.amount,
             writePath: `CauldronInfo[6][${liquid.index}]`,
             mode: "int",
         }),
         LiquidControl({
-            label: "CAP UPGRADE",
+            label: "Cap upgrade",
             valueState: states.cap,
             writePaths: [
                 `CauldronInfo[8][${liquid.upgradeIndex}][2][1]`,
@@ -102,7 +102,7 @@ const LiquidColumn = ({ liquid, states }) =>
             mode: "int",
         }),
         LiquidControl({
-            label: "RATE UPGRADE",
+            label: "Rate upgrade",
             valueState: states.rate,
             writePaths: [
                 `CauldronInfo[8][${liquid.upgradeIndex}][3][1]`,
@@ -145,7 +145,7 @@ const LiquidTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "ALCHEMY - LIQUID",
+        title: "Alchemy - liquid",
         description: "Edit current liquid amounts and cap / rate upgrade levels.",
         actions: RefreshButton({ onRefresh: load }),
         state: { loading, error },

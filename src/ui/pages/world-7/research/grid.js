@@ -205,7 +205,7 @@ const GridTab = () => {
                 visibleTileIndexes.val.length === 0
                     ? div(
                           { class: "research-grid-detail__empty" },
-                          span({ class: "research-grid-detail__empty-title" }, "NO ACTIVE GRID TILES"),
+                          span({ class: "research-grid-detail__empty-title" }, "No active grid tiles"),
                           p(
                               { class: "research-grid-detail__empty-text" },
                               "All research grid squares are currently inactive."
@@ -232,7 +232,7 @@ const GridTab = () => {
                 if (!tile || index === null) {
                     return div(
                         { class: "research-grid-detail__empty" },
-                        span({ class: "research-grid-detail__empty-title" }, "NO TILE SELECTED"),
+                        span({ class: "research-grid-detail__empty-title" }, "No tile selected"),
                         p(
                             { class: "research-grid-detail__empty-text" },
                             "Click any active square in the grid to inspect its details and set its level."
@@ -301,15 +301,15 @@ const GridTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "GRID",
+        title: "Grid",
         description: "Browse all 240 research squares. Click an active tile to inspect it and set its current level.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING RESEARCH GRID",
-        errorTitle: "GRID READ FAILED",
+        loadingText: "Reading Research Grid",
+        errorTitle: "Grid read failed",
         initialWrapperClass: "research-grid-shell",
         body: board,
     });

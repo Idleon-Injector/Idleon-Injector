@@ -103,12 +103,12 @@ const VialTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "vials-tab tab-container",
-        title: "ALCHEMY - VIALS",
+        title: "Alchemy - vials",
         description: "Set vial levels (0-13) for all alchemy vials.",
         wrapActions: false,
         actions: BulkActionBar({
             leading: SetAllNumberControl({
-                label: "SET ALL:",
+                label: "Set all:",
                 value: setAllInput,
                 status: bulkStatus,
                 onApply: doSetAll,
@@ -118,8 +118,8 @@ const VialTab = () => {
             refresh: { onClick: load },
         }),
         state: { loading, error },
-        loadingText: "READING VIALS",
-        errorTitle: "VIAL READ FAILED",
+        loadingText: "Reading vials",
+        errorTitle: "Vial read failed",
         initialWrapperClass: "account-list",
         body: listNode,
     });

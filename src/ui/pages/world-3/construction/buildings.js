@@ -135,7 +135,7 @@ const ConstructionBuildingsTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "CONSTRUCTION - BUILDINGS",
+        title: "Construction - buildings",
         description: "Set building levels. Each building has its own max.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -150,8 +150,8 @@ const ConstructionBuildingsTab = () => {
             refresh: { onClick: load },
         }),
         state: { loading, error },
-        loadingText: "READING CONSTRUCTION BUILDINGS",
-        errorTitle: "CONSTRUCTION BUILDINGS READ FAILED",
+        loadingText: "Reading construction buildings",
+        errorTitle: "Construction buildings read failed",
         initialWrapperClass: "account-list",
         body: rowList,
     });

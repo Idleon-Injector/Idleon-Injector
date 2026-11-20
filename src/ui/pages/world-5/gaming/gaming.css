@@ -192,9 +192,7 @@
 .rat-king-stat-card__title {
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
     color: var(--c-text-muted);
-    text-transform: uppercase;
 }
 
 .rat-king-stat-card__value {
@@ -302,7 +300,6 @@
 .rat-king-matrix-status {
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
 }
 
 .rat-king-matrix-status--error {

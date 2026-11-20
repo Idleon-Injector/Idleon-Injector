@@ -158,8 +158,8 @@ test("killroy: a save the game doesn't keep says why on the switch, and the next
     let restore = () => {};
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         restore = refuseWrites(ola, 115);
         await flip(row, true);
         restore();
@@ -395,8 +395,8 @@ test("killroy: while a later flip waits, the box shows that flip, not the state 
     const writes = holdEachWrite();
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         const save = flip(row, true);
         await until(() => writes.held() === 1, "the On save to reach the game");
         void flip(row, false); // asked for while On saves
@@ -418,8 +418,8 @@ test("killroy: an old failure goes once the game holds something else, and stays
     let restore = () => {};
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         restore = refuseWrites(ola, 115);
         await flip(row, true);
         restore();
@@ -986,8 +986,8 @@ test("killroy: a failed flip the player already took back isn't said", async () 
     let restore = () => {};
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         restore = refuseWrites(ola, 115);
         const save = flip(row, true);
         await until(() => writes.held() === 1, "On to reach the game");

@@ -85,22 +85,22 @@ const SpicesTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "SPICES",
-            note: () => `${spiceEntries.val.length} SPICES FROM ${SPICE_AMOUNTS_PATH}`,
+            title: "Spices",
+            note: () => `${spiceEntries.val.length} spices from ${SPICE_AMOUNTS_PATH}`,
             body: spiceRows,
         })
     );
 
     return PersistentAccountListPage({
-        title: "COOKING SPICES",
+        title: "Cooking spices",
         description: "Edit W4 Cooking spice amounts.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING COOKING SPICES",
-        errorTitle: "COOKING SPICE READ FAILED",
+        loadingText: "Reading cooking spices",
+        errorTitle: "Cooking spice read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

@@ -109,7 +109,7 @@ const UpgradesTab = () => {
             () =>
                 sections.map((section) =>
                     AccountSection({
-                        title: `${section.colorName.toUpperCase()} UPGRADES`,
+                        title: `${section.colorName} upgrades`,
                         note: () =>
                             `${section.sectionEntries.length} UPGRADES, ${section.sectionEntries.reduce(
                                 (sum, entry) => sum + toInt(getOrCreateState(levelStates, entry.index).val, { min: 0 }),
@@ -148,15 +148,15 @@ const UpgradesTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "UPGRADES",
+        title: "Upgrades",
         description: "Edit Summoning upgrade levels from Summon[0]. Max levels and names come from SummonUPG.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SUMMONING UPGRADES",
-        errorTitle: "SUMMONING UPGRADES READ FAILED",
+        loadingText: "Reading Summoning Upgrades",
+        errorTitle: "Summoning Upgrades read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

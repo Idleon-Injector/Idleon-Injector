@@ -58,22 +58,22 @@ const EssenceTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "ESSENCE",
-            note: () => `${entries.val.length} ESSENCE AMOUNTS FROM Summon[2]`,
+            title: "Essence",
+            note: () => `${entries.val.length} essence amounts from Summon[2]`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "ESSENCE",
+        title: "Essence",
         description: "Edit Summoning essence amounts from Summon[2]. Names use the in-game essence color order.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SUMMONING ESSENCE",
-        errorTitle: "SUMMONING ESSENCE READ FAILED",
+        loadingText: "Reading Summoning Essence",
+        errorTitle: "Summoning Essence read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

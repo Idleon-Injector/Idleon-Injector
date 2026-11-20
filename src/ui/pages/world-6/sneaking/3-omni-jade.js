@@ -118,20 +118,20 @@ const OmniJadeTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "OMNI JADE",
+            title: "Omni Jade",
             note: "Disabling a node preserves its earned bonus levels.",
             body: list,
         })
     );
     load();
     return PersistentAccountListPage({
-        title: "OMNI JADE",
+        title: "Omni Jade",
         description: () =>
             `Daily bonus levels per selected Sneaking upgrade: ${dailyLevels.val === null ? "…" : `+${dailyLevels.val}`}. Purchase costs stay the same.`,
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
         state: { loading, error },
-        loadingText: "READING OMNI JADE",
-        errorTitle: "OMNI JADE READ FAILED",
+        loadingText: "Reading Omni Jade",
+        errorTitle: "Omni Jade read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

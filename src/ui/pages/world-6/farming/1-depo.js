@@ -90,7 +90,7 @@ const DepoTab = () => {
                 seedSections.val.map((section) =>
                     AccountSection({
                         title: section.name,
-                        note: `${section.crops.length} CROPS, INDEX ${section.start}-${section.end}`,
+                        note: `${section.crops.length} crops, index ${section.start}-${section.end}`,
                         body: reconcileSection(section),
                     })
                 )
@@ -116,15 +116,15 @@ const DepoTab = () => {
     const body = div({ class: "scrollable-panel content-stack" }, sectionListNode);
 
     return PersistentAccountListPage({
-        title: "DEPO",
+        title: "Depo",
         description: "Edit W6 Farming crop depo amounts from FarmCrop.h. Missing crops from SeedInfo show as 0.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING FARMING DEPO",
-        errorTitle: "FARMING DEPO READ FAILED",
+        loadingText: "Reading farming depo",
+        errorTitle: "Farming depo read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

@@ -15,15 +15,15 @@ import {
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { renderTabNav } from "../../../components/views/account/tabShared.js";
+import { pageSection, sectionTitle } from "../../../components/views/account/tabShared.js";
 import { UpgradeDoublerButton, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
 
 const { div, span } = van.tags;
 const CELL_NAMES = ["Amoeba", "Plasmid", "Ribosome", "Organelle", "Immunoid", "Virus", "Mitochondria", "Gigacyst"];
 const CELL_LEVEL_LIMIT = Math.floor(Math.log(Number.MAX_VALUE / 20) / Math.log(1.3)) - 1;
 const PANES = [
-    { id: "upgrades", label: "UPGRADES" },
-    { id: "cells", label: "CELLS" },
+    { id: "upgrades", label: "Upgrades" },
+    { id: "cells", label: "Cells" },
 ];
 
 const validLevel = (raw, max) => {
@@ -88,7 +88,7 @@ const JellyTab = () => {
         { path: "Spelunk[53]", ownedMethod: "JellyOpDoublersOwned", eligiblePath: "Research[61]" },
         loading
     );
-    const activePane = van.state("upgrades");
+    const activePane = pageSection("w7.jellyoperator", PANES[0].id);
     const bloodcells = van.state(0);
     const operationsLeft = van.state(0);
     const upgradeCount = van.state(0);
@@ -233,14 +233,14 @@ const JellyTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "BLOODCELLS",
+            title: "Bloodcells",
             body: SimpleNumberRow({
                 entry: { name: "Bloodcells", path: "Research[7][11]", formatted: true, float: true },
                 valueState: bloodcells,
             }),
         }),
         AccountSection({
-            title: "OPERATIONS LEFT",
+            title: "Operations left",
             body: SimpleNumberRow({
                 entry: { name: "Operations left", path: "Research[7][10]" },
                 valueState: operationsLeft,
@@ -249,7 +249,7 @@ const JellyTab = () => {
         div(
             { class: () => (activePane.val === "upgrades" ? "" : "is-hidden-until-ready") },
             AccountSection({
-                title: "UPGRADES",
+                title: "Upgrades",
                 note: () =>
                     `${upgradeCount.val} upgrades · ${doublers.selected.val.length}/${doublers.capacity.val} doubled`,
                 body: upgradeList,
@@ -257,22 +257,16 @@ const JellyTab = () => {
         ),
         div(
             { class: () => (activePane.val === "cells" ? "" : "is-hidden-until-ready") },
-            AccountSection({ title: "CELLS", note: "8 cells", body: cellList })
+            AccountSection({ title: "Cells", note: "8 cells", body: cellList })
         )
     );
     return PersistentAccountListPage({
-        title: "JELLY OPERATOR",
+        title: sectionTitle("Jelly Operator", PANES, activePane),
         description: "Set Bloodcells, operations left, upgrade levels, and cell levels; choose doubled upgrades.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
-        subNav: renderTabNav({
-            tabs: PANES,
-            activeId: activePane,
-            navClass: "account-nested-sub-nav",
-            buttonClass: "account-nested-sub-tab-btn",
-        }),
         state: { loading, error },
-        loadingText: "READING JELLY OPERATOR",
-        errorTitle: "JELLY OPERATOR READ FAILED",
+        loadingText: "Reading Jelly Operator",
+        errorTitle: "Jelly Operator read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });
@@ -284,5 +278,7 @@ export default definePage({
     system: "Jelly Operator",
     description: "Bloodcells, operations left, upgrade and cell levels, and which upgrades are doubled.",
     keywords: ["Jelly", "Bloodcells", "Upgrades", "Cells"],
+    sections: PANES,
+    sectionMode: "switch",
     component: JellyTab,
 });

@@ -153,8 +153,8 @@ const GeneralTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "EGGS",
-            note: () => `${eggEntries.val.length} EGG SLOTS FROM TotalEggCapacity`,
+            title: "Eggs",
+            note: () => `${eggEntries.val.length} egg slots from TotalEggCapacity`,
             meta: spacedActionGroup(
                 ActionButton({
                     label: "Max all",
@@ -179,12 +179,12 @@ const GeneralTab = () => {
             body: eggRows,
         }),
         AccountSection({
-            title: "UPGRADES",
-            note: () => `${upgradeEntries.val.length} PET UPGRADES`,
+            title: "Upgrades",
+            note: () => `${upgradeEntries.val.length} pet upgrades`,
             body: upgradeRows,
         }),
         AccountSection({
-            title: "ARENA",
+            title: "Arena",
             note: "OptionsListAccount[89] + [628]",
             body: div(
                 { class: "account-item-stack" },
@@ -209,7 +209,7 @@ const GeneralTab = () => {
             ),
         }),
         AccountSection({
-            title: "SPICE CLAIM",
+            title: "Spice claim",
             note: "OptionsListAccount[100]",
             body: div(
                 { class: "account-item-stack" },
@@ -229,7 +229,7 @@ const GeneralTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "BREEDING GENERAL",
+        title: "Breeding general",
         description:
             "Edit W4 Breeding egg rarity, pet upgrades, highest Pet Arena and Crucible rounds, and spice claim counter.",
         actions: RefreshButton({
@@ -237,8 +237,8 @@ const GeneralTab = () => {
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING BREEDING GENERAL",
-        errorTitle: "BREEDING GENERAL READ FAILED",
+        loadingText: "Reading breeding general",
+        errorTitle: "Breeding general read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

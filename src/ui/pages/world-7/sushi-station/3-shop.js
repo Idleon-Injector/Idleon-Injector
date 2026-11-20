@@ -115,7 +115,7 @@ function SushiShopTab() {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "SHOP UPGRADES",
+            title: "Shop upgrades",
             note: () =>
                 `${upgradeEntries.val.length} UPGRADES · ${doublers.selected.val.length}/${doublers.capacity.val} DOUBLED`,
             body: shopListNode,
@@ -123,15 +123,15 @@ function SushiShopTab() {
     );
 
     return PersistentAccountListPage({
-        title: "SUSHI SHOP",
+        title: "Sushi shop",
         description: "Set Sushi shop upgrade levels and choose which upgrades are doubled.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SUSHI SHOP",
-        errorTitle: "SUSHI SHOP READ FAILED",
+        loadingText: "Reading sushi shop",
+        errorTitle: "Sushi shop read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

@@ -3,7 +3,7 @@ import { MasterclassUpgradeTab } from "../../../components/views/account/Masterc
 
 const LilOrbletShopTab = () =>
     MasterclassUpgradeTab({
-        title: "LIL ORBLET SHOP",
+        title: "Lil Orblet Shop",
         description: "Manage Royal Guard Lil Orblet Shop upgrades.",
         levelsPath: "RoyalG[23]",
         definitionPaths: ["OrbletMarket"],

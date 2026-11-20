@@ -20,7 +20,6 @@
 .companions-section__title {
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
     color: var(--c-text-dim);
     padding-bottom: 8px;
     border-bottom: 1px solid var(--c-border);
@@ -225,7 +224,6 @@
     color: var(--c-tier-zenith);
     font-weight: 700;
     font-size: 0.875rem;
-    letter-spacing: 0.05em;
     white-space: nowrap;
 }
 
@@ -270,7 +268,6 @@
     gap: 6px;
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
     white-space: nowrap;
 }
 

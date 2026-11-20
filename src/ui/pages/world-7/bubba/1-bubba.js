@@ -71,7 +71,7 @@ const createBubbaSections = (upgrades, traits, gifts, smokeBonuses) => {
 
     return [
         {
-            title: "RESOURCES & PROGRESS",
+            title: "Resources & progress",
             fields: [
                 field(0, 0, "Meat Slices", { formatted: true, float: true }),
                 field(0, 1, "Happiness", { formatted: true, float: true }),
@@ -79,10 +79,10 @@ const createBubbaSections = (upgrades, traits, gifts, smokeBonuses) => {
                 field(0, 5, "Pats used this hour", { min: -50, subLabel: "Can be -50 after a Megaflesh milestone." }),
             ],
         },
-        { title: "PURCHASED UPGRADES", fields: upgradeFields(false) },
-        { title: "FREE UPGRADE LEVELS", fields: upgradeFields(true) },
+        { title: "Purchased upgrades", fields: upgradeFields(false) },
+        { title: "Free upgrade levels", fields: upgradeFields(true) },
         {
-            title: "CHARISMA",
+            title: "Charisma",
             note: "Unlocked by the Charisma upgrade. Emulsification requires 6 Megaflesh.",
             fields: [
                 ...traits.map((name, index) =>
@@ -94,21 +94,21 @@ const createBubbaSections = (upgrades, traits, gifts, smokeBonuses) => {
             ],
         },
         {
-            title: "GIFTS",
+            title: "Gifts",
             note: "Fun Gifts unlocks gift choices. The second slot requires 3 Megaflesh.",
             fields: [2, 3].map((index) =>
                 field(0, index, `Gift ${index - 1}`, { max: 6, subLabel: `0: None, ${names(gifts)}` })
             ),
         },
         {
-            title: "DICE",
+            title: "Dice",
             note: "Unlocked by Dice Roll. More Dice and More Sides increase the available rolls.",
             fields: Array.from({ length: 8 }, (_, index) =>
                 field(4, index, `Die ${index + 1}`, { max: 20, subLabel: "0: Inactive. Maximum roll 20." })
             ),
         },
         {
-            title: "SMOKED MEAT",
+            title: "Smoked meat",
             note: "Unlocked by Smoker.",
             fields: [
                 ...smokeBonuses.map((bonus, index) =>
@@ -118,7 +118,7 @@ const createBubbaSections = (upgrades, traits, gifts, smokeBonuses) => {
             ],
         },
         {
-            title: "SPARE COINS",
+            title: "Spare coins",
             note: "Unlocked by Spare Coins.",
             fields: ["Pennies", "Nickels", "Quarters", "Dollars"].map((name, index) =>
                 field(0, index + 9, name, { formatted: true })
@@ -234,7 +234,7 @@ const BubbaTab = () => {
 
     load();
     return PersistentAccountListPage({
-        title: "BUBBA",
+        title: "Bubba",
         description: "Set Bubba resources, upgrades, and progress.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         topNotices: div(
@@ -244,8 +244,8 @@ const BubbaTab = () => {
             div({ role: "alert" }, () => writeError.val)
         ),
         state: { loading, error },
-        loadingText: "READING BUBBA",
-        errorTitle: "BUBBA READ FAILED",
+        loadingText: "Reading Bubba",
+        errorTitle: "Bubba read failed",
         body,
     });
 };

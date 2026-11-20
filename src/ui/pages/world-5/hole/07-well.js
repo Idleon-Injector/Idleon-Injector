@@ -73,22 +73,22 @@ const WellTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "THE WELL",
+        title: "The Well",
         description: "Edit Well bars and ores from Holes[8] and Holes[9].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE WELL",
-        errorTitle: "HOLE WELL READ FAILED",
+        loadingText: "Reading hole well",
+        errorTitle: "Hole well read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "THE WELL",
+                title: "The Well",
                 note: () => `${barEntries.val.length} ROWS`,
                 body: barsNode,
             }),
             AccountSection({
-                title: "ORES",
+                title: "Ores",
                 note: () => `${oreEntries.val.length} ROWS`,
                 body: oresNode,
             })

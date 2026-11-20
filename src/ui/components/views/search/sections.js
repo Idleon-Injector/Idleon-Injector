@@ -263,7 +263,7 @@ export const KeysSection = ({ ui, handlers }) =>
         { class: "search-keys-section" },
         div(
             { class: "section-header" },
-            span({ class: "section-title" }, "SEARCH IN KEYS"),
+            span({ class: "section-title" }, "Search in keys"),
             div(
                 { class: "section-actions" },
                 button(
@@ -297,7 +297,7 @@ export const KeysSection = ({ ui, handlers }) =>
         ),
         div(
             { class: "keys-content scroll-container" },
-            div({ class: "keys-group" }, div({ class: "keys-group-header" }, "* FAVORITES"), () => {
+            div({ class: "keys-group" }, div({ class: "keys-group-header" }, "Favorites"), () => {
                 if (ui.isLoading) {
                     return div({ class: "keys-loading" }, "Loading");
                 }
@@ -327,7 +327,7 @@ export const KeysSection = ({ ui, handlers }) =>
                 summary(
                     { class: "keys-group-header" },
                     Icons.Chevron({ dir: "right", class: "group-chevron" }),
-                    () => `ALL KEYS (${handlers.getOtherKeys().length} MORE)`
+                    () => `All keys (${handlers.getOtherKeys().length} more)`
                 ),
                 div(
                     { class: "keys-expand-content" },
@@ -336,7 +336,7 @@ export const KeysSection = ({ ui, handlers }) =>
                         input({
                             type: "text",
                             class: "keys-filter-input",
-                            placeholder: "FILTER KEYS",
+                            placeholder: "Filter keys",
                             value: () => ui.allKeysFilter,
                             oninput: (e) => (ui.allKeysFilter = e.target.value),
                         })
@@ -367,14 +367,14 @@ export const KeysSection = ({ ui, handlers }) =>
 export const SearchInputSection = ({ ui, handlers }) =>
     div(
         { class: "search-input-section" },
-        div({ class: "section-header" }, span({ class: "section-title" }, "SEARCH VALUE")),
+        div({ class: "section-header" }, span({ class: "section-title" }, "Search value")),
         div(
             { class: "search-input-content" },
             div(
                 { class: "scan-type-row" },
                 div(
                     { class: "scan-type-group" },
-                    span({ class: "type-label" }, "NEW SCAN TYPE"),
+                    span({ class: "type-label" }, "New scan type"),
                     select(
                         {
                             class: "scan-type-select",
@@ -387,7 +387,7 @@ export const SearchInputSection = ({ ui, handlers }) =>
                 ),
                 div(
                     { class: "scan-type-group" },
-                    span({ class: "type-label" }, "NEXT SCAN TYPE"),
+                    span({ class: "type-label" }, "Next scan type"),
                     select(
                         {
                             class: "scan-type-select",
@@ -421,13 +421,13 @@ export const SearchInputSection = ({ ui, handlers }) =>
                               })
                             : div(
                                   { class: "scan-inputless-note" },
-                                  "No input needed for " + getScanTypeLabel(activeScanType).toUpperCase()
+                                  "No input needed for " + getScanTypeLabel(activeScanType).toLowerCase()
                               ),
                         showSecondaryInput
                             ? input({
                                   type: "text",
                                   class: "search-query-input secondary-query-input",
-                                  placeholder: "SECOND VALUE",
+                                  placeholder: "Second value",
                                   value: () => ui.searchQuery2,
                                   oninput: handlers.handleQuery2Input,
                                   onkeydown: handlers.handleKeyDown,
@@ -484,32 +484,30 @@ export const SearchInputSection = ({ ui, handlers }) =>
                     if (activeScanType === "unknown_initial_value") {
                         return span(
                             { class: "type-label" },
-                            "MODE: " + getScanTypeLabel(activeScanType).toUpperCase() + " (SEARCHES FOR ANY VALUE)"
+                            "Mode: " + getScanTypeLabel(activeScanType).toLowerCase() + " (searches for any value)"
                         );
                     }
 
                     const suffix =
                         activeScanType === "changed_value" || activeScanType === "unchanged_value"
-                            ? "(COMPARES AGAINST PREVIOUS RESULT LIST)"
-                            : "(NUMBERS ONLY; COMPARES AGAINST PREVIOUS RESULT LIST)";
+                            ? "(compares against the previous results)"
+                            : "(numbers only; compares against the previous results)";
 
                     return span(
                         { class: "type-label" },
-                        "MODE: " + getScanTypeLabel(activeScanType).toUpperCase() + " " + suffix
+                        "Mode: " + getScanTypeLabel(activeScanType).toLowerCase() + " " + suffix
                     );
                 }
 
                 if (activeScanType !== "exact_value") {
                     return span(
                         { class: "type-label" },
-                        "MODE: " +
-                            getScanTypeLabel(activeScanType).toUpperCase() +
-                            " (NUMBERS ONLY; STRINGS ARE IGNORED)"
+                        "Mode: " + getScanTypeLabel(activeScanType).toLowerCase() + " (numbers only; text is ignored)"
                     );
                 }
 
                 return span(
-                    span({ class: "type-label" }, "DETECTED TYPE: "),
+                    span({ class: "type-label" }, "Detected type: "),
                     span({ class: () => `type-value type-${ui.detectedType}` }, () => ui.detectedType.toUpperCase())
                 );
             })
@@ -521,7 +519,7 @@ export const ResultsSection = ({ ui, handlers }) =>
         { class: "search-results-section" },
         div(
             { class: "section-header" },
-            span({ class: "section-title" }, "RESULTS"),
+            span({ class: "section-title" }, "Results"),
             button(
                 {
                     type: "button",
@@ -557,7 +555,7 @@ export const ResultsSection = ({ ui, handlers }) =>
                 input({
                     type: "text",
                     class: "list-filter-input",
-                    placeholder: "FILTER RESULTS (PATH OR VALUE)",
+                    placeholder: "Filter results (path or value)",
                     value: () => ui.resultsFilter,
                     oninput: handlers.handleResultsFilterInput,
                     disabled: () => ui.scan.isSearching || ui.scan.results.length === 0,
@@ -600,7 +598,7 @@ const ResultsList = ({ ui, handlers }) => {
             forget();
             return EmptyState({
                 failed: true,
-                title: "SEARCH ERROR",
+                title: "Search error",
                 subtitle: ui.scan.error || ui.error,
             });
         }
@@ -609,13 +607,13 @@ const ResultsList = ({ ui, handlers }) => {
             forget();
             if (ui.scan.hasSearched) {
                 return EmptyState({
-                    title: "NO RESULTS",
+                    title: "No results",
                     subtitle: "Try a different search value or select more keys",
                 });
             }
             return EmptyState({
-                title: "SEARCH GGA",
-                subtitle: "Enter a value and press First scan, or use UNKNOWN INITIAL VALUE to scan all values",
+                title: "Search GGA",
+                subtitle: "Enter a value and press First scan, or use Unknown Initial Value to scan all values",
             });
         }
 
@@ -640,7 +638,7 @@ const ResultsList = ({ ui, handlers }) => {
             { class: "results-list" },
             filteredResults.length === 0
                 ? EmptyState({
-                      title: "NO FILTER MATCH",
+                      title: "No filter match",
                       subtitle: "Try a different path/value filter",
                   })
                 : null,
@@ -909,7 +907,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
         if (ui.savedResults.length === 0) {
             reconcile("empty", [
                 EmptyState({
-                    title: "NO SAVED RESULTS",
+                    title: "No saved results",
                     subtitle: "Press Save on a search result to keep it here",
                 }),
             ]);
@@ -920,7 +918,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
         if (filtered.length === 0) {
             reconcile("no-match", [
                 EmptyState({
-                    title: "NO FILTER MATCH",
+                    title: "No filter match",
                     subtitle: "Try a different path/value filter",
                 }),
             ]);
@@ -943,7 +941,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
         { class: "saved-results-section" },
         div(
             { class: "section-header" },
-            span({ class: "section-title" }, "SAVED LIST"),
+            span({ class: "section-title" }, "Saved list"),
             button(
                 {
                     type: "button",
@@ -992,7 +990,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                 input({
                     type: "text",
                     class: "list-filter-input",
-                    placeholder: "FILTER SAVED (PATH OR VALUE)",
+                    placeholder: "Filter saved (path or value)",
                     value: () => ui.savedFilter,
                     oninput: handlers.handleSavedFilterInput,
                     disabled: () => ui.savedResults.length === 0,

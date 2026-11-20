@@ -80,22 +80,22 @@ const LampTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "THE LAMP",
+        title: "The Lamp",
         description: "Edit Lamp wishes and unlocked bonus count from Holes[21] and Holes[11][24].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE LAMP",
-        errorTitle: "HOLE LAMP READ FAILED",
+        loadingText: "Reading hole lamp",
+        errorTitle: "Hole lamp read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "LAMP BONUSES",
+                title: "Lamp bonuses",
                 note: () => `${bonusEntries.val.length} ROWS`,
                 body: bonusNode,
             }),
             AccountSection({
-                title: "WISHES",
+                title: "Wishes",
                 note: () => `${wishEntries.val.length} WISHES`,
                 body: wishNode,
             })

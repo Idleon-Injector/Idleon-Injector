@@ -42,7 +42,7 @@ const page = (await importRepo("src/ui/pages/world-1/pets/pets.js")).default.com
 // Plain pets: a token pet's click removes its token instead, and an owned one shows OWNED.
 const plainPets = () =>
     byClass(page, "companion-card-wrap")
-        .filter((card) => /NOT SELECTED/.test(text(card)))
+        .filter((card) => /Not selected/.test(text(card)))
         .map((card) => card.childNodes.find((node) => node.nodeName === "button"));
 await until(() => byClass(page, "companion-card-wrap").length > 3, "the pets to load");
 const clearAll = elements(page).find((node) => node.nodeName === "button" && text(node) === "Clear all");

@@ -8,7 +8,7 @@ import { getResultValue } from "./valueUtils.js";
  *  - secondary: needs a second value input (VALUE BETWEEN)
  *  - numeric: primary input must be a number
  *  - comparison: compares against the previous result snapshot (NEXT only)
- *  - placeholder: primary input placeholder (defaults to "VALUE")
+ *  - placeholder: primary input placeholder (defaults to "Value")
  */
 const SCAN_TYPES = {
     // Labeled "Find Value" rather than "Exact Value" because matching is
@@ -16,16 +16,16 @@ const SCAN_TYPES = {
     // queries match substrings). bigger/smaller/between cover strict ranges.
     exact_value: { label: "Find Value", modes: ["new", "next"] },
     unknown_initial_value: { label: "Unknown Initial Value", modes: ["new"], inputless: true },
-    bigger_than: { label: "Bigger Than", modes: ["new", "next"], numeric: true, placeholder: "BIGGER THAN" },
-    smaller_than: { label: "Smaller Than", modes: ["new", "next"], numeric: true, placeholder: "SMALLER THAN" },
-    value_between: { label: "Value Between", modes: ["new", "next"], secondary: true, placeholder: "MIN VALUE" },
+    bigger_than: { label: "Bigger Than", modes: ["new", "next"], numeric: true, placeholder: "Bigger than" },
+    smaller_than: { label: "Smaller Than", modes: ["new", "next"], numeric: true, placeholder: "Smaller than" },
+    value_between: { label: "Value Between", modes: ["new", "next"], secondary: true, placeholder: "Min value" },
     increased_value: { label: "Increased Value", modes: ["next"], inputless: true, comparison: true },
     increased_value_by: {
         label: "Increased Value By",
         modes: ["next"],
         numeric: true,
         comparison: true,
-        placeholder: "INCREASED BY",
+        placeholder: "Increased by",
     },
     decreased_value: { label: "Decreased Value", modes: ["next"], inputless: true, comparison: true },
     decreased_value_by: {
@@ -33,7 +33,7 @@ const SCAN_TYPES = {
         modes: ["next"],
         numeric: true,
         comparison: true,
-        placeholder: "DECREASED BY",
+        placeholder: "Decreased by",
     },
     changed_value: { label: "Changed Value", modes: ["next"], inputless: true, comparison: true },
     unchanged_value: { label: "Unchanged Value", modes: ["next"], inputless: true, comparison: true },
@@ -49,7 +49,7 @@ export function getScanTypeLabel(scanType) {
 }
 
 export function getScanTypePlaceholder(scanType) {
-    return SCAN_TYPES[scanType]?.placeholder || "VALUE";
+    return SCAN_TYPES[scanType]?.placeholder || "Value";
 }
 
 export function requiresNumericInput(scanType) {

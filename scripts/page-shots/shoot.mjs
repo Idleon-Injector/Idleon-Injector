@@ -97,9 +97,6 @@ async function launchBrowser() {
 /** Runs in the page: helpers the crawl calls through Runtime.evaluate. */
 const PAGE_HELPERS = String.raw`(() => {
     const visible = (el) => el.getClientRects().length > 0;
-    const pane = () => document.querySelector(".tab-pane.active") || document.body;
-    const navKey = (nav) => nav.className + "|" + [...nav.querySelectorAll(".account-sub-tab-btn")].map((b) => b.textContent.trim()).join("/");
-    const navs = () => [...pane().querySelectorAll(".account-sub-nav")].filter(visible);
     const describe = (el) => {
         if (!el) return "";
         const classes = [...el.classList].slice(0, 2).map((c) => "." + c).join("");
@@ -122,14 +119,6 @@ const PAGE_HELPERS = String.raw`(() => {
         return found;
     };
     window.__shots = {
-        nextNav(skip) {
-            const nav = navs().find((n) => !skip.includes(navKey(n)));
-            return nav ? { key: navKey(nav), labels: [...nav.querySelectorAll(".account-sub-tab-btn")].map((b) => b.textContent.trim()) } : null;
-        },
-        click(key, index) {
-            const nav = navs().find((n) => navKey(n) === key);
-            nav.querySelectorAll(".account-sub-tab-btn")[index].click();
-        },
         overflow() {
             sideways ??= sidewaysSelectors();
             const viewport = document.documentElement.clientWidth;
@@ -296,8 +285,14 @@ async function main() {
             await settle();
             errors = [];
 
-            const worlds = await evaluate(
-                `import("/menu/menuModel.js").then((m) => m.WORLDS.map((w) => ({ name: w.folder, open: { world: w.id } })))`
+            // Every page of every world, and each section of a page that shows one at a time (the sidebar's list).
+            const worldPages = await evaluate(
+                `import("/menu/pageRegistry.js").then(({ menuTree }) => menuTree.val.flatMap((w) => w.systems.flatMap((s) => s.pages.map((p) => ({
+                    name: w.folder,
+                    path: [s.name, ...(s.pages.length > 1 ? [p.tab || p.id] : [])],
+                    open: { world: w.id, page: p.id },
+                    sections: p.sectionMode === "switch" ? p.sections.map((x) => x.id) : [],
+                })))))`
             );
             const areas = [
                 { name: "home", open: { view: "HOME" } },
@@ -306,7 +301,7 @@ async function main() {
                 { name: "value-search", open: { view: "SEARCH" } },
                 { name: "devtools", open: { view: "DEVTOOLS" } },
                 { name: "account-options", open: { view: "ACCOUNT_OPTIONS" } },
-                ...worlds,
+                ...worldPages,
             ].filter((area) => !args.only || area.name.includes(args.only));
 
             const shoot = async (path) => {
@@ -326,22 +321,23 @@ async function main() {
                 api.game.misses.clear();
                 process.stdout.write(".");
             };
-            // Click every tab of the first tab row not opened yet, and go into each; a page with none is a shot.
-            const crawl = async (path, opened) => {
-                const nav = await evaluate(`__shots.nextNav(${JSON.stringify(opened)})`);
-                if (!nav) return shoot(path);
-                for (const [index, label] of nav.labels.entries()) {
-                    await evaluate(`__shots.click(${JSON.stringify(nav.key)}, ${index})`);
-                    await settle();
-                    await crawl([...path, slug(label)], [...opened, nav.key]);
-                }
-            };
             for (const area of areas) {
                 await evaluate(
                     `import("/state/store.js").then((m) => m.default.openMenu(${JSON.stringify(area.open)}))`
                 );
                 await settle();
-                await crawl([area.name], []);
+                const path = [area.name, ...(area.path ?? []).map(slug)];
+                if (!area.sections?.length) {
+                    await shoot(path);
+                    continue;
+                }
+                for (const id of area.sections) {
+                    await evaluate(
+                        `import("/components/views/account/tabShared.js").then((m) => (m.pageSection(${JSON.stringify(area.open.page)}, ${JSON.stringify(area.sections[0])}).val = ${JSON.stringify(id)}))`
+                    );
+                    await settle();
+                    await shoot([...path, id]);
+                }
             }
         }
         process.stdout.write("\n");

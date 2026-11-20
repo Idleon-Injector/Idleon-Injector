@@ -1,40 +1,26 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { joinClasses, toNodes } from "./accountShared.js";
 
-const { div, button, p } = van.tags;
+const { div, span } = van.tags;
 
-export const createComingSoonPlaceholder = (label) =>
-    div({ class: "world-sub-placeholder" }, p({ class: "world-sub-placeholder__label" }, `${label} — COMING SOON`));
+const sectionStates = new Map();
 
-export const renderTabNav = ({
-    tabs,
-    activeId,
-    navClass,
-    buttonClass,
-    activeClass = "active",
-    stubClass = null,
-    isStub = () => false,
-    renderLabel = (tab) => tab.label,
-    getButtonProps = null,
-}) =>
-    div(
-        { class: joinClasses("account-sub-nav", navClass) },
-        ...tabs.map((tab) =>
-            button(
-                {
-                    ...(typeof getButtonProps === "function" ? getButtonProps(tab) : {}),
-                    // class and onclick are owned by renderTabNav so active-state wiring stays consistent.
-                    class: () =>
-                        joinClasses(
-                            "account-sub-tab-btn",
-                            typeof buttonClass === "function" ? buttonClass(tab) : buttonClass,
-                            activeId.val === tab.id && activeClass,
-                            stubClass && isStub(tab) && stubClass
-                        ),
-                    onclick: () => (activeId.val = tab.id),
-                },
-                renderLabel(tab)
-            )
+/**
+ * The section a page with `sections` shows (sectionMode "switch") or has in view (headings on one long page), shared
+ * by the page and the sidebar's list, which marks it and sets it when the player picks a section there.
+ */
+export const pageSection = (pageId, firstId) => {
+    if (!sectionStates.has(pageId)) sectionStates.set(pageId, van.state(firstId));
+    return sectionStates.get(pageId);
+};
+
+/** A page title followed by the section on screen, a step quieter: "Death Note  World 2". */
+export const sectionTitle = (title, sections, active) =>
+    span(
+        title,
+        span(
+            { class: "account-tab-header__section" },
+            () => sections.find((section) => section.id === active.val)?.label
         )
     );
 
@@ -84,33 +70,3 @@ export const renderPersistentPagePanes = ({
             ...toNodes(typeof renderContent === "function" ? renderContent(tab, index) : null)
         )
     );
-
-export const createWorldComingSoonTab =
-    ({ worldClass, worldKey }) =>
-    () => {
-        const tabs = [{ id: "coming-soon", label: "COMING SOON" }];
-        const activeSubTab = van.state(tabs[0].id);
-
-        return div(
-            { class: joinClasses("world-tab", worldClass) },
-            renderTabNav({
-                tabs,
-                activeId: activeSubTab,
-                navClass: "world-sub-nav",
-                buttonClass: "account-world-sub-tab-btn",
-                stubClass: "account-world-sub-tab-btn--stub",
-                isStub: () => true,
-            }),
-            div(
-                { class: "world-sub-content" },
-                div(
-                    { class: "world-sub-pane active world-sub-pane--empty" },
-                    p({ class: "world-empty-label" }, `${worldKey} SYSTEMS COMING SOON`),
-                    p(
-                        { class: "world-empty-desc" },
-                        `Follow the W1Tab pattern to add sub-tabs for each ${worldKey} system.`
-                    )
-                )
-            )
-        );
-    };

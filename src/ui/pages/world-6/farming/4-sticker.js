@@ -74,22 +74,22 @@ const StickerTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "STICKERS",
-            note: () => `${entries.val.length} STICKER SLOTS FROM Research[9]`,
+            title: "Stickers",
+            note: () => `${entries.val.length} sticker slots from Research[9]`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "STICKER",
+        title: "Sticker",
         description: "Edit Farming sticker amounts from Research[9]. Names come from Research[23].",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING FARMING STICKERS",
-        errorTitle: "FARMING STICKERS READ FAILED",
+        loadingText: "Reading farming stickers",
+        errorTitle: "Farming stickers read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

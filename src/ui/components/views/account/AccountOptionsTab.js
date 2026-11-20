@@ -49,7 +49,7 @@ const normalizeForWrite = (type, rawValue) => {
 const createOptionRow = (index, rawValue, schema) => {
     const editorType = van.state(getOptionType(rawValue, schema));
     const currentValue = van.state(valueToDisplay(editorType.val, rawValue));
-    const name = van.state(schema?.name ?? "UNDOCUMENTED INDEX");
+    const name = van.state(schema?.name ?? "Undocumented index");
     const description = van.state(schema?.description ?? null);
     const isAI = van.state(Boolean(schema?.AI));
     const warning = van.state(schema?.warning ?? null);
@@ -73,7 +73,7 @@ const createOptionRow = (index, rawValue, schema) => {
         const nextType = getOptionType(nextRawValue, nextSchema);
 
         editorType.val = nextType;
-        name.val = nextSchema?.name ?? "UNDOCUMENTED INDEX";
+        name.val = nextSchema?.name ?? "Undocumented index";
         description.val = nextSchema?.description ?? null;
         isAI.val = Boolean(nextSchema?.AI);
         warning.val = nextSchema?.warning ?? null;
@@ -145,7 +145,7 @@ const createOptionRow = (index, rawValue, schema) => {
                 { class: "account-row__name-group" },
                 span(
                     { class: "account-row__name option-label" },
-                    () => (isAI.val ? span({ class: "option-ai-label" }, "AI_GEN // ") : span()),
+                    () => (isAI.val ? span({ class: "option-ai-label" }, "AI guess: ") : span()),
                     () => name.val
                 ),
                 () => (warning.val ? span({ class: "option-warning" }, Icons.Warning(), ` ${warning.val}`) : span()),
@@ -218,7 +218,7 @@ export const AccountOptionsTab = () => {
                 ? visibleRows
                 : [
                       EmptyState({
-                          title: "NO OPTIONS MATCH",
+                          title: "No options match",
                           subtitle: "Adjust your filter or search term",
                       }),
                   ]
@@ -237,7 +237,7 @@ export const AccountOptionsTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container",
-        title: "ACCOUNT OPTIONS",
+        title: "Account Options",
         description: "Raw OptionsListAccount editor. Writes bypass normal in-game safety checks.",
         actions: RefreshButton({
             onRefresh: loadAccountOptions,
@@ -245,7 +245,7 @@ export const AccountOptionsTab = () => {
         }),
         toolbar: [
             SearchBar({
-                placeholder: "FILTER_INDEX",
+                placeholder: "Filter by index or name",
                 onInput: (val) => (ui.filterText = val),
             }),
             withTooltip(
@@ -257,14 +257,14 @@ export const AccountOptionsTab = () => {
                         onchange: (e) => (ui.hideAI = e.target.checked),
                     }),
                     span({ class: "slider" }),
-                    span({ class: "label" }, "HIDE AI")
+                    span({ class: "label" }, "Hide AI")
                 ),
                 "Hide AI-generated options"
             ),
         ],
         state: { loading, error },
-        loadingText: "READING ACCOUNT OPTIONS",
-        errorTitle: "ACCOUNT OPTIONS READ FAILED",
+        loadingText: "Reading Account Options",
+        errorTitle: "Account Options read failed",
         body: optionsListNode,
     });
 };

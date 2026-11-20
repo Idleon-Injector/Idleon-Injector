@@ -257,7 +257,7 @@ const FountainTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "FOUNTAIN",
+        title: "Fountain",
         description:
             "Edit Fountain currency, water progress, Lucky Coins, Rubber Duckies, and upgrades from Holes and OptionsListAccount.",
         actions: RefreshButton({
@@ -265,34 +265,34 @@ const FountainTab = () => {
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING HOLE FOUNTAIN",
-        errorTitle: "HOLE FOUNTAIN READ FAILED",
+        loadingText: "Reading hole fountain",
+        errorTitle: "Hole fountain read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "CURRENCY",
+                title: "Currency",
                 note: () => `${currencyEntries.val.length} CURRENCIES`,
                 body: currencyNode,
             }),
             AccountSection({
-                title: "GENERAL",
+                title: "General",
                 note: () => `${generalEntries.val.length} ROWS`,
                 body: generalNode,
             }),
             AccountSection({
-                title: "FILL BARS",
+                title: "Fill bars",
                 note: () => `${fillBarEntries.val.length} WATERS`,
                 body: fillBarNode,
             }),
             AccountSection({
-                title: "LUCKY COINS",
+                title: "Lucky Coins",
                 note: () => `${luckyCoinEntries.val.length} CURRENCIES`,
                 body: luckyCoinNode,
             }),
             ...upgradeSections.map((section) =>
                 AccountSection({
-                    title: section.title.toUpperCase(),
+                    title: section.title,
                     note: () => `${section.entries.val.length} UPGRADES`,
                     body: section.node,
                 })

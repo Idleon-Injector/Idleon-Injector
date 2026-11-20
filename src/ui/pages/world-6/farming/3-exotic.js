@@ -95,10 +95,10 @@ const OrganicLabelButton = ({ labels, entry }) => {
         { class: "farming-organic-label" },
         ActionButton({
             label: () => {
-                if (status() === "loading") return "SAVING...";
-                if (status() === "success") return "SAVED";
-                if (status() === "error") return "FAILED";
-                return "ORGANIC";
+                if (status() === "loading") return "Saving...";
+                if (status() === "success") return "Saved";
+                if (status() === "error") return "Failed";
+                return "Organic";
             },
             variant: "switch",
             className: "farming-organic-button",
@@ -145,7 +145,7 @@ const buildExoticEntries = (rawDefinitions, rawLevels) => {
             organicIndex: index,
             path: `${FARM_UPG_PATH}[${pathIndex}]`,
             rawName: String(definition[0] ?? `NAME_MAGNI_${index}`).trim(),
-            name: cleanName(definition[0], `NAME MAGNI ${index + 1}`),
+            name: cleanName(definition[0], `Name magni ${index + 1}`),
             level: toInt(levels[pathIndex], { min: 0 }),
             formatted: false,
         };
@@ -185,14 +185,14 @@ const ExoticTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "EXOTIC MARKET UPGRADES",
-            note: () => `${labels.selected.val.length} ORGANIC LABELS APPLIED · ${labels.capacity.val} OWNED IN GAME`,
+            title: "Exotic Market Upgrades",
+            note: () => `${labels.selected.val.length} organic labels applied · ${labels.capacity.val} owned in game`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "EXOTIC",
+        title: "Exotic",
         description:
             "Set Exotic Market levels and toggle Organic Labels for 2× bonuses and 1.5× purchase levels. Labels are permanent in game; this editor can add or remove them without limits.",
         actions: RefreshButton({
@@ -200,8 +200,8 @@ const ExoticTab = () => {
             disabled: () => loading.val || labels.status.val === "loading",
         }),
         state: { loading, error },
-        loadingText: "READING EXOTIC MARKET",
-        errorTitle: "EXOTIC MARKET READ FAILED",
+        loadingText: "Reading Exotic Market",
+        errorTitle: "Exotic Market read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

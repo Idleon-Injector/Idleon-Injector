@@ -500,14 +500,14 @@ const WeeklyBossTab = () => {
 
     load();
     return PersistentAccountListPage({
-        title: "WEEKLY BOSS",
+        title: "Weekly Boss",
         description:
             "Edit trophies and cosmetic main-bar skins. Each skin's switch unlocks or locks it without spending trophies.",
         actions: BulkActionBar({ refresh: { onClick: load, disabled: isBusy } }),
         wrapActions: false,
         state: { loading, error },
-        loadingText: "READING WEEKLY BOSS",
-        errorTitle: "WEEKLY BOSS READ FAILED",
+        loadingText: "Reading Weekly Boss",
+        errorTitle: "Weekly Boss read failed",
         body: div(
             { class: "scrollable-panel content-stack" },
             div(
@@ -531,7 +531,7 @@ const WeeklyBossTab = () => {
                             )
                         ),
                         badge: () => CappedValue({ value: best.val, cap: 5 }),
-                        controls: span({ class: "write-status" }, "READ ONLY"),
+                        controls: span({ class: "write-status" }, "Read only"),
                     }),
                 ],
             }),

@@ -182,9 +182,7 @@
 .config-item-header > label {
     font-size: 0.875rem;
     font-weight: 600;
-    text-transform: uppercase;
     color: var(--c-text-main);
-    letter-spacing: 0.05em;
 }
 
 .config-item-header {
@@ -245,7 +243,6 @@
 .config-drawer-title {
     flex: 1;
     font-size: 0.875rem;
-    letter-spacing: 0.08em;
     color: var(--c-text-main);
     font-weight: 700;
 }
@@ -277,5 +274,4 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--c-text-main);
-    letter-spacing: 0.05em;
 }

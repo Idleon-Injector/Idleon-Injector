@@ -212,7 +212,7 @@ export const sortPrefixedNumericCodes = (a, b) => {
 
 export const renderAccountLoading = () => div({ class: "account-loader" }, Loader());
 
-export const renderAccountError = (message) => EmptyState({ failed: true, title: "LOAD FAILED", subtitle: message });
+export const renderAccountError = (message) => EmptyState({ failed: true, title: "Load failed", subtitle: message });
 
 /**
  * Write a value through gga (or a compatible writer) and fail if verification

@@ -41,7 +41,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { renderPersistentPagePanes, renderTabNav } from "../../../components/views/account/tabShared.js";
+import { pageSection, renderPersistentPagePanes, sectionTitle } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
@@ -50,8 +50,8 @@ const WORLD_LABELS = ["W1", "W2", "W3", "W4", "W5", "W6", "W7"];
 const SENTINEL_PLAYER_NAMES = new Set(["Player", "Current", ""]);
 
 const DN_SUBTABS = [
-    { id: "miniboss", label: "MINIBOSS", worldKey: MINIBOSS_WORLD_KEY },
-    ...WORLD_LABELS.map((worldKey) => ({ id: worldKey.toLowerCase(), label: worldKey, worldKey })),
+    { id: "miniboss", label: "Minibosses", worldKey: MINIBOSS_WORLD_KEY },
+    ...WORLD_LABELS.map((worldKey) => ({ id: worldKey.toLowerCase(), label: `World ${worldKey.slice(1)}`, worldKey })),
 ];
 
 const playerDbKillsLeftPath = (playerName, mapIndex) =>
@@ -255,7 +255,7 @@ const buildStaticMeta = async () => {
 
 const DeathNoteTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Death Note" });
-    const activeSubTab = van.state(DN_SUBTABS[0].id);
+    const activeSubTab = pageSection("w3.deathnote", DN_SUBTABS[0].id);
     const killStates = new Map();
     const expandStates = new Map();
     const paneStores = new Map();
@@ -381,22 +381,13 @@ const DeathNoteTab = () => {
         renderContent: (tab) => getPaneStore(tab.worldKey).listNode,
     });
 
-    const body = div(
-        { class: "dn-panels" },
-        renderTabNav({
-            tabs: DN_SUBTABS,
-            activeId: activeSubTab,
-            navClass: "account-page-nav",
-            buttonClass: "account-page-btn",
-        }),
-        div({ class: "dn-sub-content" }, ...panes)
-    );
+    const body = div({ class: "dn-panels" }, div({ class: "dn-sub-content" }, ...panes));
 
     load();
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "DEATH NOTE",
+        title: sectionTitle("Death Note", DN_SUBTABS, activeSubTab),
         description: "View kill counts per character for each mob in the Death Note.",
         actions: RefreshButton({
             onRefresh: load,
@@ -404,8 +395,8 @@ const DeathNoteTab = () => {
             tooltip: "Re-read Death Note kill counts from game memory",
         }),
         state: { loading, error },
-        loadingText: "READING DEATH NOTE",
-        errorTitle: "DEATH NOTE READ FAILED",
+        loadingText: "Reading Death Note",
+        errorTitle: "Death Note read failed",
         initialWrapperClass: "account-list",
         body,
     });
@@ -417,5 +408,7 @@ export default definePage({
     system: "Death Note",
     description: "Kills per map and miniboss for the Death Note.",
     keywords: ["Kills", "Minibosses"],
+    sections: DN_SUBTABS.map(({ id, label }) => ({ id, label })),
+    sectionMode: "switch",
     component: DeathNoteTab,
 });

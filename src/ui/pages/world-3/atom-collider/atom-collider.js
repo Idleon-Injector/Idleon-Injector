@@ -110,7 +110,7 @@ const AtomColliderTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "ATOM COLLIDER",
+        title: "Atom Collider",
         description: "Set Atom Collider upgrade levels. Max levels are computed from game data.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -135,8 +135,8 @@ const AtomColliderTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING ATOM COLLIDER",
-        errorTitle: "ATOM COLLIDER READ FAILED",
+        loadingText: "Reading Atom Collider",
+        errorTitle: "Atom Collider read failed",
         initialWrapperClass: "account-list",
         body: rowList,
     });

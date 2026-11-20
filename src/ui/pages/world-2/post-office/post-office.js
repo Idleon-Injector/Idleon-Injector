@@ -196,39 +196,39 @@ const PostOfficeTab = () => {
     load();
 
     const pointsSection = AccountSection({
-        title: "POINT SOURCES & CURRENCY",
+        title: "Point sources & currency",
         note: "Values that contribute to your available upgrade points",
         body: [
             div(
                 { class: "po-section__rows" },
                 CurrencyRow({
-                    label: "DELIVERY COMPLETE",
+                    label: "Delivery complete",
                     valueState: boxComplete,
                     writePath: "CurrenciesOwned.h.DeliveryBoxComplete",
                 }),
                 CurrencyRow({
-                    label: "DELIVERY STREAK",
+                    label: "Delivery streak",
                     valueState: boxStreak,
                     writePath: "CurrenciesOwned.h.DeliveryBoxStreak",
                 }),
                 CurrencyRow({
-                    label: "BONUS POINTS",
+                    label: "Bonus points",
                     valueState: opt347,
                     writePath: "OptionsListAccount[347]",
                 }),
-                div({ class: "po-section__divider" }, "MISC SOURCES (contribute to DeliveryBoxMisc)"),
+                div({ class: "po-section__divider" }, "Misc sources (contribute to DeliveryBoxMisc)"),
                 CurrencyRow({
-                    label: "MISC OPTION",
+                    label: "Misc option",
                     valueState: opt131,
                     writePath: "OptionsListAccount[131]",
                 }),
                 CurrencyRow({
-                    label: "VIAL BOX POINTS",
+                    label: "Vial box points",
                     valueState: boxPoints,
                     readOnly: true,
                 }),
                 CurrencyRow({
-                    label: "DELIVERY MISC",
+                    label: "Delivery misc",
                     valueState: boxMisc,
                     readOnly: true,
                 })
@@ -237,17 +237,17 @@ const PostOfficeTab = () => {
                 { class: "po-points-summary" },
                 div(
                     { class: "po-points-summary__row" },
-                    span({ class: "po-points-summary__label" }, "TOTAL EARNED"),
+                    span({ class: "po-points-summary__label" }, "Total earned"),
                     span({ class: "po-points-summary__value" }, () => String(totalEarned.val))
                 ),
                 div(
                     { class: "po-points-summary__row" },
-                    span({ class: "po-points-summary__label" }, "SPENT ON UPGRADES"),
+                    span({ class: "po-points-summary__label" }, "Spent on upgrades"),
                     span({ class: "po-points-summary__value" }, () => `-${spentPoints.val}`)
                 ),
                 div(
                     { class: "po-points-summary__row po-points-summary__row--highlight" },
-                    span({ class: "po-points-summary__label" }, "AVAILABLE POINTS"),
+                    span({ class: "po-points-summary__label" }, "Available points"),
                     span({ class: "po-points-summary__value po-points-summary__value--available" }, () =>
                         String(availablePoints.val)
                     )
@@ -257,7 +257,7 @@ const PostOfficeTab = () => {
     });
 
     const boxesSection = AccountSection({
-        title: "BOX UPGRADES",
+        title: "Box upgrades",
         note: "Spend available delivery points on Post Office box bonuses",
         meta: div(
             { class: "po-bulk-bar" },
@@ -279,7 +279,7 @@ const PostOfficeTab = () => {
     });
 
     return PersistentAccountListPage({
-        title: "POST OFFICE",
+        title: "Post Office",
         description: "Manage delivery point currencies and Post Office box upgrades.",
         actions: RefreshButton({ onRefresh: () => load({ forceDefinitions: true }) }),
         topNotices: WarningBanner(

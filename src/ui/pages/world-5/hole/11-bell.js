@@ -88,22 +88,22 @@ const BellTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "THE BELL",
+        title: "The Bell",
         description: "Edit Bell improvement methods and random bonus levels from Holes[16] and Holes[17].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE BELL",
-        errorTitle: "HOLE BELL READ FAILED",
+        loadingText: "Reading hole bell",
+        errorTitle: "Hole bell read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "IMPROVEMENT METHODS",
+                title: "Improvement methods",
                 note: () => `${improvementEntries.val.length} ROWS`,
                 body: improvementNode,
             }),
             AccountSection({
-                title: "RANDOM BONUSES",
+                title: "Random bonuses",
                 note: () => `${randomEntries.val.length} ROWS`,
                 body: randomNode,
             })

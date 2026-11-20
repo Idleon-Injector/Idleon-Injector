@@ -74,7 +74,7 @@ const buildShapeEntries = (options, rawDefinitions) =>
 const buildProgressEntries = (options, shapes) => {
     const focusName = (value, offset) => {
         const selected = toInt(value, { min: 0 });
-        return selected === 0 ? "NONE" : (shapes[offset + selected - 1]?.name ?? `SHAPE ${selected}`);
+        return selected === 0 ? "None" : (shapes[offset + selected - 1]?.name ?? `Shape ${selected}`);
     };
 
     return [
@@ -178,33 +178,33 @@ const CglunkoTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "CRYSTAL COVE",
+        title: "Crystal Cove",
         description:
             "Edit Crystal Glunko Cove upgrades, shape resources, focus selections, and progress from OptionsListAccount.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING CRYSTAL GLUNKO COVE",
-        errorTitle: "CRYSTAL GLUNKO COVE READ FAILED",
+        loadingText: "Reading Crystal Glunko Cove",
+        errorTitle: "Crystal Glunko Cove read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "PROGRESS",
+                title: "Progress",
                 note: () => `${progressEntries.val.length} ROWS`,
                 body: progressNode,
             }),
             AccountSection({
-                title: "UPGRADES",
+                title: "Upgrades",
                 note: () => `${upgradeEntries.val.length} RELEASED`,
                 body: upgradeNode,
             }),
             AccountSection({
-                title: "BLUE SHAPES",
+                title: "Blue shapes",
                 note: () => `${blueShapeEntries.val.length} SHAPES`,
                 body: blueShapeNode,
             }),
             AccountSection({
-                title: "PURPLE SHAPES",
+                title: "Purple shapes",
                 note: () => `${purpleShapeEntries.val.length} SHAPES`,
                 body: purpleShapeNode,
             })

@@ -50,14 +50,14 @@ const WORLD_COUNT = 7;
 const DEFAULT_OUTPOST_ROW = [0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 211111111, 0];
 
 const OUTPOST_FIELDS = [
-    { index: 0, key: "barracks", label: "BARRACKS", inputMode: "int", min: 0 },
-    { index: 1, key: "logistics", label: "LOGISTICS", inputMode: "int", min: 0 },
-    { index: 2, key: "education", label: "EDUCATION", inputMode: "int", min: 0 },
-    { index: 3, key: "tradingXp", label: "TRADING XP", inputMode: "float", min: 0 },
-    { index: 4, key: "intelXp", label: "INTEL XP", inputMode: "float", min: 0 },
-    { index: 5, key: "commandXp", label: "COMMAND XP", inputMode: "float", min: 0 },
-    { index: 6, key: "militaryXp", label: "MILITARY XP", inputMode: "float", min: 0 },
-    { index: 7, key: "purityXp", label: "PURITY XP", inputMode: "float", min: 0 },
+    { index: 0, key: "barracks", label: "Barracks", inputMode: "int", min: 0 },
+    { index: 1, key: "logistics", label: "Logistics", inputMode: "int", min: 0 },
+    { index: 2, key: "education", label: "Education", inputMode: "int", min: 0 },
+    { index: 3, key: "tradingXp", label: "Trading XP", inputMode: "float", min: 0 },
+    { index: 4, key: "intelXp", label: "Intel XP", inputMode: "float", min: 0 },
+    { index: 5, key: "commandXp", label: "Command XP", inputMode: "float", min: 0 },
+    { index: 6, key: "militaryXp", label: "Military XP", inputMode: "float", min: 0 },
+    { index: 7, key: "purityXp", label: "Purity XP", inputMode: "float", min: 0 },
 ];
 
 const OUTPOST_TYPES = [
@@ -235,7 +235,7 @@ const OutpostSlots = ({ mapId, slotState, barracksState, slotWrites, said }) => 
 
     return div(
         { class: "outpost-slots" },
-        span({ class: "outpost-slots__label" }, "OUTPOST SLOTS"),
+        span({ class: "outpost-slots__label" }, "Outpost slots"),
         ...Array.from({ length: 9 }, (_, slot) =>
             select(
                 {
@@ -284,7 +284,7 @@ const MapUnitAddControl = ({ outpost, changeUnits }) => {
         { class: "outpost-map-unit-add" },
         div(
             { class: "outpost-select-field outpost-map-unit-add__field" },
-            span({ class: "outpost-select-field__label" }, "NEW UNIT"),
+            span({ class: "outpost-select-field__label" }, "New unit"),
             select(
                 {
                     class: "outpost-select-field__select",
@@ -325,7 +325,7 @@ const MapUnitRow = ({ unit, changeUnits, unitWrites, said, reload }) => {
     return div(
         { class: "outpost-map-unit", title: `RoyalG[${unit.typeArray}/${unit.mapArray}] index ${unit.unitIndex}` },
         SelectWriter({
-            label: "TYPE",
+            label: "Type",
             name: "Unit type",
             said,
             valueState: typeState,
@@ -624,8 +624,8 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
         const rankInfo = getOutpostRankInfo(fieldStates.get(field.key).val, rankFieldIndex(field));
         return [
             span({ class: "outpost-field__label-main" }, field.label),
-            span({ class: "outpost-field__rank" }, `RANK ${rankInfo.rank}`),
-            span({ class: "outpost-field__next" }, `NEXT ${formatAmount(rankInfo.next)}`),
+            span({ class: "outpost-field__rank" }, `Rank ${rankInfo.rank}`),
+            span({ class: "outpost-field__next" }, `Next ${formatAmount(rankInfo.next)}`),
         ];
     };
 
@@ -669,7 +669,7 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
             ),
             div(
                 { class: "outpost-card__status" },
-                span({ class: "outpost-row__badge" }, () => (toInt(glorifiedState.val) === 1 ? "GLORIFIED" : "OUTPOST"))
+                span({ class: "outpost-row__badge" }, () => (toInt(glorifiedState.val) === 1 ? "Glorified" : "Outpost"))
             )
         ),
         Said({ said: said.said, className: "said--line outpost-card__said" }),
@@ -677,14 +677,14 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
             { class: "outpost-card__body" },
             div(
                 { class: "outpost-card__group outpost-card__group--levels" },
-                span({ class: "outpost-card__group-title" }, "UPGRADES"),
+                span({ class: "outpost-card__group-title" }, "Upgrades"),
                 ...OUTPOST_FIELDS.slice(0, 3).map(fieldControl)
             ),
             div(
                 { class: "outpost-card__group outpost-card__group--settings" },
-                span({ class: "outpost-card__group-title" }, "STATE"),
+                span({ class: "outpost-card__group-title" }, "State"),
                 SelectWriter({
-                    label: "TYPE",
+                    label: "Type",
                     said,
                     valueState: outpostTypeState,
                     options: OUTPOST_TYPES,
@@ -696,9 +696,9 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
                 }),
                 div(
                     { class: "outpost-select-field" },
-                    span({ class: "outpost-select-field__label" }, "GLORIFIED"),
+                    span({ class: "outpost-select-field__label" }, "Glorified"),
                     ActionButton({
-                        label: () => (toInt(glorifiedState.val) === 1 ? "GLORIFIED" : "STANDARD"),
+                        label: () => (toInt(glorifiedState.val) === 1 ? "Glorified" : "Standard"),
                         status: glorified.status,
                         tooltip: "Toggle glorified outpost status.",
                         variant: "switch-filled",
@@ -726,12 +726,12 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
             ),
             div(
                 { class: "outpost-card__group outpost-card__group--rank-a" },
-                span({ class: "outpost-card__group-title" }, "RANK XP"),
+                span({ class: "outpost-card__group-title" }, "Rank XP"),
                 ...OUTPOST_FIELDS.slice(3, 6).map(fieldControl)
             ),
             div(
                 { class: "outpost-card__group outpost-card__group--rank-b" },
-                span({ class: "outpost-card__group-title" }, "RANK XP"),
+                span({ class: "outpost-card__group-title" }, "Rank XP"),
                 ...OUTPOST_FIELDS.slice(6).map(fieldControl)
             ),
             OutpostSlots({
@@ -743,7 +743,7 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
             }),
             div(
                 { class: "outpost-map-units" },
-                span({ class: "outpost-map-units__label" }, "MAP UNITS"),
+                span({ class: "outpost-map-units__label" }, "Map units"),
                 MapUnitAddControl({ outpost, changeUnits }),
                 unitList
             )
@@ -897,7 +897,7 @@ const OutpostsTab = () => {
     let unitPanel = null;
     let unitPanelWorlds = null;
     const noOutposts = EmptyState({
-        title: "NO OUTPOST ROWS",
+        title: "No outpost rows",
         subtitle: "No RoyalMaps outpost or kill-counter rows were returned for this world.",
     });
 
@@ -1014,7 +1014,7 @@ const OutpostsTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "OUTPOSTS",
+        title: "Outposts",
         description: "Manage Royal Guard outposts, kill counters, ranks, slots, and stationed map units.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -1025,13 +1025,13 @@ const OutpostsTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING OUTPOSTS",
-        errorTitle: "OUTPOSTS READ FAILED",
+        loadingText: "Reading outposts",
+        errorTitle: "Outposts read failed",
         initialWrapperClass: "masterclass-upgrade-scroll",
         body: div(
             { class: "masterclass-upgrade-scroll scrollable-panel" },
             AccountSection({
-                title: "OUTPOST WORLDS",
+                title: "Outpost worlds",
                 body: [
                     div(
                         { class: "masterclass-category-tabs" },
@@ -1062,7 +1062,7 @@ const OutpostsTab = () => {
                                     activeWorld.val = "units";
                                 },
                             },
-                            "UNITS"
+                            "Units"
                         )
                     ),
                     bodyContent,

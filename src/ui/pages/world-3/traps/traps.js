@@ -356,7 +356,7 @@ const TrappingTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "TRAPPING",
+        title: "Trapping",
         description:
             "Edit trap quantity, EXP, and rare chance for each player. Finish individual traps or all traps per player.",
         actions: [
@@ -379,7 +379,7 @@ const TrappingTab = () => {
         rootClass: "tab-container scroll-container",
         state: { loading, error },
         loadingText: "Loading Trapping...",
-        errorTitle: "TRAPPING LOAD FAILED",
+        errorTitle: "Trapping load failed",
     });
 };
 

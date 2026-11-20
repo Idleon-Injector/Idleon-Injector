@@ -12,7 +12,7 @@ const GROTTO_FIELDS = [
 
 const GrottoTab = () =>
     SimpleAccountListPage({
-        title: "GROTTO",
+        title: "Grotto",
         description: "Edit Grotto clears and Gloomies from Holes[11].",
         label: "Hole Grotto",
         loadEntries: async () => {

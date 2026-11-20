@@ -295,7 +295,7 @@ export const MasterclassUpgradeTab = ({
     const rowNodes = new Map();
     const upgradeRows = div({ class: "account-item-stack account-item-stack--dense masterclass-upgrade-list" });
     const noUpgrades = EmptyState({
-        title: `NO ${title} UPGRADES`,
+        title: `No ${title} upgrades`,
         subtitle: `No ${title} levels or definitions were returned by the running game.`,
     });
     const upgradeContent = div();
@@ -402,7 +402,7 @@ export const MasterclassUpgradeTab = ({
     load();
 
     const toolbar = SearchBar({
-        placeholder: `SEARCH ${title} OR INDEX`,
+        placeholder: `Search ${title} or index`,
         value: searchQuery,
         debounceMs: 0,
         onInput: (value) => (searchQuery.val = value),
@@ -439,8 +439,8 @@ export const MasterclassUpgradeTab = ({
         }),
         state: { loading, error },
         toolbar,
-        loadingText: `READING ${title}`,
-        errorTitle: `${title} READ FAILED`,
+        loadingText: `Reading ${title}`,
+        errorTitle: `${title} read failed`,
         initialWrapperClass: "masterclass-upgrade-scroll",
         body: div(
             { class: "masterclass-upgrade-scroll scrollable-panel" },

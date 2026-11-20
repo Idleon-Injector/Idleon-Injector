@@ -58,22 +58,22 @@ const buildCollectibleEntries = (holes, gems, start, count, sectionKey) => {
 const JarTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Hole Jars" });
     const sections = [
-        { key: "jar-rupies", title: "RUPIES", entries: van.state([]), node: div({ class: "account-item-stack" }) },
+        { key: "jar-rupies", title: "Rupies", entries: van.state([]), node: div({ class: "account-item-stack" }) },
         {
             key: "collectibles-set-1",
-            title: "COLLECTIBLES SET 1",
+            title: "Collectibles set 1",
             entries: van.state([]),
             node: div({ class: "account-item-stack" }),
         },
         {
             key: "collectibles-set-2",
-            title: "COLLECTIBLES SET 2",
+            title: "Collectibles set 2",
             entries: van.state([]),
             node: div({ class: "account-item-stack" }),
         },
         {
             key: "jar-destroyed",
-            title: "JARS DESTROYED",
+            title: "Jars destroyed",
             entries: van.state([]),
             node: div({ class: "account-item-stack" }),
         },
@@ -136,12 +136,12 @@ const JarTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "THE JARS",
+        title: "The Jars",
         description: "Edit rupies, collectibles, and jar counters from Holes[9], Holes[24], and Holes[11].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE JARS",
-        errorTitle: "HOLE JARS READ FAILED",
+        loadingText: "Reading hole jars",
+        errorTitle: "Hole jars read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },

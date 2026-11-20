@@ -8,30 +8,26 @@
 .content-stack {
     display: flex;
     flex-direction: column;
-    gap: 12px;
 }
 
+/* Rows have no fill or outline, so they stack with no gap; their own height spaces them. */
 .account-item-stack {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-}
-
-.account-item-stack--dense {
-    gap: 5px;
 }
 
 /*
- * The page top (#26): the title and description, the page's buttons on the right of the same row, then the page's
- * search and filters on the line below (.account-page-toolbar). One rule runs under the whole top.
+ * The page top (#26): the title (the brightest words on the page) and its description, the page's buttons on the right
+ * of the same row, then the page's search and filters on the line below (.account-page-toolbar). No rule, no box.
  */
 .account-header {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
-    padding: 10px 18px;
-    border-bottom: 1px solid var(--c-border);
+    max-width: var(--measure);
+    box-sizing: border-box;
+    padding: 34px 12px 6px;
     flex-shrink: 0;
     gap: 8px 12px;
 }
@@ -52,11 +48,6 @@
 
 .account-page-top {
     flex-shrink: 0;
-    border-bottom: 1px solid var(--c-border);
-}
-
-.account-page-top > .account-header {
-    border-bottom: 0;
 }
 
 .account-page-toolbar {
@@ -64,7 +55,8 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 20px;
-    padding: 0 18px 12px;
+    max-width: var(--measure);
+    padding: 10px 0 4px;
 }
 
 .account-page-toolbar .search-wrapper {
@@ -78,33 +70,25 @@
 
 .account-tab-header__title {
     margin: 0;
-    font-size: 0.875rem;
-    letter-spacing: 0.06em;
-    color: var(--c-text-main);
+    font-family: var(--font-display);
+    font-size: var(--text-title);
+    font-weight: var(--weight-title);
+    line-height: 1.05;
+    color: var(--c-text-bright);
+}
+
+/* The section on screen of a page that shows one at a time ("Death Note  World 2"). */
+.account-tab-header__section {
+    margin-left: 0.4em;
+    font-weight: 500;
+    color: var(--c-text-muted);
 }
 
 .account-tab-header__desc {
-    margin: 2px 0 0;
-    font-size: 0.875rem;
+    margin: 6px 0 0;
+    font-size: var(--text-body);
     color: var(--c-text-muted);
     max-width: 80ch;
-}
-
-.account-page-nav {
-    gap: 4px;
-    padding: 8px 16px 0;
-    border-bottom: 1px solid var(--c-border);
-    background: var(--c-panel-dim);
-}
-
-.account-page-btn {
-    --tab-nav-padding: 6px 20px;
-    --tab-nav-font-size: 0.875rem;
-    --tab-nav-letter-spacing: 0.05em;
-    --tab-nav-active-color: var(--c-text-main);
-    --tab-nav-active-bg: var(--c-panel-dim);
-    --tab-nav-active-indicator: var(--world-color, var(--c-accent));
-    --tab-nav-active-glow: 0 0 5px var(--world-color, var(--c-accent-glow));
 }
 
 .account-page-pane {
@@ -118,16 +102,20 @@
 .account-list {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    padding: 14px;
+    padding: 4px 0 48px;
     flex: 1;
     overflow-y: auto;
+}
+
+.account-list > *,
+.scrollable-panel > * {
+    max-width: var(--measure);
 }
 
 .scrollable-panel {
     flex: 1;
     overflow-y: auto;
-    padding: 14px;
+    padding: 4px 0 48px;
 }
 
 .is-hidden-until-ready {
@@ -173,31 +161,23 @@
     justify-content: center;
 }
 
-/* Sections (#26): a plain heading over a thin rule, the rows straight under it. No box inside the page. */
+/* Sections (#26): a plain heading in normal case with space above it, the rows straight under it. No rule, no box. */
 .account-section {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-}
-
-.account-section + .account-section {
-    margin-top: 14px;
-}
-
-/* Side by side in a grid, the grid's gap spaces them; a stacked section's margin would drop all but the first. */
-.grid-3col > .account-section + .account-section,
-.grid-4col > .account-section + .account-section {
-    margin-top: 0;
 }
 
 .account-section__header {
     display: flex;
-    align-items: center;
-    gap: 6px 10px;
-    min-height: 26px;
-    border-bottom: 1px solid var(--c-border);
-    padding: 0 2px 6px;
+    align-items: baseline;
+    gap: 6px 14px;
+    padding: 30px 12px 8px;
     flex-wrap: wrap;
+}
+
+/* The first heading sits closer under the page top. */
+.account-section:first-child > .account-section__header {
+    padding-top: 14px;
 }
 
 /* A list inside a section sits straight under the heading, not inset as if it were the page's own list. */
@@ -208,79 +188,65 @@
 }
 
 .account-section__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-heading);
+    font-weight: var(--weight-heading);
+    line-height: 1.2;
     color: var(--c-text-main);
-    font-size: 0.8125rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
 }
 
 .account-section__note {
-    color: var(--c-text-dim);
-    font-size: 0.875rem;
-    font-style: italic;
+    color: var(--c-text-faint);
+    font-size: var(--text-small);
 }
 
 .account-section__meta {
     margin-left: auto;
+    font-size: var(--text-small);
+    color: var(--c-text-muted);
 }
 
+/* A row (#26): no fill, no outline. Under the pointer or holding focus it lifts a breath, and a dotted line runs from
+ * its name to its value (.account-row__info::after). The field is the only filled shape on it. */
 .account-row {
+    --save-state-bg: var(--c-void);
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 10px;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    padding: 7px 12px;
-    transition:
-        border-color 0.2s,
-        background 0.2s;
-}
-
-.feature-card {
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    transition:
-        border-color 0.2s,
-        background 0.2s;
-    min-width: 0;
+    gap: 14px;
+    min-height: var(--row-min-height);
+    box-sizing: border-box;
+    padding: 3px 12px;
+    border-radius: var(--radius-field);
+    transition: background 0.16s var(--ease-out);
 }
 
 .account-row:hover,
+.account-row:focus-within {
+    --save-state-bg: var(--c-lift);
+    background: var(--c-lift);
+}
+
+/* A card of a page's own layout keeps a quiet surface, so its group still reads as one. */
+.feature-card {
+    --save-state-bg: var(--c-void-soft);
+    background: var(--c-void-soft);
+    border-radius: var(--radius-field);
+    transition: background 0.16s var(--ease-out);
+    min-width: 0;
+}
+
 .feature-card:hover {
-    border-color: var(--c-border-strong);
+    background: var(--c-panel);
 }
 
-.feature-card.account-row--success {
-    border-color: var(--c-success) !important;
-    background: var(--c-success-tint) !important;
-}
-
+/* Saved: a quiet tick in the text colour, no tint. Failed keeps red; a warning keeps amber. */
+.account-row--error,
 .feature-card.account-row--error {
-    border-color: var(--c-danger) !important;
-    background: var(--c-danger-tint) !important;
-}
-
-.account-row--success {
-    border-color: var(--c-success) !important;
-    background: var(--c-success-tint) !important;
-    animation: account-row-success-flash 1.2s ease-out;
-}
-
-.account-row--error {
-    border-color: var(--c-danger) !important;
-    background: var(--c-danger-tint) !important;
+    --save-state-bg: var(--c-danger-tint);
+    background: var(--c-danger-tint);
     animation: account-row-error-flash 1.2s ease-out;
-}
-
-@keyframes account-row-success-flash {
-    0% {
-        background: var(--c-success-flash);
-    }
-
-    100% {
-        background: var(--c-success-tint);
-    }
 }
 
 @keyframes account-row-error-flash {
@@ -293,28 +259,14 @@
     }
 }
 
-/* The save words lie on the row's own fill, so they take the status fill too. */
-.account-row--success .save-state {
-    --save-state-bg: var(--c-success-tint);
-}
-
-.account-row--error .save-state {
-    --save-state-bg: var(--c-danger-tint);
-}
-
-.has-warning:not(.account-row--success):not(.account-row--error) .save-state {
-    --save-state-bg: var(--c-warning-tint);
-}
-
 .has-warning:not(.account-row--success):not(.account-row--error) {
-    border-color: var(--c-warning) !important;
+    --save-state-bg: var(--c-warning-tint);
     background: var(--c-warning-tint);
 }
 
 .write-status {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-family: var(--font-mono);
-    letter-spacing: 0.04em;
 }
 
 .write-status--loading {
@@ -335,7 +287,6 @@
  * field's label) on the row's own surface, so nothing around them moves.
  */
 .save-state {
-    --save-state-bg: var(--c-panel);
     position: relative;
     display: inline-flex;
     flex: none;
@@ -344,7 +295,7 @@
     width: 14px;
     height: 14px;
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: var(--text-tiny);
     font-weight: 400;
     letter-spacing: 0.02em;
     text-transform: none;
@@ -368,7 +319,7 @@
     align-items: center;
     height: 26px;
     padding: 0 8px;
-    background: var(--save-state-bg);
+    background: var(--save-state-bg, var(--c-void));
     color: var(--c-text-muted);
     white-space: nowrap;
     pointer-events: none;
@@ -410,13 +361,13 @@
 }
 
 .save-state--success .save-state__mark {
-    color: var(--c-success);
+    color: var(--c-text-main);
     animation: save-state-mark 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .save-state--error .save-state__mark,
 .save-state--error .save-state__label {
-    color: var(--c-warning);
+    color: var(--c-danger);
 }
 
 /*
@@ -522,7 +473,7 @@
     background: var(--undo-all-bg, var(--c-panel));
     color: var(--c-text-muted);
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: var(--text-tiny);
     font-weight: 400;
     letter-spacing: 0.02em;
     text-transform: none;
@@ -690,11 +641,26 @@
 
 .account-row__info {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
+    align-items: baseline;
+    gap: 10px;
     min-width: 0;
-    container: account-row-info / inline-size;
+}
+
+/* The dotted line from the name to the value, on the row under the pointer or holding focus only. */
+.account-row__info::after {
+    content: "";
+    flex: 1 1 32px;
+    min-width: 32px;
+    margin-left: 4px;
+    border-bottom: 2px dotted var(--c-leader);
+    transform: translateY(-5px);
+    opacity: 0;
+    transition: opacity 0.16s var(--ease-out);
+}
+
+.account-row:hover .account-row__info::after,
+.account-row:focus-within .account-row__info::after {
+    opacity: 1;
 }
 
 .jelly-level-row .account-row__info {
@@ -709,19 +675,20 @@
     gap: 3px;
 }
 
+/* A number tag is plain faint numbers in its own column, no box. */
 .account-row__index {
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    color: var(--c-text-muted);
-    background: var(--c-panel-hover);
-    padding: 1px 5px;
     flex-shrink: 0;
+    min-width: 2.6em;
+    font-family: var(--font-mono);
+    font-size: var(--text-index);
+    color: var(--c-text-faint);
 }
 
 .account-row__name {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--c-text-main);
+    font-family: var(--font-display);
+    font-size: var(--text-name);
+    font-weight: var(--weight-name);
+    color: var(--c-text-name);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -730,19 +697,10 @@
 .account-row__sub-label {
     font-family: var(--font-mono);
     color: var(--c-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-@container account-row-info (max-width: 320px) {
-    .account-row__name {
-        flex-basis: 100%;
-        white-space: normal;
-        overflow: visible;
-        text-overflow: clip;
-    }
 }
 
 .account-row__badge:empty {
@@ -757,7 +715,7 @@
 .account-row__badge {
     justify-self: end;
     flex-shrink: 0;
-    font-size: 0.8125rem;
+    font-size: var(--text-small);
     color: var(--c-text-muted);
     white-space: nowrap;
 }
@@ -767,16 +725,30 @@
     display: inline-flex;
     align-items: baseline;
     font-family: var(--font-mono);
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     color: var(--c-text-main);
 }
 
 /* In the narrow overlay a value row keeps its name and badge on the first line and puts the field and its buttons on
  * the line under it, so neither squeezes the name into a sliver nor runs off the window. */
 @media (max-width: 600px) {
+    /* The name has the first line to itself here, so there is nothing for the dotted line to run to; a long name wraps
+     * instead of being cut. */
+    .account-row__info::after {
+        display: none;
+    }
+
+    .account-row {
+        padding: 8px 8px 10px;
+    }
+
+    .account-row__name {
+        white-space: normal;
+    }
+
     .account-row--value {
         grid-template-columns: minmax(0, 1fr) auto;
-        row-gap: 6px;
+        row-gap: 8px;
     }
 
     /* The state word keeps to the end of the name's line. */
@@ -800,9 +772,37 @@
 
     .account-row--value .save-state {
         position: absolute;
-        top: 19px;
+        top: 22px;
         right: 12px;
         transform: translateY(-50%);
+    }
+
+    /* The field keeps a fixed width at the start of its line and the row's other controls go to the end. */
+    .account-row--value > .account-row__controls {
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .account-row--value .number-input-wrapper:not(.number-input-wrapper--capped) {
+        flex: 0 0 104px;
+        width: 104px;
+    }
+
+    /* A remove-or-lower button (Relock) moves up to the end of the name's line, away from the field; the save state
+     * sits just before it. */
+    .account-row--end-danger > .account-row__controls > .btn-danger:last-child {
+        position: absolute;
+        top: 22px;
+        right: 4px;
+        transform: translateY(-50%);
+    }
+
+    .account-row--end-danger .save-state {
+        right: 72px;
+    }
+
+    .account-row--end-danger > .account-row__badge {
+        margin-right: 64px;
     }
 }
 
@@ -848,7 +848,6 @@
 
 .account-row__controls--xl .number-input-wrapper input {
     min-width: 10ch;
-    font-size: 0.875rem;
 }
 
 .account-row__controls--xl .number-input-wrapper--capped {
@@ -937,10 +936,8 @@
 
 .account-field-metric__label {
     color: var(--c-text-muted);
-    font-size: 0.815rem;
+    font-size: var(--text-index);
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
 }
 
 .account-field-metric .number-input-wrapper {
@@ -962,11 +959,9 @@
 
 .account-stacked-field__label {
     color: var(--c-text-muted);
-    font-size: 0.815rem;
+    font-size: var(--text-index);
     font-weight: 700;
-    letter-spacing: 0.04em;
     text-align: right;
-    text-transform: uppercase;
     width: var(--account-stacked-field-label-width, 132px);
 }
 
@@ -1018,9 +1013,8 @@
 .account-btn--switch {
     padding: 0 12px;
     height: 30px;
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-family: var(--font-display);
-    letter-spacing: 0.04em;
     border: none;
     cursor: pointer;
     white-space: nowrap;
@@ -1038,7 +1032,6 @@
     background: var(--c-control-border-strong);
     color: var(--c-white);
     font-weight: 700;
-    text-transform: uppercase;
 }
 
 .account-btn--apply:hover:not(:disabled) {
@@ -1108,7 +1101,7 @@
 
 .tier-card__index {
     font-family: var(--font-mono);
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     color: var(--c-text-dim);
     background: var(--c-panel-hover);
     padding: 1px 4px;
@@ -1116,9 +1109,8 @@
 }
 
 .tier-card__name {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-weight: 700;
-    letter-spacing: 0.04em;
     color: var(--c-text-main);
     white-space: nowrap;
     overflow: hidden;
@@ -1127,9 +1119,8 @@
 
 /* The tier is its coloured word; the card around it stays the plain row surface. */
 .tier-card__badge {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-weight: 700;
-    letter-spacing: 0.05em;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -1138,7 +1129,7 @@
     padding: 0 6px;
     height: 28px;
     width: 100%;
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-family: var(--font-display);
 }
 
@@ -1215,9 +1206,8 @@
 }
 
 .account-setall-row__label {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-weight: 700;
-    letter-spacing: 0.05em;
     color: var(--c-text-muted);
     white-space: nowrap;
 }
@@ -1228,7 +1218,7 @@
 }
 
 .account-character-selector__info {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     color: var(--c-text-muted);
 }
 
@@ -1240,7 +1230,7 @@
 .account-setall-row__select {
     padding: 0 8px;
     height: 30px;
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-family: var(--font-display);
 }
 
@@ -1259,52 +1249,11 @@
     font-weight: 700;
 }
 
-.account-nested-sub-nav {
-    flex-wrap: wrap;
-    gap: 2px;
-    padding: 6px 14px 0;
-    border-bottom: 1px solid var(--c-border);
-    background: var(--c-panel-dim);
-}
-
-.account-nested-sub-tab-btn {
-    --tab-nav-padding: 5px 16px;
-    --tab-nav-font-size: 0.875rem;
-    --tab-nav-font-family: var(--font-display);
-    --tab-nav-letter-spacing: 0.05em;
-    --tab-nav-active-color: var(--c-text-main);
-    --tab-nav-active-bg: var(--c-panel-dim);
-    --tab-nav-active-indicator: var(--world-color, var(--c-accent));
-    --tab-nav-active-glow: 0 0 5px var(--world-color, var(--c-accent-glow));
-}
-
-.account-nested-sub-tab-btn--stub {
-    color: var(--c-text-muted);
-    cursor: default;
-}
-
-.account-nested-sub-content {
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-}
-
-.account-nested-pane {
-    display: none;
-    height: 100%;
-    overflow-y: auto;
-}
-
-.account-nested-pane--active {
-    display: flex;
-    flex-direction: column;
-}
-
 .tab-empty {
     border: 1px dashed var(--c-border);
     background: var(--c-panel);
     color: var(--c-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     text-align: center;
     padding: 12px;
 }
@@ -1325,8 +1274,7 @@
 
 .tab-add-row__label {
     color: var(--c-text-dim);
-    font-size: 0.875rem;
-    letter-spacing: 0.05em;
+    font-size: var(--text-small);
 }
 
 .tab-add-row__select {
@@ -1344,9 +1292,8 @@
 }
 
 .col-header__name {
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-weight: 700;
-    letter-spacing: 0.07em;
     color: var(--col-color, var(--c-text-main));
     white-space: nowrap;
     overflow: hidden;
@@ -1404,13 +1351,13 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     font-weight: 600;
 }
 
 .account-expandable-group__meta {
     font-family: var(--font-mono);
-    font-size: 0.875rem;
+    font-size: var(--text-small);
     color: var(--c-text-main);
     white-space: nowrap;
 }
@@ -1431,22 +1378,4 @@
     display: flex;
     justify-content: flex-end;
     padding: 0 8px 8px;
-}
-
-/*
- * Rounded value rows (the concept board, not decided yet): rows get 10 px corners and their fields 9 px, so the
- * pill buttons don't sit in sharp boxes. The field's own input stays square inside its rounded box.
- */
-.account-row {
-    border-radius: 10px;
-}
-
-.account-row .number-input-wrapper,
-.account-row input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-.account-row select {
-    border-radius: 9px;
-}
-
-.account-row .number-input-wrapper input {
-    border-radius: 0;
 }

@@ -108,7 +108,6 @@
 .quick-access-header {
     font-size: 0.8125rem;
     color: var(--c-text-muted);
-    letter-spacing: 0.08em;
     margin-bottom: 8px;
     padding: 0 2px 6px;
     border-bottom: 1px solid var(--c-border);
@@ -247,17 +246,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.control-bar {
-    margin-bottom: 20px;
-    position: sticky;
-    top: 0;
-    z-index: 1001;
-    background: var(--c-panel);
-    padding-bottom: 10px;
-    display: flex;
-    gap: 10px;
 }
 
 /* The page top (#26) on a page with no panel around it: the title and search line up with the rows under them. */

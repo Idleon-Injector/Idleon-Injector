@@ -65,8 +65,6 @@
 
 .update-version-label {
     color: var(--c-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
 }
 
 .update-version-value {

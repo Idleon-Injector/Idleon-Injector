@@ -78,22 +78,22 @@ const BigFishTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "NPC BONUSES",
-            note: () => `${entriesState.val.length} BIG FISH BONUSES`,
+            title: "Npc bonuses",
+            note: () => `${entriesState.val.length} Big Fish bonuses`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "BIG FISH",
+        title: "Big Fish",
         description: "Set Big Fish NPC bonus levels from Spelunk[11]. Names and bonuses come from Spelunky[18].",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING BIG FISH",
-        errorTitle: "BIG FISH READ FAILED",
+        loadingText: "Reading Big Fish",
+        errorTitle: "Big Fish read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

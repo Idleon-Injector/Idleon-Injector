@@ -37,8 +37,8 @@ export const SimpleAccountListPage = ({ title, description, label, sectionTitle 
         description,
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: `READING ${label.toUpperCase()}`,
-        errorTitle: `${label.toUpperCase()} READ FAILED`,
+        loadingText: `Reading ${label.toLowerCase()}`,
+        errorTitle: `${label} read failed`,
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },

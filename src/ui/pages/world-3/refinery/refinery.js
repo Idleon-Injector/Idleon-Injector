@@ -65,13 +65,13 @@ const RefinerySection = ({ refIndex, name, levelState, chargeState }) => {
         meta: state ? span({ class: "refinery-section__state" }, state) : null,
         body: [
             RefineryValueRow({
-                label: "LEVEL",
+                label: "Level",
                 fieldIndex: 1,
                 gameIndex,
                 valueState: levelState,
             }),
             RefineryValueRow({
-                label: "CHARGE",
+                label: "Charge",
                 fieldIndex: 0,
                 gameIndex,
                 valueState: chargeState,
@@ -131,7 +131,7 @@ const RefineryTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "W3 - REFINERY",
+        title: "W3 - refinery",
         description: "Set refinery levels and salt charges.",
         actions: RefreshButton({ onRefresh: load }),
         topNotices: [
@@ -154,8 +154,8 @@ const RefineryTab = () => {
             ),
         ],
         state: { loading, error },
-        loadingText: "READING REFINERY",
-        errorTitle: "REFINERY READ FAILED",
+        loadingText: "Reading refinery",
+        errorTitle: "Refinery read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

@@ -3,8 +3,9 @@ import store from "../state/store.js";
 import { VIEWS, IS_ELECTRON } from "../state/constants.js";
 import { Icons } from "../assets/icons.js";
 import { withTooltip } from "./Tooltip.js";
-import { WORLDS, AREAS, worldClass } from "../menu/menuModel.js";
-import { menuError } from "../menu/pageRegistry.js";
+import { WORLDS, AREAS, DRILL_AREAS, worldClass } from "../menu/menuModel.js";
+import { menuError, menuTree } from "../menu/pageRegistry.js";
+import { isRail, levelHead, LevelItems, railOpen } from "./MenuLevels.js";
 import { Said, plainReason, replay, useSaid } from "./inPlace.js";
 
 const { nav, div, button, span, a, p, ul, li } = van.tags;
@@ -19,59 +20,157 @@ const SHORTCUTS_TOOLTIP_TEXT =
     "/ - Focus this page's search\n" +
     "Ctrl+S - Save config (Settings)\n";
 
-// The in-game overlay is narrow: the sidebar becomes the icon rail there.
-const narrowQuery = window.matchMedia("(max-width: 760px)");
-const isNarrow = van.state(narrowQuery.matches);
-narrowQuery.addEventListener("change", (e) => (isNarrow.val = e.matches));
-const isRail = () => store.app.sidebarCollapsed || isNarrow.val;
-
 const areaActive = (area) => (area.tabs || [area]).some((tab) => store.app.activeTab === VIEWS[tab.view].id);
 
-const MenuBtn = ({ code, label, active, onclick, colorClass = "" }) =>
+const MenuBtn = ({ code, label, active, onclick, colorClass = "", key = null, drill = false }) =>
     withTooltip(
         button(
             {
                 type: "button",
-                class: () => `tab-button menu-nav-btn ${colorClass} ${active() ? "active" : ""}`,
+                class: () =>
+                    `tab-button menu-nav-btn ${colorClass} ${drill ? "is-drill" : ""} ${active() ? "active" : ""}`,
                 "aria-current": () => (active() ? "page" : "false"),
+                "data-key": key === null ? undefined : String(key),
                 onclick,
+                // Right opens a list, like Enter.
+                onkeydown: (e) => {
+                    if (!drill || e.key !== "ArrowRight") return;
+                    e.preventDefault();
+                    e.currentTarget.click();
+                },
             },
             span({ class: "menu-nav-code", "aria-hidden": "true" }, code),
-            span({ class: "tab-label" }, label)
+            span({ class: "tab-label" }, label),
+            drill ? span({ class: "menu-nav-more", "aria-hidden": "true" }, Icons.Chevron({ dir: "right" })) : null
         ),
         label,
         "right",
         isRail
     );
 
-const MenuNav = () =>
+/*
+ * The menu drills down. Picking a world (or Advanced) slides the list over to that world's systems, with the way back
+ * on top; the page on screen stays until an entry is picked. The logo above and the active cheats, status and keys
+ * below stay put while the middle slides. In the icon rail the list opens from the line above the page instead.
+ */
+let focusFirst = false; // a pick moves focus to the first entry of the new list
+let focusBackTo = null; // going back returns focus to the row the list was opened from
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+const openList = (key) => {
+    focusFirst = true;
+    store.showMenuLevel(key);
+    if (isRail()) railOpen.val = true;
+};
+
+const TopList = () =>
     div(
-        { class: "nav-menu menu-nav" },
+        { class: "menu-panel" },
         MenuBtn({
             code: "HOM",
-            label: "HOME",
+            label: "Home",
             active: () => store.app.activeTab === VIEWS.HOME.id,
             onclick: () => store.openMenu({ view: "HOME" }),
         }),
         ...WORLDS.map((world) =>
             MenuBtn({
                 code: world.code,
-                label: world.label.toUpperCase(),
+                label: world.label,
                 colorClass: worldClass(world),
+                key: world.id,
+                drill: true,
                 active: () => store.app.activeTab === VIEWS.PAGES.id && store.app.menuWorld === world.id,
-                onclick: () => store.openMenu({ world: world.id }),
+                onclick: () => openList(world.id),
             })
         ),
         div({ class: "menu-nav-sep", role: "separator" }),
-        ...AREAS.map((area) =>
-            MenuBtn({
+        ...AREAS.map((area) => {
+            const drill = DRILL_AREAS.includes(area);
+            return MenuBtn({
                 code: area.code,
-                label: area.label.toUpperCase(),
+                label: area.label,
+                key: area.id,
+                drill,
                 active: () => areaActive(area),
-                onclick: () => store.openMenu({ view: area.view || area.tabs[0].view }),
-            })
-        )
+                onclick: () => (drill ? openList(area.id) : store.openMenu({ view: area.view || area.tabs[0].view })),
+            });
+        })
     );
+
+const LevelList = (key) => {
+    const head = levelHead(key);
+    const back = () => {
+        focusBackTo = key;
+        store.showMenuLevel(null);
+    };
+    return div(
+        {
+            class: "menu-panel menu-panel--level",
+            onkeydown: (e) => {
+                if (e.key !== "Escape" && e.key !== "ArrowLeft") return;
+                e.preventDefault();
+                back();
+            },
+        },
+        // The way back and where you are stay at the top while a long list scrolls under them.
+        div(
+            { class: "drill-head" },
+            button(
+                { type: "button", class: "tab-button menu-nav-btn drill-back", onclick: back },
+                span({ class: "menu-nav-code", "aria-hidden": "true" }, Icons.Chevron({ dir: "left" })),
+                span({ class: "tab-label" }, "Menu")
+            ),
+            div(
+                { class: `menu-nav-btn drill-title ${worldClass(head)}`, role: "heading", "aria-level": "2" },
+                span({ class: "menu-nav-code", "aria-hidden": "true" }, head.code),
+                span({ class: "tab-label" }, head.label)
+            ),
+            div({ class: "menu-nav-sep", role: "separator" })
+        ),
+        ...LevelItems(key)
+    );
+};
+
+const MenuNav = () => {
+    const box = div({ class: "nav-menu menu-nav" });
+    let shownKey;
+    van.derive(() => {
+        const key = isRail() ? null : store.app.menuLevel;
+        menuTree.val; // a world's list fills in once the pages load
+        const dir = shownKey === undefined || key === shownKey ? "" : key === null ? "back" : "fwd";
+        const animate = dir && !reduceMotion.matches;
+        const next = key === null ? TopList() : LevelList(key);
+        for (const old of [...box.children]) {
+            // A list still sliding out goes at once, so quick picks never stack lists.
+            if (!animate || old.classList.contains("is-leaving")) {
+                old.remove();
+                continue;
+            }
+            old.classList.add("is-leaving", `menu-panel--leave-${dir}`);
+            setTimeout(() => old.remove(), 240);
+        }
+        if (animate) next.classList.add(`menu-panel--enter-${dir}`);
+        box.append(next);
+        box.scrollTop = 0;
+        if (focusFirst && key !== null) next.querySelector(".drill-item")?.focus();
+        if (focusBackTo !== null && key === null) next.querySelector(`[data-key="${focusBackTo}"]`)?.focus();
+        focusFirst = false;
+        focusBackTo = null;
+        shownKey = key;
+    });
+    // A long list scrolls inside the middle; the open entry is kept in view, on a new list and after search.
+    van.derive(() => {
+        store.app.menuPage;
+        store.app.activeTab;
+        store.app.menuLevel;
+        menuTree.val;
+        requestAnimationFrame(() => {
+            const open = [...box.querySelectorAll(".menu-panel:not(.is-leaving) .drill-item.active")].pop();
+            open?.scrollIntoView({ block: "nearest" });
+        });
+    });
+    return box;
+};
 
 /**
  * Turn an active cheat off. It leaving the list says it worked; a failure is said under the list (`line`, a

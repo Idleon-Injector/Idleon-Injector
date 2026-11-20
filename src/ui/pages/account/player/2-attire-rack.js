@@ -502,7 +502,7 @@ const AttireRackPage = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "ATTIRE RACK",
+        title: "Attire Rack",
         description:
             "Outfit bonuses as if worn, and the attire each character wears. The worn outfit counts once; there is no bonus in dungeons.",
         wrapActions: false,
@@ -530,17 +530,17 @@ const AttireRackPage = () => {
             refresh: { onClick: load, disabled: busy },
         }),
         state: { loading, error },
-        loadingText: "READING ATTIRE",
-        errorTitle: "ATTIRE READ FAILED",
+        loadingText: "Reading attire",
+        errorTitle: "Attire read failed",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "OUTFIT BONUSES",
+                title: "Outfit bonuses",
                 note: choiceNote,
                 body: [Said({ said: choiceSaid.said, className: "said--line" }), cards],
             }),
             AccountSection({
-                title: "APPEARANCE",
+                title: "Appearance",
                 note: "A new pick replaces the attire in that slot; it isn't moved to storage. Undo puts it back.",
                 meta: [
                     everyoneHolder,

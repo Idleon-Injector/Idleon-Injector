@@ -99,7 +99,7 @@ const card = (root, mapId) =>
 const slotSelects = (node) => byClass(node, "outpost-slot-select");
 const cardSays = (node) => text(byClass(node, "outpost-card__said")[0]);
 const openUnits = async (root) => {
-    await click(buttonsNamed(root, "UNITS")[0]);
+    await click(buttonsNamed(root, "Units")[0]);
     await until(() => byClass(root, "outpost-vanilla-units__row").length, "the units preview");
 };
 const unitArrays = () => copy([6, 7, 8, 9, 10, 11, 12, 13].map((index) => game.gga.RoyalG[index]));
@@ -145,7 +145,7 @@ test("outposts: a refused slot or TYPE pick goes back to what the game holds and
     try {
         await choose(type, "2");
         assert.equal(type.value, "1", "TYPE shows the Support Camp the game kept");
-        assert.match(cardSays(outpost), /TYPE not saved: game kept old value/);
+        assert.match(cardSays(outpost), /Type not saved: game kept old value/);
     } finally {
         restore();
     }
@@ -435,7 +435,7 @@ test("masterclass pages: a search by index finds the row with that number", asyn
     const root = (await importRepo("src/ui/pages/classes/grimoire/1-grimoire.js")).default.component();
     await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
     const search = elements(root).find(
-        (node) => node.nodeName === "input" && String(node.attributes.placeholder ?? "").includes("OR INDEX")
+        (node) => node.nodeName === "input" && String(node.attributes.placeholder ?? "").includes("or index")
     );
     const shown = () =>
         byClass(root, "masterclass-upgrade-row").map((row) => text(byClass(row, "account-row__index")[0]));

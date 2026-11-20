@@ -436,7 +436,7 @@ const PrayersTab = () => {
 
     void load();
     return PersistentAccountListPage({
-        title: "PRAYERS",
+        title: "Prayers",
         rootClass: "tab-container prayers-page",
         description: "Edit account levels and character equipment. Level edits bypass soul costs and trial unlocks.",
         actions: BulkActionBar({
@@ -481,11 +481,11 @@ const PrayersTab = () => {
                 );
             },
             div({ class: "write-status", role: "status", "aria-live": "polite" }, message),
-            AccountSection({ title: "PRAYERS", body: rows })
+            AccountSection({ title: "Prayers", body: rows })
         ),
         initialWrapperClass: "scrollable-panel",
-        loadingText: "READING PRAYERS",
-        errorTitle: "PRAYERS READ FAILED",
+        loadingText: "Reading prayers",
+        errorTitle: "Prayers read failed",
     });
 };
 

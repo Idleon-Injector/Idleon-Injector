@@ -80,7 +80,7 @@ const TerritoryTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "TERRITORY UNLOCK",
+            title: "Territory unlock",
             note: "OptionsListAccount[85]",
             body: div(
                 { class: "account-item-stack" },
@@ -98,14 +98,14 @@ const TerritoryTab = () => {
             ),
         })
         // AccountSection({
-        //     title: "TERRITORY",
+        //     title: "Territory",
         //     note: () => `${territoryEntries.val.length} TERRITORIES`,
         //     body: territoryRows,
         // })
     );
 
     return PersistentAccountListPage({
-        title: "BREEDING TERRITORY",
+        title: "Breeding territory",
         description: "Edit W4 Breeding territory unlocks and spice amounts.",
         actions: RefreshButton({
             onRefresh: load,
@@ -113,8 +113,8 @@ const TerritoryTab = () => {
         }),
         topNotices: WarningBanner("Changing territories unlocked may require a cloudsave before the game applies it."),
         state: { loading, error },
-        loadingText: "READING BREEDING TERRITORY",
-        errorTitle: "BREEDING TERRITORY READ FAILED",
+        loadingText: "Reading breeding territory",
+        errorTitle: "Breeding territory read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

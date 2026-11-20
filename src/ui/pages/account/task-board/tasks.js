@@ -15,29 +15,36 @@ import {
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import {
-    createComingSoonPlaceholder,
-    renderLazyPanes,
-    renderTabNav,
-} from "../../../components/views/account/tabShared.js";
+import { pageSection, renderLazyPanes } from "../../../components/views/account/tabShared.js";
 
-const { div, span } = van.tags;
+const { div, span, label, select, option } = van.tags;
 
-const WORLD_TABS = [
-    { id: "w1", label: "W1", worldIndex: 0 },
-    { id: "w2", label: "W2", worldIndex: 1 },
-    { id: "w3", label: "W3", worldIndex: 2 },
-    { id: "w4", label: "W4", worldIndex: 3 },
-    { id: "w5", label: "W5", worldIndex: 4 },
-    { id: "w6", label: "W6", worldIndex: 5 },
-    { id: "w7", label: "W7", worldIndex: 6 },
+const WORLD_COUNT = 7;
+
+// The board's three parts are the page's sections (the sidebar lists them); the world is a pick on each part's top.
+const SECTIONS = [
+    { id: "tasks", label: "Tasks", component: (props) => TasksWorldTasksTab(props) },
+    { id: "achievements", label: "Achievements", component: (props) => TasksWorldAchievementsTab(props) },
+    { id: "merit-shop", label: "Merit Shop", component: (props) => TasksWorldMeritShopTab(props) },
 ];
 
-const WORLD_FEATURE_TABS = [
-    { id: "tasks", label: "TASKS", component: (worldIndex) => TasksWorldTasksTab({ worldIndex }) },
-    { id: "achievements", label: "ACHIEVEMENTS", component: (worldIndex) => TasksWorldAchievementsTab({ worldIndex }) },
-    { id: "merit-shop", label: "MERIT SHOP", component: (worldIndex) => TasksWorldMeritShopTab({ worldIndex }) },
-];
+/** The world pick on the line under a part's title; every part shares the one world. */
+const WorldPick = (world) =>
+    div(
+        { class: "account-setall-row" },
+        label({ class: "account-setall-row__label" }, "World"),
+        select(
+            {
+                class: "select-base",
+                "aria-label": "World",
+                value: world,
+                onchange: (e) => (world.val = Number(e.target.value)),
+            },
+            ...Array.from({ length: WORLD_COUNT }, (_, index) =>
+                option({ value: index, selected: index === world.val }, `World ${index + 1}`)
+            )
+        )
+    );
 
 const TASK_LIMIT_PER_WORLD = 8;
 const ACHIEVEMENTS_PER_WORLD = 70;
@@ -101,7 +108,7 @@ const TaskRow = ({ entry, entryState, valueState }) =>
         valueState,
     });
 
-const TasksWorldTasksTab = ({ worldIndex }) => {
+const TasksWorldTasksTab = ({ worldIndex, toolbar }) => {
     const worldLabel = `W${worldIndex + 1}`;
     const { loading, error, run } = useAccountLoad({ label: `${worldLabel} Tasks` });
     const entries = van.state([]);
@@ -140,19 +147,20 @@ const TasksWorldTasksTab = ({ worldIndex }) => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "TASKS",
-            note: () => `${entries.val.length} TASKS FROM Tasks[1][${worldIndex}]`,
+            title: "Tasks",
+            note: () => `${entries.val.length} tasks from Tasks[1][${worldIndex}]`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: `${worldLabel} TASKS`,
+        title: `${worldLabel} tasks`,
         description: "Edit completed task stages. Stage caps come from TaskDescriptions.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
+        toolbar,
         state: { loading, error },
-        loadingText: `READING ${worldLabel} TASKS`,
-        errorTitle: `${worldLabel} TASKS READ FAILED`,
+        loadingText: `Reading ${worldLabel} tasks`,
+        errorTitle: `${worldLabel} tasks read failed`,
         initialWrapperClass: "scrollable-panel",
         body,
     });
@@ -220,7 +228,7 @@ const AchievementRow = ({ entry, valueState }) =>
         valueState,
     });
 
-const TasksWorldAchievementsTab = ({ worldIndex }) => {
+const TasksWorldAchievementsTab = ({ worldIndex, toolbar }) => {
     const worldLabel = `W${worldIndex + 1}`;
     const { loading, error, run } = useAccountLoad({ label: `${worldLabel} Achievements` });
     const entries = van.state([]);
@@ -260,19 +268,20 @@ const TasksWorldAchievementsTab = ({ worldIndex }) => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "ACHIEVEMENTS",
+            title: "Achievements",
             note: () => `${completedCount.val} / ${entries.val.length} COMPLETE`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: `${worldLabel} ACHIEVEMENTS`,
+        title: `${worldLabel} achievements`,
         description: "Edit achievement progress from AchieveReg. A value of -1 marks an achievement complete.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
+        toolbar,
         state: { loading, error },
-        loadingText: `READING ${worldLabel} ACHIEVEMENTS`,
-        errorTitle: `${worldLabel} ACHIEVEMENTS READ FAILED`,
+        loadingText: `Reading ${worldLabel} achievements`,
+        errorTitle: `${worldLabel} achievements read failed`,
         initialWrapperClass: "scrollable-panel",
         body,
     });
@@ -345,7 +354,7 @@ const MeritShopRow = ({ entry, valueState }) =>
         maxAction: true,
     });
 
-const TasksWorldMeritShopTab = ({ worldIndex }) => {
+const TasksWorldMeritShopTab = ({ worldIndex, toolbar }) => {
     const worldLabel = `W${worldIndex + 1}`;
     const { loading, error, run } = useAccountLoad({ label: `${worldLabel} Merit Shop` });
     const entries = van.state([]);
@@ -382,72 +391,42 @@ const TasksWorldMeritShopTab = ({ worldIndex }) => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "MERIT SHOP",
+            title: "Merit Shop",
             note: () => `${cappedCount.val} / ${entries.val.length} CAPPED`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: `${worldLabel} MERIT SHOP`,
+        title: `${worldLabel} Merit Shop`,
         description: "Edit merit shop purchases from Tasks[2]. Max purchases come from TaskShopDesc.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
+        toolbar,
         state: { loading, error },
-        loadingText: `READING ${worldLabel} MERIT SHOP`,
-        errorTitle: `${worldLabel} MERIT SHOP READ FAILED`,
+        loadingText: `Reading ${worldLabel} Merit Shop`,
+        errorTitle: `${worldLabel} Merit Shop read failed`,
         initialWrapperClass: "scrollable-panel",
         body,
     });
 };
 
-const WorldTasksPanel = ({ worldIndex }) => {
-    const active = van.state(WORLD_FEATURE_TABS[0].id);
-
-    return div(
-        { class: `tab-container w${worldIndex + 1}-world-tab` },
-        renderTabNav({
-            tabs: WORLD_FEATURE_TABS,
-            activeId: active,
-            navClass: "account-nested-sub-nav",
-            buttonClass: "account-nested-sub-tab-btn",
-            stubClass: "account-nested-sub-tab-btn--stub",
-            isStub: (tab) => !tab.component,
-        }),
-        div(
-            { class: "account-nested-sub-content" },
-            ...renderLazyPanes({
-                tabs: WORLD_FEATURE_TABS,
-                activeId: active,
-                paneClass: "account-nested-pane",
-                activeClass: "account-nested-pane--active",
-                dataAttr: "data-tasks-panel",
-                renderContent: (tab) =>
-                    tab.component ? tab.component(worldIndex) : createComingSoonPlaceholder(tab.label),
-            })
-        )
-    );
-};
-
 const TasksTab = () => {
-    const activeWorld = van.state(WORLD_TABS[0].id);
-
+    const section = pageSection("account.taskboard", SECTIONS[0].id);
+    const world = van.state(0);
+    // One pane per part and world, each built the first time it shows.
+    const panes = SECTIONS.flatMap((part) =>
+        Array.from({ length: WORLD_COUNT }, (_, worldIndex) => ({ id: `${part.id}:${worldIndex}`, part, worldIndex }))
+    );
     return div(
         { class: "world-tab" },
-        renderTabNav({
-            tabs: WORLD_TABS,
-            activeId: activeWorld,
-            navClass: "world-sub-nav",
-            buttonClass: (tab) => `account-world-sub-tab-btn w${tab.worldIndex + 1}-world-tab`,
-            getButtonProps: (tab) => ({ title: `World ${tab.worldIndex + 1}` }),
-        }),
         div(
             { class: "world-sub-content" },
             ...renderLazyPanes({
-                tabs: WORLD_TABS,
-                activeId: activeWorld,
+                tabs: panes,
+                activeId: van.derive(() => `${section.val}:${world.val}`),
                 paneClass: "world-sub-pane",
-                dataAttr: "data-tasks-world",
-                renderContent: (tab) => WorldTasksPanel({ worldIndex: tab.worldIndex }),
+                dataAttr: "data-tasks-pane",
+                renderContent: ({ part, worldIndex }) => part.component({ worldIndex, toolbar: WorldPick(world) }),
             })
         )
     );
@@ -457,7 +436,9 @@ export default definePage({
     id: "account.taskboard",
     world: "account",
     system: "Task Board",
-    description: "Tasks, achievements and merit shop purchases, one tab per world.",
+    description: "Tasks, achievements and merit shop purchases, for each world.",
     keywords: ["Tasks", "Achievements", "Merits", "Merit Shop"],
+    sections: SECTIONS.map(({ id, label: name }) => ({ id, label: name })),
+    sectionMode: "switch",
     component: TasksTab,
 });

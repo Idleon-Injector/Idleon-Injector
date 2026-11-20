@@ -416,20 +416,20 @@ const EmperorTab = () => {
                   : "";
             return `Next showdown ${current.progress + 1}: base reward ${rewardText(current.metadata.descriptions[index], current.metadata.amounts[index])}.${note}`;
         }),
-        AccountSection({ title: "BASE REWARDS", note: "Before external modifiers", body: rewardList })
+        AccountSection({ title: "Base rewards", note: "Before external modifiers", body: rewardList })
     );
     const refreshButton = RefreshButton({ onRefresh: load, disabled: isBusy });
     refreshButton.onmousedown = (event) => event.preventDefault();
     load();
     return PersistentAccountListPage({
         rootClass: "emperor-tab tab-container",
-        title: "EMPEROR",
+        title: "Emperor",
         description:
             "Edit account progress and stored entries directly, including before fight entry unlocks. No fight loot is granted. Existing entries above natural capacity are preserved. New entry edits must stay within natural capacity.",
         actions: refreshButton,
         state: { loading, error },
-        loadingText: "READING EMPEROR",
-        errorTitle: "EMPEROR READ FAILED",
+        loadingText: "Reading Emperor",
+        errorTitle: "Emperor read failed",
         body,
     });
 };

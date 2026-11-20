@@ -3,24 +3,201 @@
  * Sidebar groups (worlds and areas), the menu search above every view, Home, and the narrow overlay.
  */
 
-/* --- SIDEBAR GROUPS --- */
+/* --- SIDEBAR GROUPS: one menu that drills down --- */
+/* The middle takes the room between the logo and the bottom block, so the bottom block never moves when a list is
+   longer or shorter; a list longer than the room scrolls inside it, under its pinned head. */
 .menu-nav {
-    flex: 0 1 auto;
+    position: relative;
+    flex: 1 1 0;
     min-height: 0;
-    gap: 2px;
     margin: 0 -4px;
     padding: 0 4px;
+    overflow-x: hidden;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--c-border) transparent;
+    scrollbar-color: var(--c-scrollbar-thumb) transparent;
 }
 
+/* Capitals live in the sidebar only: its rows are typed in normal case and shown in capitals here. */
 .menu-nav-btn {
     flex-shrink: 0;
     gap: 10px;
     padding: 7px 12px;
-    font-size: 0.9rem;
+    font-size: var(--text-nav);
+    text-transform: uppercase;
     white-space: nowrap;
+}
+
+.menu-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* A list sliding out lies over the new one until it has gone. */
+.menu-panel.is-leaving {
+    position: absolute;
+    top: 0;
+    left: 4px;
+    right: 4px;
+    pointer-events: none;
+}
+
+.menu-panel--enter-fwd {
+    animation: menu-in-fwd 200ms var(--ease-out) both;
+}
+
+.menu-panel--enter-back {
+    animation: menu-in-back 200ms var(--ease-out) both;
+}
+
+/* The old list fades before the new one shows, so the two never read on top of each other mid-slide. */
+.menu-panel--leave-fwd {
+    animation: menu-out-fwd 120ms var(--ease-out) forwards;
+}
+
+.menu-panel--leave-back {
+    animation: menu-out-back 120ms var(--ease-out) forwards;
+}
+
+@keyframes menu-in-fwd {
+    from {
+        opacity: 0;
+        transform: translateX(48px);
+    }
+    40% {
+        opacity: 0;
+    }
+}
+
+@keyframes menu-in-back {
+    from {
+        opacity: 0;
+        transform: translateX(-48px);
+    }
+    40% {
+        opacity: 0;
+    }
+}
+
+@keyframes menu-out-fwd {
+    to {
+        opacity: 0;
+        transform: translateX(-48px);
+    }
+}
+
+@keyframes menu-out-back {
+    to {
+        opacity: 0;
+        transform: translateX(48px);
+    }
+}
+
+/* A row that opens a list shows a soft chevron when it is pointed at, focused, or where you are. */
+.menu-nav-more {
+    display: flex;
+    margin-left: auto;
+    color: var(--c-text-muted);
+    opacity: 0;
+    transition: opacity 0.16s var(--ease-out);
+}
+
+.menu-nav-more svg {
+    width: 16px;
+    height: 16px;
+}
+
+.tab-button.is-drill:hover .menu-nav-more,
+.tab-button.is-drill:focus-visible .menu-nav-more,
+.tab-button.is-drill.active .menu-nav-more {
+    opacity: 1;
+}
+
+.sidebar-collapsed .menu-nav-more {
+    display: none;
+}
+
+/* The way back, then where you are (the list's code and name, as it sits in the top list), pinned at the top. */
+.drill-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--c-sidebar-bg);
+}
+
+.menu-panel--level .drill-item {
+    scroll-margin-top: 96px;
+}
+
+.drill-back {
+    color: var(--c-text-muted);
+}
+
+.drill-title {
+    display: flex;
+    align-items: center;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--c-text-main);
+}
+
+/* A system's pages, or a page's sections: the page's own words in normal case, a step in and a step quieter. */
+.drill-item--sub {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    font-size: var(--text-small);
+    font-weight: 500;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--c-text-muted);
+}
+
+.drill-item--sub .tab-label {
+    padding-left: 12px;
+}
+
+.drill-item--depth2 .tab-label {
+    padding-left: 24px;
+}
+
+/* Only a system is filled; its open page or section is marked by its words alone. */
+.drill-item--sub.active,
+.drill-item--sub.active:hover {
+    background: transparent;
+    color: var(--c-accent);
+    font-weight: 600;
+}
+
+.drill-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.drill-group[hidden] {
+    display: none;
+}
+
+.drill-note {
+    padding: 7px 12px;
+    color: var(--c-text-muted);
+    font-size: var(--text-small);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .menu-panel--enter-fwd,
+    .menu-panel--enter-back {
+        animation: none;
+    }
+
+    .menu-panel.is-leaving {
+        display: none;
+    }
 }
 
 .menu-nav-code {
@@ -28,7 +205,7 @@
     align-items: center;
     min-width: 2.6em;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: var(--text-index);
     font-weight: 500;
     letter-spacing: 0;
     color: var(--world-color, var(--c-text-muted));
@@ -50,9 +227,10 @@
     background: var(--c-border);
 }
 
-.sidebar .active-cheats {
-    flex: 1 1 0;
+.sidebar:not(.sidebar-collapsed) .active-cheats {
+    flex: 0 0 auto;
     min-height: 56px;
+    max-height: 30vh;
 }
 
 .sidebar-collapsed .menu-nav-btn {
@@ -76,30 +254,41 @@
     height: 16px;
 }
 
-/* --- MENU SEARCH (above every view) --- */
+/* --- MENU SEARCH (above every view): one filled field, not a box in a box --- */
 .menu-top {
     position: relative;
     z-index: 1300;
     flex-shrink: 0;
-    padding: 0 30px;
+    padding: 0 var(--page-pad);
 }
 
 .menu-bar {
-    margin-bottom: 0;
+    position: relative;
+    max-width: var(--measure);
 }
 
+.menu-search-input {
+    height: var(--search-height);
+    padding-right: 72px;
+    font-family: var(--font-display);
+    font-size: var(--text-body);
+}
+
+.menu-search-input::placeholder {
+    color: var(--c-text-muted);
+}
+
+/* The key hint lies inside the field's right end. "Ctrl K" and the command box's "Enter" take the same room. */
 .menu-bar__kbd {
-    flex-shrink: 0;
-    padding: 2px 6px;
-    border: 1px solid var(--c-border);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-family: var(--font-display);
+    font-size: var(--text-small);
     color: var(--c-text-muted);
     white-space: nowrap;
-    /* "CTRL K" and the command box's "ENTER" take the same room, so the field doesn't jump. */
-    box-sizing: content-box;
-    min-width: 6ch;
-    text-align: center;
 }
 
 .menu-search-results {
@@ -110,9 +299,9 @@
     max-height: min(440px, 60vh);
     overflow-y: auto;
     padding: 6px;
-    background: var(--c-panel-98);
-    border: 1px solid var(--c-border);
-    box-shadow: 0 14px 28px var(--c-black-50);
+    border-radius: var(--radius-panel);
+    background: var(--c-void-soft);
+    box-shadow: 0 16px 40px var(--c-black-50);
 }
 
 .menu-search-result {
@@ -121,40 +310,38 @@
     align-items: flex-start;
     gap: 1px;
     width: 100%;
-    padding: 6px 8px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: var(--radius-item);
     background: transparent;
-    border: 1px solid transparent;
     color: var(--c-text-main);
     text-align: left;
-    text-transform: none;
-    letter-spacing: 0.01em;
 }
 
 .menu-search-result.is-hi {
-    background: var(--c-accent-dim);
-    border-color: var(--c-accent-25);
+    background: var(--c-panel);
 }
 
 .menu-search-result__label {
-    font-size: 0.92rem;
+    font-size: var(--text-nav);
 }
 
 /* A cheat command or setting name, in the monospace the Active Cheats list gives commands. */
 .menu-search-result__label--command {
     font-family: var(--font-mono);
-    font-size: 0.875rem;
+    font-size: var(--text-small);
 }
 
 .menu-search-result__matched {
     margin-left: 8px;
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: var(--text-tiny);
     font-weight: 500;
     color: var(--c-text-muted);
 }
 
 .menu-search-result__where {
-    font-size: 0.8rem;
+    font-size: var(--text-index);
     font-weight: 500;
     color: var(--c-text-muted);
 }
@@ -166,13 +353,11 @@
 
 .menu-bar.is-command .menu-search-input {
     border-color: var(--c-accent-40);
-    background: var(--c-accent-06);
     color: var(--c-accent-hover);
     caret-color: var(--c-accent);
 }
 
 .menu-bar.is-command .menu-bar__kbd {
-    border-color: var(--c-accent-40);
     color: var(--c-accent);
 }
 
@@ -181,8 +366,7 @@
     color: var(--c-danger);
 }
 
-.menu-bar.is-armed .menu-search-input,
-.menu-bar.is-armed .menu-bar__kbd {
+.menu-bar.is-armed .menu-search-input {
     border-color: var(--c-danger);
 }
 
@@ -194,134 +378,97 @@
 }
 
 .menu-command-hint__warning {
-    font-size: 0.8rem;
+    font-size: var(--text-index);
     font-weight: 600;
     color: var(--c-danger);
 }
 
 .menu-search-none {
     padding: 14px 8px;
-    font-size: 0.9rem;
-    font-style: italic;
+    font-size: var(--text-nav);
     color: var(--c-text-muted);
 }
 
-.menu-area-tabs {
-    margin-top: 16px;
-    background: transparent;
-    position: static;
-}
-
-.menu-area-tabs[hidden] {
-    display: none;
-}
-
-#tab-content > .tab-pane:not(.drawer-open) {
-    padding-top: 16px;
-}
-
-/* --- PAGES VIEW --- */
-.menu-system-nav {
-    position: static;
-}
-
-/* --- HOME --- */
+/* --- HOME: a contents page. Each world is a heading with its systems as plain words under it. --- */
 .menu-home {
+    display: block;
+    padding-bottom: 48px;
+}
+
+.home-body {
+    max-width: var(--measure);
+}
+
+.home-contents {
+    column-count: 2;
+    column-gap: 40px;
+    padding-top: 14px;
+}
+
+.home-world {
+    break-inside: avoid;
+    padding: 18px 0 14px;
+}
+
+.home-world__title {
     display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding-right: 4px;
-}
-
-.menu-world-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
-    gap: 8px;
-}
-
-.menu-world-tile {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    transition: border-color 0.2s var(--ease-tech);
-}
-
-.menu-world-tile:hover,
-.menu-world-tile:focus-within {
-    border-color: var(--world-color, var(--c-accent-25));
-}
-
-.menu-world-tile__head {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 10px;
     align-items: baseline;
-    width: 100%;
-    padding: 10px 12px 8px;
-    background: transparent;
-    border: 0;
+    gap: 10px;
+    margin: 0;
+    padding: 4px 12px;
+    font-family: var(--font-display);
+}
+
+.home-world__label {
+    font-size: var(--text-heading);
+    font-weight: var(--weight-heading);
     color: var(--c-text-main);
-    text-align: left;
 }
 
-.menu-world-tile__code {
-    grid-row: span 2;
-    min-width: 2.6em;
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
+.home-world__name {
+    font-size: var(--text-small);
     font-weight: 500;
-    letter-spacing: 0;
-    color: var(--world-color, var(--c-accent));
+    color: var(--c-text-faint);
 }
 
-.menu-world-tile__label {
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-}
-
-.menu-world-tile__name {
-    font-size: 0.8rem;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    text-transform: none;
-    color: var(--c-text-muted);
-}
-
-.menu-world-tile__head:hover .menu-world-tile__label {
-    color: var(--world-color, var(--c-accent));
-}
-
-.menu-world-tile__systems {
+.home-world__systems {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
-    padding: 0 12px 12px calc(12px + 2.6em + 10px);
+    gap: 0 2px;
+    padding-top: 4px;
 }
 
-.menu-world-tile__system {
-    padding: 3px 9px;
-    background: var(--c-panel-dim);
-    border: 1px solid var(--c-border);
-    color: var(--c-text-dim);
-    font-size: 0.8rem;
-    letter-spacing: 0.04em;
+.home-world__system {
+    padding: 4px 10px 4px 12px;
+    border: 0;
+    border-radius: var(--radius-item);
+    background: transparent;
+    font-family: var(--font-display);
+    font-size: var(--text-body);
+    font-weight: 500;
+    color: var(--c-text-muted);
+    cursor: pointer;
+    transition:
+        background 0.16s var(--ease-out),
+        color 0.16s var(--ease-out);
 }
 
-.menu-world-tile__system:hover {
-    color: var(--world-color, var(--c-accent));
-    border-color: var(--world-color, var(--c-accent));
+.home-world__system:hover {
+    color: var(--c-text-main);
+    background: var(--c-lift);
 }
 
-.menu-world-tile.is-unmoved .menu-world-tile__head {
-    opacity: 0.7;
+.home-world__system:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
 }
 
-.menu-world-tile.is-unmoved:hover .menu-world-tile__head,
-.menu-world-tile.is-unmoved:focus-within .menu-world-tile__head {
-    opacity: 1;
+.home-world.is-unmoved .home-world__label {
+    color: var(--c-text-muted);
+}
+
+.menu-home-cheats {
+    padding: 0 12px;
 }
 
 .menu-home-cheats__list {
@@ -331,15 +478,14 @@
 }
 
 .menu-home-cheats .active-cheat-item {
-    color: var(--c-text-main);
-    padding: 4px 8px;
-    background: var(--c-accent-dim);
+    padding: 4px 10px;
     border: 0;
-    border-radius: 0;
+    border-radius: var(--radius-item);
+    background: var(--c-field);
+    color: var(--c-text-main);
     font-family: var(--font-mono);
+    font-size: var(--text-small);
     font-weight: 400;
-    letter-spacing: 0;
-    text-transform: none;
 }
 
 .menu-home-cheats__empty {
@@ -349,73 +495,139 @@
     gap: 12px;
 }
 
+/* --- A PAGE'S SECTIONS as headings on one long page (definePage `sections`) --- */
+.page-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.page-section__title {
+    align-self: flex-start;
+    margin: 0;
+    padding: 30px 12px 8px;
+    font-family: var(--font-display);
+    font-size: var(--text-heading);
+    font-weight: var(--weight-heading);
+    line-height: 1.2;
+    color: var(--c-text-main);
+    scroll-margin-top: 8px;
+}
+
+.page-section:first-child > .page-section__title {
+    padding-top: 14px;
+}
+
+.page-section__title:focus {
+    outline: none;
+}
+
+.page-section__title:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+    border-radius: 6px;
+}
+
+/* --- THE RAIL'S LIST: in the icon rail a world's list opens from one line above the page --- */
+.syslist-bar:not([hidden]) {
+    position: relative;
+    display: block;
+    max-width: var(--measure);
+    margin-top: 10px;
+}
+
+.syslist-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: var(--search-height);
+    padding: 6px 12px;
+    border: 0;
+    border-radius: var(--radius-field);
+    background: var(--c-lift);
+    color: var(--c-text-main);
+    font-family: var(--font-display);
+    font-size: var(--text-body);
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.syslist-toggle:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+
+.syslist-toggle__words {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.syslist-toggle__world {
+    font-weight: 500;
+    color: var(--c-text-faint);
+}
+
+.syslist-toggle__chev {
+    display: flex;
+    color: var(--c-text-muted);
+    transition: transform 0.16s var(--ease-out);
+}
+
+.syslist-toggle__chev svg {
+    width: 18px;
+    height: 18px;
+}
+
+.syslist-toggle__chev.is-open {
+    transform: rotate(180deg);
+}
+
+.syslist-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 30;
+    max-height: 62vh;
+    overflow-y: auto;
+    padding: 8px 6px;
+    border-radius: var(--radius-panel);
+    background: var(--c-void-soft);
+    box-shadow: 0 16px 40px var(--c-black-50);
+}
+
+.syslist-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.syslist-panel .menu-nav-code {
+    display: none;
+}
+
 /* --- NARROW: the in-game overlay --- */
 @media (max-width: 760px) {
     .sidebar-toggle {
         display: none;
     }
 
-    .menu-top {
-        padding: 0 12px;
-    }
-
-    .menu-bar {
-        padding: 8px;
+    .home-contents {
+        column-count: 1;
     }
 
     .menu-bar__kbd {
         display: none;
     }
 
-    #tab-content > .tab-pane:not(.drawer-open) {
-        padding: 12px;
-    }
-
-    /* Tabs scroll sideways instead of stacking into a tall wall. */
-    .account-sub-nav {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scrollbar-width: thin;
-        scrollbar-color: var(--c-border) transparent;
-    }
-
-    .account-sub-nav::-webkit-scrollbar {
-        height: 4px;
-    }
-
-    .account-sub-nav::-webkit-scrollbar-thumb {
-        background: var(--c-border);
-    }
-
-    /* No overlap below the row: a scrolling row would otherwise shift 1px when a tab takes focus. */
-    .account-sub-tab-btn {
-        flex-shrink: 0;
-        bottom: 0;
-        white-space: nowrap;
-    }
-
-    /* Home's worlds become one-line rows, so the active cheats stay in view. */
-    .menu-world-grid {
-        gap: 6px;
-    }
-
-    .menu-world-tile__head {
-        grid-template-columns: auto auto minmax(0, 1fr);
-        padding: 8px 10px;
-    }
-
-    .menu-world-tile__code {
-        grid-row: auto;
-    }
-
-    .menu-world-tile__name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .menu-world-tile__systems {
-        padding-left: 12px;
+    .menu-search-input {
+        padding-right: 12px;
     }
 }

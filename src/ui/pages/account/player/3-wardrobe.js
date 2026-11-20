@@ -474,7 +474,7 @@ const WardrobePage = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "WARDROBE",
+        title: "Wardrobe",
         description:
             "Loadouts of gear, tools, food, cards, prayers, lab chips and obols for the character in play. Applying one replaces those items; Undo puts them back.",
         wrapActions: false,
@@ -498,8 +498,8 @@ const WardrobePage = () => {
         }),
         topNotices: Said({ said: perfectSaid.said, className: "said--line" }),
         state: { loading, error },
-        loadingText: "READING THE WARDROBE",
-        errorTitle: "WARDROBE READ FAILED",
+        loadingText: "Reading the wardrobe",
+        errorTitle: "Wardrobe read failed",
         body: div(
             { class: "scrollable-panel content-stack" },
             div(
@@ -509,7 +509,7 @@ const WardrobePage = () => {
                         preview.val ? `${preview.val.name} on ${preview.val.character}` : "Loadout",
                 },
                 AccountSection({
-                    title: "LOADOUT",
+                    title: "Loadout",
                     note: loadoutNote,
                     body: [
                         div(
@@ -546,7 +546,7 @@ const WardrobePage = () => {
                 })
             ),
             AccountSection({
-                title: "SAVE CURRENT",
+                title: "Save current",
                 note: () =>
                     status.val ? `What ${status.val.character} wears and uses now, as a loadout of your own.` : "",
                 body: [

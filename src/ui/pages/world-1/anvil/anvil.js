@@ -100,7 +100,7 @@ const AnvilTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "ANVIL",
+        title: "Anvil",
         description: "Manage point allocation for Bonus Exp, Speed/hr, and Capacity",
         actions: RefreshButton({
             onRefresh: load,
@@ -111,8 +111,8 @@ const AnvilTab = () => {
             "Open the Anvil in-game or points won't update properly."
         ),
         state: { loading, error },
-        loadingText: "READING ANVIL",
-        errorTitle: "ANVIL READ FAILED",
+        loadingText: "Reading anvil",
+        errorTitle: "Anvil read failed",
         initialWrapperClass: "account-list",
         body,
     });

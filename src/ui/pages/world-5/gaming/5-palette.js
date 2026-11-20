@@ -66,9 +66,9 @@ export const PaletteStarButton = ({ stars, entry }) =>
     ActionButton({
         label: () => {
             const count = stars.values.val[entry.index] ?? 0;
-            if (stars.lastIndex.val === entry.index && stars.status.val === "loading") return "SAVING...";
-            if (stars.lastIndex.val === entry.index && stars.status.val === "success") return "SAVED";
-            if (stars.lastIndex.val === entry.index && stars.status.val === "error") return "FAILED";
+            if (stars.lastIndex.val === entry.index && stars.status.val === "loading") return "Saving...";
+            if (stars.lastIndex.val === entry.index && stars.status.val === "success") return "Saved";
+            if (stars.lastIndex.val === entry.index && stars.status.val === "error") return "Failed";
             return `${count} ★ · ${[1, 2, 4][count]}×`;
         },
         variant: "switch-filled",
@@ -165,22 +165,22 @@ const PaletteTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "PALETTE",
-            note: () => `${entries.val.length} COLORS · LEVELS & BLACK STARS`,
+            title: "Palette",
+            note: () => `${entries.val.length} colors · levels & black stars`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "PALETTE",
+        title: "Palette",
         description: "Edit Gaming Palette levels and Black Stars. Names and colors come from GamingPalette.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val || stars.status.val === "loading",
         }),
         state: { loading, error },
-        loadingText: "READING GAMING PALETTE",
-        errorTitle: "GAMING PALETTE READ FAILED",
+        loadingText: "Reading gaming palette",
+        errorTitle: "Gaming palette read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

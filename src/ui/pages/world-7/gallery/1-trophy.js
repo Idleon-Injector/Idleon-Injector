@@ -241,9 +241,9 @@ const TrophyTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AddFromListSection({
-            title: "ADD TROPHY",
-            note: () => `${addableCount.val}/${eligibleCount.val} TROPHIES AVAILABLE`,
-            selectLabel: "SELECT TROPHY",
+            title: "Add trophy",
+            note: () => `${addableCount.val}/${eligibleCount.val} trophies available`,
+            selectLabel: "Select trophy",
             selectedValue: selectedAddItemId,
             options: missingOptions,
             emptyOptionLabel: () =>
@@ -261,8 +261,8 @@ const TrophyTab = () => {
             onAddAll: addAllAvailable,
         }),
         AccountSection({
-            title: "CURRENT SLOTS",
-            note: () => `${ownedCount.val} OWNED, ${emptyCount.val} EMPTY, ${slotCount.val} TOTAL SLOTS`,
+            title: "Current slots",
+            note: () => `${ownedCount.val} owned, ${emptyCount.val} empty, ${slotCount.val} total slots`,
             body: () => {
                 const rows = visibleSlotRows.val;
                 return rows.length === 0
@@ -285,7 +285,7 @@ const TrophyTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "TROPHIES",
+        title: "Trophies",
         description:
             "Edit W7 gallery trophy slots from Spelunk[16]. Empty slots stay in place and new trophies fill the first available slot.",
         actions: RefreshButton({
@@ -296,8 +296,8 @@ const TrophyTab = () => {
             disabled: () => loading.val || mutating.val,
         }),
         state: { loading, error },
-        loadingText: "READING TROPHIES",
-        errorTitle: "TROPHY READ FAILED",
+        loadingText: "Reading trophies",
+        errorTitle: "Trophy read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

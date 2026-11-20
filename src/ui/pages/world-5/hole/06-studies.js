@@ -66,18 +66,18 @@ const StudiesTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "STUDIES",
+        title: "Studies",
         description: "Edit Studies villager levels from Holes[26].",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HOLE STUDIES",
-        errorTitle: "HOLE STUDIES READ FAILED",
+        loadingText: "Reading hole studies",
+        errorTitle: "Hole studies read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             ...STUDY_SECTIONS.map((title, sectionIndex) =>
                 AccountSection({
-                    title: title.toUpperCase(),
+                    title,
                     note: () => `${sectionEntries.get(sectionIndex).val.length} ROWS`,
                     body: sectionNodes.get(sectionIndex),
                 })

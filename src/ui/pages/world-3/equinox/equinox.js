@@ -71,7 +71,7 @@ const EquinoxBar = ({ barFillState, barFillReqState, barFillRateState, fillBarSt
         { class: "equinox-overview" },
         div(
             { class: "equinox-overview__row" },
-            span({ class: "equinox-overview__label" }, "DREAM BAR"),
+            span({ class: "equinox-overview__label" }, "Dream bar"),
             span(
                 { class: "equinox-overview__value" },
                 () => `${fmtInt(barFillState.val)} / ${fmtInt(barFillReqState.val)}`
@@ -321,12 +321,12 @@ const EquinoxTab = () => {
         { class: "equinox-content" },
         EquinoxBar({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }),
         AccountSection({
-            title: "CLOUDS",
+            title: "Clouds",
             note: "You will have to claim rewards in-game. You can only set progress here.",
             meta: SectionCount({
                 countState: cloudCountState,
-                activeSuffix: "ACTIVE",
-                emptySuffix: "NONE VISIBLE",
+                activeSuffix: "Active",
+                emptySuffix: "None visible",
             }),
             body: [
                 WarningBanner(
@@ -336,11 +336,11 @@ const EquinoxTab = () => {
             ],
         }),
         AccountSection({
-            title: "UPGRADES",
+            title: "Upgrades",
             meta: SectionCount({
                 countState: upgradeCountState,
-                activeSuffix: "UNLOCKED",
-                emptySuffix: "NONE UNLOCKED",
+                activeSuffix: "Unlocked",
+                emptySuffix: "None unlocked",
             }),
             body: upgradeRowsNode,
         })
@@ -348,7 +348,7 @@ const EquinoxTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "EQUINOX",
+        title: "Equinox",
         description: "Dream bar fill, active clouds, and upgrade levels.",
         actions: RefreshButton({
             onRefresh: load,
@@ -356,8 +356,8 @@ const EquinoxTab = () => {
             tooltip: "Re-read Equinox values from game memory",
         }),
         state: { loading, error },
-        loadingText: "READING EQUINOX",
-        errorTitle: "EQUINOX READ FAILED",
+        loadingText: "Reading Equinox",
+        errorTitle: "Equinox read failed",
         body: content,
     });
 };

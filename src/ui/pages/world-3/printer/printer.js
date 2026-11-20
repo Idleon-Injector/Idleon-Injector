@@ -450,14 +450,14 @@ const PrinterTab = () => {
                 "data-printer-character": name,
             },
             AccountSection({
-                title: "ACTIVE PRINTS",
+                title: "Active prints",
                 body: div(
                     { class: "account-item-stack" },
                     ...[0, 1].map((slot) => renderSlot(rows.get(`${character}:print:${slot}`), name))
                 ),
             }),
             AccountSection({
-                title: "SAVED SAMPLES",
+                title: "Saved samples",
                 body: div(
                     { class: "account-item-stack" },
                     ...Array.from({ length: 10 }, (_, slot) =>
@@ -509,12 +509,12 @@ const PrinterTab = () => {
     load();
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "PRINTER",
+        title: "Printer",
         description: "Edit stored samples and active prints independently.",
         actions: RefreshButton({ onRefresh: load, disabled: isBusy }),
         state: { loading, error },
-        loadingText: "READING PRINTER",
-        errorTitle: "PRINTER READ FAILED",
+        loadingText: "Reading printer",
+        errorTitle: "Printer read failed",
         initialWrapperClass: "scrollable-panel",
         body: div({ class: "scrollable-panel content-stack" }, characterSelector.node, panelsNode),
     });

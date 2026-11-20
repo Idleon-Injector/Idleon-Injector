@@ -84,6 +84,61 @@ test("definePage refuses declarations the menu can't place", () => {
     assert.equal(definePage({ ...ok, id: "account.player", world: "account", system: "Player" }).world, "account");
 });
 
+test("definePage checks a page's sections, which the sidebar lists under it", () => {
+    const ok = { id: "w7.button", world: 7, system: "The Button", description: "x", component: noop };
+    const two = [
+        { id: "combat", label: "Combat" },
+        { id: "w2-misc", label: "Misc" },
+    ];
+    assert.deepEqual(definePage({ ...ok, sections: two }).sections, two);
+    assert.equal(definePage({ ...ok, sections: two, sectionMode: "switch" }).sectionMode, "switch");
+    assert.equal(definePage({ ...ok, sections: two, sectionMode: "headings" }).sectionMode, "headings");
+    assert.throws(() => definePage({ ...ok, sections: "Combat" }), /at least two sections/);
+    assert.throws(() => definePage({ ...ok, sections: [two[0]] }), /at least two sections/);
+    assert.throws(() => definePage({ ...ok, sections: [two[0], { id: "Misc", label: "Misc" }] }), /lowercase/);
+    assert.throws(() => definePage({ ...ok, sections: [two[0], { label: "Misc" }] }), /lowercase/);
+    assert.throws(
+        () => definePage({ ...ok, sections: [two[0], { id: "combat", label: "Again" }] }),
+        /two sections use the id "combat"/
+    );
+    assert.throws(() => definePage({ ...ok, sections: [two[0], { id: "misc", label: " " }] }), /needs a label/);
+    assert.throws(() => definePage({ ...ok, sectionMode: "switch" }), /needs sections/);
+    assert.throws(() => definePage({ ...ok, sections: two, sectionMode: "tabs" }), /"headings" or "switch"/);
+});
+
+test("every page that had inner tabs lists them as sections, so the sidebar reaches each one", async () => {
+    const pages = [
+        ["world-1/stamps/stamps.js", ["Combat", "Skills", "Misc"], undefined],
+        [
+            "world-3/death-note/death-note.js",
+            ["Minibosses", "World 1", "World 2", "World 3", "World 4", "World 5", "World 6", "World 7"],
+            "switch",
+        ],
+        [
+            "account/automation/2-shops.js",
+            ["World 1", "World 2", "World 3", "World 4", "World 5", "World 6", "World 7"],
+            "switch",
+        ],
+        ["account/task-board/tasks.js", ["Tasks", "Achievements", "Merit Shop"], "switch"],
+        [
+            "classes/tesseract/2-map-bonuses.js",
+            ["All worlds", "World 1", "World 2", "World 3", "World 4", "World 5", "World 6", "World 7"],
+            "switch",
+        ],
+        ["world-7/jelly-operator/jelly-operator.js", ["Upgrades", "Cells"], "switch"],
+        ["world-7/menagerie/menagerie.js", ["Overview", "Unlocks", "Boosts", "Missions", "Side Jellies"], "switch"],
+    ];
+    for (const [file, labels, mode] of pages) {
+        const page = (await import(pathToFileURL(join(PAGES_DIR, file)).href)).default;
+        assert.deepEqual(
+            page.sections.map((section) => section.label),
+            labels,
+            file
+        );
+        assert.equal(page.sectionMode, mode, file);
+    }
+});
+
 const page = (id, world, system, extra = {}) =>
     definePage({ id, world, system, description: `${system} page`, component: noop, ...extra });
 

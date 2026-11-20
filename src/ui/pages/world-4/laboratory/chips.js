@@ -169,27 +169,27 @@ const ChipsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "CHIPS",
-            note: () => `${chipEntries.val.length} CHIP AMOUNTS FROM Lab[15]`,
+            title: "Chips",
+            note: () => `${chipEntries.val.length} chip amounts from Lab[15]`,
             body: chipRows,
         }),
         AccountSection({
-            title: "PLAYER CHIPS",
+            title: "Player chips",
             note: "Lab[1-10], seven equipped chip ids per player",
             body: playerChipRows,
         })
     );
 
     return PersistentAccountListPage({
-        title: "LAB CHIPS",
+        title: "Lab chips",
         description: "Edit W4 Lab chip amounts and equipped player chip ids.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING LAB CHIPS",
-        errorTitle: "LAB CHIP READ FAILED",
+        loadingText: "Reading lab chips",
+        errorTitle: "Lab chip read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

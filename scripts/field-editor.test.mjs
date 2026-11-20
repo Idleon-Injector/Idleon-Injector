@@ -232,7 +232,7 @@ test("a focused choice shows the tier Set all gave it", async () => {
     tiers[1] = 0;
     const root = (await importRepo("src/ui/pages/world-2/sigils/sigils.js")).default.component();
     const card = () => byClass(root, "tier-card").find((node) => text(byClass(node, "tier-card__index")[0]) === "#0");
-    await until(() => card() && text(byClass(card(), "tier-card__badge")[0]) === "UNLOCKED", "the sigils to load");
+    await until(() => card() && text(byClass(card(), "tier-card__badge")[0]) === "Unlocked", "the sigils to load");
     const choice = elements(card()).find((node) => node.nodeName === "select");
     const chosen = () => {
         const picked = elements(choice).find((node) => {
@@ -246,7 +246,7 @@ test("a focused choice shows the tier Set all gave it", async () => {
     const setAll = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Set all");
     await setAll.listeners.click({ target: setAll, preventDefault() {} });
     await until(() => tiers[1] === 4, "Set all to save");
-    await until(() => chosen() === "ECLECTIC", "the focused choice to show ECLECTIC");
+    await until(() => chosen() === "Eclectic", "the focused choice to show ECLECTIC");
 });
 
 // A field that shows a rounded value ("1.23M") keeps the exact value behind it when you leave it unedited, also when

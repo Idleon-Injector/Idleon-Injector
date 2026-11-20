@@ -239,9 +239,9 @@ const HatRackTab = () => {
         },
 
         AddFromListSection({
-            title: "ADD ELIGIBLE HAT",
-            note: () => `${missingCount.val} AVAILABLE TO ADD`,
-            selectLabel: "SELECT HAT",
+            title: "Add eligible hat",
+            note: () => `${missingCount.val} available to add`,
+            selectLabel: "Select hat",
             selectedValue: selectedAddItemId,
             options: missingOptions,
             emptyOptionLabel: "No eligible hats left to add",
@@ -256,7 +256,7 @@ const HatRackTab = () => {
         }),
 
         AccountSection({
-            title: "ON RACK",
+            title: "On rack",
             note: () => `${rackCount.val} ON RACK, ${onRackCount.val}/${eligibleCount.val} TOTAL`,
             body: () => div({ class: "hat-rack-rows" }, ...keptRows(rackRows.val)),
         })
@@ -264,7 +264,7 @@ const HatRackTab = () => {
     scrollEl = body;
 
     return PersistentAccountListPage({
-        title: "HAT RACK",
+        title: "Hat Rack",
         description:
             "Manage Hat rack entries. Remove any rack hat, or add eligible premium helmets. Rack changes also sync Slab history (Cards[1]).",
         actions: RefreshButton({
@@ -275,8 +275,8 @@ const HatRackTab = () => {
             disabled: () => loading.val || mutating.val,
         }),
         state: { loading, error },
-        loadingText: "READING HAT RACK",
-        errorTitle: "HAT RACK READ FAILED",
+        loadingText: "Reading Hat Rack",
+        errorTitle: "Hat Rack read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

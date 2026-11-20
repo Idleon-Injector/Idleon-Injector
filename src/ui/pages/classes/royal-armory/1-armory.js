@@ -26,12 +26,12 @@ const getDisplayShelf = (upgrade) => Number(upgrade.index) + 1;
 
 const RoyalArmoryTab = () =>
     MasterclassUpgradeTab({
-        title: "ROYAL ARMORY",
+        title: "Royal Armory",
         description: "Manage Royal Guard Royal Armory upgrades.",
         levelsPath: "RoyalG[2]",
         definitionPaths: ["ArmoryUpg"],
         orderPath: "Research[43]",
-        currencyTitle: "ROYAL RESOURCES",
+        currencyTitle: "Royal resources",
         currencyTabs: ROYAL_ARMORY_RESOURCE_TABS,
         fallbackPrefix: "Royal Armory Upgrade",
         onUpgradeChanged: ({ upgrade }) =>

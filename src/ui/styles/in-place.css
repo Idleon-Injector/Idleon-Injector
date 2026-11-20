@@ -427,8 +427,6 @@ button[data-again]::after {
     color: var(--c-warning);
     font-size: 0.8rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .status-details__cheats {

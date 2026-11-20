@@ -127,7 +127,7 @@ const MineheadTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "MINEHEAD STATS",
+            title: "Minehead stats",
             note: "Research[7]",
             body: div(
                 { class: "account-item-stack" },
@@ -140,7 +140,7 @@ const MineheadTab = () => {
             ),
         }),
         AccountSection({
-            title: "MINEHEAD UPGRADES",
+            title: "Minehead upgrades",
             note: () =>
                 `${upgradeEntries.val.length} UPGRADES · ${doublers.selected.val.length}/${doublers.capacity.val} DOUBLED`,
             body: upgradeListNode,
@@ -148,15 +148,15 @@ const MineheadTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "MINEHEAD",
+        title: "Minehead",
         description: "Set Minehead stats and upgrade levels, and choose which upgrades are doubled.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING MINEHEAD",
-        errorTitle: "MINEHEAD READ FAILED",
+        loadingText: "Reading Minehead",
+        errorTitle: "Minehead read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

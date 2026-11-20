@@ -84,7 +84,7 @@ const OverviewPage = () => {
     whenShown(PAGE_ID, load);
 
     return PersistentAccountListPage({
-        title: "AUTOMATION",
+        title: "Automation",
         description:
             "Everything the injector buys for you, with the game's own prices and currency. A switch turns an automation on now and at every start; its own tab picks what it buys.",
         actions: BulkActionBar({
@@ -110,12 +110,12 @@ const OverviewPage = () => {
         // Above the body, so it shows during the first load too.
         topNotices: Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
         state: { loading, error },
-        loadingText: "READING AUTOMATIONS",
-        errorTitle: "AUTOMATION READ FAILED",
+        loadingText: "Reading automations",
+        errorTitle: "Automation read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "AUTOMATIONS", body: rowsNode })
+            AccountSection({ title: "Automations", body: rowsNode })
         ),
     });
 };

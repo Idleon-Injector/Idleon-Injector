@@ -94,8 +94,6 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--c-text-muted);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
 }
 
 .section-actions {
@@ -120,8 +118,6 @@
     font-weight: 600;
     color: var(--c-text-main);
     margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 .keys-grid {
@@ -313,7 +309,6 @@
 
 .type-label {
     color: var(--c-text-muted);
-    text-transform: uppercase;
 }
 
 .type-value {
@@ -321,7 +316,6 @@
     padding: 0.1rem 0.4rem;
     border-radius: var(--radius-sm);
     background: var(--c-panel-hover);
-    text-transform: uppercase;
 }
 
 .type-value.type-string {
@@ -346,15 +340,12 @@
     font-size: 0.875rem;
     color: var(--c-text-muted);
     margin-left: auto;
-    text-transform: uppercase;
 }
 
 .results-scope-badge {
     margin-left: auto;
     font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--c-text-muted);
 }
 
@@ -675,7 +666,6 @@
     border-radius: var(--radius-sm);
     color: var(--c-text-muted);
     font-size: 0.8125rem;
-    text-transform: uppercase;
 }
 
 @media (max-width: 980px) {

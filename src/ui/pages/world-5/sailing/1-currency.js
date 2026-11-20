@@ -94,22 +94,22 @@ const CurrencyTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "SAILING CURRENCY",
-            note: () => `${entries.val.length} VALUES FROM Sailing[1]`,
+            title: "Sailing currency",
+            note: () => `${entries.val.length} values from Sailing[1]`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "CURRENCY",
+        title: "Currency",
         description: "Edit Sailing currencies from Sailing[1]. Treasure names are inferred from island order.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SAILING CURRENCY",
-        errorTitle: "SAILING CURRENCY READ FAILED",
+        loadingText: "Reading sailing currency",
+        errorTitle: "Sailing currency read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

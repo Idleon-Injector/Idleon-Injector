@@ -86,22 +86,22 @@ const JewelsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "JEWELS",
-            note: () => `${jewelEntries.val.length} JEWELS FROM Lab[14]`,
+            title: "Jewels",
+            note: () => `${jewelEntries.val.length} jewels from Lab[14]`,
             body: jewelRows,
         })
     );
 
     return PersistentAccountListPage({
-        title: "LAB JEWELS",
+        title: "Lab jewels",
         description: "Edit W4 Lab jewel unlock flags.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING LAB JEWELS",
-        errorTitle: "LAB JEWEL READ FAILED",
+        loadingText: "Reading lab jewels",
+        errorTitle: "Lab jewel read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

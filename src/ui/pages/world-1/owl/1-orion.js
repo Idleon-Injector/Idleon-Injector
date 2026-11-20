@@ -80,12 +80,12 @@ const OrionTab = () => {
     const rowList = div(
         { class: "account-list" },
         AccountSection({
-            title: "PERMANENT BONUSES",
+            title: "Permanent bonuses",
             note: "Edit with care",
             body: PINNED.map((field) => OrionRow({ field, fieldState: fieldStates.get(field.index), onWrite })),
         }),
         AccountSection({
-            title: "UPGRADES & STATS",
+            title: "Upgrades & stats",
             body: FIELDS.map((field) => OrionRow({ field, fieldState: fieldStates.get(field.index), onWrite })),
         })
     );
@@ -94,7 +94,7 @@ const OrionTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "ORION",
+        title: "Orion",
         description: "Manage Orion the Great Horned Owl - loads once, refreshes after each set",
         actions: RefreshButton({
             onRefresh: load,
@@ -110,8 +110,8 @@ const OrionTab = () => {
             " is permanent - keep between 30-40."
         ),
         state: { loading, error },
-        loadingText: "READING ORION",
-        errorTitle: "ORION READ FAILED",
+        loadingText: "Reading Orion",
+        errorTitle: "Orion read failed",
         initialWrapperClass: "account-list",
         body: rowList,
     });

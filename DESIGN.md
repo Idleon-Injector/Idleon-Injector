@@ -2,8 +2,9 @@
 
 The look the WebUI is heading for, agreed with the maintainer. So far it covers buttons and icons, decided on 2026-11-20
 over four rounds of a concept board and built across the whole menu, and the page layout (#26), chosen the same day from
-a live concept, and colour ("Dusk", picked from three concepts). The rest of the look (tabs, navigation, tags) waits
-for the later passes.
+a live concept, colour ("Dusk", picked from three concepts), and navigation: one menu that drills down, with no tab
+rows (chosen from live concepts the same day). The colours, type and surfaces are being redesigned now; the structure
+below stays.
 
 ## What it should feel like
 
@@ -147,8 +148,13 @@ switches, picking the first option each time.
 
 - **The top:** the title and its description on the left, the page's buttons on the right of the same row. When the
   buttons don't fit beside 26rem of description, they move to the line under it, still on the right, so the description
-  never becomes a thin column. Search and filters go on the line under the title (`toolbar` on the page wrapper);
-  inner tabs stay above the title. One thin rule runs under the whole top.
+  never becomes a thin column. Search and filters go on the line under the title (`toolbar` on the page wrapper).
+  There are no tab rows: a page's parts are entries in the sidebar (see Navigation).
+- **Normal case.** The page area is in normal case: titles, headings, buttons, loading and error words. Proper names and
+  game names keep the game's spelling (Star Signs, Pets+, Big Fish). Capitals live only in the sidebar's rows.
+- **Rows have no box.** No fill or outline on a row, a section or a number tag; the value field is the only filled shape
+  on a row. The row under the pointer or holding focus lifts a little and shows a dotted line from its name to its
+  value.
 - **Values show once.** A number lives in its field, and so does its cap: the field reads `2 / 15`, with `/ 15` muted
   and a step smaller after the value. The cap is never part of the typed text; Enter or leaving the field saves only
   the number, and a typed value over the cap is refused beside the field (`max 15`). A row with a cap but no field shows
@@ -158,8 +164,8 @@ switches, picking the first option each time.
   rises as it is levelled, so Stamps shows the level alone, with no note.
 - **A state is a plain word before the field:** Equipped, Locked, Complete, Owned, in normal case, muted, with no box
   and no colour of its own. It steps aside while the row is saving and while Undo shows there.
-- **Sections** are a plain heading in small muted capitals over a thin rule, with the rows straight under it. No box
-  inside the page box. The heading's row can carry the section's own controls (Set all) on the right.
+- **Sections** are a plain heading in normal case with space above it, the rows straight under it. No rule, no box.
+  The heading's row can carry the section's own controls (Set all) on the right.
 - **On/off is one switch** (`StateSwitch`) with the game's own word for the state beside it: Owned / Not owned,
   Unlocked / Locked, On / Off. It saves on flip; the row shows saving, the ✓ and Undo like any save, and the switch
   goes back if the game refuses. The words keep one width, so the switches in a list line up. A switch is reachable
@@ -170,3 +176,28 @@ switches, picking the first option each time.
 
 Not switches, on purpose: picks with a limit or an order (the 2× doublers, Organic labels, palette stars, the cape
 vine, prayer slots, bundle purchases) keep their buttons.
+
+## Navigation
+
+One menu, in the sidebar, and no tab rows anywhere. Players are casual and take a page in at a glance, so there is one
+place to find things.
+
+- **The top list** is Home, Account, the seven worlds, Classes, then Cheats, Settings, Advanced and History, each with
+  its code (the worlds' codes keep their colours).
+- **A world drills down.** Pressing a world (or Account, Classes, Advanced) slides the list over to that area's
+  systems, with a back row (Menu) and the area's name pinned on top. It only shows the list: the page on screen stays
+  until the player picks an entry, so switching around quickly never floods the page.
+- **Under a system** are its pages, or a page's sections. A section is either a heading on one long page (Stamps:
+  Combat, Skills, Misc; picking it scrolls there) or one part shown at a time (Death Note's worlds); `definePage`
+  declares them as `sections`, with `sectionMode: "switch"` for the second kind. A page with sections whose system has
+  several pages lists them under the page while it is open.
+- **Where you are** is marked only when the page on screen really is that entry. Back on the top list, the area of the
+  page on screen is marked.
+- **Search and links** open the page and show its area's list.
+- **Keyboard:** Tab moves through the list; Enter or Right opens an area's list with focus on its first entry; Escape
+  or Left goes back, with focus on the area again. Focus always shows.
+- **Long lists** scroll inside the sidebar under the pinned head, and keep the open entry in view. The logo above and
+  the active cheats, status and keys below never move.
+- **Motion:** the list slides in 200 ms; with reduced motion it swaps with no slide.
+- **Narrow overlay (400 px) and the collapsed sidebar:** the sidebar is a rail of codes. Pressing a world opens its
+  list from one line above the page ("World 1 · Stamps"), which also opens it later; picking an entry closes it.

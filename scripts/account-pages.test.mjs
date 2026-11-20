@@ -152,7 +152,7 @@ test("card search: a region Set all that would lower cards asks first, and lower
     const before = cardWrites();
     await press(setAll);
     assert.equal(setAll.attributes["data-again"], "Click again", "the first press asks");
-    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in BLUNDER HILLS W1 to tier 1.");
+    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in Blunder Hills W1 to tier 1.");
     assert.equal(cardWrites(), before, "nothing written");
 
     await press(setAll);
@@ -184,7 +184,7 @@ test("card search: changing the region's pick between the two presses asks again
     await press(setAll);
     pick(select, 1);
     await press(setAll);
-    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in BLUNDER HILLS W1 to tier 2.");
+    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in Blunder Hills W1 to tier 2.");
     assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "the new pick asked instead of running");
 
     await press(setAll);

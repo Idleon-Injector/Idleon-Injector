@@ -91,22 +91,22 @@ const CoralTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "CORAL LEVELS",
-            note: () => `${entriesState.val.length} IMPLEMENTED CORALS`,
+            title: "Coral levels",
+            note: () => `${entriesState.val.length} implemented corals`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "CORAL REEF",
+        title: "Coral Reef",
         description: "Set W7 Coral Reef levels from Spelunk[13]. Max levels include Menagerie upgrades.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING CORAL REEF",
-        errorTitle: "CORAL REEF READ FAILED",
+        loadingText: "Reading Coral Reef",
+        errorTitle: "Coral Reef read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

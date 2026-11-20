@@ -83,22 +83,22 @@ const GlimboTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "GLIMBO TRADE LEVELS",
-            note: () => `${entriesState.val.length} ITEM TRADES`,
+            title: "Glimbo trade levels",
+            note: () => `${entriesState.val.length} item trades`,
             body: listNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "GLIMBO",
+        title: "Glimbo",
         description: "Set W7 Glimbo trade levels from Research[12]. Item names come from Research[27] item IDs.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING GLIMBO",
-        errorTitle: "GLIMBO READ FAILED",
+        loadingText: "Reading Glimbo",
+        errorTitle: "Glimbo read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

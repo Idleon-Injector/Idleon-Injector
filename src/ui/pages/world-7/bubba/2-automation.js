@@ -105,20 +105,20 @@ const BubbaAutomationTab = () => {
     tab.load();
 
     return PersistentAccountListPage({
-        title: "AUTOMATION",
+        title: "Automation",
         description:
             "Switched-on upgrades are bought with meat once the run's gift is picked, and switching one on turns the Bubba automation on. It saves for the cheapest High or Low upgrade (an affordable High one goes first) and buys Balanced ones cheapest first. Buying stops at the stop-at level; leave it empty for no limit. Pats and charisma stay manual.",
         actions: BulkActionBar({ actions: bulk.actions(busy), refresh: { onClick: tab.load, disabled: busy } }),
         topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
         state: { loading: tab.loading, error: tab.error },
-        loadingText: "READING BUBBA",
-        errorTitle: "BUBBA READ FAILED",
+        loadingText: "Reading Bubba",
+        errorTitle: "Bubba read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "AUTOMATION", body: tab.switches }),
+            AccountSection({ title: "Automation", body: tab.switches }),
             AccountSection({
-                title: "MEAT",
+                title: "Meat",
                 meta: span({ class: "account-row__sub-label" }, () =>
                     data.val ? `${heldText(data.val.meat)} owned` : ""
                 ),
@@ -138,7 +138,7 @@ const BubbaAutomationTab = () => {
                     }),
                 ],
             }),
-            AccountSection({ title: "UPGRADES", body: listNode })
+            AccountSection({ title: "Upgrades", body: listNode })
         ),
     });
 };

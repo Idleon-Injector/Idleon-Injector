@@ -80,7 +80,7 @@ export const MenuSearch = () => {
     const field = input({
         type: "text",
         class: "menu-search-input",
-        placeholder: "SEARCH PAGES AND CHEATS",
+        placeholder: "Search pages and cheats",
         autocomplete: "off",
         spellcheck: "false",
         role: "combobox",
@@ -165,7 +165,7 @@ export const MenuSearch = () => {
 
     return div(
         {
-            class: () => `control-bar menu-bar${command.val ? " is-command" : ""}${armed.val ? " is-armed" : ""}`,
+            class: () => `menu-bar${command.val ? " is-command" : ""}${armed.val ? " is-armed" : ""}`,
         },
         div(
             { class: "search-wrapper" },
@@ -235,6 +235,6 @@ export const MenuSearch = () => {
                 Said({ said, className: "said--command" })
             )
         ),
-        kbd({ class: "menu-bar__kbd" }, () => (command.val ? "ENTER" : "CTRL K"))
+        kbd({ class: "menu-bar__kbd" }, () => (command.val ? "Enter" : "Ctrl K"))
     );
 };

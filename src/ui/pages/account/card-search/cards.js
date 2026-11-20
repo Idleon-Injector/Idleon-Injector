@@ -31,19 +31,19 @@ const { div, span, select, option, details, summary } = van.tags;
 const CARD_PATH = "Cards[0].h";
 const TIER_MULTIPLIERS = [1, 3, 5, 16, 459, 14645];
 const CARD_REGION_NAMES = [
-    "BLUNDER HILLS W1",
-    "YUM-YUM DESERT W2",
-    "EASY RESOURCES",
-    "MEDIUM RESOURCES",
-    "FROSTBITE TUNDRA W3",
-    "HARD RESOURCES",
-    "HYPERION NEBULA W4",
-    "SMOULDERIN PLATEAU W5",
-    "SPIRITED VALLEY W6",
-    "SHIMMERFIN DEEP W7",
-    "DUNGEONS",
-    "BOSSES AND NIGHTMARES",
-    "EVENTS",
+    "Blunder Hills W1",
+    "Yum-Yum Desert W2",
+    "Easy resources",
+    "Medium resources",
+    "Frostbite Tundra W3",
+    "Hard resources",
+    "Hyperion Nebula W4",
+    "Smolderin' Plateau W5",
+    "Spirited Valley W6",
+    "Shimmerfin Deep W7",
+    "Dungeons",
+    "Bosses and nightmares",
+    "Events",
 ];
 
 const toUnwrappedIndexedArray = (value) => toIndexedArray(unwrapH(value));
@@ -53,7 +53,7 @@ const tierIndexForAmount = (amount, thresholds) =>
 
 const nextTierLabel = (amount, thresholds) => {
     const nextThreshold = thresholds.find((threshold) => Number(amount) < threshold);
-    return nextThreshold === undefined ? "MAX TIER" : `NEXT: ${nextThreshold}`;
+    return nextThreshold === undefined ? "Max tier" : `NEXT: ${nextThreshold}`;
 };
 
 const tierBadgeClass = (amount, thresholds) => {
@@ -63,7 +63,7 @@ const tierBadgeClass = (amount, thresholds) => {
 
 const TierBadgeContent = ({ amount, thresholds }) => {
     const tierIndex = tierIndexForAmount(amount, thresholds);
-    if (tierIndex < 0) return span({ class: "card-tier-display" }, "BASE");
+    if (tierIndex < 0) return span({ class: "card-tier-display" }, "Base");
 
     return span(
         { class: "card-tier-display" },
@@ -94,7 +94,7 @@ const TierSelect = ({ thresholds, onSelect, status }) =>
         },
         option({ value: "", disabled: true, selected: true }, "Set tier"),
         ...TIER_MULTIPLIERS.map((_, tierIndex) =>
-            option({ value: tierIndex }, `TIER ${tierIndex + 1} - ${thresholds[tierIndex]}`)
+            option({ value: tierIndex }, `Tier ${tierIndex + 1} - ${thresholds[tierIndex]}`)
         )
     );
 
@@ -140,7 +140,7 @@ const UnresolvedCardRow = ({ card, valueState }) =>
             div(
                 { class: "account-row__name-group" },
                 span({ class: "account-row__name" }, card.monsterId),
-                span({ class: "account-row__sub-label" }, "CARD DEFINITION OR NAME UNRESOLVED")
+                span({ class: "account-row__sub-label" }, "Card definition or name unresolved")
             ),
         renderBadge: () => "Raw only",
         rowClass: "account-row--wide-controls card-row card-row--unresolved",
@@ -234,7 +234,7 @@ const CardSection = ({
                   onchange: (event) => (tierPick.val = event.target.value),
               },
               option({ value: "", disabled: true, selected: true }, "Pick a tier"),
-              ...TIER_MULTIPLIERS.map((_, tierIndex) => option({ value: tierIndex }, `TIER ${tierIndex + 1}`))
+              ...TIER_MULTIPLIERS.map((_, tierIndex) => option({ value: tierIndex }, `Tier ${tierIndex + 1}`))
           )
         : null;
     const Row = unresolved ? UnresolvedCardRow : CardRow;
@@ -259,7 +259,7 @@ const CardSection = ({
                 { class: "card-region__toggle" },
                 Icons.Chevron({ dir: "right", class: "card-region__chevron" }),
                 span({ class: "card-region__title" }, region.name),
-                span({ class: "card-region__count" }, `${region.cards.length} CARDS`)
+                span({ class: "card-region__count" }, `${region.cards.length} cards`)
             ),
             // Why the region's last tier pick failed; the region opens to show it.
             said ? Said({ said: said.said, className: "said--line card-region__said", kinds: ["failed"] }) : null,
@@ -332,7 +332,7 @@ const CardsTab = () => {
                           CardSection({
                               region: {
                                   key: "unresolved",
-                                  name: "UNRESOLVED CARDS",
+                                  name: "Unresolved cards",
                                   cards: data.unresolved,
                               },
                               openState: getOpenState("unresolved"),
@@ -401,7 +401,7 @@ const CardsTab = () => {
     const body = div({ class: "cards-page-content" }, div({ class: "scrollable-panel cards-scroll" }, regionsNode));
 
     return PersistentAccountListPage({
-        title: "CARDS",
+        title: "Cards",
         description: () => `${totalCards.val} cards grouped by Card Region. Edit amounts or set exact tier minimums.`,
         actions: RefreshButton({
             onRefresh: load,
@@ -409,8 +409,8 @@ const CardsTab = () => {
             disabled: () => loading.val || bulkStatus.val === "loading",
         }),
         state: { loading, error },
-        loadingText: "READING ACCOUNT CARDS",
-        errorTitle: "CARD READ FAILED",
+        loadingText: "Reading account cards",
+        errorTitle: "Card read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

@@ -230,7 +230,7 @@ const EventshopTab = () => {
 
     load();
     return PersistentAccountListPage({
-        title: "EVENTSHOP",
+        title: "Eventshop",
         description:
             "Edit account ownership without spending event points. Effects may require reopening the relevant game screen or reentering town. Turning ownership off does not undo rewards already received.",
         rootClass: "tab-container eventshop-tab",

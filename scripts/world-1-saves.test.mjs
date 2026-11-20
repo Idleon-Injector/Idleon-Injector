@@ -317,7 +317,7 @@ test("pets: removing a token the game dropped since does not select the pet", as
     await petControl(root, 2, "card").listeners.click({});
     assert.equal(g.OptionsListAccount[606], "");
     await tick();
-    assert.equal(text(byClass(petCard(root, 2), "companion-card__tier")[0]), "NOT SELECTED");
+    assert.equal(text(byClass(petCard(root, 2), "companion-card__tier")[0]), "Not selected");
     g.OptionsListAccount[606] = "2,5";
 });
 

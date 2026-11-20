@@ -37,7 +37,7 @@ const PlotTile = ({ entry, levelState, expState }) =>
         },
         div(
             { class: "farming-grid-tile__header" },
-            span({ class: "farming-grid-tile__title" }, `PLOT ${entry.index + 1}`),
+            span({ class: "farming-grid-tile__title" }, `Plot ${entry.index + 1}`),
             span({ class: "farming-grid-tile__coord" }, `R${entry.row + 1} C${entry.column + 1}`)
         ),
         PlotFieldRow({
@@ -103,15 +103,15 @@ const PlotTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "PLOT",
+        title: "Plot",
         description: "Edit the 9x4 land plot level and EXP grids from FarmRank[0] and FarmRank[1].",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING FARMING PLOTS",
-        errorTitle: "FARMING PLOTS READ FAILED",
+        loadingText: "Reading farming plots",
+        errorTitle: "Farming plots read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

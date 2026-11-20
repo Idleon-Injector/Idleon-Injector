@@ -6,7 +6,7 @@ import { SimpleAccountListPage } from "../../../components/views/account/compone
 
 const DawgDenTab = () =>
     SimpleAccountListPage({
-        title: "DAWG DEN",
+        title: "Dawg Den",
         description: "Edit Dawg Den highscore from Holes[11][8].",
         label: "Hole Dawg Den",
         loadEntries: async () => {

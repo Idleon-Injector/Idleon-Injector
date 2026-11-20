@@ -68,8 +68,6 @@
 
 .trap-row__input-label {
     font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
     color: var(--c-text-muted);
     padding-left: 2px;
 }

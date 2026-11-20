@@ -87,20 +87,20 @@ const VillagersTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "VILLAGERS",
+        title: "Villagers",
         description: "Edit villager levels, XP, and opals from Holes[1], Holes[2], and Holes[3].",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING HOLE VILLAGERS",
-        errorTitle: "HOLE VILLAGERS READ FAILED",
+        loadingText: "Reading hole villagers",
+        errorTitle: "Hole villagers read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "VILLAGERS",
+                title: "Villagers",
                 note: () => `${entries.val.length} VILLAGERS`,
                 body: listNode,
             })

@@ -285,7 +285,7 @@ const StarSignDetail = ({ sign, current, usernames = [], onSave, onBack }) => {
                     `${cur} / ${need} players — `,
                     cur >= need
                         ? span({ class: "starsign-unlocked-text" }, Icons.Check(), " UNLOCKED")
-                        : span({ class: "starsign-locked-text" }, "LOCKED")
+                        : span({ class: "starsign-locked-text" }, "Locked")
                 ),
                 div({ class: "starsign-progress-bar" }, progressFill)
             );
@@ -564,7 +564,7 @@ const StarSignsTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container starsigns-scroll-container",
-        title: "STAR SIGNS",
+        title: "Star Signs",
         description: "Assign players (1-10) and drag to reorder completion order",
         actions: [
             ActionButton({

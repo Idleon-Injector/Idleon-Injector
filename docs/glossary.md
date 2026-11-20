@@ -2,45 +2,47 @@
 
 These terms distinguish concepts used throughout the project. Follow the linked source for implementation details.
 
-| Term                | Meaning                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| Target              | The Steam or web game client selected for attachment.                                                |
-| CDP                 | Chrome DevTools Protocol, the debugging connection used to access the game runtime.                  |
-| Injection           | Introducing the cheat runtime into the running game.                                                 |
-| Game context        | The game-side environment where commands and hooks access game objects.                              |
-| GameBridge          | The Node module that encodes calls to injected game helpers and decodes their CDP results.           |
-| Cheat command       | A named action in the command registry. It may perform an action or toggle an ongoing effect.        |
-| Cheat state         | Whether a stateful cheat is enabled, distinct from its configured values.                            |
-| Cheat configuration | Values that customize cheat effects.                                                                 |
-| Startup cheats      | Commands selected to run when the cheat runtime starts.                                              |
-| Hook                | A game method or data wrapper declared with `defineHook` in `src/cheats/hooks/`.                     |
-| Cheat row           | A `defineCheat` declaration in `src/cheats/cheats/`: a command or group, and its settings.           |
-| Early hook          | A hook on a class whose actors exist before setup; it installs as the game defines the class.        |
-| GGA                 | The game's attributes map, exposed as `gga`.                                                         |
-| cList               | The game's custom lists, including definition and lookup data.                                       |
-| Haxe wrapper        | An object representation whose data may be stored under an `.h` property.                            |
-| Account options     | The game's indexed `OptionsListAccount` values.                                                      |
-| Account page        | An editor for an account feature or world system. The raw Account Options editor is one such page.   |
-| Menu page           | A page declared with `definePage` under `src/ui/pages/`; the menu is built from these.               |
-| Greenstack          | A recorded ten-million-unit storage milestone for an item, separate from its current quantity.       |
-| Black Star          | An allocation that multiplies a Gaming Palette color's bonus; each color can hold up to two.         |
-| Pet token           | A saved Normal-tier pet bonus, capped by owned token sources, that works without the injector.       |
-| Cape vine           | Cathie's W4 display of deposited capes; every cape on it adds a passive bonus.                       |
-| Golden Vine         | One of the first cape vine slots; a cape there gives its full bonus instead of a quarter.            |
-| Monitor             | A subscription to observe a game value over time.                                                    |
-| Session update      | A configuration change applied to the running session.                                               |
-| Saved configuration | User overrides written to disk for later runs.                                                       |
-| Save copy           | A copy of the save the injector keeps on the player's PC each time the game cloud-saves.             |
-| Change log          | Every value saved from a page this game session, with its old value and character; History lists it. |
-| Action              | One user action's saves (a field, a button press, a bulk action); Undo puts an action back whole.    |
-| Never rolled back   | Save values a restore leaves alone because putting an old one back grants things twice.              |
-| Attire Rack         | The outfits whose bonuses `wide attire` gives as if worn, chosen on the Attire Rack page.            |
-| Appearance          | The attire (outfit) a character wears, in its equipment's attire slot.                               |
-| Loadout             | Gear, tools, food, cards, prayers, chips and obols set at once on the Wardrobe page.                 |
-| Perfect Equipped    | The gear in play rebuilt with the stones of the world reached and the account's crafting bonuses.    |
-| Automation          | Work that repeats while its toggle is on (`defineAutomation`). Account › Automation lists buyers.    |
-| Stop-at             | The level, or for a shop item the chest count, at which an automation stops buying an item.          |
-| Priority            | High, Low or Balanced: saving for the cheapest High or Low item, Balanced may spend its saving %.    |
+| Term                | Meaning                                                                                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Target              | The Steam or web game client selected for attachment.                                                          |
+| CDP                 | Chrome DevTools Protocol, the debugging connection used to access the game runtime.                            |
+| Injection           | Introducing the cheat runtime into the running game.                                                           |
+| Game context        | The game-side environment where commands and hooks access game objects.                                        |
+| GameBridge          | The Node module that encodes calls to injected game helpers and decodes their CDP results.                     |
+| Cheat command       | A named action in the command registry. It may perform an action or toggle an ongoing effect.                  |
+| Cheat state         | Whether a stateful cheat is enabled, distinct from its configured values.                                      |
+| Cheat configuration | Values that customize cheat effects.                                                                           |
+| Startup cheats      | Commands selected to run when the cheat runtime starts.                                                        |
+| Hook                | A game method or data wrapper declared with `defineHook` in `src/cheats/hooks/`.                               |
+| Cheat row           | A `defineCheat` declaration in `src/cheats/cheats/`: a command or group, and its settings.                     |
+| Early hook          | A hook on a class whose actors exist before setup; it installs as the game defines the class.                  |
+| GGA                 | The game's attributes map, exposed as `gga`.                                                                   |
+| cList               | The game's custom lists, including definition and lookup data.                                                 |
+| Haxe wrapper        | An object representation whose data may be stored under an `.h` property.                                      |
+| Account options     | The game's indexed `OptionsListAccount` values.                                                                |
+| Account page        | An editor for an account feature or world system. The raw Account Options editor is one such page.             |
+| Menu page           | A page declared with `definePage` under `src/ui/pages/`; the menu is built from these.                         |
+| Page section        | A part of a menu page listed under it in the sidebar: a heading on one long page, or one part shown at a time. |
+| Menu level          | The list the sidebar shows: the top list, or one world's or area's systems after a drill-down.                 |
+| Greenstack          | A recorded ten-million-unit storage milestone for an item, separate from its current quantity.                 |
+| Black Star          | An allocation that multiplies a Gaming Palette color's bonus; each color can hold up to two.                   |
+| Pet token           | A saved Normal-tier pet bonus, capped by owned token sources, that works without the injector.                 |
+| Cape vine           | Cathie's W4 display of deposited capes; every cape on it adds a passive bonus.                                 |
+| Golden Vine         | One of the first cape vine slots; a cape there gives its full bonus instead of a quarter.                      |
+| Monitor             | A subscription to observe a game value over time.                                                              |
+| Session update      | A configuration change applied to the running session.                                                         |
+| Saved configuration | User overrides written to disk for later runs.                                                                 |
+| Save copy           | A copy of the save the injector keeps on the player's PC each time the game cloud-saves.                       |
+| Change log          | Every value saved from a page this game session, with its old value and character; History lists it.           |
+| Action              | One user action's saves (a field, a button press, a bulk action); Undo puts an action back whole.              |
+| Never rolled back   | Save values a restore leaves alone because putting an old one back grants things twice.                        |
+| Attire Rack         | The outfits whose bonuses `wide attire` gives as if worn, chosen on the Attire Rack page.                      |
+| Appearance          | The attire (outfit) a character wears, in its equipment's attire slot.                                         |
+| Loadout             | Gear, tools, food, cards, prayers, chips and obols set at once on the Wardrobe page.                           |
+| Perfect Equipped    | The gear in play rebuilt with the stones of the world reached and the account's crafting bonuses.              |
+| Automation          | Work that repeats while its toggle is on (`defineAutomation`). Account › Automation lists buyers.              |
+| Stop-at             | The level, or for a shop item the chest count, at which an automation stops buying an item.                    |
+| Priority            | High, Low or Balanced: saving for the cheapest High or Low item, Balanced may spend its saving %.              |
 
 Source entry points: [game globals](../src/cheats/core/globals.js),
 [command registration](../src/cheats/core/registration.js),

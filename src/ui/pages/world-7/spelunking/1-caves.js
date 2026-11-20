@@ -334,14 +334,14 @@ function SpelunkingCavesTab() {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "CAVES",
+            title: "Caves",
             note: () => `${caveRowsState.val.length} CAVES`,
             body: caveListNode,
         }),
         AddFromListSection({
-            title: "ADD DESTROYED OBJECT",
-            note: () => `${missingObjectOptions.val.length} AVAILABLE TO ADD`,
-            selectLabel: "SELECT OBJECT",
+            title: "Add destroyed object",
+            note: () => `${missingObjectOptions.val.length} available to add`,
+            selectLabel: "Select object",
             selectedValue: selectedObjectId,
             options: missingObjectOptions,
             emptyOptionLabel: "No destroyed objects left to add",
@@ -354,9 +354,9 @@ function SpelunkingCavesTab() {
             onAddAll: addAllObjects,
         }),
         AccountSection({
-            title: "DISCOVERED DESTROYED OBJECTS",
+            title: "Discovered Destroyed Objects",
             note: () =>
-                `${discoveredCount.val} DISCOVERED, ${knownDiscoveredCount.val}/${totalObjectCount.val} KNOWN OBJECTS`,
+                `${discoveredCount.val} discovered, ${knownDiscoveredCount.val}/${totalObjectCount.val} known objects`,
             body: () => {
                 const rows = destroyedRows.val;
                 return rows.length === 0
@@ -379,7 +379,7 @@ function SpelunkingCavesTab() {
     load();
 
     return PersistentAccountListPage({
-        title: "SPELUNKING CAVES",
+        title: "Spelunking caves",
         description:
             "Edit cave records from Spelunk[1], Spelunk[47], Spelunk[2], and Spelunk[44], and manage discovered destroyed objects from Spelunk[6].",
         actions: RefreshButton({
@@ -390,8 +390,8 @@ function SpelunkingCavesTab() {
             disabled: () => loading.val || mutating.val,
         }),
         state: { loading, error },
-        loadingText: "READING SPELUNKING CAVES",
-        errorTitle: "SPELUNKING READ FAILED",
+        loadingText: "Reading spelunking caves",
+        errorTitle: "Spelunking read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

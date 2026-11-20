@@ -295,7 +295,8 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
     assert.deepEqual(startup(), []);
 });
 
-const shops = (await importRepo("src/ui/pages/account/automation/2-shops.js")).default.component();
+const shopsPage = (await importRepo("src/ui/pages/account/automation/2-shops.js")).default;
+const shops = shopsPage.component();
 await until(() => row(shops, "Lucky Whisker"), "the Shops tab to load");
 const pickRow = (name) => row(shops, name);
 const saved = () => updates.at(-1)?.cheatConfig.automation.shops ?? [];
@@ -314,9 +315,10 @@ async function typeStopAt(name, value) {
 
 test("the Shops tab shows the shop automation's switch, the shops by world, and today's stock", () => {
     assert.ok(row(shops, "Shops"), "the same switch as the overview");
+    // The worlds are the page's sections, which the sidebar lists under Shops.
     assert.deepEqual(
-        byClass(shops, "account-sub-tab-btn").map((node) => text(node).trim()),
-        ["W1", "W2", "W3", "W4", "W5", "W6", "W7"]
+        shopsPage.sections.map((section) => section.label),
+        ["World 1", "World 2", "World 3", "World 4", "World 5", "World 6", "World 7"]
     );
     assert.match(text(pickRow("Lucky Whisker")), /Left 50/);
     assert.match(text(pickRow("Grand Drift")), /Left 0/, "sold out still lists");
@@ -1509,7 +1511,7 @@ test("reader 3: a slow Refresh says it is still waiting on the page's line, not 
         release();
     }
     await until(() => !/still waiting/.test(text(shops)), "the read's end to clear the notice");
-    assert.equal(failurePanel(shops), "SHOP READ FAILED", "and the read-failed panel says nothing");
+    assert.equal(failurePanel(shops), "Shop read failed", "and the read-failed panel says nothing");
 });
 
 test("reader 3: an item row's notice stays while its second slow save still waits", async () => {
@@ -2024,6 +2026,10 @@ test("the menu tells a page each time it is shown: picked, or the Pages view sho
         )
     );
     menuTree.val = buildMenuTree(pages);
+    // The Pages view's menu reads the window size.
+    globalThis.window ??= {};
+    globalThis.window.matchMedia ??= () => ({ matches: false, addEventListener() {} });
+    globalThis.document.addEventListener ??= () => {};
     const { Pages } = await importRepo("src/ui/components/views/Pages.js");
     const shown = [];
     whenShown("account.automation.shops", () => shown.push("shops"));

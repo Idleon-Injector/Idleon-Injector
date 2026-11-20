@@ -224,34 +224,34 @@ const GeneralTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "GENERAL",
+            title: "General",
             note: "Gaming state and nugget stats",
             body: generalListNode,
         }),
         AccountSection({
-            title: "RAT KING",
+            title: "Rat King",
             note: "Gaming[14] and GamingSprout[33][1-3]",
             body: ratKingListNode,
         }),
         AccountSection({
-            title: "UPGRADES",
+            title: "Upgrades",
             note: "Gaming[1-3]",
             body: upgradeListNode,
         }),
         AccountSection({
-            title: "MUTATION",
+            title: "Mutation",
             note: "Gaming[4] and Gaming[7]",
             body: mutationListNode,
         }),
         AccountSection({
-            title: "LOG BOOK",
+            title: "Log Book",
             note: "Gaming[11]",
             body: div({ class: "account-item-stack" }, LogBookRow({ valueState: logBookState })),
         })
     );
 
     return PersistentAccountListPage({
-        title: "GENERAL",
+        title: "General",
         description:
             "Edit Gaming currencies, Rat King levels, upgrades, mutations, nugget stats, and related counters.",
         actions: RefreshButton({
@@ -259,8 +259,8 @@ const GeneralTab = () => {
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING GAMING GENERAL",
-        errorTitle: "GAMING GENERAL READ FAILED",
+        loadingText: "Reading gaming general",
+        errorTitle: "Gaming general read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

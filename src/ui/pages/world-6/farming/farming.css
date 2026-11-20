@@ -65,7 +65,6 @@
     color: var(--c-text-main);
     font-size: 0.8125rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
 }
 
 .farming-grid-tile__coord {

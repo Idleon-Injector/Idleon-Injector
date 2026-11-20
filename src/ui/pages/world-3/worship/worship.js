@@ -177,23 +177,23 @@ const WorshipTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "WORSHIP CHARGE",
+            title: "Worship charge",
             body: chargeRowsNode,
         }),
         AccountSection({
-            title: "TOWER DEFENSE",
+            title: "Tower defense",
             body: waveRowsNode,
         })
     );
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "W3 - WORSHIP",
+        title: "W3 - worship",
         description: "Edit worship charge and best worship waves.",
         actions: RefreshButton({ onRefresh: load }),
         state: { loading, error },
-        loadingText: "READING WORSHIP",
-        errorTitle: "WORSHIP READ FAILED",
+        loadingText: "Reading worship",
+        errorTitle: "Worship read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

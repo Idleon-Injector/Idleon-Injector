@@ -98,7 +98,7 @@ const ForgeTab = () => {
     );
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "FORGE",
+        title: "Forge",
         description: "Set forge upgrade levels — each upgrade has a hard maximum",
         wrapActions: false,
         actions: BulkActionBar({
@@ -116,8 +116,8 @@ const ForgeTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING FORGE",
-        errorTitle: "FORGE READ FAILED",
+        loadingText: "Reading forge",
+        errorTitle: "Forge read failed",
         initialWrapperClass: "account-list",
         body,
     });

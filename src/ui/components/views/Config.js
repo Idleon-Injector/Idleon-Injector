@@ -220,7 +220,7 @@ export const Config = () => {
             const hasMatches = nodes.some((node) => node !== null);
             if ((search || forcedPath) && !hasMatches) {
                 return EmptyState({
-                    title: "NO CONFIG FOUND",
+                    title: "No config found",
                     subtitle: forcedPath
                         ? `Config path "${forcedPath.join(" ")}" not found`
                         : "Try a different search term or category",
@@ -247,8 +247,8 @@ export const Config = () => {
                 },
                 span({ class: "config-drawer-title" }, () =>
                     store.app.configForcedPath?.length
-                        ? `EDITING: ${store.app.configForcedPath.join(" ").toUpperCase()}`
-                        : "CONFIG DRAWER"
+                        ? `Editing: ${store.app.configForcedPath.join(" ")}`
+                        : "Config drawer"
                 ),
                 button(
                     {
@@ -277,7 +277,7 @@ export const Config = () => {
                                 isAddingCheat.val = false;
                             },
                         },
-                        name.toUpperCase()
+                        name.charAt(0).toUpperCase() + name.slice(1)
                     );
                 })
             ),
@@ -288,7 +288,7 @@ export const Config = () => {
                 },
 
                 SettingsTop({
-                    title: "CHEAT CONFIG",
+                    title: "Cheat config",
                     description:
                         "Each cheat's own settings. Apply uses them for this session only; Save settings keeps them in your config file and sends them to the running game.",
                     toolbar:
@@ -298,10 +298,7 @@ export const Config = () => {
                             if (forcedPath && forcedPath.length > 0) {
                                 return div(
                                     { class: "forced-path-indicator" },
-                                    span(
-                                        { class: "forced-path-text" },
-                                        `SHOWING: ${[...forcedPath].join(" ").toUpperCase()}`
-                                    ),
+                                    span({ class: "forced-path-text" }, `Showing: ${[...forcedPath].join(" ")}`),
                                     button(
                                         {
                                             type: "button",
@@ -319,23 +316,23 @@ export const Config = () => {
                                 { class: "config-filter-contents" },
                                 div(
                                     { class: "config-filter-group" },
-                                    label({ class: "config-filter-label" }, "CATEGORY FILTER"),
+                                    label({ class: "config-filter-label" }, "Category filter"),
 
                                     select(
                                         {
                                             value: categoryFilter,
                                             onchange: handleCategoryChange,
                                         },
-                                        option({ value: "all" }, "ALL SECTORS"),
+                                        option({ value: "all" }, "All sectors"),
                                         Object.keys(config.cheatConfig || {})
                                             .sort()
-                                            .map((k) => option({ value: k }, k.toUpperCase()))
+                                            .map((k) => option({ value: k }, k.charAt(0).toUpperCase() + k.slice(1)))
                                     )
                                 ),
                                 div(
                                     { class: "config-filter-search" },
                                     SearchBar({
-                                        placeholder: "SEARCH_CONFIG",
+                                        placeholder: "Search settings",
                                         onInput: handleSearchInput,
                                         debounceMs: 0,
                                         value: configSearchTerm,
@@ -353,7 +350,7 @@ export const Config = () => {
                 },
 
                 SettingsTop({
-                    title: "STARTUP CHEATS",
+                    title: "Startup cheats",
                     description: "Cheats that run by themselves each time the injector attaches to the game.",
                 }),
                 startupCheatsResult.element
@@ -365,10 +362,10 @@ export const Config = () => {
                 },
 
                 SettingsTop({
-                    title: "INJECTOR",
+                    title: "Injector",
                     description: "How the injector itself runs: where it attaches, its ports, logging and the web UI.",
                 }),
-                div({ class: "warning-banner mb-20" }, Icons.Warning(), " RESTART REQUIRED FOR CHANGES TO APPLY"),
+                div({ class: "warning-banner mb-20" }, Icons.Warning(), " Restart required for changes to apply"),
                 injectorConfigNode
             )
         );
@@ -381,12 +378,12 @@ export const Config = () => {
             if (store.app.configError && !draftReady.val) {
                 return EmptyState({
                     failed: true,
-                    title: "THE SETTINGS DIDN'T LOAD",
+                    title: "The settings didn't load",
                     subtitle: store.app.configError,
                 });
             }
             if (store.app.isLoading || !draftReady.val) {
-                return Loader({ text: "LOADING CONFIG" });
+                return Loader({ text: "Loading config" });
             }
             return buildContent();
         },

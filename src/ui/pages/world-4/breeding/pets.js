@@ -145,8 +145,8 @@ const PetsTab = () => {
             () =>
                 petSections.val.map((section) =>
                     AccountSection({
-                        title: WORLD_LABELS[section.index].toUpperCase(),
-                        note: `${section.entries.length} PETS`,
+                        title: WORLD_LABELS[section.index],
+                        note: `${section.entries.length} pets`,
                         body: div(
                             { class: "account-item-stack account-item-stack--dense" },
                             ...section.entries.map((entry) => PetRow({ entry, fieldStates: petFieldStates }))
@@ -180,22 +180,22 @@ const PetsTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "PETS",
+            title: "Pets",
             note: "DNA, breedability, and shiny days from Breeding W1-W4 pet arrays",
             body: petSectionRows,
         })
     );
 
     return PersistentAccountListPage({
-        title: "BREEDING PETS",
+        title: "Breeding pets",
         description: "Edit W4 Breeding pet DNA, breedability, and shiny day values.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING BREEDING PETS",
-        errorTitle: "BREEDING PET READ FAILED",
+        loadingText: "Reading breeding pets",
+        errorTitle: "Breeding pet read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

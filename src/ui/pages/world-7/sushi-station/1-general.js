@@ -223,7 +223,7 @@ function SushiGeneralTab() {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "RESOURCES",
+            title: "Resources",
             note: "Sushi[4]",
             body: div(
                 { class: "account-item-stack" },
@@ -236,22 +236,22 @@ function SushiGeneralTab() {
             ),
         }),
         AccountSection({
-            title: "KNOWLEDGE",
-            note: () => `${sushiEntries.val.length} SUSHI TYPES`,
+            title: "Knowledge",
+            note: () => `${sushiEntries.val.length} sushi types`,
             body: knowledgeListNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "SUSHI GENERAL",
+        title: "Sushi general",
         description: "Edit Sushi resources from Sushi[4], and per-tier unlock, XP, and knowledge levels.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SUSHI GENERAL",
-        errorTitle: "SUSHI GENERAL READ FAILED",
+        loadingText: "Reading sushi general",
+        errorTitle: "Sushi general read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

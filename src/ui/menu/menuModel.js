@@ -157,6 +157,19 @@ export const AREAS = [
     },
 ];
 
+/** Areas whose views are a list in the sidebar (Advanced). An area with one view just opens it. */
+export const DRILL_AREAS = AREAS.filter((area) => area.tabs && area.tabs.length > 1);
+
+/**
+ * The sidebar list a place belongs to: a world's id on the world pages, a drill area's id on one of its views,
+ * else null (the top list). `view` is a VIEWS key, as openMenu takes it.
+ */
+export const menuLevelOf = ({ view, world }) => {
+    if (!view) return world ?? WORLDS[0].id;
+    const area = DRILL_AREAS.find((a) => a.tabs.some((tab) => tab.view === view));
+    return area ? area.id : null;
+};
+
 export const slugify = (name) =>
     name
         .toLowerCase()
@@ -182,6 +195,9 @@ export const pageFolder = (page) => `${findWorld(page.world).folder}/${slugify(p
  * @param {string} [page.tab] - tab name, required when a system has several pages
  * @param {string} page.description - one plain sentence for players
  * @param {string[]} [page.keywords] - extra search words, including the injector's old names
+ * @param {{id: string, label: string}[]} [page.sections] - the page's parts, listed under it in the sidebar's list
+ * @param {"headings"|"switch"} [page.sectionMode] - "headings" (default): the sections are headings on one long page
+ *     (each heading carries `data-section="<id>"`); "switch": the page shows one section at a time (pageSection)
  * @param {Function} page.component - VanJS component that renders the page
  */
 export const definePage = (page) => {
@@ -202,6 +218,21 @@ export const definePage = (page) => {
         !(Array.isArray(page.keywords) && page.keywords.every((k) => typeof k === "string"))
     )
         throw new Error(`${where}: keywords must be a list of words`);
+    if (page.sections !== undefined) {
+        if (!Array.isArray(page.sections) || page.sections.length < 2)
+            throw new Error(`${where}: sections must list at least two sections`);
+        const ids = new Set();
+        for (const section of page.sections) {
+            if (typeof section?.id !== "string" || !/^[a-z0-9-]+$/.test(section.id))
+                throw new Error(`${where}: a section id must be lowercase letters, digits and dashes`);
+            if (ids.has(section.id)) throw new Error(`${where}: two sections use the id "${section.id}"`);
+            if (typeof section.label !== "string" || !section.label.trim())
+                throw new Error(`${where}: section "${section.id}" needs a label`);
+            ids.add(section.id);
+        }
+    }
+    if (page.sectionMode !== undefined && (!page.sections || !["headings", "switch"].includes(page.sectionMode)))
+        throw new Error(`${where}: sectionMode is "headings" or "switch", and needs sections`);
     return Object.freeze({ keywords: [], ...page });
 };
 

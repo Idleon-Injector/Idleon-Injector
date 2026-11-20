@@ -99,23 +99,23 @@ function SpelunkingShopTab() {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "SHOP UPGRADES",
+            title: "Shop upgrades",
             note: () =>
-                `${upgradeEntries.val.length} UPGRADES, ${cappedCount.val} CAPPED, ${totalLevels.val} TOTAL LEVELS`,
+                `${upgradeEntries.val.length} upgrades, ${cappedCount.val} capped, ${totalLevels.val} total levels`,
             body: shopListNode,
         })
     );
 
     return PersistentAccountListPage({
-        title: "SPELUNKING SHOP",
+        title: "Spelunking shop",
         description: "Set W7 Spelunking shop upgrade levels from Spelunk[5]. Max levels come from SpelunkUpg.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING SPELUNKING SHOP",
-        errorTitle: "SPELUNKING SHOP READ FAILED",
+        loadingText: "Reading spelunking shop",
+        errorTitle: "Spelunking shop read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

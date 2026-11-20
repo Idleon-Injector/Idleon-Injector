@@ -116,7 +116,7 @@ const NodeRow = ({ node, gradeState, depletedState }) => {
         badge: () => nodeBadge(node, toNum(depletedState.val, 0), toInt(gradeState.val, { min: 0 })),
         controls: [
             InlineEditableNumberField({
-                label: "GRADE",
+                label: "Grade",
                 valueState: gradeState,
                 path: `RoyalG[5][${node.nodeIndex}]`,
                 normalize: (raw) => resolveNumberInput(raw, { formatted: true, min: 0, fallback: null }),
@@ -124,7 +124,7 @@ const NodeRow = ({ node, gradeState, depletedState }) => {
                 labelClass: "resource-node-row__field-label",
             }),
             InlineEditableNumberField({
-                label: "COLLECTED",
+                label: "Collected",
                 valueState: depletedState,
                 path: `RoyalG[4][${node.nodeIndex}]`,
                 inputMode: "float",
@@ -167,7 +167,7 @@ const ResourceNodesTab = () => {
     const rowList = div({ class: "account-item-stack account-item-stack--dense resource-node-list" });
     const reconcileRows = createStaticRowReconciler(rowList);
     const noNodes = EmptyState({
-        title: "NO RESOURCE NODES",
+        title: "No Resource Nodes",
         subtitle: "No RoyalResources rows were returned for this world.",
     });
 
@@ -245,7 +245,7 @@ const ResourceNodesTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "RESOURCE NODES",
+        title: "Resource Nodes",
         description: "Manage Royal Guard resource node grades and depleted state.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -256,13 +256,13 @@ const ResourceNodesTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING RESOURCE NODES",
-        errorTitle: "RESOURCE NODES READ FAILED",
+        loadingText: "Reading Resource Nodes",
+        errorTitle: "Resource Nodes read failed",
         initialWrapperClass: "masterclass-upgrade-scroll",
         body: div(
             { class: "masterclass-upgrade-scroll scrollable-panel" },
             AccountSection({
-                title: "NODE WORLDS",
+                title: "Node worlds",
                 body: [
                     div(
                         { class: "masterclass-category-tabs resource-node-toolbar" },

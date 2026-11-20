@@ -96,8 +96,8 @@ const NametagTab = () => {
     const body = div(
         { class: "scrollable-panel content-stack" },
         AccountSection({
-            title: "NAMETAG AMOUNTS",
-            note: () => `${catalogState.val.length} NAMETAGS, ${totalDelivered.val} TOTAL DELIVERED`,
+            title: "Nametag amounts",
+            note: () => `${catalogState.val.length} nametags, ${totalDelivered.val} total delivered`,
             body: () =>
                 catalogState.val.length === 0
                     ? div({ class: "tab-empty" }, "No EquipmentNametag item definitions were found.")
@@ -106,15 +106,15 @@ const NametagTab = () => {
     );
 
     return PersistentAccountListPage({
-        title: "NAMETAGS",
+        title: "Nametags",
         description: "Set delivered nametag amounts from Spelunk[17]. Each index maps directly to EquipmentNametagX.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val,
         }),
         state: { loading, error },
-        loadingText: "READING NAMETAGS",
-        errorTitle: "NAMETAG READ FAILED",
+        loadingText: "Reading nametags",
+        errorTitle: "Nametag read failed",
         initialWrapperClass: "scrollable-panel",
         body,
     });

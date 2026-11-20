@@ -278,7 +278,7 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
 
     return PersistentAccountListPage({
         rootClass: "item-registration-tab tab-container",
-        title: label.toUpperCase(),
+        title: label,
         description,
         wrapActions: false,
         actions: div(
@@ -327,8 +327,8 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             ),
         ],
         state: { loading, error },
-        loadingText: `READING ${label.toUpperCase()}`,
-        errorTitle: `${label.toUpperCase()} READ FAILED`,
+        loadingText: `Reading ${label.toLowerCase()}`,
+        errorTitle: `${label} read failed`,
         body: div(
             { class: "scrollable-panel content-stack" },
             div({ class: "account-section__note item-registration-summary", role: "status" }, () => {
@@ -352,7 +352,7 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                         !entries.val.length ||
                         entries.val.some((itemId) => matches(itemId, normalizedQuery.val, filter.val)),
                 },
-                EmptyState({ title: "NO MATCHING ITEMS", subtitle: "No items matched your search and filter." })
+                EmptyState({ title: "No matching items", subtitle: "No items matched your search and filter." })
             )
         ),
     });

@@ -177,7 +177,7 @@ const MasteryTab = () => {
     const expRequirement = () => {
         const storedRank = Math.max(0, toInt(rankState.val, { min: 1 }) - 1);
         const required = 100 * 2.5 ** storedRank * 5 ** Math.max(0, storedRank - 40);
-        return Number.isFinite(required) ? largeFormatter(required) : "UNAVAILABLE";
+        return Number.isFinite(required) ? largeFormatter(required) : "Unavailable";
     };
 
     const load = async () =>
@@ -262,18 +262,18 @@ const MasteryTab = () => {
     ];
 
     return PersistentAccountListPage({
-        title: "COOKING MASTERY",
+        title: "Cooking Mastery",
         description: "Edit Cooking Mastery rank, EXP, perk levels, and per-meal mastery allocations from CookMaster.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING COOKING MASTERY",
-        errorTitle: "COOKING MASTERY READ FAILED",
+        loadingText: "Reading Cooking Mastery",
+        errorTitle: "Cooking Mastery read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             AccountSection({
-                title: "PROGRESS",
-                note: () => `${unlockedState.val ? "UNLOCKED" : "LOCKED"} · NEXT RANK ${expRequirement()} EXP`,
+                title: "Progress",
+                note: () => `${unlockedState.val ? "Unlocked" : "Locked"} · NEXT RANK ${expRequirement()} EXP`,
                 body: div(
                     { class: "account-item-stack" },
                     MasteryRankRow({ rankState, refreshPointsAfterWrite }),
@@ -287,13 +287,13 @@ const MasteryTab = () => {
                 ),
             }),
             AccountSection({
-                title: "PURPLE UPGRADES",
-                note: () => `${purplePointsState.val} POINTS AVAILABLE`,
+                title: "Purple upgrades",
+                note: () => `${purplePointsState.val} points available`,
                 body: purpleNode,
             }),
             AccountSection({
-                title: "MEAL MASTERY",
-                note: () => `${yellowPointsState.val} POINTS AVAILABLE · ${mealEntries.val.length} MEALS`,
+                title: "Meal Mastery",
+                note: () => `${yellowPointsState.val} points available · ${mealEntries.val.length} meals`,
                 body: mealNode,
             })
         ),

@@ -238,19 +238,19 @@ const CapeVineTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "CAPE VINE",
+        title: "Cape Vine",
         description:
             "Add or remove capes on the Cape Vine. Removing a cape also takes it off your Slab, so the game doesn't put it back. Golden Vines are the first slots on the vine.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy.val }),
         state: { loading, error },
-        loadingText: "READING CAPE VINE",
-        errorTitle: "CAPE VINE READ FAILED",
+        loadingText: "Reading Cape Vine",
+        errorTitle: "Cape Vine read failed",
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
             goldenRow,
             AccountSection({
-                title: "ALL CAPES",
+                title: "All capes",
                 note: () => `${onVineCount()}/${capes.val.length} ON VINE`,
                 meta: [
                     ActionButton({

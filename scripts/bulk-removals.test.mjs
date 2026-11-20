@@ -37,6 +37,12 @@ const levelShown = (root, index) =>
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 const writes = () => requests.filter((entry) => /write/.test(entry)).length;
 
+const { pageSection } = await importRepo("src/ui/components/views/account/tabShared.js");
+const pickMapWorld = async (id) => {
+    pageSection("classes.tesseract.mapbonuses", "all").val = id;
+    await settle(50);
+};
+
 async function until(check, what) {
     for (let i = 0; i < 300; i++) {
         if (check()) return;
@@ -153,7 +159,7 @@ const removals = [
     ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
     ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
-    ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
+    ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "Units"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear all"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear Pets+"],
     ["src/ui/pages/account/event-shop/event-shop.js", "Disable all"],
@@ -172,8 +178,8 @@ for (const [file, label, open] of removals) {
 
 test("map bonuses: Clear world asks in place once a world is picked", async () => {
     const root = (await importRepo("src/ui/pages/classes/tesseract/2-map-bonuses.js")).default.component();
-    await until(() => buttonsNamed(root, "W1").length, "the world tabs");
-    await click(buttonsNamed(root, "W1")[0]);
+    // Map bonuses' worlds are its sections: the sidebar's list picks one.
+    await pickMapWorld("w1");
     await until(() => buttonsNamed(root, "Clear world (0)").some((node) => !node.attributes.disabled), "Clear world");
     await settle(100);
     const button = buttonsNamed(root, "Clear world (0)").find((node) => !node.attributes.disabled);
@@ -305,16 +311,25 @@ test("bundles: Buy all asks in place with the inventory warning beside it, and b
 });
 
 // "Click again to deplete every node in this world.": the world picked between the two clicks is another question.
-for (const [file, label] of [
-    ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
-    ["src/ui/pages/classes/tesseract/2-map-bonuses.js", "Clear world (0)"],
+// Resources picks its world with buttons on the page; Map bonuses with its sections in the sidebar's list.
+const clickWorld = (root) => async (name) => {
+    await until(() => buttonsNamed(root, name).length, name);
+    await click(buttonsNamed(root, name)[0]);
+};
+for (const [file, label, picker] of [
+    ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all", clickWorld],
+    [
+        "src/ui/pages/classes/tesseract/2-map-bonuses.js",
+        "Clear world (0)",
+        () => (name) => pickMapWorld(name.toLowerCase()),
+    ],
 ]) {
     test(`${file.split("/").pop()}: ${label} asks again for a world picked after the first click`, async () => {
         const root = (await importRepo(file)).default.component();
         const enabled = () => buttonsNamed(root, label).find((node) => !node.attributes.disabled);
+        const pick = picker(root);
         const pickWorld = async (name) => {
-            await until(() => buttonsNamed(root, name).length, name);
-            await click(buttonsNamed(root, name)[0]);
+            await pick(name);
             await until(enabled, `${label} in ${name}`);
             await settle(100);
         };
@@ -529,7 +544,7 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
         await until(() => reread.reached, "the read after the refused Max all");
         reread.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));
         await pressed;
-        await until(() => /SALT LICK READ FAILED/.test(text(root)), "the failed read to be said");
+        await until(() => /Salt Lick read failed/.test(text(root)), "the failed read to be said");
         await until(
             () => bulk().every((node) => node.attributes.disabled),
             "the bulk actions to wait after the failed read"
