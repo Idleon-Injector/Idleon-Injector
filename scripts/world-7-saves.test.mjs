@@ -198,6 +198,43 @@ test("Research Grid: Refresh while a level saves keeps the typed level, and leav
     assert.equal(Research[0][index], next);
 });
 
+test("Spelunking Caves: Remove asks Click again first, and the second press takes the object off the list", async (t) => {
+    const removeButtons = (root) =>
+        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
+    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 1);
+    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
+    const click = (node) => node.listeners.click({ preventDefault() {} });
+    const [remove, other] = removeButtons(root);
+    const row = byClass(root, "account-row").find((node) => elements(node).includes(remove));
+    const read = [...Spelunk[6]];
+    const start = requests.length;
+
+    // The first press only asks; the ask runs out after a few seconds, and the press after that asks again.
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        click(remove);
+        assert.equal(remove.attributes["data-again"], "Click again", "the first press asks");
+        assert.equal(
+            remove.attributes["aria-label"],
+            `Click again to remove ${text(byClass(row, "account-row__name")[0])}.`
+        );
+        t.mock.timers.tick(4000);
+        assert.equal(remove.attributes["data-again"], undefined, "the ask runs out");
+        click(remove);
+        assert.equal(remove.attributes["data-again"], "Click again", "the press after that asks again");
+    } finally {
+        t.mock.timers.reset();
+    }
+    click(other);
+    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own object");
+    assert.deepEqual(writesSince(start), [], "nothing was written");
+    assert.deepEqual([...Spelunk[6]], read);
+
+    await click(remove);
+    await until(() => Spelunk[6].length === read.length - 1, "the second press to remove the object");
+    assert.equal(Spelunk[6].includes(read[0]), false);
+});
+
 test("Spelunking Caves: Add and Remove keep objects the game destroyed since the page read", async () => {
     const removeButtons = (root) =>
         elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
@@ -214,6 +251,7 @@ test("Spelunking Caves: Add and Remove keep objects the game destroyed since the
 
     Spelunk[6].push("Rock_6_2");
     const first = Spelunk[6][0];
+    removeButtons(root)[0].listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
     await removeButtons(root)[0].listeners.click({ preventDefault() {} });
     await until(() => !Spelunk[6].includes(first), "the first object to be removed");
     assert.ok(Spelunk[6].includes("Rock_6_2"), "Remove keeps the game's new object");
@@ -228,6 +266,7 @@ test("Spelunking Caves: a Remove the game refuses says so on the row", async () 
     const frozen = [...kept];
     Object.defineProperty(Spelunk, 6, { get: () => frozen, set() {}, configurable: true });
     try {
+        removeButtons(root)[0].listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
         await removeButtons(root)[0].listeners.click({ preventDefault() {} });
         await until(
             () => removeButtons(root).some((node) => classes(node).includes("account-btn--error")),
