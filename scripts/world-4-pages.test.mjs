@@ -151,6 +151,34 @@ test("a kitchen save queued behind another keeps the Speed the game moved on mea
     }
 });
 
+// Review of #117, second round: a queued save of the value the field started at (1, save 2, then 1) was dropped.
+test("a kitchen Fire set back to its first value while the change saves is saved too", async () => {
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
+    const row = rowByIndex(root, "#4");
+    const [, fire] = byTag(row, "input");
+    const first = gga.Cooking[3][7];
+    const realFetch = globalThis.fetch;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && ++writes === 1) await held;
+        return realFetch(url, options);
+    };
+    try {
+        typeAndEnter(row, fire, first + 1);
+        await until(() => writes === 1, "the first save to reach the game");
+        typeAndEnter(row, fire, first);
+        release();
+        await until(() => writes === 2 && gga.Cooking[3][7] === first, "Fire to go back to its first value");
+        await settled(row);
+        assert.equal(stateOf(row), "success");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+});
+
 test("a kitchen save that landed shows ✓ even when reading back the other fields fails", async () => {
     const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
     const row = rowByIndex(root, "#2");

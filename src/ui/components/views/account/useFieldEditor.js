@@ -60,14 +60,23 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
             if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
         });
 
+    // The drafts of the save being written, while it is: a commit made meanwhile compares with them too.
+    let writing = null;
+    const draftText = (drafts, key) => String(drafts[key] ?? "").trim();
+
     const autoSave = useAutoSave({
         // The drafts as they were at the commit, so a later commit (made after a switch, say) can't save in its place,
         // and the stored values they were taken from: a field untouched then stays untouched (and takes the game's
-        // value) when an earlier save read the game back and moved the stored value on meanwhile.
-        capture: () => ({ drafts: getDrafts(), bases: new Map(baseByKey) }),
-        prepare: ({ drafts: submitted, bases } = { drafts: getDrafts(), bases: baseByKey }) => {
+        // value) when an earlier save read the game back and moved the stored value on meanwhile. A field changed
+        // since the save being written is an edit, even back to its stored value (1, save 2, then 1).
+        capture: () => ({ drafts: getDrafts(), bases: new Map(baseByKey), writing }),
+        prepare: ({ drafts: submitted, bases, writing: during = null } = { drafts: getDrafts(), bases: baseByKey }) => {
             if (isDisabled()) return { unchanged: true };
-            const touched = fields.filter((field) => !isUntouched(field, submitted[field.key], bases.get(field.key)));
+            const touched = fields.filter(
+                (field) =>
+                    !isUntouched(field, submitted[field.key], bases.get(field.key)) ||
+                    (during !== null && draftText(during, field.key) !== draftText(submitted, field.key))
+            );
             if (!touched.length) {
                 resetSubmitted(submitted);
                 return { unchanged: true };
@@ -88,7 +97,13 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
             }
             return {
                 write: async () => {
-                    const verified = await write(next);
+                    writing = submitted;
+                    let verified;
+                    try {
+                        verified = await write(next);
+                    } finally {
+                        writing = null;
+                    }
                     if (verified?.cancelled) {
                         resetSubmitted(submitted);
                         return verified;
