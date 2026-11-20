@@ -293,3 +293,26 @@ test("islands: Lock all asks in place, locks every island on the second click, a
     await undoAction(action.id);
     assert.equal(unlocks(), "abc", "Undo unlocks them again");
 });
+
+// Lumi's call (2026-11-20): every Max all brings a value above its max down to the max, on one click, and Undo puts
+// it back.
+for (const [file, levels, definitions, maxIndex] of [
+    ["src/ui/pages/world-3/prayers/prayers.js", "PrayersUnlocked", "PrayerInfo", 9],
+    ["src/ui/pages/classes/grimoire/grimoire.js", "Grimoire", "GrimoireUpg", 4],
+]) {
+    test(`${file.split("/").pop()}: Max all lowers a level above its max on one click`, async () => {
+        const { fetchChanges } = await importRepo("src/ui/services/api.js");
+        const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+        const cap = Number(game.gga.CustomLists.h[definitions][0][maxIndex]);
+        game.gga[levels][0] = cap + 7;
+        const button = await openPage(file, "Max all");
+        const before = writes();
+        await click(button);
+        await until(() => game.gga[levels][0] === cap, "the level to come down to its max");
+        assert.equal(button.attributes["data-again"], undefined, "it didn't ask");
+        assert.ok(writes() > before);
+        const [action] = (await fetchChanges()).actions;
+        await undoAction(action.id);
+        assert.equal(game.gga[levels][0], cap + 7, "Undo puts it back");
+    });
+}

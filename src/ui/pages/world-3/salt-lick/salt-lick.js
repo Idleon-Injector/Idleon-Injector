@@ -75,7 +75,8 @@ const SaltLickTab = () => {
                     const maxLevel = Math.max(0, Math.trunc(toNum(definition[4])));
                     return {
                         name: cleanNameEffect(definition[1], `Salt Lick ${index + 1}`),
-                        level: toLevelInt(rawLevel, maxLevel),
+                        // The level the game holds, above the max too (the game counts it all): Max all lowers it.
+                        level: Math.max(0, Math.trunc(toNum(rawLevel))),
                         maxLevel,
                     };
                 },
