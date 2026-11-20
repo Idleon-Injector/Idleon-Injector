@@ -6,6 +6,8 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import store from "../../../state/store.js";
+import { VIEWS } from "../../../state/constants.js";
 import { fetchConfig } from "../../../services/api.js";
 import { EmptyState } from "../../../components/EmptyState.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
@@ -24,6 +26,8 @@ import { AccountSection } from "../../../components/views/account/components/Acc
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div } = van.tags;
+
+const PAGE_ID = "account.automation.overview";
 
 const OverviewPage = () => {
     const entries = new Map(); // cheat -> state of its entry
@@ -78,6 +82,14 @@ const OverviewPage = () => {
     const running = () => behind(false).length;
 
     load();
+    // Shown again (back from a system's own tab, which may have switched its automation since): read again. The first
+    // showing is the mount, which reads above.
+    let shown = true;
+    van.derive(() => {
+        const now = store.app.activeTab === VIEWS.PAGES.id && store.app.menuPage === PAGE_ID;
+        if (now && !shown) load();
+        shown = now;
+    });
 
     return PersistentAccountListPage({
         title: "AUTOMATION",
@@ -117,7 +129,7 @@ const OverviewPage = () => {
 };
 
 export default definePage({
-    id: "account.automation.overview",
+    id: PAGE_ID,
     world: "account",
     system: "Automation",
     tab: "Overview",

@@ -1964,3 +1964,27 @@ test("row queue: a stop-at the field refused still shows after the item's switch
     await until(() => !saved().some(({ id, on }) => id === "1:item7" && on), "Velvet Stone off");
     await ui.switchAutomation("automation shops", false);
 });
+
+test("the overview reads again each time it is shown, so a switch made on a system's own tab shows", async () => {
+    const store = (await importRepo("src/ui/state/store.js")).default;
+    const { VIEWS } = await importRepo("src/ui/state/constants.js");
+    const overviewStatus = () => text(byClass(row(overview, "Shops"), "automation-row__status")[0]);
+    store.openMenu({ world: "account", page: "account.automation.overview" });
+    await queueIdle();
+    assert.equal(overviewStatus(), "Off");
+    store.openMenu({ world: "account", page: "account.automation.shops" }); // away, to the Shops tab
+    switchAutomation("account.automation.shops", true); // switched there, behind the overview's back
+    await queueIdle();
+    assert.equal(overviewStatus(), "Off", "while hidden it doesn't read");
+    store.openMenu({ world: "account", page: "account.automation.overview" }); // back
+    await until(
+        () => overviewStatus() !== "Off",
+        () => `the overview to read again: ${overviewStatus()}`
+    );
+    assert.equal(store.app.activeTab, VIEWS.PAGES.id);
+    switchAutomation("account.automation.shops", false);
+    store.openMenu({ world: "account", page: "account.automation.shops" });
+    await queueIdle(); // a separate click: VanJS runs derivations after the current task
+    store.openMenu({ world: "account", page: "account.automation.overview" });
+    await until(() => overviewStatus() === "Off", "the overview to read the switch-off");
+});
