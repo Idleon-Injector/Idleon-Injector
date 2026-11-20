@@ -43,11 +43,11 @@ const openPage = async (file, ready) => {
     return root;
 };
 
-// The game answers these writes with a failure, as when it refuses or the connection drops.
+// The game answers the write requests whose body matches with a failure, as when the connection drops.
 const failWrites = (pattern) => {
     const realFetch = globalThis.fetch;
     globalThis.fetch = async (url, options) => {
-        if (String(url).includes("/write") && pattern.test(JSON.parse(options.body).path)) {
+        if (String(url).includes("/write") && pattern.test(options.body)) {
             return new Response(JSON.stringify({ error: "the game refused" }), {
                 status: 500,
                 headers: { "content-type": "application/json" },
@@ -107,7 +107,7 @@ test("Hat Rack: a half-done Add all shows the hats that landed, and the next Rem
     setRack([hat(1), hat(2)], []);
     const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
 
-    const restore = failWrites(/Spelunk\[46\]\[4\]$/); // the third hat of Add all
+    const restore = failWrites(/"gga\.Spelunk\[46\]\[4\]"/); // the third hat of Add all
     const addAll = buttonIn(root, "Add all");
     try {
         await quietly(async () => {
@@ -131,7 +131,7 @@ test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pre
     setRack([hat(1), hat(2)], [hat(1)]);
     const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
 
-    const restore = failWrites(/^gga\.Cards\[1\]$/);
+    const restore = failWrites(/"gga\.Cards\[1\]"/);
     const row = rackRowFor(root, hat(1));
     const remove = buttonIn(row, "Remove");
     try {
@@ -252,4 +252,26 @@ test("Library: after a character switch, saves and Max books refuse instead of c
     assert.equal(gga.SkillLevelsMAX[id], 5);
     gga.UserInfo[0] = "Lumi_Main";
     gga.SkillLevelsMAX = mainBooks;
+});
+
+test("Buildings: a level save the game doesn't take leaves the level and its pending copy as they were", async () => {
+    gga.TowerInfo[0] = 3;
+    gga.TowerInfo[27] = 3;
+    const root = await openPage("src/ui/pages/world-3/construction/buildings.js", (r) =>
+        byClass(r, "account-row").some((row) => text(row).includes("#1"))
+    );
+    const row = byClass(root, "account-row").find((r) => text(byClass(r, "account-row__index")[0]) === "#1");
+
+    const restore = failWrites(/"gga\.TowerInfo\[27\]"/);
+    try {
+        await quietly(() => typeAndEnter(row, 10));
+    } finally {
+        restore();
+    }
+    assert.match(classes(byClass(row, "save-state")[0]), /save-state--error/);
+    assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [3, 3], "neither copy changed");
+
+    await typeAndEnter(row, 10);
+    await until(() => classes(byClass(row, "save-state")[0]).includes("save-state--success"), "the retry to land");
+    assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
