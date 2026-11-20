@@ -160,8 +160,8 @@ export const Search = () => {
             editState.error = "";
             const resp = await store.setGgaValue(path, validation.valueToSend);
             updateValueInUi(path, resp);
-            // Text typed while the value was written stays in the open editor.
-            if (editState.path === path && editState.draft === sent) cancel();
+            // Text typed while the value was written stays in the open editor, and so does a save queued behind this one.
+            if (editState.path === path && editState.draft === sent && askedMidWrite?.editState !== editState) cancel();
             // The new value shows in the row; the row confirms in place.
             ui.writtenPath = path;
             setTimeout(() => {

@@ -128,6 +128,32 @@ test("a value entered while another is written is written as entered, and newer 
     await until(() => !field(), "the editor to close");
 });
 
+// Review of #121: the first write closed the editor when the text went back to its value, dropping the queued 50.
+test("a value entered while another is written is still written when the text goes back to the first", async () => {
+    if (!resultRows().length) await firstScan();
+    const p = pathOf(resultRows().filter(isNumber)[0]);
+    const row = () => resultRows().find((r) => pathOf(r) === p);
+    click(elements(row()).find((n) => n.nodeName === "button" && text(n).trim() === "Edit"));
+    const field = () => byClass(row(), "result-edit-input")[0];
+    const enter = () => field().listeners.keydown({ key: "Enter", stopPropagation() {} });
+    await until(field, "the editor");
+    const count = writes.length;
+    const release = holdWrites();
+    field().listeners.input({ target: { value: "6" } });
+    enter();
+    await until(() => writes.length > count, "the first write to start");
+    field().listeners.input({ target: { value: "60" } });
+    enter();
+    field().listeners.input({ target: { value: "6" } });
+    release();
+    await until(() => writes.length > count + 1, "the second write");
+    assert.deepEqual(writes.slice(count), [6, 60]);
+    await until(() => classes(row()).includes("is-confirmed"), "the second write to be confirmed");
+    assert.equal(field()?.attributes.value, "6", "the editor stays open with what was typed since");
+    field().listeners.keydown({ key: "Escape", stopPropagation() {} });
+    await until(() => !field(), "the editor to close");
+});
+
 test("text typed while a value is written stays in the editor when no Enter follows", async () => {
     if (!resultRows().length) await firstScan();
     const p = pathOf(resultRows().filter(isNumber)[0]);
