@@ -429,7 +429,14 @@ export const SearchInputSection = ({ ui, handlers }) =>
                         SearchButton({
                             isSearching: () => ui.scan.isSearching,
                             disabled: () => (ui.scan.active ? false : ui.selectedKeys.length === 0),
-                            onClick: () => (ui.scan.active ? handlers.startNewScan() : handlers.handleSearch("new")),
+                            onClick: (e) => {
+                                if (!ui.scan.active) return handlers.handleSearch("new");
+                                // Starting over drops the results, which a later scan can't narrow back to: it asks
+                                // in place first (#25).
+                                const count = ui.scan.results.length;
+                                const question = `drop ${count} result${count === 1 ? "" : "s"} and start over.`;
+                                if (count === 0 || clickAgain(e.currentTarget, question)) handlers.startNewScan();
+                            },
                             label: () => (ui.scan.active ? "New scan" : "First scan"),
                             // The area's one blue button: First scan until a scan runs, then Next scan.
                             main: () => !ui.scan.active,

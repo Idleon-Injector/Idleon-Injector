@@ -1,4 +1,5 @@
-// Value search on the fake game: a value typed while another is written is written next, not thrown away.
+// Value search on the fake game: a value typed while another is written is written next, not thrown away, and
+// New scan asks in place before it drops the results.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
@@ -120,4 +121,18 @@ test("text typed while a value is written stays in the editor when no Enter foll
     assert.equal(writes.length, count + 1);
     assert.equal(field()?.attributes.value, "77", "the editor stays open with what was typed");
     field().listeners.keydown({ key: "Escape", stopPropagation() {} });
+});
+
+test("New scan asks Click again before it drops the results", async () => {
+    if (!resultRows().length) await firstScan();
+    const count = resultRows().length;
+    const btn = scanButton();
+    assert.equal(text(btn).trim(), "New scan");
+    click(btn);
+    assert.equal(btn.attributes["data-again"], "Click again");
+    assert.match(btn.attributes["aria-label"], /^Click again to drop \d+ results? and start over\.$/);
+    assert.equal(resultRows().length, count, "one press drops nothing");
+    click(btn);
+    await until(() => resultRows().length === 0, "the results to go");
+    assert.equal(text(scanButton()).trim(), "First scan");
 });
