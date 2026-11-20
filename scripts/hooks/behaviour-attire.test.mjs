@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { importRepo } from "../known-bugs/index.mjs";
 import { loadHookGame } from "./game-double.mjs";
 
-const { game, set, setup, state, gga, events } = await loadHookGame();
+const { game, set, setup, state, gga, events, cheat } = await loadHookGame();
 const outfit = (STR, bonus = "0", value = 0) => ({
     h: { typeGen: "aGown", displayName: "An_Outfit", STR, UQ1txt: bonus, UQ1val: value, UQ2txt: "0", UQ2val: 0 },
 });
@@ -130,14 +130,18 @@ test("a cache the game emptied is refilled under the rack again", () => {
     assert.equal(totalStats("STR"), 123);
 });
 
-test("the page's recalculate empties the cache and rebuilds the bonus map, then reads the attire", () => {
+test("wide attirestats empties the cache and rebuilds the bonus map; the page then reads the attire", async () => {
     gga.DNSM.h.TotalStatsETCmap = { h: {} };
     gga.DNSM.h.TotStatMAP.h.STR = 1;
     gga.GetPlayersUsernames = ["Me"];
     gga.EquipmentQuantity = [Array(16).fill(1)];
     gga.EquipmentMap = [Array.from({ length: 16 }, () => ({ h: {} }))];
     gga.PlayerDATABASE = { h: {} };
-    const { value } = readComputed("attire", "recalculate");
+    assert.deepEqual(await cheat("wide attirestats"), {
+        ok: true,
+        message: "Worked out the stats of the character in play again",
+    });
+    const { value } = readComputed("attire", "status");
     assert.deepEqual(bonuses(), { "%_DROP": 2, "%_DMG": 3 });
     assert.deepEqual(
         value.characters.map(({ name, item }) => [name, item]),

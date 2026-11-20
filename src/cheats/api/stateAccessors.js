@@ -13,7 +13,7 @@ import { withAutomations } from "../core/automations.js";
 import { events } from "../core/globals.js";
 import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
-import { attireStatus, recalculateStats } from "../helpers/attire/outfits.js";
+import { attireStatus } from "../helpers/attire/outfits.js";
 export { readPath, readPaths, readEntries, deletePath, writePath, writePaths } from "../utils/pathResolver.js";
 
 const COMPUTED_SOURCES = {
@@ -61,10 +61,9 @@ export function readComputed(namespace, name, args = []) {
         }
     }
 
-    // "recalculate" works the stats out again first (after the Attire Rack page changed attire), then reads.
-    if (namespace === "attire" && (name === "status" || name === "recalculate")) {
+    if (namespace === "attire" && name === "status") {
         try {
-            return { value: name === "status" ? attireStatus() : recalculateStats() };
+            return { value: attireStatus() };
         } catch (error) {
             return { error: error.message };
         }

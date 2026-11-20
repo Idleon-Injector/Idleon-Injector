@@ -1,6 +1,6 @@
 /**
  * Attire Rack: the outfits (attire items), the ones `wide attire` gives, and the attire each character wears.
- * The Attire Rack page reads these through readComputed("attire", ...).
+ * The Attire Rack page reads these through readComputed("attire", "status"), and runs `wide attirestats`.
  */
 
 import { events, gga } from "../../core/globals.js";
@@ -101,11 +101,9 @@ export function attireStatus() {
 
 /**
  * Work out the active character's stats again, as the game does when gear changes: empty the stat cache, then
- * rebuild the bonus map. The page calls this after it changes attire, and after an undo of that change.
- * @returns {ReturnType<typeof attireStatus>}
+ * rebuild the bonus map. The page runs this (`wide attirestats`) after it changes attire, and after an undo of that.
  */
 export function recalculateStats() {
     gga.DNSM.h.TotStatMAP.h = {};
     events(12)._customBlock_TotalStats("calcEtcBonuses");
-    return attireStatus();
 }
