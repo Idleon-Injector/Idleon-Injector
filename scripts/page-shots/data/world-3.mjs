@@ -61,7 +61,11 @@ export default () => ({
         Atoms: upgradeLevels(14, 2),
         Spelunk: { 46: HATS.slice(0, 5) },
         Cards: { 1: HATS.slice(5, 8) },
-        EquipmentOrder: [["SetPiece0", "SetPiece1", "SetPiece2", "SetPiece3", "item1"], ["SetPiece4"]],
+        // Slot 15 is the attire slot (account.mjs, Attire Rack).
+        EquipmentOrder: [
+            ["SetPiece0", "SetPiece1", "SetPiece2", "SetPiece3", "item1", ...list(10, () => "Blank"), "EquipmentGown3"],
+            ["SetPiece4"],
+        ],
         TotemInfo: [[42, 30, 18, 0, 55, 12, 0, 8]],
         PrayersUnlocked: list(PRAYERS, (i) => (i % 6 === 5 ? 0 : 1 + (i % 15))),
         Ninja: { 105: list(6, (i) => i * 12) },
