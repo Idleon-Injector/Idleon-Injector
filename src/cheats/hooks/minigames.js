@@ -480,7 +480,10 @@ const HIDDEN_GAMING_POPUPS = [0, 1, 2, 3, 4, 5, 6, 11, 12];
 defineHook({ id: "wide.nogamingpop", target: () => events(577).prototype, method: "_event_Gaming" }, function (base) {
     if (!cheatState.wide.nogamingpop) return base;
     for (const popup of this._GenINFO[39] ?? []) {
-        if (HIDDEN_GAMING_POPUPS.includes(popup[4])) popup[1] = 120;
+        if (!HIDDEN_GAMING_POPUPS.includes(popup[4])) continue;
+        popup[1] = 120;
+        // The DNA glyph (1) is drawn without a fade, so its last frame would flash; draw it off screen instead.
+        if (popup[4] === 1) popup[2] = -9999;
     }
     return base;
 });

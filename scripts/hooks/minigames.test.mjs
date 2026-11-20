@@ -328,9 +328,10 @@ test("wide nogamingpop: hidden popups jump to age 120, the rest and the list its
     assert.deepEqual(ages(on), [120, 120, 120, 120, 120, 120, 120, 5, 5, 5, 5, 120, 120, 5]);
     assert.deepEqual(
         list.map((popup) => [popup[0], popup[2], popup[3], popup[4], popup[5]]),
-        types.map((type) => [type * 10, 100, 200, type, 7]),
-        "only the age changes"
+        types.map((type) => [type * 10, type === 1 ? -9999 : 100, 200, type, 7]),
+        "only the age changes, and the DNA glyph (1), drawn without a fade, moves off screen"
     );
+    assert.equal(list[types.indexOf(4)][2], 100, "a nugget is never moved");
 
     for (const empty of [undefined, []]) {
         const actor = gaming(empty);
