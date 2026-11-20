@@ -30,6 +30,7 @@
 
     .prayer-row .number-input-wrapper--capped input {
         min-width: calc(2ch + 2px);
+        padding-left: 0;
     }
 
     .prayer-row__equip-btn {

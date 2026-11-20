@@ -69,9 +69,9 @@ input[type="number"] {
  */
 .number-input-wrapper--capped input {
     flex: 1 1 0;
-    min-width: calc(3ch + 2px);
-    /* Right-aligned, so only the caret needs room: after the last digit, before the slash. */
-    padding: 0 2px 0 0;
+    min-width: calc(3ch + 6px);
+    /* Room before a value that fills the field, and for the caret between the last digit and the slash. */
+    padding: 0 2px 0 4px;
     text-align: right;
 }
 

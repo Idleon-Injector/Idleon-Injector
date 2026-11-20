@@ -139,7 +139,6 @@ const RespecStatusRow = ({ respecState }) =>
             ),
         ],
         badge: () => (respecState.val === 0 ? "Ready" : "Used"),
-        badgeClass: () => (respecState.val === 0 ? "account-row__badge--highlight" : ""),
     });
 
 const MasteryTab = () => {
