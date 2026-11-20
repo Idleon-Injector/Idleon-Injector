@@ -567,7 +567,7 @@ const CompanionsTab = () => {
                 },
                 "CLEAR ALL"
             ),
-            "Clear all injector pet selections and turn the W1 Companion cheat off, now and at start. Tokens are not touched."
+            "Clear every injector pet choice: no pets now or after a restart. Tokens are not touched."
         ),
         withTooltip(
             button(
