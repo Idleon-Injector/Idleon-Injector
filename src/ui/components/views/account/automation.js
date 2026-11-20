@@ -86,9 +86,10 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
 
 /**
  * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, kept as states by id.
- * Saves run one at a time and each sends the whole list, so the newest values always win.
+ * Saves run one at a time and each sends the whole list, so the newest values always win. `onTurnedOn` runs after
+ * a save that switched an item on (the system's own switch goes on with it, so buying starts at once).
  */
-export const createAutomationPicks = (group) => {
+export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
     const items = new Map();
     let queue = Promise.resolve();
     let pending = 0;
@@ -127,24 +128,33 @@ export const createAutomationPicks = (group) => {
         await saveFile();
     };
 
-    /** Change one item's fields (`patch`: { on } or { stopAt }); they go back if the save fails. */
-    const set = async (id, patch) => {
-        const item = get(id);
-        const before = Object.fromEntries(Object.keys(patch).map((field) => [field, item[field].val]));
-        Object.entries(patch).forEach(([field, value]) => (item[field].val = value));
+    // Apply `patches` ([id, { on } or { stopAt }]) and save them in one go; they go back if the save fails.
+    const save = async (patches) => {
+        const undo = patches.map(([id, patch]) => {
+            const item = get(id);
+            const before = Object.fromEntries(Object.keys(patch).map((field) => [field, item[field].val]));
+            Object.entries(patch).forEach(([field, value]) => (item[field].val = value));
+            return () => Object.entries(before).forEach(([field, value]) => (item[field].val = value));
+        });
         queue = queue.catch(() => {}).then(persist);
         pending++;
         try {
             await queue;
         } catch (error) {
-            Object.entries(before).forEach(([field, value]) => (item[field].val = value));
+            undo.forEach((putBack) => putBack());
             throw error;
         } finally {
             pending--;
         }
+        if (patches.some(([, patch]) => patch.on)) await onTurnedOn?.();
     };
 
-    return { get, sync, set };
+    /** Change one item's fields (`patch`: { on } or { stopAt }). */
+    const set = (id, patch) => save([[id, patch]]);
+    /** Switch every item in `ids` on or off with one save. */
+    const setAll = (ids, on) => save(ids.map((id) => [id, { on }]));
+
+    return { get, sync, set, setAll };
 };
 
 /** Put an item's saved stop-at back in its field ("" is no limit). */

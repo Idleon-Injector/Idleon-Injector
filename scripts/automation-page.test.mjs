@@ -145,6 +145,35 @@ test("the Shops tab shows the shop automation's switch, the shops by world, and 
     assert.match(text(pickRow("Grand Drift")), /Left 0/, "sold out still lists");
 });
 
+test("switching an item on while Shops is off switches Shops on too, now and at start", async () => {
+    assert.equal(shopsOn(), false);
+    const since = commands.length;
+    await checkbox(pickRow("Lucky Whisker")).listeners.change({ target: { checked: true } });
+    await until(
+        () => shopsOn() && /save-state--success/.test(saveState("Lucky Whisker")),
+        () =>
+            `Shops to go on: ${shopsOn()} ${saveState("Lucky Whisker")} ${JSON.stringify(commands.slice(since))} ${text(pickRow("Lucky Whisker"))}`
+    );
+    assert.deepEqual(saved(), [{ id: "0:item0", on: true }]);
+    assert.deepEqual(commands.slice(since), [["automation shops", true]]);
+    assert.deepEqual(startup(), ["automation shops"]);
+    await until(
+        () => text(byClass(row(shops, "Shops"), "automation-row__status")[0]) !== "Off",
+        "the tab's own switch row to show it on"
+    );
+
+    // With Shops on, another item doesn't run the cheat again; switching items off leaves Shops on.
+    await checkbox(pickRow("Lucky Whisker")).listeners.change({ target: { checked: false } });
+    await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: true } });
+    await until(() => saved().some(({ id, on }) => id === "1:item3" && on), "the second item to save");
+    await settle();
+    assert.deepEqual(commands.slice(since), [["automation shops", true]]);
+    assert.equal(shopsOn(), true);
+    await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().length, "the item to save off");
+    assert.equal(shopsOn(), true, "items keep their own switches; the overview stops Shops");
+});
+
 test("an item's switch and stop-at save the shop list to the game and the config file", async () => {
     const savesBefore = saves.length;
     await checkbox(pickRow("Lucky Whisker")).listeners.change({ target: { checked: true } });
@@ -196,4 +225,34 @@ test("quick switch flips save one after another, so the file keeps the last choi
     await settle(50);
     assert.deepEqual(saved(), [{ id: "1:item5", on: true }]);
     assert.equal(box.checked, true);
+});
+
+test("Shops: Enable all switches every item on in one click and one save, and Shops with them", async () => {
+    await switchAutomation("account.automation.shops", false);
+    const before = updates.length;
+    await button(shops, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => shopsOn() && updates.length > before && !button(shops, "Enable all"), "every item to go on");
+    assert.equal(updates.length, before + 1, "one save");
+    const total = byClass(shops, "automation-pick").length;
+    assert.equal(saved().length, total);
+    assert.ok(saved().every(({ on }) => on));
+    assert.deepEqual(startup(), ["automation shops"]);
+});
+
+test("Shops: Disable all asks Click again, then switches every item off and keeps stop-ats", async () => {
+    await typeStopAt("Velvet Stone", "40");
+    const disable = button(shops, "Disable all");
+    const before = updates.length;
+    await disable.listeners.click({ preventDefault() {} });
+    await settle();
+    assert.equal(disable.attributes["data-again"], "Click again");
+    assert.equal(updates.length, before, "the first click saves nothing");
+
+    await disable.listeners.click({ preventDefault() {} });
+    await until(() => updates.length > before, "the items to switch off");
+    await settle();
+    assert.deepEqual(saved(), [{ id: "1:item7", on: false, stopAt: 40 }]);
+    assert.equal(checkbox(pickRow("Lucky Whisker")).checked, false);
+    assert.equal(shopsOn(), true, "only the overview stops Shops itself");
+    await switchAutomation("account.automation.shops", false);
 });
