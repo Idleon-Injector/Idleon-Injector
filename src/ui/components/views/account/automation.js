@@ -26,7 +26,7 @@
  *       showAutomation(automation, list.find(({ cheat }) => cheat === CHEAT) ?? null);
  *       picks.sync(config.cheatConfig.automation.sneaking);   // the accepted list; queued edits still show
  *       error.val = null;                                    // the newest read worked: an older failure goes
- *   }, (notice) => { error.val = notice; loading.val = false; }));   // still waiting: said until the read ends
+ *   }, waiting.onLate));   // waiting = useStillWaiting(): said on the page's line (waiting.over), not as a failure
  *   switchAutomation(cheat, on, onLate), ensureOn(cheat, onLate), switchAll(on, entryOf, onLate)   // for buttons
  *
  * Inside a step, call the game and the file directly (readAutomations, readComputed, fetchConfig, ...): never await
@@ -63,20 +63,46 @@ let queue = Promise.resolve();
  * Run `task` as the next step in the pages' one queue; resolves or rejects with it, however long that takes (neither
  * the game bridge nor the API calls time out). The next step waits for it to end, so a late answer can't land after a
  * newer change. `onLate(notice)`, when given, is called once if the step hasn't ended `steps.timeoutMs` after it was
- * asked for (waiting behind an earlier step counts): a notice only, which the step's own outcome replaces.
+ * asked for (waiting behind an earlier step counts), and `onLate(null)` once that late step ends: a notice only, which
+ * the step's own outcome replaces.
  */
 export const inTurn = (task, onLate = null) => {
     const run = queue.then(task);
     queue = run.catch(() => {});
     if (onLate) {
-        const timer = setTimeout(
-            () => onLate(`still waiting for the game after ${steps.timeoutMs / 1000} s`),
-            steps.timeoutMs
-        );
-        const stop = () => clearTimeout(timer);
+        let late = false;
+        const timer = setTimeout(() => {
+            late = true;
+            onLate(`still waiting for the game after ${steps.timeoutMs / 1000} s`);
+        }, steps.timeoutMs);
+        const stop = () => {
+            clearTimeout(timer);
+            if (late) onLate(null);
+        };
         run.then(stop, stop);
     }
     return run;
+};
+
+/**
+ * One place on a page that says when its steps are still waiting for the game: pass `onLate` to each step's queued
+ * call. `over(said)` is a said state for Said: the notice while any of those steps is still late, else `said`.
+ */
+export const useStillWaiting = () => {
+    const notice = van.state(null);
+    let late = 0; // steps that raised the notice and haven't ended
+    const onLate = (text) => {
+        if (text !== null) {
+            late++;
+            notice.val = text;
+        } else if (--late === 0) notice.val = null;
+    };
+    const over = (said) => ({
+        get val() {
+            return notice.val === null ? said.val : { kind: "failed", text: notice.val };
+        },
+    });
+    return { notice, onLate, over };
 };
 
 // The server merges what a save sends into the rest of the file, so only the startup list is read and written back.
@@ -194,7 +220,7 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
                                     redraw(entry);
                                 }),
                             // Until the outcome replaces it.
-                            (notice) => said.say("failed", notice)
+                            (notice) => notice && said.say("failed", notice)
                         );
                     } catch (error) {
                         failed = true;

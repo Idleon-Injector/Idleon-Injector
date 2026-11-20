@@ -1414,3 +1414,28 @@ test("reader 3: a step waiting behind a late one says so too", async () => {
     assert.equal(shopsOn(), true);
     await ui.switchAutomation("automation shops", false);
 });
+
+// Leftovers the reader-3 fixes named: a wait isn't a failure, and a notice stays while any step is still late.
+const failurePanel = (root) => text(byClass(root, "empty-state--failed")[0]);
+
+test("reader 3: a slow Refresh says it is still waiting on the page's line, not under the read-failed title", async () => {
+    await until(() => button(shops, "Refresh"), "Refresh");
+    let release;
+    holdNextListRead = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            const asked = listAsked;
+            void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+            await until(() => listAsked > asked, "the Refresh's read to be held");
+            await until(
+                () => byClass(shops, "said--line").some((line) => /still waiting/.test(text(line))),
+                "the page's line to say it is still waiting"
+            );
+        });
+        assert.doesNotMatch(failurePanel(shops), /still waiting/, "not under SHOP READ FAILED");
+    } finally {
+        release();
+    }
+    await until(() => !/still waiting/.test(text(shops)), "the read's end to clear the notice");
+    assert.equal(failurePanel(shops), "SHOP READ FAILED", "and the read-failed panel says nothing");
+});

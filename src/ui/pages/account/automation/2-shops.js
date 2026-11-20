@@ -26,6 +26,7 @@ import {
     inTurn,
     readAutomations,
     showAutomation,
+    useStillWaiting,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -53,11 +54,8 @@ const ShopsPage = () => {
     const stock = new Map(); // "shop:item" -> state of today's stock
     const activeWorld = van.state(1);
     const { loading, error, run } = useAccountLoad({ label: "Shop automation" });
-    // A read still waiting for the game says so until it ends.
-    const stillWaiting = (notice) => {
-        error.val = notice;
-        loading.val = false;
-    };
+    // The page's line says when a read or a bulk switch is still waiting for the game: a wait isn't a failure.
+    const waiting = useStillWaiting();
 
     const switchNode = div();
     const panes = renderPersistentPagePanes({ tabs: WORLDS, activeId: activeWorld });
@@ -107,7 +105,7 @@ const ShopsPage = () => {
                         getOrCreateState(stock, `${shop.shop}:${item}`).val = left;
                 ids.val = shops.flatMap((shop) => shop.items.map(({ item }) => `${shop.shop}:${item}`));
                 error.val = null; // this read, the newest to run, worked: an older one's failure goes
-            }, stillWaiting)
+            }, waiting.onLate)
         );
 
     // Enable all runs on one click; Disable all asks "Click again" first (#25).
@@ -115,8 +113,7 @@ const ShopsPage = () => {
         bulk.run(
             async () => {
                 bulkSaid.clear();
-                // A notice while it waits for the game, until the outcome replaces it.
-                await picks.setAll(ids.val, on, (notice) => bulkSaid.say("failed", notice));
+                await picks.setAll(ids.val, on, waiting.onLate);
             },
             { onSuccess: () => bulkSaid.clear(), onError: (caught) => bulkSaid.say("failed", caught.message) }
         );
@@ -162,7 +159,7 @@ const ShopsPage = () => {
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            Said({ said: bulkSaid.said, className: "said--line" }),
+            Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
             AccountSection({ title: "AUTOMATION", body: switchNode }),
             ...panes
         ),

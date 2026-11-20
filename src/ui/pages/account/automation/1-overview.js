@@ -17,6 +17,7 @@ import {
     inTurn,
     readAutomations,
     showAutomation,
+    useStillWaiting,
     switchAll,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -28,11 +29,8 @@ const OverviewPage = () => {
     const entries = new Map(); // cheat -> state of its entry
     const list = van.state([]);
     const { loading, error, run } = useAccountLoad({ label: "Automation" });
-    // A read still waiting for the game says so until it ends.
-    const stillWaiting = (notice) => {
-        error.val = notice;
-        loading.val = false;
-    };
+    // The page's line says when a read or a bulk switch is still waiting for the game: a wait isn't a failure.
+    const waiting = useStillWaiting();
     const bulk = useWriteStatus();
     const bulkSaid = useSaid();
     const rowsNode = div({ class: "account-item-stack" });
@@ -57,7 +55,7 @@ const OverviewPage = () => {
                         : [EmptyState({ title: "No automations yet" })]
                 );
                 error.val = null; // this read, the newest to run, worked: an older one's failure goes
-            }, stillWaiting)
+            }, waiting.onLate)
         );
 
     // For the buttons: off now or at start (a startup save that failed, say) still needs the switch.
@@ -69,9 +67,7 @@ const OverviewPage = () => {
             async () => {
                 bulkSaid.clear();
                 try {
-                    // A notice while it waits for the game, until the outcome replaces it.
-                    const notice = (text) => bulkSaid.say("failed", text);
-                    await switchAll(on, (cheat) => entries.get(cheat), notice);
+                    await switchAll(on, (cheat) => entries.get(cheat), waiting.onLate);
                 } finally {
                     await load();
                 }
@@ -113,7 +109,7 @@ const OverviewPage = () => {
         initialWrapperClass: "scrollable-panel",
         body: div(
             { class: "scrollable-panel content-stack" },
-            Said({ said: bulkSaid.said, className: "said--line" }),
+            Said({ said: waiting.over(bulkSaid.said), className: "said--line" }),
             AccountSection({ title: "AUTOMATIONS", body: rowsNode })
         ),
     });
