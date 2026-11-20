@@ -84,3 +84,9 @@
 .brewing-section .account-section__title {
     color: var(--col-color, var(--c-accent));
 }
+
+/* Automation tab: a bubble's bonus and next cost wrap instead of being cut off. */
+.bubbles-automation .automation-pick__detail {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

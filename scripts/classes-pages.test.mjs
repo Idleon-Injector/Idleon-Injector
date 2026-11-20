@@ -151,6 +151,57 @@ test("outposts: a refused slot or TYPE pick goes back to what the game holds and
     }
 });
 
+// Review of #120: a failed pick put back the remembered type, though the game may have taken the pick.
+test("outposts: a slot pick whose answer is lost shows what the game holds", async () => {
+    const before = game.gga.RoyalMaps[1][11];
+    const root = await openOutposts();
+    const slot = slotSelects(card(root, 1))[0];
+    const realFetch = globalThis.fetch;
+    // The game takes the write, but its answer is lost on the way back.
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (!String(url).includes("/write")) return response;
+        return new Response(JSON.stringify({ error: "the connection dropped" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    try {
+        await choose(slot, "5");
+        assert.equal(String(game.gga.RoyalMaps[1][11])[0], "5", "the game took it");
+        assert.equal(slot.value, "5", "the slot shows what the game holds");
+        assert.match(cardSays(card(root, 1)), /Slot 1 not saved/);
+    } finally {
+        globalThis.fetch = realFetch;
+        game.gga.RoyalMaps[1][11] = before;
+    }
+});
+
+// Review of #120: Add unit read NEW UNIT when its turn came, so a pick made while it waited was the one added.
+test("outposts: Add unit adds the unit picked at the press, though it waits behind another change", async () => {
+    const saved = unitArrays();
+    game.gga.RoyalG[6] = [4];
+    game.gga.RoyalG[7] = [1];
+    const root = await openOutposts();
+    const outpost = card(root, 1);
+    const newUnit = byClass(byClass(outpost, "outpost-map-unit-add")[0], "outpost-select-field__select")[0];
+    const release = holdWrites();
+    try {
+        choose(newUnit, "2");
+        const removing = click(buttonsNamed(outpost, "Remove")[0]);
+        await tick();
+        const adding = click(buttonsNamed(outpost, "Add unit")[0]);
+        await tick();
+        choose(newUnit, "3");
+        release();
+        await Promise.all([removing, adding]);
+        assert.deepEqual([...game.gga.RoyalG[6]], [2], "the Remove, then the unit picked at the press");
+    } finally {
+        release();
+        putUnitArrays(saved);
+    }
+});
+
 test("outposts: two quick Removes on one map remove both of its units, not another map's", async () => {
     const saved = unitArrays();
     game.gga.RoyalG[6] = [4, 4, 5];
@@ -305,7 +356,7 @@ test("outposts: Populate removes no units the game added since the page read the
     }
 });
 
-test("outposts: a refused GLORIFIED press says why, and a press while it saves can't send a second write", async () => {
+test("outposts: a refused GLORIFIED press says why; a press while it saves stays enabled and sends no second write", async () => {
     const root = await openOutposts();
     const outpost = card(root, 1);
     const glorified = byClass(outpost, "outpost-glorified-button")[0];
@@ -320,10 +371,16 @@ test("outposts: a refused GLORIFIED press says why, and a press while it saves c
 
     const release = holdWrites();
     try {
+        const before = writes();
         const press = click(glorified);
-        await until(() => glorified.attributes.disabled, "the button to wait while it saves");
+        await until(() => classes(glorified).includes("account-btn--loading"), "the button to say it saves");
+        // Enabled, so focus stays on it (AGENTS.md); the press meanwhile does nothing.
+        assert.ok(!glorified.attributes.disabled, "it stays enabled while it saves");
+        await click(glorified);
         release();
         await press;
+        await tick();
+        assert.equal(writes(), before + 1, "only the first press wrote");
         assert.equal(game.gga.RoyalMaps[1][12], 0);
         assert.equal(cardSays(outpost), "", "the next press cleared the failure");
     } finally {
@@ -422,7 +479,7 @@ test("map bonuses: a reload leaves the rows in the page", async () => {
 });
 
 test("masterclass pages: a reload leaves the rows in the page", async () => {
-    const root = (await importRepo("src/ui/pages/classes/grimoire/grimoire.js")).default.component();
+    const root = (await importRepo("src/ui/pages/classes/grimoire/1-grimoire.js")).default.component();
     await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
     const row = byClass(root, "masterclass-upgrade-row")[0];
     const takenOut = watchTakenOut(row);
@@ -432,7 +489,7 @@ test("masterclass pages: a reload leaves the rows in the page", async () => {
 });
 
 test("masterclass pages: a search by index finds the row with that number", async () => {
-    const root = (await importRepo("src/ui/pages/classes/grimoire/grimoire.js")).default.component();
+    const root = (await importRepo("src/ui/pages/classes/grimoire/1-grimoire.js")).default.component();
     await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
     const search = elements(root).find(
         (node) => node.nodeName === "input" && String(node.attributes.placeholder ?? "").includes("OR INDEX")

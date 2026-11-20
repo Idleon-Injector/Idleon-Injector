@@ -232,7 +232,7 @@ test("islands: Set all asks before it lowers an upgrade, and an empty field writ
 test("bubbles: two Prisma switches flipped close together both stay Prisma (they share one string)", async () => {
     ola[384] = "0";
     const root = await openPage(
-        "src/ui/pages/world-2/bubbles/bubbles.js",
+        "src/ui/pages/world-2/bubbles/1-bubbles.js",
         (root) => byClass(root, "brewing-row").length > 4
     );
     const [first, second] = inputs(byClass(root, "brewing-section--orange")[0]).filter(
@@ -252,7 +252,7 @@ test("bubbles: Set all with an empty field writes nothing, lowering asks first, 
     const levels = game.gga.CauldronInfo[0];
     for (let i = 0; i < levels.length; i++) levels[i] = 120;
     const root = await openPage(
-        "src/ui/pages/world-2/bubbles/bubbles.js",
+        "src/ui/pages/world-2/bubbles/1-bubbles.js",
         (root) => byClass(root, "brewing-row").length > 4
     );
     const orange = byClass(root, "brewing-section--orange")[0];
@@ -286,7 +286,7 @@ test("bubbles: a bubble saved while its cauldron's Set all runs keeps the level 
     for (let i = 0; i < levels.length; i++) levels[i] = 10;
     levels[0] = 50000; // already at the Set all level, so Set all leaves it out
     const root = await openPage(
-        "src/ui/pages/world-2/bubbles/bubbles.js",
+        "src/ui/pages/world-2/bubbles/1-bubbles.js",
         (root) => byClass(root, "brewing-row").length > 4
     );
     const orange = byClass(root, "brewing-section--orange")[0];

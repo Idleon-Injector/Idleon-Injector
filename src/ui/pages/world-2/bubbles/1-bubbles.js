@@ -122,8 +122,12 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
                                       try {
                                           await writeVerified("OptionsListAccount[384]", encodePrisma(next));
                                       } catch (error) {
-                                          // A failed save leaves the switches on what the game held when it started.
-                                          prismaSet.val = held;
+                                          // The write may have landed: the switches show what the game holds now
+                                          // (what it held when this save started, if that read fails too).
+                                          prismaSet.val = await gga("OptionsListAccount[384]").then(
+                                              parsePrisma,
+                                              () => held
+                                          );
                                           throw error;
                                       }
                                       prismaSet.val = next;
@@ -318,6 +322,7 @@ export default definePage({
     id: "w2.bubbles",
     world: 2,
     system: "Bubbles",
+    tab: "Bubbles",
     description: "Bubble levels and prisma bubbles in all four cauldrons.",
     keywords: ["Alchemy", "Brewing", "Prisma"],
     component: BrewingTab,

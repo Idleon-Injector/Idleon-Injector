@@ -43,9 +43,12 @@ const ShopsPage = () => {
     // The page's line says when a read or a bulk switch is still waiting for the game: a wait isn't a failure.
     const waiting = useStillWaiting();
     // Queued like everything else, so it reads what the steps before it did.
+    // It reads the startup cheats too: an item switched on puts Shops in them, and Enable all asks whether it is.
     const readSwitch = () =>
         inTurn(async () => {
-            showAutomation(automation, await findShops());
+            const [found, config] = await Promise.all([findShops(), fetchConfig()]);
+            showAutomation(automation, found);
+            atStart.val = (config.startupCheats ?? []).includes(CHEAT);
         }, waiting.onLate);
     // Switching an item on switches Shops on too (now and at start), in the item's own save step, so buying starts
     // at once; that step reads the tab's own switch back.
@@ -115,7 +118,12 @@ const ShopsPage = () => {
         bulk.run(
             async () => {
                 bulkSaid.clear();
-                await picks.setAll(ids.val, on, waiting.onLate);
+                try {
+                    await picks.setAll(ids.val, on, waiting.onLate);
+                } finally {
+                    // Whatever happened, so Enable all knows whether it still has work.
+                    await readSwitch().catch(() => {});
+                }
             },
             { onSuccess: () => bulkSaid.clear(), onError: (caught) => bulkSaid.say("failed", caught.message) }
         );

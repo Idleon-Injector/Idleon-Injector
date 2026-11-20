@@ -445,7 +445,10 @@ export const SearchInputSection = ({ ui, handlers }) =>
                                 // in place first (#25).
                                 const count = ui.scan.results.length;
                                 const question = `drop ${count} result${count === 1 ? "" : "s"} and start over.`;
-                                if (count === 0 || clickAgain(e.currentTarget, question)) handlers.startNewScan();
+                                // The results it drops are what it touches: a Refresh to other results asks again.
+                                const targets = ui.scan.results.map((result) => result.path);
+                                if (count === 0 || clickAgain(e.currentTarget, question, { targets }))
+                                    handlers.startNewScan();
                             },
                             label: () => (ui.scan.active ? "New scan" : "First scan"),
                             // The area's one blue button: First scan until a scan runs, then Next scan.
