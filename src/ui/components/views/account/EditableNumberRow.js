@@ -17,6 +17,11 @@ const { div, span } = van.tags;
  *   the draft can't be saved (shown beside the field; the typed text stays).
  * - `write(next)` must resolve to the verified value; returning `{ cancelled: true }` leaves the stored
  *   value unchanged and resets the draft, without success feedback.
+ * - `cap` (a number or a function returning one) shows muted inside the field after the value: "2 / 15". Only a
+ *   real cap, the value Max fills up to; a number that isn't a limit never gets the slash.
+ * - `renderBadge(value)` is a state (Equipped, Locked), a plain muted word just before the field.
+ * - `unset` is a stored value that means "not set" (a locked talent's -1); the field shows it empty, and leaving the
+ *   empty field untouched saves nothing.
  */
 export const EditableNumberRow = ({
     valueState,
@@ -24,6 +29,7 @@ export const EditableNumberRow = ({
     write,
     renderInfo,
     renderBadge,
+    cap = null,
     adjustInput = (rawValue, delta, currentValue) => {
         const base = Number(rawValue);
         const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
@@ -38,6 +44,7 @@ export const EditableNumberRow = ({
     inputMode = "int",
     inputProps = {},
     disabled = null,
+    unset = null,
 }) => {
     const {
         onfocus: userOnfocus,
@@ -49,7 +56,11 @@ export const EditableNumberRow = ({
         ...restInputProps
     } = inputProps;
     const formatCommittedValue = (value) =>
-        typeof formatter === "function" ? formatter(value ?? 0) : String(value ?? 0);
+        unset !== null && value === unset
+            ? ""
+            : typeof formatter === "function"
+              ? formatter(value ?? 0)
+              : String(value ?? 0);
     const { inputValue, status, reason, undo, handlers, run, isDisabled, applyValue, focus, blur } = useNumericEditor({
         valueState,
         normalize,
@@ -104,7 +115,7 @@ export const EditableNumberRow = ({
             ...handlers,
         },
         div({ class: "account-row__info" }, ...toNodes(renderInfo())),
-        // A badge only adds what the field doesn't say (a cap, a state); the value itself shows once, in the field.
+        // The badge only adds what the field doesn't say, a state; the value and its cap show once, in the field.
         renderBadge
             ? span(
                   {
@@ -130,6 +141,7 @@ export const EditableNumberRow = ({
                 mode: inputMode,
                 value: inputValue,
                 formatter,
+                cap,
                 ...restInputProps,
                 disabled: isDisabled,
                 onfocus: () => {

@@ -61,7 +61,7 @@ const LogBookRow = ({ valueState }) => {
 
     return AccountRow({
         info: div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, "Log Book Plants")),
-        badge: () => `${String(valueState.val ?? "").length} LETTERS`,
+        badge: () => `${String(valueState.val ?? "").length} letters`,
         controlsClass: "account-row__controls--xl",
         status,
         controls: [

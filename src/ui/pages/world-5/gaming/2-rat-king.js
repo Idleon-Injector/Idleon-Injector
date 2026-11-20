@@ -1,4 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { CappedValue } from "../../../components/NumberInput.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { Icons } from "../../../assets/icons.js";
 import { gga } from "../../../services/api.js";
@@ -340,7 +341,9 @@ const RatKingTab = () => {
                         ),
                     ],
                     badge: () =>
-                        logbookStr.val === "jjjjjjjjjj" ? "ALL MAXED" : `${logbookStr.val.replace(/_/g, "").length}/10`,
+                        logbookStr.val === "jjjjjjjjjj"
+                            ? "All maxed"
+                            : CappedValue({ value: logbookStr.val.replace(/_/g, "").length, cap: 10 }),
                     status: maxLogbookStatus.status,
                     controls: [
                         ActionButton({

@@ -26,28 +26,10 @@
     letter-spacing: 0.06em;
 }
 
+/* The state (Owned, Not owned, Buy queued) is the plain muted word every row uses, at one width so the buttons align. */
 .bundle-row .account-row__badge {
-    box-sizing: border-box;
-    display: inline-flex;
     width: 88px;
-    align-items: center;
-    justify-content: center;
-}
-
-.bundle-row__badge--owned {
-    color: var(--c-success);
-    border-color: var(--c-success);
-    background: var(--c-success-10);
-}
-
-.bundle-row__badge--unowned {
-    color: var(--c-text-muted);
-}
-
-.bundle-row__badge--queued {
-    color: var(--c-warning);
-    border-color: var(--c-warning);
-    background: color-mix(in srgb, var(--c-warning) 12%, var(--c-panel));
+    text-align: right;
 }
 
 .bundle-row__controls {

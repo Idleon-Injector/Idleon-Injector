@@ -730,15 +730,26 @@
     display: none;
 }
 
+/*
+ * The badge is a row's state (Equipped, Locked, Complete): a plain muted word just before the field, with no box and
+ * no colour of its own. The value and its cap live in the field ("2 / 15"); a row with no field shows them here as
+ * text the same way (CappedValue).
+ */
 .account-row__badge {
+    justify-self: end;
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    color: var(--c-text-muted);
+    white-space: nowrap;
+}
+
+/* A capped value with no field (a read-only row): the field's text without its box. */
+.capped-value {
+    display: inline-flex;
+    align-items: baseline;
     font-family: var(--font-mono);
     font-size: 0.875rem;
-    color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
-    border: 1px solid var(--c-accent);
-    padding: 2px 8px;
-    white-space: nowrap;
-    flex-shrink: 0;
+    color: var(--c-text-main);
 }
 
 /* In the narrow overlay a value row keeps its name and badge on the first line and puts the field and its buttons on
@@ -749,9 +760,12 @@
         row-gap: 6px;
     }
 
+    /* The state word keeps to the end of the name's line. */
     .account-row--value > .account-row__badge {
         grid-column: 2;
         grid-row: 1;
+        align-self: start;
+        padding-top: 1px;
     }
 
     .account-row--value > .account-row__controls {
@@ -759,20 +773,17 @@
         flex-wrap: wrap;
     }
 
-    /* The save's words (saving…, the reason, Undo) lie at the end of the name's line, where the badge steps aside,
-     * since the field's line has no room beside it. */
+    /* The save state (the mark, saving…, the reason, Undo) lies at the end of the name's line, where the state word
+     * steps aside while it shows, so the field's line keeps its whole width for the field and its buttons. */
     .account-row--value {
         position: relative;
     }
 
     .account-row--value .save-state {
-        position: static;
-    }
-
-    .account-row--value .save-state__label,
-    .account-row--value .save-state__undo {
+        position: absolute;
         top: 19px;
-        right: 10px;
+        right: 12px;
+        transform: translateY(-50%);
     }
 }
 
@@ -789,6 +800,12 @@
 
 .account-row__controls .number-input-wrapper {
     width: 110px;
+}
+
+/* A field with its cap ("12 / 15") is wider by the cap, and grows past that when a cap needs it. */
+.account-row__controls .number-input-wrapper--capped {
+    width: auto;
+    min-width: 140px;
 }
 
 .account-row__controls--stack {
@@ -813,6 +830,15 @@
 .account-row__controls--xl .number-input-wrapper input {
     min-width: 10ch;
     font-size: 0.875rem;
+}
+
+.account-row__controls--xl .number-input-wrapper--capped {
+    width: auto;
+    min-width: 180px;
+}
+
+.account-row__controls--xl .number-input-wrapper--capped input {
+    min-width: calc(5ch + 6px);
 }
 
 .account-row--wide-controls {
