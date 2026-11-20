@@ -394,7 +394,8 @@ const PrayersTab = () => {
             valueState: level,
             normalize: (raw) => resolveNumberInput(raw, { min: 0, max: Number(metadata.val[9]) }),
             write: (next) => setLevel(id, next),
-            disabled: unavailable,
+            // Not while a save runs: the field keeps focus, and `execute` refuses a save that overlaps.
+            disabled: () => loading.val || Boolean(error.val) || !snapshot.val,
             rowClass: "prayer-row account-row--wide-controls",
             inputProps: { "aria-label": `${cleanName(metadata.val[0])} level` },
             maxAction: { label: "MAX", value: Number.MAX_SAFE_INTEGER },

@@ -215,3 +215,30 @@ test("pets.js: a grant the game doesn't keep shows as failed", async () => {
         restore();
     }
 });
+
+// Fields stay enabled while a save runs, so focus stays where the player put it (and Enter again can answer
+// the question a lock asks in the field).
+test("prayers.js: the level field stays enabled while its save runs", async (t) => {
+    const firstRow = (root) => byClass(root, "prayer-row")[0];
+    const root = await openPage(
+        "src/ui/pages/world-3/prayers/prayers.js",
+        (root) => firstRow(root) && !/^[-—]?$/.test(text(byClass(firstRow(root), "account-row__badge")[0]))
+    );
+    const row = firstRow(root);
+    const [input] = elements(row).filter((node) => node.nodeName === "input");
+    const disabledDuringSave = [];
+    const fetch = globalThis.fetch;
+    t.mock.method(globalThis, "fetch", async (...args) => {
+        const response = await fetch(...args);
+        disabledDuringSave.push(Boolean(input.attributes.disabled));
+        return response;
+    });
+    input.value = "3";
+    input.listeners.input({ target: input });
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    const state = () => String(byClass(row, "save-state")[0].attributes.class);
+    await until(() => /save-state--(success|error)/.test(state()), "the level to finish saving");
+    assert.match(state(), /save-state--success/);
+    assert.ok(disabledDuringSave.length > 0);
+    assert.deepEqual([...new Set(disabledDuringSave)], [false], "the field was never disabled");
+});
