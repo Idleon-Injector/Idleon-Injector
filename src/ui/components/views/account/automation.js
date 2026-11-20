@@ -383,7 +383,9 @@ const showStopAt = (item) => setNumberInputValue(item.draft, stopAtText(item.sto
 const parseStopAt = (raw) => {
     const text = String(raw ?? "").trim();
     if (text === "") return null;
-    if (!/^\d+$/.test(text)) throw new Error("a whole number, or empty for no limit");
+    // A number too big to store exactly would be saved as a different one.
+    if (!/^\d+$/.test(text) || !Number.isSafeInteger(Number(text)))
+        throw new Error("a whole number, or empty for no limit");
     return Number(text);
 };
 

@@ -1745,3 +1745,14 @@ test("local review: when the game can't be read either, the server's copy of a r
         await picks.set("1:item6", { on: false });
     }
 });
+
+test("local review: a stop-at too big to store exactly is refused at its field", async () => {
+    const before = updates.length;
+    const input = field("Royal Pebble");
+    input.listeners.input({ target: { value: "9007199254740993" } });
+    metric("Royal Pebble").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => /save-state--error/.test(saveState("Royal Pebble")), "the field to refuse it");
+    assert.equal(updates.length, before, "nothing is saved");
+    assert.match(text(pickRow("Royal Pebble")), /whole number/);
+    metric("Royal Pebble").listeners.keydown({ key: "Escape", target: input, preventDefault() {} });
+});
