@@ -32,12 +32,11 @@ export const CheatItem = (cheat) => {
 
     // A refusal: the value field (the row's hint) pulses and the row says why.
     const refuse = (text) => {
-        replay(inputRef, "is-refused");
+        replay(inputRef, "refused");
         say("refused", text);
     };
 
-    const handleExecute = async (e) => {
-        const row = e.currentTarget;
+    const handleExecute = async () => {
         let finalAction = cheat.value;
         if (needsValue) {
             const val = getInputValue();
@@ -47,7 +46,7 @@ export const CheatItem = (cheat) => {
 
         const result = await store.executeCheat(finalAction);
         if (result.ok) {
-            replay(row, "is-confirmed");
+            replay(runButton, "confirmed");
             say("done", result.message);
         } else {
             say("failed", plainReason(result.message));
@@ -78,33 +77,35 @@ export const CheatItem = (cheat) => {
         return store.isFavorite(cheat.value);
     };
 
+    const runButton = button(
+        {
+            class: () =>
+                `cheat-button ${hasConfig ? "has-config" : ""} ${said.val?.kind === "failed" ? "is-failed" : ""}`,
+            onclick: handleExecute,
+        },
+        span(
+            { class: "cheat-button-text" },
+            cheat.message && cheat.message !== cheat.value ? `${cheat.value} - ${cheat.message}` : cheat.value
+        ),
+        Said({ said, className: "said--row", kinds: ["done", "refused"] }),
+        hasConfig
+            ? span(
+                  {
+                      class: "cheat-config-icon",
+                      onclick: handleConfigClick,
+                      title: "Open config for this cheat",
+                  },
+                  Icons.Config()
+              )
+            : null
+    );
+
     return div(
         {
             class: () => `cheat-item-container ${said.val?.kind === "refused" ? "is-waiting-value" : ""}`,
             "data-cheat": cheat.value,
         },
-        button(
-            {
-                class: () =>
-                    `cheat-button ${hasConfig ? "has-config" : ""} ${said.val?.kind === "failed" ? "is-failed" : ""}`,
-                onclick: handleExecute,
-            },
-            span(
-                { class: "cheat-button-text" },
-                cheat.message && cheat.message !== cheat.value ? `${cheat.value} - ${cheat.message}` : cheat.value
-            ),
-            Said({ said, className: "said--row", kinds: ["done", "refused"] }),
-            hasConfig
-                ? span(
-                      {
-                          class: "cheat-config-icon",
-                          onclick: handleConfigClick,
-                          title: "Open config for this cheat",
-                      },
-                      Icons.Config()
-                  )
-                : null
-        ),
+        runButton,
         inputRef,
         button(
             {

@@ -49,7 +49,7 @@ const QuickAccessSection = () => {
         const chip = e.currentTarget;
         const result = await store.executeCheat(cheat.value);
         if (!result.ok) return say("failed", `${cheat.value}: ${plainReason(result.message)}`);
-        replay(chip, "is-confirmed");
+        replay(chip, "confirmed");
         say("done", `${cheat.value}: ${result.message}`);
     };
 

@@ -240,7 +240,7 @@ export const Sidebar = () => {
                                     const versionButton = e.currentTarget;
                                     if (!(await store.openUpdateModal())) {
                                         checked.val = true;
-                                        replay(versionButton, "is-confirmed");
+                                        replay(versionButton, "confirmed");
                                     }
                                 },
                                 "aria-label": () =>

@@ -159,7 +159,7 @@ test("a running automation shows in the WebUI's active-cheats list, and a click 
     assert.deepEqual(store.getActiveCheats().sort(), ["fixture steady", "fixturecmd"]);
 
     // The list sends the opposite of what it shows, so a second click can't turn it back on.
-    assert.equal(await store.executeCheat("fixturecmd", "command loop"), true);
+    assert.equal((await store.executeCheat("fixturecmd")).ok, true);
     await store.loadCheatStates();
     assert.deepEqual(store.getActiveCheats(), ["fixture steady"]);
     assert.equal(automation("fixture.command").on, false);

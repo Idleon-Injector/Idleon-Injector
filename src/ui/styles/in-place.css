@@ -248,20 +248,20 @@
 /* --- CLICK AGAIN ---
  * The button keeps its box; CLICK AGAIN lies over it (wider when it needs to) and its fill drains away.
  */
-button.is-armed[data-again] {
+button[data-again] {
     --again-color: var(--c-accent);
     --again-fill: var(--c-accent-20);
     position: relative;
     color: transparent;
 }
 
-.account-btn--danger.is-armed[data-again],
-.account-btn--max-reset.is-armed[data-again] {
+.account-btn--danger[data-again],
+.account-btn--max-reset[data-again] {
     --again-color: var(--c-danger-soft-text);
     --again-fill: var(--c-danger-20);
 }
 
-button.is-armed[data-again]::after {
+button[data-again]::after {
     content: attr(data-again);
     position: absolute;
     top: -1px;
@@ -293,7 +293,7 @@ button.is-armed[data-again]::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    button.is-armed[data-again]::after {
+    button[data-again]::after {
         animation-timing-function: steps(1, end);
     }
 }

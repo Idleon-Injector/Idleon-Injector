@@ -11,15 +11,19 @@ import { hideTooltip, showTooltip } from "./Tooltip.js";
 
 const { span } = van.tags;
 
-/** Play a one-shot animation class again, even when it is already on; it comes off when the animation ends. */
-export const replay = (el, cls) => {
+/**
+ * Play a one-shot animation again (`data-confirmed`, `data-refused`), even when it is already on; the attribute
+ * comes off when the animation ends. An attribute, not a class, so a VanJS class binding can't wipe it midway.
+ */
+export const replay = (el, name) => {
     if (!el) return;
-    el.classList.remove(cls);
+    const attribute = `data-${name}`;
+    el.removeAttribute(attribute);
     void el.offsetWidth; // restart the animation
-    el.classList.add(cls);
+    el.setAttribute(attribute, "");
     const done = (e) => {
         if (e.target !== el) return; // a child's own animation
-        el.classList.remove(cls);
+        el.removeAttribute(attribute);
         el.removeEventListener("animationend", done);
     };
     el.addEventListener("animationend", done);
@@ -100,7 +104,6 @@ const disarm = (button) => {
     if (!state) return;
     clearTimeout(state.timer);
     armed.delete(button);
-    button.classList.remove("is-armed");
     button.removeAttribute("data-again");
     if (state.label === null) button.removeAttribute("aria-label");
     else button.setAttribute("aria-label", state.label);
@@ -108,7 +111,7 @@ const disarm = (button) => {
 };
 
 /**
- * The in-place confirm (#25), where a click used to ask `window.confirm()`. `question` is what the second click
+ * The in-place confirm (#25), where a click used to open the browser's confirm popup. `question` is what the second click
  * does, as words that follow "Click again to" ("disable 12 bribes."). The first click arms `button` and returns
  * false: it reads CLICK AGAIN, the menu's tooltip and screen readers say "Click again to …", and its fill drains
  * over `ms`. A second click within `ms` returns true. If the question changed meanwhile (other targets), the
@@ -127,16 +130,17 @@ export const clickAgain = (button, question, ms = 4000) => {
         timer: setTimeout(() => disarm(button), ms),
     });
     button.style.setProperty("--again-ms", `${ms}ms`);
+    button.removeAttribute("data-again");
+    void button.offsetWidth; // a new question drains from full again
     button.setAttribute("data-again", "CLICK AGAIN");
     button.setAttribute("aria-label", `Click again to ${question}`);
-    replay(button, "is-armed");
     showTooltip(button, `Click again to ${question}`);
     announce(`Click again to ${question}`);
     return false;
 };
 
 /**
- * The in-place confirm for a typed value (#77), where a save used to ask `window.confirm()`. Returns
+ * The in-place confirm for a typed value (#77), where a save used to open the browser's confirm popup. Returns
  * `ask(question)`: the first time it throws an Error ("Enter it again to …") that the field's save state shows
  * beside it, and nothing is written. The same question again within `ms`, while the player is still in the field
  * (`inField()`: Enter, not leaving it), returns true.

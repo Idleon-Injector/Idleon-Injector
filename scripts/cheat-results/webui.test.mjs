@@ -35,7 +35,7 @@ const router = new TinyRouter();
 setupCheatRoutes(router, bridge);
 const { store } = await loadUi(router);
 const { CheatItem } = await importRepo("src/ui/components/CheatItem.js");
-// The Sidebar reads the window size when it loads, and its notification bell listens on the document.
+// The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
 globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
 globalThis.document.addEventListener = () => {};
 const { Sidebar } = await importRepo("src/ui/components/Sidebar.js");
@@ -44,6 +44,8 @@ const { Home } = await importRepo("src/ui/components/views/Home.js");
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 const find = (node, test) => (test(node) ? [node] : (node.childNodes ?? []).flatMap((child) => find(child, test)));
 const button = (cheat) => CheatItem({ value: cheat, message: cheat }).childNodes[0];
+const text = (node) => (typeof node === "string" ? node : (node.data ?? (node.childNodes ?? []).map(text).join("")));
+const classOf = (node) => node.className ?? node.attributes?.class ?? "";
 const crit = () => game.state.cheatState.godlike.crit;
 
 test("a cheat button sets the state the player clicked, so a double click can't flip it back", async () => {
@@ -71,36 +73,54 @@ test("a parent's button sets its own flag; a cheat with a value or no state stil
     await store.loadCheatStates();
     sent.length = 0;
     await button("fixture").listeners.click();
-    await store.executeCheat("fixture nested deep 5", "a value");
-    await store.executeCheat("fixture broken", "a cheat that throws");
+    await store.executeCheat("fixture nested deep 5");
+    await store.executeCheat("fixture broken");
     assert.deepEqual(sent, [
         ["fixture", true],
         ["fixture nested deep 5", undefined],
         ["fixture broken", undefined],
     ]);
     assert.equal(game.state.cheatState.fixtures, true);
-    await store.executeCheat("fixture", "fixture", false);
+    await store.executeCheat("fixture", false);
 });
 
-test("a failed cheat shows an error toast and its button flashes red, not green", async () => {
-    const item = button("fixture broken");
-    await item.listeners.click();
+test("a failed cheat says why on a line under its row, and a cheat that ran says so on the row", async () => {
+    const row = CheatItem({ value: "fixture broken", message: "fixture broken" });
+    const runButton = row.childNodes[0];
+    await runButton.listeners.click();
     await settle();
 
-    const { type, message } = store.app.toast;
-    assert.deepEqual(
-        { type, message },
-        { type: "error", message: "Error executing 'fixture broken': game value missing" }
-    );
-    assert.match(item.className ?? item.attributes.class, /feedback-error/);
-    assert.doesNotMatch(item.className ?? item.attributes.class, /feedback-success/);
+    const line = find(row, (node) => /said--row-failed/.test(classOf(node)))[0];
+    assert.equal(line.attributes.role, "status", "screen readers hear it");
+    assert.match(classOf(line), /said--failed/);
+    assert.equal(text(line), "game value missing", "the reason, in place, without the toast's prefix");
+    assert.match(classOf(runButton), /is-failed/);
+    assert.equal(runButton.attributes["data-confirmed"], undefined, "a failure doesn't confirm");
 
-    const ok = button("godlike crit");
-    await ok.listeners.click();
+    const okRow = CheatItem({ value: "godlike crit", message: "godlike crit" });
+    const okButton = okRow.childNodes[0];
+    await okButton.listeners.click();
     await settle();
-    assert.equal(store.app.toast.type, "success");
-    assert.match(ok.className ?? ok.attributes.class, /feedback-success/);
-    await store.executeCheat("godlike crit", "", false);
+    const said = find(okButton, (node) => /said--row/.test(classOf(node)))[0];
+    assert.match(classOf(said), /said--done/);
+    assert.ok(text(said).length > 0, "the cheat's own words show on its row");
+    assert.equal(okButton.attributes["data-confirmed"], "", "the row confirms in place");
+    assert.doesNotMatch(classOf(okButton), /is-failed/);
+    await store.executeCheat("godlike crit", false);
+});
+
+test("a cheat that needs a value refuses on its row and pulses its value field", async () => {
+    const row = CheatItem({ value: "fixture nested deep", message: "deep", needsParam: true });
+    const [runButton, field] = row.childNodes;
+    field.value = ""; // the fake DOM's input has no value of its own
+    sent.length = 0;
+    await runButton.listeners.click();
+    await settle();
+    assert.deepEqual(sent, [], "nothing ran");
+    assert.equal(field.attributes["data-refused"], "", "the value field pulses");
+    const said = find(runButton, (node) => /said--row/.test(classOf(node)))[0];
+    assert.match(classOf(said), /said--refused/);
+    assert.equal(text(said), "needs a value");
 });
 
 for (const [where, render] of [

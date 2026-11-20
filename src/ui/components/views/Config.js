@@ -115,7 +115,7 @@ export const Config = () => {
                 const message = await store.saveConfig(toSave, isPersistent);
                 baseline = merged;
                 if (message && !SAVED.test(message)) return say("failed", message);
-                replay(saveButton, "is-confirmed");
+                replay(saveButton, "confirmed");
                 say("done", isPersistent ? "Saved to config.custom.js" : "Applied until the injector restarts");
             } catch (error) {
                 say("failed", error.message);
