@@ -54,7 +54,11 @@
     }
 
     .automation-pick__select {
-        flex: 1 1 40%;
+        flex: 1 1 100%;
+    }
+
+    .automation-pick__select .select-base {
+        width: 100%;
     }
 
     .automation-pick .account-field-metric {
