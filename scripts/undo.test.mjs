@@ -228,6 +228,11 @@ test("History lists the actions newest first, grouped, with old → new and Undo
         [...times].sort((a, b) => b - a),
         "newest first"
     );
+    groups.forEach((group, i) => {
+        const [entry] = actions[i].entries;
+        const after = typeof entry.after === "number" ? String(entry.after) : JSON.stringify(entry.after).slice(0, 27);
+        assert.ok(text(group).includes(entry.path) && text(group).includes(after), `group ${i} shows action ${i}`);
+    });
     assert.match(text(groups[0]), /Player/);
     const bulk = groups.find((group) => /CauldronInfo\[4\]/.test(text(group)));
     assert.match(text(bulk), /values/);
