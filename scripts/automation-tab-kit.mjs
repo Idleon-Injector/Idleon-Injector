@@ -3,12 +3,15 @@
 import assert from "node:assert/strict";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
 export async function automationTabKit() {
     // An automation a test leaves on keeps its timer; don't let it keep the process alive.
     const setIntervalReal = globalThis.setInterval;
     globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
-    const { router, game } = await createFakeApi();
+    // The fake game's data, so a test can change what a game block answers (a cost, say) and read the page again.
+    const fixture = fakeGameData();
+    const { router, game } = await createFakeApi(fixture);
     const { getAutomations, switchAutomation } = await importRepo("src/cheats/core/automations.js");
     const commands = [];
     const saves = [];
@@ -130,6 +133,7 @@ export async function automationTabKit() {
     }
     return {
         game,
+        fixture,
         gga: game.gga,
         fake,
         commands,
