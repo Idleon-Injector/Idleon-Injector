@@ -111,10 +111,10 @@ const UpgradesTab = () => {
                     AccountSection({
                         title: `${section.colorName} upgrades`,
                         note: () =>
-                            `${section.sectionEntries.length} UPGRADES, ${section.sectionEntries.reduce(
+                            `${section.sectionEntries.length} upgrades, ${section.sectionEntries.reduce(
                                 (sum, entry) => sum + toInt(getOrCreateState(levelStates, entry.index).val, { min: 0 }),
                                 0
-                            )} LEVELS`,
+                            )} levels`,
                         body: reconcileSection(section),
                     })
                 )

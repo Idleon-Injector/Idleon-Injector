@@ -150,7 +150,7 @@ const ClamTab = () => {
         }),
         AccountSection({
             title: "Clamworks",
-            note: () => `${CLAMWORKS_FIELDS.length} UPGRADES`,
+            note: () => `${CLAMWORKS_FIELDS.length} upgrades`,
             body: div(
                 { class: "account-item-stack" },
                 ...CLAMWORKS_FIELDS.map((field) =>

@@ -148,7 +148,7 @@ const JarTab = () => {
             ...sections.map((section) =>
                 AccountSection({
                     title: section.title,
-                    note: () => `${section.entries.val.length} ROWS`,
+                    note: () => `${section.entries.val.length} rows`,
                     body: section.node,
                 })
             )

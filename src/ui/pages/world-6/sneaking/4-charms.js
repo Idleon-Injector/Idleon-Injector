@@ -104,7 +104,7 @@ const CharmsTab = () => {
             note: () =>
                 `${entries.val.filter((entry) => getOrCreateState(unlockedStates, entry.index).val).length} / ${
                     entries.val.length
-                } UNLOCKED`,
+                } unlocked`,
             body: listNode,
         })
     );

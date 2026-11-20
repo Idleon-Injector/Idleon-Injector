@@ -257,7 +257,7 @@ const HatRackTab = () => {
 
         AccountSection({
             title: "On rack",
-            note: () => `${rackCount.val} ON RACK, ${onRackCount.val}/${eligibleCount.val} TOTAL`,
+            note: () => `${rackCount.val} on rack, ${onRackCount.val}/${eligibleCount.val} total`,
             body: () => div({ class: "hat-rack-rows" }, ...keptRows(rackRows.val)),
         })
     );

@@ -312,7 +312,7 @@ test("outposts: a refused GLORIFIED press says why, and a press while it saves c
     const restore = refuseWrites(game.gga.RoyalMaps[1], 12);
     try {
         await click(glorified);
-        assert.match(cardSays(outpost), /GLORIFIED not saved: game kept old value/);
+        assert.match(cardSays(outpost), /Glorified not saved: game kept old value/);
         await until(() => classes(glorified).includes("account-btn--error"), "the button to show it failed");
     } finally {
         restore();

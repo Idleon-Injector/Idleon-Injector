@@ -61,7 +61,7 @@ const BubbaAutomationTab = () => {
                         name: cleanName(name),
                         selects: [PRIORITY],
                         stopAtTitle: "Stop at level",
-                        badge: () => `LV ${upgrade.val.level ?? 0}${upgrade.val.max ? ` / ${upgrade.val.max}` : ""}`,
+                        badge: () => `Lv ${upgrade.val.level ?? 0}${upgrade.val.max ? ` / ${upgrade.val.max}` : ""}`,
                         detail: () => {
                             const { level, max, cost, unlockAt, unlocked } = upgrade.val;
                             if (max !== null && level >= max) return "Max level";

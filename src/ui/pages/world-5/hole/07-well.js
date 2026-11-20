@@ -84,12 +84,12 @@ const WellTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "The Well",
-                note: () => `${barEntries.val.length} ROWS`,
+                note: () => `${barEntries.val.length} rows`,
                 body: barsNode,
             }),
             AccountSection({
                 title: "Ores",
-                note: () => `${oreEntries.val.length} ROWS`,
+                note: () => `${oreEntries.val.length} rows`,
                 body: oresNode,
             })
         ),

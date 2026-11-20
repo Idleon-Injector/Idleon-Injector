@@ -141,7 +141,7 @@ const HarpTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Note amounts",
-                note: () => `${amountEntries.val.length} NOTES`,
+                note: () => `${amountEntries.val.length} notes`,
                 body: amountNode,
             }),
             AccountSection({

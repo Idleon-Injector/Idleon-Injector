@@ -127,7 +127,7 @@ const JadeTab = () => {
             note: () =>
                 `${entries.val.filter((entry) => getOrCreateState(boughtStates, entry.index, false).val).length} / ${
                     entries.val.length
-                } BOUGHT`,
+                } bought`,
             body: listNode,
         })
     );

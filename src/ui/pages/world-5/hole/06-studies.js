@@ -78,7 +78,7 @@ const StudiesTab = () => {
             ...STUDY_SECTIONS.map((title, sectionIndex) =>
                 AccountSection({
                     title,
-                    note: () => `${sectionEntries.get(sectionIndex).val.length} ROWS`,
+                    note: () => `${sectionEntries.get(sectionIndex).val.length} rows`,
                     body: sectionNodes.get(sectionIndex),
                 })
             )

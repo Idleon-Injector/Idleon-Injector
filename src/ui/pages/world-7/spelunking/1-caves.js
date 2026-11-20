@@ -335,7 +335,7 @@ function SpelunkingCavesTab() {
         { class: "scrollable-panel content-stack" },
         AccountSection({
             title: "Caves",
-            note: () => `${caveRowsState.val.length} CAVES`,
+            note: () => `${caveRowsState.val.length} caves`,
             body: caveListNode,
         }),
         AddFromListSection({

@@ -111,7 +111,7 @@ const EngineerTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Schematics",
-                note: () => `${entries.val.length} SCHEMATICS`,
+                note: () => `${entries.val.length} schematics`,
                 body: listNode,
             })
         ),

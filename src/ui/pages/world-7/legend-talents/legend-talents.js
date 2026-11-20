@@ -154,10 +154,10 @@ const LegendTalentTab = () => {
                       AccountSection({
                           title: section.title,
                           note: () =>
-                              `${section.talents.length} TALENTS, ${section.talents.reduce(
+                              `${section.talents.length} talents, ${section.talents.reduce(
                                   (sum, talent) => sum + toInt(talent.levelState.val, { min: 0 }),
                                   0
-                              )} LEVELS`,
+                              )} levels`,
                           body: reconcileSection(section),
                       })
                   )

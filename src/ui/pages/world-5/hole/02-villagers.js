@@ -101,7 +101,7 @@ const VillagersTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Villagers",
-                note: () => `${entries.val.length} VILLAGERS`,
+                note: () => `${entries.val.length} villagers`,
                 body: listNode,
             })
         ),

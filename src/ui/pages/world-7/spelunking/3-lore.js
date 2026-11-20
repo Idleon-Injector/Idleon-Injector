@@ -109,7 +109,7 @@ function SpelunkingLoreTab() {
                               `${group.pages.reduce(
                                   (sum, page) => sum + toInt(page.levelState.val, { min: 0 }),
                                   0
-                              )} TOTAL LEVELS`,
+                              )} total levels`,
                           body: div(
                               { class: "spelunking-lore-chapter" },
                               div(

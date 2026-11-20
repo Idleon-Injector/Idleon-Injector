@@ -248,13 +248,6 @@
     white-space: nowrap;
 }
 
-/* The page top (#26) on a page with no panel around it: the title and search line up with the rows under them. */
-.cheats-page-top > .account-header,
-.cheats-page-top > .account-page-toolbar {
-    padding-left: 0;
-    padding-right: 0;
-}
-
 .cheats-page-top + .scroll-container {
     padding-top: 16px;
 }

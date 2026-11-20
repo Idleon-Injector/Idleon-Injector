@@ -118,7 +118,7 @@ test("the Owl tab lists Orion's switch, feathers, the saving % and every upgrade
     assert.equal(text(byClass(row(owl, "Orion"), "automation-row__status")[0]), "Off");
     assert.match(text(owl), /4\.2B feathers · 3\.1M per second/);
     assert.equal(byClass(owl, "automation-pick").length, 9);
-    assert.match(text(orion("Feather Generation")), /LV 14/);
+    assert.match(text(orion("Feather Generation")), /Lv 14/);
     assert.match(text(orion("Feather Generation")), /Next level 2\.78K feathers/);
     assert.match(text(orion("The Great Mega Reset")), /Unlocks at 100B feathers produced/, "locked stays listed");
     assert.equal(field(row(owl, "Saving")).attributes.value, "10", "the saving % the game holds");
@@ -229,7 +229,7 @@ test("after a save the tab reads the game again, so the level and cost follow", 
     const before = gga.OptionsListAccount[254];
     gga.OptionsListAccount[254] = before + 3; // the game moved on since the tab read it
     await type(node, "90");
-    await until(() => new RegExp(`LV ${before + 3}`).test(text(node)), "the level the game holds now");
+    await until(() => new RegExp(`Lv ${before + 3}`).test(text(node)), "the level the game holds now");
     gga.OptionsListAccount[254] = before;
 });
 

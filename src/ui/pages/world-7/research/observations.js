@@ -122,7 +122,7 @@ const ObservationTile = ({ index, tileState }) => {
                             onIncrement: () =>
                                 (draftStates.insightLevel.val = String(clampInt(draftStates.insightLevel.val) + 1)),
                         }),
-                        span({ class: "observation-stat__value" }, () => `CUR ${tileState.insightLevel.val}`)
+                        span({ class: "observation-stat__value" }, () => `Cur ${tileState.insightLevel.val}`)
                     )
                 ),
                 div(
@@ -142,7 +142,7 @@ const ObservationTile = ({ index, tileState }) => {
                             onIncrement: () =>
                                 (draftStates.insightExp.val = String(clampInt(draftStates.insightExp.val) + 1)),
                         }),
-                        span({ class: "observation-stat__value" }, () => `CUR ${tileState.insightExp.val}`)
+                        span({ class: "observation-stat__value" }, () => `Cur ${tileState.insightExp.val}`)
                     )
                 )
             ),

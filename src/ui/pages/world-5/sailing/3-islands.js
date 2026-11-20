@@ -102,7 +102,7 @@ const IslandsTab = () => {
             note: () =>
                 `${entries.val.filter((entry) => getOrCreateState(unlockedStates, entry.index).val === -1).length} / ${
                     entries.val.length
-                } UNLOCKED`,
+                } unlocked`,
             body: listNode,
         })
     );

@@ -190,22 +190,22 @@ const CglunkoTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Progress",
-                note: () => `${progressEntries.val.length} ROWS`,
+                note: () => `${progressEntries.val.length} rows`,
                 body: progressNode,
             }),
             AccountSection({
                 title: "Upgrades",
-                note: () => `${upgradeEntries.val.length} RELEASED`,
+                note: () => `${upgradeEntries.val.length} released`,
                 body: upgradeNode,
             }),
             AccountSection({
                 title: "Blue shapes",
-                note: () => `${blueShapeEntries.val.length} SHAPES`,
+                note: () => `${blueShapeEntries.val.length} shapes`,
                 body: blueShapeNode,
             }),
             AccountSection({
                 title: "Purple shapes",
-                note: () => `${purpleShapeEntries.val.length} SHAPES`,
+                note: () => `${purpleShapeEntries.val.length} shapes`,
                 body: purpleShapeNode,
             })
         ),

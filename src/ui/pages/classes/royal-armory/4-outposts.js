@@ -716,7 +716,7 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
                                 },
                                 {
                                     onError: (error) =>
-                                        said.say("failed", `GLORIFIED not saved: ${saveFailureReason(error)}`),
+                                        said.say("failed", `Glorified not saved: ${saveFailureReason(error)}`),
                                 }
                             );
                             if (!result.ok) await reload();

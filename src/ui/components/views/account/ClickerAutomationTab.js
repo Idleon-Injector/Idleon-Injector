@@ -54,7 +54,7 @@ const ClickerGroup = ({ key, currency, upgradesTitle, lockedText, entry, afterSa
                     picks,
                     id: String(id),
                     name: cleanName(name),
-                    badge: () => `LV ${upgrade.val.level ?? 0}`,
+                    badge: () => `Lv ${upgrade.val.level ?? 0}`,
                     detail: () =>
                         upgrade.val.unlocked
                             ? `Next level ${formatNumber(Math.ceil(upgrade.val.cost))} ${currency}`

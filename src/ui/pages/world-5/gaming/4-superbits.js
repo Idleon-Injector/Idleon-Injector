@@ -142,7 +142,7 @@ const SuperbitsTab = () => {
                     return `${
                         sectionEntries.filter((entry) => getOrCreateState(unlockedStates, entry.index, false).val)
                             .length
-                    } / ${sectionEntries.length} UNLOCKED`;
+                    } / ${sectionEntries.length} unlocked`;
                 },
                 body: getSectionNode(section.key),
             })

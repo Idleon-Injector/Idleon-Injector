@@ -253,7 +253,7 @@ const GridTab = () => {
                             span({ class: "research-grid-detail__preview-name" }, () => tile.name.val),
                             span(
                                 { class: "research-grid-detail__preview-level" },
-                                () => `LV ${tile.level.val} / ${tile.maxLevel.val}`
+                                () => `Lv ${tile.level.val} / ${tile.maxLevel.val}`
                             )
                         )
                     ),

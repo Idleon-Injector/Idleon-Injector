@@ -125,7 +125,7 @@ const MapCrystalRow = ({ map, states, talentCap }) => {
         }
 
         const cappedSuffix = anyCapped ? " (Capped)" : "";
-        return `${pMult}x DROP · ${yMult}x EXP · ${bMult}x AFK${cappedSuffix}`;
+        return `${pMult}x drop · ${yMult}x EXP · ${bMult}x AFK${cappedSuffix}`;
     };
 
     return EditableFieldsRow({

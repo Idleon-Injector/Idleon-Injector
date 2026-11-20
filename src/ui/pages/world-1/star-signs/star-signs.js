@@ -284,7 +284,7 @@ const StarSignDetail = ({ sign, current, usernames = [], onSave, onBack }) => {
                     { class: "starsign-progress-label" },
                     `${cur} / ${need} players — `,
                     cur >= need
-                        ? span({ class: "starsign-unlocked-text" }, Icons.Check(), " UNLOCKED")
+                        ? span({ class: "starsign-unlocked-text" }, Icons.Check(), " Unlocked")
                         : span({ class: "starsign-locked-text" }, "Locked")
                 ),
                 div({ class: "starsign-progress-bar" }, progressFill)
@@ -314,7 +314,7 @@ const StarSignCard = ({ sign, onClick }) => {
             { class: "starsign-card-header" },
             span({ class: `starsign-label-badge ${groupClass}` }, sign.label),
             isUnlocked
-                ? span({ class: "starsign-status unlocked" }, Icons.Check(), " UNLOCKED")
+                ? span({ class: "starsign-status unlocked" }, Icons.Check(), " Unlocked")
                 : span({ class: "starsign-status locked" }, `${cur}/${need}`)
         ),
         p({ class: "starsign-card-desc" }, sign.desc),

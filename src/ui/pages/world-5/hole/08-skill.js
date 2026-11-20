@@ -97,7 +97,7 @@ const SkillTab = () => {
             ...SKILL_SECTIONS.map((section) =>
                 AccountSection({
                     title: section.title,
-                    note: () => `${sectionEntries.get(section.key).val.length} ROWS`,
+                    note: () => `${sectionEntries.get(section.key).val.length} rows`,
                     body: sectionNodes.get(section.key),
                 })
             )

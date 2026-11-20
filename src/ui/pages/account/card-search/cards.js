@@ -53,7 +53,7 @@ const tierIndexForAmount = (amount, thresholds) =>
 
 const nextTierLabel = (amount, thresholds) => {
     const nextThreshold = thresholds.find((threshold) => Number(amount) < threshold);
-    return nextThreshold === undefined ? "Max tier" : `NEXT: ${nextThreshold}`;
+    return nextThreshold === undefined ? "Max tier" : `Next: ${nextThreshold}`;
 };
 
 const tierBadgeClass = (amount, thresholds) => {
@@ -68,7 +68,7 @@ const TierBadgeContent = ({ amount, thresholds }) => {
     return span(
         { class: "card-tier-display" },
         Icons.CardTier(tierIndex + 1, { class: "card-tier-icon" }),
-        `TIER ${tierIndex + 1}`
+        `Tier ${tierIndex + 1}`
     );
 };
 

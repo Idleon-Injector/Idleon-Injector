@@ -57,13 +57,6 @@
 }
 
 /* --- PAGE TOP (#26) --- */
-/* No panel around a settings tab, so its top lines up with the rows under it. */
-.config-page-top > .account-header,
-.config-page-top > .account-page-toolbar {
-    padding-left: 0;
-    padding-right: 0;
-}
-
 .config-page-top {
     margin-bottom: 16px;
 }

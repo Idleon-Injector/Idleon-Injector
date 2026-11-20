@@ -367,17 +367,17 @@ const BoatsTab = () => {
         { class: "scrollable-panel content-stack" },
         AccountSection({
             title: "Boats",
-            note: () => `${boatEntries.val.length} BOATS`,
+            note: () => `${boatEntries.val.length} boats`,
             body: boatListNode,
         }),
         AccountSection({
             title: "Captains",
-            note: () => `${captainEntries.val.length} CAPTAINS`,
+            note: () => `${captainEntries.val.length} captains`,
             body: captainListNode,
         }),
         AccountSection({
             title: "Recruitment shop",
-            note: () => `${recruitmentEntries.val.length} CAPTAINS`,
+            note: () => `${recruitmentEntries.val.length} captains`,
             body: recruitmentListNode,
         })
     );

@@ -213,7 +213,7 @@ const RoundsTab = () => {
                                     section.sectionEntries.filter(
                                         (entry) => entry.countAsDone && getOrCreateState(doneStates, entry.index).val
                                     ).length
-                                } / ${section.sectionEntries.length} DONE`,
+                                } / ${section.sectionEntries.length} done`,
                             body: reconcileSection(section.sectionName, section.sectionEntries),
                         })
                     )

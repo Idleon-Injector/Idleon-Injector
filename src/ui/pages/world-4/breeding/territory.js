@@ -99,7 +99,7 @@ const TerritoryTab = () => {
         })
         // AccountSection({
         //     title: "Territory",
-        //     note: () => `${territoryEntries.val.length} TERRITORIES`,
+        //     note: () => `${territoryEntries.val.length} territories`,
         //     body: territoryRows,
         // })
     );

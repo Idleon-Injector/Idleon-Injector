@@ -446,7 +446,7 @@ export const MasterclassUpgradeTab = ({
             { class: "masterclass-upgrade-scroll scrollable-panel" },
             allCurrencyFields.length
                 ? CurrencySection({
-                      title: currencyTitle ?? `${title} CURRENCY`,
+                      title: currencyTitle ?? `${title} currency`,
                       fields: currencyFields,
                       states: currencyStates,
                       tabs: currencyTabs,

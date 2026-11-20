@@ -44,7 +44,7 @@ export const SimpleAccountListPage = ({ title, description, label, sectionTitle 
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: sectionTitle,
-                note: () => `${entries.val.length} ROWS`,
+                note: () => `${entries.val.length} rows`,
                 body: listNode,
             })
         ),

@@ -204,7 +204,7 @@ export const AccountOptionsTab = () => {
 
             if (ui.hideAI && optionSchema?.AI) continue;
             if (term) {
-                const optionName = (optionSchema?.name ?? `UNDOCUMENTED ${index}`).toLowerCase();
+                const optionName = (optionSchema?.name ?? `Undocumented ${index}`).toLowerCase();
                 if (!optionName.includes(term) && !String(index).includes(term)) continue;
             }
 

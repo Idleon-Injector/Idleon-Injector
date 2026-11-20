@@ -251,7 +251,7 @@ const CapeVineTab = () => {
             goldenRow,
             AccountSection({
                 title: "All capes",
-                note: () => `${onVineCount()}/${capes.val.length} ON VINE`,
+                note: () => `${onVineCount()}/${capes.val.length} on vine`,
                 meta: [
                     ActionButton({
                         label: "Add all",

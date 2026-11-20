@@ -297,7 +297,7 @@ test("changing one chip slot keeps a chip taken off in game since the page read 
 });
 
 for (const [name, findRow, read] of [
-    ["an upgrade", (rows) => rows.find((row) => /RANK [0-9]+ ·/.test(text(row))), () => gga.CookMaster[2][0]],
+    ["an upgrade", (rows) => rows.find((row) => /Rank [0-9]+ ·/.test(text(row))), () => gga.CookMaster[2][0]],
     ["the Mastery Rank", (rows) => rows.find((row) => /Mastery Rank/.test(text(row))), () => gga.CookMaster[1][0] + 1],
 ]) {
     test(`a Mastery save of ${name} that landed shows ✓ even when the points-left read fails`, async () => {

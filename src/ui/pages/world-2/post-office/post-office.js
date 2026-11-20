@@ -143,7 +143,7 @@ const PostOfficeTab = () => {
                     const cap = Math.floor(Number(defRow[15]));
                     const box = boxStates[index];
 
-                    box.name.val = cleanName(defRow[0], `BOX ${index + 1}`);
+                    box.name.val = cleanName(defRow[0], `Box ${index + 1}`);
                     box.cap.val = Number.isFinite(cap) ? Math.max(0, cap) : 0;
                 }
 

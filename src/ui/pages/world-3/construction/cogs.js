@@ -128,7 +128,7 @@ const getSlotName = (index) => {
         return `Z-${index - LEFT_SIDE_START + 1}`;
     }
 
-    return `SLOT-${index}`;
+    return `Slot-${index}`;
 };
 
 const getSideSlotCap = (index) => {

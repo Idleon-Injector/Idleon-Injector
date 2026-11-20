@@ -277,13 +277,13 @@ const RatKingTab = () => {
                 span({ class: "rat-king-plant-title" }, `Plant ${p + 1} (Sprout ${sproutLetter})`),
                 span(
                     { class: "account-row__badge rat-king-badge--logbook" },
-                    () => `LOGBOOK: ${getUnlockedMutationCount(logbookStr.val, p)}/10 DISCOVERED`
+                    () => `Logbook: ${getUnlockedMutationCount(logbookStr.val, p)}/10 discovered`
                 ),
                 div(
                     { class: "rat-king-plant-meta" },
                     span({ class: "account-row__badge rat-king-badge--crowns" }, Icons.Crown(), () => {
                         const owned = MUTATION_CHARS.filter((m) => crownsSet.val.has(`${p}${m}`)).length;
-                        return `${owned}/10 CROWNS`;
+                        return `${owned}/10 crowns`;
                     }),
                     button(
                         {

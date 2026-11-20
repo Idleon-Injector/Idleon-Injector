@@ -136,15 +136,15 @@ const buildSections = (pets, rawSetsInfo) => {
 
     primaryGroups.forEach((group, index) => {
         const ids = group.length >= 2 ? expandRange(group[0], group[1]) : group;
-        pushSection(`SET ${index + 1}`, ids);
+        pushSection(`Set ${index + 1}`, ids);
     });
 
     toIndexedArray(setsInfo[1]).forEach((group, index) => {
-        pushSection(`SPECIAL ${index + 1}`, parseIdList(unwrapSingleEntry(group)));
+        pushSection(`Special ${index + 1}`, parseIdList(unwrapSingleEntry(group)));
     });
 
     toIndexedArray(setsInfo[2]).forEach((group, index) => {
-        pushSection(`EXTRA ${index + 1}`, parseIdList(unwrapSingleEntry(group)));
+        pushSection(`Extra ${index + 1}`, parseIdList(unwrapSingleEntry(group)));
     });
 
     const leftoverIds = fallbackIds.filter((id) => !seenIds.has(id));

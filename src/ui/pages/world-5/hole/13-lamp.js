@@ -91,12 +91,12 @@ const LampTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Lamp bonuses",
-                note: () => `${bonusEntries.val.length} ROWS`,
+                note: () => `${bonusEntries.val.length} rows`,
                 body: bonusNode,
             }),
             AccountSection({
                 title: "Wishes",
-                note: () => `${wishEntries.val.length} WISHES`,
+                note: () => `${wishEntries.val.length} wishes`,
                 body: wishNode,
             })
         ),

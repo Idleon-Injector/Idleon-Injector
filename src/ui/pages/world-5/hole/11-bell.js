@@ -99,12 +99,12 @@ const BellTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Improvement methods",
-                note: () => `${improvementEntries.val.length} ROWS`,
+                note: () => `${improvementEntries.val.length} rows`,
                 body: improvementNode,
             }),
             AccountSection({
                 title: "Random bonuses",
-                note: () => `${randomEntries.val.length} ROWS`,
+                note: () => `${randomEntries.val.length} rows`,
                 body: randomNode,
             })
         ),

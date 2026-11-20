@@ -50,7 +50,7 @@ const buildPurpleEntries = (rawNames, rawCoefficients, rawRequirements, rawLevel
             key: `cooking-mastery-purple-${index}`,
             index,
             name: cleanName(rawName, `Purple Upgrade ${index + 1}`),
-            subLabel: `RANK ${requiredStoredRank + 1} · ${PURPLE_EFFECTS[index]?.(coefficient) ?? `${coefficient} per level`}`,
+            subLabel: `Rank ${requiredStoredRank + 1} · ${PURPLE_EFFECTS[index]?.(coefficient) ?? `${coefficient} per level`}`,
             path: `${PURPLE_PATH}[${index}]`,
             value: toInt(levels[index], { min: 0 }),
             formatted: false,
@@ -273,7 +273,7 @@ const MasteryTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Progress",
-                note: () => `${unlockedState.val ? "Unlocked" : "Locked"} · NEXT RANK ${expRequirement()} EXP`,
+                note: () => `${unlockedState.val ? "Unlocked" : "Locked"} · next rank ${expRequirement()} EXP`,
                 body: div(
                     { class: "account-item-stack" },
                     MasteryRankRow({ rankState, refreshPointsAfterWrite }),

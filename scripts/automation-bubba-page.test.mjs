@@ -20,7 +20,7 @@ test("the tab shows the Bubba switch, meat, the saving % and every upgrade with 
     assert.equal(meatLine(), "", "switched off, the tab says what it would do nowhere");
     assert.equal(String(field(row("Saving")).attributes.value), "10");
     assert.match(text(row("Grand Stone")), /Next level 40 meat/);
-    assert.match(text(row("Grand Stone")), /LV 0 \/ 5/);
+    assert.match(text(row("Grand Stone")), /Lv 0 \/ 5/);
     assert.match(text(row("Hollow Drift")), /Max level/);
     assert.equal(byClass(page, "automation-pick").length, 28);
     assert.ok(

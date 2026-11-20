@@ -325,7 +325,7 @@ const SmithyTab = () => {
 
         AddFromListSection({
             title: "Add equipment set",
-            note: () => `${addableCount.val} AVAILABLE`,
+            note: () => `${addableCount.val} available`,
             selectLabel: "Select set",
             selectedValue: selectedAddSetKey,
             options: addOptions,
@@ -341,7 +341,7 @@ const SmithyTab = () => {
 
         AccountSection({
             title: "On smithy",
-            note: () => `${unlockedCount.val}/${totalSetCount.val} TOTAL`,
+            note: () => `${unlockedCount.val}/${totalSetCount.val} total`,
             body: () => div({ class: "smithy-rows" }, ...keptRows(smithyRows.val)),
         })
     );

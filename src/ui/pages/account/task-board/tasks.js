@@ -269,7 +269,7 @@ const TasksWorldAchievementsTab = ({ worldIndex, toolbar }) => {
         { class: "scrollable-panel content-stack" },
         AccountSection({
             title: "Achievements",
-            note: () => `${completedCount.val} / ${entries.val.length} COMPLETE`,
+            note: () => `${completedCount.val} / ${entries.val.length} complete`,
             body: listNode,
         })
     );
@@ -392,7 +392,7 @@ const TasksWorldMeritShopTab = ({ worldIndex, toolbar }) => {
         { class: "scrollable-panel content-stack" },
         AccountSection({
             title: "Merit Shop",
-            note: () => `${cappedCount.val} / ${entries.val.length} CAPPED`,
+            note: () => `${cappedCount.val} / ${entries.val.length} capped`,
             body: listNode,
         })
     );

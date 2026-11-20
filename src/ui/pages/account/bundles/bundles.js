@@ -349,7 +349,7 @@ const BundlesTab = () => {
             title: "Bundle catalog",
             note: () => {
                 const value = totals.val;
-                const queueLabel = value.queued ? `, ${value.queued} QUEUED` : "";
+                const queueLabel = value.queued ? `, ${value.queued} queued` : "";
                 return `${value.total} bundles, ${value.owned} owned, ${value.total - value.owned} not owned${queueLabel}`;
             },
             body: () =>

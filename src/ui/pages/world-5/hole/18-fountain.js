@@ -272,28 +272,28 @@ const FountainTab = () => {
             { class: "scrollable-panel content-stack" },
             AccountSection({
                 title: "Currency",
-                note: () => `${currencyEntries.val.length} CURRENCIES`,
+                note: () => `${currencyEntries.val.length} currencies`,
                 body: currencyNode,
             }),
             AccountSection({
                 title: "General",
-                note: () => `${generalEntries.val.length} ROWS`,
+                note: () => `${generalEntries.val.length} rows`,
                 body: generalNode,
             }),
             AccountSection({
                 title: "Fill bars",
-                note: () => `${fillBarEntries.val.length} WATERS`,
+                note: () => `${fillBarEntries.val.length} waters`,
                 body: fillBarNode,
             }),
             AccountSection({
                 title: "Lucky Coins",
-                note: () => `${luckyCoinEntries.val.length} CURRENCIES`,
+                note: () => `${luckyCoinEntries.val.length} currencies`,
                 body: luckyCoinNode,
             }),
             ...upgradeSections.map((section) =>
                 AccountSection({
                     title: section.title,
-                    note: () => `${section.entries.val.length} UPGRADES`,
+                    note: () => `${section.entries.val.length} upgrades`,
                     body: section.node,
                 })
             )

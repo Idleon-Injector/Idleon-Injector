@@ -538,9 +538,9 @@ export const ResultsSection = ({ ui, handlers }) =>
                 const filteredCount = handlers.getFilteredResults().length;
                 const totalCount = ui.scan.results.length;
                 if (!ui.resultsFilterApplied) {
-                    return `${totalCount} RESULT${totalCount === 1 ? "" : "S"}`;
+                    return `${totalCount} result${totalCount === 1 ? "" : "s"}`;
                 }
-                return `${filteredCount} / ${totalCount} SHOWN`;
+                return `${filteredCount} / ${totalCount} shown`;
             })
         ),
         div(
@@ -956,9 +956,9 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                 const filteredCount = handlers.getFilteredSavedResults().length;
                 const totalCount = ui.savedResults.length;
                 if (!ui.savedFilterApplied) {
-                    return totalCount + " ITEM" + (totalCount === 1 ? "" : "S");
+                    return totalCount + " item" + (totalCount === 1 ? "" : "s");
                 }
-                return `${filteredCount} / ${totalCount} SHOWN`;
+                return `${filteredCount} / ${totalCount} shown`;
             }),
             div(
                 { class: "section-actions" },

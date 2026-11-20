@@ -117,7 +117,7 @@ function SushiShopTab() {
         AccountSection({
             title: "Shop upgrades",
             note: () =>
-                `${upgradeEntries.val.length} UPGRADES · ${doublers.selected.val.length}/${doublers.capacity.val} DOUBLED`,
+                `${upgradeEntries.val.length} upgrades · ${doublers.selected.val.length}/${doublers.capacity.val} doubled`,
             body: shopListNode,
         })
     );

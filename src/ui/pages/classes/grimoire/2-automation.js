@@ -58,7 +58,7 @@ const GrimoireAutomationPage = () => {
             name: names.get(id),
             selects: [PRIORITY],
             stopAtTitle: "Stop at level",
-            badge: () => `LV ${upgrade.val.level ?? 0}${upgrade.val.max === null ? "" : ` / ${upgrade.val.max}`}`,
+            badge: () => `Lv ${upgrade.val.level ?? 0}${upgrade.val.max === null ? "" : ` / ${upgrade.val.max}`}`,
             detail: () => {
                 const { level, max, unlocked, unlockAt, cost, bone } = upgrade.val;
                 if (max !== null && level >= max) return "Max level";
