@@ -340,3 +340,30 @@ test("before the first read of the game, a save or a bulk save sends nothing and
     assert.equal(enable.disabled(), true);
     assert.equal(disable.disabled(), true);
 });
+
+test("a tab whose first read only reaches the server's copy reads nothing in and can't save over the game", async () => {
+    const reads = [];
+    const tab = ui.useAutomationTab({
+        label: "Test automation",
+        cheats: [],
+        read: async (automation) => {
+            reads.push(automation);
+            lateSaving.sync(automation.testLateSaving);
+        },
+    });
+    const lateSaving = ui.createAutomationSetting("testLateSaving", { afterSave: tab.afterSave });
+    serverCopyOnly = true;
+    try {
+        await tab.load();
+    } finally {
+        serverCopyOnly = false;
+    }
+    assert.equal(reads.length, 0, "the server's copy isn't taken as what the game holds");
+    assert.match(tab.error.val, /the game didn't answer with its settings: press Refresh/);
+    const since = updates.length;
+    await assert.rejects(lateSaving.set(1, 5), /not read from the game yet/);
+    assert.equal(updates.length, since);
+    await tab.load();
+    assert.equal(reads.length, 1, "Refresh reads the game");
+    assert.equal(tab.error.val, null);
+});
