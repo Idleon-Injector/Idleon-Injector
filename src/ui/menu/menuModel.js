@@ -308,7 +308,13 @@ const scoreCheat = (entry, q) => {
     if (score) return { score: score - 50, matched: null };
     const word = entry.description.split(/[^A-Za-z0-9']+/).find((w) => w.toLowerCase().startsWith(q));
     if (word) return { score: 4, matched: word };
-    return { score: entry.description.toLowerCase().includes(q) ? 2 : 0, matched: null };
+    if (entry.description.toLowerCase().includes(q)) return { score: 2, matched: null };
+    // ponytail: one plural fold, so "stamps" also finds the stamp cheats; a stemmer if more words need it.
+    if (q.length > 3 && q.endsWith("s")) {
+        const single = scoreCheat(entry, q.slice(0, -1));
+        return { score: Math.max(0, single.score - 5), matched: single.matched };
+    }
+    return { score: 0, matched: null };
 };
 
 /**

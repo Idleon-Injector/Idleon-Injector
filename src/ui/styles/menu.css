@@ -135,6 +135,12 @@
     font-size: 0.92rem;
 }
 
+/* A cheat command or setting name, in the monospace the Active Cheats list gives commands. */
+.menu-search-result__label--command {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+}
+
 .menu-search-result__matched {
     margin-left: 8px;
     font-family: var(--font-mono);

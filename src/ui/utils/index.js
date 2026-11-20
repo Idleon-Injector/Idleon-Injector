@@ -80,7 +80,8 @@ function showFound(el, focus) {
     void el.offsetWidth; // restart the flash when the same row is found twice
     el.classList.add("search-found");
     el.addEventListener("animationend", () => el.classList.remove("search-found"), { once: true });
-    if (focus) (el.matches("button, input, select") ? el : el.querySelector("input, select, button"))?.focus();
+    const fields = el.matches("button, input, select") ? [el] : el.querySelectorAll("input, select, textarea, button");
+    if (focus) [...fields].find((field) => field.offsetParent)?.focus();
 }
 
 /**

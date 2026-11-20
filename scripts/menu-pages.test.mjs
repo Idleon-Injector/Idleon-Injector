@@ -217,6 +217,10 @@ test("search finds cheats and their settings after the menu's own places, and in
         stamps.some((hit) => hit.kind === "Setting" && hit.label === "stampcost"),
         "then the stamp settings"
     );
+    assert.ok(
+        stamps.some((hit) => hit.label === "w1 stampcost") && stamps.some((hit) => hit.label === "lvl stamp"),
+        "and the stamp cheats"
+    );
     const stamp = search("stamp");
     assert.ok(stamp.findIndex((hit) => hit.kind) > stamp.findIndex((hit) => hit.label === "Stamps"));
     assert.ok(stamp.some((hit) => hit.label === "w1 stampcost") && stamp.some((hit) => hit.label === "lvl stamp"));

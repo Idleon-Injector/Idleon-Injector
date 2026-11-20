@@ -25,8 +25,8 @@ export const MenuSearch = () => {
         open.val = false;
         highlight.val = 0;
     };
-    const go = (result) => {
-        store.openMenu(result.target);
+    const go = (result, byKeyboard = false) => {
+        store.openMenu({ ...result.target, focus: byKeyboard });
         query.val = "";
         close();
         field.blur();
@@ -35,7 +35,7 @@ export const MenuSearch = () => {
     const field = input({
         type: "text",
         class: "menu-search-input",
-        placeholder: "SEARCH PAGES, SYSTEMS AND CHEATS",
+        placeholder: "SEARCH PAGES AND CHEATS",
         autocomplete: "off",
         spellcheck: "false",
         role: "combobox",
@@ -63,7 +63,7 @@ export const MenuSearch = () => {
                 highlight.val = (highlight.val - 1 + count) % count;
             } else if (e.key === "Enter" && count) {
                 e.preventDefault();
-                go(results.val[Math.min(highlight.val, count - 1)]);
+                go(results.val[Math.min(highlight.val, count - 1)], true);
             } else if (e.key === "Escape") {
                 e.preventDefault();
                 e.stopPropagation();
@@ -101,7 +101,11 @@ export const MenuSearch = () => {
                                             onmouseenter: () => (highlight.val = i),
                                         },
                                         span(
-                                            { class: "menu-search-result__label" },
+                                            {
+                                                class: `menu-search-result__label${
+                                                    result.kind ? " menu-search-result__label--command" : ""
+                                                }`,
+                                            },
                                             result.label,
                                             showWord(result)
                                                 ? span(
