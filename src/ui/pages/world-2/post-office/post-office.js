@@ -129,7 +129,7 @@ const PostOfficeTab = () => {
 
     const load = async ({ forceDefinitions = false } = {}) =>
         run(async () => {
-            character = await readCharacterInPlay();
+            const loadedCharacter = await readCharacterInPlay();
             const reads = [
                 gga("PostOfficeInfo[3]"),
                 gga("CurrenciesOwned"),
@@ -142,6 +142,9 @@ const PostOfficeTab = () => {
             }
 
             const [rawUpgrades, rawCurrencies, rawOpts, rawBoxPts, rawBoxDefs = null] = await Promise.all(reads);
+            // Still the same character once the reads are in, so an edit saves for the one whose values it shows.
+            await readCharacterInPlay(loadedCharacter);
+            character = loadedCharacter;
 
             if (!boxDefsLoaded || forceDefinitions) {
                 const boxDefs = toIndexedArray(rawBoxDefs ?? []);

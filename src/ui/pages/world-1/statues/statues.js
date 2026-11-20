@@ -227,7 +227,7 @@ const StatuesTab = () => {
 
     const load = async () =>
         run(async () => {
-            character = await readCharacterInPlay();
+            const loadedCharacter = await readCharacterInPlay();
             const [rawInfo, rawLevels, rawTiers, rawFlair, rawFlairUnlock] = await Promise.all([
                 readCList("StatueInfo"),
                 gga("StatueLevels"),
@@ -235,6 +235,9 @@ const StatuesTab = () => {
                 gga("RoyalG[22]"),
                 gga(FLAIR_UNLOCK_PATH),
             ]);
+            // Still the same character once the reads are in, so an edit saves for the one whose values it shows.
+            await readCharacterInPlay(loadedCharacter);
+            character = loadedCharacter;
             const info = toIndexedArray(rawInfo);
             const levels = toIndexedArray(rawLevels);
             const tiers = toIndexedArray(rawTiers);

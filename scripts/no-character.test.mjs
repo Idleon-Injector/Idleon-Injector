@@ -10,7 +10,7 @@ const { router, game } = await createFakeApi();
 const { requests } = await loadUi(router);
 const gga = game.gga;
 const { bEngine } = await importRepo("src/cheats/core/globals.js");
-const { NO_CHARACTER, writeManyVerified, writeVerified } = await importRepo(
+const { CHARACTER_CHANGED, NO_CHARACTER, writeManyVerified, writeVerified } = await importRepo(
     "src/ui/components/views/account/accountShared.js"
 );
 globalThis.requestAnimationFrame ??= (fn) => setTimeout(fn, 0);
@@ -189,6 +189,26 @@ test("a page opened at character select shows the real values after a Refresh on
         "the Refresh to read the game"
     );
     assert.match(text(root), new RegExp(`${gga.AnvilPAstats[0]} pts`), "the points the character has");
+});
+
+// Review of #154: the Anvil read who is in play, then its values; a switch in between showed the new character's
+// values under the old one's name. It now asks again once the values are in, and says the character changed.
+test("the Anvil says the character changed when another one comes into play while it reads", async () => {
+    inPlay();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) => {
+        if (String(options.body ?? "").includes("AnvilPAstats")) gga.UserInfo[0] = "Lumi_Alt";
+        return realFetch(url, options);
+    };
+    try {
+        const root = (await importRepo(ANVIL)).default.component();
+        await quietly(() =>
+            until(() => text(root).includes(CHARACTER_CHANGED), "the Anvil to say the character changed")
+        );
+    } finally {
+        globalThis.fetch = realFetch;
+        inPlay();
+    }
 });
 
 // Every page that reads the character in play's own values says the one line at character select, then reads them in play.

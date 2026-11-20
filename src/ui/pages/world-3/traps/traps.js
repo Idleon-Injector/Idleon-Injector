@@ -270,7 +270,8 @@ const TrappingTab = () => {
     const onWriteField = async (playerName, trapIndex, fieldIndex, value) => {
         const inPlay = await readCharacterInPlay(latestSnapshot.currentPlayer);
         if (playerName === inPlay) {
-            await writeVerified(`PlacedTraps[${trapIndex}][${fieldIndex}]`, value);
+            // The game refuses it if another character is in play by the time it writes.
+            await writeVerified(`PlacedTraps[${trapIndex}][${fieldIndex}]`, value, { character: inPlay });
         }
 
         const dbPath = `${trapBasePath(playerName, trapIndex)}[${fieldIndex}]`;

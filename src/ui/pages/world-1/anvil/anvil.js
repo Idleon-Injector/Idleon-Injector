@@ -70,9 +70,12 @@ const AnvilTab = () => {
 
     const load = async () =>
         run(async () => {
-            character = await readCharacterInPlay();
+            const loadedCharacter = await readCharacterInPlay();
             const raw = await gga("AnvilPAstats");
             const arr = toIndexedArray(raw);
+            // Still the same character once the reads are in, so an edit saves for the one whose values it shows.
+            await readCharacterInPlay(loadedCharacter);
+            character = loadedCharacter;
             for (let i = 0; i < statStates.length; i++) {
                 statStates[i].val = Number(arr[i] ?? 0);
             }
