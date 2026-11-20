@@ -27,6 +27,7 @@ export const MenuSearch = () => {
     // The last command run and what it did, said under the box until the player types again.
     const ran = van.state("");
     const { said, say, clear } = useSaid(6000);
+    let runs = 0;
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
     const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions));
     const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
@@ -61,7 +62,10 @@ export const MenuSearch = () => {
             return;
         }
         leaveCommand();
+        // A slower command that started earlier doesn't say its result over a later one's.
+        const run = ++runs;
         const result = await store.executeCheat(text);
+        if (run !== runs) return;
         ran.val = text;
         say(result.ok ? "done" : "failed", result.ok ? result.message : plainReason(result.message));
     };

@@ -23,6 +23,7 @@ setupCheatRoutes(router, {
     callHelper: async () => ({ value: SUGGESTIONS }),
     executeCheat: async (action) => {
         ran.push(action);
+        if (action.endsWith(" 99")) await new Promise((resolve) => setTimeout(resolve, 100)); // a slow command
         if (action.startsWith("nomore")) return { value: { ok: false, message: "the item list isn't loaded yet" } };
         return { value: { ok: true, message: `${action} (ran)` } };
     },
@@ -200,4 +201,23 @@ test("Esc in the command box goes back to an empty search", async () => {
     await type("candy");
     assert.ok(results().length > 0, "searching works again");
     assert.deepEqual(ran, []);
+});
+
+test("a slow command that ends after a later one doesn't say its result over the later one's", async () => {
+    ran.length = 0;
+    const pick = async (word) => {
+        await type(word);
+        const at = results().findIndex((row) => row.startsWith(word));
+        for (let i = 0; i < at; i++) await key("ArrowDown");
+        await key("Enter");
+    };
+    await pick("drop");
+    await type("drop Timecandy1 99");
+    await key("Enter"); // runs, slowly
+    await pick("nomore");
+    await key("Enter"); // runs and fails at once
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.deepEqual(ran, ["drop Timecandy1 99", "nomore Timecandy1"]);
+    assert.equal(resultLine().text, "nomore Timecandy1the item list isn't loaded yet", "the later failure stays");
+    assert.match(resultLine().tone, /said--failed/);
 });
