@@ -152,7 +152,7 @@ const UpgradeVaultTab = () => {
         }),
         topNotices: WarningBanner(
             " Max level is sourced from the game's VaultUpgMaxLV formula. " +
-                "SET accepts any value >= 0; no hard upper limit is enforced."
+                "Any level from 0 up saves; no hard upper limit is enforced."
         ),
         state: { loading, error },
         body: () => (data.val ? renderBody(data.val) : null),

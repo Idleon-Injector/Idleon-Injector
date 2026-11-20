@@ -17,6 +17,7 @@ import {
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, select, option } = van.tags;
@@ -43,6 +44,8 @@ const WeeklyBossTab = () => {
 
     const isBusy = () => loading.val || busy.val;
     const cannotWrite = () => isBusy() || Boolean(error.val) || signature === null;
+    // Fields stay usable while a save runs, so a save never takes their focus away.
+    const cannotEdit = () => loading.val || Boolean(error.val) || signature === null;
     const playerKey = ({ index, name }) => `${index}:${name}`;
 
     const readSnapshot = async (options = {}) => {
@@ -161,7 +164,14 @@ const WeeklyBossTab = () => {
             const key = playerKey(player);
             const value = String(snapshot.weekly[`set${player.index}`] ?? 0);
             if (!playerStates.has(key)) {
-                playerStates.set(key, { value: van.state(value), draft: van.state(value), write: useWriteStatus() });
+                const state = { value: van.state(value), draft: van.state(value) };
+                // Picking a skin saves it.
+                state.write = useAutoSave({
+                    prepare: () =>
+                        state.draft.val === state.value.val ? { unchanged: true } : { write: () => savePlayer(player) },
+                    revert: () => (state.draft.val = state.value.val),
+                });
+                playerStates.set(key, state);
             } else {
                 const state = playerStates.get(key);
                 if (resetDrafts || state.draft.val === state.value.val) state.draft.val = value;
@@ -295,31 +305,30 @@ const WeeklyBossTab = () => {
         }
     };
 
+    // Returns { cancelled: true } when the game already has the pick; throws when it can't save.
     const savePlayer = async (player) => {
-        if (cannotWrite()) return;
+        if (cannotEdit()) return { cancelled: true };
         const state = playerStates.get(playerKey(player));
         const draft = state.draft.val;
         busy.val = true;
         message.val = "";
         try {
-            await state.write.run(
-                async () => {
-                    const snapshot = await readFresh();
-                    const current = String(snapshot.weekly[`set${player.index}`] ?? 0);
-                    if (
-                        draft === current &&
-                        snapshot.weekly[`set${player.index}`] !== undefined &&
-                        snapshot.weekly[`set${player.index}`] !== null
-                    )
-                        return { cancelled: true };
-                    const entry = entries.find(({ selection }) => String(selection) === draft);
-                    if (draft !== "0" && (!entry || Number(snapshot.weekly[entry.key]) !== 1)) {
-                        throw new Error("Select Default or an unlocked skin. Existing selections were preserved.");
-                    }
-                    await submitWrites([{ player, path: `WeeklyBoss.h.set${player.index}`, value: Number(draft) }]);
-                },
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
+            const snapshot = await readFresh();
+            const current = String(snapshot.weekly[`set${player.index}`] ?? 0);
+            if (
+                draft === current &&
+                snapshot.weekly[`set${player.index}`] !== undefined &&
+                snapshot.weekly[`set${player.index}`] !== null
+            )
+                return { cancelled: true };
+            const entry = entries.find(({ selection }) => String(selection) === draft);
+            if (draft !== "0" && (!entry || Number(snapshot.weekly[entry.key]) !== 1)) {
+                throw new Error("pick Default or an unlocked skin");
+            }
+            await submitWrites([{ player, path: `WeeklyBoss.h.set${player.index}`, value: Number(draft) }]);
+        } catch (caughtError) {
+            message.val = caughtError.message;
+            throw caughtError;
         } finally {
             busy.val = false;
         }
@@ -354,13 +363,10 @@ const WeeklyBossTab = () => {
             {
                 class: "select-base",
                 "aria-label": `${player.name} main-bar skin`,
-                disabled: cannotWrite,
-                onchange: (event) => (state.draft.val = event.target.value),
-                onkeydown: (event) => {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        void savePlayer(player);
-                    }
+                disabled: cannotEdit,
+                onchange: (event) => {
+                    state.draft.val = event.target.value;
+                    void state.write.save();
                 },
             },
             option({ value: "0", selected: () => state.draft.val === "0" }, "Default"),
@@ -395,7 +401,8 @@ const WeeklyBossTab = () => {
                   : "";
         };
         return AccountRow({
-            status: state.write.status,
+            rowClass: () => saveStateClass(state.write.status.val),
+            rowProps: state.write.handlers,
             info: div(
                 { class: "account-row__name-group" },
                 span({ class: "account-row__name" }, player.name),
@@ -408,16 +415,7 @@ const WeeklyBossTab = () => {
                 )
             ),
             badge: () => (activePlayer.val === player.name ? "ACTIVE" : `CHAR ${player.index + 1}`),
-            controls: [
-                selectionNode,
-                ActionButton({
-                    label: "SAVE",
-                    status: state.write.status,
-                    disabled: cannotWrite,
-                    tooltip: `Save ${player.name}'s main-bar skin`,
-                    onClick: () => savePlayer(player),
-                }),
-            ],
+            controls: [SaveState(state.write), selectionNode],
         });
     };
 
@@ -442,7 +440,7 @@ const WeeklyBossTab = () => {
 
     const trophyRow = EditableNumberRow({
         valueState: trophies,
-        disabled: cannotWrite,
+        disabled: cannotEdit,
         normalize: (raw) => resolveNumberInput(raw, { min: 0 }),
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
@@ -450,8 +448,7 @@ const WeeklyBossTab = () => {
             return Math.max(0, next + delta);
         },
         write: async (value) => {
-            if (cannotWrite())
-                throw new Error("Weekly Boss edits are unavailable. Refresh or wait for the current action.");
+            if (cannotEdit()) throw new Error("refresh first");
             if (value === trophies.val) return { cancelled: true };
             busy.val = true;
             message.val = "";
