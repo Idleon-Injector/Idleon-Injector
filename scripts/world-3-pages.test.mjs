@@ -275,3 +275,48 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     await until(() => classes(byClass(row, "save-state")[0]).includes("save-state--success"), "the retry to land");
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
+
+const COGS = "src/ui/pages/world-3/construction/cogs.js";
+globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
+const openCogs = async () => {
+    const root = await openPage(COGS, (r) => byClass(r, "cogs-slot").length > 0);
+    const popup = byClass(globalThis.document.body, "cogs-popup").at(-1);
+    const slot = (index) =>
+        byClass(root, "cogs-slot").find((node) =>
+            String(
+                typeof node.attributes.title === "function" ? node.attributes.title() : node.attributes.title
+            ).endsWith(`(Index ${index})`)
+        );
+    const open = (index) => slot(index).listeners.click({ clientX: 10, clientY: 10 });
+    return { root, popup, open };
+};
+const statRow = (popup, code) =>
+    byClass(popup, "cogs-cog-stat-row").find((row) => text(byClass(row, "cogs-cog-stat-row__code")[0]) === code);
+const enterStat = async (row, value) => {
+    const input = elements(row).find((node) => node.nodeName === "input");
+    input.value = value;
+    input.listeners.input?.({ target: input });
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => /save-state--(success|error)/.test(classes(byClass(row, "save-state")[0])), "the save to finish");
+};
+
+test("Cogs: a stat that is a number refuses text that isn't one; the shape pattern still takes text", async () => {
+    gga.CogOrder[1] = "Cog2B01";
+    gga.CogMap[1].h = { a: 11, b: 1, h: "pattern" };
+    const { popup, open } = await openCogs();
+    open(1);
+    await until(() => statRow(popup, "a") && statRow(popup, "h"), "the slot's stats to show");
+
+    for (const typed of ["12,345", "abc", "1e999"]) {
+        const row = statRow(popup, "a");
+        await enterStat(row, typed);
+        assert.match(classes(byClass(row, "save-state")[0]), /save-state--error/, typed);
+        assert.equal(text(byClass(row, "save-state__label")[0]), "not a number", typed);
+        assert.equal(gga.CogMap[1].h.a, 11, `${typed} isn't written`);
+    }
+
+    const shape = statRow(popup, "h");
+    await enterStat(shape, "ring");
+    assert.match(classes(byClass(shape, "save-state")[0]), /save-state--success/);
+    assert.equal(gga.CogMap[1].h.h, "ring");
+});

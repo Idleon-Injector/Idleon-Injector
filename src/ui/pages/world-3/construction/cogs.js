@@ -554,7 +554,11 @@ const CogsTab = () => {
                             if (readOnly || inputEl.value === shown) return { unchanged: true };
                             const typed = inputEl.value.trim();
                             if (typed === "") throw new Error("enter a value");
-                            const writeVal = parseNumber(typed) ?? typed;
+                            // The shape pattern (h) is text in the game; every other stat is a number.
+                            const writeVal = typeof rawVal === "string" ? typed : parseNumber(typed);
+                            if (!Number.isFinite(writeVal) && typeof writeVal !== "string") {
+                                throw new Error("not a number");
+                            }
                             return {
                                 write: async () => {
                                     await writeVerified(`CogMap[${getCogOrderIndex(index)}].h.${key}`, writeVal);
