@@ -214,3 +214,17 @@ for (const { page, levels, label } of [
         assert.ok(gga[levels].slice(0, before.length).every((level) => Number(level) === 0));
     });
 }
+
+test("A prayer row's Max sets the prayer's max level", async () => {
+    const before = gga.PrayersUnlocked.slice();
+    const root = await openPage("src/ui/pages/world-3/prayers/prayers.js", (r) => byClass(r, "prayer-row").length > 0);
+    try {
+        const row = byClass(root, "prayer-row")[0];
+        button(row, "Max").listeners.click({ preventDefault() {} });
+        await until(() => saved(row), "the Max save to end");
+        assert.match(saveState(row), /save-state--success/);
+        assert.equal(gga.PrayersUnlocked[0], Number(gga.CustomLists.h.PrayerInfo[0][9]), "the prayer's max is saved");
+    } finally {
+        gga.PrayersUnlocked.splice(0, before.length, ...before);
+    }
+});
