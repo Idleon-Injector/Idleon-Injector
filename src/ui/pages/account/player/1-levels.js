@@ -125,6 +125,8 @@ const PlayerTab = () => {
 
     const load = async () => {
         if (busy.val) return;
+        // Cleared by the player's own load only: the read again after a save that landed in part keeps its warning.
+        message.val = "";
         await run(async () => {
             const active = await gga("UserInfo[0]");
             const [rawNames, rawSkills] = await Promise.all([gga("GetPlayersUsernames"), readCList("SkillNames")]);
@@ -175,7 +177,6 @@ const PlayerTab = () => {
             fields.forEach(({ index, value }) => {
                 getOrCreateState(values, index).val = value;
             });
-            message.val = "";
         });
     };
 
