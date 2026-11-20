@@ -144,8 +144,9 @@ const IslandsTab = () => {
                     await writeVerified(UNLOCK_PATH, canonical, { write: gga });
                 }
             } catch (error) {
-                // A failed save leaves the switches on what the game held when it started.
-                if (held !== null) unlocksState.val = held;
+                // The write may have landed: the switches show what the game holds now (what it held when this save
+                // started, or what they showed, if that read fails too).
+                unlocksState.val = await gga(UNLOCK_PATH).then(canonicalizeUnlocks, () => held ?? unlocksState.val);
                 throw error;
             }
             unlocksState.val = canonical;

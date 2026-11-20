@@ -256,7 +256,17 @@ const OutpostSlots = ({ mapId, slotState, barracksState, slotWrites, said }) => 
                                 const nextSlots = decodeSlots(await gga(path));
                                 nextSlots[slot] = picked;
                                 const nextValue = encodeSlots(nextSlots);
-                                await writeVerified(path, nextValue);
+                                try {
+                                    await writeVerified(path, nextValue);
+                                } catch (error) {
+                                    // The write may have landed: the slots show what the game holds now (what
+                                    // they showed, if that read fails too), in turn, before the next pick reads.
+                                    slotState.val = await gga(path).then(
+                                        (raw) => toInt(raw, { min: 0, fallback: 111111111 }),
+                                        () => slotState.val
+                                    );
+                                    throw error;
+                                }
                                 slotState.val = nextValue;
                                 await refreshRoyalGuardUnitCaches();
                             })
@@ -302,9 +312,11 @@ const MapUnitAddControl = ({ outpost, changeUnits }) => {
             tooltip: `Add the selected map unit to ${outpost.name}.`,
             onClick: (e) => {
                 e.preventDefault();
+                // The unit picked at the press, though the add waits its turn behind another change.
+                const type = Number(typeState.val);
                 return changeUnits("Unit not added", run, async () => {
                     const { types, maps } = await readUnitPair(arrays.typeArray, arrays.mapArray);
-                    types.push(Number(typeState.val));
+                    types.push(type);
                     maps.push(outpost.mapId);
                     await writeManyVerified([
                         { path: `RoyalG[${arrays.typeArray}]`, value: types },
@@ -703,6 +715,7 @@ const BuiltOutpostRow = ({ outpost, fieldStates, slotState, outpostTypeState, gl
                         tooltip: "Toggle glorified outpost status.",
                         variant: "switch-filled",
                         className: "outpost-glorified-button",
+                        keepEnabled: true,
                         onClick: async (e) => {
                             e.preventDefault();
                             said.clear();

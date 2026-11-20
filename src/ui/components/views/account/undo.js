@@ -130,7 +130,12 @@ export const undoAction = async (id) => {
         if (kept.size || moved) reloadPlaceOf(action);
         if (landed.length) await markChangesUndone(id, landed);
         changesVersion.val++;
-        await clearCaches([...kept]);
+        // A value the game kept differently was still written, so the totals built from it are cleared too.
+        await clearCaches(
+            (error.results ?? [])
+                .filter((result) => result.ok || result.error === "Write mismatch")
+                .map((result) => result.path.replace(/^gga\./, ""))
+        );
         const missed = writes.length - kept.size;
         throw new Error(
             !error.results

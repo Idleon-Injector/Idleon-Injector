@@ -34,12 +34,14 @@ async function until(check, what) {
 // Every value the game is asked to write, held until released while `gate` is set.
 const writes = [];
 let gate = null;
+let answered = 0; // writes the game has answered
 const realWrite = router.routes.POST.get("/api/game/gga/write");
 router.routes.POST.set("/api/game/gga/write", async (req, res) => {
     const body = await req.json();
     writes.push(body.value);
     if (gate) await gate.promise;
-    return realWrite({ json: async () => body }, res);
+    await realWrite({ json: async () => body }, res);
+    answered++;
 });
 const holdWrites = () => {
     let release;
@@ -119,13 +121,20 @@ test("a value entered while another is written is written as entered, and newer 
     field().listeners.input({ target: { value: "50" } });
     enter();
     field().listeners.input({ target: { value: "500" } });
+    // Review of #121: the second write is held too, and the test waits for its answer, not for the "is-confirmed"
+    // class the first write left on the row.
     release();
+    const releaseSecond = holdWrites();
     await until(() => writes.length > count + 1, "the second write");
-    await until(() => classes(row()).includes("is-confirmed"), "the second write to be confirmed");
+    const answeredBefore = answered;
+    releaseSecond();
+    await until(() => answered > answeredBefore, "the game to answer the second write");
+    await new Promise((resolve) => setTimeout(resolve, 20)); // the page handles the answer
     assert.deepEqual(writes.slice(count), [5, 50], "the entered value is written, not the one only typed");
     assert.equal(field()?.attributes.value, "500", "the editor stays open with what was typed since");
     field().listeners.keydown({ key: "Escape", stopPropagation() {} });
     await until(() => !field(), "the editor to close");
+    assert.equal(text(byClass(row(), "result-value")[0]), "50", "the row shows the second write's value");
 });
 
 // Review of #121: the first write closed the editor when the text went back to its value, dropping the queued 50.

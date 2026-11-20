@@ -122,8 +122,12 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
                                       try {
                                           await writeVerified("OptionsListAccount[384]", encodePrisma(next));
                                       } catch (error) {
-                                          // A failed save leaves the switches on what the game held when it started.
-                                          prismaSet.val = held;
+                                          // The write may have landed: the switches show what the game holds now
+                                          // (what it held when this save started, if that read fails too).
+                                          prismaSet.val = await gga("OptionsListAccount[384]").then(
+                                              parsePrisma,
+                                              () => held
+                                          );
                                           throw error;
                                       }
                                       prismaSet.val = next;

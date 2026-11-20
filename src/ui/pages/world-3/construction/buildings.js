@@ -39,7 +39,9 @@ const BuildingRow = ({ index, name, maxLevel, levelState }) =>
         valueState: levelState,
         max: maxLevel,
         write: async (nextLevel) => {
-            // Both in one call to the game, so the level and its pending copy can't be left apart.
+            // Both in one call to the game, so a dropped connection can't leave the level and its pending copy apart.
+            // The game still writes them one by one: if it refuses one, the other stays written (History lists it,
+            // and the row says why). ponytail: an all-or-nothing write needs the game's writePaths to put it back.
             await writeManyVerified([
                 { path: `TowerInfo[${index}]`, value: nextLevel },
                 { path: `TowerInfo[${index + BUILDING_COUNT}]`, value: nextLevel },
