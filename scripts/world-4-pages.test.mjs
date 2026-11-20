@@ -141,3 +141,17 @@ for (const [name, findRow, read] of [
         assert.equal(read(), 9);
     });
 }
+
+test("Undo after adding a cape takes it back off the vine", async () => {
+    const root = await openPage("src/ui/pages/world-4/cape-vine/cape-vine.js");
+    const before = [...gga.Spelunk[54]];
+    const buttonsOf = (row) => byTag(row, "button").map((node) => text(node).trim());
+    const row = byClass(root, "account-row").find((node) => buttonsOf(node).includes("Add"));
+    byTag(row, "button")
+        .find((node) => text(node).trim() === "Add")
+        .listeners.click({ detail: 1, preventDefault() {} });
+    await until(() => buttonsOf(row).includes("Remove"), "the cape to be on the vine");
+    assert.equal(gga.Spelunk[54].length, before.length + 1);
+    await undoAction((await fetchChanges()).actions[0].id);
+    assert.deepEqual([...gga.Spelunk[54]], before);
+});
