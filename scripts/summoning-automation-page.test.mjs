@@ -87,7 +87,8 @@ const button = (root, label) =>
         (node) => node.nodeName === "button" && text(node).trim() === label && !node.attributes.disabled
     );
 const summoningOn = () => getAutomations().find(({ cheat }) => cheat === "automation summoning").on;
-const saved = () => updates.findLast((body) => body.cheatConfig.automation.summoning)?.cheatConfig.automation.summoning;
+const saved = () =>
+    updates.findLast((body) => body.cheatConfig.automation.summoning)?.cheatConfig.automation.summoning.items;
 
 const tab = (await importRepo("src/ui/pages/world-6/summoning/4-automation.js")).default.component();
 const pick = (name) =>

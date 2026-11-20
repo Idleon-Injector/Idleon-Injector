@@ -119,13 +119,13 @@ export const saveAutomation = async (key, value, gameTook = () => {}) => {
 };
 
 /**
- * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt?, priority? } per item, kept as states by id
- * (priority 1 is High, 2 Low, none Balanced).
+ * A system's saved picks, cheatConfig.automation[group] (with `inItems`, its .items): one { id, on, stopAt?, priority? }
+ * per item, kept as states by id (priority 1 is High, 2 Low, none Balanced).
  * Edits show at once and their saves run one at a time, each sending the whole list. When a save fails, the controls
  * read back what the game holds, so they never show a value it didn't take. `onTurnedOn` runs when a save leaves an
  * item it switched on running in the game (the system's own switch goes on with it, so buying starts at once).
  */
-export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
+export const createAutomationPicks = (group, { onTurnedOn = null, inItems = false } = {}) => {
     const items = new Map();
     let queue = Promise.resolve();
     let pending = 0;
@@ -145,9 +145,9 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
 
     // A read that lands while a save is queued, or that started before a save, would undo the newest edits, so it
     // waits for the next read. `since` is edits() when the read started.
-    const sync = (entries, since = edits) => {
+    const sync = (saved, since = edits) => {
         if (pending || since !== edits) return;
-        const byId = new Map(entries.map((entry) => [String(entry.id), entry]));
+        const byId = new Map((inItems ? saved.items : saved).map((entry) => [String(entry.id), entry]));
         for (const id of byId.keys()) get(id);
         for (const [id, item] of items) {
             item.on.val = Boolean(byId.get(id)?.on);
@@ -169,7 +169,7 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             }));
 
     const persist = async () => {
-        await saveAutomation(group, toConfig(), () => (fileBehind = true));
+        await saveAutomation(group, inItems ? { items: toConfig() } : toConfig(), () => (fileBehind = true));
         fileBehind = false;
     };
 

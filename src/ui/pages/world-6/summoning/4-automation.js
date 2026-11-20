@@ -4,7 +4,7 @@
  * a priority (High / Low / Balanced) and a switch.
  *
  * Reads readComputed("automation", "summoning") ({ waiting, essences, upgrades }) and saves
- * cheatConfig.automation.summoning (one { id, on, stopAt, priority } per upgrade) and
+ * cheatConfig.automation.summoning.items (one { id, on, stopAt, priority } per upgrade) and
  * cheatConfig.automation.summoningSaving (one % per colour).
  */
 
@@ -68,6 +68,7 @@ const SummoningAutomationTab = () => {
     };
     // Switching an upgrade on switches Summoning on too (now and at start), so buying starts at once.
     const picks = createAutomationPicks("summoning", {
+        inItems: true,
         onTurnedOn: async () => {
             await readSwitch(); // the overview may have switched it since this tab read it
             if (automation.val?.on) return setAtStart(CHEAT, true);
