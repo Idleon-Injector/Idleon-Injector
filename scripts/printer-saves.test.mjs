@@ -101,6 +101,28 @@ test("Printer keeps a quantity typed while that slot saves, and the next Enter s
     assert.equal(input.value, "7K", "the field shows the quantity saved last");
 });
 
+// Review of #131: the save's end put the saved quantity back over one typed while it waited, so Enter saved nothing.
+test("Printer keeps a quantity typed while that slot saves, until its own Enter", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 1");
+    const input = inputs(row)[0];
+    const hold = holdWrites();
+    t.after(hold.release);
+
+    type(input, 5000);
+    enter(row, input);
+    await until(() => hold.held() === 1, "the first save to reach the game");
+    type(input, 7000);
+    hold.release();
+    await until(() => /save-state--success/.test(saveState(row)), "the first save's ✓");
+    assert.equal(gga.Printer[printerSlot(1) + 1], 5000);
+    assert.equal(input.value, "7000", "the quantity typed while the save waited stays");
+    enter(row, input);
+    await until(() => gga.Printer[printerSlot(1) + 1] === 7000, "the typed quantity to be saved");
+});
+
 test("Printer saves a slot's Enter pressed while another slot saves", async (t) => {
     const before = gga.Printer.slice();
     t.after(() => gga.Printer.splice(0, before.length, ...before));

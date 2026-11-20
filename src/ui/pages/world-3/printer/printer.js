@@ -286,7 +286,7 @@ const PrinterTab = () => {
               : typeof state.baseline.qty === "string"
                 ? String(parsed)
                 : parsed;
-        return { write: () => inTurn((inAction) => writeSlot(state, item, qty, false, inAction)) };
+        return { write: () => inTurn((inAction) => writeSlot(state, item, qty, false, inAction, drafts)) };
     };
 
     // Stop and Clear ask in place (#77): the button reads "Click again" for a few seconds.
@@ -303,8 +303,9 @@ const PrinterTab = () => {
         return state.write.run(() => inTurn((inAction) => writeSlot(state, "Blank", 0, true, inAction)));
     };
 
-    // `inAction`: runs the write under the History action of the row that asked for it.
-    const writeSlot = async (state, item, qty, clear, inAction) => {
+    // `inAction`: runs the write under the History action of the row that asked for it. `committed`: the drafts the
+    // save was asked with.
+    const writeSlot = async (state, item, qty, clear, inAction, committed = null) => {
         try {
             const next = await readFresh();
             const cap = Math.round(
@@ -323,7 +324,13 @@ const PrinterTab = () => {
                     ])
                 );
             }
-            updateRow(state, item, qty, true);
+            const now = draftsOf(state);
+            if (committed && (now.item !== committed.item || now.rawQty !== committed.rawQty)) {
+                // Typed while this save waited: the newer draft stays, for its own Enter to save.
+                state.saved.val = { item, qty };
+                state.baseline = { item, qty };
+                state.dirty.val++;
+            } else updateRow(state, item, qty, true);
             state.syncOptions();
         } catch (caughtError) {
             error.val = caughtError.message;
