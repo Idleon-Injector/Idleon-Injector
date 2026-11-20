@@ -19,9 +19,12 @@ export async function createFakeGame(fixture = fakeGameData()) {
     for (const file of rollup.cheatFiles()) await importRepo(`src/cheats/cheats/${file}`);
     for (const file of rollup.automationFiles()) await importRepo(`src/cheats/automations/${file}`);
     const globals = await importRepo("src/cheats/core/globals.js");
-    // The game's live config: config.js's defaults, then what the WebUI sends (automations read it while they run).
+    // The game's live config: its own copy of config.js's defaults (the server keeps another), then what the WebUI
+    // sends. Automations read it while they run; the server reads it back as the real game's.
+    const require = createRequire(import.meta.url);
+    const { deepClone } = require("../../src/modules/utils/objectUtils.js");
     const state = await importRepo("src/cheats/core/state.js");
-    state.setCheatConfig(createRequire(import.meta.url)("../../config.js").cheatConfig);
+    state.setCheatConfig(deepClone(require("../../config.js").cheatConfig));
     const paths = await importRepo("src/cheats/utils/pathResolver.js");
     const accessors = await importRepo("src/cheats/api/stateAccessors.js");
     const { getAutoCompleteSuggestions } = await importRepo("src/cheats/api/suggestions.js");
@@ -86,7 +89,7 @@ export async function createFakeGame(fixture = fakeGameData()) {
         takeSaveCopy,
         cheatStateList: () => structuredClone(fixture.cheatStates ?? {}),
         cheat: (action) => ({ ok: true, message: `${action} (fake game)` }),
-        readCheatConfig: () => "{}",
+        readCheatConfig: state.readCheatConfig,
         updateCheatConfig: state.updateCheatConfig,
         monitorWrap: () => ({ ok: true }),
         monitorUnwrap: () => ({ ok: true }),
@@ -106,5 +109,6 @@ export async function createFakeGame(fixture = fakeGameData()) {
             }
         },
     };
-    return { runtime, misses, gga };
+    // `page` holds what the game exposes, so a test can make one of them fail.
+    return { runtime, misses, gga, page };
 }

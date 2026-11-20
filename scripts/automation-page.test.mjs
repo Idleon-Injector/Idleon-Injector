@@ -1690,3 +1690,16 @@ test("round 6: a switch that may have applied shows Unknown, even over an older 
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(shops) === "Off", "a read that works to show it again");
 });
+
+// The local review of 45299ae.
+test("local review: a picks save changes the server's settings, not config.js's defaults", async () => {
+    const picks = await freshPicks();
+    await picks.set("0:item1", { stopAt: 3 });
+    try {
+        const { cheatConfig, defaultConfig } = await fetchConfig();
+        assert.ok(cheatConfig.automation.shops.some(({ id, stopAt }) => id === "0:item1" && stopAt === 3));
+        assert.ok(!defaultConfig.automation.shops.some(({ id }) => id === "0:item1"), "the defaults stay as they are");
+    } finally {
+        await picks.set("0:item1", { stopAt: null });
+    }
+});
