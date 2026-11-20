@@ -47,6 +47,20 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
 // status read after the next write fails.
 let holdWrite = null;
 let failReadAfterWrite = false;
+// `failNextWrite`: the next attire write fails as a request, with no read-back.
+let failNextWrite = false;
+// `holdRead`: { path, gate }: the next read of that path waits on the gate.
+let holdRead = null;
+const readOne = router.routes.POST.get("/api/game/gga/read");
+router.routes.POST.set("/api/game/gga/read", async (req, res) => {
+    const { path } = await req.json();
+    if (holdRead && path === `gga.${holdRead.path}`) {
+        const { gate } = holdRead;
+        holdRead = null;
+        await gate;
+    }
+    return readOne(req, res);
+});
 let failNextStatus = false;
 const computedRead = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
@@ -63,6 +77,10 @@ router.routes.POST.set("/api/game/gga/write-many", async (req, res) => {
         const held = holdWrite;
         holdWrite = null;
         await held;
+    }
+    if (failNextWrite) {
+        failNextWrite = false;
+        return res.status(500).json({ error: "The game is busy" });
     }
     if (failReadAfterWrite) {
         failReadAfterWrite = false;
@@ -883,4 +901,78 @@ test("a kept slot field she changed in the game since isn't written over on the 
     await until(() => /save-state--success/.test(saveState(node)), "the row's retry to end");
     assert.equal(JSON.stringify(map.h), JSON.stringify({ STR: 9 }), "the newer upgrades stay");
     map.h = {};
+});
+
+// CodeRabbit on #110: a retry of a kept field whose request failed (no read-back) keeps that field to write again, so
+// the next try still writes it.
+test("a kept slot field stays to write again when its retry's request failed", async () => {
+    const root = await open();
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const quantities = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentQuantity[0];
+    if (gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] === "Blank") {
+        field.listeners.change({ target: { value: "EquipmentGown4" } });
+        await until(() => /save-state--success/.test(saveState(node)), "an outfit to start from");
+    }
+    const kept = quantities[15];
+    Object.defineProperty(quantities, 15, { get: () => kept, set() {}, configurable: true });
+    try {
+        field.listeners.change({ target: { value: "Blank" } });
+        await until(() => /save-state--error/.test(saveState(node)), "the kept quantity's refusal in the row");
+    } finally {
+        Object.defineProperty(quantities, 15, { value: kept, writable: true, configurable: true });
+    }
+    failNextWrite = true;
+    const since = requests.length;
+    node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
+    await until(() => !failNextWrite && /save-state--error/.test(saveState(node)), "the retry's request to fail");
+    assert.ok(after(since, "write-many").length > 0, "the retry wrote");
+    node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
+    await until(() => quantities[15] === 0, "the next try to write the quantity");
+});
+
+// CodeRabbit on #110: a row's retry that settles a kept field while another row's retry still reads it doesn't break
+// that other save.
+test("two rows retrying kept fields at once both finish", async () => {
+    const root = await open();
+    const rows = ["Lumi_Main", "Lumi_Alt"].map((name) => row(root, name));
+    const fields = rows.map((node) => elements(node).filter((entry) => entry.nodeName === "select")[0]);
+    const quantities = ["Lumi_Main", "Lumi_Alt"].map((name) => gga.PlayerDATABASE.h[name].h.EquipmentQuantity[0]);
+    for (const [index, name] of ["Lumi_Main", "Lumi_Alt"].entries()) {
+        if (gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] === "Blank") {
+            fields[index].listeners.change({ target: { value: "EquipmentGown4" } });
+            await until(() => /save-state--success/.test(saveState(rows[index])), `${name}'s outfit to start from`);
+        }
+    }
+    const kept = quantities.map((list) => list[15]);
+    quantities.forEach((list, index) =>
+        Object.defineProperty(list, 15, { get: () => kept[index], set() {}, configurable: true })
+    );
+    try {
+        for (const [index, node] of rows.entries()) {
+            fields[index].listeners.change({ target: { value: "Blank" } });
+            await until(() => /save-state--error/.test(saveState(node)), "the kept quantity's refusal");
+        }
+    } finally {
+        quantities.forEach((list, index) =>
+            Object.defineProperty(list, 15, { value: kept[index], writable: true, configurable: true })
+        );
+    }
+    let release;
+    // Lumi_Main's retry reads Lumi_Alt's kept field, and waits there while Lumi_Alt's own retry settles it.
+    holdRead = {
+        path: "PlayerDATABASE.h[Lumi_Alt].h.EquipmentQuantity[0][15]",
+        gate: new Promise((r) => (release = r)),
+    };
+    try {
+        rows[0].listeners.focusout({ relatedTarget: null, target: {}, currentTarget: rows[0] });
+        await until(() => holdRead === null, "Lumi_Main's retry to read");
+        rows[1].listeners.focusout({ relatedTarget: null, target: {}, currentTarget: rows[1] });
+        await until(() => quantities[1][15] === 0, "Lumi_Alt's retry to land");
+    } finally {
+        release?.();
+        holdRead = null;
+    }
+    await until(() => quantities[0][15] === 0, "Lumi_Main's retry to land");
+    await until(() => /save-state--success/.test(saveState(rows[0])), "Lumi_Main's row to say it saved");
 });

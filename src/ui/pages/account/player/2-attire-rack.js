@@ -120,11 +120,13 @@ const AttireRackPage = () => {
     // longer holds as it kept it (she changed it in the game since) is forgotten before a write (`recheck`), so a retry
     // never puts the old value over a newer one.
     const unverified = new Map();
+    // A record another save replaced or settled while this one read is left to that save.
     const recheck = async () => {
-        const paths = [...unverified.keys()];
-        const now = await Promise.all(paths.map((path) => gga(path)));
-        paths.forEach((path, index) => {
-            if (JSON.stringify(now[index]) !== JSON.stringify(unverified.get(path).kept)) unverified.delete(path);
+        const records = [...unverified];
+        const now = await Promise.all(records.map(([path]) => gga(path)));
+        records.forEach(([path, field], index) => {
+            if (unverified.get(path) === field && JSON.stringify(now[index]) !== JSON.stringify(field.kept))
+                unverified.delete(path);
         });
     };
     const writesFor = (character, item) => {
@@ -145,10 +147,11 @@ const AttireRackPage = () => {
             (caught) => {
                 writes.forEach((entry, index) => {
                     const result = caught.results?.[index];
-                    // Only a field whose kept value the game sent back: without it, a later change can't be told.
-                    if (result?.ok === false && "actual" in result)
+                    if (result?.ok) unverified.delete(entry.path);
+                    // Remembered only with the value the game kept: without it, a later change can't be told. A write
+                    // with no read-back (the request failed) leaves a field remembered before as it was.
+                    else if (result && "actual" in result)
                         unverified.set(entry.path, { name: entry.name, item, value: entry.value, kept: result.actual });
-                    else unverified.delete(entry.path);
                 });
                 throw caught;
             }
