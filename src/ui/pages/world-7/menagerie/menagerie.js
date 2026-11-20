@@ -301,7 +301,7 @@ const MenagerieTab = () => {
     const bulk = useWriteStatus();
     const bulkMessage = van.state("");
     const unlockAll = ActionButton({
-        label: () => (bulk.status.val === "loading" ? "UNLOCKING…" : "UNLOCK ALL"),
+        label: () => (bulk.status.val === "loading" ? "Unlocking…" : "Unlock all"),
         status: bulk.status,
         disabled,
         onClick: () => {

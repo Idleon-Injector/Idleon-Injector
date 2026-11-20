@@ -139,7 +139,7 @@ const KillroyAirhornRow = ({ valueState }) => {
         info: span({ class: "account-row__name" }, "AIRHORN RESET"),
         badge: () => (toNum(valueState.val, 0) === 0 ? "OFF" : "ON"),
         controls: ActionButton({
-            label: "TOGGLE",
+            label: "Toggle",
             status,
             onClick: doToggle,
         }),

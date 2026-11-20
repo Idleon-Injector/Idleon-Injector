@@ -398,7 +398,7 @@ const PrayersTab = () => {
             disabled: () => loading.val || Boolean(error.val) || !snapshot.val,
             rowClass: "prayer-row account-row--wide-controls",
             inputProps: { "aria-label": `${cleanName(metadata.val[0])} level` },
-            maxAction: { label: "MAX", value: Number.MAX_SAFE_INTEGER },
+            maxAction: { label: "Max", value: Number.MAX_SAFE_INTEGER },
             renderInfo: () =>
                 div(
                     { class: "account-row__name-group" },
@@ -422,7 +422,8 @@ const PrayersTab = () => {
                 `LV ${level.val}/${metadata.val[9]}${level.val === 0 ? " · LOCKED" : ""}${isEquipped() ? " · EQUIPPED" : ""}`,
             renderExtraActions: () =>
                 ActionButton({
-                    label: () => (isEquipped() ? "UNEQUIP" : "EQUIP"),
+                    label: () => (isEquipped() ? "Unequip" : "Equip"),
+                    variant: () => (isEquipped() ? "danger" : "quiet"),
                     status: equipmentStatus.status,
                     className: "prayer-row__equip-btn",
                     disabled: () => unavailable() || (!isEquipped() && level.val === 0),
@@ -443,19 +444,20 @@ const PrayersTab = () => {
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "UNLOCK ALL",
+                    label: "Unlock all",
                     status: bulkStatus.status,
                     disabled: unavailable,
                     onClick: (e) => bulk("unlock", e.currentTarget),
                 },
                 {
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: bulkStatus.status,
                     disabled: unavailable,
                     onClick: (e) => bulk("max", e.currentTarget),
                 },
                 {
-                    label: "UNEQUIP ALL",
+                    label: "Unequip all",
+                    variant: "danger",
                     status: bulkStatus.status,
                     disabled: unavailable,
                     onClick: (e) => bulk("unequip", e.currentTarget),

@@ -183,7 +183,8 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                           : "MISSING";
             }),
             controls: ActionButton({
-                label: () => (state.registered.val ? "UNREGISTER" : "REGISTER"),
+                label: () => (state.registered.val ? "Unregister" : "Register"),
+                variant: () => (state.registered.val ? "danger" : "quiet"),
                 status: state.write.status,
                 disabled: cannotWrite,
                 tooltip: () => `${state.registered.val ? "Unregister" : "Register"} ${state.name.val}`,
@@ -274,13 +275,14 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             BulkActionBar({
                 actions: [
                     {
-                        label: "REGISTER SHOWN",
+                        label: "Register shown",
                         status: bulk.status,
                         disabled: cannotWrite,
                         onClick: (e) => setShown(true, e.currentTarget),
                     },
                     {
-                        label: "UNREGISTER SHOWN",
+                        label: "Unregister shown",
+                        variant: "danger",
                         status: bulk.status,
                         disabled: cannotWrite,
                         onClick: (e) => setShown(false, e.currentTarget),

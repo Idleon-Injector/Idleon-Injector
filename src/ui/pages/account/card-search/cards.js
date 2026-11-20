@@ -68,7 +68,7 @@ const TierBadgeContent = ({ amount, thresholds }) => {
 };
 
 const TierSelect = ({
-    label = "SET TIER",
+    label = "Set tier",
     thresholds = null,
     onSelect,
     status = null,
@@ -240,7 +240,7 @@ const CardSection = ({
             },
             summary(
                 { class: "card-region__toggle" },
-                Icons.ChevronRight({ class: "card-region__chevron" }),
+                Icons.Chevron({ dir: "right", class: "card-region__chevron" }),
                 span({ class: "card-region__title" }, region.name),
                 span({ class: "card-region__count" }, `${region.cards.length} CARDS`)
             ),
@@ -251,7 +251,7 @@ const CardSection = ({
         ),
         setRegionTier
             ? TierSelect({
-                  label: "SET REGION TIER",
+                  label: "Set region tier",
                   status,
                   disabled: () => region.cards.length === 0,
                   className: "card-region__tier-select",

@@ -157,18 +157,18 @@ const GeneralTab = () => {
             note: () => `${eggEntries.val.length} EGG SLOTS FROM TotalEggCapacity`,
             meta: spacedActionGroup(
                 ActionButton({
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: eggBulk.status,
-                    variant: "max-reset",
+                    variant: "quiet",
                     onClick: (e) => {
                         e.preventDefault();
                         void setAllEggs(EGG_MAX_RARITY);
                     },
                 }),
                 ActionButton({
-                    label: "ZERO ALL",
+                    label: "Zero all",
                     status: eggBulk.status,
-                    variant: "max-reset",
+                    variant: "danger",
                     onClick: (e) => {
                         e.preventDefault();
                         void setAllEggs(0);

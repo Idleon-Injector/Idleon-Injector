@@ -205,7 +205,6 @@ export const Config = () => {
             const hasMatches = nodes.some((node) => node !== null);
             if ((search || forcedPath) && !hasMatches) {
                 return EmptyState({
-                    icon: Icons.SearchX(),
                     title: "NO CONFIG FOUND",
                     subtitle: forcedPath
                         ? `Config path "${forcedPath.join(" ")}" not found`
@@ -238,11 +237,13 @@ export const Config = () => {
                 ),
                 button(
                     {
-                        class: "config-drawer-close",
+                        type: "button",
+                        class: "btn-quiet btn-icon config-drawer-close",
                         onclick: handleCloseDrawer,
                         title: "Close config drawer",
+                        "aria-label": "Close config drawer",
                     },
-                    Icons.X()
+                    Icons.Close()
                 )
             ),
 
@@ -286,11 +287,13 @@ export const Config = () => {
                                 ),
                                 button(
                                     {
-                                        class: "forced-path-clear",
+                                        type: "button",
+                                        class: "btn-quiet btn-icon btn-sm forced-path-clear",
                                         onclick: handleClearForcedPath,
                                         title: "Clear filter and show all",
+                                        "aria-label": "Clear filter and show all",
                                     },
-                                    Icons.X()
+                                    Icons.Close()
                                 )
                             );
                         }
@@ -318,7 +321,6 @@ export const Config = () => {
                                     placeholder: "SEARCH_CONFIG",
                                     onInput: handleSearchInput,
                                     debounceMs: 0,
-                                    icon: Icons.HelpCircle(),
                                     value: configSearchTerm,
                                 })
                             )
@@ -341,7 +343,7 @@ export const Config = () => {
                     class: () => `config-sub-tab-pane ${activeSubTab.val === "injectorconfig" ? "active" : ""}`,
                 },
 
-                div({ class: "warning-banner mb-20" }, "⚠ RESTART REQUIRED FOR CHANGES TO APPLY"),
+                div({ class: "warning-banner mb-20" }, Icons.Warning(), " RESTART REQUIRED FOR CHANGES TO APPLY"),
                 injectorConfigNode
             )
         );
@@ -353,7 +355,7 @@ export const Config = () => {
         () => {
             if (store.app.configError && !draftReady.val) {
                 return EmptyState({
-                    icon: Icons.Warning(),
+                    failed: true,
                     title: "THE SETTINGS DIDN'T LOAD",
                     subtitle: store.app.configError,
                 });
@@ -368,13 +370,14 @@ export const Config = () => {
             { class: "action-bar" },
             button(
                 {
+                    type: "button",
                     class: () =>
-                        `add-cheat-button ${
+                        `btn-quiet add-cheat-button ${
                             activeSubTab.val === "startupcheats" && !isAddingCheat.val ? "" : "hidden"
                         }`,
                     onclick: () => (isAddingCheat.val = true),
                 },
-                "+ ADD CHEAT"
+                "Add cheat"
             ),
 
             div(
@@ -400,15 +403,15 @@ export const Config = () => {
 
             withTooltip(
                 button(
-                    { id: "update-config-button", class: "btn-secondary", onclick: (e) => save(false, e) },
-                    "APPLY (RAM)"
+                    { id: "update-config-button", type: "button", class: "btn-quiet", onclick: (e) => save(false, e) },
+                    "Apply"
                 ),
                 "Apply to session only (lost on restart)"
             ),
             withTooltip(
                 button(
-                    { id: "save-config-button", class: "btn-primary", onclick: (e) => save(true, e) },
-                    "SAVE (DISK)"
+                    { id: "save-config-button", type: "button", class: "btn-main", onclick: (e) => save(true, e) },
+                    "Save settings"
                 ),
                 "Save permanently to config file"
             )

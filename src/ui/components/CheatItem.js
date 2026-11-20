@@ -95,7 +95,7 @@ export const CheatItem = (cheat) => {
                       onclick: handleConfigClick,
                       title: "Open config for this cheat",
                   },
-                  Icons.Config()
+                  Icons.Settings()
               )
             : null
     );
@@ -111,6 +111,7 @@ export const CheatItem = (cheat) => {
             {
                 class: () => `favorite-btn ${isFavorited() ? "is-favorite" : ""}`,
                 "aria-label": `Favorite ${cheat.value}`,
+                "aria-pressed": () => String(isFavorited()),
                 onclick: (e) => {
                     e.stopPropagation();
                     handleFavorite();

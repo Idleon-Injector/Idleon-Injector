@@ -33,7 +33,9 @@ const KeyCheckbox = ({ keyName, selectedKeys, onChange, isFavorite, onToggleFavo
         span({ class: "key-checkbox-label" }, keyName),
         button(
             {
+                type: "button",
                 class: () => `key-favorite-btn ${favorite() ? "active" : ""}`,
+                "aria-pressed": () => String(favorite()),
                 title: () => (favorite() ? "Remove from favorites" : "Add to favorites"),
                 onclick: (e) => {
                     e.preventDefault();
@@ -164,19 +166,23 @@ const ResultItem = ({ result, ui, handlers }) => {
                     { class: "result-action-group" },
                     button(
                         {
-                            class: "result-action-btn save-btn",
+                            type: "button",
+                            class: "btn-quiet btn-icon btn-sm result-action-btn save-btn",
                             title: "Save",
+                            "aria-label": "Save",
                             onclick: handleSave,
                         },
                         Icons.Check()
                     ),
                     button(
                         {
-                            class: "result-action-btn cancel-btn",
+                            type: "button",
+                            class: "btn-quiet btn-icon btn-sm result-action-btn cancel-btn",
                             title: "Cancel",
+                            "aria-label": "Cancel",
                             onclick: handleCancel,
                         },
-                        Icons.X()
+                        Icons.Close()
                     )
                 );
             }
@@ -185,27 +191,35 @@ const ResultItem = ({ result, ui, handlers }) => {
                 { class: "result-action-group" },
                 button(
                     {
-                        class: "result-action-btn edit-btn",
+                        type: "button",
+                        class: "btn-quiet btn-sm result-action-btn edit-btn",
                         title: "Edit value",
                         onclick: handleStartEdit,
                     },
-                    Icons.Pencil()
+                    "Edit"
                 ),
                 button(
                     {
-                        class: () => "result-action-btn copy-btn " + (copyFeedback.val === "success" ? "copied" : ""),
+                        type: "button",
+                        class: () =>
+                            "btn-quiet btn-icon btn-sm result-action-btn copy-btn " +
+                            (copyFeedback.val === "success" ? "copied" : ""),
                         title: "Copy full access path",
+                        "aria-label": "Copy full access path",
                         onclick: handleCopy,
                     },
                     () => (copyFeedback.val === "success" ? Icons.Check() : Icons.Copy())
                 ),
                 button(
                     {
-                        class: () => "result-action-btn save-to-list-btn " + (isInSavedList() ? "active" : ""),
+                        type: "button",
+                        class: () =>
+                            "btn-quiet btn-sm result-action-btn save-to-list-btn " + (isInSavedList() ? "active" : ""),
+                        "aria-pressed": () => String(isInSavedList()),
                         title: () => (isInSavedList() ? "Remove from saved list" : "Add to saved list"),
                         onclick: handleAddToList,
                     },
-                    Icons.List()
+                    () => (isInSavedList() ? "Saved" : "Save")
                 )
             );
         })
@@ -217,20 +231,21 @@ const SearchButton = ({
     isSearching,
     disabled,
     onClick,
-    label = "SEARCH",
+    label = "Search",
     title = "",
     className = "",
-    icon = Icons.Search,
+    main = () => true,
 }) =>
     button(
         {
-            class: () => `btn-primary search-btn ${className} ${isSearching() ? "loading" : ""}`.trim(),
+            type: "button",
+            class: () =>
+                `${main() ? "btn-main" : "btn-quiet"} search-btn ${className} ${isSearching() ? "loading" : ""}`.trim(),
             onclick: onClick,
             disabled: () => isSearching() || disabled(),
             title,
         },
-        () => (isSearching() ? "..." : typeof label === "function" ? label() : label),
-        icon()
+        () => (isSearching() ? "Scanning" : typeof label === "function" ? label() : label)
     );
 
 export const KeysSection = ({ ui, handlers }) =>
@@ -243,23 +258,30 @@ export const KeysSection = ({ ui, handlers }) =>
                 { class: "section-actions" },
                 button(
                     {
-                        class: () => `btn-secondary btn-small ${handlers.areAllSelected() ? "active" : ""}`,
+                        type: "button",
+                        class: "btn-quiet btn-sm",
                         onclick: handlers.toggleAll,
                         title: () => (handlers.areAllSelected() ? "Deselect all keys" : "Select all keys"),
                     },
-                    () => (handlers.areAllSelected() ? "NONE" : "ALL")
+                    () => (handlers.areAllSelected() ? "None" : "All")
                 ),
                 button(
                     {
-                        class: "btn-secondary btn-small",
+                        type: "button",
+                        class: "btn-quiet btn-sm",
                         onclick: () => handlers.selectKeys(handlers.getValidFavorites()),
                         title: "Select all favorites",
                     },
-                    "FAV"
+                    "Favorites"
                 ),
                 button(
-                    { class: "btn-secondary btn-small", onclick: handlers.clearSelection, title: "Clear selection" },
-                    "CLEAR"
+                    {
+                        type: "button",
+                        class: "btn-quiet btn-sm",
+                        onclick: handlers.clearSelection,
+                        title: "Clear selection",
+                    },
+                    "Clear"
                 )
             )
         ),
@@ -292,7 +314,11 @@ export const KeysSection = ({ ui, handlers }) =>
                     open: ui.allKeysExpanded,
                     ontoggle: (e) => (ui.allKeysExpanded = e.target.open),
                 },
-                summary({ class: "keys-group-header" }, () => `ALL KEYS (${handlers.getOtherKeys().length} MORE)`),
+                summary(
+                    { class: "keys-group-header" },
+                    Icons.Chevron({ dir: "right", class: "group-chevron" }),
+                    () => `ALL KEYS (${handlers.getOtherKeys().length} MORE)`
+                ),
                 div(
                     { class: "keys-expand-content" },
                     div(
@@ -404,24 +430,25 @@ export const SearchInputSection = ({ ui, handlers }) =>
                             isSearching: () => ui.scan.isSearching,
                             disabled: () => (ui.scan.active ? false : ui.selectedKeys.length === 0),
                             onClick: () => (ui.scan.active ? handlers.startNewScan() : handlers.handleSearch("new")),
-                            label: () => (ui.scan.active ? "NEW SCAN" : "FIRST"),
+                            label: () => (ui.scan.active ? "New scan" : "First scan"),
+                            // The area's one blue button: First scan until a scan runs, then Next scan.
+                            main: () => !ui.scan.active,
                             title: () =>
                                 ui.scan.active
                                     ? "Reset and prepare a fresh first scan"
                                     : "First scan (search all selected keys)",
-                            icon: () => (ui.scan.active ? Icons.Refresh() : Icons.Search()),
                         }),
                         SearchButton({
                             isSearching: () => ui.scan.isSearching,
                             disabled: () => !ui.scan.active || ui.scan.scopeCount === 0,
                             onClick: () => handlers.handleSearch("next"),
-                            label: "NEXT",
+                            label: "Next scan",
                             className: "next-search-btn",
+                            main: () => ui.scan.active,
                             title: () =>
                                 ui.scan.scopeCount
                                     ? `Next search (search inside ${ui.scan.scopeCount} current results)`
                                     : "Next search (run a new search first)",
-                            icon: Icons.ChevronRight,
                         })
                     )
                 );
@@ -480,15 +507,17 @@ export const ResultsSection = ({ ui, handlers }) =>
             span({ class: "section-title" }, "RESULTS"),
             button(
                 {
-                    class: "btn-icon refresh-btn",
+                    type: "button",
+                    class: "btn-quiet btn-sm refresh-btn",
                     onclick: () => handlers.handleSearch(ui.scan.lastSearchMode),
                     disabled: () =>
                         ui.scan.isSearching ||
                         !ui.scan.hasSearched ||
                         (ui.scan.lastSearchMode === "next" ? ui.scan.scopeCount === 0 : ui.selectedKeys.length === 0),
-                    title: () => (ui.scan.lastSearchMode === "next" ? "Refresh NEXT search" : "Refresh NEW search"),
+                    title: () =>
+                        ui.scan.lastSearchMode === "next" ? "Run the next scan again" : "Run the first scan again",
                 },
-                Icons.Refresh()
+                "Refresh"
             ),
             span({ class: "results-scope-badge" }, () => {
                 const filteredCount = handlers.getFilteredResults().length;
@@ -520,11 +549,12 @@ export const ResultsSection = ({ ui, handlers }) =>
                     ui.resultsFilter
                         ? button(
                               {
-                                  class: "btn-secondary btn-small",
+                                  type: "button",
+                                  class: "btn-quiet btn-sm",
                                   onclick: handlers.clearResultsFilter,
                                   title: "Clear results filter",
                               },
-                              "CLEAR"
+                              "Clear"
                           )
                         : null
             ),
@@ -535,7 +565,7 @@ export const ResultsSection = ({ ui, handlers }) =>
 
                 if (ui.scan.error || ui.error) {
                     return EmptyState({
-                        icon: Icons.SearchX(),
+                        failed: true,
                         title: "SEARCH ERROR",
                         subtitle: ui.scan.error || ui.error,
                     });
@@ -544,15 +574,13 @@ export const ResultsSection = ({ ui, handlers }) =>
                 if (ui.scan.results.length === 0) {
                     if (ui.scan.hasSearched) {
                         return EmptyState({
-                            icon: Icons.SearchX(),
                             title: "NO RESULTS",
                             subtitle: "Try a different search value or select more keys",
                         });
                     }
                     return EmptyState({
-                        icon: Icons.Search(),
                         title: "SEARCH GGA",
-                        subtitle: "Enter a value and click Search, or use UNKNOWN INITIAL VALUE to scan all values",
+                        subtitle: "Enter a value and press First scan, or use UNKNOWN INITIAL VALUE to scan all values",
                     });
                 }
 
@@ -565,7 +593,6 @@ export const ResultsSection = ({ ui, handlers }) =>
                     { class: "results-list" },
                     filteredResults.length === 0
                         ? EmptyState({
-                              icon: Icons.SearchX(),
                               title: "NO FILTER MATCH",
                               subtitle: "Try a different path/value filter",
                           })
@@ -574,10 +601,11 @@ export const ResultsSection = ({ ui, handlers }) =>
                     hasMore
                         ? button(
                               {
-                                  class: "load-more-btn",
+                                  type: "button",
+                                  class: "btn-quiet load-more-btn",
                                   onclick: () => (ui.displayLimit += 50),
                               },
-                              `LOAD MORE (${remaining} REMAINING)`
+                              `Load more (${remaining} remaining)`
                           )
                         : null
                 );
@@ -731,19 +759,23 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                     { class: "result-action-group" },
                     button(
                         {
-                            class: "result-action-btn save-btn",
+                            type: "button",
+                            class: "btn-quiet btn-icon btn-sm result-action-btn save-btn",
                             title: "Save",
+                            "aria-label": "Save",
                             onclick: handleSave,
                         },
                         Icons.Check()
                     ),
                     button(
                         {
-                            class: "result-action-btn cancel-btn",
+                            type: "button",
+                            class: "btn-quiet btn-icon btn-sm result-action-btn cancel-btn",
                             title: "Cancel",
+                            "aria-label": "Cancel",
                             onclick: handleCancel,
                         },
-                        Icons.X()
+                        Icons.Close()
                     )
                 );
             }
@@ -752,15 +784,19 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                 { class: "result-action-group" },
                 button(
                     {
-                        class: "result-action-btn edit-btn",
+                        type: "button",
+                        class: "btn-quiet btn-sm result-action-btn edit-btn",
                         title: "Edit value",
                         onclick: handleStartEdit,
                     },
-                    Icons.Pencil()
+                    "Edit"
                 ),
                 button(
                     {
-                        class: () => "result-action-btn monitor-btn " + (isMonitorEnabled() ? "active" : ""),
+                        type: "button",
+                        class: () =>
+                            "btn-quiet btn-sm result-action-btn monitor-btn " + (isMonitorEnabled() ? "active" : ""),
+                        "aria-pressed": () => String(isMonitorEnabled()),
                         title: () =>
                             monitorError()
                                 ? "Watcher failed: " + monitorError()
@@ -769,23 +805,28 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                                   : "Enable Watcher",
                         onclick: handleMonitor,
                     },
-                    Icons.Eye()
+                    () => (isMonitorEnabled() ? "Watching" : "Watch")
                 ),
                 button(
                     {
-                        class: () => "result-action-btn copy-btn " + (copyFeedback.val === "success" ? "copied" : ""),
+                        type: "button",
+                        class: () =>
+                            "btn-quiet btn-icon btn-sm result-action-btn copy-btn " +
+                            (copyFeedback.val === "success" ? "copied" : ""),
                         title: "Copy full access path",
+                        "aria-label": "Copy full access path",
                         onclick: handleCopy,
                     },
                     () => (copyFeedback.val === "success" ? Icons.Check() : Icons.Copy())
                 ),
                 button(
                     {
-                        class: "result-action-btn remove-btn",
+                        type: "button",
+                        class: "btn-danger btn-sm result-action-btn remove-btn",
                         title: "Remove from saved list",
                         onclick: handleRemove,
                     },
-                    Icons.X()
+                    "Remove"
                 )
             );
         }),
@@ -821,9 +862,8 @@ export const SavedResultsSection = ({ ui, handlers }) => {
         if (ui.savedResults.length === 0) {
             reconcile("empty", [
                 EmptyState({
-                    icon: Icons.List(),
                     title: "NO SAVED RESULTS",
-                    subtitle: "Use the list button on a search result to pin it here",
+                    subtitle: "Press Save on a search result to keep it here",
                 }),
             ]);
             return;
@@ -833,7 +873,6 @@ export const SavedResultsSection = ({ ui, handlers }) => {
         if (filtered.length === 0) {
             reconcile("no-match", [
                 EmptyState({
-                    icon: Icons.List(),
                     title: "NO FILTER MATCH",
                     subtitle: "Try a different path/value filter",
                 }),
@@ -860,12 +899,13 @@ export const SavedResultsSection = ({ ui, handlers }) => {
             span({ class: "section-title" }, "SAVED LIST"),
             button(
                 {
-                    class: "btn-icon refresh-btn",
+                    type: "button",
+                    class: "btn-quiet btn-sm refresh-btn",
                     onclick: handlers.refreshSavedResults,
                     disabled: () => ui.isRefreshingSavedResults || ui.savedResults.length === 0,
                     title: "Refresh saved values",
                 },
-                Icons.Refresh()
+                "Refresh"
             ),
             span({ class: "results-count" }, () => {
                 const filteredCount = handlers.getFilteredSavedResults().length;
@@ -879,12 +919,13 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                 { class: "section-actions" },
                 button(
                     {
-                        class: "btn-secondary btn-small",
+                        type: "button",
+                        class: "btn-danger btn-sm",
                         onclick: handlers.clearSavedResults,
                         disabled: () => ui.savedResults.length === 0,
                         title: "Clear saved list",
                     },
-                    "CLEAR"
+                    "Clear"
                 )
             )
         ),
@@ -905,11 +946,12 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                     ui.savedFilter
                         ? button(
                               {
-                                  class: "btn-secondary btn-small",
+                                  type: "button",
+                                  class: "btn-quiet btn-sm",
                                   onclick: handlers.clearSavedFilter,
                                   title: "Clear saved filter",
                               },
-                              "CLEAR"
+                              "Clear"
                           )
                         : null
             ),

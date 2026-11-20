@@ -55,8 +55,12 @@ const ActiveCheats = () => {
                     { class: "menu-home-cheats__empty" },
                     span({ class: "no-active-cheats" }, "No cheats are on."),
                     button(
-                        { type: "button", class: "btn-secondary", onclick: () => store.openMenu({ view: "CHEATS" }) },
-                        "OPEN CHEATS"
+                        {
+                            type: "button",
+                            class: "btn-quiet btn-sm",
+                            onclick: () => store.openMenu({ view: "CHEATS" }),
+                        },
+                        "Open cheats"
                     )
                 );
             return div(

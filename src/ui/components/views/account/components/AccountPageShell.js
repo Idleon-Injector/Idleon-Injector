@@ -1,5 +1,4 @@
 import van from "../../../../vendor/van-1.6.0.js";
-import { Icons } from "../../../../assets/icons.js";
 import { Loader } from "../../../Loader.js";
 import { EmptyState } from "../../../EmptyState.js";
 import { joinClasses, renderAccountError, renderAccountLoading, resolveValue } from "../accountShared.js";
@@ -62,7 +61,7 @@ export const AccountPageShell = ({
                           },
                       },
                       EmptyState({
-                          icon: Icons.SearchX(),
+                          failed: true,
                           title: persistentErrorTitle,
                           subtitle: () => String(resolveValue(persistentState.error) || ""),
                       })

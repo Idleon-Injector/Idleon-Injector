@@ -48,7 +48,7 @@ const MenuNav = () =>
     div(
         { class: "nav-menu menu-nav" },
         MenuBtn({
-            code: Icons.Home(),
+            code: "HOM",
             label: "HOME",
             active: () => store.app.activeTab === VIEWS.HOME.id,
             onclick: () => store.openMenu({ view: "HOME" }),
@@ -280,14 +280,16 @@ export const Sidebar = () => {
         ),
         MenuNav(),
         ActiveCheatList(),
-        div(
-            { class: "system-status" },
-            ...SystemStatus(),
+        div({ class: "system-status" }, ...SystemStatus()),
 
+        // GitHub and Keys share the last line with the collapse chevron; the rail keeps only the chevron.
+        div(
+            { class: "sidebar-foot" },
             withTooltip(
                 a(
                     {
-                        class: () => `system-shortcuts-button system-github-link ${linkFailed.val ? "is-failed" : ""}`,
+                        class: () =>
+                            `btn-quiet btn-icon btn-sm system-shortcuts-button system-github-link ${linkFailed.val ? "is-failed" : ""}`,
                         href: "https://github.com/Idleon-Injector/Idleon-Injector",
                         target: "_blank",
                         "aria-label": () =>
@@ -310,23 +312,28 @@ export const Sidebar = () => {
                 button(
                     {
                         type: "button",
-                        class: "system-shortcuts-button",
-                        "aria-label": "Keyboard shortcuts",
+                        class: "btn-quiet btn-sm system-shortcuts-button system-keys-button",
+                        "aria-label": "Keys: keyboard shortcuts",
                     },
-                    Icons.Keyboard()
+                    "Keys"
                 ),
                 SHORTCUTS_TOOLTIP_TEXT,
                 "right",
                 () => !isRail()
-            )
-        ),
-
-        withTooltip(
-            button({ class: "sidebar-toggle", onclick: () => store.toggleSidebar() }, () =>
-                store.app.sidebarCollapsed ? Icons.ChevronRight() : Icons.ChevronLeft()
             ),
-            () => (store.app.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"),
-            "right"
+            withTooltip(
+                button(
+                    {
+                        type: "button",
+                        class: "btn-quiet btn-icon btn-sm sidebar-toggle",
+                        "aria-label": () => (store.app.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"),
+                        onclick: () => store.toggleSidebar(),
+                    },
+                    () => Icons.Chevron({ dir: store.app.sidebarCollapsed ? "right" : "left" })
+                ),
+                () => (store.app.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"),
+                "right"
+            )
         )
     );
 };

@@ -136,24 +136,6 @@
     text-overflow: ellipsis;
 }
 
-.config-reset-btn {
-    display: inline-flex;
-    background: transparent;
-    border: 1px solid var(--c-accent);
-    color: var(--c-accent);
-    padding: 4px 12px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    align-items: center;
-    gap: 4px;
-}
-
-.config-reset-btn:hover {
-    background: var(--c-accent);
-    color: var(--c-accent-ink);
-}
-
 /* --- DIFF HIGHLIGHTING --- */
 .config-item.modified-config {
     border-left: 3px solid var(--c-accent);
@@ -206,24 +188,6 @@
     font-weight: 700;
 }
 
-.config-drawer-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border: 1px solid var(--c-border);
-    background: transparent;
-    color: var(--c-text-dim);
-    cursor: pointer;
-}
-
-.config-drawer-close:hover {
-    border-color: var(--c-accent);
-    color: var(--c-accent);
-    background: var(--c-accent-dim);
-}
-
 #config-tab.drawer-open .sub-nav {
     top: 52px;
 }
@@ -252,23 +216,4 @@
     font-weight: 600;
     color: var(--c-accent);
     letter-spacing: 0.05em;
-}
-
-.forced-path-clear {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: var(--c-accent);
-    cursor: pointer;
-    padding: 4px;
-    opacity: 0.7;
-    transition: all 0.2s;
-}
-
-.forced-path-clear:hover {
-    opacity: 1;
-    background: var(--c-white-10);
-    border-radius: 4px;
 }

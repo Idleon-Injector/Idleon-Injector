@@ -36,8 +36,11 @@ const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label }) =>
 const NoPages = (world) =>
     div(
         { class: "world-sub-pane active world-sub-pane--empty" },
-        span({ class: "world-empty-icon" }, Icons.Wrench()),
-        p({ class: "world-empty-label" }, `${world.label.toUpperCase()} HAS NO PAGES`),
+        p(
+            { class: "world-empty-label" },
+            Icons.Warning({ class: "empty-state-mark" }),
+            `${world.label.toUpperCase()} HAS NO PAGES`
+        ),
         p({ class: "world-empty-desc" }, menuError.val || "None of its pages loaded.")
     );
 

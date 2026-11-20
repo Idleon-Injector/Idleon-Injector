@@ -1,7 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { EmptyState } from "../../../components/EmptyState.js";
-import { Icons } from "../../../assets/icons.js";
 import { gga, readCList } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { toIndexedArray } from "../../../utils/index.js";
@@ -133,7 +132,7 @@ const NodeRow = ({ node, gradeState, depletedState }) => {
                 labelClass: "resource-node-row__field-label",
             }),
             ActionButton({
-                label: "FRESH",
+                label: "Fresh",
                 status: quickStatus.status,
                 tooltip: "Set collected/depleted amount to 0.",
                 onClick: (e) => {
@@ -142,7 +141,7 @@ const NodeRow = ({ node, gradeState, depletedState }) => {
                 },
             }),
             ActionButton({
-                label: "DEPLETE",
+                label: "Deplete",
                 status: quickStatus.status,
                 variant: "danger",
                 tooltip: "Set collected/depleted amount to -1.",
@@ -166,7 +165,6 @@ const ResourceNodesTab = () => {
     const rowNodes = new Map();
     const rowList = div({ class: "account-item-stack account-item-stack--dense resource-node-list" });
     const noNodes = EmptyState({
-        icon: Icons.SearchX(),
         title: "NO RESOURCE NODES",
         subtitle: "No RoyalResources rows were returned for this world.",
     });
@@ -280,14 +278,14 @@ const ResourceNodesTab = () => {
                         div(
                             { class: "resource-node-toolbar__actions" },
                             ActionButton({
-                                label: "REFRESH ALL",
+                                label: "Refresh all",
                                 status: bulkStatus.status,
                                 disabled: bulkDisabled,
                                 tooltip: "Set every node in the selected world to fresh (collected = 0).",
                                 onClick: () => void writeWorldDepleted(0),
                             }),
                             ActionButton({
-                                label: "DEPLETE ALL",
+                                label: "Deplete all",
                                 status: bulkStatus.status,
                                 disabled: bulkDisabled,
                                 variant: "danger",

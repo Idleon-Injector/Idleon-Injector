@@ -137,7 +137,7 @@ const UpgradeVaultTab = () => {
             }),
             actions: [
                 {
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: maxAllStatus,
                     disabled: () => loading.val || Boolean(error.val) || !data.val?.upgrades.length,
                     tooltip: "Set all vault upgrades to their real max levels",

@@ -48,15 +48,15 @@ export const AddFromListSection = ({
                         : options.val.map((entry) => option({ value: getOptionValue(entry) }, getOptionLabel(entry))))
                 ),
             ActionButton({
-                label: "ADD",
+                label: "Add",
                 status: addStatus,
                 disabled: addDisabled,
                 onClick: onAdd,
             }),
             ActionButton({
-                label: "ADD ALL",
+                label: "Add all",
                 status: addStatus,
-                variant: "danger",
+                variant: "quiet",
                 disabled: addAllDisabled,
                 onClick: onAddAll,
             })

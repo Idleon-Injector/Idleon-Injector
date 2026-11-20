@@ -25,7 +25,6 @@ import {
 } from "../../../services/api.js";
 import { EmptyState } from "../../../components/EmptyState.js";
 import { SearchBar } from "../../../components/SearchBar.js";
-import { Icons } from "../../../assets/icons.js";
 import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -154,11 +153,11 @@ const buildSections = (pets, rawSetsInfo) => {
 };
 
 const tierLabel = ({ id, isNormal, isPlus, isToken, ownedPet }) => {
-    if (isToken(id)) return span({ class: "companion-card__tier" }, Icons.Save(), "TOKEN · NORMAL");
+    if (isToken(id)) return span({ class: "companion-card__tier" }, "TOKEN · NORMAL");
     if (isPlus(id)) return span({ class: "companion-card__tier" }, "PETS+");
     if (isNormal(id)) return span({ class: "companion-card__tier" }, "NORMAL");
     const owned = ownedPet(id);
-    if (owned) return span({ class: "companion-card__tier" }, Icons.Save(), owned.plus ? "OWNED · PETS+" : "OWNED");
+    if (owned) return span({ class: "companion-card__tier" }, owned.plus ? "OWNED · PETS+" : "OWNED");
     return span({ class: "companion-card__tier" }, "NOT SELECTED");
 };
 
@@ -468,7 +467,6 @@ const CompanionsTab = () => {
 
         if (!visibleSections.length) {
             return EmptyState({
-                icon: Icons.SearchX(),
                 title: "NO MATCHING PETS",
                 subtitle: query
                     ? "No pets matched your current search."
@@ -525,7 +523,8 @@ const CompanionsTab = () => {
         withTooltip(
             button(
                 {
-                    class: "btn-secondary",
+                    type: "button",
+                    class: "btn-quiet btn-sm",
                     disabled: () => isBusy(),
                     onclick: () =>
                         writeSelection(() => ({
@@ -537,14 +536,15 @@ const CompanionsTab = () => {
                             plus: new Set(plusIds.val),
                         })),
                 },
-                "UNLOCK ALL"
+                "Unlock all"
             ),
             "Select all available pets at their normal tier, keeping existing Pets+ choices. Token pets are left alone."
         ),
         withTooltip(
             button(
                 {
-                    class: "btn-secondary",
+                    type: "button",
+                    class: "btn-quiet btn-sm",
                     disabled: () => isBusy(),
                     onclick: () =>
                         writeSelection(() => ({
@@ -554,29 +554,31 @@ const CompanionsTab = () => {
                             ),
                         })),
                 },
-                "UNLOCK ALL PETS+"
+                "Unlock all Pets+"
             ),
             "Select all available pets at Pets+, including pets with warnings about broken perks. Token pets stay Normal."
         ),
         withTooltip(
             button(
                 {
-                    class: "btn-secondary",
+                    type: "button",
+                    class: "btn-danger btn-sm",
                     disabled: () => isBusy(),
                     onclick: () => writeSelection(() => ({ normal: new Set(), plus: new Set() })),
                 },
-                "CLEAR ALL"
+                "Clear all"
             ),
             "Clear every injector pet choice: no pets now or after a restart. Tokens are not touched."
         ),
         withTooltip(
             button(
                 {
-                    class: "btn-secondary",
+                    type: "button",
+                    class: "btn-danger btn-sm",
                     onclick: () => writeSelection(() => ({ normal: new Set(normalIds.val), plus: new Set() })),
                     disabled: () => isBusy(),
                 },
-                "CLEAR PETS+"
+                "Clear Pets+"
             ),
             "Clear Pets+ selections, keeping normal selections."
         )
@@ -591,13 +593,11 @@ const CompanionsTab = () => {
                 { class: "pets-legend" },
                 span(
                     { class: "pets-legend__key pets-legend__key--live" },
-                    Icons.Lightning(),
                     "NORMAL · PETS+ ",
                     span({ class: "pets-legend__dim" }, "only while the injector runs")
                 ),
                 span(
                     { class: "pets-legend__key pets-legend__key--token" },
-                    Icons.Save(),
                     "TOKEN ",
                     span({ class: "pets-legend__dim" }, "saved in your game")
                 )
@@ -608,19 +608,18 @@ const CompanionsTab = () => {
                 button(
                     {
                         type: "button",
-                        class: "btn-secondary btn-token",
+                        class: "btn-quiet btn-sm",
                         hidden: () => !tokens.val.missing.length,
                         disabled: () => isBusy(),
                         onclick: grantTokens,
                     },
-                    "GRANT MISSING TOKEN"
+                    "Grant missing token"
                 ),
                 "Adds the pet token sources this account is missing to your save."
             ),
             withTooltip(
                 span(
                     { class: "pets-token-meter" },
-                    Icons.Save(),
                     "TOKENS",
                     span({ class: "pets-token-meter__count" }, () => `${tokens.val.picks.length}/${tokens.val.owned}`),
                     () =>

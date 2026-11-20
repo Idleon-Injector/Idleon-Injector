@@ -14,7 +14,6 @@ import {
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { EmptyState } from "../../../components/EmptyState.js";
-import { Icons } from "../../../assets/icons.js";
 import { gga, readCList } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { toIndexedArray } from "../../../utils/index.js";
@@ -267,7 +266,7 @@ const MapUnitAddControl = ({ outpost, onAdded }) => {
             )
         ),
         ActionButton({
-            label: "ADD UNIT",
+            label: "Add unit",
             status,
             tooltip: `Add the selected map unit to ${outpost.name}.`,
             onClick: (e) => {
@@ -300,7 +299,7 @@ const MapUnitRow = ({ unit, onRemoved }) => {
             path: `RoyalG[${unit.typeArray}][${unit.unitIndex}]`,
         }),
         ActionButton({
-            label: "REMOVE",
+            label: "Remove",
             status,
             variant: "danger",
             tooltip: "Remove this map unit and close the matching type/map array indexes.",
@@ -428,7 +427,7 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
             div(
                 { class: "outpost-unit-config__actions" },
                 ActionButton({
-                    label: "RESET TO VANILLA",
+                    label: "Reset to vanilla",
                     status: vanillaStatus.status,
                     variant: "danger",
                     tooltip:
@@ -442,7 +441,7 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
                     },
                 }),
                 ActionButton({
-                    label: "POPULATE OUTPOSTS",
+                    label: "Populate outposts",
                     status: customStatus.status,
                     tooltip: "Move existing map units first, then add any missing units to match the selected counts.",
                     onClick: (e) => {
@@ -575,6 +574,7 @@ const BuiltOutpostRow = ({
                     ActionButton({
                         label: () => (toInt(glorifiedState.val) === 1 ? "GLORIFIED" : "STANDARD"),
                         tooltip: "Toggle glorified outpost status.",
+                        variant: "switch-filled",
                         className: "outpost-glorified-button",
                         onClick: async (e) => {
                             e.preventDefault();
@@ -646,7 +646,7 @@ const KillOutpostRow = ({ outpost, remainingState, onConverted }) =>
         },
         renderExtraActions: ({ status }) =>
             ActionButton({
-                label: "MAKE OUTPOST",
+                label: "Make outpost",
                 status,
                 tooltip: "Replace this kill-counter row with a default built outpost row.",
                 onClick: (e) => {
@@ -753,7 +753,6 @@ const OutpostsTab = () => {
     const rowList = div({ class: "account-item-stack account-item-stack--dense outpost-list" });
     const bodyContent = div();
     const noOutposts = EmptyState({
-        icon: Icons.SearchX(),
         title: "NO OUTPOST ROWS",
         subtitle: "No RoyalMaps outpost or kill-counter rows were returned for this world.",
     });

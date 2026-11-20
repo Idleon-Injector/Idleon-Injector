@@ -60,12 +60,6 @@
 
 .bundle-row__action {
     width: 100%;
-    padding-inline: 14px;
-}
-
-.bundle-row__action:disabled {
-    opacity: 0.68;
-    cursor: wait;
 }
 
 .bundles-buy-all-modal .modal-box {

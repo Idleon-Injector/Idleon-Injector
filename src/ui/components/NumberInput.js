@@ -1,4 +1,5 @@
 import van from "../vendor/van-1.6.0.js";
+import { Icons } from "../assets/icons.js";
 
 const { div, input, button } = van.tags;
 const liveRawByState = new WeakMap();
@@ -162,24 +163,26 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
             button(
                 {
                     type: "button",
-                    class: "number-input-btn",
+                    class: "btn-quiet btn-icon btn-sm number-input-btn",
                     disabled: restInputProps.disabled,
                     onclick: step(onDecrement),
                     tabindex: -1,
                     onmousedown: keepFocus,
+                    "aria-label": "Lower",
                 },
-                "−"
+                Icons.Minus()
             ),
             button(
                 {
                     type: "button",
-                    class: "number-input-btn",
+                    class: "btn-quiet btn-icon btn-sm number-input-btn",
                     disabled: restInputProps.disabled,
                     onclick: step(onIncrement),
                     tabindex: -1,
                     onmousedown: keepFocus,
+                    "aria-label": "Raise",
                 },
-                "+"
+                Icons.Plus()
             )
         );
     }
@@ -224,24 +227,26 @@ export const NumberInput = ({ value, mode = "int", onDecrement, onIncrement, for
         button(
             {
                 type: "button",
-                class: "number-input-btn",
+                class: "btn-quiet btn-icon btn-sm number-input-btn",
                 disabled: restInputProps.disabled,
                 onclick: onDecrement,
                 tabindex: -1,
                 onmousedown: keepFocus,
+                "aria-label": "Lower",
             },
-            "−"
+            Icons.Minus()
         ),
         button(
             {
                 type: "button",
-                class: "number-input-btn",
+                class: "btn-quiet btn-icon btn-sm number-input-btn",
                 disabled: restInputProps.disabled,
                 onclick: onIncrement,
                 tabindex: -1,
                 onmousedown: keepFocus,
+                "aria-label": "Raise",
             },
-            "+"
+            Icons.Plus()
         )
     );
 };

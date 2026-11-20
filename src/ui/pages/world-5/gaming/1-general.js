@@ -67,18 +67,18 @@ const LogBookRow = ({ valueState }) => {
         controls: [
             span({ class: "gaming-raw-value" }, () => String(valueState.val ?? "")),
             ActionButton({
-                label: "MAX",
+                label: "Max",
                 status,
-                variant: "max-reset",
+                variant: "quiet",
                 onClick: (e) => {
                     e.preventDefault();
                     void apply("jjjjjjjjjj");
                 },
             }),
             ActionButton({
-                label: "ZERO",
+                label: "Zero",
                 status,
-                variant: "max-reset",
+                variant: "danger",
                 onClick: (e) => {
                     e.preventDefault();
                     void apply("");

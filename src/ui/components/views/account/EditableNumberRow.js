@@ -59,7 +59,7 @@ export const EditableNumberRow = ({
     });
 
     // Buttons stay enabled while the row saves, so Tab onto one never loses focus; a click then saves after it.
-    const renderBuiltInAction = (action, fallbackLabel, fallbackValue) => {
+    const renderBuiltInAction = (action, fallbackLabel, fallbackValue, variant = "quiet") => {
         if (!action) return null;
 
         const actionValue = action.value ?? fallbackValue;
@@ -70,7 +70,7 @@ export const EditableNumberRow = ({
                 : isDisabled;
         return ActionButton({
             label: () => resolveValue(actionLabel),
-            variant: "max-reset",
+            variant,
             tooltip: action.tooltip ?? null,
             disabled: actionDisabled,
             onClick: (e) => {
@@ -137,8 +137,8 @@ export const EditableNumberRow = ({
                 onDecrement: step(-1, userOnDecrement),
                 onIncrement: step(1, userOnIncrement),
             }),
-            ...toNodes(renderBuiltInAction(maxAction, "MAX")),
-            ...toNodes(renderBuiltInAction(resetAction, "RESET", 0)),
+            ...toNodes(renderBuiltInAction(maxAction, "Max")),
+            ...toNodes(renderBuiltInAction(resetAction, "Reset", 0, "danger")),
             ...extraActions
         )
     );

@@ -36,7 +36,7 @@ const buildArtifactEntries = (rawLevels, rawArtifactInfo) => {
             max: 7,
             formatted: false,
             badge: (currentValue) => `LV ${currentValue ?? 0} / 7`,
-            maxAction: { value: 7, label: "MAX" },
+            maxAction: { value: 7, label: "Max" },
             level: Math.min(7, toInt(levels[index], { min: 0 })),
         };
     });

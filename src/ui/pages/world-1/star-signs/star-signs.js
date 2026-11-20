@@ -28,6 +28,7 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { toInt, toNum, useWriteStatus, writeManyVerified } from "../../../components/views/account/accountShared.js";
 import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
+import { Icons } from "../../../assets/icons.js";
 
 const { div, button, span, h4, p, select, option } = van.tags;
 
@@ -162,7 +163,7 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
         { class: "starsign-detail" },
         div(
             { class: "starsign-detail-header" },
-            button({ class: "starsign-back-btn", onclick: onBack }, "← Back"),
+            button({ type: "button", class: "btn-quiet btn-sm", onclick: onBack }, "Back"),
             div(
                 null,
                 h4({ class: "starsign-detail-label" }, sign.label),
@@ -190,10 +191,12 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
                         span({ class: "starsign-player-letter" }, playerToLetter(playerNum) ?? "?"),
                         button(
                             {
-                                class: "starsign-remove-btn",
+                                type: "button",
+                                class: "btn-danger btn-icon btn-sm starsign-remove-btn",
+                                "aria-label": `Remove ${playerName(playerNum, usernames)}`,
                                 onclick: () => removePlayer(playerNum),
                             },
-                            "✕"
+                            Icons.Close()
                         )
                     );
                     return row;
@@ -214,7 +217,8 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
             ),
             button(
                 {
-                    class: "account-btn account-btn--apply",
+                    type: "button",
+                    class: "btn-quiet btn-sm",
                     onclick: () => {
                         const sel = document.getElementById(`add-player-select-${sign.index}`);
                         const val = parseInt(sel?.value, 10);
@@ -224,7 +228,7 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
                         }
                     },
                 },
-                "ADD"
+                "Add"
             )
         ),
 
@@ -237,7 +241,7 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
                     { class: "starsign-progress-label" },
                     `${cur} / ${need} players — `,
                     cur >= need
-                        ? span({ class: "starsign-unlocked-text" }, "✓ UNLOCKED")
+                        ? span({ class: "starsign-unlocked-text" }, Icons.Check(), " UNLOCKED")
                         : span({ class: "starsign-locked-text" }, "LOCKED")
                 ),
                 div({ class: "starsign-progress-bar" }, progressFill)
@@ -267,7 +271,7 @@ const StarSignCard = ({ sign, onClick }) => {
             { class: "starsign-card-header" },
             span({ class: `starsign-label-badge ${groupClass}` }, sign.label),
             isUnlocked
-                ? span({ class: "starsign-status unlocked" }, "✓ UNLOCKED")
+                ? span({ class: "starsign-status unlocked" }, Icons.Check(), " UNLOCKED")
                 : span({ class: "starsign-status locked" }, `${cur}/${need}`)
         ),
         p({ class: "starsign-card-desc" }, sign.desc),
@@ -512,23 +516,23 @@ const StarSignsTab = () => {
         description: "Assign players (1-10) and drag to reorder completion order",
         actions: [
             ActionButton({
-                label: "UNLOCK ALL",
+                label: "Unlock all",
                 status: unlockStatus,
                 disabled: isAnyLoading,
                 tooltip: "Unlock all signs using players in order: _abcdefghi",
                 onClick: () => unlockAll(false),
             }),
             ActionButton({
-                label: "RANDOMIZE ALL",
+                label: "Randomize all",
                 status: randomStatus,
                 disabled: isAnyLoading,
                 tooltip: "Unlock all signs with a random player order per sign",
                 onClick: () => unlockAll(true),
             }),
             ActionButton({
-                label: "RESET ALL",
+                label: "Reset all",
                 status: resetStatus,
-                variant: "max-reset",
+                variant: "danger",
                 disabled: isAnyLoading,
                 tooltip: "Clear all star sign progress and lock everything",
                 onClick: resetAll,

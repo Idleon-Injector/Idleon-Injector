@@ -189,26 +189,8 @@
 }
 
 .function-number-btn {
-    background: transparent;
-    border: none;
-    color: var(--c-accent);
-    font-size: 1rem;
-    padding: 6px 10px;
-    cursor: pointer;
-    transition: 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    margin: 0 2px;
     user-select: none;
-}
-
-.function-number-btn:hover {
-    background: var(--c-accent-dim);
-    color: var(--c-white);
-}
-
-.function-number-btn:active {
-    background: var(--c-accent-20);
 }
 
 .function-number-input {

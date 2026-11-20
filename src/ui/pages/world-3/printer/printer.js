@@ -263,7 +263,7 @@ const PrinterTab = () => {
         return { write: () => writeSlot(state, item, qty) };
     };
 
-    // STOP and CLEAR ask in place (#77): the button reads CLICK AGAIN for a few seconds.
+    // Stop and Clear ask in place (#77): the button reads "Click again" for a few seconds.
     const clearSlot = (state, button) => {
         if (cannotWrite()) return;
         const charName = snapshot.val?.names?.[state.character] ?? "character";
@@ -392,7 +392,7 @@ const PrinterTab = () => {
                         },
                     }),
                     ActionButton({
-                        label: state.kind === "print" ? "STOP" : "CLEAR",
+                        label: state.kind === "print" ? "Stop" : "Clear",
                         variant: "danger",
                         disabled: () =>
                             uneditable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),

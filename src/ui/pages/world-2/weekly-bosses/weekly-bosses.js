@@ -350,7 +350,8 @@ const WeeklyBossTab = () => {
             ),
             badge: () => (state.unlocked.val ? "UNLOCKED" : "LOCKED"),
             controls: ActionButton({
-                label: () => (state.unlocked.val ? "DISABLE" : "ENABLE"),
+                label: () => (state.unlocked.val ? "Disable" : "Enable"),
+                variant: () => (state.unlocked.val ? "danger" : "quiet"),
                 status: state.write.status,
                 disabled: cannotWrite,
                 tooltip: () => `${state.unlocked.val ? "Disable" : "Enable"} ${entry.name} without spending trophies`,
@@ -514,13 +515,14 @@ const WeeklyBossTab = () => {
                 meta: BulkActionBar({
                     actions: [
                         {
-                            label: "ENABLE ALL",
+                            label: "Enable all",
                             status: bulk.status,
                             disabled: cannotWrite,
                             onClick: (e) => setAll(true, e.currentTarget),
                         },
                         {
-                            label: "DISABLE ALL",
+                            label: "Disable all",
+                            variant: "danger",
                             status: bulk.status,
                             disabled: cannotWrite,
                             onClick: (e) => setAll(false, e.currentTarget),

@@ -100,7 +100,8 @@ const OrganicLabelButton = ({ labels, entry }) => {
                 if (status() === "error") return "FAILED";
                 return "ORGANIC";
             },
-            variant: "account-btn farming-organic-button",
+            variant: "switch",
+            className: "farming-organic-button",
             status,
             buttonProps: { "aria-pressed": () => labels.selected.val.includes(entry.organicIndex) },
             disabled: () => labels.disabled(entry),

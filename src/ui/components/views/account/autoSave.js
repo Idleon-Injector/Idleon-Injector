@@ -244,7 +244,7 @@ export const SaveState = ({ status, reason, undo = null, className = "" }) =>
             ? button(
                   {
                       type: "button",
-                      class: "save-state__undo",
+                      class: "btn-quiet btn-sm save-state__undo",
                       hidden: () => !undo.offer.val || status.val === "loading" || status.val === "error",
                       title: "Put back the value from before this save",
                       // The promise is for tests; the browser ignores it.

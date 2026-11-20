@@ -99,12 +99,12 @@ const EventshopTab = () => {
                 const row = rows.get(index);
                 const action = ActionButton({
                     label: () => {
-                        if (row.feedback.status.val === "loading") return "SAVING…";
-                        if (row.feedback.status.val === "success") return "VERIFIED";
-                        if (row.feedback.status.val === "error") return "FAILED";
-                        return row.owned.val ? "DISABLE" : "ENABLE";
+                        if (row.feedback.status.val === "loading") return "Saving…";
+                        if (row.feedback.status.val === "success") return "Verified";
+                        if (row.feedback.status.val === "error") return "Failed";
+                        return row.owned.val ? "Disable" : "Enable";
                     },
-                    variant: "max-reset",
+                    variant: () => (row.owned.val ? "danger" : "quiet"),
                     status: row.feedback.status,
                     disabled: () => busy.val || !ready.val,
                     tooltip: () =>
@@ -229,13 +229,13 @@ const EventshopTab = () => {
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "ENABLE ALL",
+                    label: "Enable all",
                     status: bulkEnable.status,
                     disabled: () => busy.val || !ready.val,
                     onClick: (e) => setOwnership(true, null, bulkEnable, e.currentTarget),
                 },
                 {
-                    label: "DISABLE ALL",
+                    label: "Disable all",
                     status: bulkDisable.status,
                     variant: "danger",
                     disabled: () => busy.val || !ready.val,

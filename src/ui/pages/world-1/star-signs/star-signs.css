@@ -119,20 +119,6 @@
     padding: 4px 0;
 }
 
-.starsign-back-btn {
-    background: none;
-    border: 1px solid var(--c-border);
-    padding: 4px 12px;
-    cursor: pointer;
-    color: var(--c-text);
-    font-size: 0.875rem;
-    margin-bottom: 0;
-}
-
-.starsign-back-btn:hover {
-    border-color: var(--c-accent);
-}
-
 .starsign-detail-header {
     display: flex;
     align-items: flex-start;
@@ -228,16 +214,6 @@
 
 .starsign-remove-btn {
     margin-left: auto;
-    background: none;
-    border: none;
-    color: var(--c-danger);
-    cursor: pointer;
-    font-size: 0.875rem;
-    padding: 0 4px;
-}
-
-.starsign-remove-btn:hover {
-    color: var(--c-danger);
 }
 
 /* Empty state */

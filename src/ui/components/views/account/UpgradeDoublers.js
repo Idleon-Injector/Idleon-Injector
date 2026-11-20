@@ -76,7 +76,8 @@ export const UpgradeDoublerButton = ({ doublers, index, name }) => {
         { class: "upgrade-doubler-slot" },
         ActionButton({
             label: "2×",
-            variant: "account-btn upgrade-doubler-button",
+            variant: "switch",
+            className: "upgrade-doubler-button",
             status,
             buttonProps: {
                 hidden: () => !doublers.eligible.val.includes(index),

@@ -31,9 +31,10 @@
     gap: 12px;
 }
 
+/* 240 px before it shares its line: where the header wraps, the actions go under the words, not beside a sliver. */
 .account-tab-header__main {
     min-width: 0;
-    flex: 1;
+    flex: 1 1 240px;
 }
 
 .account-tab-header__title {
@@ -392,28 +393,24 @@
 }
 
 /*
- * Undo (#31): after a save, "↶ Undo" lies where the words do, beside the ✓, for a few seconds. An undo that lands
- * washes the row once in accent (confirm in place); one that's refused says why there and pulses twice.
+ * Undo (#31): after a save, a quiet "Undo" lies where the words do, beside the ✓, for a few seconds. An undo that
+ * lands washes the row once in accent (confirm in place); one that's refused says why there and pulses twice.
+ * It's the shared quiet button; here it only finds its place, on the row's own surface so the words under it hide.
  */
 .save-state__undo {
     position: absolute;
     top: 50%;
     right: calc(100% + 2px);
-    display: inline-flex;
-    gap: 5px;
-    align-items: center;
-    height: 26px;
-    padding: 0 8px;
-    border: 0;
     background: var(--save-state-bg);
-    color: var(--c-accent);
-    font: inherit;
-    letter-spacing: inherit;
-    text-transform: none;
-    white-space: nowrap;
-    cursor: pointer;
     transform: translateY(-50%);
-    transition: color 120ms ease;
+}
+
+.save-state__undo:hover:not(:disabled) {
+    background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.06)), var(--save-state-bg);
+}
+
+.save-state__undo:active:not(:disabled) {
+    transform: translateY(-50%) scale(0.94);
 }
 
 .save-state__undo[hidden],
@@ -421,27 +418,13 @@
     display: none;
 }
 
-.save-state__undo:hover {
-    color: var(--c-accent-hover);
-}
-
-.save-state__undo:focus-visible {
-    outline: 1px solid var(--c-accent);
-    outline-offset: -1px;
-}
-
-.save-state__undo-icon {
-    width: 12px;
-    height: 12px;
-    flex: none;
-}
-
 .save-state--inline .save-state__undo {
     position: static;
-    height: auto;
-    padding: 0;
-    background: none;
     transform: none;
+}
+
+.save-state--inline .save-state__undo:active:not(:disabled) {
+    transform: scale(0.94);
 }
 
 .is-undo-offered > .account-row__badge,
@@ -466,8 +449,8 @@
     display: inline-flex;
     gap: 6px;
     align-items: center;
-    height: 26px;
-    padding: 0 8px;
+    height: 28px;
+    padding: 0 8px 0 0;
     background: var(--undo-all-bg, var(--c-panel));
     color: var(--c-text-muted);
     font-family: var(--font-mono);
@@ -483,37 +466,14 @@
 /* Over a neighbour (a SET ALL value, another button), it takes that box's place with the same hairline. */
 .undo-all--over {
     gap: 4px;
-    padding: 0 6px;
+    padding: 0 6px 0 0;
     border: 1px solid var(--c-border);
-}
-
-.undo-all__button {
-    display: inline-flex;
-    gap: 5px;
-    align-items: center;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--c-accent);
-    font: inherit;
-    letter-spacing: inherit;
-    text-transform: none;
-    cursor: pointer;
-    transition: color 120ms ease;
-}
-
-.undo-all__button:hover {
-    color: var(--c-accent-hover);
-}
-
-.undo-all__button:focus-visible {
-    outline: 1px solid var(--c-accent);
-    outline-offset: 3px;
+    border-radius: var(--radius-sm);
 }
 
 .undo-all__icon {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     flex: none;
 }
 
@@ -783,17 +743,6 @@
     text-overflow: ellipsis;
 }
 
-.minigame-upgrade-row .account-btn--max-reset {
-    border-color: var(--c-border);
-    background: transparent;
-    color: var(--c-text-muted);
-}
-
-.minigame-upgrade-row .account-btn--max-reset:hover:not(:disabled) {
-    border-color: var(--c-accent);
-    color: var(--c-accent);
-}
-
 .upgrade-doubler-slot {
     display: inline-flex;
     flex: 0 0 44px;
@@ -925,7 +874,11 @@
     }
 }
 
-.account-btn {
+/*
+ * On/off switches on account pages (Exalted, Prisma, Organic, 2×, Glorified, the palette's stars) keep their look
+ * until the layout pass (#26). Action buttons on these pages are the shared kinds in _buttons.css.
+ */
+.account-btn--switch {
     padding: 0 12px;
     height: 30px;
     font-size: 0.875rem;
@@ -941,6 +894,7 @@
         filter 0.15s;
 }
 
+/* The filled switches (Prisma, Glorified, the palette's stars). */
 .account-btn--apply {
     min-width: 54px;
     border: 1px solid var(--c-border);
@@ -955,48 +909,22 @@
     color: var(--c-black);
 }
 
-.account-btn--danger {
-    background: color-mix(in srgb, var(--c-danger) 14%, var(--c-panel));
-    color: var(--c-danger-soft-text);
-    border: 1px solid var(--c-danger);
+.account-btn--switch:disabled {
+    filter: saturate(0.8) brightness(0.9);
+    cursor: not-allowed;
 }
 
-.account-btn--danger:hover:not(:disabled) {
-    background: var(--c-danger);
-    color: var(--c-white);
-}
-
-.account-btn--max-reset {
-    min-width: 54px;
-    background: var(--c-danger);
-    color: var(--c-white);
-    border: 1px solid var(--c-danger);
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.account-btn--max-reset:hover:not(:disabled) {
-    filter: brightness(1.08);
-}
-
+/* A press's result, said by the button itself while the line beside it says why. */
 .account-btn--loading {
-    filter: saturate(0.85) brightness(0.92);
     cursor: wait;
 }
 
-.account-btn--success {
-    border-color: var(--c-success) !important;
-    background: color-mix(in srgb, var(--c-success) 18%, var(--c-panel)) !important;
+.account-btn--success:not(.account-btn--switch) {
+    color: var(--c-success);
 }
 
-.account-btn--error {
-    border-color: var(--c-danger) !important;
-    background: color-mix(in srgb, var(--c-danger) 18%, var(--c-panel)) !important;
-}
-
-.account-btn:disabled {
-    filter: saturate(0.8) brightness(0.9);
-    cursor: not-allowed;
+.account-btn--error:not(.account-btn--switch) {
+    color: var(--c-warning);
 }
 
 .tier-scroll {
@@ -1172,10 +1100,7 @@
 
 .account-setall-row__input .number-input-wrapper {
     width: 150px;
-}
-
-.account-setall-row__input .number-input-btn {
-    height: 38px;
+    height: 40px;
 }
 
 .account-setall-row__select {

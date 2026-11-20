@@ -1,15 +1,10 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { Icons } from "../../../assets/icons.js";
 import { joinClasses, toNodes } from "./accountShared.js";
 
-const { div, button, span, p } = van.tags;
+const { div, button, p } = van.tags;
 
 export const createComingSoonPlaceholder = (label) =>
-    div(
-        { class: "world-sub-placeholder" },
-        span({ class: "world-sub-placeholder__icon" }, Icons.Wrench()),
-        p({ class: "world-sub-placeholder__label" }, `${label} — COMING SOON`)
-    );
+    div({ class: "world-sub-placeholder" }, p({ class: "world-sub-placeholder__label" }, `${label} — COMING SOON`));
 
 export const renderTabNav = ({
     tabs,
@@ -110,7 +105,6 @@ export const createWorldComingSoonTab =
                 { class: "world-sub-content" },
                 div(
                     { class: "world-sub-pane active world-sub-pane--empty" },
-                    span({ class: "world-empty-icon" }, Icons.Wrench()),
                     p({ class: "world-empty-label" }, `${worldKey} SYSTEMS COMING SOON`),
                     p(
                         { class: "world-empty-desc" },

@@ -209,7 +209,7 @@ const EmperorTab = () => {
     const askAtProgress = askAtField(() => progressInput);
 
     // Each save returns { cancelled: true } when there's nothing to write, and throws when it fails.
-    // `button`: RESET, which asks in place with CLICK AGAIN.
+    // `button`: RESET, which asks in place with "Click again".
     const saveProgress = async (reset = false, button = null) => {
         if (cannotWrite()) return { cancelled: true };
         busy.val = true;
@@ -345,7 +345,7 @@ const EmperorTab = () => {
             SaveState(progressWrite),
             progressInput,
             ActionButton({
-                label: "RESET",
+                label: "Reset",
                 variant: "danger",
                 disabled: cannotEdit,
                 onClick: (e) => {
@@ -377,7 +377,7 @@ const EmperorTab = () => {
             SaveState(entriesWrite),
             entriesInput,
             ActionButton({
-                label: "REFILL",
+                label: "Refill",
                 disabled: () =>
                     cannotEdit() || snapshot.val.cheatEnabled || snapshot.val.remaining >= snapshot.val.capacity,
                 onClick: () => entriesWrite.run(() => saveEntries(true)),

@@ -1,9 +1,18 @@
 /**
- * Button Styles
- * All button variants and states
+ * Buttons (DESIGN.md): three kinds, all pills in Rajdhani 600, in normal case.
+ *
+ *   .btn-main    the one blue button an area has (Save settings, Enable Auto Play, First scan)
+ *   .btn-quiet   plain words at rest, a soft light fill on hover (Max, Max all, Register, Refresh, Undo)
+ *   .btn-danger  like quiet at rest; soft red words on a faint red wash on hover (anything that removes or lowers)
+ *
+ *   .btn-sm      the small size, for rows and page headers
+ *   .btn-icon    a round button that holds one icon (the − / + beside a value field, copy, close)
+ *
+ * Tabs, navigation, on/off switches and tiles aren't action buttons: they keep the look below until the layout
+ * pass (#26).
  */
 
-/* --- BASE BUTTON --- */
+/* --- EVERY BUTTON --- */
 button {
     font-family: var(--font-display);
     text-transform: uppercase;
@@ -15,87 +24,133 @@ button {
     font-size: 0.9rem;
 }
 
-/* --- PRIMARY BUTTON --- */
-.btn-primary,
-#load-options-button,
-#update-config-button {
-    background: var(--c-accent);
-    color: var(--c-accent-ink);
-    border: none;
-    padding: 8px 20px;
-    box-shadow: 0 0 10px var(--c-accent-dim);
-}
-
-.btn-primary:hover,
-#load-options-button:hover,
-#update-config-button:hover {
-    background: var(--c-accent-hover);
-    box-shadow: 0 0 15px var(--c-accent-glow);
-    transform: translateY(-1px);
-}
-
-/* --- SECONDARY BUTTON --- */
-.btn-secondary,
-#refresh-options-button,
-#modal-cancel,
-.cancel-add-cheat-button,
-.add-cheat-button {
-    background: transparent;
-    border: 1px solid var(--c-text-dim);
-    color: var(--c-text-main);
-    padding: 7px 19px;
-}
-
-.btn-secondary:hover,
-#refresh-options-button:hover,
-#modal-cancel:hover,
-.cancel-add-cheat-button:hover,
-.add-cheat-button:hover {
-    border-color: var(--c-text-main);
-    background: var(--c-white-05);
-}
-
-/* --- ICON BUTTON --- */
-.btn-icon {
-    padding: 0;
-    background: transparent;
-    border: 1px solid var(--c-border);
-    color: var(--c-text-muted);
-    width: 28px;
-    height: 28px;
+/* --- THE THREE KINDS --- */
+.btn-main,
+.btn-quiet,
+.btn-danger {
     display: inline-flex;
+    flex: none;
+    gap: 6px;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
+    height: 36px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--c-text-dim);
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        color 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        background-color 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-.btn-icon:disabled {
-    opacity: 0.5;
+.btn-main {
+    background: rgba(99, 175, 237, 0.14);
+    color: var(--c-accent);
+}
+
+.btn-main:hover:not(:disabled) {
+    background: rgba(99, 175, 237, 0.22);
+    color: var(--c-accent-hover);
+}
+
+.btn-quiet:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--c-text-main);
+}
+
+/* Stands in for DESIGN.md's coral until the colour pass: the existing soft danger text on the danger wash. */
+.btn-danger:hover:not(:disabled) {
+    background: var(--c-danger-10);
+    color: var(--c-danger-soft-text);
+}
+
+.btn-main:focus-visible,
+.btn-quiet:focus-visible,
+.btn-danger:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+
+.btn-main:active:not(:disabled),
+.btn-quiet:active:not(:disabled),
+.btn-danger:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.btn-main:disabled,
+.btn-quiet:disabled,
+.btn-danger:disabled {
+    background: transparent;
+    color: rgba(236, 239, 248, 0.34);
     cursor: not-allowed;
 }
 
-/* --- DANGER BUTTON --- */
-.btn-danger,
-#modal-accept {
-    background: var(--c-danger-10);
-    border: 1px solid var(--c-danger);
-    color: var(--c-danger);
-    padding: 8px 20px;
+.btn-main:disabled {
+    background: var(--c-white-04);
 }
 
-.remove-cheat-button {
-    background: var(--c-danger-10);
-    border: 1px solid var(--c-danger);
-    color: var(--c-danger);
-    padding: 8px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* A toggle that's on (Watching, Saved, the Config drawer): the hover fill stays. */
+.btn-quiet[aria-pressed="true"] {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--c-text-main);
 }
 
-.btn-danger:hover,
-#modal-accept:hover,
-.remove-cheat-button:hover {
-    background: var(--c-danger);
-    color: var(--c-white);
-    box-shadow: 0 0 10px var(--c-danger-40);
+/* --- SIZES --- */
+.btn-sm {
+    height: 28px;
+    padding: 0 13px;
+    font-size: 14.5px;
+}
+
+.btn-icon {
+    width: 36px;
+    padding: 0;
+}
+
+.btn-icon.btn-sm {
+    width: 28px;
+}
+
+.btn-main svg,
+.btn-quiet svg,
+.btn-danger svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+}
+
+.btn-sm svg {
+    width: 16px;
+    height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-main,
+    .btn-quiet,
+    .btn-danger {
+        transition: none;
+    }
+
+    .btn-main:active:not(:disabled),
+    .btn-quiet:active:not(:disabled),
+    .btn-danger:active:not(:disabled) {
+        transform: none;
+    }
+}
+
+/* A favourite's star fills; the outline is "not a favourite". */
+.favorite-btn.is-favorite .icon-star,
+.key-favorite-btn.active .icon-star {
+    fill: currentColor;
 }

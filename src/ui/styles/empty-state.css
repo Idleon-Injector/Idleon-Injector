@@ -1,6 +1,6 @@
 /**
  * Empty State Component
- * Empty state display with icon, title, and subtitle
+ * An empty or failed list in words: a title and a subtitle. A failure leads its title with the warning mark.
  */
 
 /* --- EMPTY STATES --- */
@@ -14,17 +14,28 @@
     color: var(--c-text-dim);
 }
 
-.empty-state-icon {
-    font-size: 3rem;
-    margin-bottom: 15px;
-    opacity: 0.5;
-}
-
 .empty-state-title {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
     font-size: 1rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     margin-bottom: 8px;
+}
+
+/* The warning mark before a failure's title (here and on a world whose pages didn't load). */
+.empty-state-mark {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+    color: var(--c-warning);
+    vertical-align: -3px;
+}
+
+.empty-state-title .empty-state-mark {
+    margin-right: 0;
 }
 
 .empty-state-subtitle {

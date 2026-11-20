@@ -259,16 +259,6 @@
     opacity: 0.6;
 }
 
-.btn-token {
-    border-color: var(--c-tier-zenith);
-    color: var(--c-tier-zenith);
-}
-
-.btn-token:hover:not(:disabled) {
-    border-color: var(--c-tier-zenith);
-    background: var(--c-tier-zenith-10);
-}
-
 .pets-legend {
     display: flex;
     flex-wrap: wrap;
@@ -288,10 +278,6 @@
 
 .pets-legend__key--live {
     color: var(--c-text-main);
-}
-
-.pets-legend__key--live .icon-base {
-    color: var(--c-accent);
 }
 
 .pets-legend__key--token {

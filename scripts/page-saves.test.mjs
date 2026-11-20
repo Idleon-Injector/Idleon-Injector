@@ -170,7 +170,7 @@ const grantFixture = () => {
         'function(t){return"PetBonusTokensOwned"==t?n.asNumber(a("OptionsListAccount")[605])+n.asNumber(a("OptionsListAccount")[615]):"Other"==t?0:0}';
     getGameContext()["scripts.ActorEvents_579"] = { _customBlock_Stuff2: stuff2 };
 };
-const grantButton = (root) => elements(root).find((node) => text(node) === "GRANT MISSING TOKEN");
+const grantButton = (root) => elements(root).find((node) => text(node) === "Grant missing token");
 
 test("pets.js: granting the missing tokens writes every source in one batch", async () => {
     grantFixture();

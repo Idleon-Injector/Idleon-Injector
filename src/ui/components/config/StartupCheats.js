@@ -1,7 +1,6 @@
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
 import { EmptyState } from "../EmptyState.js";
-import { Icons } from "../../assets/icons.js";
 
 const { div, ul, li, input, button } = van.tags;
 
@@ -62,7 +61,6 @@ export const StartupCheats = (list) => {
         // Accessing length triggers reactivity when items are added/removed
         if (list.length === 0) {
             return EmptyState({
-                icon: Icons.Lightning(),
                 title: "NO STARTUP CHEATS",
                 subtitle: "Add cheats that will run automatically on injection",
             });
@@ -95,7 +93,14 @@ export const StartupCheats = (list) => {
                                 list[i] = buildStartupAction(current.command, e.target.value);
                             },
                         }),
-                        button({ class: "remove-cheat-button", onclick: () => list.splice(i, 1) }, Icons.X())
+                        button(
+                            {
+                                type: "button",
+                                class: "btn-danger btn-sm remove-cheat-button",
+                                onclick: () => list.splice(i, 1),
+                            },
+                            "Remove"
+                        )
                     );
                 }
 
@@ -107,7 +112,14 @@ export const StartupCheats = (list) => {
                         value: parsed.command,
                         onchange: (e) => (list[i] = e.target.value),
                     }),
-                    button({ class: "remove-cheat-button", onclick: () => list.splice(i, 1) }, Icons.X())
+                    button(
+                        {
+                            type: "button",
+                            class: "btn-danger btn-sm remove-cheat-button",
+                            onclick: () => list.splice(i, 1),
+                        },
+                        "Remove"
+                    )
                 );
             })
         );
@@ -143,7 +155,7 @@ export const AddCheatSearchBar = (onAdd, onCancel, currentCheats = []) => {
         { class: "add-cheat-search-bar" },
 
         searchInput,
-        button({ class: "btn-secondary", onclick: onCancel }, "CANCEL"),
+        button({ type: "button", class: "btn-quiet", onclick: onCancel }, "Cancel"),
         (() => {
             const resultsContainer = ul({
                 class: "cheat-search-results",

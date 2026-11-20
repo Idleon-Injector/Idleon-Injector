@@ -169,12 +169,8 @@ const CapeVineTab = () => {
             badge: () => (vineIndex.val.get(cape.itemId) < goldenOwned.val ? "GOLDEN" : ""),
             controls: [
                 ActionButton({
-                    label: () => (vineIndex.val.has(cape.itemId) ? "REMOVE" : "ADD"),
-                    variant: "",
-                    className: () =>
-                        vineIndex.val.has(cape.itemId)
-                            ? "account-btn account-btn--danger"
-                            : "account-btn account-btn--apply",
+                    label: () => (vineIndex.val.has(cape.itemId) ? "Remove" : "Add"),
+                    variant: () => (vineIndex.val.has(cape.itemId) ? "danger" : "quiet"),
                     status: state.write.status,
                     disabled: cannotWrite,
                     onClick: (event) =>
@@ -260,8 +256,8 @@ const CapeVineTab = () => {
                 note: () => `${onVineCount()}/${capes.val.length} ON VINE`,
                 meta: [
                     ActionButton({
-                        label: "ADD ALL",
-                        variant: "danger",
+                        label: "Add all",
+                        variant: "quiet",
                         status: addAll.status,
                         disabled: () => cannotWrite() || onVineCount() === capes.val.length,
                         onClick: addAllCapes,

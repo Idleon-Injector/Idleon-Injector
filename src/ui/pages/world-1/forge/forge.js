@@ -104,7 +104,7 @@ const ForgeTab = () => {
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: maxAllStatus,
                     tooltip: "Set all forge upgrades to their max levels",
                     onClick: doMaxAll,

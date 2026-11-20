@@ -111,13 +111,14 @@ const AtomColliderTab = () => {
         actions: BulkActionBar({
             actions: [
                 {
-                    label: "MAX ALL",
+                    label: "Max all",
                     status: bulkStatus,
                     tooltip: "Set every atom to its computed max level",
                     onClick: () => doSetAll(null),
                 },
                 {
-                    label: "RESET ALL",
+                    label: "Reset all",
+                    variant: "danger",
                     status: bulkStatus,
                     tooltip: "Reset every atom to 0",
                     onClick: () => doSetAll(0),

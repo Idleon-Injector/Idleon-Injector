@@ -6,13 +6,13 @@ import { resolveValue, toNodes } from "../accountShared.js";
 const { div, button } = van.tags;
 
 /**
- * Shared secondary refresh button for account tabs.
+ * Shared quiet refresh button for account tabs.
  */
-export const RefreshButton = ({ onRefresh, tooltip = null, label = "REFRESH", disabled = false } = {}) => {
+export const RefreshButton = ({ onRefresh, tooltip = null, label = "Refresh", disabled = false } = {}) => {
     const refreshButton = button(
         {
             type: "button",
-            class: "btn-secondary",
+            class: "btn-quiet btn-sm",
             onclick: onRefresh,
             disabled: () => Boolean(resolveValue(disabled)),
         },
@@ -25,12 +25,12 @@ export const RefreshButton = ({ onRefresh, tooltip = null, label = "REFRESH", di
 /**
  * Shared notice banner shell for top-of-page notices.
  */
-export const NoticeBanner = ({ icon, variant = null } = {}, ...content) =>
+export const NoticeBanner = ({ icon = null, variant = null } = {}, ...content) =>
     div(
         {
             class: ["warning-banner", variant ? `warning-banner--${variant}` : ""].filter(Boolean).join(" "),
         },
-        div({ class: "warning-banner__icon" }, icon),
+        icon ? div({ class: "warning-banner__icon" }, icon) : null,
         div({ class: "warning-banner__content" }, ...content.flatMap((item) => toNodes(item)))
     );
 

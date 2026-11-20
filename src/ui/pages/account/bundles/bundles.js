@@ -75,7 +75,9 @@ const BundleRow = ({ bundle, state, searchQuery, buyAllStatus, onBuy, onUnbuy })
                 {
                     type: "button",
                     class: () =>
-                        isOwned(state.owned.val) ? "btn-danger bundle-row__action" : "btn-primary bundle-row__action",
+                        isOwned(state.owned.val)
+                            ? "btn-danger btn-sm bundle-row__action"
+                            : "btn-quiet btn-sm bundle-row__action",
                     disabled: () =>
                         buyAllStatus.val === "loading" || state.pending.val || state.status.val === "loading",
                     onclick: () => {
@@ -85,9 +87,9 @@ const BundleRow = ({ bundle, state, searchQuery, buyAllStatus, onBuy, onUnbuy })
                     },
                 },
                 () => {
-                    if (state.pending.val) return "BUY QUEUED";
-                    if (state.status.val === "loading") return isOwned(state.owned.val) ? "UNBUYING" : "BUYING";
-                    return isOwned(state.owned.val) ? "UNBUY" : "BUY";
+                    if (state.pending.val) return "Buy queued";
+                    if (state.status.val === "loading") return isOwned(state.owned.val) ? "Unbuying" : "Buying";
+                    return isOwned(state.owned.val) ? "Unbuy" : "Buy";
                 }
             ),
         })
@@ -122,22 +124,22 @@ const BuyAllConfirmationModal = ({ open, countdown, bundleCount, status, onCance
                 button(
                     {
                         type: "button",
-                        class: "btn-secondary",
+                        class: "btn-quiet",
                         disabled: () => status.val === "loading",
                         onclick: onCancel,
                     },
-                    "CANCEL"
+                    "Cancel"
                 ),
                 button(
                     {
                         type: "button",
-                        class: "btn-primary",
+                        class: "btn-main",
                         disabled: () => countdown.val > 0 || status.val === "loading" || bundleCount.val === 0,
                         onclick: onConfirm,
                     },
                     () => {
-                        if (status.val === "loading") return "BUYING...";
-                        return countdown.val > 0 ? `OK (${countdown.val})` : "BUY ALL";
+                        if (status.val === "loading") return "Buying…";
+                        return countdown.val > 0 ? `OK (${countdown.val})` : "Buy all";
                     }
                 )
             )
@@ -440,15 +442,15 @@ const BundlesTab = () => {
             button(
                 {
                     type: "button",
-                    class: "btn-primary bundles-buy-all-button",
+                    class: "btn-quiet btn-sm bundles-buy-all-button",
                     disabled: () =>
                         loading.val || buyAllDialogOpen.val || buyAllStatus.val === "loading" || buyableCount.val === 0,
                     onclick: openBuyAllDialog,
                 },
                 () => {
-                    if (buyAllStatus.val === "loading") return "BUYING ALL...";
-                    if (buyAllStatus.val === "error") return "BUY ALL FAILED";
-                    return `BUY ALL (${buyableCount.val})`;
+                    if (buyAllStatus.val === "loading") return "Buying all…";
+                    if (buyAllStatus.val === "error") return "Buy all failed";
+                    return `Buy all (${buyableCount.val})`;
                 }
             ),
             RefreshButton({

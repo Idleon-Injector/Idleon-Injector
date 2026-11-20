@@ -157,14 +157,14 @@ test("value search: a NEXT scan keeps the warning that the NEW scan stopped at i
     assert.ok(warned(), "and they're still missing");
 });
 
-test("a risky button asks in place: CLICK AGAIN, then the second click runs it, or it runs out", async (t) => {
+test("a risky button asks in place: Click again, then the second click runs it, or it runs out", async (t) => {
     const { clickAgain } = await importRepo("src/ui/components/inPlace.js");
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const button = globalThis.document.createElement("button");
     button.setAttribute("aria-label", "Disable all");
 
     assert.equal(clickAgain(button, "disable 12 bribes."), false, "the first click only asks");
-    assert.equal(button.attributes["data-again"], "CLICK AGAIN");
+    assert.equal(button.attributes["data-again"], "Click again");
     assert.equal(button.attributes["aria-label"], "Click again to disable 12 bribes.");
     assert.equal(clickAgain(button, "disable 12 bribes."), true, "the second click runs it");
     assert.equal(button.attributes["data-again"], undefined, "and the button is itself again");
@@ -188,7 +188,7 @@ test("a second click on other targets asks again, even when the question reads t
         false,
         "the new items get their own question"
     );
-    assert.equal(button.attributes["data-again"], "CLICK AGAIN");
+    assert.equal(button.attributes["data-again"], "Click again");
     assert.equal(clickAgain(button, "register 2 shown items.", { targets: ["Desert1", "Snow1"] }), true);
 });
 

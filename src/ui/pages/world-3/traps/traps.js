@@ -187,7 +187,7 @@ const TrappingRow = ({ playerName, trap, isCurrentPlayer, getValueState, onWrite
         ],
         renderExtraActions: () =>
             ActionButton({
-                label: "FINISH",
+                label: "Finish",
                 status: finishStatus.status,
                 className: "trap-row__finish-btn",
                 tooltip: "Finish this trap",
@@ -368,7 +368,7 @@ const TrappingTab = () => {
             "Edit trap quantity, EXP, and rare chance for each player. Finish individual traps or all traps per player.",
         actions: [
             ActionButton({
-                label: "FINISH ALL",
+                label: "Finish all",
                 status: finishAllStatus.status,
                 disabled: () => loading.val || !trapCountState.val,
                 tooltip: "Finish every loaded trap",

@@ -1,7 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { EmptyState } from "../../../components/EmptyState.js";
-import { Icons } from "../../../assets/icons.js";
 import { SearchBar } from "../../../components/SearchBar.js";
 import { deleteGga, gga } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
@@ -166,7 +165,7 @@ const MapCrystalRow = ({ map, states, talentCap }) => {
         renderExtraActions: ({ applyValue, status }) => [
             ActionButton({
                 label: "10M",
-                variant: "max-reset",
+                variant: "quiet",
                 status,
                 tooltip: "Set all crystals for this map to 10,000,000 kills (1.631x / +63.1% bonus)",
                 onClick: () => applyValue({ purple: 10000000, yellow: 10000000, blue: 10000000 }),
@@ -304,7 +303,6 @@ const MapCrystalsTab = () => {
 
         if (visibleMaps.length === 0) {
             return EmptyState({
-                icon: Icons.SearchX(),
                 title: "NO MAPS FOUND",
                 subtitle: query ? "Adjust your search filter" : "No maps available for this world",
             });
@@ -315,7 +313,7 @@ const MapCrystalsTab = () => {
 
     const bulkActions = [
         {
-            label: "SET WORLD TO 10M",
+            label: "Set world to 10M",
             status: bulkStatus,
             disabled: () => loading.val || activeTab.val === "all",
             tooltip: "Set all crystals on maps in the current world view to 10M kills (1.631x / +63.1% bonus)",
@@ -325,14 +323,15 @@ const MapCrystalsTab = () => {
             },
         },
         {
-            label: "SET ALL TO 10M",
+            label: "Set all to 10M",
             status: bulkStatus,
             disabled: () => loading.val,
             tooltip: "Set all crystals across all worlds to 10M kills (1.631x / +63.1% bonus)",
             onClick: () => applyBulkKills(allMaps.val, 10000000),
         },
         {
-            label: "CLEAR WORLD (0)",
+            label: "Clear world (0)",
+            variant: "danger",
             status: bulkStatus,
             disabled: () => loading.val || activeTab.val === "all",
             tooltip:

@@ -31,7 +31,7 @@ export const BulkActionBar = ({ leading = null, actions = [], refresh = null }) 
                 ActionButton({
                     label: action.label,
                     status: action.status,
-                    variant: action.variant ?? "max-reset",
+                    variant: action.variant ?? "quiet",
                     className: action.extraClass ?? "",
                     disabled: action.disabled ?? false,
                     tooltip: action.tooltip ?? null,
@@ -52,7 +52,7 @@ export const SetAllNumberControl = ({
     label,
     value,
     status = null,
-    applyLabel = "SET ALL",
+    applyLabel = "Set all",
     onApply = null,
     min = 0,
     max = Infinity,
@@ -81,7 +81,7 @@ export const SetAllNumberControl = ({
         SetAllApplyButton({ label: applyLabel, status, onApply })
     );
 
-export const SetAllSelectControl = ({ label, value, options, status = null, applyLabel = "SET ALL", onApply }) =>
+export const SetAllSelectControl = ({ label, value, options, status = null, applyLabel = "Set all", onApply }) =>
     div(
         { class: "account-setall-row" },
         span({ class: "account-setall-row__label" }, label),
