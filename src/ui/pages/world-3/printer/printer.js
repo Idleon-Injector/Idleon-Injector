@@ -58,7 +58,8 @@ const PrinterTab = () => {
     const isDirty = (state) => {
         state.dirty.val;
         const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
-        if (rawQty === String(state.baseline.qty)) {
+        // The field shows a rounded quantity ("16.2K"); left as shown, it is the saved quantity.
+        if (rawQty === String(state.baseline.qty) || rawQty === largeFormatter(state.baseline.qty)) {
             return state.item.val !== state.baseline.item;
         }
         const parsed = parseNumber(rawQty);
@@ -250,7 +251,9 @@ const PrinterTab = () => {
         if (!Number.isFinite(parsed)) throw new Error("not a number");
         if (parsed <= 0) throw new Error("min 1");
         const qty =
-            rawQty === String(state.baseline.qty) || parsed === Number(state.baseline.qty)
+            rawQty === String(state.baseline.qty) ||
+            rawQty === largeFormatter(state.baseline.qty) ||
+            parsed === Number(state.baseline.qty)
                 ? state.baseline.qty
                 : typeof state.baseline.qty === "string"
                   ? String(parsed)
