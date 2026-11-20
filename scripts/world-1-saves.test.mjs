@@ -184,6 +184,33 @@ test("statues: a save queued behind another keeps a deposit the game made meanwh
     [g.StatueLevels[2], g.RoyalG[22][2]] = saved;
 });
 
+// Review of #122, second round: a queued save of the value the field started at (1, save 2, then 1) was dropped.
+test("statues: Flair set back to its first value while the change saves is saved too", async () => {
+    const saved = g.RoyalG[22][3];
+    g.RoyalG[22][3] = 1;
+    const root = await openPage(STATUES, (root) => statueRow(root, 3));
+    const row = statueRow(root, 3);
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && ++writes === 1) await gate;
+        return realFetch(url, options);
+    };
+    try {
+        typeFlair(row, "2");
+        await until(() => writes === 1, "the first save to reach the game");
+        typeFlair(row, "1");
+        release();
+        await until(() => writes === 2 && g.RoyalG[22][3] === 1, "Flair to go back to 1");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        g.RoyalG[22][3] = saved;
+    }
+});
+
 test("statues: names show the game's underscores as spaces", async () => {
     const root = await openPage(STATUES, (root) => statueRow(root, 7));
     assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "THICC SKIN");
