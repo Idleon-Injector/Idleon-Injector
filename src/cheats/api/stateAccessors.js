@@ -23,7 +23,25 @@ import {
     wardrobePreview,
     wardrobeStatus,
 } from "../helpers/wardrobe/index.js";
-export { readPath, readPaths, readEntries, deletePath, writePath, writePaths } from "../utils/pathResolver.js";
+import { characterInPlay } from "../helpers/wardrobe/perfect.js";
+import { writePaths as writeAllPaths } from "../utils/pathResolver.js";
+export { readPath, readPaths, readEntries, deletePath, writePath } from "../utils/pathResolver.js";
+
+/**
+ * Write many game values (see pathResolver's writePaths). With `character`, the one the writes were planned for:
+ * when another character is in play, nothing is written and the error (marked `refused`) says who is. The check and
+ * the writes run in this one call, so the player can't switch characters between them.
+ */
+export function writePaths(writes, character) {
+    if (character !== undefined) {
+        try {
+            characterInPlay(character);
+        } catch (error) {
+            return { error: error.message, refused: true };
+        }
+    }
+    return writeAllPaths(writes);
+}
 
 // The Wardrobe page's reads (#101): readComputed("wardrobe", name, [args]).
 const WARDROBE = {

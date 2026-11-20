@@ -96,7 +96,9 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
                 words: ["Exalted", "Not exalted"],
                 name: `${name} exalted`,
                 title: `Exalted stamp (${stampCode})`,
-                onFlip: (exalted) => setExalted(stampCode, exalted, run).then(() => undefined), // the row's own save state says why a save failed
+                // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
+                ownStatus: true,
+                onFlip: (exalted) => setExalted(stampCode, exalted, run),
             }),
             ActionButton({
                 label: "Relock",
@@ -129,21 +131,24 @@ const StampsTab = () => {
 
     // Every exalted stamp lives in one list, so flips save one at a time, each from the list the game holds now:
     // a stamp exalted in the game, or by a flip still saving, isn't written over.
+    // The row's run is asked at once, so a level committed after the flip on that row still saves after it.
     const inTurn = oneAtATime();
     const setExalted = (code, exalted, run) =>
-        inTurn(() =>
-            run(async () => {
-                try {
-                    const next = new Set(normalizeExaltedCodes(await gga("Compass[4]")));
-                    if (exalted) next.add(code);
-                    else next.delete(code);
-                    await writeVerified("Compass[4]", [...next].sort(sortPrefixedNumericCodes));
-                    exaltedCodes.val = next;
-                } catch (error) {
-                    await readExaltedCodes().catch(() => {}); // the switch then shows what the game holds
-                    throw error;
-                }
-            })
+        run(
+            () =>
+                inTurn(async () => {
+                    try {
+                        const next = new Set(normalizeExaltedCodes(await gga("Compass[4]")));
+                        if (exalted) next.add(code);
+                        else next.delete(code);
+                        await writeVerified("Compass[4]", [...next].sort(sortPrefixedNumericCodes));
+                        exaltedCodes.val = next;
+                    } catch (error) {
+                        await readExaltedCodes().catch(() => {}); // the switch then shows what the game holds
+                        throw error;
+                    }
+                }),
+            "switch"
         );
 
     const pageContainers = renderPersistentPagePanes({

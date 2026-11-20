@@ -101,6 +101,8 @@ export default () => ({
             MapDispName: list(350, (i) =>
                 isMap(i) ? `${MAP_WORDS[0][Math.floor(i / 50)]}_${MAP_WORDS[1][i % 50]}` : "Filler"
             ),
+            // Scene names; no character is in one (the fake engine's scene has no name), so automations wait.
+            MapName: list(350, (i) => `Map${i}`),
             MapAFKtarget: list(350, (i) => (isMap(i) ? mapMob(i) : "Nothing")),
             // [0][0]: the map's kill requirement base.
             MapDetails: list(350, (i) => [[String(10 + (i % 50) * 5), "0", "0"]]),

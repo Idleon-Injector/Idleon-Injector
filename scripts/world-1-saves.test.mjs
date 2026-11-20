@@ -107,7 +107,7 @@ test("stamps: a refused exalt says why on the row and shows what the game holds"
         restore();
     }
     assert.deepEqual([...g.Compass[4]], ["_1", "a0", "b4", "_9"]);
-    assert.equal(saveState(row), "error");
+    assert.equal(wordsOf(row), "game kept old value", "the switch says why it wasn't saved");
     assert.equal(switchOf(row).checked, false);
     await tick();
     assert.equal(wordsOf(rowNamed(root, "Stamp A10")), "Exalted", "the page shows the game's own exalt too");
