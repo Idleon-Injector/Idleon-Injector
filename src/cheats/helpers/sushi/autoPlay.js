@@ -66,11 +66,14 @@ function refill(state) {
     const options = session.options;
     if (state.capped < options.targetCount && state.working.some((index) => state.board[index] < 0)) {
         message = `Buying tier ${options.tier} sushi. Capped: ${state.capped}/${options.targetCount}.`;
-        if (call("buy", { board: state.board, plates: state.plates, purchaseTier: options.tier }).bought) {
+        const bought = call("buy", { board: state.board, plates: state.plates, purchaseTier: options.tier });
+        if (bought.bought) {
             // Read back the native purchase on the next tick.
             session.step = "bought";
             return;
         }
+        // Out of fuel: merge what is on the board, then stop with the reason (play() ends once no merge is left).
+        session.outOfFuel = bought.reason;
     }
     cycles++;
     play(state);
@@ -84,6 +87,7 @@ function play(state) {
     }
     const plan = call("plan", { board: state.board });
     if (!plan) {
+        if (session.outOfFuel) return end(`Stopped: ${session.outOfFuel} Nothing on the board is left to merge.`);
         if (!state.working.some((index) => state.board[index] < 0))
             throw new Error("Working slots are full and no legal merge remains.");
         return refill(state);
@@ -127,7 +131,9 @@ export function start() {
     const initial = sushiTools("status", null, options);
     if (initial.dragging >= 0) throw new Error("Release the sushi before starting.");
     if (options.targetCount > initial.working.length)
-        throw new Error("Target quantity must fit the usable board slots.");
+        throw new Error(
+            `Target quantity ${options.targetCount} doesn't fit: ${initial.working.length} at most with ${options.reserveSlots} empty slots.`
+        );
     if (initial.board.filter((value) => value >= 0).length > initial.working.length)
         throw new Error("Clear " + options.reserveSlots + " slots before starting; no sushi will be deleted.");
     configureSushiWind(options.extendChain, options.higherTier);

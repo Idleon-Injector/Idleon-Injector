@@ -79,12 +79,12 @@ gga.PixelHelperActor[27] = uiActor;
 const images = {};
 const removed = [];
 Object.assign(game.returns, {
-    newImage: () => ({ width: 174 }),
+    newImage: (width) => ({ width, dispose() {} }),
     getExternalImage: () => ({ width: 30, height: 30 }),
     getSubImage: () => ({ width: 1, height: 1, dispose() {} }),
     resizeImage: () => ({ dispose() {} }),
     drawImageOnImage: () => {},
-    getFont: () => ({ getTextWidth: () => 10 }),
+    getFont: () => ({ getTextWidth: (text) => text.length * 10 }),
     drawTextOnImage: (bitmap, label) => (bitmap.label = label),
     _customBlock_imginstACTOR: (bitmap) =>
         (images[bitmap.label] = {
@@ -104,7 +104,7 @@ Object.assign(game.returns, {
             set_scaleX() {},
             set_scaleY() {},
         }),
-    attachImageToActor: () => {},
+    attachImageToActor: (image, actor, x, y) => Object.assign(image, { x, y }),
     removeImage: (image) => removed.push(image),
     _customBlock_IsXYmouseWithinBounds: (x1, x2, top) => (top === game.hover ? 1 : 0),
     _customBlock_SushiStuff: (key) => ({ UpgradeQTY: 1, MaxTier: 10, UniqueSushi: 20 })[key],
@@ -129,13 +129,17 @@ test("buttons: none while the setting is off, the game's update still runs", () 
 test("buttons: the station actor the game made before setup shows Start and Sort", () => {
     cheatConfig.w7.sushitools.ingameButtons = true;
     fire("update");
-    assert.deepEqual(Object.keys(images).sort(), ["ERROR", "SORT", "START", "STOP"]);
+    assert.deepEqual(Object.keys(images).sort(), ["SORT", "START", "STOP"]);
     assert.deepEqual(
-        ["START", "STOP", "SORT", "ERROR"].map((label) => images[label].visible),
-        [true, false, true, false]
+        ["START", "STOP", "SORT"].map((label) => images[label].visible),
+        [true, false, true]
     );
     assert.equal(images.START.alpha, 1);
 });
+
+// The fake board has no slots, so Sort fails with this reason.
+const BOARD_ERROR =
+    "The Sushi board save has 0 slots instead of 120, so the Sushi tools can't use it. Please report this on the injector's GitHub.";
 
 test("buttons: hovering, pressing and releasing Sort runs it, and its error shows on the button", () => {
     game.hover = 370;
@@ -148,8 +152,32 @@ test("buttons: hovering, pressing and releasing Sort runs it, and its error show
     fire("released");
     fire("update");
     assert.deepEqual(calls, ["pressed", "update", "released", "update"], "the game's own listeners still run");
-    assert.deepEqual([images.ERROR.visible, images.ERROR.imgY, images.SORT.visible], [true, 370, false]);
+    // Issue #79: the reason, not just ERROR, on the pressed button, which grows left to fit it.
+    const error = images[BOARD_ERROR];
+    const width = BOARD_ERROR.length * 10 + 24;
+    assert.deepEqual([error.visible, error.x, error.y, images.SORT.visible], [true, 764 + 174 - width, 370, false]);
     game.hover = -1;
+});
+
+test("buttons: a Start that fails says why on the Start button, replacing the last reason", () => {
+    const sortError = images[BOARD_ERROR];
+    game.hover = 332;
+    fire("update");
+    fire("pressed");
+    fire("released");
+    fire("update");
+    const error = images["Choose a valid target tier and 0–119 reserved slots."]; // the default target tier is past 10
+    assert.notEqual(error, sortError, "a new image for this press");
+    assert.ok(removed.includes(sortError), "the last reason is gone");
+    assert.deepEqual([error.visible, error.y, images.START.visible, images.SORT.visible], [true, 332, false, true]);
+    // It shows for 4 seconds, then Start is back.
+    const now = Date.now;
+    Date.now = () => now() + 4001;
+    fire("update");
+    Date.now = now;
+    assert.deepEqual([error.visible, images.START.visible], [false, true]);
+    game.hover = -1;
+    removed.length = 0;
 });
 
 test("buttons: closing the board removes them", () => {

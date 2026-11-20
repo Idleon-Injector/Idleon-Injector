@@ -28,11 +28,11 @@ const run = async (action) => {
 
 /**
  * A Sushi board with 6 open slots (the last 2 reserved), tiers 0-5 and 2 cookable tiers. Merging ("i<slot>")
- * upgrades the slot and starts a 120 ms East Wind chain; buying ("A") fills the first open slot and is pending
- * for 60 ms; `stuck` keeps East Wind going forever. Every native trigger is logged with the milliseconds since
+ * upgrades the slot and starts a 120 ms East Wind chain; buying ("A") costs 1 fuel, fills the first open slot and
+ * is pending for 60 ms; `stuck` keeps East Wind going forever. Every native trigger is logged with the milliseconds since
  * the station was set up.
  */
-function station(board = []) {
+function station(board = [], fuel = 1e9) {
     const start = Date.now();
     const log = [];
     const sushi = [
@@ -40,7 +40,7 @@ function station(board = []) {
         Array(120).fill(-1),
         [],
         Array(15).fill(0),
-        [1e9, 0, 0, 0, 0],
+        [fuel, 0, 0, 0, 0],
         Array(7).fill(0),
     ];
     board.forEach((tier, index) => (sushi[0][index] = tier));
@@ -66,6 +66,7 @@ function station(board = []) {
             log.push(`${Date.now() - start}:${trigger}`);
             if (trigger === "B") sushi[4][4] = (sushi[4][4] + 1) % 2;
             if (trigger === "A") {
+                sushi[4][0]--;
                 sushi[0][sushi[0].findIndex((tier, index) => sushi[1][index] >= 0 && tier === -1)] = sushi[4][4];
                 pendingUntil = Date.now() + 60;
             }
@@ -261,4 +262,28 @@ test("while Auto Play is on, the WebUI's active-cheats list shows it, and a clic
     assert.equal((await run("w7 sushitools status")).enabled, false);
     await store.loadCheatStates();
     assert.ok(!store.getActiveCheats().includes("w7 sushitools"));
+});
+
+// Issue #79: with a target the board can't hold, the start said only that it must fit.
+test("a target the board can't hold refuses to start, saying the most that fits", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 40, reserveSlots: 2 };
+    assert.deepEqual(await run("w7 sushitools"), {
+        ok: false,
+        message: "Target quantity 40 doesn't fit: 4 at most with 2 empty slots.",
+    });
+    assert.equal((await run("w7 sushitools status")).enabled, false);
+});
+
+// Issue #79: out of fuel, the sushi it had just bought stayed on the board unmerged.
+test("out of fuel, it merges what it bought before stopping, and says so", async () => {
+    const { log, board } = station([], 3);
+    assert.deepEqual(await run("w7 sushitools"), ON);
+    await advance(5000);
+    const status = await run("w7 sushitools status");
+    assert.equal(status.message, "Stopped: Not enough fuel for tier 1 sushi. Nothing on the board is left to merge.");
+    assert.deepEqual([status.enabled, status.busy, status.merges], [true, false, 1]);
+    assert.deepEqual(log.filter((entry) => entry.endsWith(":A")).length, 3, "bought 3, the fuel it had");
+    assert.deepEqual(board.slice(0, 4).sort(), [-1, -1, 0, 1], "two of them merged; the third has no pair");
+    assert.deepEqual(await run("w7 sushitools"), OFF);
 });
