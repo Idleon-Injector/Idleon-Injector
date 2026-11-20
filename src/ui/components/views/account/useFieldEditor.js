@@ -108,11 +108,12 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     fields.forEach((field) => {
         draftStates[field.key] = van.state((field.toDraft ?? defaultToDraft)(field.valueState.val));
         focusByKey.set(field.key, false);
-        // A reload shows the new value, unless the field is being edited or saved.
+        // A reload shows the new value, unless the field is being edited or saved, or holds a draft that failed.
+        // A refused undo's field holds no draft of the player's, so it shows what the game holds now.
         van.derive(() => {
             field.valueState.val;
-            if (!focusByKey.get(field.key) && !autoSave.isBusy() && autoSave.status.val !== "error")
-                resetDraft(field.key);
+            const failedDraft = autoSave.status.val === "error" && !autoSave.undo.refused.val;
+            if (!focusByKey.get(field.key) && !autoSave.isBusy() && !failedDraft) resetDraft(field.key);
         });
     });
 
