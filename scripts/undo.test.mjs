@@ -79,7 +79,7 @@ const switchCharacter = (name) => {
     gga.UserInfo[0] = name;
 };
 
-const OWL = "src/ui/pages/world-1/owl/owl.js";
+const OWL = "src/ui/pages/world-1/owl/1-orion.js";
 const FEATHERS = "Feather Generation";
 
 test("a saved value offers Undo beside its ✓, and Undo puts the old value back", async () => {

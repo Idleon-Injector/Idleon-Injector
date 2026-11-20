@@ -1,4 +1,4 @@
-/** World 2: alchemy (bubbles, liquids, pay 2 win, vials, sigils), arcade, post office, killroy, weekly bosses. */
+/** World 2: alchemy (bubbles, liquids, pay 2 win, vials, sigils), arcade, post office, killroy, weekly bosses, kangaroo. */
 import { fakeName, h, level, list } from "./helpers.mjs";
 import { MONSTERS } from "./shared.mjs";
 
@@ -8,6 +8,11 @@ const SIGILS = 24;
 const ARCADE = 40;
 const BOXES = 30;
 const SKINS = 8;
+// Poppy's 12 upgrade levels and the Tar Pit's 8 (the Kangaroo page and its Automation tab).
+const POPPY_LEVELS = [22, 15, 8, 4, 11, 6, 2, 3, 0, 0, 0, 0];
+const TAR_PIT_LEVELS = [5, 3, 1, 0, 0, 0, 0, 0];
+const rooCost = (i) => 12 * 3 ** i * 1.3 ** POPPY_LEVELS[i];
+const tarPitCost = (i) => 40 * 2 ** i * 1.25 ** TAR_PIT_LEVELS[i];
 
 const cauldronLevelMax = () => 150;
 
@@ -42,7 +47,13 @@ export default () => ({
             set0: "2",
             set1: "0",
         }),
+        // 267: fish, 268-279: Poppy's upgrade levels, 280: fish caught this run, 296: tartar fish, 297-304: Tar Pit levels.
         OptionsListAccount: {
+            267: 3.4e6,
+            ...Object.fromEntries(POPPY_LEVELS.map((level, i) => [268 + i, level])),
+            280: 1.2e7,
+            296: 8400,
+            ...Object.fromEntries(TAR_PIT_LEVELS.map((level, i) => [297 + i, level])),
             74: 340,
             75: 55,
             123: 3,
@@ -97,5 +108,13 @@ export default () => ({
             },
         },
     },
-    computed: { _customBlock_cauldronp2wbonuses: { CauldronLvMAX: cauldronLevelMax } },
+    computed: {
+        _customBlock_cauldronp2wbonuses: { CauldronLvMAX: cauldronLevelMax },
+        // Poppy's and the Tar Pit's next level, and how many Tar Pit upgrades are open (megafish open more).
+        _customBlock_Summoning: {
+            RooCost: rooCost,
+            RooCost_T: tarPitCost,
+            RooTarOwned: 3,
+        },
+    },
 });

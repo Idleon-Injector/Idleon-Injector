@@ -65,8 +65,8 @@ async function setRow(root, label, value) {
 }
 
 const ROW_PAGES = [
-    { file: "src/ui/pages/world-1/owl/owl.js", label: "Feather Generation", index: 254 },
-    { file: "src/ui/pages/world-2/kangaroo/kangaroo.js", label: "Fisheroo Reset Level", index: 274 },
+    { file: "src/ui/pages/world-1/owl/1-orion.js", label: "Feather Generation", index: 254 },
+    { file: "src/ui/pages/world-2/kangaroo/1-poppy.js", label: "Fisheroo Reset Level", index: 274 },
     { file: "src/ui/pages/world-7/clam-work/clam-work.js", label: "Clam Comrades", index: 456 },
 ];
 
@@ -109,8 +109,8 @@ const tickBetweenCalls = (list, index, step) => {
     return () => (game.runtime.evaluate = evaluate);
 };
 
-test("owl.js: a save of a value the game keeps raising shows success", async () => {
-    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Filler Bar"));
+test("1-orion.js: a save of a value the game keeps raising shows success", async () => {
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Filler Bar"));
     const stop = tickBetweenCalls(ola, 263, 1e7);
     try {
         assert.equal(await setRow(root, "Filler Bar", 1.69e12), "success");
@@ -120,8 +120,8 @@ test("owl.js: a save of a value the game keeps raising shows success", async () 
     }
 });
 
-test("owl.js: a value the game keeps raising still shows failed when the game refuses the write", async () => {
-    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Filler Bar"));
+test("1-orion.js: a value the game keeps raising still shows failed when the game refuses the write", async () => {
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Filler Bar"));
     ola[263] = 5;
     const restore = refuseWrites(ola, 263);
     try {
