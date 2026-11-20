@@ -450,13 +450,23 @@ test("after an undo the page reads its status once, after the stats are worked o
     const [action] = (await fetchChanges()).actions;
     const since = log.length;
     await undoAction(action.id);
-    await until(() => log.slice(since).includes("wide wardrobestats"), "the stats after the undo");
-    await settle();
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const count = (entry) => log.slice(since).filter((logged) => logged === entry).length;
+    // The reloads have ended once every stat update has a preview read after it and nothing more is asked for a while.
+    let seen = -1;
+    let quietSince = 0;
+    await until(() => {
+        if (!count("wide wardrobestats") || count("wardrobe.preview") < count("wide wardrobestats")) return false;
+        if (log.length !== seen) {
+            seen = log.length;
+            quietSince = Date.now();
+            return false;
+        }
+        return Date.now() - quietSince > 150;
+    }, "the reloads after the undo to end");
     const tail = log.slice(since);
     // Every page open on the fake game (an earlier test opened a second one) reloads once, after its stat update.
-    const reads = tail.filter((entry) => entry === "wardrobe.status").length;
-    const stats = tail.filter((entry) => entry === "wide wardrobestats").length;
+    const reads = count("wardrobe.status");
+    const stats = count("wide wardrobestats");
     assert.equal(reads, stats, `one status read per page: ${tail.join(", ")}`);
     assert.ok(tail.indexOf("wardrobe.status") > tail.indexOf("wide wardrobestats"), "read after the stats");
 });
