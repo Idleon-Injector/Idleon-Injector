@@ -78,6 +78,18 @@ function holdWrites({ reads = false } = {}) {
     };
 }
 
+// Record each write-many's paths; with `fail`, the game answers it with an error.
+function watchWrites({ fail = false } = {}) {
+    const realFetch = globalThis.fetch;
+    const paths = [];
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("write-many")) return realFetch(url, options);
+        paths.push(...JSON.parse(options.body).writes.map((write) => write.path));
+        return fail ? new Response("{}", { status: 500 }) : realFetch(url, options);
+    };
+    return { paths, restore: () => (globalThis.fetch = realFetch) };
+}
+
 // The game's character switch: the one in play goes to PlayerDATABASE, the next one's copies go live.
 const switchTo = (name) => {
     const from = gga.UserInfo[0];
@@ -256,6 +268,41 @@ for (const { page, levels, label } of [
         reset.listeners.click({ currentTarget: reset, preventDefault() {} });
         await until(() => gga[levels][0] === 0, "the reset to reach the bought level");
         assert.ok(gga[levels].slice(0, before.length).every((level) => Number(level) === 0));
+    });
+
+    test(`${label} Reset all writes only the levels it changes, so History lists no 0 → 0`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels].fill(0, 0, before.length);
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        gga[levels][1] = 2; // bought in the game
+        const writes = watchWrites();
+        t.after(writes.restore);
+
+        const reset = button(root, "Reset all");
+        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        await until(() => gga[levels][1] === 0, "the reset");
+        assert.deepEqual(writes.paths, [`gga.${levels}[1]`]);
+    });
+
+    test(`${label} shows the game's levels again when Reset all fails`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels][0] = 0;
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        const field = inputs(byClass(root, "account-row")[0])[0];
+        gga[levels][0] = 3; // bought in the game
+        const writes = watchWrites({ fail: true });
+        t.after(writes.restore);
+
+        const reset = button(root, "Reset all");
+        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        await until(
+            () => writes.paths.length > 0 && String(field.attributes.value) === "3",
+            "the field to show the game's level again"
+        );
     });
 }
 

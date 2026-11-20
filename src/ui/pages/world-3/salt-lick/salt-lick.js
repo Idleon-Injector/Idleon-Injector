@@ -13,6 +13,8 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -56,14 +58,15 @@ const SaltLickTab = () => {
     const doSetAll = async (targetLevel) => {
         if (!upgradesMeta.length) return;
         const result = await runBulk(async () => {
+            const fresh = toIndexedArray(await gga("SaltLick"));
             await runBulkSet({
                 entries: upgradesMeta,
                 getTargetValue: (upgrade) =>
                     toLevelInt(targetLevel === null ? upgrade.maxLevel : targetLevel, upgrade.maxLevel),
                 getValueState: (_, index) => getLevelState(index),
                 getPath: (_, index) => `SaltLick[${index}]`,
-                // Every upgrade: a level bought in the game since the page read it isn't in the fields.
-                shouldWrite: () => true,
+                // Planned from the game, not the fields: a level bought there since the page read it is reset too.
+                shouldWrite: ({ index, targetValue }) => Number(fresh[index] ?? 0) !== targetValue,
             });
         });
         if (!result.ok) await load();
