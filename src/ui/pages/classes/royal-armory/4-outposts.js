@@ -467,17 +467,17 @@ const UnitBulkPanel = ({
         refreshPreview();
     });
 
-    // What Populate would take away, by the last read: units over the counts, and unit kinds it doesn't place.
-    const unitsRemoved = () => {
-        const royalG = royalGState.val ?? [];
-        return buildDistributedUnitArrays(royalG, getWantedCounts(), outpostsByWorldState.val).summaries.reduce(
+    // What Populate would take away from `royalG`: units over the counts, and unit kinds it doesn't place.
+    const unitsRemoved = (royalG, counts = getWantedCounts()) =>
+        buildDistributedUnitArrays(royalG, counts, outpostsByWorldState.val).summaries.reduce(
             (sum, summary) =>
                 sum +
                 toIndexedArray(royalG[MAP_UNIT_ARRAYS[summary.world].typeArray] ?? []).length -
                 summary.movedExisting,
             0
         );
-    };
+    // How many the press was asked about (none when it didn't ask); the save takes away no more than that.
+    let confirmedRemoval = 0;
 
     return div(
         { class: "outpost-vanilla-units" },
@@ -517,21 +517,27 @@ const UnitBulkPanel = ({
                     tooltip: "Move existing map units first, then add any missing units to match the selected counts.",
                     // Adding runs on one press; taking units away asks first.
                     confirm: () => {
-                        const removed = unitsRemoved();
+                        const removed = unitsRemoved(royalGState.val ?? []);
+                        confirmedRemoval = removed;
                         return removed > 0
                             ? `remove ${removed} map unit${removed === 1 ? "" : "s"} from your outposts.`
                             : null;
                     },
                     onClick: (e) => {
                         e.preventDefault();
+                        // The counts and the removal as pressed, while the save waits its turn.
+                        const [confirmed, counts] = [confirmedRemoval, getWantedCounts()];
                         return customStatus.run(async () => {
                             try {
                                 await unitWrites(async () => {
                                     const rawRoyalG = await gga("RoyalG");
                                     const royalG = toIndexedArray(rawRoyalG ?? []);
+                                    // Units the game added since the page read them would go without being asked.
+                                    if (unitsRemoved(royalG, counts) > confirmed)
+                                        throw new Error("Map units changed in game. Press Populate again.");
                                     const { rebuilt } = buildDistributedUnitArrays(
                                         royalG,
-                                        getWantedCounts(),
+                                        counts,
                                         outpostsByWorldState.val
                                     );
                                     const writes = [];

@@ -280,6 +280,31 @@ test("outposts: Populate asks Click again when it would remove units, and runs o
     }
 });
 
+// Review of #120: Populate asked about the units it last read, then removed the ones the game added since unasked.
+test("outposts: Populate removes no units the game added since the page read them, unasked", async () => {
+    const saved = unitArrays();
+    game.gga.RoyalG[6] = [...Array(10).fill(4), ...Array(8).fill(6)];
+    game.gga.RoyalG[7] = Array(18).fill(1);
+    const root = await openOutposts();
+    try {
+        await openUnits(root);
+        // Units added in game: Populate's counts no longer keep them all.
+        game.gga.RoyalG[6] = Array(30).fill(4);
+        game.gga.RoyalG[7] = Array(30).fill(1);
+        const populate = buttonsNamed(root, "Populate outposts")[0];
+        await click(populate);
+        await until(() => /account-btn--(success|error)/.test(classes(populate)), "Populate to finish");
+        assert.equal(game.gga.RoyalG[6].length, 30, "no unit is taken away");
+        assert.match(classes(populate), /account-btn--error/);
+        // The page read the game again, so the next press asks about the units it would take away.
+        await click(populate);
+        await tick();
+        assert.equal(populate.attributes["data-again"], "Click again");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
 test("outposts: a refused GLORIFIED press says why, and a press while it saves can't send a second write", async () => {
     const root = await openOutposts();
     const outpost = card(root, 1);
