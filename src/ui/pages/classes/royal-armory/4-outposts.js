@@ -265,6 +265,8 @@ const OutpostSlots = ({ mapId, slotState, barracksState, slotWrites, said }) => 
                                         (raw) => toInt(raw, { min: 0, fallback: 111111111 }),
                                         () => slotState.val
                                     );
+                                    // The unit totals too; their failure doesn't hide why the write failed.
+                                    await refreshRoyalGuardUnitCaches().catch(() => {});
                                     throw error;
                                 }
                                 slotState.val = nextValue;

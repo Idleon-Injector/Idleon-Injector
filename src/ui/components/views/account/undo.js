@@ -127,7 +127,9 @@ export const undoAction = async (id) => {
         );
         const landed = todo.filter((_entry, i) => kept.has(targets[i])).map((entry) => entry.index);
         const moved = (error.results ?? []).some((result) => result.error === "changed since");
-        if (kept.size || moved) reloadPlaceOf(action);
+        // A value the game kept differently changed it too: the page reads it again.
+        const mismatched = (error.results ?? []).some((result) => result.error === "Write mismatch");
+        if (kept.size || moved || mismatched) reloadPlaceOf(action);
         if (landed.length) await markChangesUndone(id, landed);
         changesVersion.val++;
         // A value the game kept differently was still written, so the totals built from it are cleared too.
