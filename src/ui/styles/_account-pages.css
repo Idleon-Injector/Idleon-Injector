@@ -575,15 +575,25 @@
     color: var(--c-warning);
 }
 
-/* A reason runs to two short lines at most, inside the box it was given; the title has it all. */
-.undo-all--refused .undo-all__status {
+/*
+ * A reason (or the warning of an undo that landed) runs to two short lines at most, inside the box it was given; the
+ * title has it all.
+ */
+.undo-all--refused .undo-all__status,
+.undo-all--said .undo-all__status {
     display: -webkit-box;
+    width: auto;
+    height: auto;
     overflow: hidden;
+    clip-path: none;
     line-height: 1.15;
     text-align: right;
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+}
+
+.undo-all--refused .undo-all__status {
     animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
 }
 

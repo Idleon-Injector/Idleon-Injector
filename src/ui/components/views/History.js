@@ -49,7 +49,7 @@ const Entry = (entry, oneCharacter, partly) => {
 
 /** One action: when, where, what it was, its values, and Undo / Undo all. */
 const Group = (data) => {
-    const state = van.state("idle"); // "idle" | "loading" | "refused"
+    const state = van.state("idle"); // "idle" | "loading" | "refused" | "warned" (undone, with a warning)
     const reason = van.state("");
     const washed = van.state(false);
     // "N more" stays as the player left it while the log refreshes (a save, an undo).
@@ -61,8 +61,9 @@ const Group = (data) => {
         if (state.val === "loading") return;
         state.val = "loading";
         try {
-            await undoAction(data.val.id);
-            state.val = "idle";
+            const { warning } = await undoAction(data.val.id);
+            reason.val = warning ?? "";
+            state.val = warning ? "warned" : "idle";
             washed.val = true;
             setTimeout(() => (washed.val = false), WASH_MS);
         } catch (error) {
@@ -94,7 +95,7 @@ const Group = (data) => {
             span(
                 { class: "change-group__undo" },
                 span({ class: "change-group__reason", role: "status" }, () =>
-                    state.val === "refused"
+                    state.val === "refused" || state.val === "warned"
                         ? reason.val
                         : state.val === "loading"
                           ? "saving…"
