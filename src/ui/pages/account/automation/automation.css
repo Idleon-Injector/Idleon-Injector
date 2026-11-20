@@ -20,3 +20,50 @@
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
 }
+
+/* An upgrade's priority (High / Low / Balanced), between its stop-at and its switch. */
+.automation-pick .automation-pick__priority {
+    width: 128px;
+}
+
+.automation-pick__priority .select-base {
+    min-height: 36px;
+    padding: 0 10px;
+    font: inherit;
+}
+
+/* A currency's saving %: the sentence, then its field. */
+.automation-saving .account-field-metric {
+    --account-field-metric-input-width: 100%;
+    width: 180px;
+}
+
+.automation-saving__text {
+    color: var(--c-text-muted);
+}
+
+/* What a colour is doing, under its heading. */
+.automation-colour-status {
+    display: block;
+}
+
+/* An upgrade's bonus and next cost wrap rather than cut off, so the narrow overlay keeps them whole. */
+.automation-pick .account-row__sub-label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Narrow windows: a row with a priority wraps its stop-at and priority before they squeeze their text. */
+@media (max-width: 1180px) {
+    .automation-pick--priority .account-row__controls {
+        flex-wrap: wrap;
+    }
+
+    .automation-pick--priority .account-field-metric {
+        flex: 1 1 150px;
+    }
+
+    .automation-pick--priority .automation-pick__priority {
+        flex: 1 1 112px;
+    }
+}

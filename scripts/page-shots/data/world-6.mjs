@@ -11,6 +11,26 @@ const JADE = 30;
 const SNEAK_UPGRADES = 20;
 const ROUNDS = 30;
 const BEANSTALK_FOODS = 8;
+const SUMMON_UPGRADES = 32; // four per essence colour
+
+// Summoning board rows as the game splits them: [x, y, colour, name, base cost, cost growth, bonus per level, 0,
+// max level (9999 = none), parent upgrade, doubler, text]. Each colour's first row hangs off the colour before.
+const SUMMON_UPG = list(SUMMON_UPGRADES, (i) => [
+    "0",
+    "0",
+    String(Math.floor(i / 4)),
+    i === 2 ? "Familiar" : `${fakeName(i + 40)}_Summoning`,
+    String(10 * (i + 1)),
+    "1.12",
+    "1",
+    "0",
+    String([9999, 25, 50, 9999][i % 4]),
+    String(i === 0 ? -1 : i % 4 === 0 ? i - 4 : i - 1),
+    "0",
+    `+{%_${fakeName(i + 41)}_bonus`,
+]);
+const summoningBoard = () => ({ _GenINFO: { 170: 2 } });
+const SUMMON_LEVELS = list(SUMMON_UPGRADES, (i) => (i % 5 === 3 || i >= 24 ? 0 : 1 + ((i * 7) % 20)));
 
 // Shared by every fakeGameData() call, so two calls compare equal.
 const computed = {
@@ -21,6 +41,15 @@ const computed = {
     },
     _customBlock_MenagerieStuff: { OrganicLabelOwned: 4, OmniJadeDailyLVs: 3 },
     _customBlock_Thingies: { MaxEmperorAttemptStack: 3, DailyEmperorTries: 2 },
+    _customBlock_Summoning: {
+        UpgCost: (i) => Number(SUMMON_UPG[i][4]) * 1.12 ** SUMMON_LEVELS[i],
+        SummUpgBonus: (i) => SUMMON_LEVELS[i] ?? 0,
+        SummVictories: 4,
+    },
+    _customBlock_Spelunk: { DoWeHaveLoreN1: 0 },
+    // The game's number and time texts take the number as their first argument.
+    _customBlock_CommaNotation: new Proxy({}, { get: (_, n) => String(Math.round(Number(n) * 100) / 100) }),
+    _customBlock_timeDisp2: new Proxy({}, { get: (_, n) => `${Math.floor(Number(n) / 3600)}h` }),
 };
 
 export default () => ({
@@ -41,8 +70,18 @@ export default () => ({
             104: list(BEANSTALK_FOODS, (i) => i % 3),
             107: list(CHARMS, (i) => (i % 3 === 0 ? 1 : 0)),
         },
-        // [0] summoning upgrades, [1] normal rounds won (enemy ids), [2] essence per colour.
-        Summon: [upgradeLevels(30, 2), list(12, (i) => `enemy${i}`), list(8, (i) => i * 12345)],
+        // [0] summoning upgrades, [1] normal rounds won (enemy ids), [2] essence per colour, [3] shop timers,
+        // [4] familiars per tier.
+        Summon: [
+            SUMMON_LEVELS,
+            list(12, (i) => `enemy${i}`),
+            list(8, (i) => (i < 6 ? Math.round(4.2e6 / (i + 1) ** 2) : 0)),
+            [0, 0, 0, 0],
+            [6, 3, 1, 0, 0, 0, 0, 0],
+        ],
+        // The summoning board's behavior; _GenINFO[170] is its total level / 100.
+        PixelHelperActor: { 24: { behaviors: { getBehavior: summoningBoard } } },
+        TimeAway: { h: { ShopRestock: 43200 } },
         CustomMaps: {
             h: {
                 // Pristine charms: [?, ?, name].
@@ -73,7 +112,7 @@ export default () => ({
                 },
                 JadeUpg: upgradeDefs(JADE, 7),
                 NinjaUpg: upgradeDefs(SNEAK_UPGRADES, 1),
-                SummonUPG: upgradeDefs(30, 2),
+                SummonUPG: SUMMON_UPG,
                 // Columns: [0] enemy ids, [4] names, [8] round order.
                 SummonEnemies: list(9, (column) =>
                     list(ROUNDS, (i) =>
