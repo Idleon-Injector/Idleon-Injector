@@ -6,7 +6,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-await loadUi(router);
+const { requests } = await loadUi(router);
 const gga = game.gga;
 globalThis.requestAnimationFrame ??= (fn) => setTimeout(fn, 0);
 
@@ -67,6 +67,31 @@ const quietly = async (task) => {
     }
 };
 const settledButton = (node) => /account-btn--(success|error)/.test(classes(node));
+const writeCount = () => requests.filter((entry) => entry.includes("/write")).length;
+
+// A row's Remove takes the item off the list, so it asks "Click again" first; the second press removes it.
+const removeTwice = (node) => {
+    click(node);
+    return click(node);
+};
+// The first press only asks and writes nothing. The ask runs out after a few seconds like every "Click again",
+// and the press after that asks again.
+const removeAsksFirst = (t, remove, question) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        const before = writeCount();
+        click(remove);
+        assert.equal(remove.attributes["data-again"], "Click again", "the first press asks");
+        assert.equal(remove.attributes["aria-label"], `Click again to ${question}`);
+        t.mock.timers.tick(4000);
+        assert.equal(remove.attributes["data-again"], undefined, "the ask runs out");
+        click(remove);
+        assert.equal(remove.attributes["data-again"], "Click again", "the press after that asks again");
+        assert.equal(writeCount(), before, "nothing was written");
+    } finally {
+        t.mock.timers.reset();
+    }
+};
 
 const HAT_RACK = "src/ui/pages/world-3/hat-rack/hat-rack.js";
 const hat = (n) => `EquipmentHatsPrem${n}`;
@@ -77,6 +102,24 @@ const setRack = (rack, slab) => {
     gga.Spelunk[46] = rack;
     gga.Cards[1] = slab;
 };
+
+test("Hat Rack: Remove asks Click again first, and the second press takes the hat off the rack", async (t) => {
+    setRack([hat(1), hat(2)], [hat(1)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    const row = rackRowFor(root, hat(1));
+    const remove = buttonIn(row, "Remove");
+
+    removeAsksFirst(t, remove, `remove ${text(byClass(row, "account-row__name")[0])}.`);
+    const other = buttonIn(rackRowFor(root, hat(2)), "Remove");
+    click(other);
+    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own hat");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2)], "both hats are still on the rack");
+
+    click(remove);
+    await until(() => settledButton(remove), "the second press to finish");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(2)]);
+    assert.deepEqual([...gga.Cards[1]], []);
+});
 
 test("Hat Rack: Add all and Remove keep what the game added after the page read it", async () => {
     setRack([hat(1), hat(2)], [hat(6), hat(7)]);
@@ -97,7 +140,7 @@ test("Hat Rack: Add all and Remove keep what the game added after the page read 
     gga.Spelunk[46].push("InGameHat");
     await until(() => rackRowFor(root, hat(1)), "the rack to show");
     const before = rackRows(root).length;
-    click(buttonIn(rackRowFor(root, hat(1)), "Remove"));
+    removeTwice(buttonIn(rackRowFor(root, hat(1)), "Remove"));
     await until(() => !gga.Spelunk[46].includes(hat(1)) && rackRows(root).length === before, "Remove to finish");
     assert.ok(gga.Spelunk[46].includes("InGameHat"), "the hat the game added stays on the rack");
     assert.ok(gga.Cards[1].includes("LaterLoot"), "the loot the game added stays in the Slab");
@@ -122,7 +165,7 @@ test("Hat Rack: a half-done Add all shows the hats that landed, and the next Rem
     assert.equal(landed.length, 2, "two hats landed before the refusal");
     await until(() => rackRows(root).length === 4, "the page to show what landed");
 
-    click(buttonIn(rackRowFor(root, hat(1)), "Remove"));
+    removeTwice(buttonIn(rackRowFor(root, hat(1)), "Remove"));
     await until(() => !gga.Spelunk[46].includes(hat(1)), "Remove to finish");
     for (const itemId of landed) assert.ok(gga.Spelunk[46].includes(itemId), `${itemId} stays on the rack`);
 });
@@ -136,7 +179,7 @@ test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pre
     const remove = buttonIn(row, "Remove");
     try {
         await quietly(async () => {
-            click(remove);
+            removeTwice(remove);
             await until(() => settledButton(remove), "Remove to finish");
         });
     } finally {
@@ -147,7 +190,7 @@ test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pre
     assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2)], "the hat is still on the rack");
 
     await until(() => !classes(remove).includes("account-btn--error"), "the red to clear");
-    click(remove);
+    removeTwice(remove);
     await until(() => !gga.Spelunk[46].includes(hat(1)), "the second press to remove it");
     assert.deepEqual([...gga.Cards[1]], []);
 });
@@ -162,7 +205,7 @@ test("Hat Rack: a refused removal stays red on its row when the game changed the
     const remove = buttonIn(row, "Remove");
     try {
         await quietly(async () => {
-            click(remove);
+            removeTwice(remove);
             await until(() => settledButton(remove), "Remove to finish");
         });
     } finally {
@@ -177,6 +220,26 @@ test("Hat Rack: a refused removal stays red on its row when the game changed the
 const SMITHY = "src/ui/pages/world-3/armor-smithy/armor-smithy.js";
 const smithyRows = (root) => byClass(root, "smithy-row");
 
+test("Smithy: Remove asks Click again first, and the second press removes the set", async (t) => {
+    gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
+    const row = smithyRows(root).find((node) => text(node).includes("GOLD_SET"));
+    const remove = buttonIn(row, "Remove");
+
+    removeAsksFirst(t, remove, `remove ${text(byClass(row, "account-row__name")[0])}.`);
+    const other = buttonIn(
+        smithyRows(root).find((node) => text(node).includes("COPPER_SET")),
+        "Remove"
+    );
+    click(other);
+    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own set");
+    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,GOLD_SET", "both sets are still stored");
+
+    click(remove);
+    await until(() => settledButton(remove), "the second press to finish");
+    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET");
+});
+
 test("Smithy: Remove and Add keep a set the game stored after the page read the list", async () => {
     gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
     const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
@@ -185,7 +248,7 @@ test("Smithy: Remove and Add keep a set the game stored after the page read the 
     gga.OptionsListAccount[379] += ",IRON_SET";
     const gold = smithyRows(root).find((row) => text(row).includes("GOLD_SET"));
     const remove = buttonIn(gold, "Remove");
-    click(remove);
+    removeTwice(remove);
     await until(() => settledButton(remove), "Remove to finish");
     assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,IRON_SET");
 
@@ -217,7 +280,7 @@ test("Smithy: a Remove that can't read the stored sets stays red on its row", as
     const remove = buttonIn(row, "Remove");
     try {
         await quietly(async () => {
-            click(remove);
+            removeTwice(remove);
             await until(() => settledButton(remove), "Remove to finish");
         });
     } finally {
