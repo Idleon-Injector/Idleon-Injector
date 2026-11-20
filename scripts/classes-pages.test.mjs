@@ -106,6 +106,201 @@ const unitArrays = () => copy([6, 7, 8, 9, 10, 11, 12, 13].map((index) => game.g
 const putUnitArrays = (saved) =>
     [6, 7, 8, 9, 10, 11, 12, 13].forEach((index, i) => (game.gga.RoyalG[index] = saved[i]));
 
+test("outposts: a slot picked while another slot saves keeps both picks", async () => {
+    const before = game.gga.RoyalMaps[1][11];
+    const root = await openOutposts();
+    const [first, second] = slotSelects(card(root, 1));
+    const release = holdWrites();
+    try {
+        const picks = [choose(first, "3")];
+        await tick();
+        picks.push(choose(second, "4"));
+        await tick();
+        release();
+        await Promise.all(picks);
+        await until(() => game.gga.RoyalMaps[1][11] === 342211111, "both picks in the game");
+        assert.equal(first.value, "3");
+        assert.equal(second.value, "4");
+    } finally {
+        release();
+        game.gga.RoyalMaps[1][11] = before;
+    }
+});
+
+test("outposts: a refused slot or TYPE pick goes back to what the game holds and says why", async () => {
+    const root = await openOutposts();
+    const outpost = card(root, 1);
+    const slot = slotSelects(outpost)[0];
+    let restore = refuseWrites(game.gga.RoyalMaps[1], 11);
+    try {
+        await choose(slot, "5");
+        assert.equal(slot.value, "2", "the slot shows the Worker the game kept");
+        assert.match(cardSays(outpost), /Slot 1 not saved: game kept old value/);
+    } finally {
+        restore();
+    }
+
+    const type = byClass(outpost, "outpost-select-field__select")[0];
+    restore = refuseWrites(game.gga.RoyalMaps[1], 10);
+    try {
+        await choose(type, "2");
+        assert.equal(type.value, "1", "TYPE shows the Support Camp the game kept");
+        assert.match(cardSays(outpost), /TYPE not saved: game kept old value/);
+    } finally {
+        restore();
+    }
+});
+
+test("outposts: two quick Removes on one map remove both of its units, not another map's", async () => {
+    const saved = unitArrays();
+    game.gga.RoyalG[6] = [4, 4, 5];
+    game.gga.RoyalG[7] = [1, 1, 2];
+    const root = await openOutposts();
+    const removes = buttonsNamed(card(root, 1), "Remove");
+    assert.equal(removes.length, 2);
+    const release = holdWrites();
+    try {
+        const presses = [click(removes[0])];
+        await tick();
+        presses.push(click(removes[1]));
+        await tick();
+        release();
+        await Promise.all(presses);
+        await until(() => JSON.stringify(game.gga.RoyalG[6]) === "[5]", "both M1 militia removed");
+        assert.deepEqual([...game.gga.RoyalG[7]], [2], "M2's commander stays");
+    } finally {
+        release();
+        putUnitArrays(saved);
+    }
+});
+
+test("outposts: a reload after a unit change keeps the other cards and what is typed in them", async () => {
+    const saved = unitArrays();
+    const root = await openOutposts();
+    const first = card(root, 1);
+    const input = elements(byClass(first, "outpost-field")[3]).find((node) => node.nodeName === "input");
+    const unitsBefore = buttonsNamed(card(root, 2), "Remove").length;
+    const takenOut = watchTakenOut(first);
+    try {
+        typeInto(input, "999");
+        await click(buttonsNamed(card(root, 2), "Add unit")[0]);
+        await until(() => buttonsNamed(card(root, 2), "Remove").length === unitsBefore + 1, "the added unit");
+        assert.equal(card(root, 1), first, "M1's card is the same card");
+        assert.equal(takenOut(), 0, "M1's card stayed in the page");
+        assert.ok(elements(root).includes(input), "the field being typed in is still on the page");
+        assert.equal(input.value, "999");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+test("outposts: the UNITS tab previews and populates W1-W4 when outposts exist past W4", async () => {
+    assert.ok(
+        game.gga.RoyalMaps.some((row, mapId) => mapId >= 200 && row.length >= 13),
+        "the fake game has outposts past W4"
+    );
+    const saved = unitArrays();
+    const root = await openOutposts();
+    try {
+        await openUnits(root);
+        assert.equal(byClass(root, "outpost-vanilla-units__row").length, 4, "a preview row for each of W1-W4");
+        await click(buttonsNamed(root, "Populate outposts")[0]);
+        await until(() => game.gga.RoyalG[6].length === 22, "W1's two outposts populated");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+test("outposts: Populate asks Click again when it would remove units, and runs on the second press", async () => {
+    const saved = unitArrays();
+    game.gga.RoyalG[6] = Array(30).fill(4);
+    game.gga.RoyalG[7] = Array(30).fill(1);
+    const root = await openOutposts();
+    try {
+        await openUnits(root);
+        const populate = buttonsNamed(root, "Populate outposts")[0];
+        const before = writes();
+        await click(populate);
+        await tick();
+        assert.equal(writes(), before, "the first press writes nothing");
+        assert.equal(populate.attributes["data-again"], "Click again");
+        await click(populate);
+        await until(() => game.gga.RoyalG[6].length === 22, "the second press populates");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+test("outposts: a refused GLORIFIED press says why, and a press while it saves can't send a second write", async () => {
+    const root = await openOutposts();
+    const outpost = card(root, 1);
+    const glorified = byClass(outpost, "outpost-glorified-button")[0];
+    const restore = refuseWrites(game.gga.RoyalMaps[1], 12);
+    try {
+        await click(glorified);
+        assert.match(cardSays(outpost), /GLORIFIED not saved: game kept old value/);
+        await until(() => classes(glorified).includes("account-btn--error"), "the button to show it failed");
+    } finally {
+        restore();
+    }
+
+    const release = holdWrites();
+    try {
+        const press = click(glorified);
+        await until(() => glorified.attributes.disabled, "the button to wait while it saves");
+        release();
+        await press;
+        assert.equal(game.gga.RoyalMaps[1][12], 0);
+        assert.equal(cardSays(outpost), "", "the next press cleared the failure");
+    } finally {
+        release();
+        game.gga.RoyalMaps[1][12] = 1;
+    }
+});
+
+test("outposts: a refused Make outpost says why on its row", async () => {
+    const root = await openOutposts();
+    const row = byClass(root, "outpost-row--kills").find(
+        (node) => text(byClass(node, "account-row__index")[0]) === "M3"
+    );
+    const restore = refuseWrites(game.gga.RoyalMaps, 3);
+    try {
+        await click(buttonsNamed(row, "Make outpost")[0]);
+        assert.match(text(byClass(row, "save-state__label")[0]), /game kept old value/);
+        assert.deepEqual(unhandled, []);
+    } finally {
+        restore();
+    }
+});
+
+test("outposts: a kill-counter save updates its Kills done", async () => {
+    const before = copy(game.gga.RoyalMaps[3]);
+    const root = await openOutposts();
+    const row = byClass(root, "outpost-row--kills").find(
+        (node) => text(byClass(node, "account-row__index")[0]) === "M3"
+    );
+    const meta = () => text(byClass(row, "outpost-row__meta")[0]);
+    assert.equal(meta(), "Kills done 33 / 207");
+    const input = elements(row).find((node) => node.nodeName === "input");
+    try {
+        typeInto(input, "0");
+        row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        await until(() => meta() === "Kills done 207 / 207", "the kills done to follow the save");
+    } finally {
+        game.gga.RoyalMaps[3] = before;
+    }
+});
+
+test("resource nodes: a reload leaves the rows in the page", async () => {
+    const root = (await importRepo("src/ui/pages/classes/royal-armory/3-resources.js")).default.component();
+    await until(() => pageRead(root) && byClass(root, "resource-node-row").length, "the resource nodes to load");
+    const row = byClass(root, "resource-node-row")[0];
+    const takenOut = watchTakenOut(row);
+    await click(buttonsNamed(root, "Refresh")[0]);
+    assert.equal(byClass(root, "resource-node-row")[0], row);
+    assert.equal(takenOut(), 0, "the row was not taken out and put back");
+});
+
 test("map bonuses: a bulk 10M that fails partway shows what the game holds", async () => {
     const saved = copy(game.gga.MapBon);
     const root = (await importRepo("src/ui/pages/classes/tesseract/2-map-bonuses.js")).default.component();
