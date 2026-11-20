@@ -44,6 +44,25 @@ test("the tab shows the switch, one line per bone type, the saving %, and every 
     assert.equal(detail(pick(maxed.id)), "Max level");
 });
 
+test("small amounts show whole, like the game: a cost rounded up, the bones held rounded down", async () => {
+    const block = kit.fixture.computed._customBlock_Summoning;
+    const cost = block.GrimoireUpgCost;
+    const femur = kit.gga.OptionsListAccount[330];
+    block.GrimoireUpgCost = (i, ...rest) => (i === femurUpgrade.id ? 99.2 : cost(i, ...rest));
+    kit.gga.OptionsListAccount[330] = 149.36;
+    try {
+        await kit.button(page, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+        assert.match(detail(pick(femurUpgrade.id)), /^Next level 100 femur$/);
+        assert.equal(text(row("Femur")), "Femur149 owned");
+    } finally {
+        block.GrimoireUpgCost = cost;
+        kit.gga.OptionsListAccount[330] = femur;
+        await kit.button(page, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+    }
+});
+
 test("switching an upgrade on saves the list and turns the Grimoire automation on, now and at start", async () => {
     await kit.flip(pick(femurUpgrade.id), true);
     assert.deepEqual(sent("grimoire"), [{ id: String(femurUpgrade.id), on: true }]);

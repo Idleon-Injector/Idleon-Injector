@@ -33,6 +33,10 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 
 const { div, span } = van.tags;
 
+// Like the game's own panels, small amounts show whole: a cost rounded up, what is held rounded down.
+const costText = (value) => formatNumber(value < 1000 ? Math.ceil(value) : value);
+const heldText = (value) => formatNumber(value < 1000 ? Math.floor(value) : value);
+
 const CHEAT = "automation grimoire";
 const BONES = ["femur", "ribcage", "cranium", "bovinae"];
 const upgradeName = (name) => cleanName(name, "", { stripMarker: true });
@@ -59,7 +63,7 @@ const GrimoireAutomationPage = () => {
                 const { level, max, unlocked, unlockAt, cost, bone } = upgrade.val;
                 if (max !== null && level >= max) return "Max level";
                 if (!unlocked) return `Unlocks at ${formatNumber(unlockAt)} total levels`;
-                return `Next level ${formatNumber(cost)} ${bone}`;
+                return `Next level ${costText(cost)} ${bone}`;
             },
         });
     };
@@ -92,7 +96,7 @@ const GrimoireAutomationPage = () => {
         const line = () => {
             if (!automation.val?.on) return "";
             const { goal } = bone.val;
-            if (goal) return `Saving for ${names.get(goal.id)} (${formatNumber(goal.cost)})`;
+            if (goal) return `Saving for ${names.get(goal.id)} (${costText(goal.cost)})`;
             const on = ids.val.some((id) => upgrades.get(Number(id))?.val.bone === name && picks.get(id).on.val);
             return on ? "Buying cheapest first" : "Nothing switched on";
         };
@@ -103,7 +107,7 @@ const GrimoireAutomationPage = () => {
                 span({ class: "account-row__name" }, capital(name)),
                 span({ class: "account-row__sub-label" }, line)
             ),
-            badge: () => `${formatNumber(bone.val.owned)} owned`,
+            badge: () => `${heldText(bone.val.owned)} owned`,
         });
     };
 
