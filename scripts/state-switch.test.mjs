@@ -598,7 +598,7 @@ test("stamps: leaving a level field for the row's switch saves the level", async
 
 test("stamps: a switch flipped while the level saves waits for it, and says its own failure", async () => {
     try {
-        const { row, before } = await openStampA1();
+        const { row, levels, before } = await openStampA1();
         cleanups.push(refuseWrites(game.gga.Compass, 4));
         const requests = watchRequests(isLevelWrite);
         const field = typeLevel(row, before + 1);
@@ -607,12 +607,7 @@ test("stamps: a switch flipped while the level saves waits for it, and says its 
         const flipped = flip(row, true);
         requests.release();
         await flipped;
-        await until(
-            () =>
-                text(byClass(row, "account-row__badge")[0]).startsWith(`LV ${before + 1} `) &&
-                saveWordsOf(row) !== "saving…",
-            "both saves to end"
-        );
+        await until(() => levels[0] === before + 1 && saveWordsOf(row) !== "saving…", "both saves to end");
         switchStartedAfterHeld(requests.log);
         assert.equal(wordsOf(row), "game kept old value", "the switch says why it wasn't saved");
         assert.equal(saveWordsOf(row), "saved", "once: the row keeps the level's ✓");
@@ -776,7 +771,7 @@ test("emperor: a double-click on Reset doesn't answer the Click again its first 
     const progress = ola[369];
     try {
         const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Natural capacity")
+            text(root).includes("Base daily replenishment")
         );
         const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
         await Promise.all([click(reset), click(reset)]);
@@ -798,7 +793,7 @@ test("emperor: Reset asking first leaves the field's failure; Reset saving takes
     const restore = refuseWrites(ola, 369);
     try {
         const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Natural capacity")
+            text(root).includes("Base daily replenishment")
         );
         const row = rowNamed(root, "Completed showdowns");
         const field = elements(row).find((node) => node.nodeName === "input");
@@ -844,7 +839,7 @@ test("emperor: Escape while Reset runs takes back the field's failure for good",
     };
     try {
         const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Natural capacity")
+            text(root).includes("Base daily replenishment")
         );
         const row = rowNamed(root, "Completed showdowns");
         const field = elements(row).find((node) => node.nodeName === "input");
@@ -891,7 +886,7 @@ test("emperor: Reset clicked while the typed progress saves doesn't split that s
     };
     try {
         const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
-            text(root).includes("Natural capacity")
+            text(root).includes("Base daily replenishment")
         );
         const row = rowNamed(root, "Completed showdowns");
         const field = elements(row).find((node) => node.nodeName === "input");
