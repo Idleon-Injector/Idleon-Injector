@@ -1547,3 +1547,26 @@ for (const [name, path] of [
         await until(() => !/still waiting/.test(text(page)), "the first read's end to clear the notice");
     });
 }
+
+test("reader 3: the Shops tab says its read after a switch is still waiting", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
+    let release;
+    holdNextListRead = new Promise((resolve) => (release = resolve)); // the switch's read-back
+    try {
+        await lateBy(100, async () => {
+            const asked = listAsked;
+            void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
+            await until(() => listAsked > asked, "the switch to end and its read-back to be held");
+            await until(() => /still waiting/.test(text(shops)), "the page to say the read-back is still waiting");
+        });
+    } finally {
+        release();
+    }
+    await until(
+        () => !/still waiting/.test(text(shops)) && statusOf(shops) !== "Off",
+        "the read-back's end to clear the notice"
+    );
+    await ui.switchAutomation("automation shops", false);
+});

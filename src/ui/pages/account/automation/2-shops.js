@@ -40,11 +40,13 @@ const WORLDS = [1, 2, 3, 4, 5, 6, 7].map((world) => ({ id: world, label: `W${wor
 const ShopsPage = () => {
     const automation = van.state(null);
     const findShops = async () => (await readAutomations()).find(({ cheat }) => cheat === CHEAT) ?? null;
+    // The page's line says when a read or a bulk switch is still waiting for the game: a wait isn't a failure.
+    const waiting = useStillWaiting();
     // Queued like everything else, so it reads what the steps before it did.
     const readSwitch = () =>
         inTurn(async () => {
             showAutomation(automation, await findShops());
-        });
+        }, waiting.onLate);
     // Switching an item on switches Shops on too (now and at start), in the item's own save step, so buying starts
     // at once; that step reads the tab's own switch back.
     const picks = createAutomationPicks("shops", { cheat: CHEAT, entry: automation });
@@ -54,8 +56,6 @@ const ShopsPage = () => {
     const stock = new Map(); // "shop:item" -> state of today's stock
     const activeWorld = van.state(1);
     const { loading, error, run } = useAccountLoad({ label: "Shop automation" });
-    // The page's line says when a read or a bulk switch is still waiting for the game: a wait isn't a failure.
-    const waiting = useStillWaiting();
 
     const switchNode = div();
     const panes = renderPersistentPagePanes({ tabs: WORLDS, activeId: activeWorld });
