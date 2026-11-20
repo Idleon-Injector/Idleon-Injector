@@ -11,7 +11,7 @@ const { button } = van.tags;
 // (`before`), and a failure is said even when the handler goes on re-reading the page after the status cleared.
 const sayResult = async (name, pending, status, before) => {
     let settled = false;
-    Promise.resolve(pending).then(
+    const ended = Promise.resolve(pending).then(
         () => (settled = true),
         () => (settled = true)
     );
@@ -22,7 +22,9 @@ const sayResult = async (name, pending, status, before) => {
         else if ((now === "success" || now === "error") && (started || now !== before))
             return announce(`${name}: ${now === "success" ? "done" : "failed"}`);
         else if (settled) return undefined;
-        await new Promise((r) => setTimeout(r, 50));
+        // Said as soon as the handler ends, as before; a status still saving after that is looked at every 50 ms.
+        const tick = new Promise((r) => setTimeout(r, 50));
+        await (settled ? tick : Promise.race([ended, tick]));
     }
     return undefined;
 };

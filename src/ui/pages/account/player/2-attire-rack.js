@@ -75,6 +75,9 @@ const changeable = (character) => character.available && ADDRESSABLE.test(charac
 const AttireRackPage = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Attire Rack" });
     const choiceWrite = useWriteStatus();
+    // The cards' own saves, so their result doesn't light up All outfits or No outfits.
+    const cardWrite = useWriteStatus();
+    const choiceSaving = () => choiceWrite.status.val === "loading" || cardWrite.status.val === "loading";
     const bulkWrite = useWriteStatus();
     const choiceSaid = useSaid();
     const bulkSaid = useSaid();
@@ -91,7 +94,7 @@ const AttireRackPage = () => {
         class: "tier-grid",
         role: "group",
         "aria-label": "Outfit bonuses",
-        "aria-busy": () => choiceWrite.status.val === "loading",
+        "aria-busy": () => choiceSaving(),
     });
     const rows = div({ class: "account-list" });
     const everyoneHolder = span();
@@ -99,7 +102,7 @@ const AttireRackPage = () => {
     const reconcileRows = createStaticRowReconciler(rows);
     const reconcileEveryone = createStaticRowReconciler(everyoneHolder);
 
-    const busy = () => loading.val || choiceWrite.status.val === "loading" || bulkWrite.status.val === "loading";
+    const busy = () => loading.val || choiceSaving() || bulkWrite.status.val === "loading";
     const isChosen = (id) => chosen.val.has(id);
     const outfitName = (id) =>
         id === NO_ATTIRE ? "no attire" : (outfits.val.find((outfit) => outfit.id === id)?.name ?? id);
@@ -107,8 +110,12 @@ const AttireRackPage = () => {
 
     // --- Outfit bonuses ---
 
+    // A choice saved since this read began is newer than what it read: the read drops its answer.
+    let choiceSaves = 0;
     const readChoice = async () => {
+        const saves = choiceSaves;
         const [config, cheatStates] = await Promise.all([fetchConfig(), fetchCheatStates()]);
+        if (saves !== choiceSaves) return;
         enabled.val = Boolean(cheatStates?.data?.wide?.attire);
         const saved = config?.cheatConfig?.wide?.attire?.outfits ?? "all";
         const ids = outfits.val.map(({ id }) => id);
@@ -143,9 +150,9 @@ const AttireRackPage = () => {
     };
 
     // `next(chosen)`: the outfits to give, from the saved choice. Built after a fresh read, so a choice saved from the
-    // Config page meanwhile isn't overwritten.
-    const writeChoice = (next) =>
-        choiceWrite.run(
+    // Config page meanwhile isn't overwritten. `write`: the status it runs under (the cards have their own).
+    const writeChoice = (next, write = choiceWrite) =>
+        write.run(
             async () => {
                 choiceSaid.clear();
                 await readChoice();
@@ -163,9 +170,16 @@ const AttireRackPage = () => {
                 enabled.val = value !== "";
                 allChosen.val = value === "all";
                 chosen.val = new Set(value === "all" ? ids : ids.filter((id) => wanted.has(id)));
+                choiceSaves++;
                 await persistConfig(value !== "");
             },
-            { onError: (caught) => choiceSaid.say("failed", caught.message) }
+            {
+                // Part of it may have landed (the session took the choice): the cards show what is saved now.
+                onError: (caught) => {
+                    choiceSaid.say("failed", caught.message);
+                    void readChoice().catch(() => {});
+                },
+            }
         );
 
     const clearChoice = (buttonNode) => {
@@ -176,14 +190,17 @@ const AttireRackPage = () => {
         return writeChoice(() => new Set());
     };
 
-    // A click while a choice saves is dropped; the cards stay enabled so focus stays on the card.
-    const toggleOutfit = (id) =>
-        !busy() &&
-        writeChoice((on) => {
-            if (on.has(id)) on.delete(id);
-            else on.add(id);
+    // A click while a choice saves is dropped; the cards stay enabled so focus stays on the card. It does what the
+    // card shows (on turns off), whatever the fresh read finds.
+    const toggleOutfit = (id) => {
+        if (busy()) return false;
+        const turnOn = !isChosen(id);
+        return writeChoice((on) => {
+            if (turnOn) on.add(id);
+            else on.delete(id);
             return on;
-        });
+        }, cardWrite);
+    };
 
     const renderCard = (outfit) =>
         button(
@@ -225,8 +242,9 @@ const AttireRackPage = () => {
                     draft: van.state(character.item),
                 };
                 state.write = useAutoSave({
+                    // A stat update owed for the character in play is a change still to save (it shows the pick).
                     prepare: () =>
-                        state.draft.val === state.item.val
+                        state.draft.val === state.item.val && !(statsOwed && state.character.val.active)
                             ? { unchanged: true }
                             : { write: () => wear(character.name, state.draft.val) },
                     revert: () => (state.draft.val = state.item.val),
@@ -258,16 +276,24 @@ const AttireRackPage = () => {
     // The stats of the character in play are owed from a change whose write landed but whose stat update failed.
     // A retry finds the game already holds the pick, so it runs the update instead of stopping there.
     let statsOwed = false;
+    // The line an undo's refused stat update left above the rows; it goes once an owed update runs.
+    let owedLine = null;
     const updateStats = async () => {
         statsOwed = true;
         await executeCheatAction(STATS_CHEAT);
         statsOwed = false;
+        if (owedLine && bulkSaid.said.val === owedLine) bulkSaid.clear();
+        owedLine = null;
     };
 
     // After attire changed: the game works out the stats of the character in play again when that one changed.
+    // The game is read again however it ends, so the row and the worn badge show what landed.
     const afterChange = async (changed) => {
-        if (changed.some((character) => character.active)) await updateStats();
-        await readStatus();
+        try {
+            if (changed.some((character) => character.active)) await updateStats();
+        } finally {
+            await readStatus().catch(() => {});
+        }
     };
 
     // One character's pick, saved at once. Returns { cancelled: true } when the game already has it and no stat
@@ -280,7 +306,12 @@ const AttireRackPage = () => {
             if (!statsOwed) return { cancelled: true };
             return updateStats();
         }
-        await writeManyVerified(slotWrites(character, item));
+        // A write that lands only in part still changed the character in play: its stat update is owed.
+        if (character.active) statsOwed = true;
+        await writeManyVerified(slotWrites(character, item)).catch(async (caught) => {
+            await readStatus().catch(() => {});
+            throw caught;
+        });
         await afterChange([character]);
     };
 
@@ -358,6 +389,7 @@ const AttireRackPage = () => {
         if (!clickAgain(buttonNode, question, { targets: targets.map(({ name }) => name) })) return;
         await bulkWrite.run(
             async () => {
+                if (targets.some((character) => character.active)) statsOwed = true;
                 await writeManyVerified(targets.flatMap((character) => slotWrites(character, item)));
                 await afterChange(targets);
             },
@@ -393,13 +425,16 @@ const AttireRackPage = () => {
         if (!target || target === undone) return;
         undone = target;
         if (target.view === place.view && target.page === place.page)
-            void updateStats().catch((caught) =>
-                bulkSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`)
-            );
+            void updateStats().catch((caught) => {
+                bulkSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`);
+                owedLine = bulkSaid.said.val;
+            });
     });
 
+    // Refresh also runs a stat update still owed (Refresh is where a player tries again).
     const load = () =>
         runLoad(async () => {
+            if (statsOwed) await updateStats().catch(() => {});
             await readStatus();
             await readChoice();
         });
