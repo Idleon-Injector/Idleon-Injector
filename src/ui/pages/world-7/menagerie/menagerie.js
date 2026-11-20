@@ -248,7 +248,11 @@ const MenagerieTab = () => {
                 name,
                 disabled,
                 status, // nothing else on the row reads out saving and saved
-                onFlip: (on) => write(() => save(() => writeVerified(path, on ? 1 : 0))),
+                onFlip: (on) => {
+                    // "All 25 unlocks saved." no longer holds once one changes.
+                    bulkMessage.val = "";
+                    return write(() => save(() => writeVerified(path, on ? 1 : 0)));
+                },
             }),
         });
     };
@@ -284,6 +288,7 @@ const MenagerieTab = () => {
 
     const bulk = useWriteStatus();
     const bulkMessage = van.state("");
+    const ALL_SAVED = "All 25 unlocks saved.";
     const unlockAll = ActionButton({
         label: () => (bulk.status.val === "loading" ? "Unlocking…" : "Unlock all"),
         status: bulk.status,
@@ -302,7 +307,7 @@ const MenagerieTab = () => {
                     ),
                 {
                     onSuccess: () => {
-                        bulkMessage.val = "All 25 unlocks saved.";
+                        bulkMessage.val = ALL_SAVED;
                     },
                     onError: (error) => {
                         bulkMessage.val = error.message;
@@ -330,7 +335,16 @@ const MenagerieTab = () => {
                         id === "unlocks"
                             ? [
                                   unlockAll,
-                                  span({ class: "account-write-feedback", role: "status" }, () => bulkMessage.val),
+                                  // Said only while it holds: a flip or an undo since takes it back.
+                                  span({ class: "account-write-feedback", role: "status" }, () =>
+                                      bulkMessage.val === ALL_SAVED &&
+                                      Array.from(
+                                          { length: unlockCount },
+                                          (_, i) => state(`Menagerie[2][${i}]`).val
+                                      ).some((value) => !(value >= 1))
+                                          ? ""
+                                          : bulkMessage.val
+                                  ),
                               ]
                             : null,
                     body: lists[id],

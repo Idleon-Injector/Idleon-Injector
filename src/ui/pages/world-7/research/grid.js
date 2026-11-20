@@ -190,7 +190,8 @@ const GridTab = () => {
             if (selectedIndex.val !== null) {
                 const selectedTile = gridStates[selectedIndex.val];
                 if (!selectedTile || selectedTile.maxLevel.val < 0) closeDetail();
-                else detailInput.val = String(selectedTile.level.val);
+                // A save running now holds the player's typed level; this read may predate it.
+                else if (!detailSave.isBusy()) detailInput.val = String(selectedTile.level.val);
             }
         });
 
