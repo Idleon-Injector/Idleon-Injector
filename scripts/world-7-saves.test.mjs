@@ -197,3 +197,25 @@ test("Research Grid: Refresh while a level saves keeps the typed level, and leav
     assert.deepEqual(writesSince(start), [], "leaving the untouched field writes nothing");
     assert.equal(Research[0][index], next);
 });
+
+test("Spelunking Caves: Add and Remove keep objects the game destroyed since the page read", async () => {
+    const removeButtons = (root) =>
+        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
+    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 0);
+    const read = [...Spelunk[6]];
+    Spelunk[6].push("Rock_5_1");
+    await buttonNamed(root, "Add").listeners.click({ preventDefault() {} });
+    await until(() => Spelunk[6].length === read.length + 2, "the object to be added");
+    assert.ok(Spelunk[6].includes("Rock_5_1"), "Add keeps the game's new object");
+    await until(
+        () => removeButtons(root).length === Spelunk[6].length && removeButtons(root)[0].attributes.disabled === false,
+        "the page to show the game's list"
+    );
+
+    Spelunk[6].push("Rock_6_2");
+    const first = Spelunk[6][0];
+    await removeButtons(root)[0].listeners.click({ preventDefault() {} });
+    await until(() => !Spelunk[6].includes(first), "the first object to be removed");
+    assert.ok(Spelunk[6].includes("Rock_6_2"), "Remove keeps the game's new object");
+    assert.equal(removeButtons(root).length, Spelunk[6].length);
+});

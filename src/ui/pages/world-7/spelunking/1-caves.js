@@ -157,7 +157,7 @@ const CaveRow = ({ row, metricStates }) => {
     });
 };
 
-const DestroyedObjectRow = ({ row, onRemove }) =>
+const DestroyedObjectRow = ({ row, onRemove, isBusy }) =>
     RemovableStoredRow({
         index: row.index,
         primaryLabel: row.name,
@@ -165,7 +165,7 @@ const DestroyedObjectRow = ({ row, onRemove }) =>
         badge: row.knownCatalogMatch ? "DISCOVERED" : "UNKNOWN",
         nameGroupClass: "account-row__name-group",
         onRemove,
-        isBusy: onRemove.isBusy,
+        isBusy,
     });
 
 function SpelunkingCavesTab() {
@@ -275,72 +275,58 @@ function SpelunkingCavesTab() {
             applyDestroyedObjects(rawDestroyedObjects);
         });
 
-    const appendDestroyedObjects = async (currentNames, objectIds) => {
-        const baseNames = normalizeStoredNames(currentNames);
-        await writeManyVerified([
-            ...objectIds.map((objectId, offset) => ({
-                path: `${DISCOVERED_OBJECTS_PATH}[${baseNames.length + offset}]`,
-                value: objectId,
-            })),
-            { path: `${DISCOVERED_OBJECTS_PATH}.length`, value: baseNames.length + objectIds.length },
-        ]);
-    };
-
-    const removeObjectAtIndex = async (index) => {
-        if (mutating.val) return;
-        const currentNames = [...storedObjectNames.val];
-        if (index < 0 || index >= currentNames.length) return;
-
+    // Edits start from the game's list as it is now, not the page's last read: the game adds to it as objects are
+    // destroyed. Whatever happens, the page then shows the list the game holds.
+    const editDestroyedObjects = async (edit) => {
         mutating.val = true;
+        let names = null;
         try {
-            const nextNames = [...currentNames];
-            nextNames.splice(index, 1);
-            await writeVerified(DISCOVERED_OBJECTS_PATH, nextNames);
-            withPreservedScroll(() => applyDestroyedObjects(nextNames));
+            names = normalizeStoredNames(await gga(DISCOVERED_OBJECTS_PATH));
+            names = await edit(names);
+        } catch (error) {
+            names = await gga(DISCOVERED_OBJECTS_PATH).then(normalizeStoredNames, () => names);
+            throw error;
         } finally {
             mutating.val = false;
+            if (names) withPreservedScroll(() => applyDestroyedObjects(names));
         }
     };
-    removeObjectAtIndex.isBusy = () => mutating.val;
+
+    const addObjects = (objectIds) =>
+        editDestroyedObjects(async (currentNames) => {
+            const toAdd = objectIds.filter((objectId) => !currentNames.includes(objectId));
+            if (toAdd.length === 0) return currentNames;
+            await writeManyVerified([
+                ...toAdd.map((objectId, offset) => ({
+                    path: `${DISCOVERED_OBJECTS_PATH}[${currentNames.length + offset}]`,
+                    value: objectId,
+                })),
+                { path: `${DISCOVERED_OBJECTS_PATH}.length`, value: currentNames.length + toAdd.length },
+            ]);
+            return [...currentNames, ...toAdd];
+        });
+
+    const removeObject = async (objectId) => {
+        if (mutating.val) return;
+        await editDestroyedObjects(async (currentNames) => {
+            const index = currentNames.indexOf(objectId);
+            if (index < 0) return currentNames;
+            const nextNames = currentNames.filter((_, other) => other !== index);
+            await writeVerified(DISCOVERED_OBJECTS_PATH, nextNames);
+            return nextNames;
+        });
+    };
+    const isMutating = () => mutating.val;
 
     const addSelectedObject = async () => {
         const objectId = selectedObjectId.val;
         if (!objectId || mutating.val) return;
-
-        await runAdd(async () => {
-            mutating.val = true;
-            try {
-                const currentNames = [...storedObjectNames.val];
-                if (currentNames.includes(objectId)) return;
-
-                const nextNames = [...currentNames, objectId];
-                await appendDestroyedObjects(currentNames, [objectId]);
-                withPreservedScroll(() => applyDestroyedObjects(nextNames));
-            } finally {
-                mutating.val = false;
-            }
-        });
+        await runAdd(() => addObjects([objectId]));
     };
 
     const addAllObjects = async () => {
         if (mutating.val || missingObjectOptions.val.length === 0) return;
-
-        await runAdd(async () => {
-            mutating.val = true;
-            try {
-                const currentNames = [...storedObjectNames.val];
-                const toAdd = missingObjectOptions.val
-                    .map((entry) => entry.objectId)
-                    .filter((objectId) => !currentNames.includes(objectId));
-                if (toAdd.length === 0) return;
-
-                const nextNames = [...currentNames, ...toAdd];
-                await appendDestroyedObjects(currentNames, toAdd);
-                withPreservedScroll(() => applyDestroyedObjects(nextNames));
-            } finally {
-                mutating.val = false;
-            }
-        });
+        await runAdd(() => addObjects(missingObjectOptions.val.map((entry) => entry.objectId)));
     };
 
     const body = div(
@@ -378,7 +364,8 @@ function SpelunkingCavesTab() {
                           ...rows.map((row) =>
                               DestroyedObjectRow({
                                   row,
-                                  onRemove: removeObjectAtIndex,
+                                  onRemove: () => removeObject(row.objectId),
+                                  isBusy: isMutating,
                               })
                           )
                       );
