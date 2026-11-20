@@ -320,3 +320,23 @@ test("the tab's read after a refused save doesn't take the server's copy of the 
     assert.equal(reads.length, before, "the server's copy isn't read into the tab");
     assert.equal(tabSaving.get().value.val, 10, "the game's value stands");
 });
+
+test("before the first read of the game, a save or a bulk save sends nothing and says to refresh", async () => {
+    const unread = ui.createAutomationPicks("testUnread");
+    const unreadSaving = ui.createAutomationSetting("testUnreadSaving");
+    const since = updates.length;
+    await assert.rejects(unread.setAll(["a"], true), /not read from the game yet: press Refresh/);
+    await assert.rejects(unreadSaving.set(1, 5), /not read from the game yet/);
+    assert.equal(updates.length, since, "nothing overwrote what the game holds");
+    assert.equal(unread.get("a").on.val, false, "the click doesn't stay shown");
+
+    const bulk = ui.usePicksBulk({
+        targets: () => [[unread, []]], // a page whose read failed has no rows
+        done: (on, total) => on === total,
+        noun: (n) => `${n} items`,
+        waiting: ui.useStillWaiting(),
+    });
+    const [enable, disable] = bulk.actions(() => false);
+    assert.equal(enable.disabled(), true);
+    assert.equal(disable.disabled(), true);
+});
