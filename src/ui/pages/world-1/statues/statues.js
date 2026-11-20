@@ -110,7 +110,15 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                     { character: getCharacter() }
                 );
             } catch (error) {
-                const now = await read().catch(() => null);
+                // What the game holds now, only while the row's character is still the one in play: another one's
+                // values (a save refused because the character changed) stay out of these rows.
+                const now = await readCharacterInPlay(getCharacter())
+                    .then(async () => {
+                        const values = await read();
+                        await readCharacterInPlay(getCharacter());
+                        return values;
+                    })
+                    .catch(() => null);
                 if (now) Object.keys(stored).forEach((key) => (stored[key].val = now[key]));
                 throw error;
             }

@@ -170,6 +170,26 @@ test("statues: a refused save says why and shows what the game holds", async () 
     [g.StatueG[1], g.RoyalG[22][1]] = saved;
 });
 
+// Review of #154: a save refused because another character came into play put that character's values in the rows.
+test("statues: a save refused because the character changed keeps the rows' own values", async () => {
+    const saved = [g.StatueG[1], g.RoyalG[22][1], g.UserInfo[0]];
+    g.RoyalG[22][1] = 1;
+    g.StatueG[1] = 0;
+    const root = await openPage(STATUES, (root) => statueRow(root, 1));
+    const row = statueRow(root, 1);
+    g.UserInfo[0] = "Lumi_Alt"; // another character in play, with its own statues
+    g.StatueG[1] = 3;
+    try {
+        typeFlair(row, "4");
+        await until(() => ["success", "error"].includes(saveState(row)), "the save");
+        assert.equal(saveState(row), "error");
+        await tick();
+        assert.notEqual(tierOf(row), "Zenith", "the other character's tier stays out of the row");
+    } finally {
+        [g.StatueG[1], g.RoyalG[22][1], g.UserInfo[0]] = saved;
+    }
+});
+
 // Review of #122: the second Enter's save took the deposit it was committed with as an edit and wrote it back.
 test("statues: a save queued behind another keeps a deposit the game made meanwhile", async () => {
     const saved = [[...g.StatueLevels[2]], g.RoyalG[22][2]];
