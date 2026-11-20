@@ -73,8 +73,18 @@ export const undoAction = async (id) => {
     const targets = [];
     for (const entry of todo) targets.push(await targetPath(entry, active));
 
+    // An action can save one value twice (the Wardrobe saves a loadout, then its food stacks): the first old value
+    // goes back, and only the last new value is checked.
+    const first = new Map();
+    const last = new Map();
+    todo.forEach((entry, i) => {
+        if (!first.has(entry.path)) first.set(entry.path, i);
+        last.set(entry.path, i);
+    });
     const now = await readGgaMany(targets);
-    const changed = todo.filter((entry, i) => !now[i]?.ok || !matchesVerifiedValue(entry.after, now[i].value));
+    const changed = todo.filter(
+        (entry, i) => last.get(entry.path) === i && (!now[i]?.ok || !matchesVerifiedValue(entry.after, now[i].value))
+    );
     if (changed.length === 1 && todo.length === 1) throw new Error(`changed since: now ${shortValue(now[0].value)}`);
     if (changed.length) throw new Error(`${changed.length} of ${todo.length} changed since`);
 
@@ -83,9 +93,11 @@ export const undoAction = async (id) => {
     // moved on from what was just checked (`expect`).
     const writes = [];
     targets.forEach((path, i) => {
+        if (last.get(todo[i].path) !== i) return;
+        const { before } = todo[first.get(todo[i].path)];
         const write = writes.find((entry) => entry.path === path);
-        if (!write) writes.push({ path, value: todo[i].before, expect: now[i].value });
-        else if (todo[i].live) write.value = todo[i].before;
+        if (!write) writes.push({ path, value: before, expect: now[i].value });
+        else if (todo[i].live) write.value = before;
     });
     try {
         await writeManyVerified(writes, { log: false });
