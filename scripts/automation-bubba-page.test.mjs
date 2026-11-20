@@ -22,7 +22,7 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     commands.push([action, on]);
     res.json(switchAutomation(getAutomations().find(({ cheat }) => cheat === action).id, on));
 });
-let holdNextRead = null; // a promise the next Bubba read waits on, answering what it read before
+let holdNextRead = null; // a promise the next Bubba read waits on, answering what it read before (or failing)
 const readComputedRoute = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     const { name } = await req.json();
@@ -36,7 +36,7 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
         },
         json: (data) => (read = data),
     });
-    await hold;
+    if (await hold) return res.status(500).json({ error: "the game timed out" });
     res.json(read);
 });
 const update = router.routes.POST.get("/api/config/update");
@@ -52,8 +52,10 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     fileStartup = body.startupCheats ?? fileStartup;
     res.json({ ok: true });
 });
+let failConfigReads = 0;
 const readConfig = router.routes.GET.get("/api/config");
 router.routes.GET.set("/api/config", async (req, res) => {
+    if (failConfigReads > 0 && failConfigReads--) return res.status(500).json({ error: "the server restarted" });
     let read;
     await readConfig(req, {
         status() {
@@ -205,6 +207,18 @@ test("a save the game refuses puts the switch and the priority back and says why
     refuseUpdate = false;
 });
 
+test("a refused save whose read-back fails too still says the game's reason and reads the game again", async () => {
+    refuseUpdate = true;
+    failConfigReads = 1; // only the read-back fails; the page's read after it works
+    const box = checkbox("Royal Crown");
+    await box.listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Royal Crown")), "the row to show the failure");
+    assert.match(text(row("Royal Crown")), /busy/, "the game's refusal, not the read-back's error");
+    await until(() => box.checked === false, "the page's read again to put the switch back");
+    assert.equal(failConfigReads, 0);
+    refuseUpdate = false;
+});
+
 test("Enable all switches every upgrade on in one save; Disable all asks Click again and keeps priorities", async () => {
     const before = updates.length;
     await button("Enable all").listeners.click({ preventDefault() {} });
@@ -249,4 +263,20 @@ test("a read that started before a save and answers after the newer one doesn't 
     release();
     await settle(100);
     assert.equal(statusLine(), "Saving for Grand Stone (40 meat)");
+});
+
+test("an older read that fails after a newer one worked shows no read failure", async () => {
+    let fail;
+    holdNextRead = new Promise((resolve) => (fail = () => resolve(true)));
+    void button("Refresh").listeners.click({ preventDefault() {} }); // fails, held
+    await settle();
+    await priority("Grand Stone").listeners.change({ target: { value: "" } });
+    await until(
+        () => statusLine() === "Buying cheapest first",
+        () => `the newer read: ${statusLine()}`
+    );
+    fail();
+    await settle(100);
+    assert.doesNotMatch(text(page), /timed out/, "no read failure over the newer read");
+    assert.equal(statusLine(), "Buying cheapest first");
 });

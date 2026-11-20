@@ -52,13 +52,19 @@ const BubbaAutomationTab = () => {
     const listNode = div({ class: "account-item-stack" });
     const reconcile = createStaticRowReconciler(listNode);
 
-    let reads = 0; // a read that a newer one overtook doesn't put its older status back
+    let reads = 0; // a read that a newer one overtook doesn't put its older status, or its failure, back
     const load = () =>
         run(async () => {
             const since = picks.edits(); // a save that ends while this reads makes the read old
             const mine = ++reads;
-            const [read, config] = await Promise.all([readComputed("automation", "bubba"), fetchConfig()]);
-            await readSwitch();
+            let read, config;
+            try {
+                [read, config] = await Promise.all([readComputed("automation", "bubba"), fetchConfig()]);
+                await readSwitch();
+            } catch (error) {
+                if (mine === reads) throw error;
+                return;
+            }
             if (mine !== reads) return;
             picks.sync(config.cheatConfig.automation.bubba, since);
             if (!switchNode.firstChild && automation.val)

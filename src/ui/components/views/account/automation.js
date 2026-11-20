@@ -193,7 +193,11 @@ export const createAutomationPicks = (group, { onTurnedOn = null, onSaved = null
         // A save still queued carries these edits and reports its own outcome; otherwise the game is the truth.
         if (failure && !pending) {
             const since = edits;
-            sync((await fetchConfig()).cheatConfig.automation[group], since);
+            try {
+                sync((await fetchConfig()).cheatConfig.automation[group], since);
+            } catch {
+                // The read-back failed too: the refusal stays the reason shown, and onSaved still reads again.
+            }
         }
         try {
             if (patches.some(([id, patch]) => patch.on && get(id).on.val)) await onTurnedOn?.();
