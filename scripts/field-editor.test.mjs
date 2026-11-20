@@ -43,7 +43,8 @@ const refuseWrites = (list, index) => {
     return () => Object.defineProperty(list, index, { value: kept, writable: true, configurable: true });
 };
 
-// Settles once the page has read the game again after a write, and drawn what it read.
+// Settles once the page has read the game again after a write (its own read, not the change log's), and drawn what
+// it read.
 const readAfterWrite = () => {
     const realFetch = globalThis.fetch;
     let wrote = false;
@@ -51,7 +52,7 @@ const readAfterWrite = () => {
     globalThis.fetch = async (url, options) => {
         const response = await realFetch(url, options);
         if (String(url).includes("/write")) wrote = true;
-        else if (wrote) {
+        else if (wrote && String(url).endsWith("/gga/read")) {
             globalThis.fetch = realFetch;
             setTimeout(() => (done = true), 0);
         }
@@ -124,6 +125,53 @@ test("after a save the game took only part of, Escape and the next save start fr
     assert.deepEqual([kitchen[6], kitchen[7], kitchen[8]], [90, 27, 60], "Speed isn't put back to 80");
 });
 
+// A reload rebuilds the rows on some pages (Upgrade Vault), which took the reason and the typed value away.
+test("a save the game refused outright keeps its reason and the typed value, and reads nothing again", async () => {
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const root = await openPage("src/ui/pages/account/upgrade-vault/upgrade-vault.js", "Ember Bramble");
+    const row = findRow(root, "Ember Bramble");
+    const [input] = inputs(row);
+    const restore = refuseWrites(game.gga.UpgVault, 1);
+    const before = reloadPlace.rawVal;
+    try {
+        focus(input);
+        type(input, 77);
+        press(row, input, "Enter");
+        await settled(row);
+    } finally {
+        restore();
+    }
+    assert.equal(stateOf(row), "error");
+    assert.equal(reloadPlace.rawVal, before, "nothing was saved, so the page isn't read again");
+    await tick();
+    assert.equal(findRow(root, "Ember Bramble"), row, "the row is still the one the player typed in");
+    assert.equal(stateOf(row), "error");
+    assert.equal(input.value, "77");
+});
+
+// The reload of a save that never reached the game failed too, and opened the page's READ FAILED panel.
+test("a save that never reached the game doesn't read the page again", async () => {
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js", "Kitchen 2");
+    const row = findRow(root, "Kitchen 2");
+    const [speed] = inputs(row);
+    const before = reloadPlace.rawVal;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+        throw new TypeError("Failed to fetch");
+    };
+    try {
+        focus(speed);
+        type(speed, 91);
+        press(row, speed, "Enter");
+        await settled(row);
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(stateOf(row), "error");
+    assert.equal(reloadPlace.rawVal, before);
+});
+
 // Sweep shared-blocks-2: a field with focus kept its old value through a reload, and + stepped from it.
 test("a reload shows the new value in a field that has focus but no edit, and + steps from it", async () => {
     const ola = game.gga.OptionsListAccount;
@@ -140,6 +188,29 @@ test("a reload shows the new value in a field that has focus but no edit, and + 
     press(row, input, "Enter");
     await settled(row);
     assert.equal(ola[254], 61, "+ stepped from the value the game holds, not the one from before the reload");
+});
+
+// A focused sigil choice kept its old tier through Set all, so the next arrow key saved a tier stepped from that.
+test("a focused choice shows the tier Set all gave it", async () => {
+    const tiers = game.gga.CauldronP2W[4];
+    tiers[1] = 0;
+    const root = (await importRepo("src/ui/pages/world-2/sigils/sigils.js")).default.component();
+    const card = () => byClass(root, "tier-card").find((node) => text(byClass(node, "tier-card__index")[0]) === "#0");
+    await until(() => card() && text(byClass(card(), "tier-card__badge")[0]) === "UNLOCKED", "the sigils to load");
+    const choice = elements(card()).find((node) => node.nodeName === "select");
+    const chosen = () => {
+        const picked = elements(choice).find((node) => {
+            const selected = node.attributes.selected;
+            return node.nodeName === "option" && (typeof selected === "function" ? selected() : selected);
+        });
+        return picked ? text(picked) : null;
+    };
+    focus(choice);
+    byClass(root, "account-setall-row__select")[0].listeners.change({ target: { value: "4" } });
+    const setAll = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Set all");
+    await setAll.listeners.click({ target: setAll, preventDefault() {} });
+    await until(() => tiers[1] === 4, "Set all to save");
+    await until(() => chosen() === "ECLECTIC", "the focused choice to show ECLECTIC");
 });
 
 // A field that shows a rounded value ("1.23M") keeps the exact value behind it when you leave it unedited, also when
