@@ -55,15 +55,18 @@ const SaltLickTab = () => {
 
     const doSetAll = async (targetLevel) => {
         if (!upgradesMeta.length) return;
-        await runBulk(async () => {
+        const result = await runBulk(async () => {
             await runBulkSet({
                 entries: upgradesMeta,
                 getTargetValue: (upgrade) =>
                     toLevelInt(targetLevel === null ? upgrade.maxLevel : targetLevel, upgrade.maxLevel),
                 getValueState: (_, index) => getLevelState(index),
                 getPath: (_, index) => `SaltLick[${index}]`,
+                // Every upgrade: a level bought in the game since the page read it isn't in the fields.
+                shouldWrite: () => true,
             });
         });
+        if (!result.ok) await load();
     };
 
     const load = async () =>

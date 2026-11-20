@@ -194,3 +194,23 @@ test("Printer's Clear asks Click again when the press also saves another slot's 
     assert.notEqual(gga.Printer[printerSlot(4)], "Blank", "one press clears nothing");
     assert.ok(requests.length > writes);
 });
+
+for (const { page, levels, label } of [
+    { page: "salt-lick/salt-lick.js", levels: "SaltLick", label: "Salt Lick" },
+    { page: "atom-collider/atom-collider.js", levels: "Atoms", label: "Atom Collider" },
+]) {
+    test(`${label} Reset all resets a level bought in the game after the page read it`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels][0] = 0;
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        gga[levels][0] = 3; // bought in the game
+
+        const reset = button(root, "Reset all");
+        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        assert.equal(reset.attributes["data-again"], "Click again");
+        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        await until(() => gga[levels][0] === 0, "the reset to reach the bought level");
+        assert.ok(gga[levels].slice(0, before.length).every((level) => Number(level) === 0));
+    });
+}

@@ -50,14 +50,17 @@ const AtomColliderTab = () => {
 
     const doSetAll = async (targetLevel) => {
         if (!atomsMeta.length) return;
-        await runBulk(async () => {
+        const result = await runBulk(async () => {
             await runBulkSet({
                 entries: atomsMeta,
                 getTargetValue: (atom) => (targetLevel === null ? atom.maxLevel : targetLevel),
                 getValueState: (_, index) => getLevelState(index),
                 getPath: (_, index) => `Atoms[${index}]`,
+                // Every atom: a level bought in the game since the page read it isn't in the fields.
+                shouldWrite: () => true,
             });
         });
+        if (!result.ok) await load();
     };
 
     const load = async () =>
