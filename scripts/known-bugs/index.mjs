@@ -306,8 +306,12 @@ export async function loadUi(router) {
             this.handlers[type] = this.handlers[type]?.filter((handler) => handler !== listener);
         }
     }
+    // A page always has a body: the UI's one live region (inPlace's announce) goes there.
+    const body = new Element("body");
+    body.appendChild = (child) => body.append(child);
     globalThis.document = {
         nodeType: 9,
+        body,
         createElement: (name) => new Element(name),
         createElementNS: (_, name) => new Element(name),
     };

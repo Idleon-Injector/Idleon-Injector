@@ -88,9 +88,10 @@ export const Said = ({ said, className = "", kinds = null }) => {
     );
 };
 
-// The one live region for click-again questions, so a keyboard player hears what the second click will do.
+// The one live region for what a button says without words on screen: a click-again question (so a keyboard player
+// hears what the second click will do) and a press's result (the button only changes colour).
 let askRegion = null;
-const announce = (text) => {
+export const announce = (text) => {
     if (!askRegion) {
         askRegion = span({ class: "sr-only", role: "status" });
         document.body.appendChild(askRegion);
