@@ -6,6 +6,7 @@ import { FunctionInput } from "../FunctionInput.js";
 import { withTooltip } from "../Tooltip.js";
 import { isFunction } from "../../utils/functionParser.js";
 import { configDescriptions } from "../../config/configDescriptions.js";
+import { StateSwitch } from "../views/account/components/StateSwitch.js";
 
 const { div, label, input, details, summary, span, button } = van.tags;
 
@@ -225,16 +226,12 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
             case "function":
                 return FunctionInput({ data, dataKey: key, initialValue });
             case "boolean":
-                return label(
-                    { class: "toggle-switch" },
-                    input({
-                        type: "checkbox",
-                        checked: () => data[key],
-                        onchange: (e) => (data[key] = e.target.checked),
-                    }),
-                    span({ class: "slider" }),
-                    span({ class: "label" }, () => (data[key] ? "ENABLED" : "DISABLED"))
-                );
+                return StateSwitch({
+                    checked: () => data[key],
+                    words: ["Enabled", "Disabled"],
+                    name: key,
+                    onFlip: (next) => (data[key] = next),
+                });
             case "number":
                 return NumberInput({
                     value: localTextState,
@@ -268,15 +265,25 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
         }
     };
 
+    // A setting is a row (#26): its name, description and default on the left, its control on the right. A function
+    // takes the row's full width under its name.
     return div(
         {
-            class: () => `config-item ${isModified.val ? "modified-config" : ""}`,
+            class: () =>
+                `config-item ${type === "function" ? "config-item--wide" : ""} ${isModified.val ? "modified-config" : ""}`,
             "data-config-key": fullPath,
         },
         div(
             { class: "config-item-header" },
             label(key),
             description ? span({ class: "config-description" }, description) : null,
+            div(
+                { class: () => `default-value-hint ${isModified.val ? "" : "hidden"}` },
+                () => `Default: ${getDefaultDisplayString()}`
+            )
+        ),
+        div(
+            { class: "config-item-control" },
             withTooltip(
                 button(
                     {
@@ -294,14 +301,8 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
                     "Reset"
                 ),
                 "Reset to default"
-            )
-        ),
-
-        renderInputByType(),
-
-        div(
-            { class: () => `default-value-hint ${isModified.val ? "" : "hidden"}` },
-            () => `Default: ${getDefaultDisplayString()}`
+            ),
+            renderInputByType()
         )
     );
 };
