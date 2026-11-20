@@ -395,3 +395,18 @@ Trade-off: the TotalStats hook runs around the game's method and refills its sta
 method that must stay innermost.
 
 Source: [Attire Rack bonus](../src/cheats/helpers/attire/rack.js).
+
+## Apply Wardrobe loadouts as page saves
+
+Decision: the game side only plans a loadout (`readComputed("wardrobe", "preview")` returns its path writes); the
+Wardrobe page saves them through `writeManyVerified`, then runs `wide wardrobestats` and saves the food stacks it
+gets back. Perfect Equipped from the page goes the same way; `wide perfectequipped` still does it at once.
+
+Why: a page save is in the change log, so a loadout can be undone from History or Undo all, and a write the game
+refuses is said where the player applied it.
+
+Trade-off: #2 rolled the whole loadout back when one value didn't land; a page save keeps what landed and Undo puts it
+back. #2 also put the vanilla prayers back when `w3 prayer` turned off, by redefining that cheat's state; the 3.0
+rules forbid that, so applying the loadout again with the cheat off (or Undo) does it.
+
+Source: [Wardrobe planner](../src/cheats/helpers/wardrobe/planner.js).

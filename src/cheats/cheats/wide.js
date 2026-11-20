@@ -6,7 +6,7 @@
  * - giant, gems, plunderous, candy, candytime, nodmg
  * - hidenames, noanim, bigmodel, eventitems, autoloot, perfectobols, autoparty
  * - arcade, eventspins, hoopshop, dartshop, guildpoints, cardcopy, cardpassive, autoboss
- * - votebonus, attire, attirestats
+ * - votebonus, attire, attirestats, perfectequipped, wardrobestats
  */
 
 import { defineCheat } from "../core/registration.js";
@@ -15,6 +15,8 @@ import { firebase, gga } from "../core/globals.js";
 import { deepCopy } from "../utils/deepCopy.js";
 import { rollAllObols } from "../helpers/obolRolling.js";
 import { recalculateStats } from "../helpers/attire/outfits.js";
+import { perfectEquipped } from "../helpers/wardrobe/perfect.js";
+import { recalculateWardrobe } from "../helpers/wardrobe/index.js";
 
 // Wide (account-wide) cheats
 defineCheat({
@@ -69,6 +71,11 @@ defineCheat({
             },
         },
         {
+            name: "perfectequipped",
+            message: "Permanently rebuild current gear for your class; increase food stacks.",
+            fn: perfectEquipped,
+        },
+        {
             name: "cardcopy",
             message: "Copies current CardPreset to all players",
             fn: function () {
@@ -99,6 +106,15 @@ defineCheat({
                 return "Worked out the stats of the character in play again";
             },
         },
+        {
+            name: "wardrobestats",
+            message:
+                "work out the stats, chips and talents of the character in play again after its gear changed (the Wardrobe page runs this)",
+            fn: () => {
+                recalculateWardrobe();
+                return "Worked out the stats of the character in play again";
+            },
+        },
     ],
     config: {
         attire: {
@@ -106,6 +122,18 @@ defineCheat({
                 default: "all",
                 description:
                     "Outfits whose bonuses wide attire gives: all (outfits added by game updates too), outfit ids separated by commas (EquipmentGown1,EquipmentGown3), or empty for none",
+            },
+        },
+        wardrobe: {
+            loadouts: {
+                default: [],
+                description:
+                    "Loadouts saved on the Wardrobe page (Account > Player > Wardrobe). The page adds and deletes them",
+            },
+            goldenfood: {
+                default: {},
+                description:
+                    "The largest golden food stack each character had, kept by the Wardrobe page so a loadout's golden food keeps that size",
             },
         },
         autoloot: {

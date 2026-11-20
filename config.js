@@ -34,6 +34,10 @@ exports.cheatConfig = {
         attire: {
             outfits: "all", // Outfits whose bonuses wide attire gives: all (outfits added by game updates too), outfit ids separated by commas (EquipmentGown1,EquipmentGown3), or empty for none
         },
+        wardrobe: {
+            loadouts: [], // Loadouts saved on the Wardrobe page (Account > Player > Wardrobe). The page adds and deletes them
+            goldenfood: {}, // The largest golden food stack each character had, kept by the Wardrobe page so a loadout's golden food keeps that size
+        },
         autoloot: {
             itemstochest: true, // Automatically sends looted items to the chest
             moneytochest: true, // Automatically sends looted money to the chest

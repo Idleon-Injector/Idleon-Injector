@@ -14,7 +14,25 @@ import { events } from "../core/globals.js";
 import { getPlayerExpRequired } from "../helpers/player.js";
 import { getPetTokens } from "../helpers/petTokens.js";
 import { attireStatus } from "../helpers/attire/outfits.js";
+import {
+    captureWardrobe,
+    wardrobeFood,
+    wardrobePerfect,
+    wardrobePerfectFood,
+    wardrobePreview,
+    wardrobeStatus,
+} from "../helpers/wardrobe/index.js";
 export { readPath, readPaths, readEntries, deletePath, writePath, writePaths } from "../utils/pathResolver.js";
+
+// The Wardrobe page's reads (#101): readComputed("wardrobe", name, [args]).
+const WARDROBE = {
+    status: wardrobeStatus,
+    preview: wardrobePreview,
+    capture: () => captureWardrobe(),
+    food: wardrobeFood,
+    perfect: wardrobePerfect,
+    perfectFood: wardrobePerfectFood,
+};
 
 const COMPUTED_SOURCES = {
     menagerie: { eventId: 189, method: "_customBlock_MenagerieStuff" },
@@ -64,6 +82,14 @@ export function readComputed(namespace, name, args = []) {
     if (namespace === "attire" && name === "status") {
         try {
             return { value: attireStatus() };
+        } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    if (namespace === "wardrobe" && Object.prototype.hasOwnProperty.call(WARDROBE, name)) {
+        try {
+            return { value: WARDROBE[name](...args) };
         } catch (error) {
             return { error: error.message };
         }

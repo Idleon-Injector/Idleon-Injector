@@ -31,6 +31,10 @@ export const configDescriptions = {
     "cheatConfig.unlock.islands": "String of IDs for islands to unlock (e.g., 'abcde_')",
     "cheatConfig.wide.attire.outfits":
         "Outfits whose bonuses wide attire gives: all (outfits added by game updates too), outfit ids separated by commas (EquipmentGown1,EquipmentGown3), or empty for none",
+    "cheatConfig.wide.wardrobe.loadouts":
+        "Loadouts saved on the Wardrobe page (Account > Player > Wardrobe). The page adds and deletes them",
+    "cheatConfig.wide.wardrobe.goldenfood":
+        "The largest golden food stack each character had, kept by the Wardrobe page so a loadout's golden food keeps that size",
     "cheatConfig.wide.autoloot.itemstochest": "Automatically sends looted items to the chest",
     "cheatConfig.wide.autoloot.moneytochest": "Automatically sends looted money to the chest",
     "cheatConfig.wide.autoloot.zenithfarm": "Zenith farming drops are excluded from autoloot and drop normally",
