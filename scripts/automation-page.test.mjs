@@ -8,6 +8,10 @@ import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
+// An automation a test leaves on (a filtered run, a failed assertion) keeps its timer; like loadGame, don't let it
+// keep the process alive. A root after() hook can't do it: with top-level awaits between tests it runs too early.
+const setIntervalReal = globalThis.setInterval;
+globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
 const { router } = await createFakeApi();
 // The fake game's cheats don't run; this one runs the real automation switch, as the game's cheat does.
 const { getAutomations, switchAutomation } = await importRepo("src/cheats/core/automations.js");
@@ -15,6 +19,14 @@ const commands = [];
 const saves = [];
 const updates = [];
 let refuseUpdate = false;
+let refuseNextUpdates = 0; // how many of the next session updates the game refuses
+let slowUpdate = 0; // ms each session update takes
+let slowSave = 0; // ms each config file save takes
+let failSave = false; // the config file save fails
+let holdNextConfigRead = null; // a promise the next config read waits on, answering what it read before
+// The startup cheats in the config file: a save writes them, a read gives them back.
+let fileStartup = [];
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
     commands.push([action, on]);
@@ -25,12 +37,35 @@ const update = router.routes.POST.get("/api/config/update");
 router.routes.POST.set("/api/config/update", async (req, res) => {
     const body = await req.json();
     updates.push(body);
-    if (refuseUpdate) return res.json({ message: "Config update failed", details: "the game is busy" });
+    await wait(slowUpdate);
+    if (refuseUpdate || refuseNextUpdates > 0) {
+        refuseNextUpdates = Math.max(0, refuseNextUpdates - 1);
+        return res.json({ message: "Config update failed", details: "the game is busy" });
+    }
     return update(req, res);
 });
 router.routes.POST.set("/api/config/save", async (req, res) => {
-    saves.push(await req.json());
+    const body = await req.json();
+    await wait(slowSave);
+    if (failSave) return res.status(500).json({ error: "the disk is full" });
+    saves.push(body);
+    fileStartup = body.startupCheats;
     res.json({ ok: true });
+});
+const readConfig = router.routes.GET.get("/api/config");
+router.routes.GET.set("/api/config", async (req, res) => {
+    const hold = holdNextConfigRead;
+    holdNextConfigRead = null;
+    let read;
+    await readConfig(req, {
+        status() {
+            return this;
+        },
+        json: (data) => (read = data),
+    });
+    read = structuredClone({ ...read, startupCheats: [...fileStartup] });
+    if (hold) await hold;
+    res.json(read);
 });
 await loadUi(router);
 globalThis.requestAnimationFrame = () => {};
@@ -182,6 +217,8 @@ test("an item's switch and stop-at save the shop list to the game and the config
 
     await typeStopAt("Lucky Whisker", "250");
     assert.deepEqual(saved(), [{ id: "0:item0", on: true, stopAt: 250 }]);
+    await until(() => saves.at(-1).cheatConfig.automation.shops[0]?.stopAt === 250, "the file save");
+    assert.deepEqual(saves.at(-1).cheatConfig.automation.shops, [{ id: "0:item0", on: true, stopAt: 250 }]);
 
     // A switched-off item keeps its stop-at; an empty stop-at is no limit.
     await checkbox(pickRow("Lucky Whisker")).listeners.change({ target: { checked: false } });
@@ -255,4 +292,142 @@ test("Shops: Disable all asks Click again, then switches every item off and keep
     assert.equal(checkbox(pickRow("Lucky Whisker")).checked, false);
     assert.equal(shopsOn(), true, "only the overview stops Shops itself");
     await switchAutomation("account.automation.shops", false);
+});
+
+// CodeRabbit's review of #105.
+const ui = await importRepo("src/ui/components/views/account/automation.js");
+const { fetchConfig } = await importRepo("src/ui/services/api.js");
+const gameShops = async () => (await fetchConfig()).cheatConfig.automation.shops;
+const statusOf = (root) => text(byClass(row(root, "Shops"), "automation-row__status")[0]);
+const freshPicks = async () => {
+    const picks = ui.createAutomationPicks("shops");
+    picks.sync(await gameShops());
+    return picks;
+};
+
+test("review: a startup change and an item save that overlap both reach the config file", async () => {
+    await ui.switchAutomation("automation shops", false);
+    const picks = await freshPicks();
+    slowSave = 20;
+    await Promise.all([ui.switchAutomation("automation shops", true), picks.set("0:item1", { stopAt: 7 })]);
+    slowSave = 0;
+    assert.deepEqual(fileStartup, ["automation shops"], "the item save didn't write back the old startup list");
+    await picks.set("0:item1", { stopAt: null });
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("review: a failed save doesn't undo an edit made after it", async () => {
+    const picks = await freshPicks();
+    slowUpdate = 20;
+    refuseNextUpdates = 1;
+    const first = picks.set("0:item1", { stopAt: 10 }).catch((error) => error);
+    const second = picks.set("0:item1", { stopAt: 20 });
+    assert.match((await first).message, /busy/);
+    await second;
+    slowUpdate = 0;
+    assert.equal(picks.get("0:item1").stopAt.val, 20);
+    assert.ok(saved().some(({ id, stopAt }) => id === "0:item1" && stopAt === 20));
+    await picks.set("0:item1", { stopAt: null });
+});
+
+test("review: a file save that fails after the game took the change shows what the game has, and why", async () => {
+    failSave = true;
+    const box = checkbox(pickRow("Tiny Spark"));
+    await box.listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Tiny Spark")), "the row to show the failure");
+    assert.match(text(pickRow("Tiny Spark")), /disk is full/);
+    assert.ok(
+        (await gameShops()).some(({ id, on }) => id === "0:item2" && on),
+        "the game buys it"
+    );
+    assert.equal(box.checked, true, "so the switch stays on");
+
+    // The overview's switch: the game runs Shops, the file didn't save; the row says both.
+    await checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
+    await until(() => /disk is full/.test(text(row(overview, "Shops"))), "the overview row to say why");
+    assert.equal(shopsOn(), true);
+    await until(() => statusOf(overview) !== "Off", "the overview row to show Shops running");
+    failSave = false;
+    await checkbox(pickRow("Tiny Spark")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id }) => id === "0:item2"), "the item to switch off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("review: a stop-at typed while the last one saves is saved after it", async () => {
+    slowUpdate = 30;
+    const input = field("Lucky Whisker");
+    input.listeners.input({ target: { value: "10" } });
+    metric("Lucky Whisker").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await settle(5);
+    input.listeners.input({ target: { value: "20" } });
+    metric("Lucky Whisker").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => saved().some(({ id, stopAt }) => id === "0:item0" && stopAt === 20), "20 to save");
+    slowUpdate = 0;
+    await settle(80);
+    assert.equal(saved().find(({ id }) => id === "0:item0").stopAt, 20);
+    await typeStopAt("Lucky Whisker", "");
+});
+
+test("review: an overview bulk switch that fails part-way shows what the game now runs", async () => {
+    // Another test switched Shops off behind the overview's back; Refresh reads it again.
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => button(overview, "Enable all"), "Enable all");
+    failSave = true;
+    await button(overview, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => /disk is full/.test(text(overview)), "the bulk failure to be said");
+    failSave = false;
+    assert.equal(shopsOn(), true);
+    await until(() => statusOf(overview) !== "Off", "the row to show Shops running");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("review: an item switched on while Shops already runs still puts Shops in the startup cheats", async () => {
+    switchAutomation("account.automation.shops", true); // on in the game only, say from the Cheats page
+    fileStartup = [];
+    const since = commands.length;
+    await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: true } });
+    await until(() => fileStartup.includes("automation shops"), "Shops to be in the startup cheats");
+    assert.deepEqual(commands.slice(since), [], "the cheat doesn't run again");
+    await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id }) => id === "1:item3"), "the item to switch off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("review: a refresh that read the config before an item saved doesn't put the old picks back", async () => {
+    let release;
+    holdNextConfigRead = new Promise((resolve) => (release = resolve));
+    await until(() => button(shops, "Refresh"), "Refresh");
+    void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await settle(5);
+    await checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: true } });
+    await until(() => saved().some(({ id, on }) => id === "0:item1" && on), "the item to save");
+    await until(() => /save-state--success/.test(saveState("Grand Drift")), "the item save to end");
+    release();
+    await settle(50);
+    // The next save carries the whole list: Grand Drift must still be in it.
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+    await until(() => saved().some(({ id }) => id === "1:item4"), "the second item to save");
+    assert.ok(
+        saved().some(({ id, on }) => id === "0:item1" && on),
+        "Grand Drift kept"
+    );
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await until(() => !saved().some(({ on }) => on), "everything off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("review: with every item on and Shops off, Enable all still switches Shops on", async () => {
+    await until(() => button(shops, "Enable all"), "Enable all");
+    await button(shops, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => shopsOn() && saved().every(({ on }) => on), "every item and Shops on");
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => button(shops, "Enable all"), "Enable all to be available with Shops off");
+    await button(shops, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => shopsOn(), "Shops to go on");
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await until(() => !saved().some(({ on }) => on), "everything off");
+    await ui.switchAutomation("automation shops", false);
 });

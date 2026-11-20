@@ -47,8 +47,12 @@ const OverviewPage = () => {
             async () => {
                 bulkSaid.clear();
                 const targets = list.val.filter((automation) => automation.on !== on);
-                for (const { cheat } of targets) await switchAutomation(cheat, on);
-                await load();
+                // A switch can fail part-way; the list is read back either way, so each row shows what runs.
+                try {
+                    for (const { cheat } of targets) await switchAutomation(cheat, on);
+                } finally {
+                    await load();
+                }
             },
             { onError: (caught) => bulkSaid.say("failed", caught.message) }
         );

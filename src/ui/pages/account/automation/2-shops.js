@@ -24,6 +24,7 @@ import {
     PickRow,
     createAutomationPicks,
     readAutomations,
+    setAtStart,
     switchAutomation,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -44,7 +45,8 @@ const ShopsPage = () => {
     const picks = createAutomationPicks("shops", {
         onTurnedOn: async () => {
             await readSwitch(); // the overview may have switched it since this tab read it
-            if (automation.val?.on) return;
+            // Already running (from the Cheats page, say): only make sure it starts again next time.
+            if (automation.val?.on) return setAtStart(CHEAT, true);
             await switchAutomation(CHEAT, true);
             await readSwitch();
         },
@@ -62,9 +64,10 @@ const ShopsPage = () => {
 
     const load = () =>
         run(async () => {
+            const since = picks.edits(); // a save that ends while this reads makes the read old
             const [shops, config] = await Promise.all([readComputed("automation", "shops"), fetchConfig()]);
             await readSwitch();
-            picks.sync(config.cheatConfig.automation.shops);
+            picks.sync(config.cheatConfig.automation.shops, since);
             if (!switchNode.firstChild && automation.val)
                 switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
 
@@ -122,7 +125,8 @@ const ShopsPage = () => {
                 {
                     label: "Enable all",
                     status: bulk.status,
-                    disabled: () => busy() || switchedOn() === ids.val.length,
+                    // With every item on it still has work while Shops itself is off: switching Shops on.
+                    disabled: () => busy() || (switchedOn() === ids.val.length && Boolean(automation.val?.on)),
                     onClick: () => setAll(true),
                 },
                 {
