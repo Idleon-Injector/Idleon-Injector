@@ -122,6 +122,35 @@ test("saving a kitchen's Fire keeps a Speed level bought in game since the page 
     await until(() => shown(speedField) === String(speed), "the game's Speed");
 });
 
+// Review of #117: the queued save saw the Speed it was committed with as an edit once the first save read Speed back.
+test("a kitchen save queued behind another keeps the Speed the game moved on meanwhile", async () => {
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
+    const row = rowByIndex(root, "#3");
+    const [, fire, luck] = byTag(row, "input");
+    const realFetch = globalThis.fetch;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && ++writes === 1) await held;
+        return realFetch(url, options);
+    };
+    try {
+        typeAndEnter(row, fire, 5);
+        await until(() => writes === 1, "the Fire save to reach the game");
+        gga.Cooking[2][6] += 5;
+        const speed = gga.Cooking[2][6];
+        typeAndEnter(row, luck, 6);
+        release();
+        await until(() => gga.Cooking[2][8] === 6 && stateOf(row) === "success", "the Luck save");
+        assert.deepEqual([gga.Cooking[2][7], gga.Cooking[2][8]], [5, 6]);
+        assert.equal(gga.Cooking[2][6], speed, "the Speed bought in game isn't put back");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+});
+
 test("a kitchen save that landed shows ✓ even when reading back the other fields fails", async () => {
     const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
     const row = rowByIndex(root, "#2");
