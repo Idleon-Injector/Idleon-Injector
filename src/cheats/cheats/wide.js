@@ -6,7 +6,7 @@
  * - giant, gems, plunderous, candy, candytime, nodmg
  * - hidenames, noanim, bigmodel, eventitems, autoloot, perfectobols, autoparty
  * - arcade, eventspins, hoopshop, dartshop, guildpoints, cardcopy, cardpassive, autoboss
- * - votebonus
+ * - votebonus, attire
  */
 
 import { defineCheat } from "../core/registration.js";
@@ -88,8 +88,16 @@ defineCheat({
         },
         { name: "cardpassive", message: "all cards always give bonus (passive)" },
         { name: "votebonus", message: "all Ballot and Meritocracy bonuses active" },
+        { name: "attire", message: "the bonuses of the outfits chosen on the Attire Rack page" },
     ],
     config: {
+        attire: {
+            outfits: {
+                default: "all",
+                description:
+                    "Outfits whose bonuses wide attire gives: all (outfits added by game updates too), outfit ids separated by commas (EquipmentGown1,EquipmentGown3), or empty for none",
+            },
+        },
         autoloot: {
             itemstochest: { default: true, description: "Automatically sends looted items to the chest" },
             moneytochest: { default: true, description: "Automatically sends looted money to the chest" },

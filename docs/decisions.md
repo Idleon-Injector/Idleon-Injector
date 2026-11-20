@@ -382,3 +382,16 @@ not in play reach the cloud only once each is played.
 
 Source: [save copies](../src/modules/saveCopies.js), [routes](../src/modules/server/routes/saveCopies.js),
 [game side](../src/cheats/core/saveCopy.js).
+
+## Work out Attire Rack bonuses with the game's own stat code
+
+Decision: `wide attire` adds the chosen outfits' stats by running the game's stat method again with the attire slot
+holding a made-up outfit (the worn one's stats plus the chosen ones'), and adds their bonuses to the game's bonus map.
+
+Why: the game's calculation keeps its class rules, equipment modifiers and rounding, so the injector keeps no second
+stat formula.
+
+Trade-off: the TotalStats hook runs around the game's method and refills its stat cache, so it is the one hook on that
+method that must stay innermost.
+
+Source: [Attire Rack bonus](../src/cheats/helpers/attire/rack.js).

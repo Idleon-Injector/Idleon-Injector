@@ -34,6 +34,8 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Change log          | Every value saved from a page this game session, with its old value and character; History lists it. |
 | Action              | One user action's saves (a field, a button press, a bulk action); Undo puts an action back whole.    |
 | Never rolled back   | Save values a restore leaves alone because putting an old one back grants things twice.              |
+| Attire Rack         | The outfits whose bonuses `wide attire` gives as if worn, chosen on the Attire Rack page.            |
+| Appearance          | The attire (outfit) a character wears, in its equipment's attire slot.                               |
 
 Source entry points: [game globals](../src/cheats/core/globals.js),
 [command registration](../src/cheats/core/registration.js),
