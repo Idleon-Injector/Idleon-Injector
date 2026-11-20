@@ -379,6 +379,7 @@ test("salt-lick.js: a Max all the game refused in part shows the levels the game
         await click(max());
         await until(() => levels[0] === caps[0], "the first level to land");
         await until(() => badge(0).includes(`LV ${caps[0]} `), "the row to show what the game holds");
+        assert.ok(badge(1).includes(`LV ${kept} `), "the refused level still shows what the game kept");
     } finally {
         Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
         levels[0] = 0;
@@ -469,6 +470,7 @@ test("islands: a Set all the game refused in part shows the values the game hold
         await click(setAll()[0]);
         await until(() => options[163] === 200, "the first value to land");
         await until(() => badge("% Garbage") === "200", "the row to show what the game holds");
+        assert.equal(badge("% Bottles"), "5", "the refused row still shows what the game kept");
     } finally {
         Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
         options[163] = 0;
@@ -626,6 +628,10 @@ test("islands: a reload waiting for a Set all still runs after another page's un
     const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
     await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
     const unlocks = options[169];
+    // Every island locked first, so the undo's read shows in the rows.
+    options[169] = "";
+    await buttonsNamed(root, "Refresh")[0].listeners.click({});
+    await until(() => !/UNLOCKED/.test(text(root)) && bulk().every((node) => !node.attributes.disabled), "locked");
     try {
         await click(named("Unlock all")[0]);
         await until(() => options[169] === "abcde_", "the unlocks to land");
@@ -637,10 +643,12 @@ test("islands: a reload waiting for a Set all still runs after another page's un
         await until(() => slow.reached, "Rando's Set all to be sent");
         await undoAction(action.id);
         reloadPlace.val = { view: "elsewhere", page: "another page" };
+        assert.match(text(root), /UNLOCKED/, "the rows show the unlocks until the reload");
         slow.release();
         await rando;
         await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions once the reload ran");
-        assert.equal(options[169], unlocks, "the undo landed");
+        assert.equal(options[169], "", "the undo landed");
+        assert.doesNotMatch(text(root), /UNLOCKED/, "the reload shows what the undo put back");
     } finally {
         held = null;
         options[169] = unlocks;
@@ -680,7 +688,10 @@ test("salt-lick.js: the reload after an undo and the read after a refused Max al
         await fetchConfig();
         await fetchConfig();
         assert.equal(reads.count(), 1, "the second read waits for the first");
+        const second = holdAnswers((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
         reads.release();
+        await until(() => second.count() === 1, "the second read, once the first answered");
+        second.release();
         await pressed;
         await until(() => max(), "the reads to end");
     } finally {
