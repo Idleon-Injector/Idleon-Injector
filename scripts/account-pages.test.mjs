@@ -266,3 +266,45 @@ test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why
         globalThis.fetch = realFetch;
     }
 });
+
+test("levels: fields stay enabled while a save runs, and a second field's save waits its turn", async () => {
+    const root = await openPage("src/ui/pages/account/player/1-levels.js");
+    const row = (label) =>
+        byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
+    const money = row("Money");
+    const mining = row("Mining level");
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const realFetch = globalThis.fetch;
+    let held = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("write") && !held) {
+            held = true;
+            await gate;
+        }
+        return realFetch(url, options);
+    };
+    const level = gga.Lv0[2] + 3;
+    try {
+        const moneyInput = field(money);
+        moneyInput.value = "1234";
+        moneyInput.listeners.input({ target: moneyInput });
+        money.listeners.keydown({ key: "Enter", target: moneyInput, preventDefault() {} });
+        await until(() => held, "the Money write to start");
+        assert.notEqual(moneyInput.attributes.disabled, true, "the field being saved stays enabled");
+        assert.notEqual(field(mining).attributes.disabled, true, "the next field stays enabled");
+        const miningInput = field(mining);
+        miningInput.value = String(level);
+        miningInput.listeners.input({ target: miningInput });
+        mining.listeners.keydown({ key: "Enter", target: miningInput, preventDefault() {} });
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    await until(() => /save-state--(success|error)/.test(saveState(money)), "Money to save");
+    await until(() => /save-state--(success|error)/.test(saveState(mining)), "Mining to save");
+    assert.match(saveState(money), /save-state--success/);
+    assert.match(saveState(mining), /save-state--success/);
+    assert.equal(gga.Money, 1234);
+    assert.equal(gga.Lv0[2], level);
+});

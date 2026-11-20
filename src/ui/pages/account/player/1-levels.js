@@ -10,6 +10,7 @@ import {
     getOrCreateState,
     largeFormatter,
     largeParser,
+    oneAtATime,
     unwrapH,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -29,7 +30,8 @@ const PlayerTab = () => {
     const values = new Map();
     const rows = div({ class: "account-list" });
     const reconcileRows = createStaticRowReconciler(rows);
-    const unavailable = () => loading.val || busy.val || Boolean(error.val);
+    // Fields stay enabled while a save runs, so focus stays where the player put it (AGENTS.md).
+    const unavailable = () => loading.val || Boolean(error.val);
     const characterSelector = createCharacterSelector({
         id: "player-character",
         selected,
@@ -44,8 +46,11 @@ const PlayerTab = () => {
                 : "SAVED CHARACTER. Open this character in-game before closing to save level edits.",
     });
 
-    const setValue = async (name, index, next) => {
-        if (unavailable()) throw new Error("Player data is busy or unavailable. Refresh and try again.");
+    // A save asked for while another runs waits its turn, and reads the game again then.
+    const inTurn = oneAtATime();
+    const setValue = (name, index, next) => inTurn(() => saveValue(name, index, next));
+    const saveValue = async (name, index, next) => {
+        if (unavailable()) throw new Error("Player data is unavailable. Refresh and try again.");
         busy.val = true;
         message.val = "";
         try {
