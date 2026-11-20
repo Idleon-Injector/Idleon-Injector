@@ -346,3 +346,29 @@ test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the g
     await until(() => text(row).includes("9 / 4"), "the row to show what the game holds");
     ola[123] = 2;
 });
+
+test("post office: the points summary follows a box or misc save as soon as it's saved", async () => {
+    const root = await openPage(
+        "src/ui/pages/world-2/post-office/post-office.js",
+        (root) => byClass(root, "po-box-row__name").length
+    );
+    const summary = (label) =>
+        Number(
+            text(byClass(root, "po-points-summary__row").find((node) => text(node).includes(label)))
+                .replace(label, "")
+                .replace(/[^0-9-]/g, "")
+        );
+    const spent = summary("SPENT ON UPGRADES");
+    const earned = summary("TOTAL EARNED");
+    const box = byClass(root, "account-row").find((row) => byClass(row, "po-box-row__name").length);
+    const boxValue = Number(game.gga.PostOfficeInfo[3][0][0]);
+    enter(box, boxValue - 3);
+    await until(() => stateOf(box) === "success", "the box save");
+    await until(() => summary("SPENT ON UPGRADES") === spent + 3, "SPENT to drop by 3"); // shown as -spent
+
+    const misc =
+        rowNamed(root, "MISC OPTION") ?? byClass(root, "account-row").find((row) => text(row).includes("MISC"));
+    enter(misc, Number(ola[131] ?? 0) + 100);
+    await until(() => stateOf(misc) === "success", "the misc save");
+    await until(() => summary("TOTAL EARNED") === earned + 100, "TOTAL EARNED to rise by 100");
+});
