@@ -126,7 +126,8 @@ const PlayerKillRow = ({ playerName, killState, isCurrentPlayer, mob }) =>
             const newKillsLeft = mob.required - nextKills;
             const dbPath = playerDbKillsLeftPath(playerName, mob.mapIndex);
 
-            if (isCurrentPlayer) {
+            // Who is in play now, not when the page read the game: the live kills belong to that character.
+            if (String(await gga("UserInfo[0]")) === playerName) {
                 await writeVerified(liveKillsLeftPath(mob.mapIndex), newKillsLeft);
             }
 

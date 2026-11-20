@@ -175,3 +175,48 @@ test("Smithy: Remove and Add keep a set the game stored after the page read the 
         assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} stays stored`);
     }
 });
+
+// The game switches characters: the one in play saves its live copy, and the next one's copy becomes the live one.
+const switchCharacter = (name) => {
+    const db = gga.PlayerDATABASE.h;
+    const from = gga.UserInfo[0];
+    for (const key of Object.keys(db[from].h)) if (key in gga) db[from].h[key] = structuredClone(gga[key]);
+    for (const key of Object.keys(db[name].h)) if (key in gga) gga[key] = structuredClone(db[name].h[key]);
+    gga.UserInfo[0] = name;
+};
+const typeAndEnter = async (row, value) => {
+    const [input] = elements(row).filter((node) => node.nodeName === "input");
+    input.value = String(value);
+    input.listeners.input({ target: input });
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => /save-state--(success|error)/.test(classes(byClass(row, "save-state")[0])), "the save to finish");
+};
+
+test("Death Note: a kill count saves to the character on its row, whoever is in play now", async () => {
+    gga.UserInfo[0] = "Lumi_Main";
+    // The real game keeps numbers for the kill requirement.
+    gga.CustomLists.h.MapDetails = gga.CustomLists.h.MapDetails.map((map) => [[Number(map[0][0]), 0, 0]]);
+    const required = gga.CustomLists.h.MapDetails[0][0][0];
+    const db = gga.PlayerDATABASE.h;
+    gga.KillsLeft2Advance[0][0] = required - 2;
+    db.Lumi_Main.h.KillsLeft2Advance[0][0] = required - 2;
+    db.Lumi_Alt.h.KillsLeft2Advance[0][0] = required - 5;
+    const root = await openPage("src/ui/pages/world-3/death-note/death-note.js", (r) =>
+        byClass(r, "dn-player-row").some((row) => text(row).includes("(selected)"))
+    );
+    const firstRowOf = (name) =>
+        byClass(root, "dn-player-row").find((row) => text(byClass(row, "account-row__name")[0]) === name);
+    const mainRow = firstRowOf("Lumi_Main");
+    const altRow = firstRowOf("Lumi_Alt");
+
+    switchCharacter("Lumi_Alt");
+    await typeAndEnter(mainRow, 7);
+    assert.match(classes(byClass(mainRow, "save-state")[0]), /save-state--success/);
+    assert.equal(db.Lumi_Main.h.KillsLeft2Advance[0][0], required - 7, "Main's kills changed");
+    assert.equal(gga.KillsLeft2Advance[0][0], required - 5, "Alt, in play, keeps its kills");
+
+    await typeAndEnter(altRow, 9);
+    assert.equal(gga.KillsLeft2Advance[0][0], required - 9, "Alt's live kills, the copy the game keeps, changed");
+    assert.equal(db.Lumi_Alt.h.KillsLeft2Advance[0][0], required - 9);
+    switchCharacter("Lumi_Main");
+});
