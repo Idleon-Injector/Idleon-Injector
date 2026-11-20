@@ -7,6 +7,7 @@ import { cleanName, createStaticRowReconciler, useWriteStatus, writeVerified } f
 import { AccountRow } from "./components/AccountRow.js";
 import { ActionButton } from "./components/ActionButton.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
+import { clickAgain } from "../../inPlace.js";
 
 const { div, input, option, select, span } = van.tags;
 
@@ -102,7 +103,8 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
         }
     };
 
-    const setShown = async (registered) => {
+    // `button`: the bulk button clicked, which asks in place (#77).
+    const setShown = async (registered, button) => {
         if (cannotWrite()) return;
         const search = (searchInputEl?.value ?? query.val).trim().toLowerCase();
         if (searchInputEl && searchInputEl.value !== query.val) {
@@ -131,8 +133,10 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                                 : " Removes all history occurrences for these items. Owned items may register again in W5 town."
                             : "";
                     if (
-                        !window.confirm(
-                            `${registered ? "Register" : "Unregister"} ${targets.length} shown ${label} items?${detail}`
+                        !clickAgain(
+                            button,
+                            `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`,
+                            { targets }
                         )
                     ) {
                         return { cancelled: true };
@@ -273,13 +277,13 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                         label: "REGISTER SHOWN",
                         status: bulk.status,
                         disabled: cannotWrite,
-                        onClick: () => setShown(true),
+                        onClick: (e) => setShown(true, e.currentTarget),
                     },
                     {
                         label: "UNREGISTER SHOWN",
                         status: bulk.status,
                         disabled: cannotWrite,
-                        onClick: () => setShown(false),
+                        onClick: (e) => setShown(false, e.currentTarget),
                     },
                 ],
                 refresh: { onClick: load, disabled: isBusy },

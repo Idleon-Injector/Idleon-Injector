@@ -7,6 +7,7 @@ import { BulkActionBar } from "../../../components/views/account/BulkActionBar.j
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { clickAgain } from "../../../components/inPlace.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -141,7 +142,8 @@ const EventshopTab = () => {
         }
     };
 
-    const setOwnership = async (enabled, index, feedback) => {
+    // `button`: the bulk button clicked, which asks in place before a bulk change (#77).
+    const setOwnership = async (enabled, index, feedback, button = null) => {
         if (busy.val || !ready.val) return;
         busy.val = true;
         notice.val = "";
@@ -163,13 +165,13 @@ const EventshopTab = () => {
                     if (index === null) {
                         const cardifierNote = targets.some((entry) => entry.index === 50) ? `\n\n${ROW_NOTES[50]}` : "";
                         if (
-                            !window.confirm(
-                                `${enabled ? "Enable" : "Disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}?${cardifierNote}`
+                            !clickAgain(
+                                button,
+                                `${enabled ? "enable" : "disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`,
+                                { targets: targets.map((entry) => entry.code) }
                             )
-                        ) {
-                            notice.val = "No changes made.";
+                        )
                             return { cancelled: true };
-                        }
                         const fresh = await readSnapshot();
                         applySnapshot(fresh);
                         if (
@@ -230,14 +232,14 @@ const EventshopTab = () => {
                     label: "ENABLE ALL",
                     status: bulkEnable.status,
                     disabled: () => busy.val || !ready.val,
-                    onClick: () => setOwnership(true, null, bulkEnable),
+                    onClick: (e) => setOwnership(true, null, bulkEnable, e.currentTarget),
                 },
                 {
                     label: "DISABLE ALL",
                     status: bulkDisable.status,
                     variant: "danger",
                     disabled: () => busy.val || !ready.val,
-                    onClick: () => setOwnership(false, null, bulkDisable),
+                    onClick: (e) => setOwnership(false, null, bulkDisable, e.currentTarget),
                 },
             ],
             refresh: { onClick: load, disabled: () => busy.val },

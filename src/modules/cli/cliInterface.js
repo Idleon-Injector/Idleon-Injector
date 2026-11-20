@@ -75,6 +75,10 @@ async function handleUpdateCommand(client, options) {
     const updater = createUpdater();
     const updateInfo = await updater.check();
 
+    if (updateInfo?.error) {
+        log.warn(`The update check failed: ${updateInfo.error}`);
+        return;
+    }
     if (!updateInfo || !updateInfo.updateAvailable) {
         log.info("You are already on the latest version.");
         return;

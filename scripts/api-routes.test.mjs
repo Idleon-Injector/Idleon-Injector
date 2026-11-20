@@ -189,7 +189,7 @@ test("search and cheat routes retain helper arguments and suggestion filtering",
     assert.deepEqual(calls[1], ["searchGga", ["0", undefined, { withinPaths: ["Lv0"], compare: "equals" }]]);
 });
 
-function updateFixture() {
+function updateFixture({ offline = false } = {}) {
     const events = [];
     const timers = [];
     const client = {};
@@ -203,7 +203,7 @@ function updateFixture() {
                 createUpdater({
                     checkRelease: async () => {
                         checks++;
-                        return updateInfo;
+                        return offline ? null : updateInfo;
                     },
                     prepareRelease: async (info) => {
                         assert.equal(info, updateInfo);
@@ -260,6 +260,15 @@ test("update routes coalesce checks, cache results, and allow forced refresh", a
     const refreshed = await request(fixture.router, "GET", "/api/update/check?force=1");
     assert.equal(fixture.checks, 2);
     assert.equal(refreshed.body.latestVersion, "99.0.0");
+});
+
+test("an update check that didn't reach GitHub says so, and the next check tries again", async () => {
+    const fixture = updateFixture({ offline: true });
+    const response = await request(fixture.router, "GET", "/api/update/check");
+    assert.equal(response.body.updateAvailable, false);
+    assert.equal(response.body.error, "GitHub didn't answer", "not a quiet 'no update'");
+    await request(fixture.router, "GET", "/api/update/check");
+    assert.equal(fixture.checks, 2, "a failed check isn't kept");
 });
 
 test("update apply prepares and responds before the deferred shutdown handoff", async () => {

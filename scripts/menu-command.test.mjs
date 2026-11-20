@@ -23,6 +23,8 @@ setupCheatRoutes(router, {
     callHelper: async () => ({ value: SUGGESTIONS }),
     executeCheat: async (action) => {
         ran.push(action);
+        if (action.endsWith(" 99")) await new Promise((resolve) => setTimeout(resolve, 100)); // a slow command
+        if (action.startsWith("nomore")) return { value: { ok: false, message: "the item list isn't loaded yet" } };
         return { value: { ok: true, message: `${action} (ran)` } };
     },
 });
@@ -33,7 +35,7 @@ const { MenuSearch } = await importRepo("src/ui/components/MenuSearch.js");
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 const find = (node, test) => (test(node) ? [node] : (node.childNodes ?? []).flatMap((child) => find(child, test)));
-const text = (node) => (typeof node === "string" ? node : (node.childNodes ?? []).map(text).join(""));
+const text = (node) => (typeof node === "string" ? node : (node.data ?? (node.childNodes ?? []).map(text).join("")));
 
 const bar = MenuSearch();
 const field = find(bar, (node) => node.nodeName === "input")[0];
@@ -50,6 +52,12 @@ const type = async (value) => {
 const results = () => find(bar, (node) => node.attributes?.role === "option").map(text);
 const hint = () => find(bar, (node) => node.attributes?.id === "menu-command-hint").map(text)[0] ?? "";
 const isCommandBox = () => bar.attributes.class.includes("is-command");
+// The line under the box that says what the last command did (#77).
+const resultLine = () => {
+    const line = find(bar, (node) => node.attributes?.class?.includes?.("menu-command-result"))[0];
+    const said = find(line, (node) => node.attributes?.role === "status")[0];
+    return { shown: !line.attributes.hidden && !line.hidden, text: text(line), tone: said.attributes.class };
+};
 
 test("picking a command fills the box without running it; Enter runs it once, with the amount typed", async () => {
     await type("candy");
@@ -71,9 +79,31 @@ test("picking a command fills the box without running it; Enter runs it once, wi
     await key("Enter");
     await settle();
     assert.deepEqual(ran, ["drop Timecandy1 5"], "Enter runs it once, through /api/toggle");
-    assert.equal(store.app.toast.message, "Cheat drop Timecandy1 5 (ran)", "the result shows as a toast");
     assert.equal(field.value, "");
     assert.ok(!isCommandBox(), "back to searching");
+    const line = resultLine();
+    assert.ok(line.shown, "the result shows in a line under the box");
+    assert.equal(line.text, "drop Timecandy1 5drop Timecandy1 5 (ran)", "the command, then what it said");
+    assert.match(line.tone, /said--done/);
+
+    await type("c");
+    assert.ok(!resultLine().shown, "typing again puts the search back in its place");
+});
+
+test("a command that fails says why in the line under the box", async () => {
+    ran.length = 0;
+    await type("nomore");
+    const nomore = results().findIndex((row) => row.startsWith("nomore"));
+    assert.ok(nomore >= 0);
+    for (let i = 0; i < nomore; i++) await key("ArrowDown");
+    await key("Enter");
+    await key("Enter");
+    await settle();
+    assert.deepEqual(ran, ["nomore Timecandy1"]);
+    const line = resultLine();
+    assert.ok(line.shown);
+    assert.equal(line.text, "nomore Timecandy1the item list isn't loaded yet");
+    assert.match(line.tone, /said--failed/);
 });
 
 test("a dangerous command needs a second Enter, and Esc backs out", async () => {
@@ -171,4 +201,23 @@ test("Esc in the command box goes back to an empty search", async () => {
     await type("candy");
     assert.ok(results().length > 0, "searching works again");
     assert.deepEqual(ran, []);
+});
+
+test("a slow command that ends after a later one doesn't say its result over the later one's", async () => {
+    ran.length = 0;
+    const pick = async (word) => {
+        await type(word);
+        const at = results().findIndex((row) => row.startsWith(word));
+        for (let i = 0; i < at; i++) await key("ArrowDown");
+        await key("Enter");
+    };
+    await pick("drop");
+    await type("drop Timecandy1 99");
+    await key("Enter"); // runs, slowly
+    await pick("nomore");
+    await key("Enter"); // runs and fails at once
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.deepEqual(ran, ["drop Timecandy1 99", "nomore Timecandy1"]);
+    assert.equal(resultLine().text, "nomore Timecandy1the item list isn't loaded yet", "the later failure stays");
+    assert.match(resultLine().tone, /said--failed/);
 });

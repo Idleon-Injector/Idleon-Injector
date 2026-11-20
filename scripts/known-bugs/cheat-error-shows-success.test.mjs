@@ -21,8 +21,6 @@ test("a cheat that throws shows an error, not a success", async () => {
     setupCheatRoutes(router, createGameBridge(game.runtime, "context"));
     const { store } = await loadUi(router);
 
-    await store.executeCheat("fixture broken", "a cheat that throws");
-
-    const { type, message } = store.app.toast;
-    assert.equal(type, "error", `the toast was ${type}: ${message.split("\n")[0]}`);
+    const { ok, message } = await store.executeCheat("fixture broken");
+    assert.equal(ok, false, `it said: ${message.split("\n")[0]}`);
 });

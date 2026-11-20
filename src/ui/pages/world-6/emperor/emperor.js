@@ -12,6 +12,7 @@ import {
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
+import { askAtField, clickAgain } from "../../../components/inPlace.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -203,8 +204,13 @@ const EmperorTab = () => {
         }
     };
 
+    // A typed decrease asks in place (#77): the first Enter is refused beside the field with what it would do,
+    // and Enter again within a few seconds saves it.
+    const askAtProgress = askAtField(() => progressInput);
+
     // Each save returns { cancelled: true } when there's nothing to write, and throws when it fails.
-    const saveProgress = async (reset = false) => {
+    // `button`: RESET, which asks in place with CLICK AGAIN.
+    const saveProgress = async (reset = false, button = null) => {
         if (cannotWrite()) return { cancelled: true };
         busy.val = true;
         message.val = "";
@@ -219,15 +225,9 @@ const EmperorTab = () => {
                 progressDraft.val = String(before.progress);
                 return { cancelled: true };
             }
-            if (
-                next < before.progress &&
-                !window.confirm(
-                    `Decrease completed showdowns from ${before.progress} to ${next}? This removes the base rewards from ${before.progress - next} showdowns and makes those showdowns eligible again. It grants no fight loot.`
-                )
-            ) {
-                progressDraft.val = String(before.progress);
+            const question = `lower completed showdowns from ${before.progress} to ${next}. This removes the base rewards from ${before.progress - next} showdowns and makes them eligible again. It grants no fight loot.`;
+            if (next < before.progress && !(button ? clickAgain(button, question) : askAtProgress(question)))
                 return { cancelled: true };
-            }
             if (next < before.progress) {
                 fresh = await readSnapshot();
                 showSnapshot(fresh);
@@ -251,7 +251,8 @@ const EmperorTab = () => {
             }
             showSnapshot(actual, false, "progress");
         } catch (caughtError) {
-            await recoverWrite(caughtError, writesStarted, "Progress and base rewards");
+            // Asking again is said beside the field, before anything was written.
+            if (!caughtError.askAgain) await recoverWrite(caughtError, writesStarted, "Progress and base rewards");
             throw caughtError;
         } finally {
             busy.val = false;
@@ -347,7 +348,10 @@ const EmperorTab = () => {
                 label: "RESET",
                 variant: "danger",
                 disabled: cannotEdit,
-                onClick: () => progressWrite.run(() => saveProgress(true)),
+                onClick: (e) => {
+                    const resetButton = e.currentTarget;
+                    return progressWrite.run(() => saveProgress(true, resetButton));
+                },
             }),
         ],
     });

@@ -18,7 +18,7 @@ function setupUpdateRoutes(app, client, injectorConfig) {
                 updateAvailable: !!updateInfo?.updateAvailable,
                 latestVersion: updateInfo?.latestVersion || version,
                 url: updateInfo?.url || null,
-                error: null,
+                error: updateInfo?.error || null,
             });
         } catch (error) {
             log.error("Error in /api/update/check:", error);

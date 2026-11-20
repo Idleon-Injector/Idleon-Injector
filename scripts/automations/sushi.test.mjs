@@ -258,7 +258,7 @@ test("while Auto Play is on, the WebUI's active-cheats list shows it, and a clic
     await store.loadCheatStates();
     assert.ok(store.getActiveCheats().includes("w7 sushitools"));
 
-    assert.equal(await store.executeCheat("w7 sushitools", "Sushi tools"), true);
+    assert.equal((await store.executeCheat("w7 sushitools")).ok, true);
     assert.equal((await run("w7 sushitools status")).enabled, false);
     await store.loadCheatStates();
     assert.ok(!store.getActiveCheats().includes("w7 sushitools"));

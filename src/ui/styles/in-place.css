@@ -1,0 +1,453 @@
+/*
+ * Feedback said where the player acted (#77): no toasts.
+ * A short line at the control (`Said`), the click-again confirm, and the status line's details.
+ * Motion follows Luminate's no-toast rules: the confirm wash and the refusal pulse live in _animations.css.
+ */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* --- THE LINE --- */
+.said {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+    text-align: left;
+    text-transform: none;
+}
+
+.said__body {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--c-text-muted);
+}
+
+.said__mark {
+    display: inline-flex;
+    flex: none;
+    line-height: 0;
+}
+
+.said__icon {
+    width: 12px;
+    height: 12px;
+}
+
+.said__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A result arrives in the text colour and settles to the quiet one, like Luminate's last-action line. */
+.said--done .said__body {
+    animation: said-arrive 1.2s ease-out;
+}
+
+.said--done .said__mark {
+    color: var(--c-success);
+}
+
+.said--failed .said__body,
+.said--refused .said__body {
+    color: var(--c-warning);
+}
+
+.said--refused .said__body {
+    animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.said.is-leaving .said__body {
+    animation: said-leave 240ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes said-arrive {
+    from {
+        color: var(--c-text-main);
+    }
+}
+
+@keyframes said-leave {
+    to {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .said--done .said__body,
+    .said.is-leaving .said__body {
+        animation: none;
+    }
+
+    .said--refused .said__body {
+        animation-timing-function: steps(1, end);
+    }
+}
+
+/* On a Cheats row: at the row's end, inside it; the label gives way, nothing around the row moves. */
+.said--row {
+    flex: none;
+    max-width: 88%;
+    margin-left: 12px;
+}
+
+/* A failure: its own line under the row, the full reason. Empty, it's out of the way but still listening. */
+.cheat-item-container {
+    flex-wrap: wrap;
+    row-gap: 6px;
+}
+
+.said--row-failed {
+    flex-basis: 100%;
+    margin-top: 0;
+    padding-left: 13px;
+}
+
+.said--row-failed.said--empty {
+    position: absolute;
+}
+
+.cheat-button.is-failed {
+    border-color: var(--c-warning-40);
+}
+
+/* The value field is the row's hint: it pulses, and stays warm while the row says why. */
+.is-waiting-value .cheat-input {
+    border-color: var(--c-warning);
+}
+
+/* Under a list (Active Cheats): a failure wraps instead of hiding its reason. */
+.said--line {
+    display: flex;
+    margin-top: 6px;
+}
+
+.said--line .said__text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Beside a button whose own icon already says it (copy's ✓). */
+.said--bare .said__mark {
+    display: none;
+}
+
+/* Empty, the line keeps its live region but takes no room (and no gap) in the row. */
+.said--copy.said--empty {
+    position: absolute;
+}
+
+/* Under a value search field: the row grows by the line only while there's a reason to show. */
+.search-result-item.has-said {
+    flex-wrap: wrap;
+    row-gap: 0;
+    height: auto;
+    min-height: 40px;
+}
+
+.said--under {
+    flex-basis: 100%;
+}
+
+.search-result-entry > .said--under .said__body {
+    padding: 6px 13px 2px;
+}
+
+.said--under.said--empty {
+    position: absolute;
+}
+
+.said--under .said__body {
+    padding: 0 0 8px;
+}
+
+.said--under .said__text {
+    white-space: normal;
+}
+
+/* In the Settings action bar, right beside Apply and Save. */
+.said--config {
+    margin-right: 12px;
+}
+
+/* The command box's result line: the command, then what it did. */
+.menu-command-result {
+    gap: 3px;
+}
+
+.menu-command-result[hidden] {
+    display: none;
+}
+
+.said--command {
+    font-size: 0.8rem;
+}
+
+.said--command .said__text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Favorites and Recent: the result rides on the group's header line. */
+.quick-access-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 1.25rem;
+}
+
+.quick-access-header .said {
+    max-width: 70%;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+/* Value search: the hint line says why a scan didn't run, and a list says when it's partial. */
+.search-refusal {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--c-warning);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    text-transform: none;
+    animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.search-note__body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 0 10px;
+    color: var(--c-warning);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .search-refusal {
+        animation-timing-function: steps(1, end);
+    }
+}
+
+.update-modal-result {
+    margin: 10px 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--c-text-dim);
+}
+
+.update-modal-result:empty {
+    display: none;
+}
+
+.update-modal-result.is-failed {
+    color: var(--c-warning);
+}
+
+.brand-version-button.is-failed {
+    color: var(--c-warning);
+}
+
+.system-github-link.is-failed {
+    border-color: var(--c-warning-40);
+    color: var(--c-warning);
+}
+
+/* --- CLICK AGAIN ---
+ * The button keeps its box; CLICK AGAIN lies over it, reaching left when it's wider (buttons sit at the right
+ * of their rows), and its fill drains away.
+ */
+button[data-again] {
+    --again-color: var(--c-accent);
+    --again-fill: var(--c-accent-20);
+    position: relative;
+    color: transparent;
+}
+
+.account-btn--danger[data-again],
+.account-btn--max-reset[data-again] {
+    --again-color: var(--c-danger-soft-text);
+    --again-fill: var(--c-danger-20);
+}
+
+button[data-again]::after {
+    content: attr(data-again);
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    bottom: -1px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: calc(100% + 2px);
+    padding: 0 10px;
+    border: 1px solid var(--again-color);
+    background:
+        linear-gradient(var(--again-fill), var(--again-fill)) no-repeat left / 100% 100%,
+        var(--c-panel);
+    color: var(--again-color);
+    font-weight: 700;
+    white-space: nowrap;
+    animation: again-drain var(--again-ms, 4s) linear forwards;
+}
+
+@keyframes again-drain {
+    to {
+        background-size:
+            0% 100%,
+            auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button[data-again]::after {
+        animation-timing-function: steps(1, end);
+    }
+}
+
+/* --- STATUS LINE --- */
+.system-status {
+    position: relative;
+}
+
+.system-status-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.system-status-main:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.system-status-main.is-warn #system-status-text {
+    text-decoration: underline dotted;
+    text-decoration-color: var(--c-warning-40);
+    text-underline-offset: 4px;
+}
+
+.system-status-main.is-warn:hover #system-status-text,
+.system-status-main[aria-expanded="true"] #system-status-text {
+    text-decoration-color: var(--c-warning);
+}
+
+.system-status-main:focus-visible {
+    outline: 1px solid var(--c-warning);
+    outline-offset: 4px;
+}
+
+.status-dot.is-warn {
+    background: var(--c-warning);
+    box-shadow: 0 0 6px var(--c-warning-40);
+    animation: none;
+}
+
+#system-status-text.is-warn {
+    color: var(--c-warning);
+}
+
+.sidebar-collapsed .system-status-main {
+    justify-content: center;
+    gap: 0;
+}
+
+/* The details open above the line (beside the rail when the sidebar is narrow) and stay until closed. */
+.status-details {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    z-index: 1100;
+    max-height: min(420px, 60vh);
+    overflow-y: auto;
+    padding: 4px 14px;
+    background: var(--c-panel);
+    border: 1px solid var(--c-warning-40);
+    box-shadow: 0 14px 28px var(--c-black-50);
+    font-family: var(--font-display);
+    text-transform: none;
+}
+
+.sidebar-collapsed .status-details {
+    right: auto;
+    bottom: 0;
+    left: calc(100% + 14px);
+    width: min(280px, calc(100vw - 90px));
+}
+
+.status-details__problem {
+    padding: 10px 0;
+}
+
+.status-details__problem + .status-details__problem {
+    border-top: 1px solid var(--c-border);
+}
+
+.status-details p {
+    margin: 4px 0 0;
+    color: var(--c-text-dim);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.status-details .status-details__title {
+    margin: 0;
+    color: var(--c-warning);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.status-details__cheats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.status-details__cheats li {
+    padding: 2px 6px;
+    background: var(--c-accent-dim);
+    color: var(--c-accent);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+.status-details .status-details__tech {
+    margin-top: 8px;
+    color: var(--c-text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

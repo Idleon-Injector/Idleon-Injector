@@ -17,6 +17,7 @@ import {
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { clickAgain } from "../../../components/inPlace.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
@@ -257,7 +258,8 @@ const WeeklyBossTab = () => {
         }
     };
 
-    const setAll = async (enabled) => {
+    // `button`: the bulk button clicked, which asks in place (#77).
+    const setAll = async (enabled, button) => {
         if (cannotWrite()) return;
         busy.val = true;
         message.val = "";
@@ -270,9 +272,11 @@ const WeeklyBossTab = () => {
             }
             const countLabel = `${targets.length} cosmetic UI skin${targets.length === 1 ? "" : "s"}`;
             if (
-                !window.confirm(
-                    `${enabled ? "Enable" : "Disable"} ${countLabel}? ` +
-                        "Trophies and character selections will stay unchanged."
+                !clickAgain(
+                    button,
+                    `${enabled ? "enable" : "disable"} ${countLabel}. ` +
+                        "Trophies and character selections will stay unchanged.",
+                    { targets: targets.map(({ key }) => key) }
                 )
             )
                 return;
@@ -513,13 +517,13 @@ const WeeklyBossTab = () => {
                             label: "ENABLE ALL",
                             status: bulk.status,
                             disabled: cannotWrite,
-                            onClick: () => setAll(true),
+                            onClick: (e) => setAll(true, e.currentTarget),
                         },
                         {
                             label: "DISABLE ALL",
                             status: bulk.status,
                             disabled: cannotWrite,
-                            onClick: () => setAll(false),
+                            onClick: (e) => setAll(false, e.currentTarget),
                         },
                     ],
                 }),

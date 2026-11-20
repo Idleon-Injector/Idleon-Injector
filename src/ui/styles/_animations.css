@@ -65,34 +65,6 @@
     }
 }
 
-@keyframes pulseSuccess {
-    0% {
-        box-shadow: 0 0 0 0 var(--c-success-40);
-    }
-
-    70% {
-        box-shadow: 0 0 0 10px transparent;
-    }
-
-    100% {
-        box-shadow: 0 0 0 0 transparent;
-    }
-}
-
-@keyframes pulseError {
-    0% {
-        box-shadow: 0 0 0 0 var(--c-danger-40);
-    }
-
-    70% {
-        box-shadow: 0 0 0 10px transparent;
-    }
-
-    100% {
-        box-shadow: 0 0 0 0 transparent;
-    }
-}
-
 @keyframes updateDotFlash {
     0%,
     100% {
@@ -106,17 +78,52 @@
     }
 }
 
-/* --- ANIMATION UTILITY CLASSES --- */
-.feedback-success {
-    animation: pulseSuccess 0.5s ease-out;
-    border-color: var(--c-success) !important;
-    background: var(--c-success-10) !important;
+/* --- IN-PLACE FEEDBACK (#77) ---
+ * An action confirms on the control itself: an accent wash at .2 fading out over 800 ms.
+ * A refusal pulses the control's own hint: two dips to 22% over 760 ms.
+ */
+@keyframes confirm-wash {
+    from {
+        box-shadow: inset 0 0 0 999px var(--c-accent-20);
+    }
+
+    to {
+        box-shadow: inset 0 0 0 999px transparent;
+    }
 }
 
-.feedback-error {
-    animation: pulseError 0.5s ease-out;
-    border-color: var(--c-danger) !important;
-    background: var(--c-danger-10) !important;
+@keyframes refusal-pulse {
+    0%,
+    50%,
+    100% {
+        opacity: 1;
+    }
+
+    25%,
+    75% {
+        opacity: 0.22;
+    }
+}
+
+.is-confirmed,
+[data-confirmed] {
+    animation: confirm-wash 800ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[data-refused] {
+    animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* Reduced motion: the wash and the pulse appear and go without animating. */
+@media (prefers-reduced-motion: reduce) {
+    .is-confirmed,
+    [data-confirmed] {
+        animation-timing-function: steps(1, end);
+    }
+
+    [data-refused] {
+        animation: refusal-pulse 760ms steps(1, end);
+    }
 }
 
 /* Animation for saving success/error on inputs */

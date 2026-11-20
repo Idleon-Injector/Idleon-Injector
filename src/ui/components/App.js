@@ -2,12 +2,11 @@ import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { VIEWS } from "../state/constants.js";
 import { AREAS } from "../menu/menuModel.js";
-import { loadPages, menuError } from "../menu/pageRegistry.js";
+import { loadPages } from "../menu/pageRegistry.js";
 
 // Components
 import { Sidebar } from "./Sidebar.js";
 import { MenuSearch } from "./MenuSearch.js";
-import { Toast } from "./Toast.js";
 import { TooltipContainer } from "./Tooltip.js";
 import { UpdateModal } from "./UpdateModal.js";
 import { Home } from "./views/Home.js";
@@ -64,9 +63,8 @@ export const App = () => {
     store.checkForUpdate();
     // The menu search finds cheats too, so the Cheats page's list loads at start instead of on its first visit.
     store.loadCheats();
-    loadPages().then(() => {
-        if (menuError.val) store.notify(menuError.val, "error");
-    });
+    // Pages that fail to load show in the sidebar's status line (#77).
+    loadPages();
 
     // Global Keyboard Shortcuts
     document.addEventListener("keydown", (e) => {
@@ -150,7 +148,6 @@ export const App = () => {
             tabContent
         ),
         UpdateModal(),
-        Toast(),
         TooltipContainer()
     );
 };

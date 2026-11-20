@@ -275,6 +275,28 @@ export async function loadUi(router) {
         setAttribute(name, value) {
             this.attributes[name] = value;
         }
+        getAttribute(name) {
+            return this.attributes[name] ?? null;
+        }
+        removeAttribute(name) {
+            delete this.attributes[name];
+        }
+        style = { setProperty() {} };
+        // On the class attribute, where VanJS puts a `class` binding here.
+        get classList() {
+            const names = () =>
+                String(this.attributes.class ?? "")
+                    .split(/\s+/)
+                    .filter(Boolean);
+            return {
+                add: (name) => (this.attributes.class = [...new Set([...names(), name])].join(" ")),
+                remove: (name) =>
+                    (this.attributes.class = names()
+                        .filter((other) => other !== name)
+                        .join(" ")),
+                contains: (name) => names().includes(name),
+            };
+        }
         // listeners[type](event) runs every listener and returns the first one's result (a click handler's promise).
         addEventListener(type, listener) {
             (this.handlers[type] ??= []).push(listener);

@@ -15,6 +15,7 @@ import {
 } from "./scanUtils.js";
 import { formatDisplayValue, getMonitorHistory } from "./valueUtils.js";
 import { createStaticRowReconciler } from "../account/accountShared.js";
+import { Said, useSaid } from "../../inPlace.js";
 
 const { div, input, button, span, label, details, summary, select, option } = van.tags;
 
@@ -45,19 +46,53 @@ const KeyCheckbox = ({ keyName, selectedKeys, onChange, isFavorite, onToggleFavo
     );
 };
 
-const ResultItem = ({ result, ui, handlers }) => {
+/**
+ * The copy button's feedback (#77): its ✓ and "Copied" beside it, or why it couldn't copy.
+ * `copyFeedback` is "success" for the 1.5 s the ✓ shows.
+ */
+const useCopy = (path) => {
     const copyFeedback = van.state(null);
-
-    const isEditing = () => ui.edit.path === result.path;
-    const isInSavedList = () => ui.savedResults.some((entry) => entry.path === result.path);
-
+    const { said, say } = useSaid(1500);
     const handleCopy = (e) => {
         e.stopPropagation();
-        const success = copyToClipboard("bEngine.gameAttributes.h." + result.path);
+        const success = copyToClipboard("bEngine.gameAttributes.h." + path);
         copyFeedback.val = success ? "success" : "error";
-        store.notify(success ? "Path copied to clipboard" : "Failed to copy", success ? "success" : "error");
+        say(success ? "done" : "failed", success ? "Copied" : "Couldn't copy");
         setTimeout(() => (copyFeedback.val = null), 1500);
     };
+    return { copyFeedback, handleCopy, copySaid: Said({ said, className: "said--bare said--copy" }) };
+};
+
+/**
+ * Why the value in the field wasn't written, under the field while it's open. `fieldProps` go on the field, so
+ * screen readers hear it's invalid and why when they come back to it.
+ */
+let editErrors = 0;
+const EditError = (isEditing, editState) => {
+    const line = Said({
+        said: van.derive(() => (isEditing() && editState.error ? { kind: "failed", text: editState.error } : null)),
+        className: "said--under",
+    });
+    line.id = `search-edit-error-${++editErrors}`;
+    const fieldProps = {
+        "aria-invalid": () => String(Boolean(editState.error)),
+        "aria-describedby": () => (editState.error ? line.id : ""),
+    };
+    return { line, fieldProps };
+};
+
+/** A list's own warning line (the scan hit its limit, the saved list didn't refresh); empty takes no room. */
+const Note = (text) =>
+    div({ class: "search-note", role: "status" }, () =>
+        text() ? span({ class: "search-note__body" }, Icons.Warning({ class: "said__icon" }), text()) : span()
+    );
+
+const ResultItem = ({ result, ui, handlers }) => {
+    const { copyFeedback, handleCopy, copySaid } = useCopy(result.path);
+
+    const isEditing = () => ui.edit.path === result.path;
+    const editError = EditError(isEditing, ui.edit);
+    const isInSavedList = () => ui.savedResults.some((entry) => entry.path === result.path);
 
     const handleAddToList = (e) => {
         e.stopPropagation();
@@ -88,9 +123,13 @@ const ResultItem = ({ result, ui, handlers }) => {
         handlers.saveEdit();
     };
 
-    return div(
+    // The row keeps its height; why a value wasn't written gets a line under it.
+    const row = div(
         {
-            class: () => "search-result-item " + (copyFeedback.val === "success" ? "copied" : ""),
+            class: () =>
+                "search-result-item " +
+                (copyFeedback.val === "success" ? "copied " : "") +
+                (ui.writtenPath === result.path ? "is-confirmed" : ""),
         },
         span({ class: "result-path" }, result.path),
         span({ class: "result-equals" }, "="),
@@ -103,7 +142,12 @@ const ResultItem = ({ result, ui, handlers }) => {
             return input({
                 class: "result-edit-input",
                 value: () => ui.edit.draft,
-                oninput: (e) => (ui.edit.draft = e.target.value),
+                "aria-label": `New value for ${result.path}`,
+                ...editError.fieldProps,
+                oninput: (e) => {
+                    ui.edit.draft = e.target.value;
+                    ui.edit.error = "";
+                },
                 onclick: (e) => e.stopPropagation(),
                 onkeydown: (e) => {
                     e.stopPropagation();
@@ -113,6 +157,7 @@ const ResultItem = ({ result, ui, handlers }) => {
             });
         },
 
+        copySaid,
         div({ class: "result-actions" }, () => {
             if (isEditing()) {
                 return div(
@@ -165,6 +210,7 @@ const ResultItem = ({ result, ui, handlers }) => {
             );
         })
     );
+    return div({ class: "search-result-entry" }, row, editError.line);
 };
 
 const SearchButton = ({
@@ -380,7 +426,14 @@ export const SearchInputSection = ({ ui, handlers }) =>
                     )
                 );
             },
-            div({ class: "search-type-hint" }, () => {
+            // The scan's hint line: the mode, or why the scan didn't run (it pulses, #77).
+            div({ class: "search-type-hint", role: "status" }, () => {
+                if (ui.searchRefusal)
+                    return span(
+                        { class: "search-refusal", "data-refusal": ui.refusals },
+                        Icons.Warning({ class: "said__icon" }),
+                        ui.searchRefusal
+                    );
                 const activeScanType = ui.scan.active ? ui.scanTypeNext : ui.scanTypeNew;
 
                 if (isInputlessScanType(activeScanType)) {
@@ -448,6 +501,11 @@ export const ResultsSection = ({ ui, handlers }) =>
         ),
         div(
             { class: "results-content scroll-container" },
+            Note(() =>
+                ui.truncated && !ui.scan.isSearching
+                    ? "The scan stopped at its result limit, so some matches are missing. Narrow your keys or value."
+                    : ""
+            ),
             div(
                 { class: "list-filter-row" },
                 input({
@@ -533,17 +591,10 @@ export const ResultsSection = ({ ui, handlers }) =>
 const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
     const entryState = van.state(initialEntry);
     const path = initialEntry.path;
-    const copyFeedback = van.state(null);
+    const { copyFeedback, handleCopy, copySaid } = useCopy(path);
 
     const isEditing = () => ui.savedEdit.path === path;
-
-    const handleCopy = (e) => {
-        e.stopPropagation();
-        const success = copyToClipboard("bEngine.gameAttributes.h." + path);
-        copyFeedback.val = success ? "success" : "error";
-        store.notify(success ? "Path copied to clipboard" : "Failed to copy", success ? "success" : "error");
-        setTimeout(() => (copyFeedback.val = null), 1500);
-    };
+    const editError = EditError(isEditing, ui.savedEdit);
 
     const monitorData = () => store.monitors.get(path);
     const isMonitorEnabled = () => entryState.val.monitorEnabled === true;
@@ -604,7 +655,9 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                 "search-result-item saved-result-item " +
                 (isMonitorEnabled() ? "monitor-enabled " : "") +
                 (isMonitored() ? "monitored " : "") +
-                (copyFeedback.val === "success" ? "copied" : ""),
+                (copyFeedback.val === "success" ? "copied " : "") +
+                (ui.writtenPath === path ? "is-confirmed " : "") +
+                (isEditing() && ui.savedEdit.error ? "has-said" : ""),
         },
         span({ class: "result-path" }, path),
         span({ class: "result-equals" }, "="),
@@ -656,7 +709,12 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
             return input({
                 class: "result-edit-input",
                 value: () => ui.savedEdit.draft,
-                oninput: (e) => (ui.savedEdit.draft = e.target.value),
+                "aria-label": `New value for ${path}`,
+                ...editError.fieldProps,
+                oninput: (e) => {
+                    ui.savedEdit.draft = e.target.value;
+                    ui.savedEdit.error = "";
+                },
                 onclick: (e) => e.stopPropagation(),
                 onkeydown: (e) => {
                     e.stopPropagation();
@@ -666,6 +724,7 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
             });
         },
 
+        copySaid,
         div({ class: "result-actions" }, () => {
             if (isEditing()) {
                 return div(
@@ -729,7 +788,8 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                     Icons.X()
                 )
             );
-        })
+        }),
+        editError.line
     );
 
     return { node, sync: (nextEntry) => (entryState.val = nextEntry) };
@@ -830,6 +890,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
         ),
         div(
             { class: "saved-results-content scroll-container" },
+            Note(() => ui.savedRefreshError),
             div(
                 { class: "list-filter-row" },
                 input({

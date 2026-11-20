@@ -12,6 +12,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { clickAgain } from "../../../components/inPlace.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
@@ -93,7 +94,8 @@ const BribesTab = () => {
         }
     };
 
-    const setAll = async (enabled) => {
+    // `button`: the bulk button clicked, which asks in place (#77).
+    const setAll = async (enabled, button) => {
         if (cannotWrite()) return;
         busy.val = true;
         message.val = "";
@@ -104,12 +106,14 @@ const BribesTab = () => {
             );
             if (!targets.length) return;
             if (
-                !window.confirm(
-                    `${enabled ? "Enable" : "Disable"} ${targets.length} bribes? ${
+                !clickAgain(
+                    button,
+                    `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${
                         enabled
                             ? "Grants ownership without spending coins."
                             : "Removes ownership. Locked bribes stay locked."
-                    }`
+                    }`,
+                    { targets: targets.map((entry) => entry.index) }
                 )
             )
                 return;
@@ -220,8 +224,18 @@ const BribesTab = () => {
         wrapActions: false,
         actions: BulkActionBar({
             actions: [
-                { label: "ENABLE ALL", status: bulk.status, disabled: cannotWrite, onClick: () => setAll(true) },
-                { label: "DISABLE ALL", status: bulk.status, disabled: cannotWrite, onClick: () => setAll(false) },
+                {
+                    label: "ENABLE ALL",
+                    status: bulk.status,
+                    disabled: cannotWrite,
+                    onClick: (e) => setAll(true, e.currentTarget),
+                },
+                {
+                    label: "DISABLE ALL",
+                    status: bulk.status,
+                    disabled: cannotWrite,
+                    onClick: (e) => setAll(false, e.currentTarget),
+                },
             ],
             refresh: { onClick: load, disabled: isBusy },
         }),
