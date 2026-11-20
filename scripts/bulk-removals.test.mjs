@@ -23,6 +23,14 @@ const elements = (node, out = []) => {
 };
 const buttonsNamed = (root, label) =>
     elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === label);
+// The value in the field of the row named `name`: the innermost element that starts with the name and holds a field.
+const fieldValue = (root, name) => {
+    const isField = (node) => node.nodeName === "input";
+    const row = elements(root)
+        .filter((node) => text(node).startsWith(name) && elements(node).some(isField))
+        .at(-1);
+    return String(elements(row).find(isField)?.value ?? "");
+};
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 const writes = () => requests.filter((entry) => /write/.test(entry)).length;
 
@@ -457,20 +465,12 @@ test("islands: a Set all the game refused in part shows the values the game hold
     Object.defineProperty(options, 164, { get: () => 5, set() {}, configurable: true });
     try {
         const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
-        const isBadge = (node) => /account-row__badge/.test(node.attributes.class ?? "");
-        // The value on the row named `name`: the innermost element that starts with the name and holds a badge.
-        const badge = (name) => {
-            const row = elements(root)
-                .filter((node) => text(node).startsWith(name) && elements(node).some(isBadge))
-                .at(-1);
-            return row ? text(elements(row).find(isBadge)) : "";
-        };
         const setAll = () => buttonsNamed(root, "Set all").filter((node) => !node.attributes.disabled);
-        await until(() => setAll().length === 3 && badge("% Garbage") === "3", "Islands");
+        await until(() => setAll().length === 3 && fieldValue(root, "% Garbage") === "3", "Islands");
         await click(setAll()[0]);
         await until(() => options[163] === 200, "the first value to land");
-        await until(() => badge("% Garbage") === "200", "the row to show what the game holds");
-        assert.equal(badge("% Bottles"), "5", "the refused row still shows what the game kept");
+        await until(() => fieldValue(root, "% Garbage") === "200", "the row to show what the game holds");
+        assert.equal(fieldValue(root, "% Bottles"), "5", "the refused row still shows what the game kept");
     } finally {
         Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
         options[163] = 0;
@@ -568,7 +568,7 @@ test("islands: the read after a refused Set all waits for another Set all still 
         await until(() => reads.count() > 0, "the read after the refused Set all");
         reads.release();
         await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions after the read");
-        assert.match(text(root), /% Loot200/, "Rando's Set all stays shown");
+        assert.equal(fieldValue(root, "% Loot"), "200", "Rando's Set all stays shown");
     } finally {
         held = null;
         answersHeld = null;
@@ -606,7 +606,7 @@ test("islands: a reload after an undo waits for a Set all still running", async 
         await until(() => reads.count() > 0, "the reload after the undo");
         reads.release();
         await until(() => !named("Refresh")[0].attributes.disabled, "the reload to end");
-        assert.match(text(root), /% Loot200/, "Rando's Set all stays shown");
+        assert.equal(fieldValue(root, "% Loot"), "200", "Rando's Set all stays shown");
     } finally {
         held = null;
         answersHeld = null;
@@ -631,7 +631,7 @@ test("islands: a reload waiting for a Set all still runs after another page's un
     // Every island locked first, so the undo's read shows in the rows.
     options[169] = "";
     await buttonsNamed(root, "Refresh")[0].listeners.click({});
-    await until(() => !/UNLOCKED/.test(text(root)) && bulk().every((node) => !node.attributes.disabled), "locked");
+    await until(() => !/Unlocked/.test(text(root)) && bulk().every((node) => !node.attributes.disabled), "locked");
     try {
         await click(named("Unlock all")[0]);
         await until(() => options[169] === "abcde_", "the unlocks to land");
@@ -643,12 +643,12 @@ test("islands: a reload waiting for a Set all still runs after another page's un
         await until(() => slow.reached, "Rando's Set all to be sent");
         await undoAction(action.id);
         reloadPlace.val = { view: "elsewhere", page: "another page" };
-        assert.match(text(root), /UNLOCKED/, "the rows show the unlocks until the reload");
+        assert.match(text(root), /Unlocked/, "the rows show the unlocks until the reload");
         slow.release();
         await rando;
         await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions once the reload ran");
         assert.equal(options[169], "", "the undo landed");
-        assert.doesNotMatch(text(root), /UNLOCKED/, "the reload shows what the undo put back");
+        assert.doesNotMatch(text(root), /Unlocked/, "the reload shows what the undo put back");
     } finally {
         held = null;
         options[169] = unlocks;
