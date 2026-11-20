@@ -78,6 +78,7 @@ const RoundRow = ({ entry, doneState, completedIdsState }) => {
             words: ["Done", "Open"],
             name: entry.name,
             title: "Normal round completion",
+            status, // nothing else on the row reads out saving and saved
             onFlip: writeToggle,
         }),
     });

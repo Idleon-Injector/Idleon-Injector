@@ -306,11 +306,13 @@ export async function deleteGga(path) {
 /**
  * Write many GGA paths in one backend/CDP round-trip and verify each against the value the game
  * read back in that same call, with the same typed comparison as single writes.
+ * With `character`, the game writes nothing unless that character is in play, and the request rejects saying who is.
  *
  * @param {Array<{ path: string, value: any }>} writes
+ * @param {{ character?: string }} [options]
  * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, actual?: any, error?: string }> }>}
  */
-export async function ggaMany(writes) {
+export async function ggaMany(writes, { character } = {}) {
     const normalizedWrites = Array.isArray(writes)
         ? writes.map((entry) => {
               const rawPath = typeof entry?.path === "string" ? entry.path : "";
@@ -325,7 +327,7 @@ export async function ggaMany(writes) {
     const writeResult = await _request("/game/gga/write-many", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ writes: normalizedWrites }),
+        body: JSON.stringify({ writes: normalizedWrites, character }),
     });
 
     const writeByPath = new Map(
