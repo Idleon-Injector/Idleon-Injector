@@ -87,9 +87,21 @@ export const MenuSearch = () => {
             highlight.val = 0;
             open.val = true;
         },
-        onfocus: () => (open.val = true),
+        onfocus: () => {
+            open.val = true;
+            // The list loads at start; if that failed, opening search tries again (a loaded list isn't reloaded).
+            if (!store.data.cheats.length && !store.app.isLoading) store.loadCheats();
+        },
         onblur: close,
         onkeydown: (e) => {
+            // An IME's Enter confirms the typed characters, not the search or the command.
+            if (e.isComposing || e.keyCode === 229) return;
+            // A held Enter repeats: each pick, arm and run needs its own press, so one held key can't arm a
+            // dangerous command and run it.
+            if (e.key === "Enter" && e.repeat) {
+                e.preventDefault();
+                return;
+            }
             if (command.val) {
                 if (e.key === "Enter") {
                     e.preventDefault();

@@ -38,8 +38,8 @@ const text = (node) => (typeof node === "string" ? node : (node.childNodes ?? []
 const bar = MenuSearch();
 const field = find(bar, (node) => node.nodeName === "input")[0];
 field.focus = field.blur = field.setSelectionRange = () => {};
-const key = async (name) => {
-    field.listeners.keydown({ key: name, preventDefault() {}, stopPropagation() {} });
+const key = async (name, extra = {}) => {
+    field.listeners.keydown({ key: name, preventDefault() {}, stopPropagation() {}, ...extra });
     await settle();
 };
 const type = async (value) => {
@@ -98,6 +98,45 @@ test("a dangerous command needs a second Enter, and Esc backs out", async () => 
     await key("Enter");
     await settle();
     assert.deepEqual(ran, ["wipe inv"]);
+});
+
+test("a held Enter can't pick, arm and run a dangerous command: each step needs its own press", async () => {
+    ran.length = 0;
+    await type("wipe inv");
+    await key("Enter");
+    assert.ok(isCommandBox());
+    await key("Enter", { repeat: true });
+    await key("Enter", { repeat: true });
+    assert.doesNotMatch(hint(), /again/, "a repeat doesn't arm it");
+    await key("Enter");
+    assert.match(hint(), /Press Enter again to run wipe inv/);
+    await key("Enter", { repeat: true });
+    await settle();
+    assert.deepEqual(ran, [], "a repeat doesn't run it");
+    await key("Escape");
+});
+
+test("an Enter that confirms IME input doesn't run the command", async () => {
+    ran.length = 0;
+    await type("candy");
+    await key("ArrowDown");
+    await key("Enter");
+    assert.ok(isCommandBox());
+    await key("Enter", { isComposing: true });
+    await key("Enter", { keyCode: 229 });
+    await settle();
+    assert.deepEqual(ran, [], "composition Enters run nothing");
+    assert.ok(isCommandBox(), "still in the command box");
+    await key("Escape");
+});
+
+test("if the cheat list didn't load at start, opening search loads it again", async () => {
+    const loaded = store.data.cheats;
+    store.data.cheats = [];
+    field.listeners.focus({});
+    await settle();
+    assert.ok(store.data.cheats.length > 0, "the list loaded again");
+    store.data.cheats = loaded;
 });
 
 test("Esc in the command box goes back to an empty search", async () => {
