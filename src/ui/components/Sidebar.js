@@ -215,6 +215,8 @@ export const Sidebar = () => {
     // Why the GitHub link didn't open (the desktop app opens it through the injector), said at the link.
     const linkFailed = van.state("");
     const checked = van.state(false);
+    // Why the update check failed, said at the version button: a failed check isn't "the latest".
+    const checkFailed = van.state("");
 
     return nav(
         {
@@ -238,21 +240,33 @@ export const Sidebar = () => {
                         button(
                             {
                                 type: "button",
-                                class: () => `brand-version-button ${hasUpdate() ? "has-update" : ""}`,
+                                class: () =>
+                                    `brand-version-button ${hasUpdate() ? "has-update" : ""} ${
+                                        checkFailed.val ? "is-failed" : ""
+                                    }`,
                                 // Already on the latest: the button confirms in place; nothing else to say.
                                 onclick: async (e) => {
                                     const versionButton = e.currentTarget;
-                                    if (!(await store.openUpdateModal())) {
-                                        checked.val = true;
-                                        replay(versionButton, "confirmed");
+                                    checked.val = false;
+                                    checkFailed.val = "";
+                                    try {
+                                        if (await store.openUpdateModal()) return;
+                                    } catch (error) {
+                                        checkFailed.val = error.message;
+                                        return;
                                     }
+                                    checked.val = true;
+                                    replay(versionButton, "confirmed");
                                 },
+                                title: () => (checkFailed.val ? `The update check failed: ${checkFailed.val}` : ""),
                                 "aria-label": () =>
                                     hasUpdate()
                                         ? `Update available: ${store.app.updateInfo.latestVersion}`
-                                        : checked.val
-                                          ? "Current version: it's the latest"
-                                          : "Current version, check for updates",
+                                        : checkFailed.val
+                                          ? `Current version. The update check failed: ${checkFailed.val}`
+                                          : checked.val
+                                            ? "Current version: it's the latest"
+                                            : "Current version, check for updates",
                             },
                             span(() => (store.app.appInfo?.version ? `v${store.app.appInfo.version}` : "")),
                             span({

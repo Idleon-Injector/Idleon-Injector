@@ -148,15 +148,19 @@ const SystemService = {
         } catch (error) {
             console.error("Error checking for updates:", error);
             appState.updateInfo = null;
-            return null;
+            return { updateAvailable: false, error: error.message || "the injector didn't answer" };
         }
     },
 
-    /** Check for an update and open the modal when there is one; resolves whether it opened. */
+    /**
+     * Check for an update and open the modal when there is one; resolves whether it opened, and throws why
+     * when the check failed, so a failed check never reads as being on the latest.
+     */
     openUpdateModal: async () => {
         const updateInfo = await SystemService.checkForUpdate(true);
         appState.updateResult = null;
         appState.updateModalOpen = Boolean(updateInfo?.updateAvailable);
+        if (updateInfo?.error) throw new Error(updateInfo.error);
         return appState.updateModalOpen;
     },
 

@@ -260,6 +260,10 @@
     color: var(--c-warning);
 }
 
+.brand-version-button.is-failed {
+    color: var(--c-warning);
+}
+
 .system-github-link.is-failed {
     border-color: var(--c-warning-40);
     color: var(--c-warning);

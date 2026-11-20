@@ -93,7 +93,9 @@ function createUpdater({
 
         updateCheckRequest = checkRelease()
             .then((updateInfo) => {
-                cachedUpdateInfo = updateInfo || { updateAvailable: false };
+                // A check that didn't reach GitHub says so, and isn't kept: the next check tries again.
+                if (!updateInfo) return { updateAvailable: false, error: "GitHub didn't answer" };
+                cachedUpdateInfo = updateInfo;
                 return cachedUpdateInfo;
             })
             .finally(() => {

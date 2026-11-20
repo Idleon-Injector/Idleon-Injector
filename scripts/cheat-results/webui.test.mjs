@@ -167,3 +167,24 @@ test("a failed turn-off is said until that cheat turns off; another cheat's fail
     await turnOff("godlike crit", line);
     assert.equal(line.said.val, null, "the retry worked, so the failure goes");
 });
+
+test("the version button says a failed update check, and says 'the latest' only after a check that worked", async (t) => {
+    store.app.appInfo = { version: "3.0.0" };
+    const sidebar = Sidebar();
+    const version = find(sidebar, (node) => /brand-version-button/.test(classOf(node)))[0];
+    const click = async () => {
+        await version.listeners.click({ currentTarget: version });
+        await settle();
+    };
+
+    // This fixture has no update route, so the check fails.
+    await click();
+    assert.match(version.attributes["aria-label"], /^Current version\. The update check failed: .*not registered/);
+    assert.match(classOf(version), /is-failed/);
+    assert.match(version.attributes.title, /^The update check failed: /, "said on hover too");
+
+    t.mock.method(store, "openUpdateModal", async () => false);
+    await click();
+    assert.equal(version.attributes["aria-label"], "Current version: it's the latest");
+    assert.doesNotMatch(classOf(version), /is-failed/);
+});
