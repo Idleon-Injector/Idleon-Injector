@@ -91,7 +91,6 @@ const RackRow = ({ row, onRemove }) => {
 const HatRackTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Hat Rack" });
     const currentRackIds = van.state([]);
-    const slabHistoryIds = van.state([]);
     const rackRows = van.state([]);
     const missingOptions = van.state([]);
     const selectedAddItemId = van.state("");
@@ -136,53 +135,66 @@ const HatRackTab = () => {
                 nextItemDefs = defs && typeof defs === "object" ? defs : {};
             }
 
-            const [rawRack, rawSlabHistory] = await Promise.all([gga(RACK_PATH), gga(SLAB_HISTORY_PATH)]);
+            const rawRack = await gga(RACK_PATH);
 
             itemDefsCache = nextItemDefs;
             applyRackState(rawRack);
-            slabHistoryIds.val = [...normalizeRackIds(rawSlabHistory)];
         });
     };
 
-    const appendToRack = async (currentRack, items) => {
-        const baseRack = normalizeRackIds(currentRack);
+    // The rack and the Slab as the game holds them now. Every change starts from these, so nothing the game added
+    // since the page read them is written over.
+    const readLists = async () => {
+        const [rawRack, rawSlab] = await Promise.all([gga(RACK_PATH), gga(SLAB_HISTORY_PATH)]);
+        if (rawRack === null || rawRack === undefined || rawSlab === null || rawSlab === undefined) {
+            throw new Error("Hat Rack or Slab history is unavailable. Refresh to try again.");
+        }
+        return { rack: normalizeRackIds(rawRack), slab: normalizeRackIds(rawSlab) };
+    };
+
+    // After any outcome the page shows what the game holds. The rows are drawn again only when the rack changed,
+    // so a failed removal still has its row to say so.
+    const showGame = async () => {
+        try {
+            const { rack } = await readLists();
+            if (JSON.stringify(rack) !== JSON.stringify(currentRackIds.val)) {
+                withPreservedScroll(() => applyRackState(rack));
+            }
+        } catch {
+            // ponytail: the picture stays as it was; the next change reads the game again before it writes.
+        }
+    };
+
+    const change = async (task) => {
+        mutating.val = true;
+        try {
+            return await task(await readLists());
+        } finally {
+            await showGame();
+            mutating.val = false;
+        }
+    };
+
+    const appendToRack = async (baseRack, items) => {
         for (let i = 0; i < items.length; i++) {
             await writeVerified(`${RACK_PATH}[${baseRack.length + i}]`, items[i]);
         }
         await writeVerified(`${RACK_PATH}.length`, baseRack.length + items.length);
     };
 
-    const writeSlabHistory = async (nextHistory) => {
-        await writeVerified(SLAB_HISTORY_PATH, nextHistory);
-    };
-
     const removeAtIndex = async (index) => {
         if (mutating.val) return;
-        const currentRack = [...currentRackIds.val];
-        if (index < 0 || index >= currentRack.length) return;
+        const itemId = currentRackIds.val[index];
+        if (itemId === undefined) return;
 
-        mutating.val = true;
-        try {
-            const nextRack = [...currentRack];
-            const removedItemId = nextRack[index];
-            nextRack.splice(index, 1);
-            const nextSlabHistory = slabHistoryIds.val.filter((itemId) => itemId !== removedItemId);
-            await writeVerified(RACK_PATH, nextRack);
-            try {
-                if (nextSlabHistory.length !== slabHistoryIds.val.length) {
-                    await writeSlabHistory(nextSlabHistory);
-                }
-                withPreservedScroll(() => {
-                    applyRackState(nextRack);
-                    slabHistoryIds.val = nextSlabHistory;
-                });
-            } catch (e) {
-                withPreservedScroll(() => applyRackState(nextRack));
-                throw e;
-            }
-        } finally {
-            mutating.val = false;
-        }
+        await change(async ({ rack, slab }) => {
+            // The Slab first: if the rack write then fails, the row is still on the page to say so.
+            const nextSlab = slab.filter((id) => id !== itemId);
+            if (nextSlab.length !== slab.length) await writeVerified(SLAB_HISTORY_PATH, nextSlab);
+            const at = rack[index] === itemId ? index : rack.indexOf(itemId);
+            const nextRack = rack.filter((_, i) => i !== at);
+            if (at >= 0) await writeVerified(RACK_PATH, nextRack);
+        });
     };
     removeAtIndex.isBusy = () => mutating.val;
 
@@ -190,66 +202,26 @@ const HatRackTab = () => {
         const itemId = selectedAddItemId.val;
         if (!itemId || mutating.val) return;
 
-        await runAdd(async () => {
-            mutating.val = true;
-            try {
-                const currentRack = [...currentRackIds.val];
-                if (currentRack.includes(itemId)) return;
-                const nextRack = [...currentRack, itemId];
-                await appendToRack(currentRack, [itemId]);
-                const nextSlabHistory = slabHistoryIds.val.includes(itemId)
-                    ? [...slabHistoryIds.val]
-                    : [...slabHistoryIds.val, itemId];
-                try {
-                    if (nextSlabHistory.length !== slabHistoryIds.val.length) {
-                        await writeSlabHistory(nextSlabHistory);
-                    }
-                    withPreservedScroll(() => {
-                        applyRackState(nextRack);
-                        slabHistoryIds.val = nextSlabHistory;
-                    });
-                } catch (e) {
-                    withPreservedScroll(() => applyRackState(nextRack));
-                    throw e;
-                }
-            } finally {
-                mutating.val = false;
-            }
-        });
+        await runAdd(() =>
+            change(async ({ rack, slab }) => {
+                if (rack.includes(itemId)) return { cancelled: true };
+                await appendToRack(rack, [itemId]);
+                if (!slab.includes(itemId)) await writeVerified(SLAB_HISTORY_PATH, [...slab, itemId]);
+            })
+        );
     };
 
     const addAllAvailable = async () => {
         if (mutating.val || missingOptions.val.length === 0) return;
-        await runAdd(async () => {
-            mutating.val = true;
-            try {
-                const currentRack = [...currentRackIds.val];
-                const toAdd = missingOptions.val
-                    .map((item) => item.itemId)
-                    .filter((itemId) => !currentRack.includes(itemId));
-                if (toAdd.length === 0) return;
-                const nextRack = [...currentRack, ...toAdd];
-                await appendToRack(currentRack, toAdd);
-                const nextSlabHistory = [...slabHistoryIds.val];
-                for (const itemId of toAdd) {
-                    if (!nextSlabHistory.includes(itemId)) nextSlabHistory.push(itemId);
-                }
-                try {
-                    if (nextSlabHistory.length !== slabHistoryIds.val.length) {
-                        await writeSlabHistory(nextSlabHistory);
-                    }
-                    withPreservedScroll(() => {
-                        applyRackState(nextRack);
-                        slabHistoryIds.val = nextSlabHistory;
-                    });
-                } catch (e) {
-                    withPreservedScroll(() => applyRackState(nextRack));
-                    throw e;
-                }
-            } finally {
-                mutating.val = false;
-            }
-        });
+        await runAdd(() =>
+            change(async ({ rack, slab }) => {
+                const toAdd = missingOptions.val.map((item) => item.itemId).filter((id) => !rack.includes(id));
+                if (toAdd.length === 0) return { cancelled: true };
+                await appendToRack(rack, toAdd);
+                const newInSlab = toAdd.filter((id) => !slab.includes(id));
+                if (newInSlab.length) await writeVerified(SLAB_HISTORY_PATH, [...slab, ...newInSlab]);
+            })
+        );
     };
 
     load();
