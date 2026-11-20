@@ -101,7 +101,7 @@ const parseTrapRows = (rawTraps) =>
         })
         .filter(Boolean);
 
-const TrappingRow = ({ playerName, trap, isCurrentPlayer, getValueState, onWriteField }) => {
+const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
     const qtyValue = getValueState(playerName, trap.trapIndex, "qty", toInt(trap.qty));
     const expValue = getValueState(playerName, trap.trapIndex, "exp", toInt(trap.exp));
     const rareValue = getValueState(playerName, trap.trapIndex, "rare", toInt(trap.rareChance));
@@ -123,9 +123,9 @@ const TrappingRow = ({ playerName, trap, isCurrentPlayer, getValueState, onWrite
             return { qty: nextQty, exp: nextExp, rare: nextRare };
         },
         write: async ({ qty, exp, rare }) => {
-            const verifiedQty = await onWriteField(playerName, trap.trapIndex, 4, qty, isCurrentPlayer);
-            const verifiedExp = await onWriteField(playerName, trap.trapIndex, 7, exp, isCurrentPlayer);
-            const verifiedRare = await onWriteField(playerName, trap.trapIndex, 8, rare, isCurrentPlayer);
+            const verifiedQty = await onWriteField(playerName, trap.trapIndex, 4, qty);
+            const verifiedExp = await onWriteField(playerName, trap.trapIndex, 7, exp);
+            const verifiedRare = await onWriteField(playerName, trap.trapIndex, 8, rare);
             return { qty: verifiedQty, exp: verifiedExp, rare: verifiedRare };
         },
         info: [
@@ -195,7 +195,7 @@ const TrappingRow = ({ playerName, trap, isCurrentPlayer, getValueState, onWrite
                     e.preventDefault();
                     const finishAt = toInt(completionValue.val, toInt(trap.completionTime));
                     const { ok, result } = await finishStatus.run(async () =>
-                        onWriteField(playerName, trap.trapIndex, 2, finishAt, isCurrentPlayer)
+                        onWriteField(playerName, trap.trapIndex, 2, finishAt)
                     );
                     if (ok) elapsedValue.val = result;
                 },
@@ -210,7 +210,6 @@ const PlayerTrapPanel = ({ player, currentPlayer, getExpandedState, getValueStat
         TrappingRow({
             playerName: player.playerName,
             trap,
-            isCurrentPlayer,
             getValueState,
             onWriteField,
         })
@@ -269,8 +268,13 @@ const TrappingTab = () => {
         );
     };
 
-    const onWriteField = async (playerName, trapIndex, fieldIndex, value, isCurrentPlayer) => {
-        if (isCurrentPlayer) {
+    // PlacedTraps holds the traps of the character in play now, so a save asks the game who that is first.
+    const onWriteField = async (playerName, trapIndex, fieldIndex, value) => {
+        const inPlay = await gga("UserInfo[0]");
+        if ((typeof inPlay === "string" ? inPlay : "") !== latestSnapshot.currentPlayer) {
+            throw new Error("The character in play changed. Refresh and try again.");
+        }
+        if (playerName === inPlay) {
             await writeVerified(`PlacedTraps[${trapIndex}][${fieldIndex}]`, value);
         }
 
@@ -283,19 +287,11 @@ const TrappingTab = () => {
 
         await finishAllStatus.run(async () => {
             for (const player of latestSnapshot.players) {
-                const isCurrentPlayer = player.playerName === latestSnapshot.currentPlayer;
-
                 for (const trap of player.traps) {
                     const completionState = getValueState(player.playerName, trap.trapIndex, "completion", 0);
                     const finishAt = toInt(completionState.val, toInt(trap.completionTime));
                     try {
-                        const verifiedElapsed = await onWriteField(
-                            player.playerName,
-                            trap.trapIndex,
-                            2,
-                            finishAt,
-                            isCurrentPlayer
-                        );
+                        const verifiedElapsed = await onWriteField(player.playerName, trap.trapIndex, 2, finishAt);
                         getValueState(player.playerName, trap.trapIndex, "elapsed", 0).val = verifiedElapsed;
                     } catch (error) {
                         throw new Error(
