@@ -372,3 +372,29 @@ test("post office: the points summary follows a box or misc save as soon as it's
     await until(() => stateOf(misc) === "success", "the misc save");
     await until(() => summary("TOTAL EARNED") === earned + 100, "TOTAL EARNED to rise by 100");
 });
+
+test("liquid: a connection lost while CAP UPGRADE saves writes neither of its two copies", async () => {
+    const info = game.gga.CauldronInfo;
+    const root = await openPage(
+        "src/ui/pages/world-2/cauldrons/liquid.js",
+        (root) => byClass(root, "liquid-row").length >= 12
+    );
+    const row = byClass(root, "liquid-row")[1]; // Water Droplets CAP UPGRADE
+    const cap = info[8][4][2][1];
+    const copy = ola[371];
+    const realFetch = globalThis.fetch;
+    // The request that carries the second copy never arrives.
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && String(options?.body).includes("OptionsListAccount[371]"))
+            throw new TypeError("Failed to fetch");
+        return realFetch(url, options);
+    };
+    try {
+        enter(row, cap + 5);
+        await until(() => stateOf(row) === "error", "the save to fail");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(info[8][4][2][1], cap, "the first copy wasn't written alone");
+    assert.equal(ola[371], copy);
+});
