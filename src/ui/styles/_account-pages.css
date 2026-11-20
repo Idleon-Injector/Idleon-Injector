@@ -416,6 +416,7 @@
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    clip-path: none;
 }
 
 /* A field's own label steps aside the same way when the words lie over it. */
@@ -479,7 +480,9 @@
 .is-undo-offered > .account-row__badge,
 .is-undo-offered > .account-inline-field__head > :first-child,
 .is-undo-refused > .account-row__badge,
-.is-undo-refused > .account-inline-field__head > :first-child {
+.is-undo-refused > .account-inline-field__head > :first-child,
+.is-undo-warned > .account-row__badge,
+.is-undo-warned > .account-inline-field__head > :first-child {
     visibility: hidden;
 }
 
@@ -572,15 +575,25 @@
     color: var(--c-warning);
 }
 
-/* A reason runs to two short lines at most, inside the box it was given; the title has it all. */
-.undo-all--refused .undo-all__status {
+/*
+ * A reason (or the warning of an undo that landed) runs to two short lines at most, inside the box it was given; the
+ * title has it all.
+ */
+.undo-all--refused .undo-all__status,
+.undo-all--said .undo-all__status {
     display: -webkit-box;
+    width: auto;
+    height: auto;
     overflow: hidden;
+    clip-path: none;
     line-height: 1.15;
     text-align: right;
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+}
+
+.undo-all--refused .undo-all__status {
     animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
 }
 

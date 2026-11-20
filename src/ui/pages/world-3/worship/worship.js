@@ -25,6 +25,7 @@ import { AccountSection } from "../../../components/views/account/components/Acc
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    CHARACTER_CHANGED,
     createStaticRowReconciler,
     getOrCreateState,
     toInt,
@@ -89,7 +90,7 @@ const WorshipTab = () => {
         // PlayerStuff holds the charge of the character in play now, so a save asks the game who that is first.
         const inPlay = await gga("UserInfo[0]");
         if (inPlay !== activeCharacterNameRef.val) {
-            throw new Error("The character in play changed. Refresh and try again.");
+            throw new Error(CHARACTER_CHANGED);
         }
         const isActiveCharacter = typeof inPlay === "string" && inPlay.length > 0 && inPlay === playerName;
 

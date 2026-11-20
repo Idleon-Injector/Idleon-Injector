@@ -124,9 +124,11 @@ const offer = (action, anchor) => {
         state.val = "loading";
         clearTimeout(self.timer);
         try {
-            await undoAction(action.id);
+            const { warning } = await undoAction(action.id);
+            // Undone with a warning: it says so where a refusal would, and stays as long.
+            reason.val = warning ?? "";
             state.val = "done";
-            hideIn(DONE_MS);
+            hideIn(warning ? UNDO_MS : DONE_MS);
         } catch (error) {
             reason.val = error?.message || "not undone";
             state.val = "refused";
@@ -136,7 +138,8 @@ const offer = (action, anchor) => {
 
     self.node = span(
         {
-            class: () => `undo-all undo-all--${state.val} ${over.val ? "undo-all--over" : ""}`,
+            class: () =>
+                `undo-all undo-all--${state.val} ${reason.val && state.val === "done" ? "undo-all--said" : ""} ${over.val ? "undo-all--over" : ""}`,
             onmouseenter: () => hold("pointer", true),
             onmouseleave: () => hold("pointer", false),
             onfocusin: () => hold("focus", true),
@@ -154,9 +157,8 @@ const offer = (action, anchor) => {
             span({ class: "undo-all__offer" }, count === 1 ? "Undo" : "Undo all"),
             span({ class: "undo-all__saving" }, "saving…")
         ),
-        span(
-            { class: "undo-all__status", role: "status", title: () => (state.val === "refused" ? reason.val : "") },
-            () => (state.val === "refused" ? reason.val : state.val === "done" ? "undone" : "")
+        span({ class: "undo-all__status", role: "status", title: () => reason.val }, () =>
+            state.val === "refused" ? reason.val : state.val === "done" ? reason.val || "undone" : ""
         ),
         span({ class: "undo-all__mark", "aria-hidden": "true" }, () =>
             state.val === "done"

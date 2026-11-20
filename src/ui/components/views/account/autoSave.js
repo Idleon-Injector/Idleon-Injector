@@ -101,7 +101,8 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         refused.val = shown.kind === "undo";
         draftRefused = shown.kind === "draft";
         if (shown.next !== "success") endOffer();
-        if (shown.next === "success" && successMs > 0)
+        // A ✓ with words (an undo's warning) stays until the next save says something else.
+        if (shown.next === "success" && successMs > 0 && !shown.why)
             clearTimer = setTimeout(() => {
                 if (status.val === "success" && !offer.val) status.val = null;
             }, successMs);
@@ -176,7 +177,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
                 settle(null, "", by);
                 return { ok: false, cancelled: true, result };
             }
-            settle("success", "", by);
+            settle("success", result?.warning ?? "", by);
             return { ok: true, result };
         } catch (error) {
             settle("error", saveFailureReason(error), by, failKind);
@@ -295,7 +296,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         cancel,
         handlers,
         isBusy: () => saveLoops > 0,
-        undo: { offer, washed, refused, run: undo, hold },
+        undo: { offer, washed, refused, reason, run: undo, hold },
     };
 };
 
@@ -311,6 +312,8 @@ export const saveStateClass = (status, undo = null) =>
         status === "error" ? (undo?.refused.val ? "is-undo-refused" : "is-save-failed") : "",
         undo?.offer.val && status !== "loading" && status !== "error" ? "is-undo-offered" : "",
         undo?.washed.val ? "is-undone" : "",
+        // A ✓ with words (an undo that landed but left the game's totals): the badge steps aside for them.
+        status === "success" && undo?.reason.val ? "is-undo-warned" : "",
     ]
         .filter(Boolean)
         .join(" ");
@@ -321,8 +324,9 @@ export const saveStateClass = (status, undo = null) =>
  * Its mark keeps a fixed slot; the words lie over the space to its left, so nothing around it moves.
  */
 export const SaveState = ({ status, reason, undo = null, className = "" }) => {
-    // Words that say why (a failure's reason, or a slow save's notice) are clamped beside the field; the title has all.
-    const said = () => status.val === "error" || (status.val === "loading" && Boolean(reason.val));
+    // Words that say why (a failure's reason, a slow save's notice, or a ✓'s warning) are clamped beside the field;
+    // the title has all.
+    const said = () => status.val === "error" || (status.val !== null && Boolean(reason.val));
     return span(
         {
             class: () =>

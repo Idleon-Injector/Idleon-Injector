@@ -7,6 +7,7 @@ import { EditableNumberRow } from "../../../components/views/account/EditableNum
 import { captureGesture } from "../../../services/changeLog.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
+    CHARACTER_CHANGED,
     createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
@@ -63,7 +64,7 @@ const PlayerTab = () => {
         try {
             const active = await gga("UserInfo[0]");
             if (active !== current.val || name !== selected.val) {
-                throw new Error("The character changed. Refresh and try again.");
+                throw new Error(CHARACTER_CHANGED);
             }
             const root = name === active ? "" : `PlayerDATABASE.h[${name}].h.`;
             const field = index === null ? "Money" : `Lv0[${index}]`;
@@ -78,15 +79,18 @@ const PlayerTab = () => {
             }
             writes.push({ path: `${root}${field}`, value: next });
             if ((await gga("UserInfo[0]")) !== active) {
-                throw new Error("The active character changed. Refresh and try again.");
+                throw new Error(CHARACTER_CHANGED);
             }
             await inOwnAction(() => writeManyVerified(writes));
             if ((await gga("UserInfo[0]")) !== active) {
-                throw new Error("The active character changed during the write. Refresh to check the result.");
+                throw new Error(CHARACTER_CHANGED);
             }
             return next;
         } catch (caught) {
-            message.val = `${caught.message} Refresh to reload player values; some writes may have applied.`;
+            message.val =
+                caught.message === CHARACTER_CHANGED
+                    ? caught.message
+                    : `${caught.message} Refresh to reload player values; some writes may have applied.`;
             throw caught;
         } finally {
             busy.val = false;
@@ -153,8 +157,7 @@ const PlayerTab = () => {
             if (!levels.length || !Number.isFinite(money) || !levels.every(Number.isFinite)) {
                 throw new Error("Player data is incomplete. Refresh after entering the game.");
             }
-            if ((await gga("UserInfo[0]")) !== active)
-                throw new Error("The active character changed. Refresh and try again.");
+            if ((await gga("UserInfo[0]")) !== active) throw new Error(CHARACTER_CHANGED);
             current.val = active;
             const fields = [
                 { index: null, title: "Money", value: money },
