@@ -43,12 +43,19 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const place = currentPlace();
     // The stored value each draft was taken from.
     const baseByKey = new Map();
+    // The text each draft was last shown, and the fields a commit found changed since: a draft the page showed
+    // again (a read-back) is not the player's edit.
+    const shownByKey = new Map();
+    const edited = new Set();
 
     const resetDraft = (key) => {
         const field = fieldByKey.get(key);
         if (!field) return;
         baseByKey.set(key, field.valueState.val);
-        setNumberInputValue(draftStates[key], (field.toDraft ?? defaultToDraft)(field.valueState.val));
+        const text = (field.toDraft ?? defaultToDraft)(field.valueState.val);
+        shownByKey.set(key, text);
+        edited.delete(key);
+        setNumberInputValue(draftStates[key], text);
     };
 
     const getDraftValue = (key) => getNumberInputLiveRaw(draftStates[key]) ?? draftStates[key].val;
@@ -62,13 +69,41 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
             if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
         });
 
+    // The drafts of the newest save that started: a commit made while it runs compares with them too.
+    let writing = null;
+    const draftText = (drafts, key) => String(drafts[key] ?? "").trim();
+
     const autoSave = useAutoSave({
-        // The drafts as they were at the commit, so a later commit (made after a switch, say) can't save in its place.
-        capture: getDrafts,
-        prepare: (submitted = getDrafts()) => {
+        // The drafts as they were at the commit, so a later commit (made after a switch, say) can't save in its place,
+        // and the stored values they were taken from: a field untouched then stays untouched (and takes the game's
+        // value) when an earlier save read the game back and moved the stored value on meanwhile. A field changed
+        // since the save being written is an edit, even back to its stored value (1, save 2, then 1), unless only
+        // a read-back changed it.
+        capture: () => {
+            const drafts = getDrafts();
+            fields.forEach((field) => {
+                if (draftText(drafts, field.key) !== String(shownByKey.get(field.key)).trim()) edited.add(field.key);
+            });
+            return {
+                drafts,
+                bases: new Map(baseByKey),
+                writing: autoSave.isBusy() ? writing : null,
+                edited: new Set(edited),
+            };
+        },
+        prepare: (
+            { drafts: submitted, bases, writing: during = null, edited: editedThen = edited } = {
+                drafts: getDrafts(),
+                bases: baseByKey,
+            }
+        ) => {
             if (isDisabled()) return { unchanged: true };
             const touched = fields.filter(
-                (field) => !isUntouched(field, submitted[field.key], baseByKey.get(field.key))
+                (field) =>
+                    !isUntouched(field, submitted[field.key], bases.get(field.key)) ||
+                    (during !== null &&
+                        editedThen.has(field.key) &&
+                        draftText(during, field.key) !== draftText(submitted, field.key))
             );
             if (!touched.length) {
                 resetSubmitted(submitted);
@@ -88,6 +123,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                 resetSubmitted(submitted);
                 return { unchanged: true };
             }
+            writing = submitted;
             return {
                 write: async () => {
                     // This save's action (autoSave runs it in one), which counts the values that landed.
@@ -133,6 +169,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
 
     fields.forEach((field) => {
         draftStates[field.key] = van.state((field.toDraft ?? defaultToDraft)(field.valueState.val));
+        shownByKey.set(field.key, draftStates[field.key].rawVal);
         baseByKey.set(field.key, field.valueState.val);
         // A reload shows the new value, in a focused field too, unless the field is being saved or holds the
         // player's draft.
