@@ -634,3 +634,23 @@ test("Printer compares a kept draft with the value the reload read", async () =>
     row.listeners.keydown({ key: "Enter", target: select, preventDefault() {} });
     await until(() => gga.Printer[index] === was, "the pick to save");
 });
+
+test("a save made while who is in play can't be read is logged without Undo", async () => {
+    const [first] = gga.GetPlayersUsernames;
+    const userInfo = gga.UserInfo;
+    gga.UserInfo = null;
+    try {
+        await withAction({ label: "test" }, () =>
+            writeManyVerified([
+                { path: "Lv0[2]", value: gga.Lv0[2] + 1 },
+                { path: `PlayerDATABASE.h[${first}].h.Lv0[2]`, value: gga.PlayerDATABASE.h[first].h.Lv0[2] + 1 },
+            ])
+        );
+    } finally {
+        gga.UserInfo = userInfo;
+    }
+    const [top, saved] = (await newest()).entries;
+    assert.equal(top.hasBefore, false, "a top-level key's owner is unknown, so no old value to put back");
+    assert.equal(saved.hasBefore, true, "a saved copy names its character");
+    await assert.rejects(undoAction((await newest()).id), { message: "old value unknown" });
+});

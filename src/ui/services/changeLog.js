@@ -189,9 +189,12 @@ export const startChange = (rawPaths) => {
                 const read = reads[index];
                 const saved = parseSavedPath(path);
                 const live = !saved && active !== null && (await isLiveCharacterKey(rootKey(path), active));
+                // Without who is in play, a top-level key may be a character's (Money): its old value is kept as
+                // unknown, so no Undo puts it back on whoever is in play then.
+                const owned = Boolean(saved) || active !== null;
                 entries.push({
                     path,
-                    hasBefore: Boolean(read?.ok && read.value !== undefined),
+                    hasBefore: Boolean(owned && read?.ok && read.value !== undefined),
                     before: read?.ok ? read.value : undefined,
                     character: saved ? saved.name : live ? active : null,
                     live,
