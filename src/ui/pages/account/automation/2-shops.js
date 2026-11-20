@@ -51,6 +51,7 @@ const ShopsPage = () => {
     // at once; that step reads the tab's own switch back.
     const picks = createAutomationPicks("shops", { cheat: CHEAT, entry: automation });
     const ids = van.state([]); // every item on the page, all worlds
+    const atStart = van.state(false); // Shops is in the startup cheats, as the last read found
     const bulk = useWriteStatus();
     const bulkSaid = useSaid();
     const stock = new Map(); // "shop:item" -> state of today's stock
@@ -72,6 +73,7 @@ const ShopsPage = () => {
                 ]);
                 showAutomation(automation, found);
                 picks.sync(config.cheatConfig.automation.shops); // edits queued after this read still show
+                atStart.val = (config.startupCheats ?? []).includes(CHEAT);
                 if (!switchNode.firstChild && automation.val)
                     switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
 
@@ -131,8 +133,9 @@ const ShopsPage = () => {
                 {
                     label: "Enable all",
                     status: bulk.status,
-                    // With every item on it still has work while Shops itself is off: switching Shops on.
-                    disabled: () => busy() || (switchedOn() === ids.val.length && Boolean(automation.val?.on)),
+                    // With every item on it still has work while Shops is off now or at start: switching it on.
+                    disabled: () =>
+                        busy() || (switchedOn() === ids.val.length && Boolean(automation.val?.on) && atStart.val),
                     onClick: () => setAll(true),
                 },
                 {

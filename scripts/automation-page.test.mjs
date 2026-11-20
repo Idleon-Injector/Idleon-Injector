@@ -1781,3 +1781,23 @@ test("local review: an item row shows no check while a later save on it is still
     await until(() => !saved().some(({ id, on }) => id === "1:item5" && on), "Golden Bramble off");
     await ui.switchAutomation("automation shops", false);
 });
+
+test("local review: Shops' Enable all stays available while Shops runs but isn't in the startup cheats", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await until(() => button(shops, "Enable all"), "Enable all");
+    await button(shops, "Enable all").listeners.click({ preventDefault() {} });
+    const total = byClass(shops, "automation-pick").length;
+    await until(
+        () => shopsOn() && saved().length === total && saved().every(({ on }) => on),
+        "every item and Shops on"
+    );
+    fileStartup = []; // its startup save failed, say
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => button(shops, "Enable all"), "Enable all, though every item and Shops run");
+    await button(shops, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => fileStartup.includes("automation shops"), "Shops back in the startup cheats");
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await until(() => !saved().some(({ on }) => on), "everything off");
+    await ui.switchAutomation("automation shops", false);
+});
