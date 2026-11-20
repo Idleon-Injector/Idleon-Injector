@@ -219,3 +219,37 @@ test("Spelunking Caves: Add and Remove keep objects the game destroyed since the
     assert.ok(Spelunk[6].includes("Rock_6_2"), "Remove keeps the game's new object");
     assert.equal(removeButtons(root).length, Spelunk[6].length);
 });
+
+test("Sushi Tools: Refresh during a settings save keeps the typed setting, and the next save doesn't undo it", async () => {
+    const status = { enabled: false, maxPurchaseTier: 70, maxTier: 70, working: [], reserved: [], message: "Idle" };
+    router.post("/api/toggle", async (req, res) => res.json({ ok: true, message: JSON.stringify(status) }));
+    const root = (await importRepo("src/ui/pages/world-7/sushi-station/4-tools.js")).default.component();
+    root.offsetParent = null; // off screen: no status polling
+    const field = (title) => elements(root).find((node) => node.attributes["aria-label"] === title);
+    await until(() => buttonNamed(root, "Enable Auto Play")?.attributes.disabled === false, "the tab to load");
+    const tier = field("Purchase tier");
+    let section = tier;
+    while (!section.listeners.focusout) section = section.parentNode;
+    const { fetchConfig } = await importRepo("src/ui/services/api.js");
+    const savedTier = async () => (await fetchConfig()).cheatConfig.w7.sushitools.tier;
+    const next = (await savedTier()) === 3 ? 4 : 3;
+
+    type(tier, next);
+    const release = hold("/config/update");
+    leave(section, tier);
+    await buttonNamed(root, "Refresh").listeners.click({ preventDefault() {} });
+    release();
+    await until(() => text(byClass(root, "save-state__label")[0]) === "saved", "the settings to save");
+    assert.equal(await savedTier(), next);
+    assert.equal(tier.attributes.value, String(next), "the field keeps the saved setting");
+
+    const chain = inputs(
+        elements(root).find((node) => node.nodeName === "label" && text(node).includes("Extended"))
+    )[0];
+    const releaseToggle = hold("/config/update");
+    chain.listeners.change({ target: { checked: !chain.attributes.checked } });
+    await until(() => text(byClass(root, "save-state__label")[0]) === "saving…", "the toggle to save");
+    releaseToggle();
+    await until(() => text(byClass(root, "save-state__label")[0]) === "saved", "the toggle save to finish");
+    assert.equal(await savedTier(), next, "the toggle's save keeps the tier");
+});
