@@ -60,8 +60,14 @@ const SushiSlotTile = ({ index, tileState, maxTierState }) => {
         const sent = inputValue.val;
         await run(
             async () => {
-                await writeVerified(path, nextValue);
-                if (save !== latestSave) return;
+                try {
+                    await writeVerified(path, nextValue);
+                } catch (error) {
+                    // A newer save of this slot says how it went, so an older one's failure says nothing.
+                    if (save !== latestSave) return { cancelled: true };
+                    throw error;
+                }
+                if (save !== latestSave) return { cancelled: true };
                 tileState.value.val = nextValue;
                 // A tier typed since (back in the field, not left yet) is the next save, so it stays.
                 if (inputValue.val === sent) inputValue.val = toDisplayTier(nextValue);

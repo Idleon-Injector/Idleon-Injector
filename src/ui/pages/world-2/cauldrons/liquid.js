@@ -62,7 +62,9 @@ const LiquidControl = ({ label, valueState, writePath, writePaths = null, mode =
             const next = Math.max(0, Math.round(Number(rawValue)));
             return Number.isNaN(next) ? null : next;
         },
-        // Both copies of an upgrade go in one request, so a dropped connection can't leave them split.
+        // Both copies of an upgrade go in one request, so a dropped connection can't leave them split. The game still
+        // writes them one by one: if it refuses one, the other stays written (History lists it, and the row says
+        // why). ponytail: an all-or-nothing write needs the game's writePaths to put the first back.
         write: async (nextValue) => {
             await writeManyVerified(paths.map((path) => ({ path, value: nextValue })));
             return nextValue;

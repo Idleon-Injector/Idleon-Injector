@@ -57,6 +57,7 @@ const VARIANT_CLASS = {
  * the press ask in place first (#25): the first press reads "Click again" and only a second one runs `onClick`. Bulk
  * removals pass it; additions run on one press. `confirmTargets` (a value, or a function that returns one) is what the
  * change touches that the question doesn't name, such as the world picked: a change to it asks again.
+ * `keepEnabled`: a row's button stays enabled while its save runs, so focus stays on it; a press meanwhile does nothing.
  */
 export const ActionButton = ({
     label,
@@ -71,6 +72,7 @@ export const ActionButton = ({
     buttonProps = {},
     confirm = null,
     confirmTargets = null,
+    keepEnabled = false,
 }) => {
     const shared = Object(status) === status;
     let buttonNode = null;
@@ -96,12 +98,13 @@ export const ActionButton = ({
                 );
             },
             disabled: () => {
-                return Boolean(resolveValue(disabled)) || resolveValue(status) === "loading";
+                return Boolean(resolveValue(disabled)) || (!keepEnabled && resolveValue(status) === "loading");
             },
             "aria-busy": () => String(ownStatus() === "loading"),
             // One press is one action: everything it saves, now or after its awaits, undoes together.
             onclick: onClick
                 ? (e) => {
+                      if (keepEnabled && resolveValue(status) === "loading") return undefined;
                       if (confirm) {
                           const question = typeof confirm === "function" ? confirm() : confirm;
                           // A question that went away (Set count raised after it asked) takes "Click again" with it.
