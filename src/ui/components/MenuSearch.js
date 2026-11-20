@@ -1,12 +1,14 @@
 /**
- * The menu's one search: systems, pages, worlds and areas, including their old injector names.
+ * The menu's one search: systems, pages, worlds and areas, including their old injector names, then every cheat
+ * and cheat setting. Picking a cheat shows its row on the Cheats page; it never runs it.
  */
 
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { Icons } from "../assets/icons.js";
 import { menuSearchEntries } from "../menu/pageRegistry.js";
-import { searchMenu } from "../menu/menuModel.js";
+import { cheatSearchEntries, searchMenu } from "../menu/menuModel.js";
+import { configDescriptions } from "../config/configDescriptions.js";
 
 const { div, input, span, button, kbd } = van.tags;
 
@@ -14,7 +16,10 @@ export const MenuSearch = () => {
     const query = van.state("");
     const open = van.state(false);
     const highlight = van.state(0);
-    const results = van.derive(() => searchMenu(menuSearchEntries.val, query.val));
+    // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
+    const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions));
+    const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
+    const results = van.derive(() => searchMenu(entries.val, query.val));
 
     const close = () => {
         open.val = false;
@@ -30,7 +35,7 @@ export const MenuSearch = () => {
     const field = input({
         type: "text",
         class: "menu-search-input",
-        placeholder: "SEARCH PAGES AND SYSTEMS",
+        placeholder: "SEARCH PAGES, SYSTEMS AND CHEATS",
         autocomplete: "off",
         spellcheck: "false",
         role: "combobox",

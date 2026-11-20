@@ -60,6 +60,8 @@ export const App = () => {
     store.initHeartbeat();
     store.loadAppInfo();
     store.checkForUpdate();
+    // The menu search finds cheats too, so the Cheats page's list loads at start instead of on its first visit.
+    store.loadCheats();
     loadPages().then(() => {
         if (menuError.val) store.notify(menuError.val, "error");
     });

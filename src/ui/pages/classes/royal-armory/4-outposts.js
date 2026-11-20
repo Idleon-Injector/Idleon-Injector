@@ -904,6 +904,7 @@ export default definePage({
     world: "classes",
     system: "Royal Armory",
     tab: "Outposts",
+    keywords: ["Units"],
     description: "Outposts, kill counters, ranks, slots and stationed map units.",
     component: OutpostsTab,
 });

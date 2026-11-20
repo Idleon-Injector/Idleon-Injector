@@ -51,6 +51,8 @@ const appState = vanX.reactive({
     config: null,
     sidebarCollapsed: localStorage.getItem("sidebarCollapsed") === "true",
     configForcedPath: null,
+    // The cheat the menu search sent the player to: the Cheats page shows that row (and `setting` in the drawer).
+    cheatFocus: { cheat: "", setting: "", n: 0 },
     cheatsViewMode: localStorage.getItem("cheatsViewMode") || "tabs",
 });
 
@@ -471,10 +473,17 @@ const store = {
 
     /**
      * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }` (page "" or null = the world's first page).
+     * `{ view: "CHEATS", cheat, setting }` shows that cheat's row, and with `setting` opens its settings drawer;
+     * it never runs the cheat.
      */
     openMenu: (target) => {
         if (target.view) {
             appState.activeTab = VIEWS[target.view].id;
+            if (target.cheat) {
+                const setting = target.setting || "";
+                appState.cheatFocus = { cheat: target.cheat, setting, n: appState.cheatFocus.n + 1 };
+                if (setting) CheatService.navigateToCheatConfig(target.cheat);
+            }
             return;
         }
         appState.menuWorld = target.world;

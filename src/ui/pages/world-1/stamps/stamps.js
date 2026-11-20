@@ -242,6 +242,6 @@ export default definePage({
     world: 1,
     system: "Stamps",
     description: "Stamp levels and exalted stamps.",
-    keywords: ["Exalted"],
+    keywords: ["Exalted", "Combat", "Skills", "Misc"],
     component: StampsTab,
 });

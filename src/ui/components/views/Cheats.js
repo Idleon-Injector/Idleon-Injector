@@ -8,6 +8,7 @@ import { Icons } from "../../assets/icons.js";
 import { CATEGORY_ORDER } from "../../state/constants.js";
 import { CheatItem } from "../CheatItem.js";
 import { LazyCategory } from "../LazyCategory.js";
+import { revealFound } from "../../utils/index.js";
 
 const { div, button, span } = van.tags;
 
@@ -176,6 +177,30 @@ export const Cheats = () => {
         resetPagination();
     };
 
+    // The menu search sent the player to a cheat: clear this page's filter, open its category and show the row.
+    // It only shows the row; the player runs the cheat from it.
+    const filterText = van.state("");
+    let shownFocus = 0;
+    van.derive(() => {
+        const { cheat: value, setting, n } = store.app.cheatFocus;
+        const cheats = store.data.cheats;
+        if (!n || n === shownFocus || !cheats.length) return;
+        shownFocus = n;
+        const category = cheats.find((cheat) => cheat.value === value)?.category || "general";
+        const inCategory = cheats.filter((cheat) => (cheat.category || "general") === category);
+        filterText.val = "";
+        handleSearch("");
+        ui.activeCategory = category;
+        pagination.limit = Math.max(50, Math.ceil((inCategory.findIndex((c) => c.value === value) + 1) / 50) * 50);
+        const page = document.getElementById("cheats-tab") || document;
+        revealFound(() => {
+            const details = page.querySelector(`details[data-category="${CSS.escape(category)}"]`);
+            if (details && !details.open) details.open = true;
+            return page.querySelector(`[data-cheat="${CSS.escape(value)}"] .cheat-button`);
+        }, !setting);
+        if (setting) revealFound(() => document.querySelector(`[data-config-key="${CSS.escape(setting)}"]`), true);
+    });
+
     const handleConfigDrawerToggle = () => {
         store.clearForcedConfigPath();
 
@@ -198,6 +223,7 @@ export const Cheats = () => {
                 SearchBar({
                     placeholder: "SEARCH_COMMANDS",
                     onInput: handleSearch,
+                    value: filterText,
                 }),
                 button(
                     {

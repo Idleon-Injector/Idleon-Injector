@@ -5,10 +5,12 @@ import { dirname, join, relative } from "node:path";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { configDescriptions } from "../src/ui/config/configDescriptions.js";
 import {
     AREAS,
     WORLDS,
     buildMenuTree,
+    cheatSearchEntries,
     definePage,
     pageFolder,
     searchEntries,
@@ -159,4 +161,76 @@ test("every module under src/ui/pages declares a page in its world and system fo
         pages.push(declared);
     }
     assert.doesNotThrow(() => buildMenuTree(pages), "page ids are unique");
+});
+
+// Rows as GET /api/cheats returns them (copied from the fake game's list).
+const CHEATS = [
+    { value: "godlike", message: "all godlike powers", category: "godlike" },
+    { value: "godlike reach", message: "reach set to 666", category: "godlike" },
+    { value: "godlike respawn", message: "instant mob respawn", category: "godlike" },
+    { value: "godlike hp", message: "never lose hp, become invincible (when active)", category: "godlike" },
+    { value: "w1", message: "all w1 cheats", category: "w1" },
+    { value: "w1 forge", message: "forge speed and capacity multiplier check config", category: "w1" },
+    { value: "w1 stampcost", message: "stamp cost reduction multiplier check config", category: "w1" },
+    { value: "lvl stamp", message: "Change all stamp levels", category: "lvl", needsParam: true },
+];
+
+test("search finds cheats and their settings after the menu's own places, and inner tabs by name", async () => {
+    const pages = [];
+    for (const file of await collectPageModules(PAGES_DIR))
+        pages.push((await import(pathToFileURL(file).href)).default);
+    const entries = [...searchEntries(buildMenuTree(pages)), ...cheatSearchEntries(CHEATS, configDescriptions)];
+    const search = (q) => searchMenu(entries, q);
+
+    const godlike = search("godlike");
+    assert.deepEqual(godlike[0].target, { view: "CHEATS", cheat: "godlike" });
+    assert.equal(godlike[0].where, "Cheat · Cheats › Godlike");
+    assert.ok(godlike.some((hit) => hit.label === "godlike reach"));
+    assert.deepEqual(search("godlike reach")[0].target, { view: "CHEATS", cheat: "godlike reach" });
+
+    const stampcost = search("stampcost");
+    assert.deepEqual(
+        stampcost.map((hit) => [hit.label, hit.where]),
+        [
+            ["w1 stampcost", "Cheat · Cheats › W1"],
+            ["stampcost", "Setting · w1 stampcost"],
+        ]
+    );
+    assert.deepEqual(stampcost[1].target, {
+        view: "CHEATS",
+        cheat: "w1 stampcost",
+        setting: "cheatConfig.w1.stampcost",
+    });
+    assert.deepEqual(
+        search("capacity").find((hit) => hit.kind === "Setting").target,
+        { view: "CHEATS", cheat: "w1 forge", setting: "cheatConfig.w1.forge.capacity" },
+        "a setting opens the cheat whose gear shows it"
+    );
+    assert.equal(search("invincible")[0].label, "godlike hp", "a cheat is found by its description words");
+    assert.equal(search("invincible")[0].matched, "invincible");
+    assert.ok(!entries.some((entry) => entry.kind && /unban|maxval/.test(entry.label)), "core settings stay out");
+
+    const stamps = search("stamps");
+    assert.equal(stamps[0].label, "Stamps", "the page beats a cheat or setting with the same word");
+    assert.deepEqual(stamps[0].target, { world: 1, page: "w1.stamps" });
+    assert.ok(
+        stamps.some((hit) => hit.kind === "Setting" && hit.label === "stampcost"),
+        "then the stamp settings"
+    );
+    const stamp = search("stamp");
+    assert.ok(stamp.findIndex((hit) => hit.kind) > stamp.findIndex((hit) => hit.label === "Stamps"));
+    assert.ok(stamp.some((hit) => hit.label === "w1 stampcost") && stamp.some((hit) => hit.label === "lvl stamp"));
+
+    for (const [q, system] of [
+        ["combat", "Stamps"],
+        ["skills", "Stamps"],
+        ["misc", "Stamps"],
+        ["overview", "Menagerie"],
+        ["unlocks", "Menagerie"],
+        ["cells", "Jelly Operator"],
+        ["units", "Outposts"],
+    ]) {
+        assert.equal(search(q)[0].label, system, `"${q}" (an inner tab) finds ${system}`);
+    }
+    assert.ok(search("e").length <= 8, "at most 8 results");
 });

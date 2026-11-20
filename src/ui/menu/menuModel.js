@@ -249,6 +249,44 @@ export const searchEntries = (tree) => {
     return out;
 };
 
+/** A cheat category as a place name: "w1" -> "W1", "godlike" -> "Godlike". */
+const categoryName = (category) =>
+    /^w\d$/.test(category) ? category.toUpperCase() : category.charAt(0).toUpperCase() + category.slice(1);
+
+/**
+ * Search entries for every cheat and every cheat setting. `cheats` is the Cheats page's list
+ * ({ value, message, category }); `descriptions` is configDescriptions ("cheatConfig.<path>": text).
+ * A setting belongs to the longest cheat command its path starts with, the cheat whose gear shows it;
+ * settings no cheat owns (unban, maxval, ...) live on the Settings page and stay out.
+ */
+export const cheatSearchEntries = (cheats, descriptions) => {
+    const commands = new Set(cheats.map((cheat) => cheat.value));
+    const out = cheats.map((cheat) => ({
+        kind: "Cheat",
+        label: cheat.value,
+        where: `Cheat · Cheats › ${categoryName(cheat.category || "general")}`,
+        description: cheat.message || "",
+        target: { view: "CHEATS", cheat: cheat.value },
+    }));
+    for (const [key, description] of Object.entries(descriptions)) {
+        if (!key.startsWith("cheatConfig.")) continue;
+        const path = key.split(".").slice(1);
+        let owner = "";
+        for (let i = path.length; i > 0 && !owner; i--) {
+            if (commands.has(path.slice(0, i).join(" "))) owner = path.slice(0, i).join(" ");
+        }
+        if (!owner) continue;
+        out.push({
+            kind: "Setting",
+            label: path[path.length - 1],
+            where: `Setting · ${owner}`,
+            description,
+            target: { view: "CHEATS", cheat: owner, setting: key },
+        });
+    }
+    return out;
+};
+
 const MAX_RESULTS = 8;
 
 const scoreText = (text, q) => {
@@ -261,14 +299,33 @@ const scoreText = (text, q) => {
 };
 
 /**
+ * A cheat or setting scores 50 below a menu place, so any page, system or area matched by name comes first,
+ * and a cheat matched by its command still beats a page matched only by its description (25).
+ */
+const scoreCheat = (entry, q) => {
+    const name = entry.label.split(" ").pop();
+    const score = Math.max(scoreText(entry.label, q), scoreText(name, q));
+    if (score) return { score: score - 50, matched: null };
+    const word = entry.description.split(/[^A-Za-z0-9']+/).find((w) => w.toLowerCase().startsWith(q));
+    if (word) return { score: 4, matched: word };
+    return { score: entry.description.toLowerCase().includes(q) ? 2 : 0, matched: null };
+};
+
+/**
  * Search the menu. Matches labels, then extra words (returned as `matched` so the result can show the old name),
- * then descriptions. Best first, at most MAX_RESULTS.
+ * then descriptions. Cheats and settings (entries with a `kind`) rank after menu places. Best first, at most
+ * MAX_RESULTS.
  */
 export const searchMenu = (entries, query) => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     const hits = [];
     for (const entry of entries) {
+        if (entry.kind) {
+            const { score, matched } = scoreCheat(entry, q);
+            if (score > 0) hits.push({ ...entry, matched, score });
+            continue;
+        }
         let score = scoreText(entry.label, q);
         let matched = null;
         for (const word of entry.words || []) {
