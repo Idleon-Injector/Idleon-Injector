@@ -67,7 +67,11 @@ test("a WebUI save loads back after a restart, on top of the generated config.js
     loadCommonJs("src/modules/server/routes/config.js", { "../../config/configManager": config }).setupConfigRoutes(
         router,
         // A game where `nomore Copper` ran: its patterns come back when the WebUI reads the config.
-        { callHelper: async () => ({ value: JSON.stringify({ nomore: { items: ["/Copper/"] } }) }) },
+        {
+            callHelper: async () => ({ value: JSON.stringify({ nomore: { items: ["/Copper/"] } }) }),
+            isAttached: async () => true,
+            updateConfig: async () => ({ value: "Config updated in game." }),
+        },
         {
             cheatConfig: config.getCheatConfig(),
             defaultConfig: config.getDefaultConfig(),
@@ -203,4 +207,35 @@ test("two saves at once write the file one after the other, so it still loads", 
         "a save starts its temporary file after the last one is in place"
     );
     assert.equal(start().config.getCheatConfig().unlock.islands, "abc", "the file loads with the later save");
+});
+
+test("a save the running game can't take is still written, and says the game kept its old settings", async (t) => {
+    const dir = useInstall(t);
+    const { config } = start();
+    const router = new TinyRouter();
+    const game = {
+        callHelper: async () => ({ value: "{}" }),
+        isAttached: async () => true,
+        updateConfig: async () => {
+            throw new Error("Cannot find context with specified id");
+        },
+    };
+    loadCommonJs("src/modules/server/routes/config.js", { "../../config/configManager": config }).setupConfigRoutes(
+        router,
+        game,
+        { cheatConfig: config.getCheatConfig(), startupCheats: config.getStartupCheats() }
+    );
+    const saved = await request(router, "POST", "/api/config/save", { cheatConfig: { unlock: { islands: "a" } } });
+    assert.equal(saved.statusCode, 200);
+    assert.equal(
+        saved.body.message,
+        "Configuration saved to config.custom.js. The running game kept its old settings " +
+            "(Cannot find context with specified id)"
+    );
+    assert.match(readFileSync(join(dir, "config.custom.js"), "utf8"), /islands: "a"/);
+
+    // A game that isn't there gets the saved settings when it's injected, so that save is a plain success.
+    game.isAttached = async () => false;
+    const later = await request(router, "POST", "/api/config/save", { cheatConfig: { unlock: { islands: "b" } } });
+    assert.equal(later.body.message, "Configuration successfully saved to config.custom.js");
 });
