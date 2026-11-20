@@ -12,6 +12,8 @@ const gga = game.gga;
 const ola = gga.OptionsListAccount;
 const { fetchChanges } = await importRepo("src/ui/services/api.js");
 const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+const { writeVerified, writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+const { withAction } = await importRepo("src/ui/services/changeLog.js");
 
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
@@ -234,4 +236,26 @@ test("History lists the actions newest first, grouped, with old → new and Undo
     assert.match(text(refused), /31/);
     assert.match(text(refused), /→/);
     assert.equal(byClass(refused, "change-group__button")[0].attributes.hidden, false, "still undoable");
+});
+
+test("a character's undo is refused when who is in play can't be read", async () => {
+    const [first] = gga.GetPlayersUsernames;
+    const saved = gga.PlayerDATABASE.h[first].h;
+    const savedBefore = saved.Lv0[2];
+    await withAction({ label: "test" }, () => writeVerified("Lv0[2]", gga.Lv0[2] + 2));
+    const action = await newest();
+    assert.equal(action.entries[0].character, first);
+    const live = gga.Lv0[2];
+    saved.Lv0[2] = live; // the game copied the live value into the saved one
+    const userInfo = gga.UserInfo;
+    gga.UserInfo = null;
+    try {
+        await assert.rejects(undoAction(action.id), /can't tell who is in play/);
+    } finally {
+        gga.UserInfo = userInfo;
+    }
+    assert.equal(gga.Lv0[2], live);
+    assert.equal(saved.Lv0[2], live, "its saved copy is untouched too");
+    assert.equal((await newest()).entries[0].undone, false);
+    saved.Lv0[2] = savedBefore;
 });

@@ -64,6 +64,8 @@ export const undoAction = async (id) => {
 
     const [activeRead] = await readGgaMany(["UserInfo[0]"]);
     const active = activeRead?.ok && typeof activeRead.value === "string" ? activeRead.value : null;
+    // Without who is in play, a character's value could go to its saved copy while the game keeps the live one.
+    if (active === null && todo.some((entry) => entry.character !== null)) throw new Error("can't tell who is in play");
     const targets = [];
     for (const entry of todo) targets.push(await targetPath(entry, active));
 
