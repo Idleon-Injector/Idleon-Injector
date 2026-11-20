@@ -21,10 +21,9 @@ Save copies cross all three: the injected code keeps the newest cloud save's cop
 over CDP and stores it in `save-copies/` next to the injector's other runtime files, and the Web UI compares and
 restores through the server.
 
-The change log spans the Web UI and the server: every page save through `writeVerified` / `writeManyVerified` reads
-the old value first and, once the game reads the new one back, logs both with the character and the user action to the
-server, which keeps them in memory for the game session (a Web UI reload keeps them, a restart doesn't). Undo writes the
-old values back through the same calls.
+The change log spans the Web UI and the server: the Web UI logs each page save's old and new values to the server, which
+keeps them in memory for the game session (a Web UI reload keeps them, a restart doesn't), and Undo writes the old values
+back. How is in the files under Change log and Undo below.
 
 ## Find the relevant area
 
