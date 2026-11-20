@@ -188,6 +188,27 @@ test("Undo of a Jelly cell level clears the game's cached cell total", async () 
     assert.equal(total(), 2);
 });
 
+test("Undo from History clears the Bubba and Jelly cached totals with neither page open", async () => {
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const writes = [
+        { path: "Bubba[1][1]", value: Number(gga.Bubba[1][1]) + 1 },
+        { path: "Research[16][0]", value: Number(gga.Research[16][0]) + 1 },
+        { path: "Research[17][8]", value: Number(gga.Research[17][8]) + 1 },
+    ];
+    const before = writes.map(({ value }) => value - 1);
+    await writeManyVerified(writes);
+    // The game rebuilt its totals from the saved levels (WebUI reloaded since; another page is open).
+    Object.assign(gga.DNSM.h, { Bubba_LVzAll: 73, CellLV_tot: 9, JellySlotz: 4 });
+    const { actions } = await fetchChanges();
+    const action = actions.find((entry) => entry.entries.some((change) => change.path === "Research[17][8]"));
+
+    await undoAction(action.id);
+    assert.deepEqual([gga.Bubba[1][1], gga.Research[16][0], gga.Research[17][8]], before);
+    for (const key of ["Bubba_LVzAll", "CellLV_tot", "JellySlotz"]) assert.equal(key in gga.DNSM.h, false, key);
+});
+
 test("Clam Scurge fields stay open while another Scurge field saves, and both edits save", async (t) => {
     gga.Menagerie[5] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     const page = await openPage("src/ui/pages/world-7/clam-work/clam-work.js", (root) =>

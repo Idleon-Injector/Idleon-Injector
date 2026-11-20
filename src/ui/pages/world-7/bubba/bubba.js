@@ -204,8 +204,6 @@ const BubbaTab = () => {
                 readCList("Spelunky[36]"),
                 readCList("Spelunky[39]"),
                 readCList("Spelunky[34]"),
-                // Undo puts upgrade levels back and reruns this load: the game's cached sum must go with them.
-                deleteGga("DNSM.h.Bubba_LVzAll"),
             ]);
             const data = toIndexedArray(raw).map(toIndexedArray);
             const lengths = [20, 28, 28, 6, 8, 5];
