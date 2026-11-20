@@ -855,14 +855,18 @@ test("reader: the Shops tab's switch read that a newer one overtook is dropped",
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
     let release;
+    let answered;
     holdNextListRead = new Promise((resolve) => (release = resolve));
-    const asked = listAsked;
-    void button(shops, "Refresh").listeners.click({ preventDefault() {} });
-    await until(() => listAsked > asked, "the Refresh's read to be held");
-    await checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
-    await until(() => statusOf(shops) !== "Off", "the switch's own read to show Shops on");
-    const answered = listAnswered;
-    release();
+    try {
+        const asked = listAsked;
+        void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+        await until(() => listAsked > asked, "the Refresh's read to be held");
+        await checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
+        await until(() => statusOf(shops) !== "Off", "the switch's own read to show Shops on");
+    } finally {
+        answered = listAnswered;
+        release();
+    }
     await until(() => listAnswered > answered, "the held read to be answered");
     await handled();
     assert.notEqual(statusOf(shops), "Off", "the older read was dropped");
@@ -1407,9 +1411,12 @@ test("reader 3: a step waiting behind a late one says so too", async () => {
     const notices = [];
     const sent = commands.length;
     const behind = lateBy(100, () => ui.switchAutomation("automation shops", true, (notice) => notices.push(notice)));
-    await until(() => notices.length, "the queued switch to say it is still waiting");
-    assert.equal(commands.length, sent, "it hasn't run: it waits behind the earlier step");
-    release();
+    try {
+        await until(() => notices.length, "the queued switch to say it is still waiting");
+        assert.equal(commands.length, sent, "it hasn't run: it waits behind the earlier step");
+    } finally {
+        release(); // a failed check above must not leave the queue held for the tests after it
+    }
     await Promise.all([ahead, behind]);
     assert.equal(shopsOn(), true);
     await ui.switchAutomation("automation shops", false);
