@@ -30,6 +30,8 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Monitor             | A subscription to observe a game value over time.                                                  |
 | Session update      | A configuration change applied to the running session.                                             |
 | Saved configuration | User overrides written to disk for later runs.                                                     |
+| Save copy           | A copy of the save the injector keeps on the player's PC each time the game cloud-saves.           |
+| Never rolled back   | Save values a restore leaves alone because putting an old one back grants things twice.            |
 
 Source entry points: [game globals](../src/cheats/core/globals.js),
 [command registration](../src/cheats/core/registration.js),
