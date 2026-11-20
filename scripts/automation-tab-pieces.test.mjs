@@ -390,3 +390,18 @@ test("after a save the game didn't answer and nothing read back, the next save w
     await unsure.set(1, 40);
     assert.deepEqual(lastUpdate("testUnsure"), [10, 40]);
 });
+
+test("after a save the game didn't answer, a read-back of only the server's copy doesn't let the next save through", async () => {
+    const unsure = ui.createAutomationSetting("testUnsureServer");
+    unsure.sync([5, 6]);
+    dropNextUpdate = true;
+    serverCopyOnly = true;
+    try {
+        await assert.rejects(unsure.set(0, 10), /connection dropped|500|error/i);
+    } finally {
+        serverCopyOnly = false;
+    }
+    const since = updates.length;
+    await assert.rejects(unsure.set(1, 40), /not read from the game yet: press Refresh/);
+    assert.equal(updates.length, since);
+});
