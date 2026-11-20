@@ -49,7 +49,7 @@ import { AccountRow } from "./components/AccountRow.js";
 import { useWriteStatus } from "./accountShared.js";
 import { Said, useSaid } from "../../inPlace.js";
 
-const { div, input, label, span } = van.tags;
+const { div, input, label, option, select, span } = van.tags;
 
 /** Every automation, with its status while it runs. A direct read: inside a step it gives the settled answer. */
 export const readAutomations = () => readComputed("automation", "list");
@@ -266,24 +266,54 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
     });
 };
 
+// Send cheatConfig.automation[key] to the game, then to the config file. A failure only at the file is marked
+// `fileOnly`: the game has the value.
+const sendToGame = async (key, value) => {
+    const result = await updateSessionConfig({ cheatConfig: { automation: { [key]: value } } });
+    if (result.message !== "Configuration updated successfully")
+        throw new Error(result.details || result.message || "The game didn't take the change");
+};
+const sendToFile = (key, value) =>
+    saveConfigFile({ cheatConfig: { automation: { [key]: value } } }).catch((error) => {
+        throw Object.assign(new Error(`in the game, but not saved to the file: ${error.message}`), { fileOnly: true });
+    });
+
+// The page's own read at the end of a save step (direct reads only: it runs inside the step), so its levels, costs
+// and status lines follow the save. Its failure is the page's to say; the save's outcome stands.
+const readAfter = (afterSave) => Promise.resolve(afterSave?.()).catch(() => {});
+
 /**
- * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item. What the game accepted (the
+ * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, plus any other setting the
+ * system keeps per item (priority, payWith, ...; null or missing is its default). What the game accepted (the
  * last read of the list, or a list it took) is kept apart from the edits still queued; each row shows the accepted item
  * with its queued edits on top. An edit queues a step that sends the accepted list plus only that edit to the game,
  * then the file, then reads back what the game holds: a taken edit joins the accepted list, a refused one is dropped,
  * and a read that works replaces the list. With `cheat`, the same step then turns that automation on (now and at
  * start) when the game runs an item the edit switched on, and reads its entry back into `entry` (a state, for its
- * AutomationRow).
+ * AutomationRow). With `afterSave`, the step ends with that read of the page (see readAfter), saves and bulk saves
+ * alike.
  */
-export const createAutomationPicks = (group, { cheat = null, entry = null } = {}) => {
+export const createAutomationPicks = (group, { cheat = null, entry = null, afterSave = null } = {}) => {
     const items = new Map(); // id -> the states its row shows
     let accepted = new Map(); // id -> { on, stopAt }: what the game holds, as far as the page knows
     const queued = []; // [id, patch] of the edits whose step hasn't ended, oldest first
     const fileBehind = van.state(false); // the game may hold a list the config file doesn't
 
     const get = (id) => {
-        if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
+        if (!items.has(id))
+            items.set(id, {
+                on: van.state(false),
+                stopAt: van.state(null),
+                draft: van.state(""),
+                fields: new Map(), // a setting beside the stop-at (priority, payWith, ...) -> its state
+            });
         return items.get(id);
+    };
+    /** The state of an item's other setting (`field` of its entry; null when the entry has none). */
+    const field = (id, name) => {
+        const { fields } = get(id);
+        if (!fields.has(name)) fields.set(name, van.state(withEdits(accepted, queued).get(id)?.[name] ?? null));
+        return fields.get(name);
     };
 
     const withEdits = (list, edits) => {
@@ -298,24 +328,34 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
         const shown = withEdits(accepted, queued);
         for (const id of shown.keys()) get(id);
         for (const [id, item] of items) {
-            const untouched = (getNumberInputLiveRaw(item.draft) ?? item.draft.val) === stopAtText(item.stopAt.val);
+            const untouched = (getNumberInputLiveRaw(item.draft) ?? item.draft.val) === valueText(item.stopAt.val);
             item.on.val = Boolean(shown.get(id)?.on);
             item.stopAt.val = shown.get(id)?.stopAt ?? null;
+            for (const [name, state] of item.fields) state.val = shown.get(id)?.[name] ?? null;
             if (untouched) showStopAt(item);
         }
     };
 
     /** Take a read of the list (a step's, so it is newer than every step before it) as what the game holds. */
     const sync = (entries) => {
-        accepted = new Map(entries.map(({ id, on, stopAt = null }) => [String(id), { on: Boolean(on), stopAt }]));
+        accepted = new Map(
+            entries.map(({ id, on, stopAt = null, ...fields }) => [String(id), { ...fields, on: Boolean(on), stopAt }])
+        );
         show();
     };
 
-    // Switched-off items stay while they carry a stop-at, so it survives.
+    // Switched-off items stay while they carry a setting (a stop-at, a priority, ...), so it survives. A setting
+    // that is null is the default, so it is left out.
     const toConfig = (list) =>
         [...list]
-            .filter(([, item]) => item.on || item.stopAt !== null)
-            .map(([id, { on, stopAt }]) => ({ id, on, ...(stopAt !== null ? { stopAt } : {}) }));
+            .map(([id, { on, ...fields }]) => ({
+                id,
+                on,
+                ...Object.fromEntries(
+                    Object.entries(fields).filter(([, value]) => value !== null && value !== undefined)
+                ),
+            }))
+            .filter((item) => item.on || Object.keys(item).length > 2);
 
     // Show `patches` ([id, { on } or { stopAt }]) and queue the step that saves them onto the accepted list.
     const save = (patches, onLate) => {
@@ -331,15 +371,9 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
                 // From here until the file is written, the game may hold what the file doesn't: even a failed answer
                 // can come after the game applied the list. Enter on the same value then saves it again.
                 fileBehind.val = true;
-                const result = await updateSessionConfig({ cheatConfig: { automation: { [group]: list } } });
-                if (result.message !== "Configuration updated successfully")
-                    throw new Error(result.details || result.message || "The game didn't take the change");
+                await sendToGame(group, list);
                 accepted = next;
-                await saveConfigFile({ cheatConfig: { automation: { [group]: list } } }).catch((error) => {
-                    throw Object.assign(new Error(`in the game, but not saved to the file: ${error.message}`), {
-                        fileOnly: true,
-                    });
-                });
+                await sendToFile(group, list);
                 fileBehind.val = false;
             } catch (error) {
                 failure = error;
@@ -368,6 +402,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
                 const found = await findAutomation(cheat).catch(() => undefined);
                 if (entry && found !== undefined) showAutomation(entry, found);
             }
+            await readAfter(afterSave);
             if (failure) throw failure;
         }, onLate);
     };
@@ -383,12 +418,89 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
     /** Send the list again: after a file save failed, the field's Enter retries it. */
     const resave = (onLate = null) => save([], onLate);
 
-    return { get, sync, set, setAll, resave, fileBehind: () => fileBehind.val };
+    return { get, field, sync, set, setAll, resave, fileBehind: () => fileBehind.val };
 };
 
-const stopAtText = (stopAt) => (stopAt === null ? "" : String(stopAt));
+/**
+ * A system-wide setting kept beside its picks, cheatConfig.automation[key]: a number (index null), or a list of
+ * numbers by index (one per currency, say; a gap is the game's default). Its saves are steps like the picks': each
+ * sends what the game accepted plus its own change to the game, then the file, reads back what the game holds, and
+ * ends with `afterSave` (see readAfter). Returns { get(index), sync(held), set(index, value, onLate), resave(onLate),
+ * fileBehind() }; get(index) is { value, draft }, the states a SettingRow shows.
+ */
+export const createAutomationSetting = (key, { afterSave = null } = {}) => {
+    let accepted = null; // what the game holds, as far as the page knows
+    const queued = []; // [index, value] of the edits whose step hasn't ended, oldest first
+    const fileBehind = van.state(false);
+    const fields = new Map(); // index -> { value, draft }
+
+    const at = (whole, index) => (index === null ? whole : whole?.[index]) ?? null;
+    const withEdits = (whole, edits) =>
+        edits.reduce(
+            (next, [index, value]) => (index === null ? value : Object.assign([...(next ?? [])], { [index]: value })),
+            whole
+        );
+
+    const show = () => {
+        const shown = withEdits(accepted, queued);
+        for (const [index, field] of fields) {
+            const untouched = (getNumberInputLiveRaw(field.draft) ?? field.draft.val) === valueText(field.value.val);
+            field.value.val = at(shown, index);
+            if (untouched) setNumberInputValue(field.draft, valueText(field.value.val));
+        }
+    };
+    const get = (index = null) => {
+        if (!fields.has(index)) {
+            fields.set(index, { value: van.state(null), draft: van.state("") });
+            show();
+        }
+        return fields.get(index);
+    };
+    /** Take a read of the setting (a step's) as what the game holds. */
+    const sync = (held) => {
+        accepted = held ?? null;
+        show();
+    };
+
+    const save = (edits, onLate) => {
+        const mine = [...edits];
+        queued.push(...mine);
+        show();
+        return inTurn(async () => {
+            let failure = null;
+            const next = withEdits(accepted, edits);
+            try {
+                fileBehind.val = true; // as for the picks: the game may hold what the file doesn't
+                await sendToGame(key, next);
+                accepted = next;
+                await sendToFile(key, next);
+                fileBehind.val = false;
+            } catch (error) {
+                failure = error;
+            }
+            for (const edit of mine) queued.splice(queued.indexOf(edit), 1);
+            // As for the picks: a read of the game is the truth; the server's copy took a refused edit before the
+            // game did, so there a refused edit stays refused.
+            const read = await fetchConfig().catch(() => null);
+            if (read && (read.gameRead || accepted === next)) accepted = read.cheatConfig.automation[key] ?? accepted;
+            show();
+            await readAfter(afterSave);
+            if (failure) throw failure;
+        }, onLate);
+    };
+
+    return {
+        get,
+        sync,
+        set: (index, value, onLate = null) => save([[index, value]], onLate),
+        resave: (onLate = null) => save([], onLate),
+        fileBehind: () => fileBehind.val,
+    };
+};
+
+const valueText = (value) => (value === null ? "" : String(value));
 /** Put an item's saved stop-at back in its field ("" is no limit). */
-const showStopAt = (item) => setNumberInputValue(item.draft, stopAtText(item.stopAt.val));
+const showStopAt = (item) => setNumberInputValue(item.draft, valueText(item.stopAt.val));
 
 const parseStopAt = (raw) => {
     const text = String(raw ?? "").trim();
@@ -400,19 +512,21 @@ const parseStopAt = (raw) => {
 };
 
 /**
- * An item's row: name, a badge, its stop-at (empty is no limit; saves on Enter or on leaving it) and its switch.
- * The switch and the stop-at share one save state, whose writes take turns in the order the player made them (a
- * stop-at, then the switch, reach the game in that order), so what it shows is the newest one's outcome.
+ * The save state of a row whose number field saves on Enter or on leaving it. `value` is the state the field shows
+ * once saved, `draft` its NumberInput's; `parse(typed)` gives the value to save or throws the reason, `write(next)`
+ * saves it, and `resave()` sends it again while `fileBehind()`. The field's writes and the row's other writes
+ * (`other(task)`: a switch, a pick) share one save state and take turns in the order the player made them, so what it
+ * shows is the newest one's outcome; a failure of the field stays over the ✓ of another write (that write doesn't
+ * save the field's value, as a Reset button would). Returns { save, other, status, reason }.
  */
-export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => {
-    const item = picks.get(id);
-    const draft = item.draft;
+const useQueuedField = ({ value, draft, parse, write, resave, fileBehind }) => {
+    const showValue = () => setNumberInputValue(draft, valueText(value.val));
     let fileOnly = null; // the reason shown for the row's last failure that was only at the file
     // The notice while any of this row's writes still waits for the game, counted from the player's commit: a write
     // waiting its turn behind the row's earlier one is waiting too. Then the newest outcome shows.
     const late = useStillWaiting();
-    // The stop-at commits not yet taken by a save, oldest first, each with its deadline's stop. The row's save takes
-    // the newest one waiting, so older ones end there.
+    // The commits not yet taken by a save, oldest first, each with its deadline's stop. The row's save takes the
+    // newest one waiting, so older ones end there.
     let waitingCommits = [];
     const track = (task, stop) => () =>
         task()
@@ -422,14 +536,14 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             })
             .finally(stop);
     const save = useAutoSave({
-        // The drafts as the player committed them, with a deadline from that moment.
+        // The draft as the player committed it, with a deadline from that moment.
         capture: () => {
             const commit = { typed: getNumberInputLiveRaw(draft) ?? draft.val, stop: deadline(late.onLate) };
             waitingCommits.push(commit);
             return commit;
         },
         prepare: (commit) => {
-            // Without a commit (leaving for the row's switch only checks the drafts), the drafts as they are now.
+            // Without a commit (leaving for the row's switch only checks the draft), the draft as it is now.
             let stop = () => {};
             if (commit) {
                 const taken = waitingCommits.indexOf(commit);
@@ -439,22 +553,17 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             }
             const typed = commit?.typed ?? getNumberInputLiveRaw(draft) ?? draft.val;
             try {
-                const next = parseStopAt(typed);
-                if (next === item.stopAt.val) {
-                    showStopAt(item);
-                    // The game has it but the file may not: Enter saves the list again.
-                    if (picks.fileBehind()) return { write: track(() => picks.resave(), stop) };
+                const next = parse(typed);
+                if (next === value.val) {
+                    showValue();
+                    // The game has it but the file may not: Enter saves it again.
+                    if (fileBehind()) return { write: track(() => resave(), stop) };
                     stop();
                     return { unchanged: true };
                 }
                 // A value typed while this one saves stays in the field for the save after it.
                 const stillTyped = () => (getNumberInputLiveRaw(draft) ?? draft.val) === typed;
-                return {
-                    write: track(
-                        () => picks.set(id, { stopAt: next }).finally(() => stillTyped() && showStopAt(item)),
-                        stop
-                    ),
-                };
+                return { write: track(() => write(next).finally(() => stillTyped() && showValue()), stop) };
             } catch (error) {
                 stop();
                 throw error;
@@ -464,40 +573,18 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
         revert: () => {
             waitingCommits.forEach((commit) => commit.stop());
             waitingCommits = [];
-            showStopAt(item);
+            showValue();
         },
     });
-    const step = (delta) => () => {
-        const current = parseStopAt(getNumberInputLiveRaw(draft) ?? draft.val);
-        if (current === null && delta < 0) return;
-        setNumberInputValue(draft, String(Math.max(0, (current ?? 0) + delta)));
-    };
-    const checkbox = input({
-        type: "checkbox",
-        role: "switch",
-        "aria-label": `Buy ${name}`,
-        checked: () => item.on.val,
-        onchange: (e) => {
-            const on = e.target.checked;
-            // "toggle": the row says the switch's saving…, ✓ and failure, but a failure of the stop-at stays over its
-            // ✓ (the switch doesn't save the field's value, as a Reset button would).
-            void save
-                .run(
-                    track(() => picks.set(id, { on }), deadline(late.onLate)),
-                    "toggle"
-                )
-                .then(() => (checkbox.checked = item.on.val));
-        },
-    });
+    const other = (task) => save.run(track(task, deadline(late.onLate)), "toggle");
 
-    // A save still waiting for the game says so. A failure only at the file goes once a later save (any row's) writes
-    // the file.
+    // A save still waiting for the game says so. A failure only at the file goes once a later save writes the file.
     const waiting = () => late.notice.val !== null;
     const status = {
         get val() {
             if (waiting()) return "loading"; // a wait isn't a failure: it keeps the saving look
             const shown = save.status.val === "error" && save.reason.val === fileOnly;
-            return shown && !picks.fileBehind() ? null : save.status.val;
+            return shown && !fileBehind() ? null : save.status.val;
         },
     };
     const reason = {
@@ -505,29 +592,199 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             return waiting() ? late.notice.val : save.reason.val;
         },
     };
+    return { save, other, status, reason };
+};
+
+// The labelled number field of a useQueuedField row; the steppers move it by 1, within 0 to `max`.
+const QueuedField = ({ field, draft, parse, title, ariaLabel, placeholder = "", mode = "int", max = Infinity }) => {
+    const step = (delta) => () => {
+        let current;
+        try {
+            current = parse(getNumberInputLiveRaw(draft) ?? draft.val);
+        } catch {
+            return; // a draft that isn't a number yet: the steppers wait for one
+        }
+        if (current === null && delta < 0) return;
+        const next = Math.round(((current ?? 0) + delta) * 10) / 10;
+        setNumberInputValue(draft, String(Math.min(max, Math.max(0, next))));
+    };
+    return div(
+        {
+            class: () => `account-field-metric ${saveStateClass(field.status.val, field.save.undo)}`,
+            ...field.save.handlers,
+        },
+        div(
+            { class: "account-inline-field__head" },
+            span({ class: "account-field-metric__label" }, title),
+            SaveState({ status: field.status, reason: field.reason, undo: field.save.undo })
+        ),
+        NumberInput({
+            mode,
+            value: draft,
+            placeholder,
+            "aria-label": ariaLabel,
+            onDecrement: step(-1),
+            onIncrement: step(1),
+        })
+    );
+};
+
+const switchLabel = (checkbox) =>
+    label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" }));
+
+// The name, with the row's own lines under it when it has any.
+const nameWithDetail = (name, detail) =>
+    detail === null
+        ? span({ class: "account-row__name" }, name)
+        : div(
+              { class: "account-row__name-group" },
+              span({ class: "account-row__name" }, name),
+              div({ class: "automation-pick__detail" }, detail)
+          );
+
+/** The High / Low / Balanced pick for PickRow's `selects`; the engine reads 1 as High and 2 as Low. */
+export const PRIORITY = {
+    field: "priority",
+    title: "Priority",
+    options: [
+        { value: 1, label: "High" },
+        { value: 2, label: "Low" },
+        { value: null, label: "Balanced" },
+    ],
+};
+
+/**
+ * An item's row: name, a badge, its stop-at (empty is no limit; saves on Enter or on leaving it) and its switch.
+ * `detail` (a node, or a function giving one) adds lines under the name. Each of `selects` ({ field, title, options:
+ * [{ value, label }] }, PRIORITY say) adds a pick before the stop-at that saves that setting of the item; a value of
+ * null is the default, left out of the config. The switch, the picks and the stop-at share one save state, whose writes
+ * take turns in the order the player made them (a stop-at, then the switch, reach the game in that order), so what it
+ * shows is the newest one's outcome.
+ */
+export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], stopAtTitle = "Stop at" }) => {
+    const item = picks.get(id);
+    const field = useQueuedField({
+        value: item.stopAt,
+        draft: item.draft,
+        parse: parseStopAt,
+        write: (next) => picks.set(id, { stopAt: next }),
+        resave: () => picks.resave(),
+        fileBehind: picks.fileBehind,
+    });
+    const checkbox = input({
+        type: "checkbox",
+        role: "switch",
+        "aria-label": `Buy ${name}`,
+        checked: () => item.on.val,
+        onchange: (e) => {
+            const on = e.target.checked;
+            void field.other(() => picks.set(id, { on })).then(() => (checkbox.checked = item.on.val));
+        },
+    });
+    const pickers = selects.map(({ field: setting, title, options }) => {
+        const shown = picks.field(id, setting);
+        const chosen = () => options.findIndex((choice) => choice.value === shown.val);
+        const pick = select(
+            {
+                class: "select-base",
+                "aria-label": `${name} ${title.toLowerCase()}`,
+                onchange: (e) => {
+                    const next = options[Number(e.target.value)].value;
+                    // What the game holds again once the save ends, taken or not.
+                    void field
+                        .other(() => picks.set(id, { [setting]: next }))
+                        .then(() => (pick.value = String(chosen())));
+                },
+            },
+            options.map((choice, i) => option({ value: String(i), selected: () => chosen() === i }, choice.label))
+        );
+        return div({ class: "automation-pick__select" }, span({ class: "account-field-metric__label" }, title), pick);
+    });
 
     return AccountRow({
         rowClass: "account-row--wide-controls automation-pick",
-        info: span({ class: "account-row__name" }, name),
+        info: nameWithDetail(name, detail),
         badge,
         controls: [
-            div(
-                { class: () => `account-field-metric ${saveStateClass(status.val, save.undo)}`, ...save.handlers },
-                div(
-                    { class: "account-inline-field__head" },
-                    span({ class: "account-field-metric__label" }, stopAtTitle),
-                    SaveState({ status, reason, undo: save.undo })
-                ),
-                NumberInput({
-                    mode: "int",
-                    value: draft,
-                    placeholder: "No limit",
-                    "aria-label": `${name} ${stopAtTitle.toLowerCase()}`,
-                    onDecrement: step(-1),
-                    onIncrement: step(1),
-                })
-            ),
-            label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" })),
+            ...pickers,
+            QueuedField({
+                field,
+                draft: item.draft,
+                parse: parseStopAt,
+                title: stopAtTitle,
+                ariaLabel: `${name} ${stopAtTitle.toLowerCase()}`,
+                placeholder: "No limit",
+            }),
+            switchLabel(checkbox),
         ],
     });
+};
+
+/**
+ * A setting's row (see createAutomationSetting): its name, `detail` under it, and its field, which saves on Enter or
+ * on leaving it. The value is a number from 0 to `max`; `mode` "float" allows one decimal.
+ */
+export const SettingRow = ({ setting, index = null, name, title, detail = null, max = 100, mode = "int" }) => {
+    const { value, draft } = setting.get(index);
+    const words =
+        mode === "float" ? `a number from 0 to ${max}, with one decimal at most` : `a whole number from 0 to ${max}`;
+    const parse = (raw) => {
+        const text = String(raw ?? "").trim();
+        const shape = mode === "float" ? /^\d+(\.\d)?$/ : /^\d+$/;
+        if (!shape.test(text) || Number(text) > max) throw new Error(words);
+        return Number(text);
+    };
+    const field = useQueuedField({
+        value,
+        draft,
+        parse,
+        write: (next) => setting.set(index, next),
+        resave: () => setting.resave(),
+        fileBehind: setting.fileBehind,
+    });
+    return AccountRow({
+        rowClass: "account-row--wide-controls automation-pick",
+        info: nameWithDetail(name, detail),
+        controls: QueuedField({ field, draft, parse, title, ariaLabel: `${name} ${title.toLowerCase()}`, mode, max }),
+    });
+};
+
+/**
+ * Enable all and Disable all for a tab's picks, as BulkActionBar actions: Enable all runs on one click, Disable all
+ * asks "Click again" first (#25). `targets()` gives the [picks, ids] pairs the buttons cover, saved one after another
+ * (a save switches the automation on with an item, and ends with the page's read when its picks have `afterSave`).
+ * `done(on, total)` is true when Enable all has nothing left to do; `noun(n)` names n switched-on items for the
+ * question. Returns { actions(pageBusy), said, busy }: `said` holds a bulk failure, for the page's top line.
+ */
+export const usePicksBulk = ({ targets, done, noun, waiting }) => {
+    const bulk = useWriteStatus();
+    const bulkSaid = useSaid();
+    const count = () => targets().reduce((n, [picks, ids]) => n + ids.filter((id) => picks.get(id).on.val).length, 0);
+    const total = () => targets().reduce((n, [, ids]) => n + ids.length, 0);
+    const setAll = (on) =>
+        bulk.run(
+            async () => {
+                bulkSaid.clear();
+                for (const [picks, ids] of targets()) await picks.setAll(ids, on, waiting.onLate);
+            },
+            { onSuccess: () => bulkSaid.clear(), onError: (caught) => bulkSaid.say("failed", caught.message) }
+        );
+    const busy = () => bulk.status.val === "loading";
+    const actions = (pageBusy) => [
+        {
+            label: "Enable all",
+            status: bulk.status,
+            disabled: () => pageBusy() || busy() || done(count(), total()),
+            onClick: () => setAll(true),
+        },
+        {
+            label: "Disable all",
+            variant: "danger",
+            status: bulk.status,
+            disabled: () => pageBusy() || busy() || !count(),
+            confirm: () => `switch off ${noun(count())}.`,
+            onClick: () => setAll(false),
+        },
+    ];
+    return { actions, said: bulkSaid.said, busy };
 };

@@ -20,3 +20,41 @@
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
 }
+
+/* A pick's own lines under its name (its cost, its bonus, why it waits). */
+.automation-pick__detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--c-text-muted);
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
+/* A pick's own choice (High / Low / Balanced, what it pays with), labelled above like the stop-at beside it. */
+.automation-pick__select {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.automation-pick__select .select-base {
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 9px;
+}
+
+/* Narrow windows: the choices take a line of their own, then the stop-at fills the line beside the switch. */
+@media (max-width: 600px) {
+    .automation-pick .account-row__controls {
+        flex-wrap: wrap;
+    }
+
+    .automation-pick__select {
+        flex: 1 1 40%;
+    }
+
+    .automation-pick .account-field-metric {
+        flex: 1;
+    }
+}
