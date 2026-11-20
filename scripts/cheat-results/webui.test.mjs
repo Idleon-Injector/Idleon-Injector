@@ -124,6 +124,26 @@ test("a cheat that needs a value refuses on its row and pulses its value field",
     assert.equal(text(said), "needs a value");
 });
 
+// In-game check: a multiply cheat that was on said "needs a value" when its row was clicked to turn it off.
+test("a cheat that takes a value turns off from its own row without one", async () => {
+    await store.executeCheat("multiply damage 2");
+    await store.loadCheatStates();
+    assert.equal(game.state.cheatState.multiply.damage, true);
+    const row = CheatItem({ value: "multiply damage", message: "damage", needsParam: true });
+    const [runButton] = row.childNodes;
+    sent.length = 0;
+    await runButton.listeners.click();
+    await settle();
+    assert.deepEqual(sent, [["multiply damage", false]], "turned off, not refused");
+    assert.equal(game.state.cheatState.multiply.damage, false);
+
+    await store.loadCheatStates();
+    sent.length = 0;
+    await runButton.listeners.click();
+    await settle();
+    assert.deepEqual(sent, [], "off, it still needs a value to turn on");
+});
+
 test("a cheat that needs a value lights its star once that value is a favorite", async () => {
     const row = CheatItem({ value: "fixture nested deep", message: "deep", needsParam: true });
     const [, field, star] = row.childNodes;
