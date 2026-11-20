@@ -20,3 +20,36 @@
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
 }
+
+/* A pick's High / Low / Balanced choice, beside its stop-at and as tall as the field. */
+.automation-pick__priority {
+    width: 8.5rem;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font: inherit;
+}
+
+/* Narrow windows: with a priority, the stop-at takes a line of its own, the priority and the switch the line under it, and the line
+   under a name wraps. */
+@media (max-width: 600px) {
+    .automation-pick--priority .account-row__controls {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .automation-pick--priority .account-field-metric {
+        flex: 1 1 100%;
+        width: auto;
+    }
+
+    .automation-pick__priority {
+        flex: 1;
+        width: auto;
+    }
+
+    .automation-pick .account-row__sub-label,
+    .automation-currency .account-row__sub-label {
+        white-space: normal;
+    }
+}

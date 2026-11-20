@@ -75,7 +75,7 @@ const removals = [
     ["src/ui/pages/world-2/post-office/post-office.js", "Reset"],
     ["src/ui/pages/world-1/star-signs/star-signs.js", "Reset all"],
     ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
-    ["src/ui/pages/classes/grimoire/grimoire.js", "Reset all"],
+    ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
     ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear all"],
