@@ -3,13 +3,14 @@
  *
  * Outfit bonuses: a card per outfit; a click turns its bonus on or off. The choice is
  * cheatConfig.wide.attire.outfits ("all" once every outfit is on, so outfits a game update adds count too), applied
- * to the session and saved to config.custom.js on each click, as the Pets page saves its pets. `wide attire` is on
- * while any outfit is.
+ * to the session and saved to config.custom.js on each click, as the Pets page saves its pets. `wide attire` is on,
+ * now and at every start (a startup cheat), while any outfit is chosen. As on Pets, the cards show the saved choice
+ * even while the cheat is off, and a click edits that choice.
  *
  * Appearance: the attire each character wears, slot 15 of its first equipment row (EquipmentOrder, EquipmentQuantity
  * and EquipmentMap), on the live copy of the character in play and on its PlayerDATABASE copy. Each change is one
  * saved action Undo can put back. After a change of the character in play, and after any undo of a change made here,
- * the game works out that character's stats again.
+ * the game works out that character's stats again (the `wide attirestats` command).
  *
  * Reads: readComputed("attire", "status") (the outfits and each character's attire), the config and the cheat states.
  */
@@ -48,6 +49,8 @@ const MAP_PATH = "EquipmentMap[0][15].h";
 // The path resolver splits names at dots and brackets, so such a character's entry can't be addressed.
 const ADDRESSABLE = /^[^.[\]]+$/;
 const NO_ATTIRE = "Blank";
+const ATTIRE_CHEAT = "wide attire";
+const STATS_CHEAT = "wide attirestats";
 
 const words = (key) => String(key).replace(/_/g, " ");
 const statLine = (outfit) =>
@@ -91,7 +94,7 @@ const AttireRackPage = () => {
     const reconcileEveryone = createStaticRowReconciler(everyoneHolder);
 
     const busy = () => loading.val || choiceWrite.status.val === "loading" || bulkWrite.status.val === "loading";
-    const isOn = (id) => enabled.val && chosen.val.has(id);
+    const isChosen = (id) => chosen.val.has(id);
     const outfitName = (id) =>
         id === NO_ATTIRE ? "no attire" : (outfits.val.find((outfit) => outfit.id === id)?.name ?? id);
     const wornNow = () => rowStates.get(current.val)?.item.val;
@@ -114,18 +117,26 @@ const AttireRackPage = () => {
         );
     };
 
-    // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config.
-    const persistConfig = async () => {
+    // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config. `onAtStart`:
+    // chosen outfits also turn the cheat on at every start; none takes it off that list. Startup cheats toggle, so a
+    // list that already has "wide" (every account-wide cheat) gets no "wide attire", which would turn it back off.
+    const persistConfig = async (onAtStart) => {
         const config = await fetchConfig();
         if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
+        const startup = config.startupCheats ?? [];
+        const listed = startup.includes(ATTIRE_CHEAT) || startup.includes("wide");
         await saveConfigFile({
-            startupCheats: config.startupCheats ?? [],
+            startupCheats: onAtStart
+                ? listed
+                    ? startup
+                    : [...startup, ATTIRE_CHEAT]
+                : startup.filter((command) => command !== ATTIRE_CHEAT),
             cheatConfig: config.cheatConfig,
             injectorConfig: config.injectorConfig,
         });
     };
 
-    // `next(on)`: the outfits to give, from the ones given now. Built after a fresh read, so a choice saved from the
+    // `next(chosen)`: the outfits to give, from the saved choice. Built after a fresh read, so a choice saved from the
     // Config page meanwhile isn't overwritten.
     const writeChoice = (next) =>
         choiceWrite.run(
@@ -133,7 +144,7 @@ const AttireRackPage = () => {
                 choiceSaid.clear();
                 await readChoice();
                 const ids = outfits.val.map(({ id }) => id);
-                const wanted = next(new Set(enabled.val ? chosen.val : []));
+                const wanted = next(new Set(chosen.val));
                 const value =
                     ids.length && ids.every((id) => wanted.has(id))
                         ? "all"
@@ -142,14 +153,22 @@ const AttireRackPage = () => {
                 if (result.message !== "Configuration updated successfully") {
                     throw new Error(result.details || result.message || "The game didn't take the outfit choice");
                 }
-                await executeCheatAction("wide attire", value !== "");
+                await executeCheatAction(ATTIRE_CHEAT, value !== "");
                 enabled.val = value !== "";
                 allChosen.val = value === "all";
                 chosen.val = new Set(value === "all" ? ids : ids.filter((id) => wanted.has(id)));
-                await persistConfig();
+                await persistConfig(value !== "");
             },
             { onError: (caught) => choiceSaid.say("failed", caught.message) }
         );
+
+    const clearChoice = (buttonNode) => {
+        choiceSaid.clear();
+        if (!chosen.val.size && !enabled.val) return choiceSaid.say("refused", "No outfit bonus is chosen.");
+        const count = chosen.val.size === outfits.val.length ? "every" : String(chosen.val.size);
+        if (!clickAgain(buttonNode, `stop giving ${count} outfit bonuses, now and at start.`)) return;
+        return writeChoice(() => new Set());
+    };
 
     const toggleOutfit = (id) =>
         writeChoice((on) => {
@@ -163,9 +182,9 @@ const AttireRackPage = () => {
             {
                 type: "button",
                 class: "tier-card attire-card",
-                "aria-pressed": () => isOn(outfit.id),
+                "aria-pressed": () => isChosen(outfit.id),
                 disabled: busy,
-                title: () => `${isOn(outfit.id) ? "Stop giving" : "Give"} the ${outfit.name} bonus`,
+                title: () => `${isChosen(outfit.id) ? "Stop giving" : "Give"} the ${outfit.name} bonus`,
                 onclick: () => toggleOutfit(outfit.id),
             },
             div({ class: "tier-card__header" }, span({ class: "tier-card__name" }, outfit.name), () =>
@@ -176,7 +195,10 @@ const AttireRackPage = () => {
         );
 
     const choiceNote = () => {
-        if (!enabled.val) return "Off. Click an outfit to give its bonus.";
+        if (!enabled.val)
+            return chosen.val.size
+                ? "The cheat is off, so the chosen bonuses aren't given. A click on an outfit turns it back on."
+                : "Off. Click an outfit to give its bonus.";
         if (allChosen.val) return "Every outfit's bonus is on, including outfits a game update adds.";
         return `${chosen.val.size} of ${outfits.val.length} outfit bonuses are on.`;
     };
@@ -218,16 +240,18 @@ const AttireRackPage = () => {
         reconcileEveryone(JSON.stringify(ids), renderEveryone);
     };
 
-    const readStatus = async (name = "status") => {
-        const status = await readComputed("attire", name);
+    const readStatus = async () => {
+        const status = await readComputed("attire", "status");
         if (!status || !Array.isArray(status.outfits)) throw new Error("The game didn't send its outfits");
         show(status);
         return status;
     };
 
     // After attire changed: the game works out the stats of the character in play again when that one changed.
-    const afterChange = (changed) =>
-        readStatus(changed.some((character) => character.active) ? "recalculate" : "status");
+    const afterChange = async (changed) => {
+        if (changed.some((character) => character.active)) await executeCheatAction(STATS_CHEAT);
+        await readStatus();
+    };
 
     // One character's pick, saved at once. Returns { cancelled: true } when the game already has it.
     const wear = async (name, item) => {
@@ -346,7 +370,7 @@ const AttireRackPage = () => {
         if (!target || target === undone) return;
         undone = target;
         if (target.view === place.view && target.page === place.page)
-            void readComputed("attire", "recalculate").catch((caught) =>
+            void executeCheatAction(STATS_CHEAT).catch((caught) =>
                 bulkSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`)
             );
     });
@@ -365,19 +389,23 @@ const AttireRackPage = () => {
         wrapActions: false,
         actions: BulkActionBar({
             actions: [
+                // Adds: the shared quiet button (btn-secondary, as Refresh beside it).
                 {
-                    label: "all outfits",
+                    label: "All outfits",
+                    variant: "btn-secondary",
                     status: choiceWrite.status,
                     disabled: () => busy() || !outfits.val.length,
                     tooltip: "Give every outfit's bonus, including outfits a game update adds",
                     onClick: () => writeChoice(() => new Set(outfits.val.map(({ id }) => id))),
                 },
+                // Removes: a danger button that asks in place.
                 {
-                    label: "no outfits",
+                    label: "No outfits",
+                    variant: "danger",
                     status: choiceWrite.status,
                     disabled: busy,
-                    tooltip: "Stop giving outfit bonuses",
-                    onClick: () => writeChoice(() => new Set()),
+                    tooltip: "Stop giving outfit bonuses, now and at start",
+                    onClick: (event) => clearChoice(event.currentTarget),
                 },
             ],
             refresh: { onClick: load, disabled: busy },
@@ -397,8 +425,10 @@ const AttireRackPage = () => {
                 note: "A new pick replaces the attire in that slot; it isn't moved to storage. Undo puts it back.",
                 meta: [
                     everyoneHolder,
+                    // It replaces the attire everyone wears, so it is a danger button that asks in place.
                     ActionButton({
-                        label: "give everyone",
+                        label: "Give everyone",
+                        variant: "danger",
                         status: bulkWrite.status,
                         disabled: () => busy() || !everyone.val,
                         tooltip: "Every character wears the chosen outfit",
