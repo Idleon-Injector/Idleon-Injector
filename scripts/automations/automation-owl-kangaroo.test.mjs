@@ -11,9 +11,9 @@ const { gga, context, cheat, state } = await loadGame();
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-// Owlz rows: 0-8 Orion, 9-20 Poppy, 21-28 the Tar Pit; [0] is the name, [3] what unlocks it.
+// Owlz rows: 0-8 Orion, 9-20 Poppy, 21-28 the Tar Pit; [0] is the name ("_" and "|" for spaces), [3] what unlocks it.
 const ORION = ["Feather_Generation", "Bonuses_of_Orion", "Feather_Multiplier", "Feather_Cheapener"];
-const ORION_ROWS = [...ORION, "Feather_Restart", "Super_Feathers", "Shiny_Feathers", "Super_Cheapener"];
+const ORION_ROWS = [...ORION, "Feather|Restart", "Super_Feathers", "Shiny_Feathers", "Super_Cheapener"];
 const owlz = [
     ...[...ORION_ROWS, "The_Great_Mega_Reset"].map((name, i) => [name, "0", "0", String(i * 100)]),
     ...Array.from({ length: 12 }, (_, i) => [`Poppy_${i}`, "0", "0", String(i * 10)]),
