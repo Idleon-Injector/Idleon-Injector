@@ -2,7 +2,8 @@
 
 The look the WebUI is heading for, agreed with the maintainer. So far it covers buttons and icons, decided on 2026-11-20
 over four rounds of a concept board and built across the whole menu, and the page layout (#26), chosen the same day from
-a live concept. The rest of the look (tabs, navigation, tags and colour) waits for the later passes.
+a live concept, and colour ("Dusk", picked from three concepts). The rest of the look (tabs, navigation, tags) waits
+for the later passes.
 
 ## What it should feel like
 
@@ -23,7 +24,7 @@ Quiet buttons are plain words at rest on purpose: the maintainer chose that over
 
 Which kind a button is:
 
-- **Main is blue, and rare.** An area has at most one main button, its main action: Save settings, Enable Auto Play,
+- **Main is lavender, and rare.** An area has at most one main button, its main action: Save settings, Enable Auto Play,
   First scan (Next scan once a scan has run), the Accept of a dialog. Most pages have none.
 - **Quiet is every other action,** row buttons and bulk ones alike: Max, Max all, Register, Refresh, Undo, Undo all.
 - **Danger is anything that removes or lowers:** Reset, Zero, Clear, Remove, Disable, Lock, Unequip. A button that
@@ -40,20 +41,36 @@ Values:
 
 - **Size:** 36 px high with 18 px side padding and 16 px text; the small size is 28 px high, 13 px padding and 14.5 px
   text.
-- **Main:** text `#63afed` on `rgba(99, 175, 237, 0.14)`. On hover, `#9acbf3` on `rgba(99, 175, 237, 0.22)`.
-- **Quiet and danger:** text `#d8dbe5`, no background. Quiet on hover: `#eceff8` on `rgba(255, 255, 255, 0.06)`.
-  Danger on hover: `#ec8d7a` on `rgba(236, 141, 122, 0.12)`. Until the colour pass, the existing danger tokens stand in
-  for the coral: `--c-danger-soft-text` (`#ffb2a5`) on `--c-danger-10` (`rgba(243, 71, 71, 0.1)`).
-- **Disabled:** text `rgba(236, 239, 248, 0.34)`. A disabled main button keeps a `rgba(255, 255, 255, 0.04)` pill.
+- **Main:** the accent (`--c-accent`) on `--c-accent-dim`. On hover, `--c-accent-hover` on `--c-accent-20`.
+- **Quiet and danger:** muted text, no background. Quiet on hover: main text on `--c-white-05`. Danger on hover:
+  `--c-danger-soft-text` on `--c-danger-10`.
+- **Disabled:** `--c-text-disabled`. A disabled main button keeps a `--c-white-04` pill.
 - **Focus:** a 2 px accent outline, 2 px out.
 - **Press:** `scale(0.94)`.
 - **Motion:** colours and scale ease over 160 ms with `cubic-bezier(0.2, 0.7, 0.2, 1)`.
 
-Write colours as hex or `rgba()`, in one set that the WebUI and the game share. The Steam client runs Chromium 87, which has no `oklch()` or `color-mix()`.
-
 In the code the kinds are `.btn-main`, `.btn-quiet` and `.btn-danger`, with `.btn-sm` and `.btn-icon`, in
 `src/ui/styles/_buttons.css`; an `ActionButton`'s `variant` is `main`, `quiet` or `danger` (or `switch` for an on/off
 switch). Icons are in `src/ui/assets/icons.js`.
+
+## Colour: Dusk
+
+One violet family, so a player who skims finds things by place and fill, not by colour. Colour stays only where it
+means something: status (saved, failed, warning), on/off, the world codes, and names that identify a thing (tiers,
+cauldrons, liquids, brews, signs). Everything else is six surfaces and two text colours.
+
+- **Surfaces:** page `#1c1d33`, section `#222440`, row and card `#2d2e4f`, row hover `#36385c`, border `#34365b`,
+  strong border `#4a4d7a`. Inputs sink back to the page shade. Borders nearly dissolve: rows are told apart by fill.
+- **Text:** main `#eeedf9` and muted `#c0bfdc`. Section titles are main text. Values are plain text, never a box.
+- **Accent:** lavender `#aaa6f7`, for what you can press, what is on (a switch, Prisma, an exalted stamp) and where you
+  are. W4's colour is a saturated orchid (`#b787ff`) so it never reads as the accent.
+- **Status fills** are solid (`--c-success-tint`, `--c-danger-tint`, `--c-warning-tint` and their flashes), so every
+  status and text colour on them is measured: each meets WCAG AA.
+- **No decorative tints:** no tinted cards or boxes behind tiers, cauldrons or values; the tier keeps only its word's
+  colour.
+
+Write colours as tokens from `src/ui/styles/_variables.css`, in hex or `rgba()`, one set that the WebUI and the game
+share. The Steam client runs Chromium 87, which has no `oklch()` or `color-mix()`.
 
 ## Icons
 

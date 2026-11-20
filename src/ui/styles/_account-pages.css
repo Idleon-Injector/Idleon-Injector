@@ -184,6 +184,12 @@
     margin-top: 14px;
 }
 
+/* Side by side in a grid, the grid's gap spaces them; a stacked section's margin would drop all but the first. */
+.grid-3col > .account-section + .account-section,
+.grid-4col > .account-section + .account-section {
+    margin-top: 0;
+}
+
 .account-section__header {
     display: flex;
     align-items: center;
@@ -202,7 +208,7 @@
 }
 
 .account-section__title {
-    color: var(--c-text-muted);
+    color: var(--c-text-main);
     font-size: 0.8125rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -247,49 +253,62 @@
 
 .feature-card.account-row--success {
     border-color: var(--c-success) !important;
-    background: #1f3530 !important;
+    background: var(--c-success-tint) !important;
 }
 
 .feature-card.account-row--error {
     border-color: var(--c-danger) !important;
-    background: #312029 !important;
+    background: var(--c-danger-tint) !important;
 }
 
 .account-row--success {
     border-color: var(--c-success) !important;
-    background: #1f3530 !important;
+    background: var(--c-success-tint) !important;
     animation: account-row-success-flash 1.2s ease-out;
 }
 
 .account-row--error {
     border-color: var(--c-danger) !important;
-    background: #312029 !important;
+    background: var(--c-danger-tint) !important;
     animation: account-row-error-flash 1.2s ease-out;
 }
 
 @keyframes account-row-success-flash {
     0% {
-        background: #274f3a;
+        background: var(--c-success-flash);
     }
 
     100% {
-        background: #1f3530;
+        background: var(--c-success-tint);
     }
 }
 
 @keyframes account-row-error-flash {
     0% {
-        background: #4c262d;
+        background: var(--c-danger-flash);
     }
 
     100% {
-        background: #312029;
+        background: var(--c-danger-tint);
     }
+}
+
+/* The save words lie on the row's own fill, so they take the status fill too. */
+.account-row--success .save-state {
+    --save-state-bg: var(--c-success-tint);
+}
+
+.account-row--error .save-state {
+    --save-state-bg: var(--c-danger-tint);
+}
+
+.has-warning:not(.account-row--success):not(.account-row--error) .save-state {
+    --save-state-bg: var(--c-warning-tint);
 }
 
 .has-warning:not(.account-row--success):not(.account-row--error) {
     border-color: var(--c-warning) !important;
-    background: #2e2b21;
+    background: var(--c-warning-tint);
 }
 
 .write-status {
@@ -452,7 +471,7 @@
 }
 
 .save-state__undo:hover:not(:disabled) {
-    background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.06)), var(--save-state-bg);
+    background: linear-gradient(var(--c-white-05), var(--c-white-05)), var(--save-state-bg);
 }
 
 .save-state__undo:active:not(:disabled) {
@@ -1103,12 +1122,11 @@
     text-overflow: ellipsis;
 }
 
+/* The tier is its coloured word; the card around it stays the plain row surface. */
 .tier-card__badge {
     font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: 0.05em;
-    padding: 1px 5px;
-    border: 1px solid currentColor;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -1163,13 +1181,8 @@
     visibility: hidden;
 }
 
-.account-row--info {
-    border-color: var(--c-accent) !important;
-    background: #1f2a39;
-}
-
 .account-row__badge--highlight {
-    color: var(--c-accent);
+    color: var(--c-text-main);
     font-weight: 700;
 }
 
@@ -1229,7 +1242,7 @@
 }
 
 .warning-highlight-accent {
-    color: var(--c-accent);
+    color: var(--c-text-main);
     font-weight: 700;
 }
 
@@ -1395,7 +1408,7 @@
 .account-expandable-group__meta {
     font-family: var(--font-mono);
     font-size: 0.875rem;
-    color: var(--c-accent);
+    color: var(--c-text-main);
     white-space: nowrap;
 }
 

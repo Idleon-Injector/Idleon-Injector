@@ -111,7 +111,7 @@
 
 .companion-card--enabled {
     border-color: var(--c-success);
-    background: var(--c-success-10);
+    background: var(--c-success-tint);
 }
 
 .companion-card--plus {
@@ -173,7 +173,6 @@
 
 .companion-card--token {
     border-color: var(--c-tier-zenith);
-    background: var(--c-tier-zenith-10);
 }
 
 .companion-card--token .companion-card__tier {
@@ -222,8 +221,7 @@
     gap: 8px;
     height: 32px;
     padding: 0 10px;
-    border: 1px solid var(--c-tier-zenith-35);
-    background: var(--c-tier-zenith-10);
+    border: 1px solid var(--c-border);
     color: var(--c-tier-zenith);
     font-weight: 700;
     font-size: 0.875rem;

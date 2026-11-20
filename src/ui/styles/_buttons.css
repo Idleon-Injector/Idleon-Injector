@@ -55,17 +55,17 @@ button {
 }
 
 .btn-main {
-    background: rgba(99, 175, 237, 0.14);
+    background: var(--c-accent-dim);
     color: var(--c-accent);
 }
 
 .btn-main:hover:not(:disabled) {
-    background: rgba(99, 175, 237, 0.22);
+    background: var(--c-accent-20);
     color: var(--c-accent-hover);
 }
 
 .btn-quiet:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--c-white-05);
     color: var(--c-text-main);
 }
 
@@ -92,7 +92,7 @@ button {
 .btn-quiet:disabled,
 .btn-danger:disabled {
     background: transparent;
-    color: rgba(236, 239, 248, 0.34);
+    color: var(--c-text-disabled);
     cursor: not-allowed;
 }
 
@@ -102,7 +102,7 @@ button {
 
 /* A toggle that's on (Watching, Saved, the Config drawer): the hover fill stays. */
 .btn-quiet[aria-pressed="true"] {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--c-white-05);
     color: var(--c-text-main);
 }
 

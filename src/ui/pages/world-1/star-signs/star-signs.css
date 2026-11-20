@@ -142,9 +142,7 @@
 .starsign-needed-badge {
     font-size: 0.875rem;
     font-weight: 700;
-    padding: 2px 8px;
-    border: 1px solid var(--c-accent);
-    color: var(--c-accent);
+    color: var(--c-text-main);
     white-space: nowrap;
 }
 

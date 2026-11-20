@@ -331,7 +331,7 @@
 }
 
 .menu-home-cheats .active-cheat-item {
-    color: var(--c-accent);
+    color: var(--c-text-main);
     padding: 4px 8px;
     background: var(--c-accent-dim);
     border-color: var(--c-accent);

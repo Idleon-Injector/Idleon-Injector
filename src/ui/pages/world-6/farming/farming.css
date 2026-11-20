@@ -62,7 +62,7 @@
 }
 
 .farming-grid-tile__title {
-    color: var(--c-accent);
+    color: var(--c-text-main);
     font-size: 0.8125rem;
     font-weight: 700;
     letter-spacing: 0.06em;

@@ -65,12 +65,7 @@ const SigilCard = ({ index, tierState, nameState }) => {
 
     return div(
         {
-            class: () => {
-                const tier = getTierInfo(tierState.val);
-                return ["tier-card", `sigil-card--${tier.cls}`, saveStateClass(status.val, undo)]
-                    .filter(Boolean)
-                    .join(" ");
-            },
+            class: () => ["tier-card", saveStateClass(status.val, undo)].filter(Boolean).join(" "),
         },
         div(
             { class: "tier-card__header" },

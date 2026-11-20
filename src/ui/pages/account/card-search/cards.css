@@ -25,12 +25,12 @@
 
 .card-region--success {
     border-color: var(--c-success);
-    background: #1a2b2a;
+    background: var(--c-success-tint);
 }
 
 .card-region--error {
     border-color: var(--c-danger);
-    background: #271d26;
+    background: var(--c-danger-tint);
 }
 
 .card-region__toggle {
@@ -98,13 +98,9 @@
 
 .card-row .account-row__badge {
     --card-tier-color: var(--c-text-muted);
-    --card-tier-bg: #282c36;
-    --card-tier-border: #9399a8;
     display: flex;
     align-items: center;
     color: var(--card-tier-color);
-    background: var(--card-tier-bg);
-    border-color: var(--card-tier-border);
 }
 
 .card-tier-display {
@@ -121,50 +117,34 @@
 
 .card-tier-badge--base {
     --card-tier-color: var(--c-text-muted) !important;
-    --card-tier-bg: #282c36 !important;
-    --card-tier-border: #9399a8 !important;
 }
 
 .card-tier-badge--tier-1 {
     --card-tier-color: var(--c-tier-stone);
-    --card-tier-bg: #222833;
-    --card-tier-border: #6f7d91;
 }
 
 .card-tier-badge--tier-2 {
     --card-tier-color: var(--c-tier-gold);
-    --card-tier-bg: #2e2b21;
-    --card-tier-border: #c19116;
 }
 
 .card-tier-badge--tier-3 {
     --card-tier-color: var(--c-cauldron-orange);
-    --card-tier-bg: #2c2624;
-    --card-tier-border: #b16d28;
 }
 
 .card-tier-badge--tier-4 {
     --card-tier-color: var(--c-tier-zenith);
-    --card-tier-bg: #152f3b;
-    --card-tier-border: #0eb1c9;
 }
 
 .card-tier-badge--tier-5 {
     --card-tier-color: var(--c-ui-red);
-    --card-tier-bg: #2e242d;
-    --card-tier-border: #bc6065;
 }
 
 .card-tier-badge--tier-6 {
     --card-tier-color: var(--c-tier-onyx);
-    --card-tier-bg: #26233b;
-    --card-tier-border: #8a5bc9;
 }
 
 .card-row--unresolved .account-row__badge {
     color: var(--c-danger-soft-text);
-    background: var(--c-danger-10);
-    border-color: var(--c-danger-40);
 }
 
 .card-tier-select {
