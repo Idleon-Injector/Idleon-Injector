@@ -429,8 +429,9 @@
     }
 }
 
-/* A field with its label above it: the save state ends the label's line. */
+/* A field with its label above it: the save state ends the label's line (a whole grid row, like the label). */
 .account-inline-field__head {
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: space-between;
