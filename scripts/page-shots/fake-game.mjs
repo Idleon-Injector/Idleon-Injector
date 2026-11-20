@@ -3,6 +3,7 @@
  * the cheat list) running in Node over game data from fake-game-data.mjs, behind a fake CDP Runtime that the
  * server's real routes evaluate against. Same data every run, so the screenshots only change when the UI does.
  */
+import { createRequire } from "node:module";
 import vm from "node:vm";
 import { importRepo } from "../known-bugs/index.mjs";
 import { fakeGameData } from "./fake-game-data.mjs";
@@ -16,7 +17,11 @@ export async function createFakeGame(fixture = fakeGameData()) {
     globalThis.window ??= {};
     const rollup = await importRepo("rollup.config.mjs");
     for (const file of rollup.cheatFiles()) await importRepo(`src/cheats/cheats/${file}`);
+    for (const file of rollup.automationFiles()) await importRepo(`src/cheats/automations/${file}`);
     const globals = await importRepo("src/cheats/core/globals.js");
+    // The game's live config: config.js's defaults, then what the WebUI sends (automations read it while they run).
+    const state = await importRepo("src/cheats/core/state.js");
+    state.setCheatConfig(createRequire(import.meta.url)("../../config.js").cheatConfig);
     const paths = await importRepo("src/cheats/utils/pathResolver.js");
     const accessors = await importRepo("src/cheats/api/stateAccessors.js");
     const { getAutoCompleteSuggestions } = await importRepo("src/cheats/api/suggestions.js");
@@ -36,7 +41,8 @@ export async function createFakeGame(fixture = fakeGameData()) {
     const actorEvents = new Proxy({}, { get: (_, method) => answer.bind(null, method) });
     const context = new Proxy(
         {
-            "com.stencyl.Engine": { engine: { gameAttributes: { h: gga } } },
+            // The scene a character plays in; automations buy only there.
+            "com.stencyl.Engine": { engine: { gameAttributes: { h: gga }, scene: { name: fixture.scene ?? "" } } },
             "scripts.CustomMapsREAL": { GemPopupBundleMessages: () => ({ h: fixture.bundleMessages ?? {} }) },
             // The pets the account owns, as the game's server copy lists them ("id,x,y,z,plus").
             FirebaseStorage: { getCompanionInfoMe: () => structuredClone(fixture.companions ?? []) },
@@ -81,7 +87,7 @@ export async function createFakeGame(fixture = fakeGameData()) {
         cheatStateList: () => structuredClone(fixture.cheatStates ?? {}),
         cheat: (action) => ({ ok: true, message: `${action} (fake game)` }),
         readCheatConfig: () => "{}",
-        updateCheatConfig: () => {},
+        updateCheatConfig: state.updateCheatConfig,
         monitorWrap: () => ({ ok: true }),
         monitorUnwrap: () => ({ ok: true }),
         monitorUnwrapAll: () => ({ ok: true }),
