@@ -5,6 +5,7 @@
 
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
+import { VIEWS } from "../../state/constants.js";
 import { Icons } from "../../assets/icons.js";
 import { Loader } from "../Loader.js";
 import { menuTree, menuError } from "../../menu/pageRegistry.js";
@@ -97,7 +98,18 @@ const WorldFrame = (tree) => {
     );
 };
 
-export const Pages = () =>
-    div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
+export const Pages = () => {
+    const root = div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
         menuTree.val ? WorldFrame(menuTree.val) : div({ class: "account-loader" }, Loader({ text: "LOADING PAGES" }))
     );
+    // A tab row built while this view was hidden scrolled nothing: the picked tabs scroll into view as it shows.
+    van.derive(() => {
+        if (store.app.activeTab !== VIEWS.PAGES.id) return;
+        queueMicrotask(() =>
+            root
+                .querySelectorAll(".menu-tabs .active")
+                .forEach((tab) => tab.scrollIntoView({ block: "nearest", inline: "center" }))
+        );
+    });
+    return root;
+};
