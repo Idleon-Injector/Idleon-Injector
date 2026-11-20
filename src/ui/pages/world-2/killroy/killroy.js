@@ -140,6 +140,7 @@ const KillroyAirhornRow = ({ valueState }) => {
             checked: () => toNum(valueState.val, 0) !== 0,
             words: ["On", "Off"],
             name: "Airhorn reset",
+            status, // nothing else on the row reads out saving and saved
             onFlip: doToggle,
         }),
     });
