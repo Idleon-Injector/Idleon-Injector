@@ -24,8 +24,7 @@ import {
     PickRow,
     createAutomationPicks,
     readAutomations,
-    setAtStart,
-    switchAutomation,
+    ensureOn,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -38,18 +37,16 @@ const WORLDS = [1, 2, 3, 4, 5, 6, 7].map((world) => ({ id: world, label: `W${wor
 
 const ShopsPage = () => {
     const automation = van.state(null);
+    let reads = 0; // a read that a newer one overtook is dropped
     const readSwitch = async () => {
-        automation.val = (await readAutomations()).find(({ cheat }) => cheat === CHEAT) ?? null;
+        const read = ++reads;
+        const found = (await readAutomations()).find(({ cheat }) => cheat === CHEAT) ?? null;
+        if (read === reads) automation.val = found;
     };
     // Switching an item on switches Shops on too (now and at start), so buying starts at once.
     const picks = createAutomationPicks("shops", {
-        onTurnedOn: async () => {
-            await readSwitch(); // the overview may have switched it since this tab read it
-            // Already running (from the Cheats page, say): only make sure it starts again next time.
-            if (automation.val?.on) return setAtStart(CHEAT, true);
-            await switchAutomation(CHEAT, true);
-            await readSwitch();
-        },
+        // Checked and switched in turn with the switches; the tab's own switch reads the game back either way.
+        onTurnedOn: () => ensureOn(CHEAT).finally(readSwitch),
     });
     const ids = van.state([]); // every item on the page, all worlds
     const bulk = useWriteStatus();

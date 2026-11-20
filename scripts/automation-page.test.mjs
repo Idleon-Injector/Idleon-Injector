@@ -22,11 +22,15 @@ let refuseUpdate = false;
 let refuseNextUpdates = 0; // how many of the next session updates the game refuses
 let refuseUpdateNumber = null; // refuse the session update with this number (updates.length once it arrived)
 let slowOnAnswer = 0; // ms the game takes to answer a switch-on it has already applied
+let slowOffBefore = 0; // ms the game takes before it applies a switch-off
+let failNextToggle = false; // the next switch fails in the game
 let holdNextListRead = null; // a promise the next automation list read waits on, answering what it read before
 let slowUpdate = 0; // ms each session update takes
 let slowSave = 0; // ms each config file save takes
 let failSave = false; // the config file save fails
 let holdNextConfigRead = null; // a promise the next config read waits on, answering what it read before
+let failNextConfigRead = false; // the next config read fails
+let failNextListRead = false; // the next automation list read fails
 // The startup cheats in the config file: a save writes them, a read gives them back.
 let fileStartup = [];
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -34,6 +38,11 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
     commands.push([action, on]);
     const automation = getAutomations().find(({ cheat }) => cheat === action);
+    if (!on) await wait(slowOffBefore);
+    if (failNextToggle) {
+        failNextToggle = false;
+        return res.json({ ok: false, message: "the cheat broke" });
+    }
     const result = switchAutomation(automation.id, on);
     if (on) await wait(slowOnAnswer);
     res.json(result);
@@ -41,6 +50,10 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
 const readComputedRoute = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     const { name } = await req.json();
+    if (name === "list" && failNextListRead) {
+        failNextListRead = false;
+        return res.status(500).json({ error: "the game didn't answer" });
+    }
     const hold = name === "list" ? holdNextListRead : null;
     if (!hold) return readComputedRoute(req, res);
     holdNextListRead = null;
@@ -77,6 +90,10 @@ const readConfig = router.routes.GET.get("/api/config");
 router.routes.GET.set("/api/config", async (req, res) => {
     const hold = holdNextConfigRead;
     holdNextConfigRead = null;
+    if (failNextConfigRead) {
+        failNextConfigRead = false;
+        return res.status(500).json({ error: "the config didn't load" });
+    }
     let read;
     await readConfig(req, {
         status() {
@@ -593,4 +610,180 @@ test("review 3 sibling: the overview's Disable all stops every automation, even 
         () => `every automation to stop, not ${on()}`
     );
     switchAutomation("test.kit", false);
+});
+
+// A second reader's review of 99dacf9: each sequence it reproduced.
+const fieldText = (name) => {
+    const input = field(name);
+    return String(input.value ?? input.attributes.value ?? "");
+};
+
+test("reader: a stop-at typed while a refused save is still answering is saved after it", async () => {
+    await ui.switchAutomation("automation shops", false);
+    slowUpdate = 30;
+    refuseNextUpdates = 1;
+    const input = field("Lucky Whisker");
+    input.listeners.input({ target: { value: "10" } });
+    metric("Lucky Whisker").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await settle(5);
+    input.listeners.input({ target: { value: "20" } });
+    metric("Lucky Whisker").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(
+        () => saved().some(({ id, stopAt }) => id === "0:item0" && stopAt === 20),
+        () => `20 to be sent, field shows "${fieldText("Lucky Whisker")}"`
+    );
+    slowUpdate = 0;
+    await settle(80);
+    assert.ok((await gameShops()).some(({ id, stopAt }) => id === "0:item0" && stopAt === 20));
+    await typeStopAt("Lucky Whisker", "");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader: a refused save elsewhere leaves text typed (not yet entered) in another field", async () => {
+    field("Golden Bramble").listeners.input({ target: { value: "33" } });
+    refuseNextUpdates = 1;
+    await checkbox(pickRow("Tiny Spark")).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Tiny Spark")), "the refusal");
+    await settle(30);
+    assert.equal(fieldText("Golden Bramble"), "33");
+    metric("Golden Bramble").listeners.keydown({ key: "Escape", target: field("Golden Bramble"), preventDefault() {} });
+});
+
+test("reader: Shops is switched on only if the game ended up running an item a save switched on", async () => {
+    let turned = 0;
+    const picks = ui.createAutomationPicks("shops", { onTurnedOn: () => turned++ });
+    picks.sync(await gameShops());
+    // A: X on and Y's stop-at, both refused: nothing runs, so Shops stays off.
+    slowUpdate = 20;
+    refuseNextUpdates = 2;
+    await Promise.all([
+        picks.set("0:item2", { on: true }).catch(() => {}),
+        picks.set("0:item0", { stopAt: 5 }).catch(() => {}),
+    ]);
+    assert.equal(turned, 0, "both refused: the game runs no item");
+    // B: X on (taken), then X off (refused): the game runs X, so Shops goes on.
+    refuseUpdateNumber = updates.length + 2;
+    const on = picks.set("0:item2", { on: true });
+    await settle(5); // its list (X on) is sent before X goes off
+    await Promise.all([on, picks.set("0:item2", { on: false }).catch(() => {})]);
+    slowUpdate = 0;
+    refuseUpdateNumber = null;
+    assert.ok(
+        (await gameShops()).some(({ id, on }) => id === "0:item2" && on),
+        "the game runs X"
+    );
+    assert.equal(turned, 1);
+    await picks.set("0:item2", { on: false });
+});
+
+test("reader: the Shops tab's own switch shows Shops running after an item's file save failed", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
+    failSave = true;
+    await checkbox(pickRow("Tiny Spark")).listeners.change({ target: { checked: true } });
+    await until(() => /disk is full/.test(text(pickRow("Tiny Spark"))), "the failure");
+    failSave = false;
+    assert.equal(shopsOn(), true);
+    await until(
+        () => statusOf(shops) !== "Off",
+        () => `the tab's switch to show Shops on, not ${statusOf(shops)}`
+    );
+    await checkbox(pickRow("Tiny Spark")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "0:item2" && on), "the item off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader: an item switched on just after Shops' Off leaves Shops on now and at start", async () => {
+    await ui.switchAutomation("automation shops", true);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) !== "Off", "the tab to read Shops on");
+    slowOffBefore = 60;
+    void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: false } });
+    await settle(5);
+    await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: true } });
+    await settle(300);
+    slowOffBefore = 0;
+    assert.equal(shopsOn(), true, "the item, clicked last, switches Shops on");
+    assert.ok(fileStartup.includes("automation shops"), "and at start, as it runs");
+    await checkbox(pickRow("Royal Pebble")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item3" && on), "the item off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader: an item's failure goes once a later save stores what it wanted", async () => {
+    slowUpdate = 20;
+    refuseNextUpdates = 1;
+    void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+    await settle(2);
+    const input = field("Royal Pebble");
+    input.listeners.input({ target: { value: "7" } });
+    metric("Royal Pebble").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => /save-state--success/.test(saveState("Royal Pebble")), "the second save");
+    slowUpdate = 0;
+    await settle(50);
+    assert.ok(
+        (await gameShops()).some(({ id, on }) => id === "1:item4" && on),
+        "the second save stored it"
+    );
+    assert.doesNotMatch(saveState("Sleepy Fang"), /save-state--error/, "so its failure is gone");
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await typeStopAt("Royal Pebble", "");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader: an older switch's failure isn't said once a newer switch worked", async () => {
+    await ui.switchAutomation("automation shops", true);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) !== "Off", "the overview to read Shops on");
+    slowOffBefore = 40;
+    failNextToggle = true;
+    const box = checkbox(row(overview, "Shops"));
+    void box.listeners.change({ target: { checked: false } });
+    await settle(5);
+    void box.listeners.change({ target: { checked: true } });
+    await until(() => !failNextToggle && commands.at(-1)?.[1] === true, "both switches to run");
+    await settle(150);
+    slowOffBefore = 0;
+    assert.equal(shopsOn(), true);
+    assert.doesNotMatch(text(row(overview, "Shops")), /cheat broke/);
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader: the Shops tab's switch read that a newer one overtook is dropped", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
+    let release;
+    holdNextListRead = new Promise((resolve) => (release = resolve));
+    void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await settle(5);
+    await checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
+    await until(() => statusOf(shops) !== "Off", "the switch's own read to show Shops on");
+    release();
+    await settle(50);
+    assert.notEqual(statusOf(shops), "Off", "the older read was dropped");
+    await ui.switchAutomation("automation shops", false);
+});
+
+// Found walking the four questions over every await after the reader's review.
+test("walk: a refused save whose read-back fails still says why the save failed", async () => {
+    refuseNextUpdates = 1;
+    failNextConfigRead = true; // the read-back after the refusal
+    await checkbox(pickRow("Golden Crown Hat")).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Golden Crown Hat")), "the failure");
+    assert.match(text(pickRow("Golden Crown Hat")), /busy/, "the refusal, not the read");
+    failNextConfigRead = false;
+});
+
+test("walk: a switch that fails says why, even when reading the game back fails too", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
+    failNextToggle = true;
+    failNextListRead = true; // the Shops tab's read-back after the switch
+    await checkbox(row(shops, "Shops")).listeners.change({ target: { checked: true } });
+    await until(() => /cheat broke|didn't answer/.test(text(row(shops, "Shops"))), "a failure to be said");
+    assert.match(text(row(shops, "Shops")), /cheat broke/, "the switch's own failure");
+    failNextListRead = false;
 });
