@@ -1,6 +1,6 @@
-/** General pages: tasks, achievements, merit shop, cards, upgrade vault, bubba, event shop, masterclasses. */
+/** General pages: tasks, achievements, merit shop, cards, upgrade vault, bubba, event shop, masterclasses, attire rack. */
 import { fakeName, h, level, list, upgradeDefs, upgradeLevels } from "./helpers.mjs";
-import { MAPS, MONSTERS } from "./shared.mjs";
+import { MAPS, MONSTERS, PLAYERS } from "./shared.mjs";
 
 const WORLDS = 7;
 const TASKS = 8;
@@ -13,10 +13,40 @@ const ARMORY = 70;
 
 const vaultMax = (index) => 10 + (index % 5) * 10;
 
+// Attire Rack: outfits (EquipmentGown1..), their stats and bonuses, and the attire slot (row 0, slot 15).
+const OUTFITS = 8;
+const outfit = (i) =>
+    h({
+        displayName: `${fakeName(i + 50)}_Robe`,
+        Type: "PREMIUM_GOWN",
+        typeGen: "aGown",
+        STR: i % 3 === 0 ? 0 : i + 2,
+        AGI: i % 2 ? 3 : 0,
+        WIS: i % 4 === 1 ? 5 : 0,
+        LUK: 0,
+        Weapon_Power: i % 5 === 4 ? 2 : 0,
+        Defence: i % 3 === 0 ? 4 : 0,
+        UQ1txt: i % 2 ? "%_DROP_RATE" : "%_ALL_STATS",
+        UQ1val: i + 1,
+        UQ2txt: i % 3 === 2 ? "%_CLASS_EXP" : "0",
+        UQ2val: i % 3 === 2 ? 4 : 0,
+    });
+const attireSlot = (item) => ({
+    EquipmentOrder: [[...list(15, (i) => (i < 5 ? `SetPiece${i}` : "Blank")), item], list(8, () => "Blank")],
+    EquipmentQuantity: [[...list(15, (i) => (i < 5 ? 1 : 0)), item === "Blank" ? 0 : 1], list(8, () => 0)],
+    EquipmentMap: [list(16, () => h({})), list(8, () => h({}))],
+});
+const WORN = ["EquipmentGown3", "Blank", "EquipmentGown0"];
+
 const built = (map, i) => [i + 1, i, 2, 40 * i, 12, 3, 0, 0, -1, -1, i % 3, 222211111, i % 2];
 
 export default () => ({
     gga: {
+        ItemDefinitionsGET: h(Object.fromEntries(list(OUTFITS + 1, (i) => [`EquipmentGown${i}`, outfit(i)]))),
+        PlayerDATABASE: h(Object.fromEntries(PLAYERS.map((name, i) => [name, h(attireSlot(WORN[i]))]))),
+        // The live copy of the character in play (world-3.mjs sets its EquipmentOrder).
+        EquipmentQuantity: attireSlot(WORN[0]).EquipmentQuantity,
+        EquipmentMap: attireSlot(WORN[0]).EquipmentMap,
         // [0] progress and [1] stages done per world's tasks, [2] merit shop purchases per world.
         Tasks: [
             list(WORLDS, (w) => list(TASKS, (i) => (i + 1) * (w + 2) * 15)),
@@ -64,7 +94,8 @@ export default () => ({
         ),
         MapBon: list(350, (map) => (MAPS.includes(map) ? [map * 1000, map * 500, map % 3 ? 0 : 10000000] : [])),
         CustomMaps: h({ RG_KillReq: h({ 2: 900 }) }),
-        DNSM: h({ ArcMultBon: [75] }),
+        // TotStatMAP: the stat cache the Attire Rack empties after an attire change.
+        DNSM: h({ ArcMultBon: [75], TotStatMAP: h({}), TotalStatsETCmap: h({}) }),
         OptionsListAccount: { 311: "_bcf" },
         CustomLists: {
             h: {
@@ -118,4 +149,5 @@ export default () => ({
         },
     },
     computed: { _customBlock_Summoning: { VaultUpgMaxLV: vaultMax } },
+    cheatStates: { wide: { attire: true } },
 });

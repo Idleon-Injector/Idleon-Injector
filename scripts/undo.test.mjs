@@ -137,7 +137,7 @@ test("a bulk action is one action, and Undo all puts every value back", async ()
 test("a change made on one character goes back to that character while another is in play", async () => {
     const [first, second] = gga.GetPlayersUsernames;
     assert.equal(gga.UserInfo[0], first);
-    const root = await openPage("src/ui/pages/account/player/player.js", rowLoaded("Mining level"));
+    const root = await openPage("src/ui/pages/account/player/1-levels.js", rowLoaded("Mining level"));
     const row = findRow(root, "Mining level");
     const oldLevel = gga.Lv0[2];
     const oldExp = gga.Exp0[2];
