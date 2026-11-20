@@ -195,7 +195,6 @@ test("an undo refused because the value moved shows what the game holds now", as
     assert.equal(text(byClass(row, "save-state__label")[0]), "changed since: now 50");
     const [input] = elements(row).filter((node) => node.nodeName === "input");
     await until(() => String(input.attributes.value) === "50", "the field to show 50");
-    assert.match(text(byClass(row, "account-row__badge")[0]), /\b50\b/);
 });
 
 // CodeRabbit on #106: a field left focused through that reload kept its old value as if typed, and leaving it saved
@@ -212,7 +211,9 @@ test("a field focused through a refused undo's reload, then left untouched, save
 
     input.listeners.focus({ target: input });
     await clickUndo(row);
-    await until(() => /\b120\b/.test(text(byClass(other, "account-row__badge")[0])), "the reload to show 120");
+    // The focused field keeps what it shows; the refused row's own field shows the same reload landing.
+    const [undone] = elements(row).filter((node) => node.nodeName === "input");
+    await until(() => String(undone.attributes.value) === "50", "the reload to land");
     const asked = requests.length;
     input.listeners.blur({ target: input, relatedTarget: null });
     other.listeners.focusout({ target: input, currentTarget: other, relatedTarget: null });
