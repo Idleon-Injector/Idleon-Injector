@@ -142,3 +142,27 @@ test("Sushi General: saving Perfect keeps the knowledge XP and level the game ga
     assert.equal(Sushi[6][2], 987654, "the XP the game gained stays");
     assert.equal(Sushi[7][2], 9, "the level the game gained stays");
 });
+
+test("Sushi Station: a slot save the game refuses shows the game's tier again and says why", async () => {
+    const tiles = (root) => byClass(root, "sushi-station-tile");
+    const root = await openPage(
+        "src/ui/pages/world-7/sushi-station/2-station.js",
+        (node) => tiles(node).length > 10 && inputs(tiles(node)[1])[0].attributes.value === String(Sushi[0][1] + 1)
+    );
+    const tile = tiles(root)[1];
+    const [field] = inputs(tile);
+    const shown = field.attributes.value;
+    const restore = refuseWrites(Sushi[0], 1);
+    try {
+        field.listeners.focus({ target: field });
+        field.value = String(Number(shown) + 1);
+        field.listeners.input({ target: field });
+        field.listeners.blur({ target: field });
+        const region = () =>
+            elements(globalThis.document.body).find((node) => node.attributes.role === "status")?.textContent ?? "";
+        await until(() => region().startsWith("Slot 1 not saved"), "the failure to be said");
+        await until(() => field.attributes.value === shown, "the field to show the game's tier");
+    } finally {
+        restore();
+    }
+});

@@ -6,6 +6,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { toInt, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import { announce, plainReason } from "../../../components/inPlace.js";
 
 const { div, input, span } = van.tags;
 
@@ -36,6 +37,7 @@ const SushiSlotTile = ({ index, tileState, maxTierState }) => {
     const inputValue = van.state(toDisplayTier(tileState.value.val));
     const { status, run } = useWriteStatus({ successMs: 700, errorMs: 1100 });
     let isFocused = false;
+    let latestSave = 0;
 
     const syncInput = () => {
         inputValue.val = toDisplayTier(tileState.value.val);
@@ -53,11 +55,32 @@ const SushiSlotTile = ({ index, tileState, maxTierState }) => {
             return;
         }
 
-        await run(async () => {
-            await writeVerified(`${SUSHI_SLOT_PATH}[${index}]`, nextValue);
-            tileState.value.val = nextValue;
-            inputValue.val = toDisplayTier(nextValue);
-        });
+        const path = `${SUSHI_SLOT_PATH}[${index}]`;
+        const save = ++latestSave;
+        await run(
+            async () => {
+                await writeVerified(path, nextValue);
+                if (save !== latestSave) return;
+                tileState.value.val = nextValue;
+                inputValue.val = toDisplayTier(nextValue);
+            },
+            {
+                // The tile only changes colour, so the result is said to screen readers.
+                onSuccess: () => announce(`Slot ${index} saved.`),
+                onError: async (error) => {
+                    announce(`Slot ${index} not saved: ${plainReason(error?.message)}`);
+                    // Show what the game holds, not the refused tier.
+                    try {
+                        const raw = await gga(path);
+                        if (save === latestSave)
+                            tileState.value.val = normalizeStationValue(raw ?? -1, maxTierState.val);
+                    } catch {
+                        // Unreadable: keep the last value read.
+                    }
+                    if (save === latestSave && !isFocused) syncInput();
+                },
+            }
+        );
     };
 
     const inputEl = input({
