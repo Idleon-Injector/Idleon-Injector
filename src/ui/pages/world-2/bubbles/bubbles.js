@@ -108,24 +108,28 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
                       words: ["Prisma", "Not prisma"],
                       name: `${bubble.name} prisma`,
                       title: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
+                      // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
+                      ownStatus: true,
                       onFlip: (prisma) =>
-                          run(() =>
-                              prismaInTurn(async () => {
-                                  const code = prismaCode(cauldron.prismaKey, bubble.index);
-                                  const held = parsePrisma(await gga("OptionsListAccount[384]"));
-                                  const next = new Set(held);
-                                  if (prisma) next.add(code);
-                                  else next.delete(code);
-                                  try {
-                                      await writeVerified("OptionsListAccount[384]", encodePrisma(next));
-                                  } catch (error) {
-                                      // A failed save leaves the switches on what the game held when it started.
-                                      prismaSet.val = held;
-                                      throw error;
-                                  }
-                                  prismaSet.val = next;
-                              })
-                          ).then(() => undefined), // the row's own save state says why a save failed
+                          run(
+                              () =>
+                                  prismaInTurn(async () => {
+                                      const code = prismaCode(cauldron.prismaKey, bubble.index);
+                                      const held = parsePrisma(await gga("OptionsListAccount[384]"));
+                                      const next = new Set(held);
+                                      if (prisma) next.add(code);
+                                      else next.delete(code);
+                                      try {
+                                          await writeVerified("OptionsListAccount[384]", encodePrisma(next));
+                                      } catch (error) {
+                                          // A failed save leaves the switches on what the game held when it started.
+                                          prismaSet.val = held;
+                                          throw error;
+                                      }
+                                      prismaSet.val = next;
+                                  }),
+                              "switch"
+                          ),
                   }),
     });
 };

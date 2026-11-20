@@ -55,6 +55,7 @@ const JadeUpgradeRow = ({ entry, boughtState, encodedState }) => {
             words: ["Bought", "Locked"],
             name: entry.name,
             title: "Jade Emporium upgrade",
+            status, // nothing else on the row reads out saving and saved
             onFlip: writeToggle,
         }),
     });
