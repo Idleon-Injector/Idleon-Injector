@@ -521,3 +521,47 @@ test("History shows the newest read of the log when two overlap", async () => {
         release();
     }
 });
+
+test("an undo that puts back only some values still has the page read the game again", async () => {
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const old = [ola[253], ola[254]];
+    await withAction({ label: "two" }, () =>
+        writeManyVerified([
+            { path: "OptionsListAccount[253]", value: old[0] + 1 },
+            { path: "OptionsListAccount[254]", value: old[1] + 1 },
+        ])
+    );
+    const action = await newest();
+    const asked = reloadPlace.val;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) => {
+        if (String(url).endsWith("/game/gga/write-many")) ola[254] = old[1] + 5; // the game moved one on
+        return realFetch(url, options);
+    };
+    try {
+        await assert.rejects(undoAction(action.id), { message: "1 of 2 not undone" });
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(ola[253], old[0], "the first value is back");
+    assert.notEqual(reloadPlace.val, asked, "so the page reads the game again");
+    [ola[253], ola[254]] = old;
+});
+
+test("an undo whose History bookkeeping fails still has the page read the game again", async () => {
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const old = ola[254];
+    await withAction({ label: "test" }, () => writeVerified("OptionsListAccount[254]", old + 1));
+    const action = await newest();
+    const asked = reloadPlace.val;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) =>
+        String(url).endsWith("/changes/undone") ? new Response("{}", { status: 500 }) : realFetch(url, options);
+    try {
+        await assert.rejects(undoAction(action.id));
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(ola[254], old, "the value is back");
+    assert.notEqual(reloadPlace.val, asked, "so the page reads the game again");
+});

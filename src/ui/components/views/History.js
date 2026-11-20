@@ -11,7 +11,7 @@ import { fetchChanges } from "../../services/api.js";
 import { changesVersion } from "../../services/changeLog.js";
 import { AccountTabHeader } from "./account/components/AccountTabHeader.js";
 import { EmptyState } from "../EmptyState.js";
-import { reloadAfterUndo, undoAction } from "./account/undo.js";
+import { undoAction } from "./account/undo.js";
 
 const { div, span, button, time, details, summary } = van.tags;
 
@@ -65,7 +65,6 @@ const Group = (data) => {
             state.val = "idle";
             washed.val = true;
             setTimeout(() => (washed.val = false), WASH_MS);
-            reloadAfterUndo(data.val);
         } catch (error) {
             reason.val = error?.message || "not undone";
             state.val = "refused";

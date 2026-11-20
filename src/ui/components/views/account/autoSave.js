@@ -1,7 +1,7 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../assets/icons.js";
 import { labelOf, withAction } from "../../../services/changeLog.js";
-import { reloadAfterUndo, undoAction } from "./undo.js";
+import { undoAction } from "./undo.js";
 
 const { span, button } = van.tags;
 
@@ -142,7 +142,6 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         }
         washed.val = true;
         setTimeout(() => (washed.val = false), WASH_MS);
-        reloadAfterUndo(action);
     };
 
     /** Pointer or focus on Undo keeps it (`by` is "pointer" or "focus"); once both left, a few more seconds. */

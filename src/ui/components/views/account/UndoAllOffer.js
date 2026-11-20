@@ -8,7 +8,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../assets/icons.js";
 import { lastBulkAction } from "../../../services/changeLog.js";
 import { UNDO_MS } from "./autoSave.js";
-import { reloadAfterUndo, undoAction } from "./undo.js";
+import { undoAction } from "./undo.js";
 
 const { span, button } = van.tags;
 
@@ -110,7 +110,6 @@ const offer = (action, anchor) => {
         try {
             await undoAction(action.id);
             state.val = "done";
-            reloadAfterUndo(action);
             hideIn(DONE_MS);
         } catch (error) {
             reason.val = error?.message || "not undone";

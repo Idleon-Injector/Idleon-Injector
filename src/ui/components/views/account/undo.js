@@ -49,10 +49,14 @@ const targetPath = async (entry, active) => {
     return `${live}${saved.rest}`;
 };
 
+// The page the action was made on shows the game's values again (Pages and the area views listen).
+const reloadPlaceOf = (action) => (reloadPlace.val = { ...action.place });
+
 /**
  * Undo every entry of the action not undone yet. Resolves to the action; rejects with an Error whose message
  * is the reason, short enough to show beside a field. Nothing is written when a value changed since, so a
- * refused undo leaves the game as it was (and the entry in the log).
+ * refused undo leaves the game as it was (and the entry in the log). Once any old value is back, the page it
+ * was made on reads the game again, even when the rest is refused.
  */
 export const undoAction = async (id) => {
     const { actions } = await fetchChanges();
@@ -90,6 +94,7 @@ export const undoAction = async (id) => {
             (error.results ?? []).filter((result) => result.ok).map((result) => result.path.replace(/^gga\./, ""))
         );
         const landed = todo.filter((_entry, i) => kept.has(targets[i])).map((entry) => entry.index);
+        if (kept.size) reloadPlaceOf(action);
         if (landed.length) await markChangesUndone(id, landed);
         changesVersion.val++;
         const missed = writes.length - kept.size;
@@ -104,15 +109,11 @@ export const undoAction = async (id) => {
                     : "game kept the value"
         );
     }
+    reloadPlaceOf(action);
     await markChangesUndone(
         id,
         todo.map((entry) => entry.index)
     );
     changesVersion.val++;
     return action;
-};
-
-/** After an undo outside the row that made the change: the page it was made on shows the game's values again. */
-export const reloadAfterUndo = (action) => {
-    if (action?.place) reloadPlace.val = { ...action.place };
 };
