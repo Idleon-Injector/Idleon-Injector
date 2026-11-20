@@ -130,7 +130,7 @@ await until(() => row(overview, "Shops"), "the overview to list Shops");
 test("the overview lists the automation toggles only, each with its status", () => {
     assert.deepEqual(
         byClass(overview, "account-row__name").map(text),
-        ["Shops"],
+        ["Construction", "Shops"],
         "Sushi Auto Play and autoboss are not automation toggles"
     );
     assert.equal(text(byClass(row(overview, "Shops"), "automation-row__status")[0]), "Off");
@@ -160,7 +160,7 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
     await until(() => button(overview, "Enable all"), "Enable all");
     await button(overview, "Enable all").listeners.click({ preventDefault() {} });
     await until(() => shopsOn() && button(overview, "Disable all"), "every automation to run");
-    assert.deepEqual(startup(), ["automation shops"]);
+    assert.deepEqual(startup(), ["automation construction", "automation shops"]);
 
     const since = commands.length;
     const disable = button(overview, "Disable all");
@@ -172,7 +172,10 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
 
     await disable.listeners.click({ preventDefault() {} });
     await until(() => !shopsOn(), "the automation to stop");
-    assert.deepEqual(commands.slice(since), [["automation shops", false]]);
+    assert.deepEqual(commands.slice(since), [
+        ["automation construction", false],
+        ["automation shops", false],
+    ]);
     assert.deepEqual(startup(), []);
 });
 

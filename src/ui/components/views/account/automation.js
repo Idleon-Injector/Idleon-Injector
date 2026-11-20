@@ -19,7 +19,7 @@ import { AccountRow } from "./components/AccountRow.js";
 import { useWriteStatus } from "./accountShared.js";
 import { Said, useSaid } from "../../inPlace.js";
 
-const { div, input, label, span } = van.tags;
+const { div, input, label, option, select, span } = van.tags;
 
 /** Every automation, with its status while it runs. */
 export const readAutomations = () => readComputed("automation", "list");
@@ -101,7 +101,8 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
 };
 
 /**
- * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, kept as states by id.
+ * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt?, priority? } per item, kept as states
+ * by id (priority 1 is High, 2 Low, none Balanced).
  * Edits show at once and their saves run one at a time, each sending the whole list. When a save fails, the controls
  * read back what the game holds, so they never show a value it didn't take. `onTurnedOn` runs when a save leaves an
  * item it switched on running in the game (the system's own switch goes on with it, so buying starts at once).
@@ -114,7 +115,13 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
     let fileBehind = false; // the game took the last list, the config file didn't
 
     const get = (id) => {
-        if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
+        if (!items.has(id))
+            items.set(id, {
+                on: van.state(false),
+                stopAt: van.state(null),
+                priority: van.state(null),
+                draft: van.state(""),
+            });
         return items.get(id);
     };
 
@@ -127,18 +134,20 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
         for (const [id, item] of items) {
             item.on.val = Boolean(byId.get(id)?.on);
             item.stopAt.val = byId.get(id)?.stopAt ?? null;
+            item.priority.val = byId.get(id)?.priority ?? null;
             showStopAt(item);
         }
     };
 
-    // Switched-off items stay while they carry a stop-at, so it survives.
+    // Switched-off items stay while they carry a stop-at or a priority, so it survives.
     const toConfig = () =>
         [...items]
-            .filter(([, item]) => item.on.val || item.stopAt.val !== null)
+            .filter(([, item]) => item.on.val || item.stopAt.val !== null || item.priority.val !== null)
             .map(([id, item]) => ({
                 id,
                 on: item.on.val,
                 ...(item.stopAt.val !== null ? { stopAt: item.stopAt.val } : {}),
+                ...(item.priority.val !== null ? { priority: item.priority.val } : {}),
             }));
 
     const persist = async () => {
@@ -155,7 +164,7 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
         fileBehind = false;
     };
 
-    // Apply `patches` ([id, { on } or { stopAt }]) and save them with every other edit.
+    // Apply `patches` ([id, { on }, { stopAt } or { priority }]) and save them with every other edit.
     const save = async (patches) => {
         edits++;
         for (const [id, patch] of patches)
@@ -179,7 +188,7 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
         if (failure) throw failure;
     };
 
-    /** Change one item's fields (`patch`: { on } or { stopAt }). */
+    /** Change one item's fields (`patch`: { on }, { stopAt } or { priority }). */
     const set = (id, patch) => save([[id, patch]]);
     /** Switch every item in `ids` on or off with one save. */
     const setAll = (ids, on) => save(ids.map((id) => [id, { on }]));
@@ -199,11 +208,18 @@ const parseStopAt = (raw) => {
     return Number(text);
 };
 
+const PRIORITIES = [
+    [1, "High"],
+    [2, "Low"],
+    [null, "Balanced"],
+];
+
 /**
  * An item's row: name, a badge, its stop-at (empty is no limit; saves on Enter or on leaving it) and its switch.
- * The switch and the stop-at share one save state.
+ * `detail` (a node, or a function returning one) adds lines under the name; `priority` adds a High / Low / Balanced
+ * pick before the stop-at. The switch, the priority and the stop-at share one save state.
  */
-export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => {
+export const PickRow = ({ picks, id, name, badge, detail = null, priority = false, stopAtTitle = "Stop at" }) => {
     const item = picks.get(id);
     const draft = item.draft;
     const save = useAutoSave({
@@ -237,11 +253,40 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
         },
     });
 
+    // The game's saved priority again once a save ends, taken or not.
+    const priorityPick = select(
+        {
+            class: "select-base",
+            "aria-label": `${name} priority`,
+            onchange: (e) => {
+                const next = e.target.value === "" ? null : Number(e.target.value);
+                void save
+                    .run(() => picks.set(id, { priority: next }))
+                    .then(() => {
+                        priorityPick.value = String(item.priority.val ?? "");
+                    });
+            },
+        },
+        PRIORITIES.map(([value, text]) =>
+            option({ value: String(value ?? ""), selected: () => item.priority.val === value }, text)
+        )
+    );
+
     return AccountRow({
         rowClass: "account-row--wide-controls automation-pick",
-        info: span({ class: "account-row__name" }, name),
+        info:
+            detail === null
+                ? span({ class: "account-row__name" }, name)
+                : div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, name), detail),
         badge,
         controls: [
+            priority
+                ? div(
+                      { class: "automation-pick__priority" },
+                      span({ class: "account-field-metric__label" }, "Priority"),
+                      priorityPick
+                  )
+                : null,
             div(
                 { class: () => `account-field-metric ${saveStateClass(save.status.val, save.undo)}`, ...save.handlers },
                 div(

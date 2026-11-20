@@ -1,5 +1,6 @@
-/* Account › Automation: what each automation is doing, under its name. */
-.automation-row__status {
+/* Account › Automation: what each automation is doing, under its name; a pick's own lines (its bonus, its build). */
+.automation-row__status,
+.automation-pick__detail {
     color: var(--c-text-muted);
     font-size: 0.875rem;
     overflow-wrap: anywhere;
@@ -17,6 +18,41 @@
     width: 180px;
 }
 
+.automation-pick__detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* A pick's High / Low / Balanced, above-labelled like the stop-at beside it. */
+.automation-pick__priority {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.automation-pick__priority .select-base {
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 9px;
+}
+
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
+}
+
+/* The overlay: the priority takes its own line, then the stop-at fills the line beside the switch. */
+@media (max-width: 600px) {
+    .automation-pick .account-row__controls {
+        flex-wrap: wrap;
+    }
+
+    .automation-pick__priority {
+        flex-basis: 100%;
+        align-items: flex-start;
+    }
+
+    .automation-pick .account-field-metric {
+        flex: 1;
+    }
 }
