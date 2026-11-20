@@ -115,7 +115,13 @@ test("stamps: a refused exalt says why on the row and shows what the game holds"
 
 const STATUES = "src/ui/pages/world-1/statues/statues.js";
 const statueRow = (root, index) => byClass(root, "statue-row")[index];
-const tierOf = (row) => text(byClass(row, "statue-tier-badge")[0]);
+// The tier shows once, in its dropdown: the option it has selected.
+const tierOf = (row) =>
+    text(
+        elements(byClass(row, "statue-tier-select")[0]).find(
+            (node) => node.nodeName === "option" && node.attributes.selected === true
+        )
+    );
 // The player types into the row's last field (Flair) and presses Enter.
 const typeFlair = (row, value) => {
     const flair = elements(row)

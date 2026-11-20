@@ -163,7 +163,6 @@ const UpgradeRow = ({ levelsPath, upgrade, levelState, deleteCachePaths = [], on
             span({ class: "account-row__index" }, upgrade.displayIndex),
             span({ class: "account-row__name" }, upgrade.name),
         ],
-        renderBadge: (level) => `LV ${level ?? 0} / ${upgrade.maxLevel}`,
         rowClass: "masterclass-upgrade-row",
         badgeClass: "masterclass-upgrade-row__level",
         controlsClass: "masterclass-upgrade-row__controls",

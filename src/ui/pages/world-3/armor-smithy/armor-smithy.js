@@ -193,7 +193,7 @@ const SmithyRow = ({ row, onRemove }) => {
         primaryLabel: row.displayName,
         fallbackLabel: row.setKey,
         secondaryLabel: row.setKey,
-        badge: () => (row.completedNow ? "EQUIPPED" : row.known ? "STORED" : "LEGACY"),
+        badge: () => (row.completedNow ? "Equipped" : row.known ? "Stored" : "Legacy"),
         rowClass: "smithy-row",
         nameGroupClass: "smithy-row__name-group",
         onRemove,

@@ -42,7 +42,12 @@ const rowAt = (root, index) =>
     byClass(root, "account-row").find((row) => text(byClass(row, "account-row__index")[0]).trim() === `#${index}`);
 const findRow = (root, label) =>
     byClass(root, "account-row").find((row) => text(byClass(row, "account-row__name")[0]).trim() === label);
-const badge = (row) => text(byClass(row, "account-row__badge")[0]).trim();
+// What the field shows, and its cap as the eye reads it ("/ 20"; "" when it has none).
+const shown = (row) => String(inputs(row)[0].attributes.value);
+const capOf = (row) => {
+    const cap = byClass(row, "number-input__cap")[0];
+    return cap && !cap.attributes.hidden ? text(cap.childNodes[0]) : "";
+};
 const stateOf = (row) => /save-state--(\w+)/.exec(classes(byClass(row, "save-state")[0] ?? { attributes: {} }))?.[1];
 const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
 
@@ -86,7 +91,7 @@ test("markets: a level above its cap shows as the game holds it, and Max brings 
     const row = rowAt(root, 2);
     const [field] = inputs(row);
     assert.equal(String(field.value ?? field.attributes.value), "99");
-    assert.equal(badge(row), "LV 99 / 20");
+    assert.equal(capOf(row), "/ 20");
     click(buttons(row).find((node) => text(node).trim() === "Max"));
     await settled(row);
     assert.equal(stateOf(row), "success");
@@ -198,7 +203,10 @@ test("beanstalk: a Refresh that read the game before a save landed doesn't put t
     await settled(row);
     assert.equal(stateOf(row), "success");
     names.release();
-    await until(() => badge(row) === "LV 3 / 3" && !disabled(refresh), "the refresh to show what the game holds");
+    await until(
+        () => shown(row) === "3" && capOf(row) === "/ 3" && !disabled(refresh),
+        "the refresh to show what the game holds"
+    );
     assert.equal(levels[0], 3);
 });
 
@@ -227,7 +235,7 @@ test("beanstalk: a save that lands during the Refresh's second read doesn't put 
     assert.equal(stateOf(row1), "success");
     secondRead.release();
     await until(
-        () => badge(row0) === "LV 3 / 3" && badge(row1) === "LV 3 / 3" && !disabled(refresh),
+        () => shown(row0) === "3" && shown(row1) === "3" && capOf(row0) === "/ 3" && !disabled(refresh),
         "the refresh to show what the game holds"
     );
     assert.deepEqual([levels[0], levels[1]], [3, 3]);

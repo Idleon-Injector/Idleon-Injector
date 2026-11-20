@@ -88,7 +88,6 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
         },
         indexLabel: `#${order}`,
         name,
-        renderBadge: (currentValue) => `LV ${currentValue} / ${maxLevelState.val}`,
         rowClass: () => (isExalted.val ? "stamp-row--exalted" : ""),
         renderExtraActions: ({ status, run, applyValue }) => [
             StateSwitch({

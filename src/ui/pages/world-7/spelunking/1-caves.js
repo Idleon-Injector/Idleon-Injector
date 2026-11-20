@@ -137,7 +137,7 @@ const CaveRow = ({ row, metricStates }) => {
             span({ class: "account-row__index" }, `#${row.index + 1}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, row.name)),
         ],
-        badge: "CAVE",
+        badge: "Cave",
         controlsClass: "account-row__controls--stack",
         controls: CAVE_METRICS.map((metric) =>
             InlineEditableNumberField({
@@ -162,7 +162,7 @@ const DestroyedObjectRow = ({ row, onRemove, isBusy }) =>
         index: row.index,
         primaryLabel: row.name,
         fallbackLabel: row.objectId,
-        badge: row.knownCatalogMatch ? "DISCOVERED" : "UNKNOWN",
+        badge: row.knownCatalogMatch ? "Discovered" : "Unknown",
         nameGroupClass: "account-row__name-group",
         onRemove,
         isBusy,

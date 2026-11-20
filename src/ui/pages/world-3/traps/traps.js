@@ -136,10 +136,7 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
                 span({ class: "trap-row__meta" }, () => progressLabel(elapsedValue.val, completionValue.val))
             ),
         ],
-        badge: () =>
-            `QTY ${formatNumber(toInt(qtyValue.val))} | EXP ${formatNumber(toInt(expValue.val))} | RARE ${formatNumber(toInt(rareValue.val))}`,
         rowClass: "trap-row",
-        badgeClass: "trap-row__badge",
         controlsClass: "trap-row__controls",
         renderControls: ({ draftStates, getDraftValue, setFieldFocused, resetDraft }) => [
             StackedNumberField({

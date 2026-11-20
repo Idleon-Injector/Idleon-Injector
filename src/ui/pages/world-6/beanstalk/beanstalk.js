@@ -34,7 +34,6 @@ const BeanstackRow = ({ entry, levelState }) =>
                 span({ class: "account-row__sub-label" }, entry.itemId)
             ),
         ],
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${BEANSTACK_MAX_LEVEL}`,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
         maxAction: {
