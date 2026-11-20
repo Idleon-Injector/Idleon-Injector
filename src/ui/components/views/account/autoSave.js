@@ -83,7 +83,9 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
     /**
      * `by`: "save" (the field's save), "button" (run(): a button writing the field's own value, like Reset), "switch"
      * (run(): a StateSwitch with `ownStatus`, which says saving…, saved and its failure itself, so the row says none of
-     * them) or "undo" (whose refusal is said here once, not held).
+     * them), "toggle" (run(): an on/off switch beside the field with no status of its own: the row says its saving…,
+     * ✓ and failure, and a failure of the field stays over its ✓) or "undo" (whose refusal is said here once, not
+     * held).
      * A cancelled write leaves a failure alone, except the field's save: its drafts were reset.
      */
     const settle = (next, why = "", by = "save", kind = null) => {

@@ -1033,6 +1033,12 @@ test("reader 2: a newer stop-at the game refuses on a row whose switch started S
     } finally {
         release();
     }
+    // The stop-at takes its turn on the row once the switch's write has ended: wait for the row's result.
+    await until(() => updates.length >= refuseUpdateNumber, "the stop-at's save to reach the game after the switch");
+    await until(
+        () => !/save-state--loading/.test(saveState("Tiny Spark")),
+        () => `the row's last write to end, not ${saveState("Tiny Spark")}`
+    );
     await queueIdle();
     refuseUpdateNumber = null;
     assert.equal(shopsOn(), true, "the switch, taken, started Shops");
@@ -1877,4 +1883,84 @@ test("final: after a stop-at the game applied but whose answer failed, Enter on 
         "Enter on the same value wrote the file"
     );
     await typeStopAt("Velvet Stone", "");
+});
+
+// On #108's shared row queue: a row's writes take turns in the order the player made them (#112).
+const sentFor = (from, id) =>
+    updates
+        .slice(from)
+        .map((body) => body.cheatConfig.automation.shops.find((item) => item.id === id))
+        .map((item) => (item ? { on: item.on, stopAt: item.stopAt ?? null } : null));
+
+test("row queue: Enter on stop-at 5, Enter on 6, then the switch reach the game in that order", async () => {
+    await ui.switchAutomation("automation shops", false);
+    const from = updates.length;
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        const input = field("Grand Drift");
+        input.listeners.input({ target: { value: "5" } });
+        metric("Grand Drift").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        await until(() => updates.length > from, "stop-at 5 to reach the game and be held");
+        input.listeners.input({ target: { value: "6" } });
+        metric("Grand Drift").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        void checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: true } });
+        await handled();
+    } finally {
+        release();
+    }
+    await until(() => updates.length >= from + 3, "all three to reach the game");
+    await until(() => /save-state--success/.test(saveState("Grand Drift")), "the row's last write to end");
+    assert.deepEqual(sentFor(from, "0:item1"), [
+        { on: false, stopAt: 5 },
+        { on: false, stopAt: 6 },
+        { on: true, stopAt: 6 },
+    ]);
+    await checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: false } });
+    await typeStopAt("Grand Drift", "");
+    await until(() => !saved().some(({ id }) => id === "0:item1"), "Grand Drift cleared");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("row queue: a stop-at saves the value committed with Enter, not what was typed after it", async () => {
+    const from = updates.length;
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+        await until(() => updates.length > from, "the switch's save to reach the game and be held");
+        const input = field("Sleepy Fang");
+        input.listeners.input({ target: { value: "6" } });
+        metric("Sleepy Fang").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        input.listeners.input({ target: { value: "7" } }); // typed after Enter, not committed
+        await handled();
+    } finally {
+        release();
+    }
+    await until(() => updates.length >= from + 2, "the stop-at's save to reach the game after the switch");
+    assert.equal(sentFor(from, "1:item4")[1].stopAt, 6, "the committed 6, not the uncommitted 7");
+    assert.equal(fieldText("Sleepy Fang"), "7", "the uncommitted 7 stays in the field");
+    metric("Sleepy Fang").listeners.keydown({ key: "Escape", target: field("Sleepy Fang"), preventDefault() {} });
+    await until(() => !/save-state--loading/.test(saveState("Sleepy Fang")), "the row's writes to end");
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await typeStopAt("Sleepy Fang", "");
+    await until(() => !saved().some(({ id }) => id === "1:item4"), "Sleepy Fang cleared");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("row queue: a stop-at the field refused still shows after the item's switch saves", async () => {
+    const input = field("Velvet Stone");
+    input.listeners.input({ target: { value: "-5" } });
+    metric("Velvet Stone").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => /whole number/.test(text(pickRow("Velvet Stone"))), "the field to refuse -5");
+    const sent = updates.length;
+    void checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: true } });
+    await until(() => updates.length > sent, "the switch's save to reach the game");
+    await until(() => !/save-state--loading/.test(saveState("Velvet Stone")), "the switch's write to end");
+    assert.match(saveState("Velvet Stone"), /save-state--error/, "the switch's ✓ doesn't hide the unsaved -5");
+    assert.match(text(pickRow("Velvet Stone")), /whole number/);
+    metric("Velvet Stone").listeners.keydown({ key: "Escape", target: input, preventDefault() {} });
+    await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item7" && on), "Velvet Stone off");
+    await ui.switchAutomation("automation shops", false);
 });
