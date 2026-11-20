@@ -96,15 +96,13 @@
     border-color: var(--c-danger-40);
 }
 
+/* The tier class on the same badge sets the colours; these are the fallbacks for a badge without one. */
 .card-row .account-row__badge {
-    --card-tier-color: var(--c-text-muted);
-    --card-tier-bg: #282c36;
-    --card-tier-border: #9399a8;
     display: flex;
     align-items: center;
-    color: var(--card-tier-color);
-    background: var(--card-tier-bg);
-    border-color: var(--card-tier-border);
+    color: var(--card-tier-color, var(--c-text-muted));
+    background: var(--card-tier-bg, #282c36);
+    border-color: var(--card-tier-border, #9399a8);
 }
 
 .card-tier-display {
