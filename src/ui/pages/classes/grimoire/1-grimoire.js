@@ -32,6 +32,7 @@ export default definePage({
     id: "classes.grimoire",
     world: "classes",
     system: "Grimoire",
+    tab: "Grimoire",
     description: "Deathbringer Grimoire upgrades and bone currency.",
     keywords: ["Deathbringer"],
     component: GrimoireTab,

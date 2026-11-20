@@ -25,15 +25,15 @@ const QuickAccessSection = () => {
         const found = allCheats.find((c) => c.value === val);
         if (found) return found;
 
-        // Handle parameterized commands (e.g., "drop Copper 100" -> base "drop Copper")
-        const baseParts = val.split(" ");
-        if (baseParts.length > 1) {
-            const baseCmd = baseParts.slice(0, -1).join(" ");
-            const paramFound = allCheats.find((c) => c.value === baseCmd);
+        // Handle parameterized commands, whose value can be several words: the longest listed command it starts
+        // with ("w7 sushitools knowledge 3 500" -> "w7 sushitools knowledge", with "3 500").
+        const words = val.split(" ");
+        for (let i = words.length - 1; i > 0; i--) {
+            const paramFound = allCheats.find((c) => c.value === words.slice(0, i).join(" "));
             if (paramFound) {
                 return {
                     value: val,
-                    message: `${paramFound.message} (${baseParts[baseParts.length - 1]})`,
+                    message: `${paramFound.message} (${words.slice(i).join(" ")})`,
                     category: paramFound.category,
                 };
             }

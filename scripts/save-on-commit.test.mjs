@@ -88,7 +88,7 @@ const words = (row) => text(byClass(row, "save-state__label")[0]);
 const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
 const writesSince = (start) => requests.slice(start).filter((entry) => entry.includes("/write"));
 
-const OWL = "src/ui/pages/world-1/owl/owl.js";
+const OWL = "src/ui/pages/world-1/owl/1-orion.js";
 
 test("Enter saves the value, shows the read-back ✓ and keeps the field", async () => {
     const root = await openPage(OWL, rowLoaded("Feather Generation"));
@@ -293,7 +293,7 @@ test("on a level above its max, + leaves it and − takes one off", async () => 
     game.gga.SaltLick[0] = cap + 5;
     const root = await openPage("src/ui/pages/world-3/salt-lick/salt-lick.js", (page) => {
         const row = byClass(page, "account-row")[0];
-        return row && text(byClass(row, "account-row__badge")[0]).includes(`LV ${cap + 5}`);
+        return row && inputs(row)[0]?.attributes.value === String(cap + 5);
     });
     const row = byClass(root, "account-row")[0];
     const [input] = inputs(row);

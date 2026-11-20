@@ -51,6 +51,7 @@ export const SimpleNumberRow = ({ entry, valueState, renderExtraActions = null }
             return info;
         },
         renderBadge: typeof entry.badge === "function" ? entry.badge : null,
+        cap: entry.cap ?? null,
         adjustInput: (rawValue, delta, currentValue) =>
             formatted
                 ? adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min, max })

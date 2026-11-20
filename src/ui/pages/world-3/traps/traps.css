@@ -52,10 +52,6 @@
     text-overflow: ellipsis;
 }
 
-.trap-row__badge {
-    font-size: 0.875rem;
-}
-
 .trap-row__controls {
     display: grid;
     grid-template-columns: repeat(3, minmax(120px, 1fr)) auto auto;

@@ -608,7 +608,7 @@ test("stamps: leaving a level field for the row's switch saves the level", async
 
 test("stamps: a switch flipped while the level saves waits for it, and says its own failure", async () => {
     try {
-        const { row, before } = await openStampA1();
+        const { row, levels, before } = await openStampA1();
         cleanups.push(refuseWrites(game.gga.Compass, 4));
         const requests = watchRequests(isLevelWrite);
         const field = typeLevel(row, before + 1);
@@ -617,12 +617,7 @@ test("stamps: a switch flipped while the level saves waits for it, and says its 
         const flipped = requests.track(flip(row, true));
         requests.release();
         await flipped;
-        await until(
-            () =>
-                text(byClass(row, "account-row__badge")[0]).startsWith(`LV ${before + 1} `) &&
-                saveWordsOf(row) !== "saving…",
-            "both saves to end"
-        );
+        await until(() => levels[0] === before + 1 && saveWordsOf(row) !== "saving…", "both saves to end");
         switchStartedAfterHeld(requests.log);
         assert.equal(wordsOf(row), "game kept old value", "the switch says why it wasn't saved");
         assert.equal(saveWordsOf(row), "saved", "once: the row keeps the level's ✓");
@@ -813,7 +808,7 @@ const openEmperor = async () => {
         game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
     });
     if (!(Number(ola[369]) > 0)) ola[369] = 5;
-    const root = await openPage(EMPEROR, (root) => text(root).includes("Natural capacity"));
+    const root = await openPage(EMPEROR, (root) => text(root).includes("Base daily replenishment"));
     const row = rowNamed(root, "Completed showdowns");
     return {
         ola,
@@ -1092,12 +1087,13 @@ test("weekly bosses: a skin flipped while trophies save waits and saves", async 
     }
 });
 
-test("a level row with no cap (max null or empty) shows no cap badge", async () => {
+test("a level row with no cap (max null or empty) shows no cap", async () => {
     const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
     const { ClampedLevelRow } = await importRepo("src/ui/components/views/account/ClampedLevelRow.js");
     for (const max of [null, ""]) {
         const row = ClampedLevelRow({ valueState: van.state(3), max, write: async (value) => value, name: "Test" });
-        assert.equal(text(byClass(row, "account-row__badge")[0]), "", `max ${JSON.stringify(max)}`);
+        const cap = byClass(row, "number-input__cap")[0];
+        assert.ok(!cap || cap.attributes.hidden, `max ${JSON.stringify(max)}`);
     }
 });
 

@@ -228,15 +228,15 @@ Why: game synchronization can fail after server state changes, so one module sho
 Alternative: keep mutation and game synchronization coordinated by the HTTP route.
 
 Trade-off: live configuration references stay shared, and server changes survive failed game synchronization.
-Saved configuration remains a separate disk operation.
+A save writes the file first; the game failing to take it doesn't undo the write.
 
 Source: [Configuration manager](../src/modules/config/configManager.js).
 
 ## The injector's configuration is the one the game gets
 
 Decision: after a cheat runs, and whenever the WebUI reads the configuration, copy the settings the game changed
-itself into the injector's configuration. A save merges what it is sent into that configuration, and every game
-load is injected from it. A broken `config.custom.js` is reported and kept as a copy when the next save replaces it.
+itself into the injector's configuration. A save merges what it is sent into that configuration and sends it to the
+game, and every game load is injected from it. A broken `config.custom.js` is reported and kept as a copy when the next save replaces it.
 
 Why: the game changes its own settings (`nomore` lists, `<cheat> <value>`), saves from different views sent
 different parts, and a reload got the startup settings, so the injector, the file and the game drifted apart.
