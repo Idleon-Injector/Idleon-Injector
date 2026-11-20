@@ -556,14 +556,16 @@ test("islands: the read after a refused Set all waits for another Set all still 
         const rando = click(setAll()[1]);
         await until(() => slow.reached, "Rando's Set all to be sent");
         const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
-        const garbage = click(setAll()[0]);
-        await until(() => options[163] === 200, "Garbage's first value to land");
+        await click(setAll()[0]);
+        assert.equal(options[163], 200, "Garbage's first value landed");
+        // Until that read ends, the rows may show old values: the bulk actions wait for it too.
+        const bulk = () => [...buttonsNamed(root, "Unlock all"), ...buttonsNamed(root, "Lock all"), ...setAll()];
+        await until(() => bulk().every((node) => node.attributes.disabled), "the bulk actions to wait for the read");
         slow.release();
         await rando;
         await until(() => reads.count() > 0, "the read after the refused Set all");
         reads.release();
-        await garbage;
-        await until(() => !buttonsNamed(root, "Refresh")[0].attributes.disabled, "the read to end");
+        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions after the read");
         assert.match(text(root), /% Loot200/, "Rando's Set all stays shown");
     } finally {
         held = null;

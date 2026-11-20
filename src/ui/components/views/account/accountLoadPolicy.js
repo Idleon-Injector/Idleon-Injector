@@ -22,6 +22,7 @@ import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
  *   error: import('../../../vendor/van-1.6.0.js').State<string|null>,
  *   run: (task: () => Promise<any>) => Promise<any|undefined>,
  *   reload: () => void,
+ *   pending: import('../../../vendor/van-1.6.0.js').State<boolean>,
  * }}
  */
 export const useAccountLoad = ({ label = "Account page", fallbackMessage, busy = () => false } = {}) => {
@@ -67,22 +68,32 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage, busy =
     // An undo made elsewhere (History, or a bulk Undo all) changed values this page shows: read them again. So does
     // `reload()`, which a page asks for after a write that landed in part. A reload waits for a load still running (it
     // may have read the values before the undo) and for the page's writes still running (`busy`), so it reads after
-    // they landed.
+    // they landed. `pending` is true while one waits, so the page can hold actions that would use the values it shows.
     // ponytail: re-runs the page's last load; a load must only read, which is how every page loads today.
     let handled = reloadPlace.rawVal;
     const asked = van.state(0);
+    const pending = van.state(false);
     let served = 0;
     van.derive(() => {
         const target = reloadPlace.val;
         const wanted = asked.val;
         const waiting = loading.val || busy();
-        if (!lastTask || waiting) return;
+        if (!lastTask) return;
         const ours = target && target !== handled && target.view === place.view && target.page === place.page;
+        if (waiting) {
+            if (ours || wanted !== served) pending.val = true;
+            return;
+        }
         handled = target;
         if (wanted === served && !ours) return;
         served = wanted;
         void run(lastTask);
+        pending.val = false;
     });
+    const reload = () => {
+        pending.val = true;
+        asked.val++;
+    };
 
-    return { loading, error, run, reload: () => asked.val++ };
+    return { loading, error, run, reload, pending };
 };
