@@ -53,6 +53,25 @@ export const createStaticRowReconciler = (container) => {
     };
 };
 
+/**
+ * Build row nodes with `build(row)`, reusing the node of a row whose data is unchanged, so a redraw keeps that row's
+ * button state (a failure stays red on the row that asked). Rows are compared by their JSON, index included.
+ */
+export const createKeptRows = (build) => {
+    let kept = new Map();
+    return (rows) => {
+        const next = new Map();
+        const nodes = rows.map((row) => {
+            const key = JSON.stringify(row);
+            const node = kept.get(key) ?? build(row);
+            next.set(key, node);
+            return node;
+        });
+        kept = next;
+        return nodes;
+    };
+};
+
 /** Coerce a value to a finite number, or return `fallback` for NaN/Infinity. */
 export const toNum = (value, fallback = 0) => {
     const n = Number(value);
@@ -268,9 +287,11 @@ const toWriteEntries = (writeOrWrites) => {
  * @param {function} [opts.getWrites]
  * @param {function} [opts.shouldWrite]
  * @param {function} [opts.applyLocal]
+ * @param {string} [opts.character] - when set, the game writes only while this character is in play
  * @returns {Promise<void>}
  */
 export const runBulkSet = async ({
+    character,
     entries,
     getTargetValue,
     getValueState,
@@ -301,7 +322,7 @@ export const runBulkSet = async ({
         writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
     });
 
-    await writeManyVerified(writes);
+    await writeManyVerified(writes, { character });
 
     resolvedEntries.forEach((entry, index) => {
         if (!targets.has(index)) return;
