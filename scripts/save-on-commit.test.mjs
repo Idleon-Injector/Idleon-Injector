@@ -293,7 +293,7 @@ test("on a level above its max, + leaves it and − takes one off", async () => 
     game.gga.SaltLick[0] = cap + 5;
     const root = await openPage("src/ui/pages/world-3/salt-lick/salt-lick.js", (page) => {
         const row = byClass(page, "account-row")[0];
-        return row && text(byClass(row, "account-row__badge")[0]).includes(`LV ${cap + 5}`);
+        return row && inputs(row)[0]?.attributes.value === String(cap + 5);
     });
     const row = byClass(root, "account-row")[0];
     const [input] = inputs(row);

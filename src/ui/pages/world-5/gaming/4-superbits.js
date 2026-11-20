@@ -6,6 +6,7 @@ import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    oneAtATime,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -29,13 +30,17 @@ const toggleLetter = (encoded, letter, enabled) => {
     return current.replaceAll(letter, "");
 };
 
+// Every superbit lives in one string, so flips save one at a time, each from the string the game holds now.
+const inTurn = oneAtATime();
+
 const SuperbitRow = ({ entry, unlockedState, encodedState }) => {
-    const writeToggle = async (enabled) => {
-        const nextEncoded = toggleLetter(encodedState.val, entry.letter, enabled);
-        await writeVerified(SUPERBITS_PATH, nextEncoded);
-        encodedState.val = nextEncoded;
-        unlockedState.val = enabled;
-    };
+    const writeToggle = (enabled) =>
+        inTurn(async () => {
+            const nextEncoded = toggleLetter(String((await gga(SUPERBITS_PATH)) ?? ""), entry.letter, enabled);
+            await writeVerified(SUPERBITS_PATH, nextEncoded);
+            encodedState.val = nextEncoded;
+            unlockedState.val = enabled;
+        });
 
     return AccountToggleRow({
         info: [

@@ -27,7 +27,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
-    writeVerified,
+    writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
@@ -39,10 +39,12 @@ const BuildingRow = ({ index, name, maxLevel, levelState }) =>
         valueState: levelState,
         max: maxLevel,
         write: async (nextLevel) => {
-            const path = `TowerInfo[${index}]`;
-            const pathPending = `TowerInfo[${index + BUILDING_COUNT}]`;
-            await writeVerified(path, nextLevel);
-            return writeVerified(pathPending, nextLevel);
+            // Both in one call to the game, so the level and its pending copy can't be left apart.
+            await writeManyVerified([
+                { path: `TowerInfo[${index}]`, value: nextLevel },
+                { path: `TowerInfo[${index + BUILDING_COUNT}]`, value: nextLevel },
+            ]);
+            return nextLevel;
         },
         indexLabel: `#${index + 1}`,
         name,

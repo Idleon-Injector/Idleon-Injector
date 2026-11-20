@@ -13,6 +13,8 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { gga } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -58,12 +60,15 @@ const SaltLickTab = () => {
     const doSetAll = async (targetLevel) => {
         if (!upgradesMeta.length) return;
         const result = await runBulk(async () => {
+            const fresh = toIndexedArray(await gga("SaltLick"));
             await runBulkSet({
                 entries: upgradesMeta,
                 getTargetValue: (upgrade) =>
                     toLevelInt(targetLevel === null ? upgrade.maxLevel : targetLevel, upgrade.maxLevel),
                 getValueState: (_, index) => getLevelState(index),
                 getPath: (_, index) => `SaltLick[${index}]`,
+                // Planned from the game, not the fields: a level bought there since the page read it is reset too.
+                shouldWrite: ({ index, targetValue }) => Number(fresh[index] ?? 0) !== targetValue,
             });
         });
         // Some of it may have landed: the rows show what the game holds. The bulk buttons wait for that read, so an

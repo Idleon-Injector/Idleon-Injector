@@ -67,16 +67,10 @@ const ArcadeRow = ({ entry }) => {
         renderInfo: () => [
             span({ class: "account-row__index" }, `#${entry.index}`),
             span({ class: "account-row__name" }, entry.name),
-            () =>
-                levelStatus.val === "normal"
-                    ? null
-                    : span({ class: `arcade-row__${levelStatus.val}-badge` }, levelStatus.val.toUpperCase()),
         ],
+        // Level 101 is cosmic and 102 omega: the plain state word before the field; the row's tint tells them apart.
+        renderBadge: () => ({ cosmic: "Cosmic", omega: "Omega" })[levelStatus.val] ?? "",
         rowClass: () => (levelStatus.val === "normal" ? "arcade-row" : `arcade-row arcade-row--${levelStatus.val}`),
-        badgeClass: () =>
-            levelStatus.val === "normal"
-                ? "arcade-row__badge"
-                : `arcade-row__badge arcade-row__badge--${levelStatus.val}`,
     });
 };
 

@@ -10,6 +10,7 @@ import {
     createStaticRowReconciler,
     getOrCreateState,
     joinClasses,
+    oneAtATime,
     resolveNumberInput,
     resolveValue,
     runBulkSet,
@@ -18,7 +19,11 @@ import {
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { Said, announce, replay, useSaid } from "../../../components/inPlace.js";
+import { hideTooltip, showTooltip } from "../../../components/Tooltip.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, select, option, details, summary } = van.tags;
@@ -67,40 +72,36 @@ const TierBadgeContent = ({ amount, thresholds }) => {
     );
 };
 
-const TierSelect = ({
-    label = "Set tier",
-    thresholds = null,
-    onSelect,
-    status = null,
-    disabled = false,
-    className = "",
-}) => {
-    const isDisabled = () => Boolean(resolveValue(disabled)) || resolveValue(status) === "loading";
-
-    return select(
+// A card row's tier: picking one sets the card's amount to that tier's minimum.
+const TierSelect = ({ thresholds, onSelect, status }) =>
+    select(
         {
             class: () => {
                 const resolvedStatus = resolveValue(status);
                 return joinClasses(
                     "select-base card-tier-select",
-                    resolveValue(className),
                     resolvedStatus === "loading" ? "card-tier-select--loading" : "",
                     resolvedStatus === "success" ? "card-tier-select--success" : "",
                     resolvedStatus === "error" ? "card-tier-select--error" : ""
                 );
             },
-            disabled: isDisabled,
+            disabled: () => resolveValue(status) === "loading",
             onchange: async (event) => {
                 const tierIndex = Number(event.target.value);
                 event.target.value = "";
-                await onSelect(tierIndex, thresholds?.[tierIndex]);
+                await onSelect(tierIndex, thresholds[tierIndex]);
             },
         },
-        option({ value: "", disabled: true, selected: true }, label),
+        option({ value: "", disabled: true, selected: true }, "Set tier"),
         ...TIER_MULTIPLIERS.map((_, tierIndex) =>
-            option({ value: tierIndex }, `TIER ${tierIndex + 1} - ${thresholds ? thresholds[tierIndex] : "PER CARD"}`)
+            option({ value: tierIndex }, `TIER ${tierIndex + 1} - ${thresholds[tierIndex]}`)
         )
     );
+
+// The tier a region's pick names, or null for an empty or invalid pick.
+const pickedTier = (pick) => {
+    const tierIndex = pick === "" ? NaN : Number(pick);
+    return Number.isInteger(tierIndex) && tierIndex >= 0 && tierIndex < TIER_MULTIPLIERS.length ? tierIndex : null;
 };
 
 const CardRow = ({ card, valueState }) =>
@@ -141,7 +142,7 @@ const UnresolvedCardRow = ({ card, valueState }) =>
                 span({ class: "account-row__name" }, card.monsterId),
                 span({ class: "account-row__sub-label" }, "CARD DEFINITION OR NAME UNRESOLVED")
             ),
-        renderBadge: () => "RAW ONLY",
+        renderBadge: () => "Raw only",
         rowClass: "account-row--wide-controls card-row card-row--unresolved",
         controlsClass: "account-row__controls--xl card-row__controls",
         inputProps: { "aria-label": `Card Amount for unresolved card ${card.monsterId}` },
@@ -217,9 +218,25 @@ const CardSection = ({
     bulkStatus = null,
     activeBulkRegion = null,
     setRegionTier = null,
+    lowerQuestion = null,
+    said = null,
     unresolved = false,
 }) => {
     const status = () => (setRegionTier && activeBulkRegion.val === region.key ? bulkStatus.val : null);
+    // The region's tier is a pick, then Set all, as on Sigils and Bubbles: an arrow key only moves the pick.
+    const tierPick = van.state("");
+    const pickNode = setRegionTier
+        ? select(
+              {
+                  class: "select-base card-tier-select card-region__tier-select",
+                  "aria-label": `Tier for ${region.name}`,
+                  disabled: () => region.cards.length === 0,
+                  onchange: (event) => (tierPick.val = event.target.value),
+              },
+              option({ value: "", disabled: true, selected: true }, "Pick a tier"),
+              ...TIER_MULTIPLIERS.map((_, tierIndex) => option({ value: tierIndex }, `TIER ${tierIndex + 1}`))
+          )
+        : null;
     const Row = unresolved ? UnresolvedCardRow : CardRow;
 
     return div(
@@ -244,19 +261,26 @@ const CardSection = ({
                 span({ class: "card-region__title" }, region.name),
                 span({ class: "card-region__count" }, `${region.cards.length} CARDS`)
             ),
+            // Why the region's last tier pick failed; the region opens to show it.
+            said ? Said({ said: said.said, className: "said--line card-region__said", kinds: ["failed"] }) : null,
             div(
                 { class: "card-region__body account-item-stack" },
                 ...region.cards.map((card) => Row({ card, valueState: getOrCreateState(valueStates, card.monsterId) }))
             )
         ),
         setRegionTier
-            ? TierSelect({
-                  label: "Set region tier",
-                  status,
-                  disabled: () => region.cards.length === 0,
-                  className: "card-region__tier-select",
-                  onSelect: (tierIndex) => setRegionTier(region, tierIndex),
-              })
+            ? div(
+                  { class: "card-region__tier" },
+                  pickNode,
+                  ActionButton({
+                      label: "Set all",
+                      status,
+                      disabled: () => region.cards.length === 0,
+                      tooltip: "Set every card in this region to the picked tier",
+                      confirm: () => lowerQuestion(region, tierPick.val),
+                      onClick: () => setRegionTier(region, tierPick.val, pickNode),
+                  })
+              )
             : null
     );
 };
@@ -268,6 +292,11 @@ const CardsTab = () => {
     const amountStates = new Map();
     const openStates = new Map();
     const activeBulkRegion = van.state(null);
+    const regionSaids = new Map();
+    const getRegionSaid = (key) => {
+        if (!regionSaids.has(key)) regionSaids.set(key, useSaid());
+        return regionSaids.get(key);
+    };
     const regionsNode = div({ class: "cards-regions" });
     const reconcileRegions = createStaticRowReconciler(regionsNode);
 
@@ -294,6 +323,8 @@ const CardsTab = () => {
                         bulkStatus,
                         activeBulkRegion,
                         setRegionTier,
+                        lowerQuestion,
+                        said: getRegionSaid(region.key),
                     })
                 ),
                 ...(data.unresolved.length
@@ -319,24 +350,51 @@ const CardsTab = () => {
             totalCards.val = data.total;
         });
 
-    async function setRegionTier(region, tierIndex) {
-        if (bulkStatus.val === "loading") return;
+    // A pick made while another region saves waits its turn instead of being dropped.
+    const inTurn = oneAtATime();
+    // A Set all that would lower any card asks in place first (DESIGN.md); one that only raises runs on one press.
+    const lowerQuestion = (region, pick) => {
+        const tierIndex = pickedTier(pick);
+        if (tierIndex === null) return null;
+        const lowered = region.cards.filter(
+            (card) => getOrCreateState(amountStates, card.monsterId).val > card.thresholds[tierIndex]
+        ).length;
+        return lowered
+            ? `lower ${lowered} card${lowered === 1 ? "" : "s"} in ${region.name} to tier ${tierIndex + 1}.`
+            : null;
+    };
 
-        activeBulkRegion.val = region.key;
-        const result = await runBulk(() =>
-            runBulkSet({
-                entries: region.cards,
-                getTargetValue: (card) => card.thresholds[tierIndex],
-                getValueState: (card) => getOrCreateState(amountStates, card.monsterId),
-                getPath: (card) => card.path,
-            })
-        );
-
-        if (!result.ok) {
-            getOpenState(region.key).val = true;
-            await load();
+    // An empty or invalid pick writes nothing: the select pulses and says why.
+    const setRegionTier = (region, pick, pickNode) => {
+        const tierIndex = pickedTier(pick);
+        if (tierIndex === null) {
+            const why = "Pick a tier first";
+            announce(why);
+            replay(pickNode, "refused");
+            showTooltip(pickNode, why);
+            setTimeout(() => hideTooltip(pickNode), 4000);
+            return undefined;
         }
-    }
+        return inTurn(async () => {
+            const said = getRegionSaid(region.key);
+            said.clear();
+            activeBulkRegion.val = region.key;
+            const result = await runBulk(() =>
+                runBulkSet({
+                    entries: region.cards,
+                    getTargetValue: (card) => card.thresholds[tierIndex],
+                    getValueState: (card) => getOrCreateState(amountStates, card.monsterId),
+                    getPath: (card) => card.path,
+                })
+            );
+
+            if (!result.ok) {
+                said.say("failed", saveFailureReason(result.error));
+                getOpenState(region.key).val = true;
+                await load();
+            }
+        });
+    };
 
     load();
 

@@ -69,11 +69,16 @@ const ObservationTile = ({ index, tileState }) => {
             insightExp: clampInt(rawValues.insightExp),
         }),
         write: async (nextValues) => {
-            await writeManyVerified([
-                { path: `Research[2][${index}]`, value: nextValues.unlocked },
-                { path: `Research[3][${index}]`, value: nextValues.insightExp },
-                { path: `Research[4][${index}]`, value: nextValues.insightLevel },
-            ]);
+            // Only what the player changed: the others hold the page's last read, which the game may have moved past.
+            await writeManyVerified(
+                [
+                    { key: "unlocked", path: `Research[2][${index}]` },
+                    { key: "insightExp", path: `Research[3][${index}]` },
+                    { key: "insightLevel", path: `Research[4][${index}]` },
+                ]
+                    .filter(({ key }) => nextValues[key] !== tileState[key].val)
+                    .map(({ key, path }) => ({ path, value: nextValues[key] }))
+            );
             return nextValues;
         },
         info: null,
@@ -82,7 +87,7 @@ const ObservationTile = ({ index, tileState }) => {
                 .filter(Boolean)
                 .join(" "),
         controlsClass: "observation-tile__body",
-        renderControls: ({ draftStates, resetDraft, setFieldFocused }) => [
+        renderControls: ({ draftStates, setFieldFocused }) => [
             div(
                 { class: "observation-tile__header" },
                 div(
@@ -109,10 +114,7 @@ const ObservationTile = ({ index, tileState }) => {
                             mode: "int",
                             value: draftStates.insightLevel,
                             onfocus: () => setFieldFocused("insightLevel", true),
-                            onblur: () => {
-                                setFieldFocused("insightLevel", false);
-                                resetDraft("insightLevel");
-                            },
+                            onblur: () => setFieldFocused("insightLevel", false),
                             onDecrement: () =>
                                 (draftStates.insightLevel.val = String(
                                     Math.max(0, clampInt(draftStates.insightLevel.val) - 1)
@@ -132,10 +134,7 @@ const ObservationTile = ({ index, tileState }) => {
                             mode: "int",
                             value: draftStates.insightExp,
                             onfocus: () => setFieldFocused("insightExp", true),
-                            onblur: () => {
-                                setFieldFocused("insightExp", false);
-                                resetDraft("insightExp");
-                            },
+                            onblur: () => setFieldFocused("insightExp", false),
                             onDecrement: () =>
                                 (draftStates.insightExp.val = String(
                                     Math.max(0, clampInt(draftStates.insightExp.val) - 1)

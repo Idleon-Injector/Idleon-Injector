@@ -12,15 +12,12 @@
  *   If gga.UserInfo[0] equals the target character name, write to
  *   gga.PlayerStuff[0] instead of the PlayerDATABASE entry to avoid snap-back.
  *
- * Worship max charge:
- *   Live max charge is computed by:
- *     x._customBlock_SkillStats("WorshipChargeMax")
- *   This tab reads it through readComputed("skillStats", "WorshipChargeMax", []).
+ * Max charge (x._customBlock_SkillStats("WorshipChargeMax")) isn't shown: charge saves above it, so it isn't a cap.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { readComputed, gga, readGgaEntries } from "../../../services/api.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -47,14 +44,7 @@ const WORSHIP_TOTEM_NAMES = [
     "Pufferblob Brawl",
 ];
 
-const WorshipChargeRow = ({
-    index,
-    playerName,
-    chargeState,
-    activeCharacterNameRef,
-    activeMaxChargeRef,
-    writeCharge,
-}) => {
+const WorshipChargeRow = ({ index, playerName, chargeState, activeCharacterNameRef, writeCharge }) => {
     const isActiveCharacter = () =>
         typeof activeCharacterNameRef.val === "string" &&
         activeCharacterNameRef.val.length > 0 &&
@@ -68,15 +58,8 @@ const WorshipChargeRow = ({
         write: async (nextCharge) => writeCharge(playerName, nextCharge),
         indexLabel: `#${index + 1}`,
         name: playerName,
-        renderBadge: (currentValue) => {
-            const active = isActiveCharacter();
-            const maxLabel =
-                active && activeMaxChargeRef.val !== null && activeMaxChargeRef.val !== undefined
-                    ? activeMaxChargeRef.val
-                    : "?";
-
-            return active ? `CHARGE ${currentValue ?? 0} / ${maxLabel} - ACTIVE` : "";
-        },
+        // Max charge isn't a limit here (charge saves above it), so it gets no slash; the row only says which is active.
+        renderBadge: () => (isActiveCharacter() ? "Active" : ""),
         controlsClass: "account-row__controls--xl",
     });
 };
@@ -95,7 +78,6 @@ const WorshipWaveRow = ({ index, name, waveState, writeWave }) =>
 const WorshipTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Worship" });
     const activeCharacterNameRef = van.state(null);
-    const activeMaxChargeRef = van.state(null);
 
     const chargeStatesByName = new Map();
     const waveStatesByIndex = new Map();
@@ -104,10 +86,12 @@ const WorshipTab = () => {
     const getWaveState = (index) => getOrCreateState(waveStatesByIndex, index);
 
     const writeCharge = async (playerName, nextCharge) => {
-        const isActiveCharacter =
-            typeof activeCharacterNameRef.val === "string" &&
-            activeCharacterNameRef.val.length > 0 &&
-            activeCharacterNameRef.val === playerName;
+        // PlayerStuff holds the charge of the character in play now, so a save asks the game who that is first.
+        const inPlay = await gga("UserInfo[0]");
+        if (inPlay !== activeCharacterNameRef.val) {
+            throw new Error("The character in play changed. Refresh and try again.");
+        }
+        const isActiveCharacter = typeof inPlay === "string" && inPlay.length > 0 && inPlay === playerName;
 
         const writePath = isActiveCharacter ? "PlayerStuff[0]" : `PlayerDATABASE.h[${playerName}].h.PlayerStuff[0]`;
 
@@ -130,7 +114,6 @@ const WorshipTab = () => {
                     playerName: player.playerName,
                     chargeState: getChargeState(player.playerName),
                     activeCharacterNameRef,
-                    activeMaxChargeRef,
                     writeCharge,
                 })
             )
@@ -155,24 +138,19 @@ const WorshipTab = () => {
                 (name) => typeof name === "string" && name.trim().length > 0 && !name.startsWith("__")
             );
 
-            const [playerEntries, activeCharacterName, activeLiveCharge, activeMaxCharge, rawTotemInfo0] =
-                await Promise.all([
-                    playerNames.length
-                        ? readGgaEntries("PlayerDATABASE.h", playerNames, ["PlayerStuff"])
-                        : Promise.resolve({}),
-                    gga("UserInfo[0]"),
-                    gga("PlayerStuff[0]"),
-                    readComputed("skillStats", "WorshipChargeMax", []),
-                    gga("TotemInfo[0]"),
-                ]);
+            const [playerEntries, activeCharacterName, activeLiveCharge, rawTotemInfo0] = await Promise.all([
+                playerNames.length
+                    ? readGgaEntries("PlayerDATABASE.h", playerNames, ["PlayerStuff"])
+                    : Promise.resolve({}),
+                gga("UserInfo[0]"),
+                gga("PlayerStuff[0]"),
+                gga("TotemInfo[0]"),
+            ]);
 
             const nextActiveCharacterName = activeCharacterName;
-            const nextActiveMaxCharge =
-                activeMaxCharge === null || activeMaxCharge === undefined ? null : toInt(activeMaxCharge, { min: 0 });
             const players = playerNames.map((playerName) => ({ playerName }));
 
             activeCharacterNameRef.val = nextActiveCharacterName;
-            activeMaxChargeRef.val = nextActiveMaxCharge;
             reconcileChargeRows(players);
 
             for (const playerName of playerNames) {

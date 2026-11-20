@@ -393,14 +393,14 @@ const PrinterTab = () => {
                 ),
                 badge: () =>
                     lockedCharacter()
-                        ? "CHARACTER LOCKED"
+                        ? "Character locked"
                         : lockedSlot()
-                          ? "SLOT LOCKED"
+                          ? "Slot locked"
                           : state.saved.val.item !== "Blank"
                             ? state.kind === "print"
-                                ? "PRINTING"
-                                : "STORED"
-                            : "EMPTY",
+                                ? "Printing"
+                                : "Stored"
+                            : "Empty",
                 controls: [
                     SaveState(state.write),
                     itemSelect,

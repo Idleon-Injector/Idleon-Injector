@@ -222,7 +222,7 @@ const FountainTab = () => {
                     name,
                     path: `Holes[30][${index}]`,
                     value: toNum(luckyCoins[index], -1),
-                    badge: (currentValue) => (Number(currentValue) === -1 ? "LOCKED" : ""),
+                    badge: (currentValue) => (Number(currentValue) === -1 ? "Locked" : ""),
                     min: -1,
                     formatted: false,
                 })
