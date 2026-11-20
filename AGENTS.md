@@ -120,6 +120,7 @@ Rule tests read the code and refuse the pre-3.0 ways of doing things; each refus
 - **Initial loading:** Account tabs using `useAccountLoad` must invoke their loader during component initialization so opening the tab loads data without a manual refresh.
 - **Write cancellation:** Return `{ cancelled: true }` from a `useWriteStatus().run(task)` task when the user cancels or no changes are needed. Use the native cancellation handling instead of `false` returns with `successState: null` workarounds.
 - **Row bindings:** Bind reactive attributes through VanJS tag properties. Do not create imperative `van.derive` effects or attribute setters inside row reconciler mappers.
+- **Saving edits:** Values save on Enter or on leaving the field, through the shared rows or `useAutoSave` with its `SaveState` (saving…, a ✓ once read back, or the reason). Pages add no SET or SAVE buttons. Keep fields and row buttons enabled while a save runs, so focus stays where the player put it.
 - **Accessible feedback:** Action buttons must expose saving, success, and failure feedback to assistive technology. Avoid redundant `aria-label` values that mask changing visible text.
 - **Styles:** Put static layout, sizing, typography, and colors in `src/ui/styles/`. Reserve inline styles for dynamic CSS custom properties and necessary runtime coordinates.
 - **Icons:** Use SVG icons from `src/ui/assets/icons.js` for decorative imagery instead of emoji glyphs. Keep mathematical symbols and ordinary text when they convey meaning.
