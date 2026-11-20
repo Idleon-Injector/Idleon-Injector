@@ -558,7 +558,7 @@ test("review 2: an Off clicked while an On is still answering leaves the automat
 test("review 2: a refused save goes back to what the game took, not to an older edit", async () => {
     const picks = await freshPicks();
     slowUpdate = 10;
-    // The first save sends 20 (both edits are in by then) and is taken; the second is refused.
+    // Each save sends only its own edit: the first (10) is taken, the second (20) is refused.
     refuseUpdateNumber = updates.length + 2;
     const first = picks.set("0:item1", { stopAt: 10 });
     const second = picks.set("0:item1", { stopAt: 20 }).catch((error) => error);
@@ -567,10 +567,10 @@ test("review 2: a refused save goes back to what the game took, not to an older 
     slowUpdate = 0;
     refuseUpdateNumber = null;
     assert.ok(
-        (await gameShops()).some(({ id, stopAt }) => id === "0:item1" && stopAt === 20),
-        "the game has 20"
+        (await gameShops()).some(({ id, stopAt }) => id === "0:item1" && stopAt === 10),
+        "the game has 10"
     );
-    assert.equal(picks.get("0:item1").stopAt.val, 20, "so the field keeps 20");
+    assert.equal(picks.get("0:item1").stopAt.val, 10, "so the field shows 10");
     await picks.set("0:item1", { stopAt: null });
 });
 
@@ -1020,7 +1020,7 @@ test("reader 2: with `cheat`, a save turns the automation on only when the game 
     await ui.switchAutomation("automation shops", false);
 });
 
-test("reader 2: on, then off before the save runs, leaves the automation off", async () => {
+test("reader 2: on, then off before the save runs, saves each in turn and leaves the item off", async () => {
     await ui.switchAutomation("automation shops", false);
     const picks = ui.createAutomationPicks("shops", { cheat: "automation shops" });
     picks.sync(await gameShops());
@@ -1032,7 +1032,10 @@ test("reader 2: on, then off before the save runs, leaves the automation off", a
     release();
     await Promise.all([ahead, first, second]);
     assert.ok(!(await gameShops()).some(({ id, on }) => id === "0:item5" && on), "the game runs no item");
-    assert.equal(shopsOn(), false, "so the automation stays off: the read-back decides, not the save being taken");
+    // Each click is its own step, as if clicked slowly: the On ran the item, so it started the automation, and the
+    // Off leaves the automation on (an item's switch never stops it).
+    assert.equal(shopsOn(), true);
+    await ui.switchAutomation("automation shops", false);
 });
 
 test("reader 2: a read the game answers late is said, and a switch clicked meanwhile still wins", async () => {
@@ -1125,4 +1128,67 @@ test("round 5: an On the game answers after the deadline can't undo an Off click
     await off;
     assert.equal(shopsOn(), false);
     assert.ok(!fileStartup.includes("automation shops"), "the On's late startup change came before the Off, not after");
+});
+
+test("round 5: an item's save doesn't carry a switch queued after it", async () => {
+    const picks = await freshPicks();
+    let release;
+    const hold = new Promise((resolve) => (release = resolve));
+    const ahead = ui.inTurn(() => hold); // a step ahead of the saves
+    const first = picks.set("0:item1", { stopAt: 9 });
+    refuseUpdateNumber = updates.length + 2; // the switch's own save
+    const second = picks.set("1:item5", { on: true }).catch((error) => error);
+    release();
+    await Promise.all([ahead, first]);
+    assert.match((await second).message, /busy/);
+    refuseUpdateNumber = null;
+    const sentFirst = updates.at(-2).cheatConfig.automation.shops;
+    assert.ok(!sentFirst.some(({ id }) => id === "1:item5"), "the stop-at's save sent only its own change");
+    assert.ok(!(await gameShops()).some(({ id, on }) => id === "1:item5" && on), "the game doesn't run it");
+    assert.ok(!fileShops().some(({ id, on }) => id === "1:item5" && on), "nor does the file");
+    assert.equal(picks.get("1:item5").on.val, false);
+    await picks.set("0:item1", { stopAt: null });
+});
+
+test("round 5: a refused item whose read-back fails isn't sent with a later save", async () => {
+    const picks = await freshPicks();
+    refuseNextUpdates = 1;
+    failNextConfigRead = true; // the read-back after the refusal
+    await assert.rejects(picks.set("1:item5", { on: true }), /busy/);
+    failNextConfigRead = false;
+    assert.equal(picks.get("1:item5").on.val, false, "it shows what the game had");
+    await picks.set("0:item1", { stopAt: 4 });
+    assert.ok(!saved().some(({ id }) => id === "1:item5"), "the later save doesn't send it");
+    await picks.set("0:item1", { stopAt: null });
+});
+
+test("round 5: an edit made while a Refresh reads keeps what the Refresh read", async () => {
+    // Another client switches Sleepy Fang on behind the page's back.
+    await updateSessionConfig({
+        cheatConfig: { automation: { shops: [...(await gameShops()), { id: "1:item4", on: true }] } },
+    });
+    let release;
+    holdNextConfigRead = new Promise((resolve) => (release = resolve));
+    try {
+        await until(() => button(shops, "Refresh"), "Refresh");
+        const asked = configAsked;
+        void button(shops, "Refresh").listeners.click({ preventDefault() {} });
+        await until(() => configAsked > asked, "the Refresh's config read to be held");
+        const input = field("Lucky Whisker");
+        input.listeners.input({ target: { value: "15" } });
+        metric("Lucky Whisker").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        await handled();
+    } finally {
+        release();
+    }
+    await until(() => saved().some(({ id, stopAt }) => id === "0:item0" && stopAt === 15), "the stop-at to save");
+    assert.ok(
+        saved().some(({ id, on }) => id === "1:item4" && on),
+        "the save keeps Sleepy Fang, which the Refresh read"
+    );
+    assert.equal(checkbox(pickRow("Sleepy Fang")).attributes.checked, true, "and its switch shows it on");
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang off");
+    await typeStopAt("Lucky Whisker", "");
+    await ui.switchAutomation("automation shops", false);
 });

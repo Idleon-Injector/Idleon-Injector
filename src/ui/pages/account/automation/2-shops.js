@@ -62,14 +62,13 @@ const ShopsPage = () => {
     const load = () =>
         run(() =>
             inTurn(async () => {
-                const since = picks.edits(); // an edit made while this reads is newer than it
                 const [shops, config, found] = await Promise.all([
                     readComputed("automation", "shops"),
                     fetchConfig(),
                     findShops(),
                 ]);
                 showAutomation(automation, found);
-                picks.sync(config.cheatConfig.automation.shops, since);
+                picks.sync(config.cheatConfig.automation.shops); // edits queued after this read still show
                 if (!switchNode.firstChild && automation.val)
                     switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
 

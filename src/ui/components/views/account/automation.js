@@ -6,24 +6,24 @@
  *
  * Everything these pages do with the game and the config file runs as steps in one queue, one at a time, in the order
  * the player asked: item saves, automation switches, startup changes, bulk actions and the pages' reads. Nothing runs
- * alongside anything else, so each step's own read-back is the truth when it lands. Only what the player clicked or
- * typed shows ahead of the game, and only until its step runs.
+ * alongside anything else, so each step's own read-back is the truth when it lands. The pages keep what the game
+ * accepted (its last read, or a change it took) apart from what the player clicked or typed: a click shows over the
+ * accepted state until its step ends, and a step sends only the accepted state plus its own change.
  *
  * The plug-in API, for a system's automation tab:
  *
  *   const automation = van.state(null);                     // the system's entry from readAutomations()
  *   const picks = createAutomationPicks("sneaking", { cheat: "automation sneaking", entry: automation });
- *       Its items, cheatConfig.automation.sneaking. Each save is a step: it sends the list to the game, then the
- *       file, reads back what the game holds, and, when the game now runs an item the save switched on, turns the
- *       automation on (now and at start) and reads its entry back into `entry`. Returns { get(id), sync(entries,
- *       since), set(id, patch), setAll(ids, on), resave(), edits(), fileBehind() }.
+ *       Its items, cheatConfig.automation.sneaking. Each save is a step: it sends the accepted list plus its own
+ *       change to the game, then the file, reads back what the game holds, and, when the game now runs an item the
+ *       save switched on, turns the automation on (now and at start) and reads its entry back into `entry`.
+ *       Returns { get(id), sync(entries), set(id, patch), setAll(ids, on), resave(), fileBehind() }.
  *   PickRow({ picks, id, name, badge })                      // an item: stop-at (Enter or leaving it) and switch
  *   AutomationRow({ entry: automation, onSwitched: load })   // the system's own switch and status line
  *   const load = () => run(() => inTurn(async () => {        // a page's read is a step too (run: useAccountLoad)
- *       const since = picks.edits();
  *       const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);   // direct reads only
  *       showAutomation(automation, list.find(({ cheat }) => cheat === CHEAT) ?? null);
- *       picks.sync(config.cheatConfig.automation.sneaking, since);
+ *       picks.sync(config.cheatConfig.automation.sneaking);   // the accepted list; queued edits still show
  *       error.val = null;                                    // the newest read worked: an older failure goes
  *   }));
  *   switchAutomation(cheat, on), ensureOn(cheat), switchAll(on)   // queued switches, for buttons
@@ -195,76 +195,71 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
 };
 
 /**
- * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, kept as states by id.
- * An edit shows at once and queues a step that sends the whole list to the game, then the file, then reads back what
- * the game holds and shows it (items with a step of their own still queued keep showing what the player asked).
- * With `cheat`, the same step then turns that automation on (now and at start) when the game runs an item the save
- * switched on, and reads its entry back into `entry` (a state, for its AutomationRow).
+ * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item. What the game accepted (the
+ * last read of the list, or a list it took) is kept apart from the edits still queued; each row shows the accepted item
+ * with its queued edits on top. An edit queues a step that sends the accepted list plus only that edit to the game,
+ * then the file, then reads back what the game holds: a taken edit joins the accepted list, a refused one is dropped,
+ * and a read that works replaces the list. With `cheat`, the same step then turns that automation on (now and at
+ * start) when the game runs an item the edit switched on, and reads its entry back into `entry` (a state, for its
+ * AutomationRow).
  */
 export const createAutomationPicks = (group, { cheat = null, entry = null } = {}) => {
-    const items = new Map();
-    let edits = 0; // counts edits, so a read taken before one can be told apart
+    const items = new Map(); // id -> the states its row shows
+    let accepted = new Map(); // id -> { on, stopAt }: what the game holds, as far as the page knows
+    const queued = []; // [id, patch] of the edits whose step hasn't ended, oldest first
     const fileBehind = van.state(false); // the game took the last list, the config file didn't
 
     const get = (id) => {
-        if (!items.has(id))
-            items.set(id, {
-                on: van.state(false),
-                stopAt: van.state(null),
-                draft: van.state(""),
-                ahead: 0, // this item's steps still queued: until they run it shows what the player asked
-            });
+        if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
         return items.get(id);
     };
 
-    // Show what the game holds, except for items whose own step hasn't run yet. A field showing other text than the
-    // value it replaces holds the player's typing: it stays.
-    const show = (entries) => {
-        const byId = new Map(entries.map((item) => [String(item.id), item]));
-        for (const id of byId.keys()) get(id);
+    const withEdits = (list, edits) => {
+        const next = new Map(list);
+        for (const [id, patch] of edits) next.set(id, { on: false, stopAt: null, ...next.get(id), ...patch });
+        return next;
+    };
+
+    // Show the accepted list with the queued edits on top. A field showing other text than the value it replaces
+    // holds the player's typing: it stays.
+    const show = () => {
+        const shown = withEdits(accepted, queued);
+        for (const id of shown.keys()) get(id);
         for (const [id, item] of items) {
-            if (item.ahead) continue;
             const untouched = (getNumberInputLiveRaw(item.draft) ?? item.draft.val) === stopAtText(item.stopAt.val);
-            item.on.val = Boolean(byId.get(id)?.on);
-            item.stopAt.val = byId.get(id)?.stopAt ?? null;
+            item.on.val = Boolean(shown.get(id)?.on);
+            item.stopAt.val = shown.get(id)?.stopAt ?? null;
             if (untouched) showStopAt(item);
         }
     };
 
-    /** Show a page's read; one taken before an edit (`since` is edits() when it was taken) is older than it and dropped. */
-    const sync = (entries, since = edits) => {
-        if (since === edits) show(entries);
+    /** Take a read of the list (a step's, so it is newer than every step before it) as what the game holds. */
+    const sync = (entries) => {
+        accepted = new Map(entries.map(({ id, on, stopAt = null }) => [String(id), { on: Boolean(on), stopAt }]));
+        show();
     };
 
     // Switched-off items stay while they carry a stop-at, so it survives.
-    const toConfig = () =>
-        [...items]
-            .filter(([, item]) => item.on.val || item.stopAt.val !== null)
-            .map(([id, item]) => ({
-                id,
-                on: item.on.val,
-                ...(item.stopAt.val !== null ? { stopAt: item.stopAt.val } : {}),
-            }));
+    const toConfig = (list) =>
+        [...list]
+            .filter(([, item]) => item.on || item.stopAt !== null)
+            .map(([id, { on, stopAt }]) => ({ id, on, ...(stopAt !== null ? { stopAt } : {}) }));
 
-    // Apply `patches` ([id, { on } or { stopAt }]) and queue the step that saves them with the rest of the list.
+    // Show `patches` ([id, { on } or { stopAt }]) and queue the step that saves them onto the accepted list.
     const save = (patches) => {
-        edits++;
-        for (const [id, patch] of patches) {
-            const item = get(id);
-            Object.entries(patch).forEach(([field, value]) => (item[field].val = value));
-            item.ahead++;
-        }
+        const mine = patches.map(([id, patch]) => [id, patch]); // this step's own entries in `queued`
+        queued.push(...mine);
+        show();
         const switched = patches.filter(([, patch]) => patch.on).map(([id]) => id);
         return inTurn(async () => {
-            for (const [id] of patches) get(id).ahead--;
             let failure = null;
-            let took = false;
+            const next = withEdits(accepted, patches);
             try {
-                const list = toConfig();
+                const list = toConfig(next);
                 const result = await updateSessionConfig({ cheatConfig: { automation: { [group]: list } } });
                 if (result.message !== "Configuration updated successfully")
                     throw new Error(result.details || result.message || "The game didn't take the change");
-                took = true;
+                accepted = next;
                 fileBehind.val = true;
                 await saveConfigFile({ cheatConfig: { automation: { [group]: list } } }).catch((error) => {
                     throw Object.assign(new Error(`in the game, but not saved to the file: ${error.message}`), {
@@ -275,16 +270,15 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
             } catch (error) {
                 failure = error;
             }
-            // Read back what the game holds. If that read fails, only a change the game confirmed counts as taken.
-            const read = await fetchConfig().catch(() => null);
-            const held = read?.cheatConfig.automation[group];
-            if (held) show(held);
-            const runs = held
-                ? switched.some((id) => held.some((item) => item.id === id && item.on))
-                : took && switched.length > 0;
+            // This step's edits are settled: a taken one is in the accepted list, a refused one goes. Then read back
+            // what the game holds; if that read fails, the accepted list stands.
+            for (const edit of mine) queued.splice(queued.indexOf(edit), 1);
+            const held = (await fetchConfig().catch(() => null))?.cheatConfig.automation[group];
+            if (held) sync(held);
+            else show();
             // The game runs an item this save switched on: the automation goes on with it, in this same step, so a
             // switch the player clicks after the item still wins. The save's own failure comes first.
-            if (cheat && runs) {
+            if (cheat && switched.some((id) => accepted.get(id)?.on)) {
                 try {
                     await ensureNow(cheat);
                 } catch (error) {
@@ -304,7 +298,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
     /** Send the list again: after a file save failed, the field's Enter retries it. */
     const resave = () => save([]);
 
-    return { get, sync, set, setAll, resave, edits: () => edits, fileBehind: () => fileBehind.val };
+    return { get, sync, set, setAll, resave, fileBehind: () => fileBehind.val };
 };
 
 const stopAtText = (stopAt) => (stopAt === null ? "" : String(stopAt));
