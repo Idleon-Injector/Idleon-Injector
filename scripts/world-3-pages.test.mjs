@@ -320,3 +320,95 @@ test("Cogs: a stat that is a number refuses text that isn't one; the shape patte
     assert.match(classes(byClass(shape, "save-state")[0]), /save-state--success/);
     assert.equal(gga.CogMap[1].h.h, "ring");
 });
+
+// Hold the game's writes until released, to act while one runs; `fail` answers them with a failure.
+const holdWrites = ({ fail = false } = {}) => {
+    const realFetch = globalThis.fetch;
+    let open;
+    const gate = new Promise((resolve) => (open = resolve));
+    let held = 0;
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/write")) return realFetch(url, options);
+        held++;
+        await gate;
+        if (!fail) return realFetch(url, options);
+        return new Response(JSON.stringify({ error: "the game refused" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    return {
+        held: () => held,
+        release: () => {
+            globalThis.fetch = realFetch;
+            open();
+        },
+    };
+};
+const isDisabled = (node) =>
+    Boolean(typeof node.attributes.disabled === "function" ? node.attributes.disabled() : node.attributes.disabled);
+
+test("Cogs: a Lock's result shows on the slot it was for, not on the slot opened while it ran", async () => {
+    for (const index of [3, 8]) {
+        gga.FlagUnlock[index] = -11;
+        gga.CogOrder[index] = "Blank";
+    }
+    const { popup, open } = await openCogs();
+    const lock = buttonIn(popup, "Lock");
+    const unlock = buttonIn(popup, "Unlock");
+    open(3);
+    await until(() => !isDisabled(lock), "slot 3's Lock");
+
+    const hold = holdWrites({ fail: true });
+    click(lock);
+    await until(() => hold.held() === 1, "the Lock to reach the game");
+    open(8);
+    await until(() => !/account-btn--loading/.test(classes(lock)), "slot 8 to show");
+    assert.ok(isDisabled(lock) && isDisabled(unlock), "no second Lock or Unlock while one runs");
+    open(3);
+    await until(() => /account-btn--loading/.test(classes(lock)), "slot 3 to show its Lock still running");
+
+    await quietly(async () => {
+        hold.release();
+        await until(() => settledButton(lock), "the Lock to finish");
+    });
+    assert.match(classes(lock), /account-btn--error/);
+    assert.equal(gga.FlagUnlock[3], -11);
+    open(8);
+    await until(() => !/account-btn--error/.test(classes(lock)), "slot 8 to show nothing of slot 3's Lock");
+    assert.ok(!isDisabled(lock), "slot 8 can be locked now");
+});
+
+test("Cogs: a tiny cog save's saving and failure stay with the slot it was for", async () => {
+    gga.FlagUnlock[96] = -11;
+    gga.FlagUnlock[97] = -11;
+    gga.CogOrder[228] = "CogSma0";
+    gga.CogOrder[229] = "CogSmb1";
+    const { popup, open } = await openCogs();
+    const editor = () => byClass(popup, "cogs-tiny-editor")[0];
+    const stateOf = (node) => classes(byClass(node, "save-state")[0]);
+    open(96);
+    await until(editor, "slot 96's tiny editor");
+    const first = editor();
+    const [typeInput] = elements(first).filter((node) => node.nodeName === "input");
+    typeInput.value = "b";
+    typeInput.listeners.input({ target: typeInput });
+
+    const hold = holdWrites({ fail: true });
+    first.listeners.keydown({ key: "Enter", target: typeInput, preventDefault() {} });
+    await until(() => hold.held() === 1, "the save to reach the game");
+    open(97);
+    await until(() => editor() && editor() !== first, "slot 97's tiny editor");
+    assert.doesNotMatch(stateOf(editor()), /save-state--(loading|success|error)/, "slot 97 shows nothing of it");
+
+    await quietly(async () => {
+        hold.release();
+        open(96);
+        await until(() => /save-state--error/.test(stateOf(editor())), "slot 96 to show its failure");
+    });
+    assert.equal(gga.CogOrder[228], "CogSma0");
+    const shown = editor();
+    open(97);
+    await until(() => editor() && editor() !== shown, "slot 97's tiny editor");
+    assert.doesNotMatch(stateOf(editor()), /save-state--(loading|success|error)/, "slot 97 shows nothing of it");
+});

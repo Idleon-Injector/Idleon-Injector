@@ -215,7 +215,10 @@ const CogsTab = () => {
     const tinyTypeInput = van.state("_");
     const tinyTierInput = van.state("1");
 
-    const { status: lockStatus, run: runLockWrite, clearStatus: clearLockStatus } = useWriteStatus();
+    const { status: lockStatus, run: runLockWrite } = useWriteStatus();
+    // One Lock or Unlock runs at a time, and its result shows only on the slot it was for.
+    const lockSlot = van.state(null);
+    const shownLockStatus = van.derive(() => (activeSlot.val === lockSlot.val ? lockStatus.val : null));
 
     const getActiveIndex = () => activeSlot.val ?? 0;
     const getSlotCogId = (index) => String(cogOrders[index].val ?? "Blank");
@@ -301,6 +304,7 @@ const CogsTab = () => {
 
     const setSlotLockState = async (index, unlock) => {
         const next = unlock ? UNLOCKED_SENTINEL : 0;
+        lockSlot.val = index;
         await runLockWrite(async () => {
             const unlockPath = `FlagUnlock[${index}]`;
             await writeVerified(unlockPath, next);
@@ -323,35 +327,43 @@ const CogsTab = () => {
         });
     };
 
-    // A tiny cog's type and tier make one id: they save together on Enter or on leaving them.
-    const tinySave = useAutoSave({
-        subject: () => getActiveIndex(),
-        prepare: () => {
-            const index = getActiveIndex();
-            if (!isSideSlot(index)) return { unchanged: true };
-            const normalizedType = String(tinyTypeInput.val ?? "")
-                .trim()
-                .slice(0, 1);
-            if (!TINY_COG_TYPES.has(normalizedType)) throw new Error("type is _, a or b");
-            const tier = toNum(tinyTierInput.val, NaN);
-            if (!Number.isInteger(tier) || tier < 1 || tier > TINY_COG_MAX_TIER)
-                throw new Error(`tier 1 to ${TINY_COG_MAX_TIER}`);
-            const newId = `CogSm${normalizedType}${tier - 1}`;
-            if (newId === getSlotCogId(index)) return { unchanged: true };
-            return {
-                write: async () => {
-                    await writeVerified(`CogOrder[${getCogOrderIndex(index)}]`, newId);
-                    cogOrders[index].val = newId;
-                    void refreshActiveCogName(index);
-                },
-            };
-        },
-        revert: () => syncTinyInputsFromSlot(getActiveIndex()),
-    });
+    // A tiny cog's type and tier make one id: they save together on Enter or on leaving them. Each side slot has
+    // its own save, so a save's saving…, ✓ or reason stays with the slot it was for.
+    const createTinySave = (index) =>
+        useAutoSave({
+            prepare: () => {
+                // The fields show the open slot: another slot's save has nothing of its own to read.
+                if (activeSlot.val !== index) return { unchanged: true };
+                const normalizedType = String(tinyTypeInput.val ?? "")
+                    .trim()
+                    .slice(0, 1);
+                if (!TINY_COG_TYPES.has(normalizedType)) throw new Error("type is _, a or b");
+                const tier = toNum(tinyTierInput.val, NaN);
+                if (!Number.isInteger(tier) || tier < 1 || tier > TINY_COG_MAX_TIER)
+                    throw new Error(`tier 1 to ${TINY_COG_MAX_TIER}`);
+                const newId = `CogSm${normalizedType}${tier - 1}`;
+                if (newId === getSlotCogId(index)) return { unchanged: true };
+                return {
+                    write: async () => {
+                        await writeVerified(`CogOrder[${getCogOrderIndex(index)}]`, newId);
+                        cogOrders[index].val = newId;
+                        if (activeSlot.val === index) void refreshActiveCogName(index);
+                    },
+                };
+            },
+            revert: () => syncTinyInputsFromSlot(index),
+        });
+
+    const tinySaves = new Map();
+    const tinySaveFor = (index) => {
+        if (!tinySaves.has(index)) tinySaves.set(index, createTinySave(index));
+        return tinySaves.get(index);
+    };
 
     const renderTinyEditor = () => {
         const index = getActiveIndex();
         if (!isSideSlot(index)) return null;
+        const tinySave = tinySaveFor(index);
 
         return div(
             {
@@ -419,14 +431,12 @@ const CogsTab = () => {
         const mouseY = event?.clientY ?? 0;
         popupPos.val = computePopupPos(mouseX, mouseY);
         activeSlot.val = index;
-        clearLockStatus();
         syncTinyInputsFromSlot(index);
         void refreshActiveCogName(index);
     };
 
     const closeSlotPopup = () => {
         activeSlot.val = null;
-        clearLockStatus();
     };
 
     const renderCogOverlay = (index) => {
@@ -625,20 +635,25 @@ const CogsTab = () => {
                 { class: "cogs-selection-actions" },
                 ActionButton({
                     label: "Lock",
-                    status: lockStatus,
+                    status: shownLockStatus,
                     variant: "danger",
                     disabled: () => {
                         const index = getActiveIndex();
-                        return getSlotState(slotValues[index].val) === "locked" || getSlotCogId(index) !== "Blank";
+                        return (
+                            lockStatus.val === "loading" ||
+                            getSlotState(slotValues[index].val) === "locked" ||
+                            getSlotCogId(index) !== "Blank"
+                        );
                     },
                     onClick: () => setSlotLockState(getActiveIndex(), false),
                 }),
                 ActionButton({
                     label: "Unlock",
-                    status: lockStatus,
+                    status: shownLockStatus,
                     disabled: () => {
                         const index = getActiveIndex();
                         return (
+                            lockStatus.val === "loading" ||
                             getSlotState(slotValues[index].val) === "unlocked" ||
                             PREMIUM_COG_IDS.has(getSlotCogId(index))
                         );
@@ -648,7 +663,7 @@ const CogsTab = () => {
             ),
             div(
                 { class: "cogs-modal-footer-right" },
-                renderWriteStatus(lockStatus, {
+                renderWriteStatus(shownLockStatus, {
                     loading: "SAVING...",
                     success: "SAVED",
                     error: "WRITE FAILED",
