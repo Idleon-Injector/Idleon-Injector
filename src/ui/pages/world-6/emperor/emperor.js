@@ -7,11 +7,11 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import {
     cleanName,
     createStaticRowReconciler,
-    useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -42,18 +42,13 @@ const rewardText = (template, amount) => {
     );
 };
 
-const wholeNumber = (raw, max, label) => {
+// Short reasons: they show beside the field.
+const wholeNumber = (raw, max) => {
     const value = Number(raw);
-    if (
-        raw === null ||
-        raw === undefined ||
-        String(raw).trim() === "" ||
-        !Number.isSafeInteger(value) ||
-        value < 0 ||
-        value > max
-    ) {
-        throw new Error(`${label} must be a whole number from 0 to ${max}.`);
-    }
+    if (raw === null || raw === undefined || String(raw).trim() === "") throw new Error("enter a number");
+    if (!Number.isSafeInteger(value)) throw new Error("whole numbers only");
+    if (value < 0) throw new Error("min 0");
+    if (value > max) throw new Error(`max ${max}`);
     return value;
 };
 
@@ -65,8 +60,15 @@ const EmperorTab = () => {
     const message = van.state("");
     const progressDraft = van.state("0");
     const entriesDraft = van.state("0");
-    const progressWrite = useWriteStatus();
-    const entriesWrite = useWriteStatus();
+    // Typed values save on Enter or on leaving the field (useAutoSave); RESET and REFILL save at once.
+    const progressWrite = useAutoSave({
+        prepare: () => ({ write: () => saveProgress() }),
+        revert: () => (progressDraft.val = String(snapshot.val?.progress ?? progressDraft.val)),
+    });
+    const entriesWrite = useAutoSave({
+        prepare: () => ({ write: () => saveEntries() }),
+        revert: () => (entriesDraft.val = String(snapshot.val?.remaining ?? entriesDraft.val)),
+    });
     const rewardList = div({ class: "account-item-stack" });
     const reconcileRewards = createStaticRowReconciler(rewardList);
 
@@ -199,24 +201,29 @@ const EmperorTab = () => {
         }
     };
 
+    // Each save returns { cancelled: true } when there's nothing to write, and throws when it fails.
     const saveProgress = async (reset = false) => {
-        if (cannotWrite()) return;
+        if (cannotWrite()) return { cancelled: true };
         busy.val = true;
         message.val = "";
-        progressWrite.clearStatus();
         let writesStarted = false;
         try {
-            const next = reset ? 0 : wholeNumber(progressDraft.val, PROGRESS_LIMIT, "Completed showdowns");
+            const next = reset ? 0 : wholeNumber(progressDraft.val, PROGRESS_LIMIT);
             const before = await readSnapshot();
             showSnapshot(before);
             let fresh = before;
+            if (next === before.progress) {
+                progressDraft.val = String(before.progress);
+                return { cancelled: true };
+            }
             if (
                 next < before.progress &&
                 !window.confirm(
                     `Decrease completed showdowns from ${before.progress} to ${next}? This removes the base rewards from ${before.progress - next} showdowns and makes those showdowns eligible again. It grants no fight loot.`
                 )
             ) {
-                return;
+                progressDraft.val = String(before.progress);
+                return { cancelled: true };
             }
             if (next < before.progress) {
                 fresh = await readSnapshot();
@@ -231,64 +238,51 @@ const EmperorTab = () => {
                 );
             }
             const totals = baseRewards(next, fresh.metadata);
-            const result = await progressWrite.run(
-                async () => {
-                    writesStarted = true;
-                    await writeVerified(PROGRESS_PATH, next);
-                    await writeVerified(CACHE_PATH, totals);
-                    const actual = await readSnapshot();
-                    if (actual.progress !== next || !cacheMatches(actual)) {
-                        showSnapshot(actual);
-                        throw new Error("Progress or base rewards changed while saving. Refresh and retry.");
-                    }
-                    showSnapshot(actual, false, "progress");
-                },
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-            if (!result.ok) await recoverWrite(result.error, writesStarted, "Progress and base rewards");
+            writesStarted = true;
+            await writeVerified(PROGRESS_PATH, next);
+            await writeVerified(CACHE_PATH, totals);
+            const actual = await readSnapshot();
+            if (actual.progress !== next || !cacheMatches(actual)) {
+                showSnapshot(actual);
+                throw new Error("Progress or base rewards changed while saving. Refresh and retry.");
+            }
+            showSnapshot(actual, false, "progress");
         } catch (caughtError) {
             await recoverWrite(caughtError, writesStarted, "Progress and base rewards");
+            throw caughtError;
         } finally {
             busy.val = false;
         }
     };
 
     const saveEntries = async (refill = false) => {
-        if (cannotWriteEntries()) return;
+        if (cannotWriteEntries()) return { cancelled: true };
         busy.val = true;
         message.val = "";
-        entriesWrite.clearStatus();
         let writesStarted = false;
         try {
             const raw = entriesDraft.val;
             const fresh = await readSnapshot();
             showSnapshot(fresh);
             if (fresh.cheatEnabled) throw new Error("Disable the w6 emperor cheat before editing stored entries.");
-            if (!refill && String(raw).trim() !== "" && Number(raw) === fresh.remaining) return;
-            const next = refill ? fresh.capacity : wholeNumber(raw, fresh.capacity, "Remaining entries");
+            if (!refill && String(raw).trim() !== "" && Number(raw) === fresh.remaining) return { cancelled: true };
+            const next = refill ? fresh.capacity : wholeNumber(raw, fresh.capacity);
             if (refill && fresh.remaining >= fresh.capacity) {
                 message.val = "Entries are already at or above natural capacity.";
-                return;
+                return { cancelled: true };
             }
-            if (next === fresh.remaining) return;
-            const result = await entriesWrite.run(
-                async () => {
-                    writesStarted = true;
-                    await writeVerified(ENTRIES_PATH, 1 - next);
-                    const actual = await readSnapshot();
-                    if (actual.cheatEnabled || actual.remaining !== next || actual.capacity !== fresh.capacity) {
-                        showSnapshot(actual);
-                        throw new Error(
-                            "Entries, capacity or the cheat state changed while saving. Refresh and retry."
-                        );
-                    }
-                    showSnapshot(actual, false, "entries");
-                },
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-            if (!result.ok) await recoverWrite(result.error, writesStarted, "Stored entries");
+            if (next === fresh.remaining) return { cancelled: true };
+            writesStarted = true;
+            await writeVerified(ENTRIES_PATH, 1 - next);
+            const actual = await readSnapshot();
+            if (actual.cheatEnabled || actual.remaining !== next || actual.capacity !== fresh.capacity) {
+                showSnapshot(actual);
+                throw new Error("Entries, capacity or the cheat state changed while saving. Refresh and retry.");
+            }
+            showSnapshot(actual, false, "entries");
         } catch (caughtError) {
             await recoverWrite(caughtError, writesStarted, "Stored entries");
+            throw caughtError;
         } finally {
             busy.val = false;
         }
@@ -302,7 +296,7 @@ const EmperorTab = () => {
         });
     };
 
-    const numberControl = (value, max, disabled, label, onSave, entryControl = false) => {
+    const numberControl = (value, max, disabled, label, entryControl = false) => {
         const control = NumberInput({
             value,
             mode: "int",
@@ -310,12 +304,6 @@ const EmperorTab = () => {
             "aria-label": label,
             readOnly: isBusy,
             disabled: () => Boolean(error.val) || !snapshot.val || (entryControl && snapshot.val.cheatEnabled),
-            onkeydown: (event) => {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    onSave();
-                }
-            },
             onDecrement: () => {
                 if (disabled()) return;
                 value.val = String(Math.max(0, (Number(value.val) || 0) - 1));
@@ -331,25 +319,19 @@ const EmperorTab = () => {
         });
         return control;
     };
-    const progressInput = numberControl(
-        progressDraft,
-        () => PROGRESS_LIMIT,
-        cannotWrite,
-        "Completed showdowns",
-        saveProgress
-    );
+    const progressInput = numberControl(progressDraft, () => PROGRESS_LIMIT, cannotWrite, "Completed showdowns");
     const entriesInput = numberControl(
         entriesDraft,
         () => snapshot.val.capacity,
         cannotWriteEntries,
         "Remaining Emperor entries",
-        saveEntries,
         true
     );
 
+    const busyOnly = (write) => () => (write.status.val === "loading" ? "loading" : null);
     const progressRow = AccountRow({
-        rowClass: "account-row--wide-controls",
-        status: progressWrite.status,
+        rowClass: () => `account-row--wide-controls ${saveStateClass(progressWrite.status.val)}`,
+        rowProps: progressWrite.handlers,
         info: div(
             { class: "account-row__name-group" },
             span({ class: "account-row__name" }, "Completed showdowns"),
@@ -357,25 +339,20 @@ const EmperorTab = () => {
         ),
         badge: () => String(snapshot.val?.progress ?? "—"),
         controls: [
+            SaveState(progressWrite),
             progressInput,
-            ActionButton({
-                label: "SET",
-                status: progressWrite.status,
-                disabled: cannotWrite,
-                onClick: () => saveProgress(),
-            }),
             ActionButton({
                 label: "RESET",
                 variant: "danger",
-                status: progressWrite.status,
+                status: busyOnly(progressWrite),
                 disabled: cannotWrite,
-                onClick: () => saveProgress(true),
+                onClick: () => progressWrite.run(() => saveProgress(true)),
             }),
         ],
     });
     const entriesRow = AccountRow({
-        rowClass: "account-row--wide-controls",
-        status: entriesWrite.status,
+        rowClass: () => `account-row--wide-controls ${saveStateClass(entriesWrite.status.val)}`,
+        rowProps: entriesWrite.handlers,
         info: div(
             { class: "account-row__name-group" },
             span({ class: "account-row__name" }, "Remaining entries"),
@@ -392,18 +369,13 @@ const EmperorTab = () => {
                     : `${snapshot.val.remaining} / ${snapshot.val.capacity}`
                 : "—",
         controls: [
+            SaveState(entriesWrite),
             entriesInput,
             ActionButton({
-                label: "SET",
-                status: entriesWrite.status,
-                disabled: cannotWriteEntries,
-                onClick: () => saveEntries(),
-            }),
-            ActionButton({
                 label: "REFILL",
-                status: entriesWrite.status,
+                status: busyOnly(entriesWrite),
                 disabled: () => cannotWriteEntries() || snapshot.val.remaining >= snapshot.val.capacity,
-                onClick: () => saveEntries(true),
+                onClick: () => entriesWrite.run(() => saveEntries(true)),
             }),
         ],
     });

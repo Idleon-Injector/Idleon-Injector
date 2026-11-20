@@ -353,16 +353,19 @@
     color: var(--c-warning);
 }
 
-/* A reason runs to two short lines at most, so it fits beside the field even at 400 px. */
+/* A reason runs to two short lines at most, so it fits beside the field even at 400 px; the title has it all. */
 .save-state--error .save-state__label {
+    display: -webkit-box;
     width: max-content;
     max-width: 15ch;
     height: auto;
-    min-height: 26px;
-    line-height: 1.1;
-    justify-content: flex-end;
+    padding: 2px 8px;
+    overflow: hidden;
+    line-height: 1.15;
     text-align: right;
     white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 /* The badge (the stored value) steps aside while a save takes a moment and while it has failed. */

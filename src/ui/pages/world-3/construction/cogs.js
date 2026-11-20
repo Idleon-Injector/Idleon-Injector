@@ -37,6 +37,7 @@ import { RefreshButton } from "../../../components/views/account/components/Acco
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { toNum, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 
 const { div, button, span, h3, input } = van.tags;
 
@@ -180,16 +181,20 @@ const ensureCogsPopupHost = () => {
     return cogsUiStore.popupHost;
 };
 
-const CogsEditorRow = ({ code, name, meaning, inputNode, actionButton }) =>
+/** `save` (a useAutoSave) saves this row on its own; `state` only shows one that a group of rows shares. */
+const CogsEditorRow = ({ code, name, meaning, inputNode, save = null, state = save }) =>
     div(
-        { class: "cogs-cog-stat-row" },
+        {
+            class: () => `cogs-cog-stat-row ${state ? saveStateClass(state.status.val) : ""}`,
+            ...(save?.handlers ?? {}),
+        },
         div({ class: "cogs-cog-stat-row__code" }, code),
         div(
             { class: "cogs-cog-stat-row__text" },
             div({ class: "cogs-cog-stat-row__name" }, name),
             div({ class: "cogs-cog-stat-row__meaning" }, meaning)
         ),
-        div({ class: "cogs-cog-stat-row__edit" }, inputNode, actionButton)
+        div({ class: "cogs-cog-stat-row__edit" }, state ? SaveState(state) : null, inputNode)
     );
 
 const CogsTab = () => {
@@ -209,13 +214,9 @@ const CogsTab = () => {
     let activeCogNameRequestId = 0;
     const tinyTypeInput = van.state("_");
     const tinyTierInput = van.state("1");
-    const activeCogMapField = van.state(null);
-    const activeTinyField = van.state(null);
 
     const { status: lockStatus, run: runLockWrite, clearStatus: clearLockStatus } = useWriteStatus();
 
-    const { status: cogMapWriteStatus, run: runCogMapWrite } = useWriteStatus();
-    const { status: tinyWriteStatus, run: runTinyWrite, clearStatus: clearTinyWriteStatus } = useWriteStatus();
     const getActiveIndex = () => activeSlot.val ?? 0;
     const getSlotCogId = (index) => String(cogOrders[index].val ?? "Blank");
 
@@ -322,50 +323,41 @@ const CogsTab = () => {
         });
     };
 
-    const setCogMapField = async (field, rawValue) => {
-        const index = getActiveIndex();
-        const cogIdx = getCogOrderIndex(index);
-        const numVal = parseNumber(rawValue);
-        const writeVal = numVal !== null ? numVal : rawValue;
-        activeCogMapField.val = field;
-        await runCogMapWrite(async () => {
-            const writePath = `CogMap[${cogIdx}].h.${field}`;
-            await writeVerified(writePath, writeVal);
-            cogMapStats[index].val = { ...cogMapStats[index].val, [field]: writeVal };
-        });
-    };
-
-    const setTinyCog = async () => {
-        const index = getActiveIndex();
-        if (!isSideSlot(index)) return;
-
-        const cogOrderIndex = getCogOrderIndex(index);
-
-        await runTinyWrite(async () => {
+    // A tiny cog's type and tier make one id: they save together on Enter or on leaving them.
+    const tinySave = useAutoSave({
+        prepare: () => {
+            const index = getActiveIndex();
+            if (!isSideSlot(index)) return { unchanged: true };
             const normalizedType = String(tinyTypeInput.val ?? "")
                 .trim()
                 .slice(0, 1);
-            const normalizedTier = clampTinyTier(toNum(tinyTierInput.val) - 1);
-            if (!TINY_COG_TYPES.has(normalizedType)) {
-                throw new Error('Tiny cog type must be "_", "a", or "b".');
-            }
-            const newId = `CogSm${normalizedType}${normalizedTier}`;
-
-            const cogOrderPath = `CogOrder[${cogOrderIndex}]`;
-            await writeVerified(cogOrderPath, newId);
-            cogOrders[index].val = newId;
-            tinyTypeInput.val = normalizedType;
-            tinyTierInput.val = String(normalizedTier + 1);
-            void refreshActiveCogName(index);
-        });
-    };
+            if (!TINY_COG_TYPES.has(normalizedType)) throw new Error("type is _, a or b");
+            const tier = toNum(tinyTierInput.val, NaN);
+            if (!Number.isInteger(tier) || tier < 1 || tier > TINY_COG_MAX_TIER)
+                throw new Error(`tier 1 to ${TINY_COG_MAX_TIER}`);
+            const newId = `CogSm${normalizedType}${tier - 1}`;
+            if (newId === getSlotCogId(index)) return { unchanged: true };
+            return {
+                write: async () => {
+                    await writeVerified(`CogOrder[${getCogOrderIndex(index)}]`, newId);
+                    cogOrders[index].val = newId;
+                    void refreshActiveCogName(index);
+                },
+            };
+        },
+        revert: () => syncTinyInputsFromSlot(getActiveIndex()),
+    });
 
     const renderTinyEditor = () => {
         const index = getActiveIndex();
         if (!isSideSlot(index)) return null;
 
         return div(
-            { class: "cogs-tiny-editor" },
+            {
+                class: () => `cogs-tiny-editor ${saveStateClass(tinySave.status.val)}`,
+                ...tinySave.handlers,
+            },
+
             CogsEditorRow({
                 code: "t",
                 name: "Tiny Type",
@@ -379,15 +371,6 @@ const CogsTab = () => {
                         tinyTypeInput.val = String(e.target.value ?? "")
                             .trim()
                             .slice(0, 1);
-                    },
-                }),
-                actionButton: ActionButton({
-                    label: "SET",
-                    status: () => (activeTinyField.val === "type" ? tinyWriteStatus.val : null),
-                    className: "cogs-cog-stat-set-btn",
-                    onClick: () => {
-                        activeTinyField.val = "type";
-                        return setTinyCog();
                     },
                 }),
             }),
@@ -406,15 +389,7 @@ const CogsTab = () => {
                         tinyTierInput.val = String(e.target.value ?? "");
                     },
                 }),
-                actionButton: ActionButton({
-                    label: "SET",
-                    status: () => (activeTinyField.val === "tier" ? tinyWriteStatus.val : null),
-                    className: "cogs-cog-stat-set-btn",
-                    onClick: () => {
-                        activeTinyField.val = "tier";
-                        return setTinyCog();
-                    },
-                }),
+                state: tinySave,
             })
         );
     };
@@ -444,9 +419,6 @@ const CogsTab = () => {
         popupPos.val = computePopupPos(mouseX, mouseY);
         activeSlot.val = index;
         clearLockStatus();
-        activeCogMapField.val = null;
-        activeTinyField.val = null;
-        clearTinyWriteStatus();
         syncTinyInputsFromSlot(index);
         void refreshActiveCogName(index);
     };
@@ -454,9 +426,6 @@ const CogsTab = () => {
     const closeSlotPopup = () => {
         activeSlot.val = null;
         clearLockStatus();
-        activeCogMapField.val = null;
-        activeTinyField.val = null;
-        clearTinyWriteStatus();
     };
 
     const renderCogOverlay = (index) => {
@@ -561,7 +530,8 @@ const CogsTab = () => {
             const showMainMode = isMainSlot(index);
             const isUnlocked = slotState === "unlocked";
             const stats = cogMapStats[index].val ?? {};
-            const cogId = getSlotCogId(index);
+            // rawVal: saving a tiny cog changes this id, and redrawing would drop the editor's focus.
+            const cogId = String(cogOrders[index].rawVal ?? "Blank");
             const readOnly = isReadOnlyCog(cogId);
             const presentKeys = COG_MAP_FIELD_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(stats, key));
 
@@ -576,18 +546,31 @@ const CogsTab = () => {
                         value: displayVal,
                         disabled: readOnly,
                     });
+                    // The shown text is rounded ("1.2M"): only text the player changed saves.
+                    let shown = displayVal;
+                    const save = useAutoSave({
+                        prepare: () => {
+                            if (readOnly || inputEl.value === shown) return { unchanged: true };
+                            const typed = inputEl.value.trim();
+                            if (typed === "") throw new Error("enter a value");
+                            const writeVal = parseNumber(typed) ?? typed;
+                            return {
+                                write: async () => {
+                                    await writeVerified(`CogMap[${getCogOrderIndex(index)}].h.${key}`, writeVal);
+                                    // In place: a new stats object would redraw the editor and drop focus.
+                                    cogMapStats[index].rawVal[key] = writeVal;
+                                    if (inputEl.value === typed) inputEl.value = shown = formatNumber(writeVal);
+                                },
+                            };
+                        },
+                        revert: () => (inputEl.value = shown),
+                    });
                     return CogsEditorRow({
                         code: key,
                         name: COG_MAP_FIELD_META[key]?.keyName ?? key,
                         meaning: COG_MAP_FIELD_META[key]?.meaning ?? "Unknown field",
                         inputNode: inputEl,
-                        actionButton: ActionButton({
-                            label: "SET",
-                            status: () => (activeCogMapField.val === key ? cogMapWriteStatus.val : null),
-                            className: "cogs-cog-stat-set-btn",
-                            disabled: () => readOnly,
-                            onClick: () => setCogMapField(key, inputEl.value),
-                        }),
+                        save,
                     });
                 })
             );
@@ -664,16 +647,6 @@ const CogsTab = () => {
                     loading: "SAVING...",
                     success: "SAVED",
                     error: "WRITE FAILED",
-                }),
-                renderWriteStatus(cogMapWriteStatus, {
-                    loading: "SAVING FIELD...",
-                    success: "FIELD SAVED",
-                    error: "FIELD WRITE FAILED",
-                }),
-                renderWriteStatus(tinyWriteStatus, {
-                    loading: "SAVING TINY...",
-                    success: "TINY SAVED",
-                    error: "TINY WRITE FAILED",
                 }),
                 button({ type: "button", class: "btn-secondary", onclick: closeSlotPopup }, "CLOSE")
             )

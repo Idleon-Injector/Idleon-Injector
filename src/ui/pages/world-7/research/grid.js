@@ -6,8 +6,8 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
-import { cleanName, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import { cleanName, writeVerified } from "../../../components/views/account/accountShared.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -65,7 +65,31 @@ const GridTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Research Grid" });
     const selectedIndex = van.state(null);
     const detailInput = van.state("0");
-    const { status: detailStatus, run: runDetailWrite } = useWriteStatus({ successMs: 1000, errorMs: 1400 });
+    // The selected tile's level saves on Enter or on leaving the field.
+    const detailSave = useAutoSave({
+        prepare: () => {
+            const index = selectedIndex.val;
+            const tile = index === null ? null : gridStates[index];
+            if (!tile || tile.maxLevel.val < 0) return { unchanged: true };
+            const raw = String(detailInput.val ?? "").trim();
+            if (raw === "") throw new Error("enter a number");
+            const typed = Number(raw);
+            if (!Number.isInteger(typed)) throw new Error("whole numbers only");
+            if (typed < 0) throw new Error("min 0");
+            if (typed > tile.maxLevel.val) throw new Error(`max ${tile.maxLevel.val}`);
+            if (typed === tile.level.val) return { unchanged: true };
+            return {
+                write: async () => {
+                    await writeVerified(`Research[0][${index}]`, typed);
+                    tile.level.val = typed;
+                },
+            };
+        },
+        revert: () => {
+            const tile = selectedIndex.val === null ? null : gridStates[selectedIndex.val];
+            if (tile) detailInput.val = String(tile.level.val);
+        },
+    });
 
     const gridStates = Array.from({ length: GRID_TILE_COUNT }, () => ({
         name: van.state(""),
@@ -171,22 +195,6 @@ const GridTab = () => {
 
     load();
 
-    const setSelectedLevel = async () => {
-        const index = selectedIndex.val;
-        if (index === null) return;
-
-        const tile = gridStates[index];
-        if (!tile || tile.maxLevel.val < 0) return;
-
-        const nextLevel = clampGridLevel(detailInput.val, tile.maxLevel.val);
-
-        await runDetailWrite(async () => {
-            await writeVerified(`Research[0][${index}]`, nextLevel);
-            tile.level.val = nextLevel;
-            detailInput.val = String(nextLevel);
-        });
-    };
-
     const board = div(
         { class: "research-grid-shell" },
         div(
@@ -266,8 +274,12 @@ const GridTab = () => {
                         )
                     ),
                     div(
-                        { class: "research-grid-detail__edit-row" },
-                        span({ class: "research-grid-detail__edit-label" }, "Set Level"),
+                        {
+                            class: () => `research-grid-detail__edit-row ${saveStateClass(detailSave.status.val)}`,
+                            ...detailSave.handlers,
+                        },
+                        span({ class: "research-grid-detail__edit-label" }, "Level"),
+                        SaveState(detailSave),
                         NumberInput({
                             mode: "int",
                             value: detailInput,
@@ -279,13 +291,7 @@ const GridTab = () => {
                                     Math.min(tile.maxLevel.val, Math.max(0, (Number(detailInput.val) || 0) + 1))
                                 )),
                         })
-                    ),
-                    ActionButton({
-                        label: "SET",
-                        status: detailStatus,
-                        disabled: () => clampGridLevel(detailInput.val, tile.maxLevel.val) === tile.level.val,
-                        onClick: setSelectedLevel,
-                    })
+                    )
                 );
             })
         )

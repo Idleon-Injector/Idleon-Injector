@@ -167,6 +167,11 @@
     width: 120px;
 }
 
+.research-grid-detail__edit-row .save-state {
+    --save-state-bg: var(--c-panel-dim);
+    margin-left: auto;
+}
+
 .observations-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
