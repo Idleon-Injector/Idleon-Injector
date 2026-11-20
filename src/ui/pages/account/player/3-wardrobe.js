@@ -101,8 +101,9 @@ const WardrobePage = () => {
 
     // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config, read again
     // after the session took the change. `change(wardrobe)` gets the saved wardrobe settings as they are now. A file
-    // that didn't take it puts the session's loadouts back, so trying again saves one loadout, not two.
-    // ponytail: puts back the list it read; a loadout another tab saved in those few milliseconds goes with it.
+    // that didn't take it puts the session's loadouts back, so trying again saves one loadout, not two; a list another
+    // tab saved since then (the session replaces the whole list) stays as it is.
+    // ponytail: read-then-write, so a save landing between the two is still lost; the server has no compare-and-set.
     const persist = async (change) => {
         await readSaved();
         const before = saved.val.slice();
@@ -118,7 +119,12 @@ const WardrobePage = () => {
                 injectorConfig: config.injectorConfig,
             });
         } catch (caught) {
-            await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: before } } } }).catch(() => {});
+            const now = await fetchConfig().catch(() => null);
+            const submitted = JSON.stringify(wardrobe.loadouts);
+            if (JSON.stringify(now?.cheatConfig?.wide?.wardrobe?.loadouts) === submitted)
+                await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: before } } } }).catch(
+                    () => {}
+                );
             await readSaved().catch(() => {});
             throw caught;
         }

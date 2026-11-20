@@ -33,11 +33,15 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     }
     return toggle(req, res);
 });
-// How many of the next config file saves fail.
+// How many of the next config file saves fail, and what runs before the next one fails (another tab saving).
 let failSaves = 0;
+let onFail = null;
 router.routes.POST.set("/api/config/save", async (req, res) => {
     if (failSaves > 0) {
         failSaves--;
+        const run = onFail;
+        onFail = null;
+        await run?.();
         return res.status(500).json({ error: "The config file is locked" });
     }
     saves.push(await req.json());
@@ -434,6 +438,32 @@ test("a loadout whose file save failed is saved once when Save is pressed again"
         assert.equal(saves.at(-1).cheatConfig.wide.wardrobe.loadouts.length, 1);
     } finally {
         failSaves = 0;
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// CodeRabbit on #110: a failed save puts the list back only while it is the list it submitted; one another tab saved
+// since then (the session replaces the whole list) stays.
+test("a loadout another tab saved while this tab's file save failed stays in the session", async () => {
+    await settle();
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Mine" } });
+    failSaves = 1;
+    onFail = async () => {
+        const { loadouts } = await wardrobeConfig();
+        const theirs = { id: "other-tab", name: "Theirs", classes: [] };
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [...loadouts, theirs] } } } });
+    };
+    try {
+        await click(button(page, "Save"));
+        await until(() => /The config file is locked/.test(text(page)), "the failure");
+        const names = (await wardrobeConfig()).loadouts.map((loadout) => loadout.name);
+        assert.deepEqual(names, ["Mine", "Theirs"]);
+    } finally {
+        failSaves = 0;
+        onFail = null;
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
         pick(page, "rare-drops");
         await previewShown();
