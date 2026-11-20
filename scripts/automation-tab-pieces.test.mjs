@@ -405,3 +405,32 @@ test("after a save the game didn't answer, a read-back of only the server's copy
     await assert.rejects(unsure.set(1, 40), /not read from the game yet: press Refresh/);
     assert.equal(updates.length, since);
 });
+
+test("the picks too: after a save the game didn't answer, the next save waits for a read of the game", async () => {
+    for (const reachesServerOnly of [false, true]) {
+        const unsure = ui.createAutomationPicks("testUnsurePicks");
+        unsure.sync([{ id: "a", on: false, stopAt: 5 }]);
+        dropNextUpdate = true;
+        if (reachesServerOnly) serverCopyOnly = true;
+        else failConfigReads = 1;
+        try {
+            await assert.rejects(unsure.set("a", { stopAt: 10 }), /connection dropped|500|error/i);
+        } finally {
+            serverCopyOnly = false;
+            failConfigReads = 0;
+        }
+        const since = updates.length;
+        await assert.rejects(unsure.set("b", { on: true }), /not read from the game yet: press Refresh/);
+        assert.equal(
+            updates.length,
+            since,
+            `nothing sent (read-back: ${reachesServerOnly ? "server copy" : "failed"})`
+        );
+        unsure.sync([{ id: "a", on: false, stopAt: 10 }]); // a read of the game
+        await unsure.set("b", { on: true });
+        assert.deepEqual(lastUpdate("testUnsurePicks"), [
+            { id: "a", on: false, stopAt: 10 },
+            { id: "b", on: true },
+        ]);
+    }
+});
