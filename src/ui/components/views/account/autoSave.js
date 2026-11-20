@@ -35,7 +35,8 @@ const isRowField = (node) =>
  * `{ write: async () => result }`; it throws an Error whose message is the reason a draft can't be saved.
  * A save asked for while one is running runs once that one ends, so the last value is the one saved.
  *
- * Status: null, "loading" (saving…), "success" (read back from the game) or "error" (with `reason`).
+ * Status: null, "loading" (saving…), "success" (read back from the game) or "error" (with `reason`). A failure stays
+ * until the field, or the run() write, that failed succeeds: the other one's ✓ doesn't take it away.
  *
  * After a save, `undo.offer` holds its logged action for UNDO_MS: SaveState shows "↶ Undo" beside the ✓. Undo puts
  * the old values back (on the character they were saved on) with the same saving…/✓ states, then the page reads
@@ -53,8 +54,14 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
     let clearTimer = null;
     let offerTimer = null;
     let label = "";
-    // The error shown is prepare()'s reason a draft can't be saved, not a failed write or undo.
+    // The failure being said and whose it is: "field" (the row's own save) or "action" (a write through run()), and
+    // whether it's prepare()'s reason a draft can't be saved ("draft") or a refused undo ("undo"). Only a success of
+    // the same one takes it back, or, for the field, its draft no longer needing a save (Escape, or the game holds
+    // it); the other's writes say saving… and then this again, so a ✓ never hides a value left unsaved.
+    let held = null;
     let draftRefused = false;
+    // Whose write the offered Undo puts back: its refusal is said as that one's failure.
+    let offerBy = "field";
     // The pointer and focus each keep Undo; it goes only once neither is on it.
     const holds = { pointer: false, focus: false };
 
@@ -63,21 +70,25 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         offer.val = null;
         if (status.rawVal === "success" && successMs > 0) status.val = null;
     };
-    const startOffer = (action) => {
+    const startOffer = (action, by) => {
         offer.val = action;
+        offerBy = by;
         clearTimeout(clearTimer);
         clearTimeout(offerTimer);
         if (!holds.pointer && !holds.focus) offerTimer = setTimeout(endOffer, UNDO_MS);
     };
 
-    const settle = (next, why = "") => {
+    const settle = (next, why = "", by = "field", kind = null) => {
+        if (next === "error") held = { why, by, kind };
+        else if (next !== "loading" && held?.by === by) held = null;
+        const shown = next !== "loading" && held ? { ...held, next: "error" } : { next, why, kind };
         clearTimeout(clearTimer);
-        status.val = next;
-        reason.val = why;
-        refused.val = false;
-        draftRefused = false;
-        if (next !== "success") endOffer();
-        if (next === "success" && successMs > 0)
+        status.val = shown.next;
+        reason.val = shown.why;
+        refused.val = shown.kind === "undo";
+        draftRefused = shown.kind === "draft";
+        if (shown.next !== "success") endOffer();
+        if (shown.next === "success" && successMs > 0)
             clearTimer = setTimeout(() => {
                 if (status.val === "success" && !offer.val) status.val = null;
             }, successMs);
@@ -88,26 +99,27 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
         try {
             plan = prepare();
         } catch (error) {
-            settle("error", saveFailureReason(error));
-            draftRefused = true;
+            settle("error", saveFailureReason(error), "field", "draft");
             return { ok: false, error };
         }
         if (!plan || plan.unchanged) {
             if (status.val === "error") settle(null);
             return { ok: false, cancelled: true };
         }
-        return runNow(plan.write);
+        return runNow(plan.write, "field");
     };
 
-    const runNow = (task, savedFor = subject?.(), named = label) =>
+    const runNow = (task, by, savedFor = subject?.(), named = label) =>
         withAction({ label: named, kind: "row" }, async (action) => {
-            const outcome = await track(task);
-            if (outcome.ok && action.entries > 0 && subject?.() === savedFor) startOffer(action);
+            const outcome = await track(task, by);
+            // No Undo beside a failure still being said: it would offer to put back the other one's write.
+            if (outcome.ok && status.rawVal === "success" && action.entries > 0 && subject?.() === savedFor)
+                startOffer(action, by);
             return outcome;
         });
 
-    // The row's saves and its buttons' writes share one save state, so they take turns: each says how it went, and a
-    // later ✓ never takes away a failure still being said (a switch flipped while the level saves waits for it).
+    // The row's saves, its buttons' writes and Undo share one save state, so they take turns: each starts once the
+    // one before it has said how it went, and two writes never run side by side.
     // Unlike oneAtATime(), a write with nothing ahead of it starts at once, so a save reads the drafts and the
     // subject as they are when it's asked for.
     let tail = null;
@@ -126,26 +138,27 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
 
     /**
      * Run any write (a row's toggle button, say) with this save state, as one action Undo can put back. It waits for
-     * the row's save, or another of its writes, that is running.
+     * the row's save, or another of its writes, that is running. `by` "field" is for a button that writes the field's
+     * own value (Reset, Clear): its success then answers the field's failure, and the field's answers its.
      */
-    const run = (task) => {
+    const run = (task, by = "action") => {
         const savedFor = subject?.();
         const named = label;
-        return inTurn(() => runNow(task, savedFor, named));
+        return inTurn(() => runNow(task, by, savedFor, named));
     };
 
-    const track = async (task) => {
-        settle("loading");
+    const track = async (task, by, failKind = null) => {
+        settle("loading", "", by);
         try {
             const result = await task();
             if (result?.cancelled) {
-                settle(null);
+                settle(null, "", by);
                 return { ok: false, cancelled: true, result };
             }
-            settle("success");
+            settle("success", "", by);
             return { ok: true, result };
         } catch (error) {
-            settle("error", saveFailureReason(error));
+            settle("error", saveFailureReason(error), by, failKind);
             return { ok: false, error };
         }
     };
@@ -170,13 +183,12 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
     const undo = async () => {
         const action = offer.val;
         if (!action) return;
+        const by = offerBy;
         holds.pointer = holds.focus = false;
         endOffer();
-        const outcome = await track(() => undoAction(action.id));
-        if (!outcome.ok) {
-            refused.val = true;
-            return;
-        }
+        // It takes its turn too, so a switch flipped before it answers doesn't run beside it.
+        const outcome = await inTurn(() => track(() => undoAction(action.id), by, "undo"));
+        if (!outcome.ok) return;
         washed.val = true;
         setTimeout(() => (washed.val = false), WASH_MS);
     };
@@ -228,8 +240,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, subject 
                     prepare();
                     if (draftRefused) settle(null);
                 } catch (error) {
-                    settle("error", saveFailureReason(error));
-                    draftRefused = true;
+                    settle("error", saveFailureReason(error), "field", "draft");
                 }
                 return;
             }

@@ -70,6 +70,7 @@ const EmperorTab = () => {
         prepare: () => ({ write: () => saveEntries() }),
         revert: () => (entriesDraft.val = String(snapshot.val?.remaining ?? entriesDraft.val)),
     });
+    let resetting = false;
     const rewardList = div({ class: "account-item-stack" });
     const reconcileRewards = createStaticRowReconciler(rewardList);
 
@@ -348,8 +349,15 @@ const EmperorTab = () => {
                 variant: "danger",
                 disabled: cannotEdit,
                 onClick: (e) => {
+                    // A click while a reset waits or runs isn't an answer to the "Click again" that one may ask: it
+                    // was made before the question showed (a double-click), so it's ignored.
+                    if (resetting) return;
+                    resetting = true;
                     const resetButton = e.currentTarget;
-                    return progressWrite.run(() => saveProgress(true, resetButton));
+                    // Reset writes the field's own value, so its ✓ answers the field's failure (and the other way round).
+                    return progressWrite
+                        .run(() => saveProgress(true, resetButton), "field")
+                        .finally(() => (resetting = false));
                 },
             }),
         ],
@@ -379,7 +387,7 @@ const EmperorTab = () => {
                 label: "Refill",
                 disabled: () =>
                     cannotEdit() || snapshot.val.cheatEnabled || snapshot.val.remaining >= snapshot.val.capacity,
-                onClick: () => entriesWrite.run(() => saveEntries(true)),
+                onClick: () => entriesWrite.run(() => saveEntries(true), "field"),
             }),
         ],
     });

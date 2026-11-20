@@ -274,7 +274,8 @@ const PrinterTab = () => {
             )
         )
             return;
-        return state.write.run(() => writeSlot(state, "Blank", 0, true));
+        // Clearing writes the slot's own fields, so its ✓ answers their failure (and the other way round).
+        return state.write.run(() => writeSlot(state, "Blank", 0, true), "field");
     };
 
     const writeSlot = async (state, item, qty, clear = false) => {

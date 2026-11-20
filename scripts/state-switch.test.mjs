@@ -596,6 +596,162 @@ test("stamps: a switch flipped while the level saves keeps its failure after the
     }
 });
 
+// ---- Round 3, second read of 1c6dc52 ----
+
+const STAMPS = "src/ui/pages/world-1/stamps/stamps.js";
+const saveWordsOf = (row) => text(byClass(row, "save-state__label")[0]);
+const levelFieldOf = (row) => elements(row).find((node) => node.nodeName === "input" && node !== switchOf(row));
+const typeLevel = (row, value) => {
+    const field = levelFieldOf(row);
+    field.value = String(value);
+    field.listeners.input({ target: field });
+    return field;
+};
+// Stamp A1, with its level and exalted codes put back afterwards.
+const openStampA1 = async () => {
+    const levels = game.gga.StampLevel[0];
+    const before = { level: levels[0], exalted: [...game.gga.Compass[4]] };
+    const root = await openPage(STAMPS, (root) => pageRead(root) && rowNamed(root, "Stamp A1"));
+    const row = rowNamed(root, "Stamp A1");
+    cleanups.push(() => {
+        levels[0] = before.level;
+        game.gga.Compass[4] = before.exalted;
+    });
+    return { row, levels, before: before.level };
+};
+const exalted = () => game.gga.Compass[4].includes("_0");
+
+test("stamps: a level the game refused stays said when the switch flipped behind it saves", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        cleanups.push(refuseWrites(levels, 0));
+        const field = typeLevel(row, before + 1);
+        row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: switchOf(row) });
+        await flip(row, true); // waits for the level's save, then saves
+        await until(() => exalted() && saveWordsOf(row) !== "saving…", "both saves to end");
+        assert.equal(saveWordsOf(row), "game kept old value", "the switch's ✓ doesn't hide the unsaved level");
+        assert.equal(field.value, String(before + 1), "the typed level is still there to fix");
+    } finally {
+        for (const cleanup of cleanups.splice(0)) cleanup();
+    }
+});
+
+test("stamps: a switch's failure stays said after a later level save, until the switch saves", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        const restore = refuseWrites(game.gga.Compass, 4);
+        cleanups.push(restore);
+        await flip(row, true);
+        await until(() => saveWordsOf(row) === "game kept old value", "the switch's failure");
+
+        const field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(
+            () => text(byClass(row, "account-row__badge")[0]).startsWith(`LV ${before + 1} `),
+            "the level to save"
+        );
+        await until(() => saveWordsOf(row) !== "saving…", "the level's save to end");
+        assert.equal(levels[0], before + 1);
+        assert.equal(saveWordsOf(row), "game kept old value", "the level's ✓ doesn't take the switch's failure");
+
+        restore();
+        await flip(row, true);
+        await until(() => saveWordsOf(row) === "saved", "the switch's own ✓ to take it back");
+    } finally {
+        for (const cleanup of cleanups.splice(0)) cleanup();
+    }
+});
+
+test("stamps: a switch flipped while Undo runs waits for it", async () => {
+    const realFetch = globalThis.fetch;
+    try {
+        const { row, levels, before } = await openStampA1();
+        const field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        const undoButton = byClass(row, "save-state__undo")[0];
+        await until(() => levels[0] === before + 1 && undoButton.attributes.hidden === false, "the save's Undo");
+
+        // Hold the undo's write; count the switch's reads and writes (they name Compass[4]).
+        let releaseUndo;
+        const undoGate = new Promise((resolve) => (releaseUndo = resolve));
+        cleanups.push(() => releaseUndo());
+        let undoHeld = false;
+        let switchCalls = 0;
+        globalThis.fetch = async (url, options) => {
+            const body = String(options?.body ?? "");
+            if (body.includes("Compass[4]")) switchCalls++;
+            if (String(url).includes("/write") && body.includes("StampLevel")) {
+                undoHeld = true;
+                await undoGate;
+            }
+            return realFetch(url, options);
+        };
+        const undone = undoButton.listeners.click();
+        await until(() => undoHeld, "the undo's write to reach the game");
+        const flipped = flip(row, true);
+        const switchRanBeside = switchCalls > 0;
+        releaseUndo();
+        await Promise.all([undone, flipped]);
+        assert.equal(switchRanBeside, false, "the switch's save waits for the undo");
+        assert.equal(levels[0], before);
+        assert.ok(exalted());
+    } finally {
+        globalThis.fetch = realFetch;
+        for (const cleanup of cleanups.splice(0)) cleanup();
+    }
+});
+
+test("emperor: a double-click on Reset doesn't answer the Click again its first click asks", async () => {
+    const ola = game.gga.OptionsListAccount;
+    const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
+    if (!(Number(ola[369]) > 0)) ola[369] = 5;
+    const progress = ola[369];
+    try {
+        const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
+            text(root).includes("Natural capacity")
+        );
+        const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
+        await Promise.all([click(reset), click(reset)]);
+        assert.equal(ola[369], progress, "nothing reset");
+        assert.equal(reset.attributes["data-again"], "Click again", "the first click asks");
+        await click(reset);
+        assert.equal(ola[369], 0, "a click after the question answers it");
+    } finally {
+        ola[369] = before.progress;
+        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+    }
+});
+
+test("emperor: Reset, which writes the field's own value, takes back the field's failure when it saves", async () => {
+    const ola = game.gga.OptionsListAccount;
+    const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
+    if (!(Number(ola[369]) > 0)) ola[369] = 5;
+    const progress = ola[369];
+    const restore = refuseWrites(ola, 369);
+    try {
+        const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (root) =>
+            text(root).includes("Natural capacity")
+        );
+        const row = rowNamed(root, "Completed showdowns");
+        const field = elements(row).find((node) => node.nodeName === "input");
+        field.value = String(progress + 1);
+        field.listeners.input({ target: field });
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => saveWordsOf(row) === "game kept old value", "the field's failure");
+
+        restore();
+        const reset = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset");
+        await click(reset); // asks
+        await click(reset); // answers
+        assert.equal(ola[369], 0);
+        await until(() => saveWordsOf(row) === "saved", "Reset's ✓");
+    } finally {
+        restore();
+        ola[369] = before.progress;
+        game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
+    }
+});
+
 test("a save that failed part-way says some changes may have applied, not that the game kept the old value", async () => {
     const { saveFailureReason } = await importRepo("src/ui/components/views/account/autoSave.js");
     assert.equal(
