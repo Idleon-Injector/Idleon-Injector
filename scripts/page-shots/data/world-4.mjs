@@ -21,8 +21,21 @@ const computed = {
         PtsLeftCook_P: 4,
         PtsLeftCook_Y: 11,
         RankREQcook: (i) => i * 2,
+        BonusMultiCook: 1.1,
     },
     _customBlock_Breeding: { TotalEggCapacity: 8, PetUpgMaxLV: (_, i) => [5, 10, 25, 50, 100][(i + 2) % 5] },
+    // Cooking › Automation: kitchen k's slot s pays with spice 2k + s; meals share one max level.
+    _customBlock_CookingR: {
+        CookingUpgSpiceCostType: (k, s) => 2 * k + s,
+        CookingUpgSpiceCostQty: (k, s) => 120 * (k + 1) + 35 * s + 0.4,
+        CookingSPEED: (k) => 1500 * (k + 1),
+        CookingFIRE: (k) => 2400 * (k + 1),
+        CookingLUCK: (k) => 1 + k / 4,
+        CookingMealMaxLVlol: 90,
+        CookingMenuMealCosts: (i) => 150 * (i + 1) ** 2,
+        CookingMealBonusMultioo: 1.5,
+    },
+    _customBlock_Summoning: { RibbonBonus: 1.2 },
 };
 
 export default () => ({
@@ -63,6 +76,8 @@ export default () => ({
             return [];
         }),
         Rift: [23, 0],
+        // [11]: Equinox Food Lust's level, which caps the meal discount stacks (OptionsListAccount[193]).
+        Dream: list(20, (i) => (i === 11 ? 2 : 0)),
         Spelunk: { 54: CAPES.slice(0, 5) },
         ItemDefinitionsGET: { h: Object.fromEntries(CAPES.map((id, i) => [id, capeItem(i)])) },
         BundlesReceived: { h: { ban_o: 1 } },
