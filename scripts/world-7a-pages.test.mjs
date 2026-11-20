@@ -170,18 +170,23 @@ test("Legend Talents Refresh picks up a raised max level", async (t) => {
     const maxLevel = thingies.LegendTalent_MaxLV;
     t.after(() => (thingies.LegendTalent_MaxLV = maxLevel));
     const firstRow = (root) => byClass(root, "account-row")[0];
-    const badge = (root) => text(byClass(firstRow(root), "account-row__badge")[0]);
+    // The field's level and its cap, as the eye reads it ("10 / 15").
+    const shownLevel = (root) => {
+        const row = firstRow(root);
+        const cap = byClass(row, "number-input__cap")[0];
+        return `${input(row).attributes.value} ${cap && !cap.attributes.hidden ? text(cap.childNodes[0]) : ""}`;
+    };
     const page = await openPage("src/ui/pages/world-7/legend-talents/legend-talents.js", (root) =>
         Boolean(firstRow(root))
     );
     const index = Number(text(byClass(firstRow(page), "account-row__index")[0]).slice(1));
     gga.Spelunk[18][index] = 10;
     await button(page, "Refresh").listeners.click({ preventDefault() {} });
-    await until(() => badge(page) === "LV 10 / 10", "the badge at the old max");
+    await until(() => shownLevel(page) === "10 / 10", "the field at the old max");
 
     thingies.LegendTalent_MaxLV = () => 15; // a Research grid bonus raised it
     await button(page, "Refresh").listeners.click({ preventDefault() {} });
-    await until(() => badge(page) === "LV 10 / 15", "the badge to show the new max");
+    await until(() => shownLevel(page) === "10 / 15", "the field to show the new max");
 
     await saveRow(firstRow(page), 15);
     assert.equal(stateOf(firstRow(page)), "success");

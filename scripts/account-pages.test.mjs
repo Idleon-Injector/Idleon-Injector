@@ -114,10 +114,10 @@ test("task board: Refresh shows the game's new progress, and Target follows the 
     await button(root, "Refresh").listeners.click({});
     await until(() => /^Progress 77777 /.test(sub()), "Refresh to show the new progress");
     // The fake game's stage targets are 10, 100, 1000, 5000.
-    assert.equal(sub(), "Progress 77777 / Target 10");
+    assert.equal(sub(), "Progress 77777 · Target 10");
     await saveRow(row, 2);
     assert.match(saveState(row), /save-state--success/);
-    assert.equal(sub(), "Progress 77777 / Target 1000");
+    assert.equal(sub(), "Progress 77777 · Target 1000");
 });
 
 const CARDS = "src/ui/pages/account/card-search/cards.js";

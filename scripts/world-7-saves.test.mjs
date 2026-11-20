@@ -125,7 +125,7 @@ test("Sushi General: saving Perfect keeps the knowledge XP and level the game ga
     // The game keeps one value per tier here (src/cheats/cheats/sushi/knowledge.js).
     Sushi[6] = Array.from({ length: 20 }, (_, i) => i * 100);
     Sushi[7] = Array.from({ length: 20 }, (_, i) => i % 7);
-    const tierRows = (root) => byClass(root, "account-row").filter((row) => text(row).includes("TIER"));
+    const tierRows = (root) => byClass(root, "account-row").filter((row) => text(row).includes("Tier "));
     const root = await openPage("src/ui/pages/world-7/sushi-station/1-general.js", (node) => tierRows(node).length > 3);
     const row = tierRows(root)[2];
     const [perfect] = inputs(row);

@@ -138,6 +138,12 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                         // again, so the fields (and Escape, and the next save) start from what it now holds. A save
                         // that landed nothing reads nothing, so its reason and the typed value stay in place.
                         if (action.landed > 0) reloadPlace.val = { ...place };
+                        // A field this save didn't change shows the stored value again, which the page may have
+                        // read back from the game (Statues' tier dropdown, with no badge beside it).
+                        fields.forEach((field) => {
+                            if (!touched.includes(field) && getDraftValue(field.key) === submitted[field.key])
+                                resetDraft(field.key);
+                        });
                         throw error;
                     }
                     if (verified?.cancelled) {

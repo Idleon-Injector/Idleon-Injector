@@ -136,6 +136,7 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
                 span({ class: "trap-row__meta" }, () => progressLabel(elapsedValue.val, completionValue.val))
             ),
         ],
+        rowClass: "trap-row",
         controlsClass: "trap-row__controls",
         renderControls: ({ draftStates, getDraftValue, setFieldFocused, resetDraft }) => [
             StackedNumberField({

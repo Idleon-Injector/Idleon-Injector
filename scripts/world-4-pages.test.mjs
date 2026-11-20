@@ -291,7 +291,7 @@ test("changing one chip slot keeps a chip taken off in game since the page read 
     assert.equal(gga.Lab[1][0], -1);
     const equipped = gga.Lab[1].filter((slot) => slot >= 0).length;
     await until(
-        () => text(byClass(row, "account-row__badge")[0]) === `${equipped} EQUIPPED`,
+        () => text(byClass(row, "account-row__badge")[0]) === `${equipped} equipped`,
         "the badge to count the chip taken off in game"
     );
 });
