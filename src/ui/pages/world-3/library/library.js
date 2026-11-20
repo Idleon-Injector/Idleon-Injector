@@ -36,6 +36,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
+    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -77,7 +78,16 @@ const getBlockedLibraryTalentIds = (rawBlockedList) => {
 const TalentBadge = ({ curState, maxState }) =>
     span({}, () => (maxState.val === -1 ? "LOCKED" : `${curState.val} / ${maxState.val}`));
 
-const TalentRow = ({ talentId, talentName, curState, maxState, maxBookLvState, isBookAvailable, isSpecial }) => {
+const TalentRow = ({
+    talentId,
+    talentName,
+    curState,
+    maxState,
+    maxBookLvState,
+    isBookAvailable,
+    isSpecial,
+    checkCharacter,
+}) => {
     if (!isBookAvailable) {
         return AccountRow({
             rowClass: "talent-row talent-row--unavailable",
@@ -95,7 +105,10 @@ const TalentRow = ({ talentId, talentName, curState, maxState, maxBookLvState, i
 
     return ClampedLevelRow({
         valueState: maxState,
-        writePath: `SkillLevelsMAX[${talentId}]`,
+        write: async (nextLevel) => {
+            await checkCharacter();
+            return writeVerified(`SkillLevelsMAX[${talentId}]`, nextLevel);
+        },
         max: isSpecial ? Infinity : () => maxBookLvState.val,
         integerMode: isSpecial ? "floor" : null,
         renderInfo: () => [
@@ -140,6 +153,15 @@ const LibraryTab = () => {
 
     let staticMeta = null;
     let currentAvailableTalentIds = [];
+    let loadedCharacter = null;
+
+    // SkillLevelsMAX is the live copy of whoever is in play: a save goes there only while that is still the
+    // character the page shows.
+    const checkCharacter = async () => {
+        if (String(await gga("UserInfo[0]")) !== loadedCharacter) {
+            throw new Error("another character is in play; press Refresh");
+        }
+    };
 
     const getCurState = (talentId) => getOrCreateState(curStates, talentId);
     const getMaxState = (talentId) => getOrCreateState(maxStates, talentId);
@@ -152,6 +174,13 @@ const LibraryTab = () => {
         if (!currentAvailableTalentIds.length || cap <= 0) return;
 
         await runBulk(async () => {
+            try {
+                await checkCharacter();
+            } catch (caughtError) {
+                // The page shows who is in play now.
+                await load();
+                throw caughtError;
+            }
             await runBulkSet({
                 entries: currentAvailableTalentIds,
                 getTargetValue: () => cap,
@@ -208,6 +237,7 @@ const LibraryTab = () => {
                                     maxBookLvState,
                                     isBookAvailable: talent.isBookAvailable,
                                     isSpecial: group.isSpecial,
+                                    checkCharacter,
                                 })
                             )
                         ),
@@ -235,6 +265,7 @@ const LibraryTab = () => {
                 throw new Error("Select a character in-game before using this tab.");
             }
 
+            loadedCharacter = String(rawUserInfo);
             const classId = toNum(rawCharClass);
             if (!classId) throw new Error("No active character loaded.");
 

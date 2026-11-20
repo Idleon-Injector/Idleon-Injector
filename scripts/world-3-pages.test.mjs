@@ -220,3 +220,36 @@ test("Death Note: a kill count saves to the character on its row, whoever is in 
     assert.equal(db.Lumi_Alt.h.KillsLeft2Advance[0][0], required - 9);
     switchCharacter("Lumi_Main");
 });
+
+test("Library: after a character switch, saves and Max books refuse instead of changing the new character", async () => {
+    gga.UserInfo[0] = "Lumi_Main";
+    const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
+        byClass(r, "talent-row").some((row) => elements(row).some((node) => node.nodeName === "input"))
+    );
+    const row = byClass(root, "talent-row").find((r) => elements(r).some((node) => node.nodeName === "input"));
+    const id = Number(text(byClass(row, "account-row__index")[0]).replace("#", ""));
+    const mainBooks = structuredClone(gga.SkillLevelsMAX);
+
+    // In game, the player switches to another character of the same class: its own books are live now.
+    gga.UserInfo[0] = "Lumi_Alt";
+    gga.SkillLevelsMAX = mainBooks.map((level) => (level > 0 ? 1 : level));
+    const altBooks = structuredClone(gga.SkillLevelsMAX);
+
+    await typeAndEnter(row, 5);
+    assert.match(classes(byClass(row, "save-state")[0]), /save-state--error/);
+    assert.match(text(byClass(row, "save-state__label")[0]), /another character is in play; press Refresh/);
+    assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
+
+    const maxBooks = buttonIn(root, "Max books");
+    click(maxBooks);
+    await until(() => settledButton(maxBooks), "Max books to finish");
+    assert.match(classes(maxBooks), /account-btn--error/);
+    assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
+
+    // The page read the game again, so the next save goes to the character in play.
+    await typeAndEnter(row, 5);
+    await until(() => classes(byClass(row, "save-state")[0]).includes("save-state--success"), "the save to land");
+    assert.equal(gga.SkillLevelsMAX[id], 5);
+    gga.UserInfo[0] = "Lumi_Main";
+    gga.SkillLevelsMAX = mainBooks;
+});
