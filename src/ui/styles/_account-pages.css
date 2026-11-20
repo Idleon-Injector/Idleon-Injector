@@ -853,7 +853,10 @@
     font-family: var(--font-display);
 }
 
-/* A card's header has no room to spare: its save state takes none and lies over the name's end. */
+/*
+ * A card's header has no room to spare: its save state takes none. The ✓ lies over the name's end; the
+ * words take the badge's place while it steps aside, as in a row.
+ */
 .tier-card__header .save-state {
     justify-content: flex-end;
     width: 0;
@@ -862,11 +865,34 @@
 
 .tier-card__header .save-state__mark {
     padding: 0 4px;
-    background: var(--save-state-bg);
+    background: inherit;
 }
 
-.tier-card__header .save-state__label {
-    right: 22px;
+.tier-card__header,
+.tier-card__header .save-state {
+    background: inherit;
+}
+
+.tier-card__header .save-state__label,
+.tier-card__header .save-state--error .save-state__label {
+    right: auto;
+    left: 6px;
+    max-width: 11ch;
+    padding: 0;
+    background: none;
+    text-align: left;
+}
+
+.tier-card__header .save-state--error .save-state__mark {
+    display: none;
+}
+
+.is-saving > .tier-card__header > .tier-card__badge {
+    animation: save-state-hide 0.3s steps(1, end) forwards;
+}
+
+.is-save-failed > .tier-card__header > .tier-card__badge {
+    visibility: hidden;
 }
 
 .account-row--info {
