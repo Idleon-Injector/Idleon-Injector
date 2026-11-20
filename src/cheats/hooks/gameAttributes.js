@@ -10,6 +10,7 @@
  * - Monster respawn time
  * - Options list account (unban, event items, minigames, quick ref, etc.)
  * - Alchemy (vial attempts)
+ * - Equipment and item definitions (Attire Rack)
  *
  * gameAttributes.h is rebuilt at character select; the core hooks the new one then.
  */
@@ -18,6 +19,11 @@ import { cheatConfig, cheatState } from "../core/state.js";
 import { cList, events, gga } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
 import { applyMaxCap } from "../helpers/values.js";
+import { rackDefinitions, rackEquipment } from "../helpers/attire/rack.js";
+
+// Attire Rack: while its TotalStats hook (events012.js) refills the stats, the attire slot holds the rack's outfits.
+defineHook({ id: "wide.attire", target: () => gga, property: "EquipmentOrder" }, { get: rackEquipment });
+defineHook({ id: "wide.attire", target: () => gga, property: "ItemDefinitionsGET" }, { get: rackDefinitions });
 
 // Gems - freeze when enabled
 defineHook(

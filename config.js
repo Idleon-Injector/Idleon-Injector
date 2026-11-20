@@ -31,6 +31,9 @@ exports.cheatConfig = {
         islands: "abcde_", // String of IDs for islands to unlock (e.g., 'abcde_')
     },
     wide: {
+        attire: {
+            outfits: "all", // Outfits whose bonuses wide attire gives: all (outfits added by game updates too), outfit ids separated by commas (EquipmentGown1,EquipmentGown3), or empty for none
+        },
         autoloot: {
             itemstochest: true, // Automatically sends looted items to the chest
             moneytochest: true, // Automatically sends looted money to the chest

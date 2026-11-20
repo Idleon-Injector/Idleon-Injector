@@ -9,7 +9,7 @@
  * - ArbitraryCode (coins, crystals, giant mobs, food, hit chance)
  * - GetBuffBonuses (plunderous mob spawn rate)
  * - RunCodeOfTypeXforThingY (shop stock multiplier)
- * - TotalStats (drop rarity multiplier)
+ * - TotalStats (Attire Rack outfit bonuses, drop rarity multiplier)
  * - GenerateMonsterDrops (filter drops)
  * - ExpMulti (class EXP multiplier)
  * - MaxCapacity (carry capacity multiplier)
@@ -20,6 +20,7 @@ import { events } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
 import { getMultiplyValue } from "../helpers/values.js";
 import { carryCapKeys } from "../constants.js";
+import { totalStatsWithRack } from "../helpers/attire/rack.js";
 
 defineHook({ id: "godlike.crit", target: () => events(12), method: "_customBlock_CritChance" }, (base) =>
     cheatState.godlike.crit ? 100 : base
@@ -99,6 +100,13 @@ defineHook(
         }
         return base;
     }
+);
+
+// Around: the Attire Rack runs the game's method again, with the rack's outfits in the attire slot, to refill a
+// cached stat. Declared before multiply.drop, so it is the inner hook and its refill runs the game's own method.
+defineHook(
+    { id: "wide.attire", target: () => events(12), method: "_customBlock_TotalStats", around: true },
+    totalStatsWithRack
 );
 
 defineHook({ id: "multiply.drop", target: () => events(12), method: "_customBlock_TotalStats" }, (base, key) => {

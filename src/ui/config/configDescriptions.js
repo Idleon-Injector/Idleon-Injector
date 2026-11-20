@@ -29,6 +29,8 @@ export const configDescriptions = {
     "cheatConfig.multiply.crystal": "Crystal spawn chance multiplier",
     "cheatConfig.multiply.shopstock": "Shop stock quantity multiplier",
     "cheatConfig.unlock.islands": "String of IDs for islands to unlock (e.g., 'abcde_')",
+    "cheatConfig.wide.attire.outfits":
+        "Outfits whose bonuses wide attire gives: all (outfits added by game updates too), outfit ids separated by commas (EquipmentGown1,EquipmentGown3), or empty for none",
     "cheatConfig.wide.autoloot.itemstochest": "Automatically sends looted items to the chest",
     "cheatConfig.wide.autoloot.moneytochest": "Automatically sends looted money to the chest",
     "cheatConfig.wide.autoloot.zenithfarm": "Zenith farming drops are excluded from autoloot and drop normally",

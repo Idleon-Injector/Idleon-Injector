@@ -116,7 +116,8 @@ test("refusals and errors come back as before", async () => {
 
 test("the cheats command lists every command", async () => {
     const lines = (await run("cheats")).message.split("\n");
-    assert.equal(lines.length, 262);
+    assert.equal(lines.length, 264);
     assert.ok(lines.includes("drop (drop items)"));
+    assert.ok(lines.includes("wide attire (the bonuses of the outfits chosen on the Attire Rack page)"));
     assert.ok(lines.includes("w7 sushitools knowledge (Add crafting-tree Knowledge XP: <tier> <quantity>)"));
 });

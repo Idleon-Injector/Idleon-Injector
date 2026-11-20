@@ -6,7 +6,7 @@
  * - giant, gems, plunderous, candy, candytime, nodmg
  * - hidenames, noanim, bigmodel, eventitems, autoloot, perfectobols, autoparty
  * - arcade, eventspins, hoopshop, dartshop, guildpoints, cardcopy, cardpassive, autoboss
- * - votebonus
+ * - votebonus, attire, attirestats
  */
 
 import { defineCheat } from "../core/registration.js";
@@ -14,6 +14,7 @@ import { cheatState } from "../core/state.js";
 import { firebase, gga } from "../core/globals.js";
 import { deepCopy } from "../utils/deepCopy.js";
 import { rollAllObols } from "../helpers/obolRolling.js";
+import { recalculateStats } from "../helpers/attire/outfits.js";
 
 // Wide (account-wide) cheats
 defineCheat({
@@ -88,8 +89,25 @@ defineCheat({
         },
         { name: "cardpassive", message: "all cards always give bonus (passive)" },
         { name: "votebonus", message: "all Ballot and Meritocracy bonuses active" },
+        { name: "attire", message: "the bonuses of the outfits chosen on the Attire Rack page" },
+        {
+            name: "attirestats",
+            message:
+                "work out the stats of the character in play again after its attire changed (the Attire Rack page runs this)",
+            fn: () => {
+                recalculateStats();
+                return "Worked out the stats of the character in play again";
+            },
+        },
     ],
     config: {
+        attire: {
+            outfits: {
+                default: "all",
+                description:
+                    "Outfits whose bonuses wide attire gives: all (outfits added by game updates too), outfit ids separated by commas (EquipmentGown1,EquipmentGown3), or empty for none",
+            },
+        },
         autoloot: {
             itemstochest: { default: true, description: "Automatically sends looted items to the chest" },
             moneytochest: { default: true, description: "Automatically sends looted money to the chest" },
