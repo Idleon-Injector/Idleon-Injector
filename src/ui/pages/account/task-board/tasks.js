@@ -89,7 +89,8 @@ const TaskRow = ({ entry, valueState }) =>
                 const parts = [`Progress ${entry.progress ?? 0}`];
                 if (entry.nextTarget !== null && entry.nextTarget !== undefined)
                     parts.push(`Target ${entry.nextTarget}`);
-                return parts.join(" / ");
+                // A slash means a cap, so the two facts sit apart with a dot.
+                return parts.join(" · ");
             },
             cap: entry.maxStages,
             maxAction: {
