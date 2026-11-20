@@ -125,3 +125,20 @@ test("omni jade: the next bonus-levels field stays usable while one saves, and b
     assert.equal(levels[0], 7);
     assert.equal(levels[1], 9);
 });
+
+test("emperor: leaving the showdowns field untouched with a count above the limit is not a failed save", async () => {
+    const ola = game.gga.OptionsListAccount;
+    ola[369] = 2000;
+    const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (r) =>
+        Boolean(findRow(r, "Completed showdowns"))
+    );
+    const row = findRow(root, "Completed showdowns");
+    const [field] = inputs(row);
+    const reset = buttons(row).find((node) => /reset/i.test(text(node)));
+    // Tab from the field to RESET, typing nothing.
+    row.listeners.focusout({ target: field, currentTarget: row, relatedTarget: reset });
+    await settled(row);
+    assert.equal(stateOf(row), "success", text(byClass(row, "save-state")[0]));
+    assert.equal(ola[369], 2000);
+    assert.equal(text(byClass(root, "write-status--error")[0]).trim(), "");
+});

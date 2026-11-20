@@ -216,9 +216,12 @@ const EmperorTab = () => {
         message.val = "";
         let writesStarted = false;
         try {
-            const next = reset ? 0 : wholeNumber(progressDraft.val, PROGRESS_LIMIT);
+            const raw = progressDraft.val;
             const before = await readSnapshot();
             showSnapshot(before);
+            // The count the game holds isn't an edit, so the limit an edit keeps to doesn't apply to it.
+            const untouched = String(raw).trim() !== "" && Number(raw) === before.progress;
+            const next = reset ? 0 : untouched ? before.progress : wholeNumber(raw, PROGRESS_LIMIT);
             let fresh = before;
             // The same count saves again only to repair a base reward cache that's out of sync.
             if (next === before.progress && cacheMatches(before)) {
