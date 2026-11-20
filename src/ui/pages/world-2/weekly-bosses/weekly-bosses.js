@@ -19,6 +19,7 @@ import { AccountRow } from "../../../components/views/account/components/Account
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { clickAgain } from "../../../components/inPlace.js";
+import { captureGesture } from "../../../services/changeLog.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
@@ -259,8 +260,8 @@ const WeeklyBossTab = () => {
                         await submitWrites([
                             { key: entry.key, path: `WeeklyBoss.h.${entry.key}`, value: enabled ? 1 : 0 },
                         ]);
-                    },
-                    { onError: (caughtError) => (message.val = caughtError.message) }
+                    }
+                    // The switch says why a row's save failed.
                 );
             } finally {
                 busy.val = false;
@@ -271,6 +272,9 @@ const WeeklyBossTab = () => {
     const setAll = (enabled, button) =>
         inTurn(async () => {
             if (cannotWrite()) return;
+            // The bulk action starts after a read: keep the button's click, so it's named after and offers Undo all
+            // beside the button even if something else was clicked meanwhile.
+            const inGesture = captureGesture();
             busy.val = true;
             message.val = "";
             try {
@@ -292,29 +296,31 @@ const WeeklyBossTab = () => {
                     )
                 )
                     return;
-                await bulk.run(
-                    async () => {
-                        const fresh = await readFresh();
-                        const currentTargets = entries.filter(
-                            ({ key }) => (Number(fresh.weekly[key]) === 1) !== enabled
-                        );
-                        if (
-                            currentTargets.length !== targets.length ||
-                            currentTargets.some(({ key }, index) => key !== targets[index].key)
-                        ) {
-                            throw new Error(
-                                "Skin ownership changed while confirmation was open. Review the rows and try again."
+                await inGesture(() =>
+                    bulk.run(
+                        async () => {
+                            const fresh = await readFresh();
+                            const currentTargets = entries.filter(
+                                ({ key }) => (Number(fresh.weekly[key]) === 1) !== enabled
                             );
-                        }
-                        await submitWrites(
-                            currentTargets.map(({ key }) => ({
-                                key,
-                                path: `WeeklyBoss.h.${key}`,
-                                value: enabled ? 1 : 0,
-                            }))
-                        );
-                    },
-                    { onError: (caughtError) => (message.val = caughtError.message) }
+                            if (
+                                currentTargets.length !== targets.length ||
+                                currentTargets.some(({ key }, index) => key !== targets[index].key)
+                            ) {
+                                throw new Error(
+                                    "Skin ownership changed while confirmation was open. Review the rows and try again."
+                                );
+                            }
+                            await submitWrites(
+                                currentTargets.map(({ key }) => ({
+                                    key,
+                                    path: `WeeklyBoss.h.${key}`,
+                                    value: enabled ? 1 : 0,
+                                }))
+                            );
+                        },
+                        { onError: (caughtError) => (message.val = caughtError.message) }
+                    )
                 );
             } catch (caughtError) {
                 message.val = caughtError.message;

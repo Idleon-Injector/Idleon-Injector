@@ -310,14 +310,6 @@ export const runBulkSet = async ({
 };
 
 /**
- * Hook that wraps an async write operation with status tracking and automatic
- * status-clear timers.
- *
- * `run()` accepts per-call status labels and success/error callbacks.
- * `clearStatus()` cancels pending auto-clear timers for teardown paths that keep
- * long-lived row state outside the active pane.
- */
-/**
  * Runs a page's writes one after another: a write asked for while another runs waits its turn instead of being
  * dropped, so a switch flipped on one row while another row saves still saves. Each task reads the game again
  * when its turn comes.
@@ -334,6 +326,14 @@ export const oneAtATime = () => {
     };
 };
 
+/**
+ * Hook that wraps an async write operation with status tracking and automatic
+ * status-clear timers.
+ *
+ * `run()` accepts per-call status labels and success/error callbacks.
+ * `clearStatus()` cancels pending auto-clear timers for teardown paths that keep
+ * long-lived row state outside the active pane.
+ */
 export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
     const status = van.state(null);
     let clearTimer = null;

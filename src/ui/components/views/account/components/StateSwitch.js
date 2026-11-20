@@ -12,8 +12,9 @@ const { input, label, span } = van.tags;
  * It stays enabled while a save runs, so focus stays where the player put it. A flip made while it saves is kept:
  * once the save ends, the switch saves the newest flip if the game doesn't already hold it.
  *
- * A failed save says why in place of the words (the reason is read out too) until the next flip; `onFlip` reports
- * one by throwing or by returning `{ ok: false, error }` (what `useWriteStatus().run` and `useAutoSave` return).
+ * A failed save says why in place of the words (the reason is read out too) until the next flip, or until the game
+ * holds something else (a bulk action or a refresh changed it); `onFlip` reports one by throwing or by returning
+ * `{ ok: false, error }` (what `useWriteStatus().run` and `useAutoSave` return).
  *
  * @param {object} opts
  * @param {() => boolean|*} opts.checked whether the thing is on, as the game holds it
@@ -27,7 +28,9 @@ const { input, label, span } = van.tags;
  */
 export const StateSwitch = ({ checked, words, name, onFlip, disabled = false, title = null, className = "" }) => {
     const isOn = () => Boolean(resolveValue(checked));
-    const failure = van.state("");
+    // The last failed save's reason, and the state the game held then: it shows only while the game still holds that.
+    const failed = van.state(null);
+    const failure = () => (failed.val && failed.val.on === isOn() ? failed.val.reason : "");
     let saving = false;
     let wanted = null;
     const box = input({
@@ -45,14 +48,15 @@ export const StateSwitch = ({ checked, words, name, onFlip, disabled = false, ti
                 while (wanted !== null && wanted.on !== isOn()) {
                     const { on, inGesture } = wanted;
                     wanted = null;
-                    failure.val = "";
+                    failed.val = null;
                     let outcome;
                     try {
                         outcome = await inGesture(() => onFlip(on));
                     } catch (error) {
                         outcome = { ok: false, error };
                     }
-                    if (outcome?.ok === false && outcome.error) failure.val = saveFailureReason(outcome.error);
+                    if (outcome?.ok === false && outcome.error)
+                        failed.val = { reason: saveFailureReason(outcome.error), on: isOn() };
                 }
             } finally {
                 saving = false;
@@ -67,17 +71,15 @@ export const StateSwitch = ({ checked, words, name, onFlip, disabled = false, ti
                 joinClasses(
                     "toggle-switch state-switch",
                     isOn() ? "is-on" : "",
-                    failure.val ? "is-failed" : "",
+                    failure() ? "is-failed" : "",
                     className
                 ),
-            title: () => failure.val || resolveValue(title) || "",
+            title: () => failure() || resolveValue(title) || "",
         },
         span({ class: "state-switch__words" }, () =>
-            failure.val ? failure.val : typeof words === "function" ? words() : words[isOn() ? 0 : 1]
+            failure() ? failure() : typeof words === "function" ? words() : words[isOn() ? 0 : 1]
         ),
-        span({ class: "account-write-feedback", role: "status" }, () =>
-            failure.val ? `Not saved: ${failure.val}` : ""
-        ),
+        span({ class: "account-write-feedback", role: "status" }, () => (failure() ? `Not saved: ${failure()}` : "")),
         box,
         span({ class: "slider" })
     );

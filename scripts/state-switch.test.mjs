@@ -1,5 +1,5 @@
 // The on/off switch (#26, PR #108 review): a flip is never lost, a refused save puts the switch back to what the game
-// holds, and a failed save says why on the switch.
+// holds, a failed save says why once, on the switch, and a save that waits keeps the click that asked for it.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
@@ -27,27 +27,32 @@ async function until(check, what) {
     }
     assert.fail(`timed out waiting for ${what}`);
 }
-const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-// The game keeps the old value whatever is written there.
+// The game keeps the old value whatever is written there; `restore()` lets writes land again.
 const refuseWrites = (list, index) => {
     const kept = list[index];
     Object.defineProperty(list, index, { get: () => kept, set() {}, configurable: true });
     return () => Object.defineProperty(list, index, { value: kept, writable: true, configurable: true });
 };
-// Hold the game's writes until released, to act while a save runs.
+// Hold the game's writes until released, to act while a save runs. `held()` counts the writes waiting.
 const holdWrites = () => {
     const realFetch = globalThis.fetch;
     let release;
+    let held = 0;
     const gate = new Promise((resolve) => (release = resolve));
     globalThis.fetch = async (url, options) => {
-        if (String(url).includes("/write")) await gate;
+        if (String(url).includes("/write")) {
+            held++;
+            await gate;
+        }
         return realFetch(url, options);
     };
-    return () => {
+    const done = () => {
         globalThis.fetch = realFetch;
         release();
     };
+    done.held = () => held;
+    return done;
 };
 
 const pageRead = (root) =>
@@ -61,154 +66,280 @@ const rowNamed = (root, name) =>
     byClass(root, "account-row").find((row) => text(byClass(row, "account-row__name")[0]) === name);
 const switchOf = (row) => elements(row).find((node) => node.attributes.role === "switch");
 const wordsOf = (row) => text(byClass(row, "state-switch__words")[0]);
+// What a row tells screen readers about its save, besides its switch's own words.
+const rowStatusOf = (row) =>
+    byClass(row, "account-write-feedback")
+        .filter((node) => !classes(node.parentNode).includes("state-switch"))
+        .map(text)
+        .join("");
 // The player flips the switch: the browser has already moved the box, then reports the change.
 const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on } });
+const click = (button) => button.listeners.click({ currentTarget: button, target: button, preventDefault() {} });
+const buttonNamed = (root, name) => elements(root).find((node) => node.nodeName === "button" && text(node) === name);
+
+// Flip `first` on, and once its write is waiting on the game, flip `second` on; then let the game answer.
+const flipBothWhileFirstSaves = async (first, second) => {
+    const release = holdWrites();
+    try {
+        const saves = [flip(first, true)];
+        await until(() => release.held() > 0, "the first save to reach the game");
+        saves.push(flip(second, true));
+        release();
+        await Promise.all(saves);
+    } finally {
+        release();
+    }
+};
 
 const BRIBES = "src/ui/pages/world-1/bribes/bribes.js";
+const bribes = () => game.gga.BribeStatus;
+const resetBribes = () => bribes().splice(0, 4, 1, 1, 0, 0);
 
 test("bribes: a switch flipped while another row saves still saves", async () => {
-    const status = game.gga.BribeStatus;
-    status[2] = 0;
-    status[3] = 0;
-    const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping On the Job"));
-    const first = rowNamed(root, "Mandatory Fire Sale");
-    const second = rowNamed(root, "Sleeping On the Job");
-    const release = holdWrites();
-    const saves = [flip(first, true)];
-    await tick();
-    saves.push(flip(second, true));
-    await tick();
-    release();
-    await Promise.all(saves);
-    assert.equal(status[2], 1);
-    assert.equal(status[3], 1, "the second row's flip waited its turn instead of being dropped");
-    assert.equal(wordsOf(second), "Owned");
-    status[2] = 0;
-    status[3] = 0;
+    try {
+        resetBribes();
+        const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping On the Job"));
+        const second = rowNamed(root, "Sleeping On the Job");
+        await flipBothWhileFirstSaves(rowNamed(root, "Mandatory Fire Sale"), second);
+        assert.equal(bribes()[2], 1);
+        assert.equal(bribes()[3], 1, "the second row's flip waited its turn instead of being dropped");
+        assert.equal(wordsOf(second), "Owned");
+    } finally {
+        resetBribes();
+    }
 });
 
 test("bribes: flipping one switch on and back off while it saves ends with the last flip saved", async () => {
-    const status = game.gga.BribeStatus;
-    status[2] = 0;
-    const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Mandatory Fire Sale"));
-    const row = rowNamed(root, "Mandatory Fire Sale");
     const release = holdWrites();
-    const save = flip(row, true);
-    await tick();
-    await flip(row, false); // lands while the first save runs, so it waits for it
-    release();
-    await save;
-    assert.equal(status[2], 0, "the newest flip (off) is what the game holds");
-    assert.equal(wordsOf(row), "Not owned");
+    try {
+        resetBribes();
+        const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Mandatory Fire Sale"));
+        const row = rowNamed(root, "Mandatory Fire Sale");
+        const save = flip(row, true);
+        await until(() => release.held() > 0, "the first save to reach the game");
+        await flip(row, false); // lands while the first save runs, so it waits for it
+        release();
+        await save;
+        assert.equal(bribes()[2], 0, "the newest flip (off) is what the game holds");
+        assert.equal(wordsOf(row), "Not owned");
+    } finally {
+        release();
+        resetBribes();
+    }
+});
+
+test("bribes: a refused save says why once, short, on the switch, and a later bulk save clears it", async () => {
+    let restore = () => {};
+    try {
+        resetBribes();
+        const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Mandatory Fire Sale"));
+        const row = rowNamed(root, "Mandatory Fire Sale");
+        restore = refuseWrites(bribes(), 2);
+        await flip(row, true);
+        assert.equal(wordsOf(row), "game kept old value", "the short reason, not the page's longer note");
+        assert.equal(rowStatusOf(row), "", "the row doesn't also announce the failure");
+        assert.equal(text(byClass(root, "write-status--error")[0]), "", "nor does the page");
+        restore();
+        restore = () => {};
+        await click(buttonNamed(root, "Enable all"));
+        await until(() => bribes()[2] === 1, "Enable all to land");
+        await until(() => wordsOf(row) === "Owned", "the switch to show the game's state, not the old failure");
+    } finally {
+        restore();
+        resetBribes();
+    }
 });
 
 const KILLROY = "src/ui/pages/world-2/killroy/killroy.js";
 
 test("killroy: a save the game doesn't keep says why on the switch, and the next flip clears it", async () => {
-    ola[115] = 0;
-    const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-    const row = rowNamed(root, "AIRHORN RESET");
-    const restore = refuseWrites(ola, 115);
+    let restore = () => {};
     try {
+        ola[115] = 0;
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
+        const row = rowNamed(root, "AIRHORN RESET");
+        restore = refuseWrites(ola, 115);
         await flip(row, true);
+        restore();
+        restore = () => {};
+        assert.equal(ola[115], 0);
+        assert.equal(wordsOf(row), "game kept old value");
+        assert.equal(switchOf(row).checked, false, "the switch shows what the game holds");
+        await flip(row, true);
+        assert.equal(ola[115], 1);
+        assert.equal(wordsOf(row), "On", "a save that lands clears the reason");
     } finally {
         restore();
+        ola[115] = 0;
     }
-    assert.equal(ola[115], 0);
-    assert.equal(wordsOf(row), "game kept old value");
-    assert.equal(switchOf(row).checked, false, "the switch shows what the game holds");
-    await flip(row, true);
-    assert.equal(ola[115], 1);
-    assert.equal(wordsOf(row), "On", "a save that lands clears the reason");
-    ola[115] = 0;
 });
 
-test("account options: a refused on/off save puts the switch back to what the game holds", async () => {
+test("account options: a refused on/off save goes back, and says why once (in the row's save state)", async () => {
     const index = 690; // past the schema, so its row's editor follows the value: a switch
-    ola[index] = true;
-    const { AccountOptionsTab } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
-    const root = AccountOptionsTab();
-    const optionRow = () => elements(root).find((node) => node.attributes["data-index"] === index);
-    await until(() => optionRow() && switchOf(optionRow()), "Account Options to load");
-    const row = optionRow();
-    const restore = refuseWrites(ola, index);
+    let restore = () => {};
     try {
+        ola[index] = true;
+        const { AccountOptionsTab } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
+        const root = AccountOptionsTab();
+        const optionRow = () => elements(root).find((node) => node.attributes["data-index"] === index);
+        await until(() => optionRow() && switchOf(optionRow()), "Account Options to load");
+        const row = optionRow();
+        restore = refuseWrites(ola, index);
         await flip(row, false);
+        assert.equal(ola[index], true);
+        assert.equal(switchOf(row).checked, true, "the refused Off doesn't stay on screen");
+        assert.equal(text(byClass(row, "save-state__label")[0]), "game kept old value");
+        assert.equal(wordsOf(row), "On", "the switch doesn't say it a second time");
     } finally {
         restore();
+        ola[index] = (index * 13) % 50;
     }
-    assert.equal(ola[index], true);
-    assert.equal(switchOf(row).checked, true, "the refused Off doesn't stay on screen");
-    assert.equal(wordsOf(row), "game kept old value");
-    ola[index] = (index * 13) % 50;
 });
 
-// Two switches showing `off`, flipped on while the first one's save runs: both land.
-const twoFlipsLand = async (file, off, on, gameValue) => {
+// Two switches showing `off`, the second flipped on while the first one's save waits on the game: both land.
+const twoFlipsLand = async (file, off, on, gameHoldsBoth) => {
     const root = await openPage(file, (root) => pageRead(root) && byClass(root, "state-switch").length > 1);
     const rows = byClass(root, "account-row").filter((row) => switchOf(row) && wordsOf(row) === off);
     assert.ok(rows.length >= 2, `two rows show ${off}`);
     const [first, second] = rows;
-    const release = holdWrites();
-    const saves = [flip(first, true)];
-    await tick();
-    saves.push(flip(second, true));
-    await tick();
-    release();
-    await Promise.all(saves);
-    await until(() => wordsOf(second) === on, "the second row to show its save");
-    assert.equal(wordsOf(first), on);
-    assert.ok(gameValue(), "the game holds both");
+    await flipBothWhileFirstSaves(first, second);
+    await until(() => wordsOf(first) === on && wordsOf(second) === on, "both rows to show their saves");
+    assert.ok(gameHoldsBoth(), "the game holds both");
 };
 
 test("event shop: a switch flipped while another row saves still saves", async () => {
     const before = ola[311];
-    await twoFlipsLand(
-        "src/ui/pages/account/event-shop/event-shop.js",
-        "Not owned",
-        "Owned",
-        () => String(ola[311]).length === String(before).length + 2
-    );
-    ola[311] = before;
+    try {
+        await twoFlipsLand(
+            "src/ui/pages/account/event-shop/event-shop.js",
+            "Not owned",
+            "Owned",
+            () => String(ola[311]).length === String(before).length + 2
+        );
+    } finally {
+        ola[311] = before;
+    }
 });
 
 test("weekly bosses: a skin switch flipped while another skin saves still saves", async () => {
     const weekly = game.gga.WeeklyBoss.h;
     const locked = Object.keys(weekly).filter((key) => key.startsWith("UI_") && Number(weekly[key]) === 0);
-    await twoFlipsLand("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Locked", "Unlocked", () =>
-        locked.slice(0, 2).every((key) => Number(weekly[key]) === 1)
-    );
-    for (const key of locked) weekly[key] = 0;
+    try {
+        await twoFlipsLand("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Locked", "Unlocked", () =>
+            locked.slice(0, 2).every((key) => Number(weekly[key]) === 1)
+        );
+    } finally {
+        for (const key of locked) weekly[key] = 0;
+    }
 });
 
 test("slab: an item switch flipped while another item saves still saves", async () => {
-    await twoFlipsLand("src/ui/pages/world-5/slab/slab.js", "Missing", "Registered", () => true);
-});
-
-test("islands (the shared toggle row): a save the game doesn't keep says why on the switch", async () => {
-    const root = await openPage(
-        "src/ui/pages/world-2/islands/islands.js",
-        (root) => pageRead(root) && rowNamed(root, "Trash Island")
-    );
-    const row = rowNamed(root, "Trash Island");
-    const was = wordsOf(row);
-    const restore = refuseWrites(ola, 169);
+    const before = [...game.gga.Cards[1]];
     try {
-        await flip(row, was !== "Unlocked");
+        await twoFlipsLand(
+            "src/ui/pages/world-5/slab/slab.js",
+            "Missing",
+            "Registered",
+            () => game.gga.Cards[1].length === before.length + 2
+        );
     } finally {
-        restore();
+        game.gga.Cards[1] = before;
     }
-    assert.equal(wordsOf(row), "game kept old value");
-    assert.equal(switchOf(row).checked, was === "Unlocked", "the switch shows what the game holds");
 });
 
 test("jade emporium: two upgrades flipped at once both stay bought (they share one string)", async () => {
     const before = String(game.gga.Ninja[102][9] ?? "");
-    await twoFlipsLand(
-        "src/ui/pages/world-6/sneaking/2-jade.js",
-        "Locked",
-        "Bought",
-        () => String(game.gga.Ninja[102][9]).length === before.length + 2
-    );
-    game.gga.Ninja[102][9] = before;
+    try {
+        await twoFlipsLand(
+            "src/ui/pages/world-6/sneaking/2-jade.js",
+            "Locked",
+            "Bought",
+            () => String(game.gga.Ninja[102][9]).length === before.length + 2
+        );
+    } finally {
+        game.gga.Ninja[102][9] = before;
+    }
 });
+
+for (const [name, file, path] of [
+    ["omni jade", "src/ui/pages/world-6/sneaking/3-omni-jade.js", 6],
+    ["menagerie", "src/ui/pages/world-7/menagerie/menagerie.js", 2],
+]) {
+    test(`${name}: a switch flipped while another saves still saves`, async () => {
+        const menagerie = game.gga.Menagerie;
+        const before = structuredClone(menagerie);
+        try {
+            await twoFlipsLand(file, "Off", "On", () => toggledOn(menagerie[path], before[path]) >= 2);
+        } finally {
+            menagerie.splice(0, menagerie.length, ...before);
+        }
+    });
+}
+const toggledOn = (now, was) => [...now].filter((value, i) => Number(value) >= 1 && !(Number(was[i]) >= 1)).length;
+
+test("history: a save while two actions wait isn't named after the newest click", async () => {
+    const changeLog = await importRepo("src/ui/services/changeLog.js");
+    const store = (await importRepo("src/ui/state/store.js")).default;
+    const root = globalThis.document.createElement("div");
+    changeLog.startChangeLog(store.app, root);
+    // The character pick field (the test DOM has no closest(), so the click's target answers it for the log).
+    const pickRow = { getAttribute: (name) => (name === "data-change-label" ? "Character pick" : null) };
+    const page = { closest: (selector) => (selector.includes("data-change-label") ? pickRow : null) };
+    let finishA;
+    let finishB;
+    changeLog.withAction({}, () => new Promise((resolve) => (finishA = resolve)));
+    root.listeners.pointerdown({ target: page }); // a click on another control while the first save waits
+    changeLog.withAction({}, () => new Promise((resolve) => (finishB = resolve)));
+    try {
+        const { action } = await changeLog.startChange(["OptionsListAccount[1]"]);
+        assert.equal(action.label, "", "not named after the pick");
+    } finally {
+        finishA();
+        finishB();
+    }
+});
+
+test("bribes: Enable all keeps its button's click even when another control is clicked while it reads", async () => {
+    const changeLog = await importRepo("src/ui/services/changeLog.js");
+    const store = (await importRepo("src/ui/state/store.js")).default;
+    try {
+        resetBribes();
+        const page = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Mandatory Fire Sale"));
+        const root = globalThis.document.createElement("div");
+        root.append(page);
+        changeLog.startChangeLog(store.app, root);
+        const enableAll = buttonNamed(page, "Enable all");
+        const before = changeLog.lastBulkAction.val;
+        root.listeners.pointerdown({ target: enableAll });
+        const done = click(enableAll);
+        // While Enable all reads the game, the player clicks another row's switch (without flipping it yet).
+        root.listeners.pointerdown({ target: switchOf(rowNamed(page, "Sleeping On the Job")) });
+        await done;
+        await until(() => changeLog.lastBulkAction.val !== before, "Enable all to log its action");
+        const { action } = changeLog.lastBulkAction.val;
+        // (The test DOM has no closest(), so the action's label can't be read here; its anchor shows whose click it kept.)
+        assert.equal(action.anchor, enableAll, "its Undo all sits beside the button");
+    } finally {
+        resetBribes();
+    }
+});
+
+for (const [name, file, list, index, off] of [
+    ["event shop", "src/ui/pages/account/event-shop/event-shop.js", () => ola, 311, "Not owned"],
+    ["slab", "src/ui/pages/world-5/slab/slab.js", () => game.gga.Cards, 1, "Missing"],
+]) {
+    test(`${name}: a refused row save is said once, on the switch`, async () => {
+        let restore = () => {};
+        try {
+            const root = await openPage(file, (root) => pageRead(root) && byClass(root, "state-switch").length > 1);
+            const row = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === off);
+            restore = refuseWrites(list(), index);
+            await flip(row, true);
+            await until(() => wordsOf(row) !== off, "the switch to say why");
+            assert.match(wordsOf(row), /game kept old value/);
+            assert.equal(rowStatusOf(row), "", "the row doesn't also announce the failure");
+        } finally {
+            restore();
+        }
+    });
+}

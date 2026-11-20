@@ -18,6 +18,7 @@ import {
     getOrCreateState,
     largeFormatter,
     largeParser,
+    oneAtATime,
     useWriteStatus,
     writeManyVerified,
     writeVerified,
@@ -60,7 +61,11 @@ const MenagerieTab = () => {
     const lists = Object.fromEntries(PANES.map(({ id }) => [id, div({ class: "account-item-stack" })]));
     const reconcilers = Object.fromEntries(PANES.map(({ id }) => [id, createStaticRowReconciler(lists[id])]));
     const state = (path) => getOrCreateState(states, path);
-    const disabled = () => loading.val || saving.val;
+    // Fields and switches stay usable while a save runs (and while it reads the game again after); only a load of the
+    // page itself, or a failed one, holds them.
+    const disabled = () => loading.val && !saving.val;
+    // A write asked for while another runs waits its turn, then reads the game again.
+    const inTurn = oneAtATime();
     let unlockCount = 0;
 
     const load = async () =>
@@ -191,16 +196,16 @@ const MenagerieTab = () => {
             ]);
         });
 
-    const save = async (task) => {
-        if (disabled()) throw new Error("Another Menagerie operation is in progress.");
-        saving.val = true;
-        try {
-            return await task();
-        } finally {
-            await load();
-            saving.val = false;
-        }
-    };
+    const save = (task) =>
+        inTurn(async () => {
+            saving.val = true;
+            try {
+                return await task();
+            } finally {
+                await load();
+                saving.val = false;
+            }
+        });
 
     const numberRow = (name, path, integer = true, note = null, formatted = false) =>
         EditableNumberRow({
@@ -336,7 +341,7 @@ const MenagerieTab = () => {
     return PersistentAccountListPage({
         title: "LUMINOUS MENAGERIE",
         description: "Edit progression directly. Normal caps and unlock requirements do not restrict these editors.",
-        actions: RefreshButton({ onRefresh: load, disabled }),
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
         subNav: renderTabNav({
             tabs: PANES,
             activeId: activePane,

@@ -191,7 +191,8 @@ export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn
 const actionForWrite = () => {
     if (current) return current;
     if (open.size === 1) return [...open][0];
-    if (open.size > 1) return newAction(gesture.label, "bulk");
+    // Not named after the newest click: that click may be another control's (a pick made while this save waited).
+    if (open.size > 1) return newAction("", "bulk");
     if (!gestureAction || gestureAction.gesture !== gesture.count) {
         gestureAction = newAction(gesture.label, "bulk", gesture.target);
         gestureAction.gesture = gesture.count;

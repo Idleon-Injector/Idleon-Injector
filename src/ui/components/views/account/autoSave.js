@@ -13,7 +13,8 @@ const WASH_MS = 800;
 /** Short reason for a failed save, shown next to the field. */
 export const saveFailureReason = (error) => {
     const message = String(error?.message ?? error ?? "");
-    if (/^Write mismatch/.test(message)) return "game kept old value";
+    // Anywhere in the message: a page may lead it with what else it knows ("Some changes may have applied.").
+    if (/Write mismatch/.test(message)) return "game kept old value";
     return message || "not saved";
 };
 
