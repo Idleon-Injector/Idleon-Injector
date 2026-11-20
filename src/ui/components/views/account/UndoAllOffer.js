@@ -84,7 +84,9 @@ const offer = (action, anchor) => {
     const reason = van.state("");
     const count = action.entries;
     const over = van.state(false);
-    let held = false;
+    // The pointer and focus each keep the offer; it goes only once neither is on it.
+    const holds = { pointer: false, focus: false };
+    const held = () => holds.pointer || holds.focus;
     const self = { node: null, timer: null };
 
     const hide = () => {
@@ -96,9 +98,9 @@ const offer = (action, anchor) => {
         clearTimeout(self.timer);
         self.timer = setTimeout(hide, ms);
     };
-    const hold = (on) => {
-        held = on;
-        if (on) clearTimeout(self.timer);
+    const hold = (by, on) => {
+        holds[by] = on;
+        if (held()) clearTimeout(self.timer);
         else if (state.val === "offer" || state.val === "refused") hideIn(UNDO_MS / 2);
     };
     const undo = async () => {
@@ -113,17 +115,17 @@ const offer = (action, anchor) => {
         } catch (error) {
             reason.val = error?.message || "not undone";
             state.val = "refused";
-            if (!held) hideIn(UNDO_MS);
+            if (!held()) hideIn(UNDO_MS);
         }
     };
 
     self.node = span(
         {
             class: () => `undo-all undo-all--${state.val} ${over.val ? "undo-all--over" : ""}`,
-            onmouseenter: () => hold(true),
-            onmouseleave: () => hold(false),
-            onfocusin: () => hold(true),
-            onfocusout: () => hold(false),
+            onmouseenter: () => hold("pointer", true),
+            onmouseleave: () => hold("pointer", false),
+            onfocusin: () => hold("focus", true),
+            onfocusout: () => hold("focus", false),
         },
         button(
             {

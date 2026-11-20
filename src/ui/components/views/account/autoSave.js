@@ -44,7 +44,8 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, onUndone
     let clearTimer = null;
     let offerTimer = null;
     let label = "";
-    let held = false;
+    // The pointer and focus each keep Undo; it goes only once neither is on it.
+    const holds = { pointer: false, focus: false };
 
     const endOffer = () => {
         clearTimeout(offerTimer);
@@ -55,7 +56,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, onUndone
         offer.val = action;
         clearTimeout(clearTimer);
         clearTimeout(offerTimer);
-        if (!held) offerTimer = setTimeout(endOffer, UNDO_MS);
+        if (!holds.pointer && !holds.focus) offerTimer = setTimeout(endOffer, UNDO_MS);
     };
 
     const settle = (next, why = "") => {
@@ -129,7 +130,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, onUndone
     const undo = async () => {
         const action = offer.val;
         if (!action) return;
-        held = false;
+        holds.pointer = holds.focus = false;
         endOffer();
         const outcome = await track(() => undoAction(action.id));
         if (!outcome.ok) {
@@ -142,11 +143,11 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, onUndone
         else reloadAfterUndo(action);
     };
 
-    /** Pointer or focus on Undo keeps it; leaving gives a few more seconds. */
-    const hold = (on) => {
-        held = on;
+    /** Pointer or focus on Undo keeps it (`by` is "pointer" or "focus"); once both left, a few more seconds. */
+    const hold = (by, on) => {
+        holds[by] = on;
         clearTimeout(offerTimer);
-        if (!on && offer.val) offerTimer = setTimeout(endOffer, UNDO_MS / 2);
+        if (!holds.pointer && !holds.focus && offer.val) offerTimer = setTimeout(endOffer, UNDO_MS / 2);
     };
 
     const cancel = () => {
@@ -241,10 +242,10 @@ export const SaveState = ({ status, reason, undo = null, className = "" }) =>
                       title: "Put back the value from before this save",
                       // The promise is for tests; the browser ignores it.
                       onclick: () => undo.run(),
-                      onmouseenter: () => undo.hold(true),
-                      onmouseleave: () => undo.hold(false),
-                      onfocus: () => undo.hold(true),
-                      onblur: () => undo.hold(false),
+                      onmouseenter: () => undo.hold("pointer", true),
+                      onmouseleave: () => undo.hold("pointer", false),
+                      onfocus: () => undo.hold("focus", true),
+                      onblur: () => undo.hold("focus", false),
                   },
                   Icons.Undo({ class: "save-state__undo-icon" }),
                   "Undo"

@@ -317,3 +317,26 @@ test("Undo all is offered once the bulk action's last batch landed", async () =>
     assert.equal(made.entries, 2);
     [ola[253], ola[254]] = old;
 });
+
+test("Undo stays while it has focus, even after the pointer passed over it", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const { SaveState, UNDO_MS, useAutoSave } = await importRepo("src/ui/components/views/account/autoSave.js");
+    const save = useAutoSave({
+        prepare: () => ({ write: () => writeVerified("OptionsListAccount[254]", ola[254] + 1) }),
+    });
+    await save.save();
+    assert.ok(save.undo.offer.rawVal, "Undo is offered");
+    const [button] = byClass(SaveState(save), "save-state__undo");
+    try {
+        button.listeners.focus({});
+        button.listeners.mouseenter({});
+        button.listeners.mouseleave({});
+        t.mock.timers.tick(UNDO_MS);
+        assert.ok(save.undo.offer.rawVal, "still there while it has focus");
+        button.listeners.blur({});
+        t.mock.timers.tick(UNDO_MS);
+        assert.equal(save.undo.offer.rawVal, null, "gone once neither holds it");
+    } finally {
+        t.mock.timers.runAll(); // VanJS's own redraw timers
+    }
+});
