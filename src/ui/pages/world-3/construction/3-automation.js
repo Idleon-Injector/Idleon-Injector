@@ -31,6 +31,9 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 
 const { div, span } = van.tags;
 
+// Like the game's own panels, small amounts show whole: a cost rounded up.
+const costText = (value) => formatNumber(value < 1000 ? Math.ceil(value) : value);
+
 const CHEAT = "automation construction";
 // The construction menu's three rows of nine.
 const SECTIONS = ["BUILDINGS", "TOWERS", "SHRINES"];
@@ -47,7 +50,7 @@ const timeLeft = (hours) => {
 const buildLine = (building) => {
     if (!building.unlocked) return `Locked: build ${cleanName(building.previous)} first`;
     if (building.maxed) return "Max level";
-    const parts = [`Next level ${formatNumber(building.cost)} ${cleanName(building.currency)}`];
+    const parts = [`Next level ${costText(building.cost)} ${cleanName(building.currency)}`];
     if (building.awaiting) parts.push("built, waiting for salt");
     else if (building.slot >= 0) {
         parts.push(`in slot ${building.slot + 1}`, `${Math.floor(building.percent)}%`);

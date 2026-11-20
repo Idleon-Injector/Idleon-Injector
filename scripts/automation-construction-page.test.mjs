@@ -43,6 +43,22 @@ test("the tab shows the switch, the build queue and a row per building in the me
     assert.equal(selected(row("Mossy Pebble Tower")), "Balanced");
 });
 
+test("a small salt cost shows whole, rounded up like the game", async () => {
+    const block = kit.fixture.computed._customBlock_WorkbenchStuff;
+    const cost = block.TowerSaltCost;
+    block.TowerSaltCost = (b, ...rest) => (b === 1 ? 79.4 : cost(b, ...rest));
+    try {
+        await kit.button(tab, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+        assert.match(text(row("Mossy Pebble Tower")), /Next level 80 Explosive Salts/);
+        assert.doesNotMatch(text(row("Mossy Pebble Tower")), /79\.4/);
+    } finally {
+        block.TowerSaltCost = cost;
+        await kit.button(tab, "Refresh").listeners.click({ preventDefault() {} });
+        await kit.idle();
+    }
+});
+
 test("switching a building on saves it and turns Construction on, now and at start", async () => {
     await kit.flip(row("Mossy Pebble Tower"), true);
     assert.deepEqual(sent("construction"), [{ id: "1", on: true }]);
