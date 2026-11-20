@@ -123,6 +123,11 @@ async function updateSessionConfiguration(
     const gameCheatConfig = receivedFullConfig.cheatConfig
         ? reviveRegExps(parseConfigFromJson(receivedFullConfig.cheatConfig))
         : cheatConfig;
+    return applyToGame(gameBridge, gameCheatConfig);
+}
+
+/** Merge cheat settings into the running game's config. */
+async function applyToGame(gameBridge, gameCheatConfig) {
     if (!(await gameBridge.isAttached())) {
         log.error("Cheat context not found in iframe. Cannot update config in game");
         return { gameApplied: false, contextLost: true };
@@ -176,15 +181,18 @@ async function pullGameConfig(gameBridge, cheatConfig) {
  * What it's sent is merged into the current settings, so a partial save keeps the rest.
  * Saves run one at a time: they share one temporary file, and two at once could leave a config.custom.js
  * that doesn't load.
- * @returns {Promise<{ brokenFileKeptAs?: string }>} Where a config.custom.js that failed to load was kept
+ * Given the game bridge, the saved cheat settings go to the game too; left with its old ones, the next
+ * pullGameConfig would bring them back and the save after it would write them to the file.
+ * @returns {Promise<{ brokenFileKeptAs?: string, game?: Object }>} Where a config.custom.js that failed to load
+ *   was kept, and how the game took the settings (as updateSessionConfiguration answers)
  */
-function saveConfiguration(receivedFullConfig) {
-    const save = () => writeConfiguration(receivedFullConfig);
+function saveConfiguration(receivedFullConfig, gameBridge) {
+    const save = () => writeConfiguration(receivedFullConfig, gameBridge);
     return (saving = saving.then(save, save));
 }
 let saving = Promise.resolve();
 
-async function writeConfiguration(receivedFullConfig) {
+async function writeConfiguration(receivedFullConfig, gameBridge) {
     const cheatConfig = getCheatConfig();
     const startupCheats = getStartupCheats();
     const injectorConfig = getInjectorConfig();
@@ -244,7 +252,13 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
     }
     deepMerge(cheatConfig, parsedUiCheatConfig);
     if (filteredInjectorConfig) deepMerge(injectorConfig, filteredInjectorConfig);
-    return { brokenFileKeptAs };
+    if (!gameBridge || !receivedFullConfig.cheatConfig) return { brokenFileKeptAs };
+    // The file is written, so a game that can't be reached doesn't fail the save.
+    const game = await applyToGame(gameBridge, parsedUiCheatConfig).catch((error) => ({
+        gameApplied: false,
+        details: error.message,
+    }));
+    return { brokenFileKeptAs, game };
 }
 
 /**

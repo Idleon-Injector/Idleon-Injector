@@ -80,12 +80,14 @@ function setupConfigRoutes(app, gameBridge, config) {
         }
 
         try {
-            const { brokenFileKeptAs } = await saveConfiguration(receivedFullConfig);
-            res.json({
-                message: brokenFileKeptAs
-                    ? `Configuration saved to config.custom.js. The old file had an error, so it was kept as ${brokenFileKeptAs}`
-                    : "Configuration successfully saved to config.custom.js",
-            });
+            const { brokenFileKeptAs, game } = await saveConfiguration(receivedFullConfig, gameBridge);
+            // A game that isn't there (contextLost) gets the saved settings when it's injected again.
+            const gameKeptOld = game && !game.gameApplied && !game.contextLost;
+            let message = "Configuration successfully saved to config.custom.js";
+            if (brokenFileKeptAs || gameKeptOld) message = "Configuration saved to config.custom.js";
+            if (brokenFileKeptAs) message += `. The old file had an error, so it was kept as ${brokenFileKeptAs}`;
+            if (gameKeptOld) message += `. The running game kept its old settings (${game.details})`;
+            res.json({ message });
         } catch (apiError) {
             log.error("Error in /api/config/save:", apiError);
             res.status(500).json({
