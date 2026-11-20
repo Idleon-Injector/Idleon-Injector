@@ -21,6 +21,10 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        grimoire: {
+            saving: 10, // Automation: while a bone type saves for its cheapest High or Low upgrade, Balanced upgrades may cost up to this % of it.
+            items: [], // Automation: Grimoire upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        },
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)

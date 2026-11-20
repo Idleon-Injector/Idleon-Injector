@@ -99,6 +99,7 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
         [
             ["w7.sushi", false],
             ["wide.autoboss", false],
+            ["classes.automation.grimoire", false],
             ["account.automation.shops", false],
             ["fixture.steady", true],
             ["fixture.flaky", true],
@@ -177,6 +178,6 @@ test("every automation's cheat is a command, and the folder holds the real ones"
         getAutomations()
             .map(({ id }) => id)
             .filter((id) => !id.startsWith("fixture")),
-        ["w7.sushi", "wide.autoboss", "account.automation.shops"]
+        ["w7.sushi", "wide.autoboss", "classes.automation.grimoire", "account.automation.shops"]
     );
 });

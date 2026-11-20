@@ -16,6 +16,10 @@ export const configDescriptions = {
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
+    "cheatConfig.automation.grimoire.saving":
+        "Automation: while a bone type saves for its cheapest High or Low upgrade, Balanced upgrades may cost up to this % of it.",
+    "cheatConfig.automation.grimoire.items":
+        "Automation: Grimoire upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.",
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",
