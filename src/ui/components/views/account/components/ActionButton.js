@@ -2,7 +2,7 @@ import van from "../../../../vendor/van-1.6.0.js";
 import { withTooltip } from "../../../Tooltip.js";
 import { joinClasses, resolveValue } from "../accountShared.js";
 import { labelOf, withAction } from "../../../../services/changeLog.js";
-import { announce } from "../../../inPlace.js";
+import { announce, clickAgain, disarm } from "../../../inPlace.js";
 
 const { button } = van.tags;
 
@@ -30,7 +30,9 @@ const VARIANT_CLASS = {
 };
 
 /**
- * Shared action button for account feature tabs.
+ * Shared action button for account feature tabs. `confirm` (a question, or a function that returns one or null) makes
+ * the press ask in place first (#25): the first press reads "Click again" and only a second one runs `onClick`. Bulk
+ * removals pass it; additions run on one press.
  */
 export const ActionButton = ({
     label,
@@ -43,6 +45,7 @@ export const ActionButton = ({
     preventMouseDown = true,
     type = "button",
     buttonProps = {},
+    confirm = null,
 }) => {
     const buttonNode = button(
         {
@@ -67,6 +70,12 @@ export const ActionButton = ({
             // One press is one action: everything it saves, now or after its awaits, undoes together.
             onclick: onClick
                 ? (e) => {
+                      if (confirm) {
+                          const question = typeof confirm === "function" ? confirm() : confirm;
+                          // A question that went away (Set count raised after it asked) takes "Click again" with it.
+                          if (!question) disarm(buttonNode);
+                          else if (!clickAgain(buttonNode, question)) return undefined;
+                      }
                       const name = String(resolveValue(label)).trim();
                       const result = withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e));
                       if (status) void sayResult(name, result, status);

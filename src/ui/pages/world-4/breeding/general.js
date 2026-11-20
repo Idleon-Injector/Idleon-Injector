@@ -169,6 +169,7 @@ const GeneralTab = () => {
                     label: "Zero all",
                     status: eggBulk.status,
                     variant: "danger",
+                    confirm: "set every egg's rarity to 0.",
                     onClick: (e) => {
                         e.preventDefault();
                         void setAllEggs(0);

@@ -271,7 +271,9 @@ const WeeklyBossTab = () => {
                 return;
             }
             const countLabel = `${targets.length} cosmetic UI skin${targets.length === 1 ? "" : "s"}`;
+            // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
             if (
+                !enabled &&
                 !clickAgain(
                     button,
                     `${enabled ? "enable" : "disable"} ${countLabel}. ` +

@@ -336,6 +336,7 @@ const MapCrystalsTab = () => {
             disabled: () => loading.val || activeTab.val === "all",
             tooltip:
                 "Reset all crystals on maps in the current world view to 0 kills (select a specific world tab to enable)",
+            confirm: () => (activeTab.val === "all" ? null : "reset every crystal in this world to 0 kills."),
             onClick: () => {
                 if (activeTab.val === "all") return;
                 applyBulkKills(getActiveWorldMaps(), 0);

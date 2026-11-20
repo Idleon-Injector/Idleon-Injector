@@ -15,7 +15,7 @@ import {
 } from "./scanUtils.js";
 import { formatDisplayValue, getMonitorHistory } from "./valueUtils.js";
 import { createStaticRowReconciler } from "../account/accountShared.js";
-import { Said, useSaid } from "../../inPlace.js";
+import { Said, clickAgain, useSaid } from "../../inPlace.js";
 
 const { div, input, button, span, label, details, summary, select, option } = van.tags;
 
@@ -921,7 +921,15 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                     {
                         type: "button",
                         class: "btn-danger btn-sm",
-                        onclick: handlers.clearSavedResults,
+                        // Clearing the list is a removal: it asks in place first (#25).
+                        onclick: (e) => {
+                            const count = ui.savedResults.length;
+                            if (
+                                !clickAgain(e.currentTarget, `clear all ${count} saved value${count === 1 ? "" : "s"}.`)
+                            )
+                                return;
+                            handlers.clearSavedResults();
+                        },
                         disabled: () => ui.savedResults.length === 0,
                         title: "Clear saved list",
                     },

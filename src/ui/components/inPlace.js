@@ -100,7 +100,8 @@ export const announce = (text) => {
 };
 
 const armed = new WeakMap();
-const disarm = (button) => {
+/** Forget `button`'s question, if it asked one: the press it was about no longer needs asking. */
+export const disarm = (button) => {
     const state = armed.get(button);
     if (!state) return;
     clearTimeout(state.timer);

@@ -289,6 +289,7 @@ const PostOfficeTab = () => {
                 label: "Reset",
                 status: boxBulkStatus,
                 variant: "danger",
+                confirm: "set every box upgrade to 0.",
                 onClick: doResetBoxes,
             })
         ),

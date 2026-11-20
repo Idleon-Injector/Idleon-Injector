@@ -121,6 +121,7 @@ const AtomColliderTab = () => {
                     variant: "danger",
                     status: bulkStatus,
                     tooltip: "Reset every atom to 0",
+                    confirm: "reset every atom to 0.",
                     onClick: () => doSetAll(0),
                 },
             ],

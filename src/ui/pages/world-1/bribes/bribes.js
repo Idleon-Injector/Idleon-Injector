@@ -105,7 +105,9 @@ const BribesTab = () => {
                 (entry) => !entry.readOnly && (enabled ? values[entry.index] !== 1 : values[entry.index] === 1)
             );
             if (!targets.length) return;
+            // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
             if (
+                !enabled &&
                 !clickAgain(
                     button,
                     `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${

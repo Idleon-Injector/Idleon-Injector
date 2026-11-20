@@ -223,6 +223,7 @@ const ArcadeTab = () => {
                     variant: "danger",
                     status: bulkStatus,
                     tooltip: "Reset every Arcade upgrade to 0",
+                    confirm: "reset every Arcade upgrade to 0.",
                     onClick: () => doSetAll(0),
                 },
             ],

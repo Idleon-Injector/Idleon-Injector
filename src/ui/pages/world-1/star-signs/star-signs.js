@@ -535,6 +535,7 @@ const StarSignsTab = () => {
                 variant: "danger",
                 disabled: isAnyLoading,
                 tooltip: "Clear all star sign progress and lock everything",
+                confirm: "clear every star sign's players and lock them all.",
                 onClick: resetAll,
             }),
             RefreshButton({

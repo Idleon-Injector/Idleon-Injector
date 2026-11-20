@@ -432,6 +432,7 @@ const UnitBulkPanel = ({ royalGState, onChanged, outpostsByWorld, mapDispNames, 
                     variant: "danger",
                     tooltip:
                         "Rebuild RoyalG map-unit arrays from current militia and Kingdom Sovereignty upgrade levels.",
+                    confirm: "rebuild every world's map units from your militia and Kingdom Sovereignty levels.",
                     onClick: (e) => {
                         e.preventDefault();
                         void vanillaStatus.run(async () => {

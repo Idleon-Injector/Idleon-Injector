@@ -9,6 +9,7 @@ import { ActionButton } from "../../../components/views/account/components/Actio
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
+import { clickAgain } from "../../../components/inPlace.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, button } = van.tags;
@@ -228,6 +229,7 @@ const RatKingTab = () => {
                 status: clearStatus.status,
                 disabled: isWriting,
                 tooltip: "Clear all reclaimed crowns",
+                confirm: () => (crownsSet.val.size ? `clear all ${crownsSet.val.size} reclaimed crowns.` : null),
                 onClick: handleClearAll,
             }),
             SetAllNumberControl({
@@ -237,6 +239,12 @@ const RatKingTab = () => {
                 applyLabel: "Apply",
                 min: 0,
                 max: ALL_CROWNS.length,
+                // Lowering the count removes crowns, so it asks first; raising it runs on one click.
+                confirm: () => {
+                    const desired = Math.max(0, Math.min(ALL_CROWNS.length, toInt(targetCount.val, 0)));
+                    const removed = crownsSet.val.size - desired;
+                    return removed > 0 ? `remove ${removed} crown${removed === 1 ? "" : "s"}.` : null;
+                },
                 onApply: handleSetCount,
             })
         );
@@ -274,7 +282,12 @@ const RatKingTab = () => {
                             type: "button",
                             class: "account-btn btn-danger btn-sm",
                             disabled: isWriting,
-                            onclick: () => updatePlantCrowns(p, false),
+                            onclick: (e) => {
+                                const owned = MUTATION_CHARS.filter((m) => crownsSet.val.has(`${p}${m}`)).length;
+                                if (owned && !clickAgain(e.currentTarget, `clear ${owned} crowns on Plant ${p + 1}.`))
+                                    return undefined;
+                                return updatePlantCrowns(p, false);
+                            },
                             title: `Clear crowns for Plant ${p + 1}`,
                         },
                         "Clear"

@@ -120,6 +120,7 @@ const SaltLickTab = () => {
                     variant: "danger",
                     status: bulkStatus,
                     tooltip: "Reset every Salt Lick upgrade to 0",
+                    confirm: "reset every Salt Lick upgrade to 0.",
                     onClick: () => doSetAll(0),
                 },
             ],

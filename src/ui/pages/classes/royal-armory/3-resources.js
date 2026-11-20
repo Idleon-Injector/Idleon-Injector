@@ -290,6 +290,7 @@ const ResourceNodesTab = () => {
                                 disabled: bulkDisabled,
                                 variant: "danger",
                                 tooltip: "Deplete every node in the selected world (collected = -1).",
+                                confirm: "deplete every node in this world.",
                                 onClick: () => void writeWorldDepleted(-1),
                             })
                         )

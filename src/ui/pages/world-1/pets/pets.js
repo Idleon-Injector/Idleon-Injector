@@ -29,6 +29,7 @@ import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { clickAgain } from "../../../components/inPlace.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
@@ -564,7 +565,10 @@ const CompanionsTab = () => {
                     type: "button",
                     class: "btn-danger btn-sm",
                     disabled: () => isBusy(),
-                    onclick: () => writeSelection(() => ({ normal: new Set(), plus: new Set() })),
+                    onclick: (e) =>
+                        clickAgain(e.currentTarget, "clear every injector pet selection and turn W1 Companion off.")
+                            ? writeSelection(() => ({ normal: new Set(), plus: new Set() }))
+                            : undefined,
                 },
                 "Clear all"
             ),
@@ -575,7 +579,10 @@ const CompanionsTab = () => {
                 {
                     type: "button",
                     class: "btn-danger btn-sm",
-                    onclick: () => writeSelection(() => ({ normal: new Set(normalIds.val), plus: new Set() })),
+                    onclick: (e) =>
+                        clickAgain(e.currentTarget, "clear every Pets+ selection.")
+                            ? writeSelection(() => ({ normal: new Set(normalIds.val), plus: new Set() }))
+                            : undefined,
                     disabled: () => isBusy(),
                 },
                 "Clear Pets+"

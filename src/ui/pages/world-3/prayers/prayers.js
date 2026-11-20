@@ -373,10 +373,13 @@ const PrayersTab = () => {
                         message.val = `All prayers are already ${mode === "unlock" ? "unlocked" : "maxed"}.`;
                         return { equipment: [], levels: [], cancelled: true };
                     }
+                    // Adding runs on one click (#25); only a Max that would lower a prayer above its cap asks.
+                    const lowers =
+                        mode === "max" && state.definitions.some(({ id, data }) => state.levels[id] > Number(data[9]));
                     return {
                         equipment: [],
                         levels,
-                        confirmation: `${mode === "unlock" ? "unlock" : "max"} ${levels.length} named prayer(s) account-wide.`,
+                        confirmation: lowers ? `max ${levels.length} named prayer(s) account-wide.` : null,
                     };
                 },
                 (question, plan) => clickAgain(button, question, { targets: plan })

@@ -428,6 +428,7 @@ export const MasterclassUpgradeTab = ({
                     variant: "danger",
                     disabled: () => loading.val || bulkStatus.val === "loading",
                     tooltip: `Reset every ${title} upgrade to level 0.`,
+                    confirm: `reset every ${title} upgrade to level 0.`,
                     onClick: () => runBulkAction("reset"),
                 },
             ],
