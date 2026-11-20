@@ -220,6 +220,25 @@ test("Spelunking Caves: Add and Remove keep objects the game destroyed since the
     assert.equal(removeButtons(root).length, Spelunk[6].length);
 });
 
+test("Spelunking Caves: a Remove the game refuses says so on the row", async () => {
+    const removeButtons = (root) =>
+        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
+    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 0);
+    const kept = Spelunk[6];
+    const frozen = [...kept];
+    Object.defineProperty(Spelunk, 6, { get: () => frozen, set() {}, configurable: true });
+    try {
+        await removeButtons(root)[0].listeners.click({ preventDefault() {} });
+        await until(
+            () => removeButtons(root).some((node) => classes(node).includes("account-btn--error")),
+            "the refusal to show on a Remove button"
+        );
+        assert.equal(removeButtons(root).length, frozen.length, "the object stays listed");
+    } finally {
+        Object.defineProperty(Spelunk, 6, { value: kept, writable: true, configurable: true });
+    }
+});
+
 test("Sushi Tools: Refresh during a settings save keeps the typed setting, and the next save doesn't undo it", async () => {
     const status = { enabled: false, maxPurchaseTier: 70, maxTier: 70, working: [], reserved: [], message: "Idle" };
     router.post("/api/toggle", async (req, res) => res.json({ ok: true, message: JSON.stringify(status) }));

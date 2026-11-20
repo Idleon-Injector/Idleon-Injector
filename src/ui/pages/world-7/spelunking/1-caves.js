@@ -276,7 +276,8 @@ function SpelunkingCavesTab() {
         });
 
     // Edits start from the game's list as it is now, not the page's last read: the game adds to it as objects are
-    // destroyed. Whatever happens, the page then shows the list the game holds.
+    // destroyed. Whatever happens, the page then shows the list the game holds; an unchanged list keeps its rows, so a
+    // refused Remove keeps saying why on its row.
     const editDestroyedObjects = async (edit) => {
         mutating.val = true;
         let names = null;
@@ -288,7 +289,8 @@ function SpelunkingCavesTab() {
             throw error;
         } finally {
             mutating.val = false;
-            if (names) withPreservedScroll(() => applyDestroyedObjects(names));
+            if (names && JSON.stringify(names) !== JSON.stringify(storedObjectNames.val))
+                withPreservedScroll(() => applyDestroyedObjects(names));
         }
     };
 
