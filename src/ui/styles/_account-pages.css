@@ -419,8 +419,11 @@
     color: var(--c-warning);
 }
 
-/* A reason runs to two short lines at most, so it fits beside the field even at 400 px; the title has it all. */
-.save-state--error .save-state__label {
+/*
+ * A reason (or a slow save's notice) runs to two short lines at most, so it fits beside the field even at 400 px;
+ * the title has it all. A notice keeps the muted colour: a wait isn't a failure.
+ */
+.save-state--said .save-state__label {
     display: -webkit-box;
     width: max-content;
     max-width: 18ch;

@@ -100,19 +100,35 @@ const WardrobePage = () => {
     };
 
     // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config, read again
-    // after the session took the change. `change(wardrobe)` gets the saved wardrobe settings as they are now.
+    // after the session took the change. `change(wardrobe)` gets the saved wardrobe settings as they are now. A file
+    // that didn't take it puts the session's loadouts back, so trying again saves one loadout, not two; a list another
+    // tab saved since then (the session replaces the whole list) stays as it is. A session that can't be read is put
+    // back too, as nothing better is known.
+    // ponytail: read-then-write, so a save landing between the two is still lost; the server has no compare-and-set.
     const persist = async (change) => {
         await readSaved();
-        const wardrobe = change({ loadouts: saved.val.slice(), goldenfood: { ...goldenFood } });
+        const before = saved.val.slice();
+        const wardrobe = change({ loadouts: before.slice(), goldenfood: { ...goldenFood } });
         const result = await updateSessionConfig({ cheatConfig: { wide: { wardrobe } } });
         if (!result?.message) throw new Error("The injector didn't take the change");
-        const config = await fetchConfig();
-        if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
-        await saveConfigFile({
-            cheatConfig: config.cheatConfig,
-            startupCheats: config.startupCheats,
-            injectorConfig: config.injectorConfig,
-        });
+        try {
+            const config = await fetchConfig();
+            if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
+            await saveConfigFile({
+                cheatConfig: config.cheatConfig,
+                startupCheats: config.startupCheats,
+                injectorConfig: config.injectorConfig,
+            });
+        } catch (caught) {
+            const now = await fetchConfig().catch(() => null);
+            const submitted = JSON.stringify(wardrobe.loadouts);
+            if (!now || JSON.stringify(now.cheatConfig?.wide?.wardrobe?.loadouts) === submitted)
+                await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: before } } } }).catch(
+                    () => {}
+                );
+            await readSaved().catch(() => {});
+            throw caught;
+        }
         await readSaved();
     };
 
@@ -160,8 +176,20 @@ const WardrobePage = () => {
         }
     };
 
+    // An undo of a change made here (from Undo all or History) puts old gear back. useAccountLoad loads the page again
+    // after it, and that load first has the game work the stats out again, so it reads them as they are now.
+    const place = currentPlace();
+    let undone = reloadPlace.rawVal;
     const load = () =>
         runLoad(async () => {
+            const target = reloadPlace.rawVal;
+            if (target && target !== undone) {
+                undone = target;
+                if (target.view === place.view && target.page === place.page)
+                    await updateStats().catch((caught) =>
+                        loadoutSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`)
+                    );
+            }
             await readSaved();
             const value = await readStatus();
             await showPreview();
@@ -218,9 +246,16 @@ const WardrobePage = () => {
                 loadoutSaid.clear();
                 const shown = preview.val;
                 if (!shown) return { cancelled: true };
+                const asked = selected.val;
+                const run = previewRun;
                 const plan = await planFor();
+                // A loadout picked meanwhile isn't the one asked about: Apply stops quietly, and its preview stays.
+                if (selected.val !== asked) return { cancelled: true };
                 if (plan.fingerprint !== shown.fingerprint) {
-                    preview.val = plan;
+                    // A newer preview of this loadout (a reload after an undo, say) shows its own plan; one that failed
+                    // keeps its reason said.
+                    if (run === previewRun) preview.val = plan;
+                    else if (!preview.val && !previewing.val) return { cancelled: true };
                     loadoutSaid.say(
                         "refused",
                         "The game changed since this preview, so it shows the new plan. Apply again."
@@ -267,19 +302,42 @@ const WardrobePage = () => {
             { onError: (caught) => loadoutSaid.say("failed", caught.message) }
         );
 
+    // A save whose file save failed may still be in the session's list (another tab's list kept it): Save pressed again
+    // with that name replaces that entry, by its id, so the file gets one copy. Two loadouts may share a name, so only
+    // that attempt's entry is replaced.
+    let unsaved = null;
     const saveCurrent = () => {
         const label = name.val.trim();
         saveSaid.clear();
         if (busy()) return;
         if (!label) return saveSaid.say("refused", "Give the loadout a name first.");
         if (label.length > 80) return saveSaid.say("refused", "A name has 80 characters at most.");
-        if (saved.val.length >= MAX_SAVED)
+        if (saved.val.length >= MAX_SAVED && unsaved?.label !== label)
             return saveSaid.say("refused", `${MAX_SAVED} loadouts are saved; delete one first.`);
         const typed = name.val;
         return saveWrite.run(
             async () => {
                 const loadout = { ...(await readComputed("wardrobe", "capture")), name: label };
-                await persist((wardrobe) => ({ ...wardrobe, loadouts: [...wardrobe.loadouts, loadout] }));
+                if (unsaved?.label === label) loadout.id = unsaved.id;
+                // Counted again on the list just read: another tab may have saved meanwhile.
+                const full = `${MAX_SAVED} loadouts are saved; delete one first.`;
+                try {
+                    await persist((wardrobe) => {
+                        const loadouts = wardrobe.loadouts.some(({ id }) => id === loadout.id)
+                            ? wardrobe.loadouts.map((entry) => (entry.id === loadout.id ? loadout : entry))
+                            : [...wardrobe.loadouts, loadout];
+                        if (loadouts.length > MAX_SAVED) throw Object.assign(new Error(full), { full: true });
+                        return { ...wardrobe, loadouts };
+                    });
+                    unsaved = null;
+                } catch (caught) {
+                    if (!caught.full) {
+                        unsaved = { label, id: loadout.id };
+                        throw caught;
+                    }
+                    saveSaid.say("refused", full);
+                    return { cancelled: true };
+                }
                 // A name typed while it saved is the next one; it stays.
                 if (name.val === typed) name.val = "";
                 selected.val = loadout.id;
@@ -324,21 +382,6 @@ const WardrobePage = () => {
                 },
             }
         );
-
-    // An undo of a change made here (from Undo all or History) puts old gear back: the game works the stats out again.
-    const place = currentPlace();
-    let undone = reloadPlace.rawVal;
-    van.derive(() => {
-        const target = reloadPlace.val;
-        if (!target || target === undone) return;
-        undone = target;
-        if (target.view === place.view && target.page === place.page)
-            void updateStats()
-                .then(load)
-                .catch((caught) =>
-                    loadoutSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`)
-                );
-    });
 
     // --- View ---
 
@@ -480,6 +523,8 @@ const WardrobePage = () => {
                                 disabled: () => busy() || previewing.val || !preview.val,
                                 tooltip: "Put this loadout on the character in play",
                                 confirm: applyQuestion,
+                                // Two saved loadouts can share a name: the question is about this one's plan.
+                                confirmTargets: () => preview.val && [selected.val, preview.val.fingerprint],
                                 onClick: apply,
                             }),
                             () =>

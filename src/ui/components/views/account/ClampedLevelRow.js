@@ -66,6 +66,10 @@ export const ClampedLevelRow = ({
     return EditableNumberRow({
         valueState,
         normalize: (rawValue) => {
+            // A level the game holds above the max may come down step by step (−); Max all brings it to the max.
+            const raw = Number(rawValue);
+            if (Number.isInteger(raw) && raw > toBound(resolveValue(max), Infinity) && raw < toNum(valueState.val, 0))
+                return raw;
             const nextValue = clamp(rawValue, invalidFallback, { strict: true });
             return Number.isNaN(nextValue) ? null : nextValue;
         },
@@ -77,15 +81,21 @@ export const ClampedLevelRow = ({
         },
         renderInfo: renderInfo ?? defaultInfo,
         // The cap shows inside the field ("3 / 10"); with no finite cap the field shows the level alone.
-        cap: () => (Number.isFinite(Number(resolveValue(cap))) ? Number(resolveValue(cap)) : null),
+        cap: () => {
+            const capValue = toBound(resolveValue(cap), Infinity);
+            return Number.isFinite(capValue) ? capValue : null;
+        },
         renderBadge,
         rowClass,
         badgeClass,
         controlsClass,
         inputMode,
         adjustInput: (rawValue, delta, currentValue) => {
-            const nextValue = toNum(rawValue, toNum(currentValue, 0)) + delta;
-            return clamp(nextValue, toNum(currentValue, 0));
+            const value = toNum(rawValue, toNum(currentValue, 0));
+            // Above the max (the game counts it): + leaves it, − takes one off. Max all is what lowers it to the max.
+            if (value >= toBound(resolveValue(max), Infinity))
+                return delta > 0 ? value : Math.max(toBound(resolveValue(min), 0), value + delta);
+            return clamp(value + delta, toNum(currentValue, 0));
         },
         maxAction: resolvedMaxAction,
         renderExtraActions,

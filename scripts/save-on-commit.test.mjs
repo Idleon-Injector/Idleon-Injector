@@ -285,3 +285,31 @@ test("passing through a field that shows a rounded value keeps the exact value",
     assert.deepEqual(writesSince(start), []);
     assert.equal(ola[253], 1234567);
 });
+
+// Lumi's call (2026-11-20): Max all lowers a level above its max; − and + don't jump it there. On a level above its
+// max, + leaves it and − takes one off.
+test("on a level above its max, + leaves it and − takes one off", async () => {
+    const cap = Number(game.gga.CustomLists.h.SaltLicks[0][4]);
+    game.gga.SaltLick[0] = cap + 5;
+    const root = await openPage("src/ui/pages/world-3/salt-lick/salt-lick.js", (page) => {
+        const row = byClass(page, "account-row")[0];
+        return row && inputs(row)[0]?.attributes.value === String(cap + 5);
+    });
+    const row = byClass(root, "account-row")[0];
+    const [input] = inputs(row);
+    const step = (label) =>
+        elements(row)
+            .find((node) => node.nodeName === "button" && node.attributes["aria-label"] === label)
+            .listeners.click({ preventDefault() {}, currentTarget: null });
+    focus(input);
+    step("Raise");
+    press(row, input, "Enter");
+    await tick();
+    await tick();
+    assert.equal(game.gga.SaltLick[0], cap + 5, "+ leaves it");
+    step("Lower");
+    press(row, input, "Enter");
+    await settled(row);
+    assert.equal(game.gga.SaltLick[0], cap + 4, "− takes one off");
+    game.gga.SaltLick[0] = 0;
+});

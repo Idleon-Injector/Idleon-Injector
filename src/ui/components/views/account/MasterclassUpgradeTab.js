@@ -286,8 +286,8 @@ export const MasterclassUpgradeTab = ({
     onUpgradeChanged = null,
     onBulkChanged = null,
 }) => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: title });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
+    const { loading, error, run: runLoad } = useAccountLoad({ label: title, busy: () => bulkStatus.val === "loading" });
     const upgrades = van.state([]);
     const searchQuery = van.state("");
     const activeCurrencyTab = van.state(currencyTabs[0]?.id ?? null);
@@ -364,10 +364,8 @@ export const MasterclassUpgradeTab = ({
 
             rebuildRows(nextUpgrades);
             nextUpgrades.forEach((upgrade) => {
-                getOrCreateState(levelStates, upgrade.index).val = Math.min(
-                    upgrade.maxLevel,
-                    toInt(levels[upgrade.storageIndex], { min: 0 })
-                );
+                // The level the game holds, above the max too (the game counts it all): Max all lowers it.
+                getOrCreateState(levelStates, upgrade.index).val = toInt(levels[upgrade.storageIndex], { min: 0 });
             });
             allCurrencyFields.forEach((field, index) => {
                 getOrCreateState(currencyStates, field.key).val = toNum(rawCurrencyValues[index], 0);
