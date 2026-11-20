@@ -283,8 +283,12 @@ const CompanionsTab = () => {
         return null;
     };
 
+    // A write started since this read began is newer than what it read: the read drops its answer.
+    let selectionWrites = 0;
     const readSelection = async (read = fetchConfig()) => {
+        const writes = selectionWrites;
         const [config, cheatStates] = await Promise.all([read, fetchCheatStates()]);
+        if (writes !== selectionWrites) return;
         const validIdSet = new Set(companions.val.map((companion) => companion.id));
         cheatEnabled.val = !!cheatStates?.data?.w1?.companion;
         const configured = config?.cheatConfig?.w1?.companion?.companions ?? "";
@@ -332,6 +336,7 @@ const CompanionsTab = () => {
     const writeSelection = (getChange) =>
         runWrite(
             async () => {
+                selectionWrites++;
                 writeError.val = "";
                 if (error.val || !companions.val.length) throw new Error("Refresh pet data before changing tiers");
                 // The tokens first: the saved tiers are read against them (a pet with a token has no tier).

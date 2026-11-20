@@ -113,3 +113,44 @@ test("a pet choice the game didn't take is said on the page, and its card shows 
         routes.set("/api/config/save", save);
     }
 });
+
+// Review of #147: the read after a failed save could answer after a newer save and put the older choice back.
+test("the read after a failed pet save can't put back what a newer save changed", async () => {
+    await until(() => plainPets().length >= 2, "two unselected pets");
+    const [failing, chosen] = plainPets();
+    const wrapOf = (pet) => byClass(page, "companion-card-wrap").find((card) => card.childNodes.includes(pet));
+    const { POST, GET } = router.routes;
+    const save = POST.get("/api/config/save");
+    const config = GET.get("/api/config");
+    let failed = false;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    POST.set("/api/config/save", async (req, res) => {
+        failed = true;
+        res.status(500).json({ error: "The disk is full" });
+    });
+    // The first read after the failure answers with the config as it was then, but only once released.
+    GET.set("/api/config", async (req, res) => {
+        if (!failed) return config(req, res);
+        failed = false;
+        let answer;
+        const capture = { status: () => capture, json: (data) => (answer = structuredClone(data)) };
+        await config(req, capture);
+        await held;
+        return res.json(answer);
+    });
+    try {
+        failing.listeners.click({});
+        await until(() => /The disk is full/.test(text(page)), "the failed save's reason");
+        POST.set("/api/config/save", save);
+        await saved(() => chosen.listeners.click({}));
+        await until(() => !/NOT SELECTED/.test(text(wrapOf(chosen))), "the newer save's card to show it");
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.doesNotMatch(text(wrapOf(chosen)), /NOT SELECTED/, "the older read is dropped");
+    } finally {
+        release();
+        POST.set("/api/config/save", save);
+        GET.set("/api/config", config);
+    }
+});

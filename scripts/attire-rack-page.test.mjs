@@ -903,3 +903,28 @@ test("a stat update one character owes isn't cleared by another character's upda
     await until(() => !/save-state--error/.test(saveState(main)), "Main's reason to go once its stats ran");
     gga.EquipmentOrder[0][15] = live;
 });
+
+// Review of #147: a click built its change from the choice it read before the save's turn, so a choice saved in
+// between (the Config page, another tab) was lost; it's now built from the config read in the save's turn.
+test("a card click keeps an outfit choice saved elsewhere between its read and its save", async (t) => {
+    await saveToSession(router, { cheatConfig: { wide: { attire: { outfits: "EquipmentGown4" } } } });
+    const root = await open();
+    const config = router.routes.GET.get("/api/config");
+    let reads = 0;
+    router.routes.GET.set("/api/config", async (req, res) => {
+        let answer;
+        const capture = { status: () => capture, json: (data) => (answer = structuredClone(data)) };
+        await config(req, capture);
+        // The click's first read has its answer; another page's save lands before the save's turn reads again.
+        if (++reads === 1)
+            await saveToSession(router, {
+                cheatConfig: { wide: { attire: { outfits: "EquipmentGown4,EquipmentGown5" } } },
+            });
+        return res.json(answer);
+    });
+    t.after(() => router.routes.GET.set("/api/config", config));
+
+    await card(root, names[2]).listeners.click({});
+    await until(() => pressed(root, names[2]), "the card to show on");
+    assert.equal(await savedOutfits(), "EquipmentGown3,EquipmentGown4,EquipmentGown5");
+});

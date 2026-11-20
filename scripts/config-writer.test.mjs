@@ -115,10 +115,11 @@ test("a part save keeps a new key of a map a page fills, and still drops setting
     useInstall(t);
     const { config } = start();
     await config.saveConfiguration({
-        cheatConfig: { wide: { wardrobe: { goldenfood: { New_Char: 5 } } }, nosuch: { setting: 1 } },
+        // A key every object inherits (constructor) is kept too.
+        cheatConfig: { wide: { wardrobe: { goldenfood: { New_Char: 5, constructor: 7 } } }, nosuch: { setting: 1 } },
     });
     const cheatConfig = start().config.getCheatConfig();
-    assert.deepEqual(cheatConfig.wide.wardrobe.goldenfood, { New_Char: 5 });
+    assert.deepEqual({ ...cheatConfig.wide.wardrobe.goldenfood }, { New_Char: 5, constructor: 7 });
     assert.equal(cheatConfig.nosuch, undefined);
 });
 

@@ -244,7 +244,8 @@ const validateConfig = (target, source, prefix = "") => {
         if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
 
         const fullPath = prefix ? `${prefix}.${key}` : key;
-        const targetValue = target[key];
+        // Own keys only: a saved map key such as "constructor" isn't checked against what every object inherits.
+        const targetValue = Object.prototype.hasOwnProperty.call(target, key) ? target[key] : undefined;
         const sourceValue = source[key];
 
         // Only validate if the key exists in the default config

@@ -117,22 +117,25 @@ const AttireRackPage = () => {
 
     // A choice saved since this read began is newer than what it read: the read drops its answer.
     let choiceSaves = 0;
+    // The outfits a config gives: "all", or the known ids of its comma-separated list.
+    const chosenIn = (config) => {
+        const saved = config?.cheatConfig?.wide?.attire?.outfits ?? "all";
+        const ids = outfits.val.map(({ id }) => id);
+        if (saved === "all") return new Set(ids);
+        return new Set(
+            String(saved)
+                .split(",")
+                .map((id) => id.trim())
+                .filter((id) => ids.includes(id))
+        );
+    };
     const readChoice = async (read = fetchConfig()) => {
         const saves = choiceSaves;
         const [config, cheatStates] = await Promise.all([read, fetchCheatStates()]);
         if (saves !== choiceSaves) return;
         enabled.val = Boolean(cheatStates?.data?.wide?.attire);
-        const saved = config?.cheatConfig?.wide?.attire?.outfits ?? "all";
-        const ids = outfits.val.map(({ id }) => id);
-        allChosen.val = saved === "all";
-        chosen.val = new Set(
-            allChosen.val
-                ? ids
-                : String(saved)
-                      .split(",")
-                      .map((id) => id.trim())
-                      .filter((id) => ids.includes(id))
-        );
+        allChosen.val = (config?.cheatConfig?.wide?.attire?.outfits ?? "all") === "all";
+        chosen.val = chosenIn(config);
     };
 
     // `next(chosen)`: the outfits to give, from the saved choice. Built after a fresh read, so a choice saved from the
@@ -143,16 +146,20 @@ const AttireRackPage = () => {
                 choiceSaid.clear();
                 await readChoice();
                 const ids = outfits.val.map(({ id }) => id);
-                const wanted = next(new Set(chosen.val));
-                const value =
-                    ids.length && ids.every((id) => wanted.has(id))
-                        ? "all"
-                        : ids.filter((id) => wanted.has(id)).join(",");
+                let value;
                 // Chosen outfits also turn the cheat on at every start; none takes it off that list.
-                const { result, config } = await saveConfigPart(({ startupCheats }) => ({
-                    cheatConfig: { wide: { attire: { outfits: value } } },
-                    startupCheats: startupWith(startupCheats, ATTIRE_CHEAT, value !== ""),
-                }));
+                const { result, config } = await saveConfigPart((now) => {
+                    // From the config as it is in the save's turn, so a choice saved meanwhile isn't overwritten.
+                    const wanted = next(chosenIn(now));
+                    value =
+                        ids.length && ids.every((id) => wanted.has(id))
+                            ? "all"
+                            : ids.filter((id) => wanted.has(id)).join(",");
+                    return {
+                        cheatConfig: { wide: { attire: { outfits: value } } },
+                        startupCheats: startupWith(now.startupCheats, ATTIRE_CHEAT, value !== ""),
+                    };
+                });
                 if (result.message.includes("kept its old settings")) throw new Error(result.message);
                 await executeCheatAction(ATTIRE_CHEAT, value !== "");
                 choiceSaves++;
