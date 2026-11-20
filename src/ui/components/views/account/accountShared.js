@@ -1,7 +1,7 @@
 /** Shared hooks and helpers for account feature tabs. */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { gga, ggaMany, readCList } from "../../../services/api.js";
+import { gga, ggaMany, readCList, readGgaMany } from "../../../services/api.js";
 import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
@@ -272,6 +272,25 @@ const writeManyLogged = async (writes, change, character) => {
     );
     error.results = result.results;
     throw error;
+};
+
+/**
+ * A row's save: write only the fields that changed (the game moves the rest on while the page is open), then
+ * read the rest back, so the row shows what the game holds beside its ✓. Each field's `fromGame(raw)` turns a
+ * read into the value the page shows, as its load does.
+ */
+export const writeChangedFields = async (fields, nextValues) => {
+    const changed = fields.filter((field) => nextValues[field.key] !== field.valueState.val);
+    await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
+    const rest = fields.filter((field) => !changed.includes(field));
+    if (!rest.length) return nextValues;
+    // The save landed, so a failed read keeps the values shown instead of calling the save failed.
+    const reads = await readGgaMany(rest.map((field) => field.path)).catch(() => []);
+    const values = { ...nextValues };
+    rest.forEach((field, i) => {
+        if (reads[i]?.ok) values[field.key] = field.fromGame(reads[i].value);
+    });
+    return values;
 };
 
 const toWriteEntries = (writeOrWrites) => {

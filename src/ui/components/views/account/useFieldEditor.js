@@ -62,11 +62,13 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const getDrafts = () => Object.fromEntries(fields.map((field) => [field.key, getDraftValue(field.key)]));
     const isDisabled = () => Boolean(resolveValue(disabled));
 
-    // Show the stored value again in each field still holding what was submitted; a draft typed since (while the save
-    // waited or ran) is the next save, so it stays.
+    // Show the stored value again in each field still holding what was submitted, or what the page last showed it
+    // (an earlier save's read-back); a draft typed since (while the save waited or ran) is the next save, so it stays.
     const resetSubmitted = (submitted) =>
         fields.forEach((field) => {
-            if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
+            const draft = getDraftValue(field.key);
+            if (draft === submitted[field.key] || (!edited.has(field.key) && draft === shownByKey.get(field.key)))
+                resetDraft(field.key);
         });
 
     // The drafts of the newest save that started: a commit made while it runs compares with them too.
