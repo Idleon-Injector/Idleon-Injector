@@ -5,7 +5,8 @@ import { BulkActionBar } from "./BulkActionBar.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
 import { cleanName, createStaticRowReconciler, useWriteStatus, writeVerified } from "./accountShared.js";
 import { AccountRow } from "./components/AccountRow.js";
-import { ActionButton } from "./components/ActionButton.js";
+import { StateSwitch } from "./components/StateSwitch.js";
+import { EmptyState } from "../../EmptyState.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 import { clickAgain } from "../../inPlace.js";
 
@@ -26,6 +27,11 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
     const listNode = div({ class: "account-item-stack account-item-stack--dense" });
     const reconcileRows = createStaticRowReconciler(listNode);
     let searchInputEl = null;
+
+    // The game's words for an item's state, and what the switch does.
+    const greenstack = historyPath === "GreenStacks";
+    const onWords = greenstack ? ["Greenstacked", "Not greenstacked"] : ["Registered", "Missing"];
+    const [onVerb, offVerb] = greenstack ? ["Greenstack", "Remove the greenstack of"] : ["Register", "Unregister"];
 
     const onSearchInput = debounce((value) => {
         query.val = value;
@@ -170,26 +176,27 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                 span({ class: "account-row__name" }, () => state.name.val),
                 span({ class: "account-row__sub-label" }, itemId)
             ),
-            badge: span({ role: "status", "aria-live": "polite", "aria-atomic": "true" }, () => {
-                const status = state.write.status.val;
-                return status === "loading"
-                    ? "SAVING"
-                    : status === "success"
-                      ? "SAVED"
-                      : status === "error"
-                        ? "FAILED"
-                        : state.registered.val
-                          ? "REGISTERED"
-                          : "MISSING";
-            }),
-            controls: ActionButton({
-                label: () => (state.registered.val ? "Unregister" : "Register"),
-                variant: () => (state.registered.val ? "danger" : "quiet"),
-                status: state.write.status,
-                disabled: cannotWrite,
-                tooltip: () => `${state.registered.val ? "Unregister" : "Register"} ${state.name.val}`,
-                onClick: () => setItem(itemId, !state.registered.val),
-            }),
+            // One switch with the game's words (#26); the status words are for screen readers.
+            controls: [
+                span({ class: "account-write-feedback", role: "status", "aria-live": "polite" }, () => {
+                    const status = state.write.status.val;
+                    return status === "loading"
+                        ? "Saving"
+                        : status === "success"
+                          ? "Saved"
+                          : status === "error"
+                            ? "Failed"
+                            : "";
+                }),
+                StateSwitch({
+                    checked: state.registered,
+                    words: onWords,
+                    name: () => state.name.val,
+                    disabled: () => loading.val || Boolean(error.val) || !entries.val.length,
+                    title: () => `${state.registered.val ? offVerb : onVerb} ${state.name.val}`,
+                    onFlip: (registered) => setItem(itemId, registered),
+                }),
+            ],
         });
         return div(
             {
@@ -301,26 +308,25 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                         : "";
             })
         ),
+        toolbar: [
+            searchInputEl,
+            select(
+                {
+                    class: "select-base",
+                    "aria-label": `${label} registration filter`,
+                    value: filter,
+                    onchange: (event) => (filter.val = event.target.value),
+                },
+                option({ value: "all" }, "All"),
+                option({ value: "registered" }, onWords[0]),
+                option({ value: "missing" }, onWords[1])
+            ),
+        ],
         state: { loading, error },
         loadingText: `READING ${label.toUpperCase()}`,
         errorTitle: `${label.toUpperCase()} READ FAILED`,
         body: div(
             { class: "scrollable-panel content-stack" },
-            div(
-                { class: "item-registration-filters" },
-                searchInputEl,
-                select(
-                    {
-                        class: "select-base",
-                        "aria-label": `${label} registration filter`,
-                        value: filter,
-                        onchange: (event) => (filter.val = event.target.value),
-                    },
-                    option({ value: "all" }, "All"),
-                    option({ value: "registered" }, historyPath === "GreenStacks" ? "Greenstacked" : "Registered"),
-                    option({ value: "missing" }, historyPath === "GreenStacks" ? "Not greenstacked" : "Missing")
-                )
-            ),
             div({ class: "account-section__note item-registration-summary", role: "status" }, () => {
                 const search = normalizedQuery.val;
                 const status = filter.val;
@@ -335,7 +341,15 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                 return `${registered} registered / ${entries.val.length - registered} missing catalog items · ${historyCount.val} total history entries · ${matching} matching`;
             }),
             div({ class: "write-status write-status--error", role: "alert" }, () => message.val),
-            listNode
+            listNode,
+            div(
+                {
+                    hidden: () =>
+                        !entries.val.length ||
+                        entries.val.some((itemId) => matches(itemId, normalizedQuery.val, filter.val)),
+                },
+                EmptyState({ title: "NO MATCHING ITEMS", subtitle: "No items matched your search and filter." })
+            )
         ),
     });
 };

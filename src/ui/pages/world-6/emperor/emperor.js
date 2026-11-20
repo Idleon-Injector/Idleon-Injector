@@ -340,7 +340,6 @@ const EmperorTab = () => {
             span({ class: "account-row__name" }, "Completed showdowns"),
             span({ class: "account-row__sub-label" }, `0–${PROGRESS_LIMIT}, numeric safety ceiling`)
         ),
-        badge: () => String(snapshot.val?.progress ?? "—"),
         controls: [
             SaveState(progressWrite),
             progressInput,
