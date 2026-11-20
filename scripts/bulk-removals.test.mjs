@@ -156,6 +156,7 @@ const removals = [
     ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear all"],
     ["src/ui/pages/world-1/pets/pets.js", "Clear Pets+"],
+    ["src/ui/pages/account/event-shop/event-shop.js", "Disable all"],
 ];
 
 for (const [file, label, open] of removals) {
@@ -269,6 +270,7 @@ for (const [file, label] of [
     ["src/ui/pages/world-1/bribes/bribes.js", "Enable all"],
     ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Enable all"],
     ["src/ui/pages/world-3/prayers/prayers.js", "Unlock all"],
+    ["src/ui/pages/account/event-shop/event-shop.js", "Enable all"],
 ]) {
     test(`${file.split("/").pop()}: ${label} adds on one click`, async () => {
         const button = await openPage(file, label);
@@ -518,7 +520,11 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
             () => bulk().every((node) => !node.attributes.disabled) && levelShown(root, 0) === String(caps[0] + 5),
             "Salt Lick"
         );
-        const reread = holdNext((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        // Max all reads the levels first to plan its writes; the read after its refusal is the second one.
+        let reads = 0;
+        const reread = holdNext(
+            (url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick" && ++reads === 2
+        );
         const pressed = click(named("Max all")[0]);
         await until(() => reread.reached, "the read after the refused Max all");
         reread.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));

@@ -32,6 +32,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     cleanName,
+    oneAtATime,
     sortPrefixedNumericCodes,
     writeManyVerified,
     writeVerified,
@@ -65,7 +66,7 @@ const normalizeExaltedCodes = (rawCodes) =>
 
 const makeExaltedStampCode = (page, order) => `${EXALTED_PAGE_PREFIXES[page] ?? "_"}${order}`;
 
-const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedCodes, writeExaltedCodes }) => {
+const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedCodes, setExalted }) => {
     const stampCode = makeExaltedStampCode(page, order);
     const isExalted = van.derive(() => exaltedCodes.val.has(stampCode));
 
@@ -96,14 +97,7 @@ const StampRow = ({ page, order, name, step, levelState, maxLevelState, exaltedC
                 title: `Exalted stamp (${stampCode})`,
                 // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
                 ownStatus: true,
-                onFlip: (exalted) =>
-                    run(async () => {
-                        const next = new Set(exaltedCodes.val);
-                        if (exalted) next.add(stampCode);
-                        else next.delete(stampCode);
-                        await writeExaltedCodes(next);
-                        exaltedCodes.val = next;
-                    }, "switch"),
+                onFlip: (exalted) => setExalted(stampCode, exalted, run),
             }),
             ActionButton({
                 label: "Relock",
@@ -132,10 +126,29 @@ const StampsTab = () => {
         return grid[page][order];
     };
 
-    const writeExaltedCodes = async (codeSet) => {
-        const ordered = normalizeExaltedCodes(codeSet).sort(sortPrefixedNumericCodes);
-        await writeVerified("Compass[4]", ordered);
-    };
+    const readExaltedCodes = async () => (exaltedCodes.val = new Set(normalizeExaltedCodes(await gga("Compass[4]"))));
+
+    // Every exalted stamp lives in one list, so flips save one at a time, each from the list the game holds now:
+    // a stamp exalted in the game, or by a flip still saving, isn't written over.
+    // The row's run is asked at once, so a level committed after the flip on that row still saves after it.
+    const inTurn = oneAtATime();
+    const setExalted = (code, exalted, run) =>
+        run(
+            () =>
+                inTurn(async () => {
+                    try {
+                        const next = new Set(normalizeExaltedCodes(await gga("Compass[4]")));
+                        if (exalted) next.add(code);
+                        else next.delete(code);
+                        await writeVerified("Compass[4]", [...next].sort(sortPrefixedNumericCodes));
+                        exaltedCodes.val = next;
+                    } catch (error) {
+                        await readExaltedCodes().catch(() => {}); // the switch then shows what the game holds
+                        throw error;
+                    }
+                }),
+            "switch"
+        );
 
     const pageContainers = renderPersistentPagePanes({
         tabs: PAGES,
@@ -201,7 +214,7 @@ const StampsTab = () => {
                         levelState: getCellState(levelStatesByPage, page, i),
                         maxLevelState: getCellState(maxLevelStatesByPage, page, i),
                         exaltedCodes,
-                        writeExaltedCodes,
+                        setExalted,
                     });
                 });
 

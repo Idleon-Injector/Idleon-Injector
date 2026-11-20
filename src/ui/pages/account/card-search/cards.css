@@ -39,7 +39,7 @@
     gap: 9px;
     min-height: 46px;
     min-width: 0;
-    padding: 7px 170px 7px 12px;
+    padding: 7px 210px 7px 12px;
     color: var(--c-text-main);
     cursor: pointer;
     list-style: none;
@@ -163,10 +163,18 @@
     opacity: 0.55;
 }
 
-.card-region__tier-select {
+/* A region's tier pick and its Set all, at the right of the header. */
+.card-region__tier {
     position: absolute;
     top: 7px;
     right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card-region__tier-select {
+    width: 110px;
 }
 
 .card-tier-select--loading {
@@ -189,4 +197,14 @@
         flex-wrap: wrap;
         justify-content: flex-end;
     }
+}
+
+/* Why a region's tier pick failed, under its header. Empty, it takes no room. */
+.card-region__said {
+    margin: 0;
+    padding: 0 12px 10px;
+}
+
+.card-region__said.said--empty {
+    position: absolute;
 }

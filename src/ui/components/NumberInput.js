@@ -208,8 +208,11 @@ export const NumberInput = ({
 
         const show = (nextValue) => {
             inputEl.value = formatter(nextValue);
-            if (isFocused) liveRawByState.set(value, inputEl.value);
-            else liveRawByState.delete(value);
+            if (isFocused) {
+                liveRawByState.set(value, inputEl.value);
+                // Shown, not typed: leaving it as it is keeps the exact value behind it.
+                shownOnFocus = inputEl.value;
+            } else liveRawByState.delete(value);
         };
         show(value.val);
         focusedValueSetters.set(value, show);

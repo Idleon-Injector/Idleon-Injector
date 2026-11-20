@@ -396,7 +396,7 @@ const PrayersTab = () => {
             disabled: () => loading.val || Boolean(error.val) || !snapshot.val,
             rowClass: "prayer-row account-row--wide-controls",
             inputProps: { "aria-label": `${cleanName(metadata.val[0])} level` },
-            maxAction: { label: "Max", value: Number.MAX_SAFE_INTEGER },
+            maxAction: { label: "Max", value: () => Number(metadata.val[9]) },
             renderInfo: () =>
                 div(
                     { class: "account-row__name-group" },
