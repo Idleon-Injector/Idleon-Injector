@@ -213,13 +213,40 @@ const startup = () => fileStartup;
 const fileShops = () => saves.findLast((body) => body.cheatConfig)?.cheatConfig.automation.shops;
 const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation shops").on;
 
+// Every automation the game declares, in the overview's order.
+const ALL_LABELS = [
+    "Bubba",
+    "Bubbles",
+    "Orion",
+    "Poppy",
+    "Tar Pit",
+    "Construction",
+    "Cooking",
+    "Grimoire",
+    "Shops",
+    "Sneaking",
+    "Summoning",
+];
+const ALL_CHEATS = [
+    "automation bubba",
+    "automation bubbles",
+    "automation orion",
+    "automation poppy",
+    "automation tarpit",
+    "automation construction",
+    "automation cooking",
+    "automation grimoire",
+    "automation shops",
+    "automation sneaking",
+    "automation summoning",
+];
 const overview = (await importRepo("src/ui/pages/account/automation/1-overview.js")).default.component();
 await until(() => row(overview, "Shops"), "the overview to list Shops");
 
 test("the overview lists the automation toggles only, each with its status", () => {
     assert.deepEqual(
         byClass(overview, "account-row__name").map(text),
-        ["Shops"],
+        ALL_LABELS,
         "Sushi Auto Play and autoboss are not automation toggles"
     );
     assert.equal(text(byClass(row(overview, "Shops"), "automation-row__status")[0]), "Off");
@@ -249,7 +276,7 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
     await until(() => button(overview, "Enable all"), "Enable all");
     await button(overview, "Enable all").listeners.click({ preventDefault() {} });
     await until(() => shopsOn() && button(overview, "Disable all"), "every automation to run");
-    assert.deepEqual(startup(), ["automation shops"]);
+    assert.deepEqual(startup(), ALL_CHEATS);
 
     const since = commands.length;
     const disable = button(overview, "Disable all");
@@ -261,7 +288,10 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
 
     await disable.listeners.click({ preventDefault() {} });
     await until(() => !shopsOn(), "the automation to stop");
-    assert.deepEqual(commands.slice(since), [["automation shops", false]]);
+    assert.deepEqual(
+        commands.slice(since),
+        ALL_CHEATS.map((cheat) => [cheat, false])
+    );
     assert.deepEqual(startup(), []);
 });
 
@@ -1008,10 +1038,10 @@ test("round 4: Enable all after switching one automation off switches it back on
         .filter(({ on }) => on)
         .map(({ id }) => id)
         .sort();
-    assert.deepEqual(on, ["account.automation.shops", "test.kit"], "Enable all, clicked after the Off, switches both");
-    assert.deepEqual(fileStartup.sort(), ["automation shops", "automation testkit"]);
-    switchAutomation("account.automation.shops", false);
-    switchAutomation("test.kit", false);
+    const every = getAutomations().filter(({ cheat }) => cheat.startsWith("automation "));
+    assert.deepEqual(on, every.map(({ id }) => id).sort(), "Enable all, clicked after the Off, switches every one");
+    assert.deepEqual(fileStartup.sort(), [...ALL_CHEATS, "automation testkit"].sort());
+    for (const { id } of every) switchAutomation(id, false);
 });
 
 // A second reader's review of 9a3241c.
