@@ -441,3 +441,28 @@ test("Printer's reload after an undo elsewhere keeps an unsaved draft", async ()
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.equal(select.value, draft, "the draft is still there");
 });
+
+test("History's Undo stays in place, marked busy, while it runs", async () => {
+    const { History } = await importRepo("src/ui/components/views/History.js");
+    await withAction({ label: "test" }, () => writeVerified("OptionsListAccount[254]", ola[254] + 1));
+    store.app.activeTab = "history-tab";
+    const root = History();
+    const { actions } = await fetchChanges();
+    await until(() => byClass(root, "change-group").length === actions.length, "History to list the log");
+    const [button] = byClass(byClass(root, "change-group")[0], "change-group__button");
+    const realFetch = globalThis.fetch;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    globalThis.fetch = async (...args) => (await held, realFetch(...args));
+    const undoing = button.listeners.click({});
+    try {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        assert.equal(button.attributes.hidden, false, "still there, so focus stays on it");
+        assert.equal(button.attributes["aria-disabled"], "true");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    await undoing;
+    await until(() => button.attributes["aria-disabled"] === "false", "Undo to finish");
+});

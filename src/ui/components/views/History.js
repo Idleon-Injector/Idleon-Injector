@@ -105,7 +105,9 @@ const Group = (data) => {
                     {
                         type: "button",
                         class: "undo-all__button change-group__button",
-                        hidden: () => !left().length || state.val === "loading",
+                        // Stays while it runs (busy, not gone), so a refusal leaves focus where it was.
+                        hidden: () => !left().length,
+                        "aria-disabled": () => String(state.val === "loading"),
                         title: () =>
                             `Put back the ${left().length === 1 ? "value" : `${left().length} values`} this changed`,
                         onclick: () => void undo(),
