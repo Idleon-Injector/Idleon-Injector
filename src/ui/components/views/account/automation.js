@@ -8,6 +8,29 @@
  * the player asked: item saves, automation switches, startup changes, bulk actions and the pages' reads. Nothing runs
  * alongside anything else, so each step's own read-back is the truth when it lands. Only what the player clicked or
  * typed shows ahead of the game, and only until its step runs.
+ *
+ * The plug-in API, for a system's automation tab:
+ *
+ *   const automation = van.state(null);                     // the system's entry from readAutomations()
+ *   const picks = createAutomationPicks("sneaking", { cheat: "automation sneaking", entry: automation });
+ *       Its items, cheatConfig.automation.sneaking. Each save is a step: it sends the list to the game, then the
+ *       file, reads back what the game holds, and, when the game now runs an item the save switched on, turns the
+ *       automation on (now and at start) and reads its entry back into `entry`. Returns { get(id), sync(entries,
+ *       since), set(id, patch), setAll(ids, on), resave(), edits(), fileBehind() }.
+ *   PickRow({ picks, id, name, badge })                      // an item: stop-at (Enter or leaving it) and switch
+ *   AutomationRow({ entry: automation, onSwitched: load })   // the system's own switch and status line
+ *   const load = () => run(() => inTurn(async () => {        // a page's read is a step too (run: useAccountLoad)
+ *       const since = picks.edits();
+ *       const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);   // direct reads only
+ *       showAutomation(automation, list.find(({ cheat }) => cheat === CHEAT) ?? null);
+ *       picks.sync(config.cheatConfig.automation.sneaking, since);
+ *       error.val = null;                                    // the newest read worked: an older failure goes
+ *   }));
+ *   switchAutomation(cheat, on), ensureOn(cheat), switchAll(on)   // queued switches, for buttons
+ *
+ * Inside a step, call the game and the file directly (readAutomations, readComputed, fetchConfig, ...): never await
+ * inTurn, switchAutomation, ensureOn, switchAll or a page's queued load, which would wait for the step itself. A step
+ * that takes longer than `steps.timeoutMs` is given up with a plain reason, so the pages carry on.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -26,21 +49,26 @@ import { Said, useSaid } from "../../inPlace.js";
 
 const { div, input, label, span } = van.tags;
 
-/** Every automation, with its status while it runs. Read it inside a step (`inTurn`) to get a settled answer. */
+/** Every automation, with its status while it runs. A direct read: inside a step it gives the settled answer. */
 export const readAutomations = () => readComputed("automation", "list");
 
-let queue = Promise.resolve();
-// While an item save queues its follow-up (`onTurnedOn`), the steps that follow-up asks for run only if the game took
-// the item: a promise of true or false, set for the length of that synchronous call.
-let onlyIf = null;
+/** How long a step may take before it is given up (neither the game bridge nor the API calls time out). */
+export const steps = { timeoutMs: 30000 };
 
-/**
- * Run `task` as the next step in the pages' one queue; resolves or rejects with it. A step never waits on another
- * queued step (that one would wait for it in turn): it calls the game and the file directly.
- */
+let queue = Promise.resolve();
+
+/** Run `task` as the next step in the pages' one queue; resolves or rejects with it. */
 export const inTurn = (task) => {
-    const gate = onlyIf;
-    const run = queue.then(async () => (gate && !(await gate) ? undefined : task()));
+    const run = queue.then(() => {
+        let timer;
+        const late = new Promise((resolve, reject) => {
+            timer = setTimeout(
+                () => reject(new Error(`no answer after ${steps.timeoutMs / 1000} s, so it was given up; try again`)),
+                steps.timeoutMs
+            );
+        });
+        return Promise.race([Promise.resolve().then(task), late]).finally(() => clearTimeout(timer));
+    });
     queue = run.catch(() => {});
     return run;
 };
@@ -59,16 +87,19 @@ const switchNow = async (cheat, on) => {
     await changeStartup(cheat, on);
 };
 
+const findAutomation = async (cheat) =>
+    (await readAutomations()).find((automation) => automation.cheat === cheat) ?? null;
+
+const ensureNow = async (cheat) => {
+    if (!(await findAutomation(cheat))?.on) await executeCheatAction(cheat, true);
+    await changeStartup(cheat, true);
+};
+
 /** Turn an automation on or off, now and at every start. */
 export const switchAutomation = (cheat, on) => inTurn(() => switchNow(cheat, on));
 
 /** Make sure an automation runs, now and at every start; one already running is only put in the startup cheats. */
-export const ensureOn = (cheat) =>
-    inTurn(async () => {
-        const running = (await readAutomations()).find((automation) => automation.cheat === cheat)?.on;
-        if (!running) await executeCheatAction(cheat, true);
-        await changeStartup(cheat, true);
-    });
+export const ensureOn = (cheat) => inTurn(() => ensureNow(cheat));
 
 /**
  * Switch every automation on or off, now and at every start: those off now or at start (a startup save that failed,
@@ -86,9 +117,17 @@ export const switchAll = (on) =>
         if (failure) throw failure;
     });
 
+// An automation's entry state -> its switch clicks whose step hasn't run yet; until then it shows the click.
+const clicksAhead = new WeakMap();
+
+/** Show a read of an automation's entry, unless a click on its switch is still waiting for its step. */
+export const showAutomation = (entry, found) => {
+    if (!clicksAhead.get(entry)) entry.val = found;
+};
+
 /**
  * One row per automation: its name, what it is doing, and its switch. `entry` is a state holding the game's
- * entry; `onSwitched` reads it back after a switch (it is queued after the switch, so it reads what the switch did).
+ * entry; `onSwitched` reads it back after a switch (queue it: it then reads what the switch did).
  */
 export const AutomationRow = ({ entry, onSwitched = null }) => {
     const { status, run } = useWriteStatus();
@@ -101,13 +140,19 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
         checked: () => entry.val.on,
         onchange: (e) => {
             const on = e.target.checked;
+            const cheat = entry.val.cheat;
+            said.clear(); // a new try: the last failure goes
             entry.val = { ...entry.val, on }; // what the player clicked, until the read-back
+            clicksAhead.set(entry, (clicksAhead.get(entry) ?? 0) + 1);
             // Clicks finish in the order they were made, so the newest click's outcome is the one left showing.
             void run(
                 async () => {
                     let failed = false;
                     try {
-                        await switchAutomation(entry.val.cheat, on);
+                        await inTurn(() => {
+                            clicksAhead.set(entry, clicksAhead.get(entry) - 1);
+                            return switchNow(cheat, on);
+                        });
                     } catch (error) {
                         failed = true;
                         throw error;
@@ -147,11 +192,10 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
  * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, kept as states by id.
  * An edit shows at once and queues a step that sends the whole list to the game, then the file, then reads back what
  * the game holds and shows it (items with a step of their own still queued keep showing what the player asked).
- * `onTurnedOn` is called when the player switches an item on; the steps it asks for (switchAutomation, ensureOn) are
- * queued right behind the save and run only if the game ended up running an item that save switched on, so a switch
- * the player clicks after the item still wins.
+ * With `cheat`, the same step then turns that automation on (now and at start) when the game runs an item the save
+ * switched on, and reads its entry back into `entry` (a state, for its AutomationRow).
  */
-export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
+export const createAutomationPicks = (group, { cheat = null, entry = null } = {}) => {
     const items = new Map();
     let edits = 0; // counts edits, so a read taken before one can be told apart
     const fileBehind = van.state(false); // the game took the last list, the config file didn't
@@ -170,7 +214,7 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
     // Show what the game holds, except for items whose own step hasn't run yet. A field showing other text than the
     // value it replaces holds the player's typing: it stays.
     const show = (entries) => {
-        const byId = new Map(entries.map((entry) => [String(entry.id), entry]));
+        const byId = new Map(entries.map((item) => [String(item.id), item]));
         for (const id of byId.keys()) get(id);
         for (const [id, item] of items) {
             if (item.ahead) continue;
@@ -205,8 +249,7 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             item.ahead++;
         }
         const switched = patches.filter(([, patch]) => patch.on).map(([id]) => id);
-        let runs = false; // the game runs an item this save switched on
-        const step = inTurn(async () => {
+        return inTurn(async () => {
             for (const [id] of patches) get(id).ahead--;
             let failure = null;
             let took = false;
@@ -230,27 +273,21 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
             const read = await fetchConfig().catch(() => null);
             const held = read?.cheatConfig.automation[group];
             if (held) show(held);
-            runs = held
-                ? switched.some((id) => held.some((entry) => entry.id === id && entry.on))
+            const runs = held
+                ? switched.some((id) => held.some((item) => item.id === id && item.on))
                 : took && switched.length > 0;
-            if (failure) throw failure;
-        });
-        let followUp = null;
-        if (switched.length && onTurnedOn) {
-            onlyIf = step.then(
-                () => runs,
-                () => runs
-            );
-            try {
-                followUp = onTurnedOn();
-            } finally {
-                onlyIf = null;
+            // The game runs an item this save switched on: the automation goes on with it, in this same step, so a
+            // switch the player clicks after the item still wins. The save's own failure comes first.
+            if (cheat && runs) {
+                try {
+                    await ensureNow(cheat);
+                } catch (error) {
+                    failure ??= error;
+                }
+                const found = await findAutomation(cheat).catch(() => undefined);
+                if (entry && found !== undefined) showAutomation(entry, found);
             }
-        }
-        // The save's own failure comes first; a follow-up's failure is said when the save itself worked.
-        return Promise.allSettled([step, followUp]).then(([saved, followed]) => {
-            if (saved.status === "rejected") throw saved.reason;
-            if (followed.status === "rejected") throw followed.reason;
+            if (failure) throw failure;
         });
     };
 

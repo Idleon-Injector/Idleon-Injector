@@ -23,9 +23,9 @@ import {
     AutomationRow,
     PickRow,
     createAutomationPicks,
-    ensureOn,
     inTurn,
     readAutomations,
+    showAutomation,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -42,14 +42,11 @@ const ShopsPage = () => {
     // Queued like everything else, so it reads what the steps before it did.
     const readSwitch = () =>
         inTurn(async () => {
-            automation.val = await findShops();
+            showAutomation(automation, await findShops());
         });
-    // Switching an item on switches Shops on too (now and at start), so buying starts at once. The tab's own switch
-    // reads the game back either way; if that read fails too, the start's own failure is the one said.
-    const picks = createAutomationPicks("shops", {
-        onTurnedOn: () =>
-            ensureOn(CHEAT).then(readSwitch, (error) => readSwitch().finally(() => Promise.reject(error))),
-    });
+    // Switching an item on switches Shops on too (now and at start), in the item's own save step, so buying starts
+    // at once; that step reads the tab's own switch back.
+    const picks = createAutomationPicks("shops", { cheat: CHEAT, entry: automation });
     const ids = van.state([]); // every item on the page, all worlds
     const bulk = useWriteStatus();
     const bulkSaid = useSaid();
@@ -63,15 +60,15 @@ const ShopsPage = () => {
 
     // A step: it reads after every save and switch asked for before it.
     const load = () =>
-        inTurn(() =>
-            run(async () => {
+        run(() =>
+            inTurn(async () => {
                 const since = picks.edits(); // an edit made while this reads is newer than it
                 const [shops, config, found] = await Promise.all([
                     readComputed("automation", "shops"),
                     fetchConfig(),
                     findShops(),
                 ]);
-                automation.val = found;
+                showAutomation(automation, found);
                 picks.sync(config.cheatConfig.automation.shops, since);
                 if (!switchNode.firstChild && automation.val)
                     switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
@@ -105,6 +102,7 @@ const ShopsPage = () => {
                     for (const { item, stock: left } of shop.items)
                         getOrCreateState(stock, `${shop.shop}:${item}`).val = left;
                 ids.val = shops.flatMap((shop) => shop.items.map(({ item }) => `${shop.shop}:${item}`));
+                error.val = null; // this read, the newest to run, worked: an older one's failure goes
             })
         );
 

@@ -26,6 +26,7 @@ let slowOffBefore = 0; // ms the game takes before it applies a switch-off
 let failNextToggle = false; // the next switch fails in the game
 let holdNextListRead = null; // a promise the next automation list read waits on, answering what it read before
 let slowUpdate = 0; // ms each session update takes
+let holdNextUpdate = null; // a promise the next session update waits on before the game answers it
 let slowSave = 0; // ms each config file save takes
 let failSave = false; // the config file save fails
 let holdNextConfigRead = null; // a promise the next config read waits on, answering what it read before
@@ -33,6 +34,7 @@ let failNextConfigRead = false; // the next config read fails
 let failNextListRead = false; // the next automation list read fails
 let failListReadAt = null; // the automation list read with this number (listAsked once it arrived) fails
 let holdNextOff = null; // a promise the next switch-off waits on before the game applies it
+let holdNextOn = null; // a promise the next switch-on waits on before the game applies it
 // The startup cheats in the config file: a save writes them, a read gives them back.
 let fileStartup = [];
 // What the fake game has done, for tests to wait on: switches applied, automation list reads asked and answered.
@@ -50,6 +52,11 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     if (!on && holdNextOff) {
         const hold = holdNextOff;
         holdNextOff = null;
+        await hold;
+    }
+    if (on && holdNextOn) {
+        const hold = holdNextOn;
+        holdNextOn = null;
         await hold;
     }
     if (failNextToggle) {
@@ -89,6 +96,11 @@ router.routes.POST.set("/api/config/update", async (req, res) => {
     const body = await req.json();
     updates.push(body);
     await wait(slowUpdate);
+    if (holdNextUpdate) {
+        const hold = holdNextUpdate;
+        holdNextUpdate = null;
+        await hold;
+    }
     if (refuseUpdate || refuseNextUpdates > 0 || updates.length === refuseUpdateNumber) {
         refuseNextUpdates = Math.max(0, refuseNextUpdates - 1);
         return res.json({ message: "Config update failed", details: "the game is busy" });
@@ -151,6 +163,26 @@ const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 // The fake API answers in-process, so once the fake game has answered, the page's handling of it is queued as
 // promises: one timer turn later it has run, however busy the machine is.
 const handled = () => settle(0);
+// Every step queued so far has run (a queued no-op twice: a step's own follow-up is queued as it ends).
+const queueIdle = async () => {
+    const { inTurn } = await importRepo("src/ui/components/views/account/automation.js");
+    await inTurn(() => {});
+    await inTurn(() => {});
+    await handled();
+};
+// A second automation, "automation testkit", for the bulk switches; defined once, by whichever test needs it first.
+const testKit = async () => {
+    if (getAutomations().some(({ id }) => id === "test.kit")) return;
+    const { defineAutomation } = await importRepo("src/cheats/core/automations.js");
+    defineAutomation({
+        id: "test.kit",
+        cheat: "automation testkit",
+        label: "Test kit",
+        interval: 1000,
+        tick() {},
+        status: () => "Ticking",
+    });
+};
 async function until(check, what) {
     for (let i = 0; i < 300; i++) {
         if (check()) return;
@@ -540,16 +572,30 @@ test("review 2: an overview read that started before a switch doesn't put the ol
     await ui.switchAutomation("automation shops", false);
     await button(overview, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(overview) === "Off", "the overview to read Shops off");
-    let release;
-    holdNextListRead = new Promise((resolve) => (release = resolve));
-    void button(overview, "Refresh").listeners.click({ preventDefault() {} });
-    await settle(5);
-    await checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
-    await until(() => statusOf(overview) !== "Off", "the switch's own read to show Shops on");
-    release();
-    await settle(50);
-    assert.notEqual(statusOf(overview), "Off", "the older read was dropped");
-    await until(() => button(overview, "Disable all"), "Disable all to stay available");
+    let releaseRead;
+    let releaseOn;
+    holdNextListRead = new Promise((resolve) => (releaseRead = resolve));
+    holdNextOn = new Promise((resolve) => (releaseOn = resolve)); // the switch, once its turn comes, waits here
+    try {
+        const asked = listAsked;
+        void button(overview, "Refresh").listeners.click({ preventDefault() {} });
+        await until(() => listAsked > asked, "the Refresh's read to be held");
+        const toggled = commands.length;
+        void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
+        await handled();
+        assert.notEqual(statusOf(overview), "Off", "the click shows at once");
+        const answered = listAnswered;
+        releaseRead();
+        await until(() => listAnswered > answered && commands.length > toggled, "the read, then the switch's turn");
+        await handled();
+        assert.notEqual(statusOf(overview), "Off", "the read queued before the click (Off) doesn't put it back");
+    } finally {
+        releaseRead();
+        releaseOn();
+    }
+    await queueIdle();
+    assert.equal(shopsOn(), true);
+    assert.notEqual(statusOf(overview), "Off");
     await ui.switchAutomation("automation shops", false);
 });
 
@@ -609,15 +655,7 @@ test("review 3 sibling: the overview's Enable all puts a running automation back
 
 test("review 3 sibling: the overview's Disable all stops every automation, even after one's file save fails", async () => {
     // A second automation, so the bulk switch has one after the failing one.
-    const { defineAutomation } = await importRepo("src/cheats/core/automations.js");
-    defineAutomation({
-        id: "test.kit",
-        cheat: "automation testkit",
-        label: "Test kit",
-        interval: 1000,
-        tick() {},
-        status: () => "Ticking",
-    });
+    await testKit();
     switchAutomation("account.automation.shops", true);
     switchAutomation("test.kit", true);
     fileStartup = ["automation shops", "automation testkit"];
@@ -679,7 +717,7 @@ test("reader: a refused save elsewhere leaves text typed (not yet entered) in an
 
 test("reader: Shops is switched on only if the game ended up running an item a save switched on", async () => {
     await ui.switchAutomation("automation shops", false);
-    const picks = ui.createAutomationPicks("shops", { onTurnedOn: () => ui.ensureOn("automation shops") });
+    const picks = ui.createAutomationPicks("shops", { cheat: "automation shops" });
     picks.sync(await gameShops());
     // A: X on and Y's stop-at, both refused: nothing runs, so Shops stays off.
     slowUpdate = 20;
@@ -848,18 +886,20 @@ test("round 4: Shops switched off after an item was switched on stays off", asyn
     await ui.switchAutomation("automation shops", true);
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(shops) !== "Off", "the tab to read Shops on");
-    slowUpdate = 30;
-    const sent = updates.length;
-    void checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: true } });
-    await until(() => updates.length > sent, "the item's save to reach the game");
-    const asked = commands.length;
-    void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: false } });
-    await until(() => commands.slice(asked).some(([, on]) => !on) && !shopsOn(), "the Off, clicked last");
-    slowUpdate = 0;
-    await until(() => /save-state--success/.test(saveState("Grand Drift")), "the item's save to end");
-    await until(() => !fileStartup.includes("automation shops"), "Shops out of the startup cheats");
-    await handled();
-    assert.equal(shopsOn(), false, "the item's follow-up didn't start Shops again");
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        const sent = updates.length;
+        void checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: true } });
+        await until(() => updates.length > sent, "the item's save to reach the game and be held");
+        void checkbox(row(shops, "Shops")).listeners.change({ target: { checked: false } });
+        await handled();
+    } finally {
+        release();
+    }
+    await queueIdle();
+    assert.equal(shopsOn(), false, "the Off, clicked after the item, wins");
+    assert.ok(!fileStartup.includes("automation shops"), "and at start");
     await checkbox(pickRow("Grand Drift")).listeners.change({ target: { checked: false } });
     await until(() => !saved().some(({ id, on }) => id === "0:item1" && on), "the item off");
 });
@@ -902,27 +942,150 @@ test("round 4: when Shops can't start and its read-back fails too, the item's ro
 });
 
 test("round 4: Enable all after switching one automation off switches it back on with the rest", async () => {
-    // test.kit, the second automation, is defined by the Disable all test above.
+    await testKit();
     switchAutomation("account.automation.shops", true);
     switchAutomation("test.kit", false);
     fileStartup = ["automation shops"];
     await button(overview, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => row(overview, "Test kit") && button(overview, "Enable all"), "both rows and Enable all");
-    slowOffBefore = 30;
-    const asked = commands.length;
-    void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: false } });
-    await until(() => commands.length > asked, "the Off to reach the game");
-    await button(overview, "Enable all").listeners.click({ preventDefault() {} });
-    const on = () =>
-        getAutomations()
-            .filter(({ on }) => on)
-            .map(({ id }) => id);
-    await until(
-        () => commands.slice(asked).filter(([, on]) => on).length >= 2 && on().length === 2,
-        () => `both on, not ${on()}`
-    );
-    slowOffBefore = 0;
+    let release;
+    holdNextOff = new Promise((resolve) => (release = resolve));
+    try {
+        const asked = commands.length;
+        void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: false } });
+        await until(() => commands.length > asked, "the Off to reach the game and be held");
+        await until(() => button(overview, "Enable all"), "Enable all");
+        void button(overview, "Enable all").listeners.click({ preventDefault() {} });
+        await handled();
+    } finally {
+        release();
+    }
+    await queueIdle();
+    const on = getAutomations()
+        .filter(({ on }) => on)
+        .map(({ id }) => id)
+        .sort();
+    assert.deepEqual(on, ["account.automation.shops", "test.kit"], "Enable all, clicked after the Off, switches both");
     assert.deepEqual(fileStartup.sort(), ["automation shops", "automation testkit"]);
     switchAutomation("account.automation.shops", false);
     switchAutomation("test.kit", false);
+});
+
+// A second reader's review of 9a3241c.
+test("reader 2: a newer stop-at the game refuses on a row whose switch started Shops ends showing the refusal", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(shops, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(shops) === "Off", "the tab to read Shops off");
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        const sent = updates.length;
+        void checkbox(pickRow("Tiny Spark")).listeners.change({ target: { checked: true } });
+        await until(() => updates.length > sent, "the switch's save to reach the game and be held");
+        refuseUpdateNumber = updates.length + 1; // the stop-at's save
+        const input = field("Tiny Spark");
+        input.listeners.input({ target: { value: "20" } });
+        metric("Tiny Spark").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        await handled();
+    } finally {
+        release();
+    }
+    await queueIdle();
+    refuseUpdateNumber = null;
+    assert.equal(shopsOn(), true, "the switch, taken, started Shops");
+    assert.match(saveState("Tiny Spark"), /save-state--error/, "the newer stop-at's refusal is what the row shows");
+    assert.match(text(pickRow("Tiny Spark")), /busy/);
+    await checkbox(pickRow("Tiny Spark")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "0:item2" && on), "the item off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader 2: with `cheat`, a save turns the automation on only when the game took the item", async () => {
+    await ui.switchAutomation("automation shops", false);
+    const picks = ui.createAutomationPicks("shops", { cheat: "automation shops" });
+    picks.sync(await gameShops());
+    refuseNextUpdates = 1;
+    await picks.set("0:item5", { on: true }).catch(() => {});
+    assert.equal(shopsOn(), false, "refused: Shops stays off");
+    await picks.set("0:item5", { on: true });
+    assert.equal(shopsOn(), true, "taken: Shops goes on in the same step");
+    assert.ok(fileStartup.includes("automation shops"), "and at start");
+    await picks.set("0:item5", { on: false });
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader 2: on, then off before the save runs, leaves the automation off", async () => {
+    await ui.switchAutomation("automation shops", false);
+    const picks = ui.createAutomationPicks("shops", { cheat: "automation shops" });
+    picks.sync(await gameShops());
+    let release;
+    const hold = new Promise((resolve) => (release = resolve));
+    const ahead = ui.inTurn(() => hold); // a step ahead of the saves
+    const first = picks.set("0:item5", { on: true });
+    const second = picks.set("0:item5", { on: false });
+    release();
+    await Promise.all([ahead, first, second]);
+    assert.ok(!(await gameShops()).some(({ id, on }) => id === "0:item5" && on), "the game runs no item");
+    assert.equal(shopsOn(), false, "so the automation stays off: the read-back decides, not the save being taken");
+});
+
+test("reader 2: a step that waits on another queued step is given up, and the pages carry on", async () => {
+    const { steps } = await importRepo("src/ui/components/views/account/automation.js");
+    const timeout = steps.timeoutMs;
+    steps.timeoutMs = 200;
+    try {
+        const stuck = ui.inTurn(async () => {
+            await ui.inTurn(async () => ui.readAutomations()); // waits for the step it is in
+        });
+        const later = ui.switchAutomation("automation shops", true);
+        await assert.rejects(stuck, /given up/);
+        await later;
+        assert.equal(shopsOn(), true, "the switch queued after it still ran");
+    } finally {
+        steps.timeoutMs = timeout;
+    }
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader 2: a read the game never answers is given up, and the pages carry on", async () => {
+    const { steps } = await importRepo("src/ui/components/views/account/automation.js");
+    const timeout = steps.timeoutMs;
+    steps.timeoutMs = 200;
+    let release;
+    holdNextListRead = new Promise((resolve) => (release = resolve));
+    try {
+        await until(() => button(overview, "Refresh"), "Refresh");
+        void button(overview, "Refresh").listeners.click({ preventDefault() {} });
+        await until(() => /given up/.test(text(overview)), "the overview to say the read was given up");
+        await ui.switchAutomation("automation shops", true);
+        assert.equal(shopsOn(), true, "a switch after it still runs");
+    } finally {
+        steps.timeoutMs = timeout;
+        release();
+    }
+    await queueIdle();
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => row(overview, "Shops"), "the overview to read again");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader 2: a new click on an automation's switch clears its last failure while the retry runs", async () => {
+    await ui.switchAutomation("automation shops", true);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) !== "Off", "the overview to read Shops on");
+    failNextToggle = true;
+    await checkbox(row(overview, "Shops")).listeners.change({ target: { checked: false } });
+    await until(() => /cheat broke/.test(text(row(overview, "Shops"))), "the failure to be said");
+    let release;
+    holdNextOff = new Promise((resolve) => (release = resolve));
+    try {
+        const asked = commands.length;
+        void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: false } });
+        await until(() => commands.length > asked, "the retry to reach the game and be held");
+        assert.doesNotMatch(text(row(overview, "Shops")), /cheat broke/, "the old failure goes when the retry starts");
+    } finally {
+        release();
+    }
+    await queueIdle();
+    assert.equal(shopsOn(), false);
 });

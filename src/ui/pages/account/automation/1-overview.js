@@ -12,7 +12,13 @@ import { Said, useSaid } from "../../../components/inPlace.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { createStaticRowReconciler, useWriteStatus } from "../../../components/views/account/accountShared.js";
-import { AutomationRow, inTurn, readAutomations, switchAll } from "../../../components/views/account/automation.js";
+import {
+    AutomationRow,
+    inTurn,
+    readAutomations,
+    showAutomation,
+    switchAll,
+} from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
@@ -29,12 +35,12 @@ const OverviewPage = () => {
 
     // A step: it reads after every switch asked for before it.
     const load = () =>
-        inTurn(() =>
-            run(async () => {
+        run(() =>
+            inTurn(async () => {
                 const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
                 for (const automation of automations) {
                     if (!entries.has(automation.cheat)) entries.set(automation.cheat, van.state(automation));
-                    else entries.get(automation.cheat).val = automation;
+                    else showAutomation(entries.get(automation.cheat), automation);
                 }
                 list.val = automations.map((automation) => ({
                     ...automation,
@@ -45,6 +51,7 @@ const OverviewPage = () => {
                         ? automations.map(({ cheat }) => AutomationRow({ entry: entries.get(cheat), onSwitched: load }))
                         : [EmptyState({ title: "No automations yet" })]
                 );
+                error.val = null; // this read, the newest to run, worked: an older one's failure goes
             })
         );
 
