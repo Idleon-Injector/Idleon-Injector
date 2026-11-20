@@ -19,9 +19,23 @@ router.routes.POST.set("/api/config/update", async (req, res) => {
     if (refuseUpdate) return res.json({ message: "Config update failed", details: "the game is busy" });
     return update(req, res);
 });
+let failSave = false; // the config file save fails
 router.routes.POST.set("/api/config/save", async (req, res) => {
+    if (failSave) return res.status(500).json({ error: "the disk is full" });
     saves.push(await req.json());
     res.json({ ok: true });
+});
+let serverCopyOnly = false; // config reads answer with the server's copy, as when the game didn't answer
+const readConfig = router.routes.GET.get("/api/config");
+router.routes.GET.set("/api/config", async (req, res) => {
+    let read;
+    await readConfig(req, {
+        status() {
+            return this;
+        },
+        json: (data) => (read = data),
+    });
+    res.json(serverCopyOnly ? { ...read, gameRead: false } : read);
 });
 await loadUi(router);
 globalThis.requestAnimationFrame = () => {};
@@ -233,4 +247,76 @@ test("Enable all switches every listed item on in one save; Disable all asks fir
         [["0:item0", false]],
         "the item that carries settings stays, switched off"
     );
+});
+
+test("Enable all queues every target's save at the click, so a row edit made after it lands last", async () => {
+    const other = ui.createAutomationPicks("testOther");
+    other.sync([]);
+    const waiting = ui.useStillWaiting();
+    const bulk = ui.usePicksBulk({
+        targets: () => [
+            [picks, ["0:item0"]],
+            [other, ["a", "b"]],
+        ],
+        done: () => false,
+        noun: (n) => `${n} items`,
+        waiting,
+    });
+    const since = updates.length;
+    const click = bulk.actions(() => false)[0].onClick();
+    const edit = picks.set("0:item0", { stopAt: 9 }); // clicked right after Enable all
+    await Promise.all([click, edit]);
+    const keys = updates.slice(since).map((body) => Object.keys(body.cheatConfig.automation)[0]);
+    assert.deepEqual(keys, ["shops", "testOther", "shops"]);
+    assert.equal(lastUpdate("shops")[0].stopAt, 9);
+});
+
+test("while a bulk save reached the game but not the file, Enable all and Disable all stay to save it again", async () => {
+    const waiting = ui.useStillWaiting();
+    const ids = ["0:item0", "1:item3"];
+    const bulk = ui.usePicksBulk({
+        targets: () => [[picks, ids]],
+        done: (on, total) => on === total,
+        noun: (n) => `${n} items`,
+        waiting,
+    });
+    const [enable, disable] = bulk.actions(() => false);
+    failSave = true;
+    try {
+        await enable.onClick();
+    } finally {
+        failSave = false;
+    }
+    assert.equal(picks.fileBehind(), true);
+    assert.equal(enable.disabled(), false, "every item is on, but the file doesn't have it yet");
+    await enable.onClick();
+    assert.equal(picks.fileBehind(), false);
+    assert.equal(enable.disabled(), true);
+    assert.equal(disable.disabled(), false);
+});
+
+test("the tab's read after a refused save doesn't take the server's copy of the refused edit", async () => {
+    const reads = [];
+    const tab = ui.useAutomationTab({
+        label: "Test automation",
+        cheats: [],
+        read: async (automation) => {
+            reads.push(automation.testTabSaving);
+            tabSaving.sync(automation.testTabSaving);
+        },
+    });
+    const tabSaving = ui.createAutomationSetting("testTabSaving", { afterSave: tab.afterSave });
+    await tab.load();
+    await tabSaving.set(null, 10); // the game holds 10
+    const before = reads.length;
+    refuseUpdate = true;
+    serverCopyOnly = true;
+    try {
+        await tabSaving.set(null, 55).catch(() => {});
+    } finally {
+        refuseUpdate = false;
+        serverCopyOnly = false;
+    }
+    assert.equal(reads.length, before, "the server's copy isn't read into the tab");
+    assert.equal(tabSaving.get().value.val, 10, "the game's value stands");
 });
