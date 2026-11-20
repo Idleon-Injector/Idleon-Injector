@@ -72,6 +72,16 @@ router.routes.POST.set("/api/game/gga/write-many", async (req, res) => {
     log.push("write-many");
     return writeMany(req, res);
 });
+// How many of the next session config reads fail.
+let failConfigReads = 0;
+const readConfig = router.routes.GET.get("/api/config");
+router.routes.GET.set("/api/config", async (req, res) => {
+    if (failConfigReads > 0) {
+        failConfigReads--;
+        return res.status(500).json({ error: "The config can't be read" });
+    }
+    return readConfig(req, res);
+});
 const { requests } = await loadUi(router);
 // clickAgain shows its question in the menu's tooltip and reads it out from a live region on the page.
 globalThis.requestAnimationFrame = () => {};
@@ -463,6 +473,28 @@ test("a loadout another tab saved while this tab's file save failed stays in the
         assert.deepEqual(names, ["Mine", "Theirs"]);
     } finally {
         failSaves = 0;
+        onFail = null;
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
+// A failed save whose check of the session can't read it puts the list back anyway, so trying again saves it once.
+test("a loadout whose file save failed is taken back when the session can't be read to check it", async () => {
+    await settle();
+    const before = (await wardrobeConfig()).loadouts;
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    name.listeners.input({ target: { value: "Unchecked" } });
+    failSaves = 1;
+    onFail = () => (failConfigReads = 1);
+    try {
+        await click(button(page, "Save"));
+        await until(() => /The config file is locked/.test(text(page)), "the failure");
+        assert.deepEqual((await wardrobeConfig()).loadouts, before);
+    } finally {
+        failSaves = 0;
+        failConfigReads = 0;
         onFail = null;
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
         pick(page, "rare-drops");
