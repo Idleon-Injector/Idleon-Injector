@@ -32,7 +32,9 @@ export const isLiveCharacterKey = async (key, active) => {
     if (LIVE_TO_SAVED[key]) return true;
     if (!perCharacterKey.has(key)) {
         const [read] = await readGgaMany([`PlayerDATABASE.h[${active}].h.${key}`]);
-        perCharacterKey.set(key, Boolean(read?.ok && read.value !== undefined && read.value !== null));
+        // No answer is not "the account's": this save gets no Undo (startChange), and the next one asks again.
+        if (!read?.ok) throw new Error(`can't read ${active}'s saved ${key}`);
+        perCharacterKey.set(key, read.value !== undefined && read.value !== null);
     }
     return perCharacterKey.get(key);
 };

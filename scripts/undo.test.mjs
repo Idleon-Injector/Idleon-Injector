@@ -293,3 +293,11 @@ test("an undo refuses a value the game changes between its check and its write",
     assert.equal(ola[254], 56, "the game's value stays");
     assert.equal((await newest()).entries[0].undone, false, "still in the log");
 });
+
+test("a save key whose owner couldn't be read is asked about again", async () => {
+    const { isLiveCharacterKey } = await importRepo("src/ui/services/changeLog.js");
+    const [first] = gga.GetPlayersUsernames;
+    const key = Object.keys(gga.PlayerDATABASE.h[first].h).find((name) => !/^(Lv0|Exp0|ExpReq0)$/.test(name));
+    await isLiveCharacterKey(key, "Nobody").catch(() => {});
+    assert.equal(await isLiveCharacterKey(key, first), true, "asked again, and it is the character's");
+});
