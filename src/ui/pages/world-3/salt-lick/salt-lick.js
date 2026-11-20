@@ -48,12 +48,14 @@ const SaltLickRow = ({ index, name, maxLevel, levelState }) =>
     });
 
 const SaltLickTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Salt Lick" });
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
+    const { loading, error, run } = useAccountLoad({ label: "Salt Lick", busy: () => bulkStatus.val === "loading" });
     const getLevelState = createIndexedStateGetter();
     const rowList = div({ class: "account-list" });
     let upgradesMeta = [];
     const reconcileRows = createStaticRowReconciler(rowList);
+    // After a read that failed, the levels shown may be old: the bulk actions wait for one that works.
+    const readPending = () => loading.val || Boolean(error.val);
 
     const doSetAll = async (targetLevel) => {
         if (!upgradesMeta.length) return;
@@ -69,7 +71,9 @@ const SaltLickTab = () => {
                 shouldWrite: ({ index, targetValue }) => Number(fresh[index] ?? 0) !== targetValue,
             });
         });
-        if (!result.ok) await load();
+        // Some of it may have landed: the rows show what the game holds. The bulk buttons wait for that read, so an
+        // older one can't put earlier levels back over a newer write.
+        if (!result.ok && !result.cancelled) await load();
     };
 
     const load = async () =>
@@ -81,7 +85,8 @@ const SaltLickTab = () => {
                     const maxLevel = Math.max(0, Math.trunc(toNum(definition[4])));
                     return {
                         name: cleanNameEffect(definition[1], `Salt Lick ${index + 1}`),
-                        level: toLevelInt(rawLevel, maxLevel),
+                        // The level the game holds, above the max too (the game counts it all): Max all lowers it.
+                        level: Math.max(0, Math.trunc(toNum(rawLevel))),
                         maxLevel,
                     };
                 },
@@ -118,6 +123,7 @@ const SaltLickTab = () => {
                 {
                     label: "Max all",
                     status: bulkStatus,
+                    disabled: readPending,
                     tooltip: "Set every Salt Lick upgrade to its max level",
                     onClick: () => doSetAll(null),
                 },
@@ -125,6 +131,7 @@ const SaltLickTab = () => {
                     label: "Reset all",
                     variant: "danger",
                     status: bulkStatus,
+                    disabled: readPending,
                     tooltip: "Reset every Salt Lick upgrade to 0",
                     confirm: "reset every Salt Lick upgrade to 0.",
                     onClick: () => doSetAll(0),
@@ -132,6 +139,7 @@ const SaltLickTab = () => {
             ],
             refresh: {
                 onClick: load,
+                disabled: () => loading.val || bulkStatus.val === "loading",
             },
         }),
         state: { loading, error },

@@ -218,20 +218,22 @@ const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
  * Write many GGA paths and throw a consistent error for the first failed write.
  * Failed writes expose the original batch response on `error.results`.
  * The values that land go in the change log as one action, unless `log` is false (an undo's own writes).
+ * `character`, the one the writes were planned for: when another one is in play by the time the game writes, nothing
+ * is written and it rejects saying who is in play.
  *
  * @param {Array<{ path: string, value: any }>} writes
- * @param {{ log?: boolean }} [options]
+ * @param {{ log?: boolean, character?: string }} [options]
  * @returns {Promise<any>}
  */
-export const writeManyVerified = (writes, { log = true } = {}) => {
+export const writeManyVerified = (writes, { log = true, character } = {}) => {
     if (!writes.length) return Promise.resolve({ ok: true, results: [] });
     const change = log ? startChange(writes.map((entry) => entry.path)) : null;
-    return writeManyLogged(writes, change);
+    return writeManyLogged(writes, change, character);
 };
 
-const writeManyLogged = async (writes, change) => {
+const writeManyLogged = async (writes, change, character) => {
     if (change) await change;
-    const result = await ggaMany(writes);
+    const result = await ggaMany(writes, { character });
     if (change)
         await finishChange(
             await change,
@@ -310,14 +312,6 @@ export const runBulkSet = async ({
 };
 
 /**
- * Hook that wraps an async write operation with status tracking and automatic
- * status-clear timers.
- *
- * `run()` accepts per-call status labels and success/error callbacks.
- * `clearStatus()` cancels pending auto-clear timers for teardown paths that keep
- * long-lived row state outside the active pane.
- */
-/**
  * Runs a page's writes one after another: a write asked for while another runs waits its turn instead of being
  * dropped, so a switch flipped on one row while another row saves still saves. Each task reads the game again
  * when its turn comes.
@@ -334,8 +328,19 @@ export const oneAtATime = () => {
     };
 };
 
+/**
+ * Hook that wraps an async write operation with status tracking and automatic
+ * status-clear timers.
+ *
+ * `run()` accepts per-call status labels and success/error callbacks.
+ * `clearStatus()` cancels pending auto-clear timers for teardown paths that keep
+ * long-lived row state outside the active pane.
+ */
 export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
     const status = van.state(null);
+    // How each run ended and which button press started it (`pressedBy`, set by ActionButton): a press says its own
+    // run's result, though the colour cleared already or another press's run ended first.
+    status.ended = [];
     let clearTimer = null;
 
     const clearStatus = () => {
@@ -373,18 +378,25 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
         }
 
         status.val = loadingState;
+        // A press's announcement (ActionButton) tells its own run from an earlier one's result by this count.
+        const id = (status.runs = (status.runs ?? 0) + 1);
+        const by = status.pressedBy;
+        const end = (outcome) => (status.ended = [...status.ended, { id, by, outcome }].slice(-10));
 
         try {
             const result = await task();
             if (result?.cancelled) {
+                end("cancelled");
                 status.val = null;
                 return { ok: false, cancelled: true, result };
             }
+            end("success");
             status.val = successState;
             if (typeof onSuccess === "function") onSuccess(result);
             if (successMs > 0) scheduleClear(successMs);
             return { ok: true, result };
         } catch (error) {
+            end("error");
             status.val = errorState;
             if (typeof onError === "function") onError(error);
             if (errorMs > 0) scheduleClear(errorMs);

@@ -373,14 +373,9 @@ const PrayersTab = () => {
                         message.val = `All prayers are already ${mode === "unlock" ? "unlocked" : "maxed"}.`;
                         return { equipment: [], levels: [], cancelled: true };
                     }
-                    // Adding runs on one click (#25); only a Max that would lower a prayer above its cap asks.
-                    const lowers =
-                        mode === "max" && state.definitions.some(({ id, data }) => state.levels[id] > Number(data[9]));
-                    return {
-                        equipment: [],
-                        levels,
-                        confirmation: lowers ? `max ${levels.length} named prayer(s) account-wide.` : null,
-                    };
+                    // Unlock and Max all run on one click (#25). Max brings a prayer above its cap down to it: that
+                    // is what Max means (Lumi, 2026-11-20), and Undo puts it back.
+                    return { equipment: [], levels, confirmation: null };
                 },
                 (question, plan) => clickAgain(button, question, { targets: plan })
             )

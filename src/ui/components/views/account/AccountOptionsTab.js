@@ -13,6 +13,7 @@ import { Icons } from "../../../assets/icons.js";
 import { withTooltip } from "../../Tooltip.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
+import { gga } from "../../../services/api.js";
 import { createStaticRowReconciler, joinClasses, writeVerified } from "./accountShared.js";
 import { SaveState, saveStateClass, useAutoSave } from "./autoSave.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
@@ -88,13 +89,20 @@ const createOptionRow = (index, rawValue, schema) => {
             return StateSwitch({
                 checked: currentValue,
                 words: ["On", "Off"],
-                name: name.val,
-                // A save that fails or is refused puts the switch back to what the game holds.
+                name: () => name.val,
+                // A save that fails or is refused puts the switch back to what the game holds (read again after a
+                // failure: the write may have landed). The row's own save state says why, so the switch doesn't.
                 onFlip: async (next) => {
                     currentValue.val = next;
                     const outcome = await save();
+                    if (outcome?.error) {
+                        try {
+                            store.data.accountOptions[index] = await gga(`OptionsListAccount[${index}]`);
+                        } catch {
+                            // ponytail: unread, it shows the last value read; the row already says it wasn't saved.
+                        }
+                    }
                     if (!outcome?.ok) currentValue.val = valueToDisplay(editorType.val, stored());
-                    return outcome;
                 },
             });
         }

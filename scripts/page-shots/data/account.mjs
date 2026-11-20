@@ -60,8 +60,14 @@ const wardrobePlayer = () => ({ CardEquip: WORN_CARDS.slice(), CardPreset: [WORN
 
 const built = (map, i) => [i + 1, i, 2, 40 * i, 12, 3, 0, 0, -1, -1, i % 3, 222211111, i % 2];
 
+// Automation › Shops: nine town shops (two in W1 and W2, one in each later world) selling the shared items.
+const SHOP_MAPS = [1, 2, 51, 52, 101, 151, 201, 251, 301];
+const shopItems = (shop) =>
+    list(4 + (shop % 3), (i) => (i === 3 ? `EquipmentHatsPrem${shop + 1}` : `item${(shop * 3 + i) % 30}`));
+
 export default () => ({
     gga: {
+        ShopStock: SHOP_MAPS.map((_, shop) => shopItems(shop).map((_, i) => (i === 1 ? 0 : (shop + 1) * (i + 2) * 25))),
         ItemDefinitionsGET: h({
             ...Object.fromEntries(list(OUTFITS + 1, (i) => [`EquipmentGown${i}`, outfit(i)])),
             ...wardrobeDefinitions(),
@@ -146,6 +152,8 @@ export default () => ({
         OptionsListAccount: { 311: "_bcf" },
         CustomLists: {
             h: {
+                ShopNames: SHOP_MAPS.map((_, shop) => shopItems(shop)),
+                ShopLocations: SHOP_MAPS.map(String),
                 // Per world: [name, ..., stage targets from [5] on].
                 TaskDescriptions: list(WORLDS, (w) =>
                     list(TASKS, (i) => [`${fakeName(i + w)}_Task`, "0", "0", "0", "0", "10", "100", "1000", "5000"])

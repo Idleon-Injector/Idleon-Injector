@@ -11,7 +11,6 @@ import {
     createStaticRowReconciler,
     largeFormatter,
     largeParser,
-    oneAtATime,
     unwrapH,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -34,15 +33,7 @@ const slotLocation = (character, kind, slot) =>
 /** Edit stored printer samples and active prints. */
 const PrinterTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Printer" });
-    // Saves queued or running, and a Refresh.
-    const busy = van.state(0);
-    // Slot saves and Clears run whole, one at a time in the order asked: the last one asked lands last, and each reads
-    // its drafts and opens its Undo action only when its turn comes.
-    const queue = oneAtATime();
-    const inTurn = (task) => {
-        busy.val++;
-        return queue(task).finally(() => busy.val--);
-    };
+    const busy = van.state(false);
     const snapshot = van.state(null);
     const selected = van.state(-1);
     const rows = new Map();
@@ -64,22 +55,29 @@ const PrinterTab = () => {
     let accountIdentity = "";
     let cachedCatalogue = null;
 
-    // Not `busy`: a save asked for while another slot saves waits its turn (inTurn), so no press is lost.
-    const cannotWrite = () => loading.val || Boolean(error.val) || !snapshot.val;
-    const isDirty = (state) => {
+    const cannotWrite = () => isBusy() || Boolean(error.val) || !snapshot.val;
+    // A slot's drafts: the picked item, the quantity as typed, and the stored quantity the field showed then (its
+    // rounded form, "16.2K", stands for exactly that one, even once a save in between has changed what's stored).
+    const draftsOf = (state) => ({
+        item: state.item.val,
+        rawQty: getNumberInputLiveRaw(state.quantity) ?? state.quantity.val,
+        shownQty: state.baseline.qty,
+    });
+    const showsQty = ({ rawQty, shownQty }) => rawQty === String(shownQty) || rawQty === largeFormatter(shownQty);
+    const isDirty = (state, drafts = draftsOf(state)) => {
         state.dirty.val;
-        const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
-        // The field shows a rounded quantity ("16.2K"); left as shown, it is the saved quantity.
-        if (rawQty === String(state.baseline.qty) || rawQty === largeFormatter(state.baseline.qty)) {
-            return state.item.val !== state.baseline.item;
+        const { item, rawQty } = drafts;
+        // The field shows a rounded quantity ("16.2K"); left as shown, it is the quantity it stood for.
+        if (showsQty(drafts)) {
+            return item !== state.baseline.item || String(drafts.shownQty) !== String(state.baseline.qty);
         }
         const parsed = parseNumber(rawQty);
         const qtyChanged = Number.isFinite(parsed)
             ? Math.round(parsed) !== Number(state.baseline.qty)
             : rawQty !== String(state.baseline.qty);
-        return state.item.val !== state.baseline.item || qtyChanged;
+        return item !== state.baseline.item || qtyChanged;
     };
-    const hasDrafts = () => [...rows.values()].some(isDirty);
+    const hasDrafts = () => [...rows.values()].some((state) => isDirty(state));
     const getItemDisplayName = (id) => snapshot.val?.namesById?.get(id) ?? id;
     const isAllowedItem = (item, state, snap = snapshot.val) =>
         Boolean(snap?.ids?.has(item)) || (item !== "Blank" && item === state.baseline.item);
@@ -169,8 +167,8 @@ const PrinterTab = () => {
         };
     };
 
-    const updateRow = (state, item, qty, resetDraft = false, keepDraft = false) => {
-        const retainDraft = keepDraft || (!resetDraft && isDirty(state));
+    const updateRow = (state, item, qty, resetDraft = false) => {
+        const retainDraft = !resetDraft && isDirty(state);
         state.saved.val = { item, qty };
         // A kept draft is compared with what the game holds now.
         state.baseline = { item, qty };
@@ -205,8 +203,9 @@ const PrinterTab = () => {
                         const created = rows.get(key);
                         // The item and quantity save together on Enter or on leaving the row.
                         created.write = useAutoSave({
-                            queue: inTurn,
-                            prepare: () => prepareSlot(created),
+                            // The drafts as they were at the commit, so a later one can't save in its place.
+                            capture: () => draftsOf(created),
+                            prepare: (drafts) => prepareSlot(created, drafts),
                             revert: () => {
                                 updateRow(created, created.baseline.item, created.baseline.qty, true);
                                 created.syncOptions?.();
@@ -255,25 +254,21 @@ const PrinterTab = () => {
     };
 
     // A slot's save: nothing when the draft matches the game, the reason when it can't be saved.
-    const prepareSlot = (state) => {
-        if (!isDirty(state)) return { unchanged: true };
-        // A save that waited its turn behind one that failed.
-        if (cannotWrite()) throw new Error("Refresh before editing Printer.");
-        const item = state.item.val;
-        const rawQty = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
+    const prepareSlot = (state, drafts = draftsOf(state)) => {
+        if (cannotWrite() || !isDirty(state, drafts)) return { unchanged: true };
+        const { item, rawQty } = drafts;
         const parsed = Math.round(parseNumber(rawQty));
         if (!isAllowedItem(item, state)) throw new Error("pick an item");
         if (!Number.isFinite(parsed)) throw new Error("not a number");
         if (parsed <= 0) throw new Error("min 1");
-        const qty =
-            rawQty === String(state.baseline.qty) ||
-            rawQty === largeFormatter(state.baseline.qty) ||
-            parsed === Number(state.baseline.qty)
-                ? state.baseline.qty
-                : typeof state.baseline.qty === "string"
-                  ? String(parsed)
-                  : parsed;
-        return { write: () => writeSlot(state, item, qty, false, rawQty) };
+        const qty = showsQty(drafts)
+            ? drafts.shownQty
+            : parsed === Number(state.baseline.qty)
+              ? state.baseline.qty
+              : typeof state.baseline.qty === "string"
+                ? String(parsed)
+                : parsed;
+        return { write: () => writeSlot(state, item, qty) };
     };
 
     // Stop and Clear ask in place (#77): the button reads "Click again" for a few seconds.
@@ -287,18 +282,11 @@ const PrinterTab = () => {
             )
         )
             return;
-        // Not returned: the button's own History action then ends now, and the row's opens when the turn comes, so
-        // a slot save still reading the game is the only action waiting when it claims its write (its Undo stays).
-        void inTurn(() =>
-            state.write.run(() => {
-                if (cannotWrite()) throw new Error("Refresh before editing Printer.");
-                return writeSlot(state, "Blank", 0, true);
-            })
-        );
+        return state.write.run(() => writeSlot(state, "Blank", 0, true));
     };
 
-    // `submittedRaw`: the quantity text as saved; a draft changed since then is kept for the save queued after it.
-    const writeSlot = async (state, item, qty, clear = false, submittedRaw = null) => {
+    const writeSlot = async (state, item, qty, clear = false) => {
+        busy.val = true;
         try {
             const next = await readFresh();
             const cap = Math.round(
@@ -315,15 +303,13 @@ const PrinterTab = () => {
                     { path: `${array}[${index + 1}]`, value: qty },
                 ]);
             }
-            const draftMoved =
-                !clear &&
-                (state.item.val !== item ||
-                    (getNumberInputLiveRaw(state.quantity) ?? state.quantity.val) !== submittedRaw);
-            updateRow(state, item, qty, !draftMoved, draftMoved);
+            updateRow(state, item, qty, true);
             state.syncOptions();
         } catch (caughtError) {
             error.val = caughtError.message;
             throw caughtError;
+        } finally {
+            busy.val = false;
         }
     };
 
@@ -467,7 +453,7 @@ const PrinterTab = () => {
                 !clickAgain(e.currentTarget, "refresh Printer and discard every character's drafts."))
         )
             return;
-        busy.val++;
+        busy.val = true;
         discardDrafts = true;
         try {
             await runLoad(async () => {
@@ -487,7 +473,7 @@ const PrinterTab = () => {
                 syncSnapshot(next, discardDrafts);
             });
         } finally {
-            busy.val--;
+            busy.val = false;
             discardDrafts = false;
         }
     };
