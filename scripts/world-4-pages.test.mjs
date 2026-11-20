@@ -179,6 +179,42 @@ test("a kitchen Fire set back to its first value while the change saves is saved
     }
 });
 
+// Review of #117, third round: Speed shown again after the first save's read-back counted as an edit in the third save.
+test("a third kitchen save doesn't write the Speed an earlier save showed over a newer one", async () => {
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
+    const row = rowByIndex(root, "#5");
+    const [, fire, luck] = byTag(row, "input");
+    const realFetch = globalThis.fetch;
+    const releases = [];
+    const held = [1, 2].map(() => new Promise((resolve) => releases.push(resolve)));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) {
+            const n = ++writes;
+            if (n <= 2) await held[n - 1];
+        }
+        return realFetch(url, options);
+    };
+    try {
+        typeAndEnter(row, fire, 5);
+        await until(() => writes === 1, "the first Fire save to reach the game");
+        gga.Cooking[4][6] += 5;
+        typeAndEnter(row, luck, 6);
+        releases[0]();
+        await until(() => writes === 2, "the Luck save to reach the game");
+        gga.Cooking[4][6] += 5;
+        const speed = gga.Cooking[4][6];
+        typeAndEnter(row, fire, 7);
+        releases[1]();
+        await until(() => gga.Cooking[4][7] === 7 && stateOf(row) === "success", "the second Fire save");
+        assert.equal(gga.Cooking[4][8], 6);
+        assert.equal(gga.Cooking[4][6], speed, "the Speed bought in game isn't put back");
+    } finally {
+        globalThis.fetch = realFetch;
+        releases.forEach((release) => release());
+    }
+});
+
 test("a kitchen save that landed shows ✓ even when reading back the other fields fails", async () => {
     const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
     const row = rowByIndex(root, "#2");
