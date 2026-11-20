@@ -70,18 +70,24 @@ export const inTurn = (task, onLate = null) => {
     const run = queue.then(task);
     queue = run.catch(() => {});
     if (onLate) {
-        let late = false;
-        const timer = setTimeout(() => {
-            late = true;
-            onLate("still waiting for the game"); // short, so it fits beside a field in two lines
-        }, steps.timeoutMs);
-        const stop = () => {
-            clearTimeout(timer);
-            if (late) onLate(null);
-        };
+        const stop = deadline(onLate);
         run.then(stop, stop);
     }
     return run;
+};
+
+// Calls `onLate(notice)` once `steps.timeoutMs` from now, unless the returned stop comes first; a stop after it calls
+// `onLate(null)`.
+const deadline = (onLate) => {
+    let late = false;
+    const timer = setTimeout(() => {
+        late = true;
+        onLate("still waiting for the game"); // short, so it fits beside a field in two lines
+    }, steps.timeoutMs);
+    return () => {
+        clearTimeout(timer);
+        if (late) onLate(null);
+    };
 };
 
 /**
@@ -395,44 +401,71 @@ const parseStopAt = (raw) => {
 
 /**
  * An item's row: name, a badge, its stop-at (empty is no limit; saves on Enter or on leaving it) and its switch.
- * The switch and the stop-at share one save state; the row's saves finish in the order they were made, so what it
- * shows is the newest one's outcome.
+ * The switch and the stop-at share one save state, whose writes take turns in the order the player made them (a
+ * stop-at, then the switch, reach the game in that order), so what it shows is the newest one's outcome.
  */
 export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => {
     const item = picks.get(id);
     const draft = item.draft;
     let fileOnly = null; // the reason shown for the row's last failure that was only at the file
-    // The notice while any of this row's saves still waits for the game; then the newest outcome shows.
+    // The notice while any of this row's writes still waits for the game, counted from the player's commit: a write
+    // waiting its turn behind the row's earlier one is waiting too. Then the newest outcome shows.
     const late = useStillWaiting();
-    const running = van.state(0); // this row's saves still running: an earlier one's check waits for the last
-    // `task(onLate)` starts the save.
-    const track = (task) => () => {
-        running.val++;
-        return task(late.onLate)
+    // The stop-at commits not yet taken by a save, oldest first, each with its deadline's stop. The row's save takes
+    // the newest one waiting, so older ones end there.
+    let waitingCommits = [];
+    const track = (task, stop) => () =>
+        task()
             .catch((error) => {
                 if (error.fileOnly) fileOnly = saveFailureReason(error);
                 throw error;
             })
-            .finally(() => running.val--);
-    };
+            .finally(stop);
     const save = useAutoSave({
-        prepare: () => {
-            const typed = getNumberInputLiveRaw(draft) ?? draft.val;
-            const next = parseStopAt(typed);
-            if (next === item.stopAt.val) {
-                showStopAt(item);
-                // The game has it but the file may not: Enter saves the list again.
-                return picks.fileBehind() ? { write: track((onLate) => picks.resave(onLate)) } : { unchanged: true };
-            }
-            // A value typed while this one saves stays in the field for the save after it.
-            const stillTyped = () => (getNumberInputLiveRaw(draft) ?? draft.val) === typed;
-            return {
-                write: track((onLate) =>
-                    picks.set(id, { stopAt: next }, onLate).finally(() => stillTyped() && showStopAt(item))
-                ),
-            };
+        // The drafts as the player committed them, with a deadline from that moment.
+        capture: () => {
+            const commit = { typed: getNumberInputLiveRaw(draft) ?? draft.val, stop: deadline(late.onLate) };
+            waitingCommits.push(commit);
+            return commit;
         },
-        revert: () => showStopAt(item),
+        prepare: (commit) => {
+            // Without a commit (leaving for the row's switch only checks the drafts), the drafts as they are now.
+            let stop = () => {};
+            if (commit) {
+                const taken = waitingCommits.indexOf(commit);
+                waitingCommits.slice(0, taken).forEach((older) => older.stop());
+                waitingCommits = waitingCommits.slice(taken + 1);
+                stop = commit.stop;
+            }
+            const typed = commit?.typed ?? getNumberInputLiveRaw(draft) ?? draft.val;
+            try {
+                const next = parseStopAt(typed);
+                if (next === item.stopAt.val) {
+                    showStopAt(item);
+                    // The game has it but the file may not: Enter saves the list again.
+                    if (picks.fileBehind()) return { write: track(() => picks.resave(), stop) };
+                    stop();
+                    return { unchanged: true };
+                }
+                // A value typed while this one saves stays in the field for the save after it.
+                const stillTyped = () => (getNumberInputLiveRaw(draft) ?? draft.val) === typed;
+                return {
+                    write: track(
+                        () => picks.set(id, { stopAt: next }).finally(() => stillTyped() && showStopAt(item)),
+                        stop
+                    ),
+                };
+            } catch (error) {
+                stop();
+                throw error;
+            }
+        },
+        // Escape: commits still waiting won't save.
+        revert: () => {
+            waitingCommits.forEach((commit) => commit.stop());
+            waitingCommits = [];
+            showStopAt(item);
+        },
     });
     const step = (delta) => () => {
         const current = parseStopAt(getNumberInputLiveRaw(draft) ?? draft.val);
@@ -446,8 +479,13 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
         checked: () => item.on.val,
         onchange: (e) => {
             const on = e.target.checked;
+            // "toggle": the row says the switch's saving…, ✓ and failure, but a failure of the stop-at stays over its
+            // ✓ (the switch doesn't save the field's value, as a Reset button would).
             void save
-                .run(track((onLate) => picks.set(id, { on }, onLate)))
+                .run(
+                    track(() => picks.set(id, { on }), deadline(late.onLate)),
+                    "toggle"
+                )
                 .then(() => (checkbox.checked = item.on.val));
         },
     });
@@ -457,9 +495,7 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     const waiting = () => late.notice.val !== null;
     const status = {
         get val() {
-            // A wait isn't a failure: it keeps the saving look. So does an earlier save's check while a later save on
-            // this row still runs (a refusal still shows: it is true, and the field's own refusals must show at once).
-            if (waiting() || (running.val > 0 && save.status.val === "success")) return "loading";
+            if (waiting()) return "loading"; // a wait isn't a failure: it keeps the saving look
             const shown = save.status.val === "error" && save.reason.val === fileOnly;
             return shown && !picks.fileBehind() ? null : save.status.val;
         },
