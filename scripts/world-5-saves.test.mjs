@@ -111,3 +111,29 @@ test("boats: saving a captain's level keeps the XP a voyage gave since the page 
     assert.equal(gga.Captains[0][5], before[5], "an untouched bonus amount stays");
     gga.Captains[0] = before;
 });
+
+test("slab: Register shown runs on one press; Unregister shown still asks in place", async () => {
+    const root = await open("src/ui/pages/world-5/slab/slab.js");
+    const button = (label) =>
+        elements(root).find(
+            (node) => node.nodeName === "button" && text(node).trim() === label && !node.attributes.disabled
+        );
+    await until(() => button("Register shown") && rowNamed(root, text(byClass(root, "account-row__name")[0])), "Slab");
+    // A real browser gives an empty search box the value "".
+    const search = elements(root).find((node) => node.nodeName === "input");
+    if (search.value === undefined) search.value = "";
+    const click = (node) => node.listeners.click({ preventDefault() {}, stopPropagation() {}, currentTarget: node });
+
+    const register = button("Register shown");
+    let before = writes();
+    await click(register);
+    await until(() => writes() > before, "Register shown to write");
+    assert.equal(register.attributes["data-again"], undefined, "registering doesn't ask");
+
+    await until(() => button("Unregister shown"), "Unregister shown");
+    const unregister = button("Unregister shown");
+    before = writes();
+    await click(unregister);
+    await until(() => unregister.attributes["data-again"] === "Click again", "Unregister shown to ask");
+    assert.equal(writes(), before, "unregistering wrote nothing on the first press");
+});

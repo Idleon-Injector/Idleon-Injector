@@ -134,24 +134,22 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             try {
                 await bulk.run(
                     async () => {
-                        await readHistory();
+                        const read = await readHistory();
                         const targets = getTargets();
                         if (!targets.length) {
                             message.val = "No matching items need this change.";
                             return { cancelled: true };
                         }
+                        // Registering adds, so it runs on one press; only unregistering asks in place.
+                        if (registered) return applyHistory(read, targets, true);
                         const detail =
                             historyPath === "Cards[1]"
-                                ? registered
-                                    ? " Adds registration history without granting physical items."
-                                    : " Removes all history occurrences for these items. Owned items may register again in W5 town."
+                                ? " Removes all history occurrences for these items. Owned items may register again in W5 town."
                                 : "";
                         if (
-                            !clickAgain(
-                                button,
-                                `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`,
-                                { targets }
-                            )
+                            !clickAgain(button, `unregister ${targets.length} shown ${label} items.${detail}`, {
+                                targets,
+                            })
                         ) {
                             return { cancelled: true };
                         }
