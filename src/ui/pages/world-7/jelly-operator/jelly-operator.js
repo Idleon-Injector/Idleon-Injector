@@ -110,6 +110,8 @@ const JellyTab = () => {
                 gga("Research"),
                 gga("Lv0[20]"),
                 doublers.load(),
+                // Undo puts cell levels back and reruns this load: the game's cached total must go with them.
+                deleteGga("DNSM.h.CellLV_tot"),
             ]);
             const definitions = toIndexedArray(rawDefinitions);
             const order = toIndexedArray(rawOrder);

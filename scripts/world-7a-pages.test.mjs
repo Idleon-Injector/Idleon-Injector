@@ -149,3 +149,41 @@ test("Legend Talents Refresh picks up a raised max level", async (t) => {
     assert.equal(stateOf(firstRow(page)), "success");
     assert.equal(gga.Spelunk[18][index], 15);
 });
+
+test("Undo of a Bubba upgrade level clears the game's cached upgrade total", async () => {
+    const total = gameCache("Bubba_LVzAll", () =>
+        gga.Bubba[1].reduce((sum, level, i) => sum + Number(level) + Number(gga.Bubba[2][i]), 0)
+    );
+    const name = String(gga.CustomLists.h.BubbaUpg[1][0]).replace(/_/g, " ");
+    const page = await openPage("src/ui/pages/world-7/bubba/bubba.js", (root) => Boolean(findRow(root, name)));
+    const row = findRow(page, name);
+    const before = gga.Bubba[1][1];
+
+    await saveRow(row, before + 1);
+    assert.equal(stateOf(row), "success");
+    const saved = total(); // the game reads the total built from the saved level
+
+    await byClass(row, "save-state__undo")[0].listeners.click({});
+    await until(() => gga.Bubba[1][1] === before && !("Bubba_LVzAll" in gga.DNSM.h), "the undo to clear the cache");
+    assert.equal(total(), saved - 1);
+});
+
+test("Undo of a Jelly cell level clears the game's cached cell total", async () => {
+    gga.Research[15] = [5, 5, 5, 5, 5, 5, 5, 5, 5];
+    gga.Research[16] = [0, 2, 0, 0, 0, 0, 0, 0, 0];
+    delete gga.DNSM.h.CellLV_tot;
+    const total = gameCache("CellLV_tot", () => gga.Research[16].slice(0, 9).reduce((a, b) => a + Number(b), 0));
+    const page = await openPage("src/ui/pages/world-7/jelly-operator/jelly-operator.js", (root) =>
+        Boolean(findRow(root, "Amoeba"))
+    );
+    const row = findRow(page, "Amoeba");
+    await until(() => String(input(row).attributes.value) === "0", "the Amoeba level");
+
+    await saveRow(row, 1);
+    assert.equal(stateOf(row), "success");
+    assert.equal(total(), 3);
+
+    await byClass(row, "save-state__undo")[0].listeners.click({});
+    await until(() => gga.Research[16][0] === 0 && !("CellLV_tot" in gga.DNSM.h), "the undo to clear the cache");
+    assert.equal(total(), 2);
+});
