@@ -193,6 +193,7 @@ export default definePage({
     id: "account.player",
     world: "account",
     system: "Player",
+    tab: "Levels",
     description: "Character levels and money.",
     keywords: ["Characters"],
     component: PlayerTab,
