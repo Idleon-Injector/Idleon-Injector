@@ -18,7 +18,8 @@ const { div } = van.tags;
 
 const NAMETAG_COUNTS_PATH = "Spelunk[17]";
 const ITEM_DEFS_PATH = "ItemDefinitionsGET.h";
-const NAMETAG_KEY_PATTERN = /^EquipmentNametag(\d+)$/;
+// The game names nametag 6 "EquipmentNametag6b" (there is no EquipmentNametag6); its count is still Spelunk[17][6].
+const NAMETAG_KEY_PATTERN = /^EquipmentNametag(\d+)b?$/;
 
 const buildNametagCatalog = (rawItemDefs) =>
     Object.entries(rawItemDefs && typeof rawItemDefs === "object" ? rawItemDefs : {})

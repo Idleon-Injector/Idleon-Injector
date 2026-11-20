@@ -113,6 +113,8 @@ test("a saved value offers Undo beside its ✓, and Undo puts the old value back
 
 test("a bulk action is one action, and Undo all puts every value back", async () => {
     const cauldron = gga.CauldronInfo[4];
+    // Below 7, so SET ALL 7 raises every vial and runs on one press (lowering asks "Click again" first).
+    cauldron.forEach((_, i) => (cauldron[i] = i % 7));
     const before = [...cauldron];
     const root = await openPage(
         "src/ui/pages/world-2/vials/vials.js",
@@ -758,4 +760,20 @@ test("a save made while who is in play can't be read is logged without Undo", as
     assert.equal(top.hasBefore, false, "a top-level key's owner is unknown, so no old value to put back");
     assert.equal(saved.hasBefore, true, "a saved copy names its character");
     await assert.rejects(undoAction((await newest()).id), { message: "old value unknown" });
+});
+
+// Re-read 3 of #110: a load that failed in a way the load policy didn't catch doesn't stop the page's later loads.
+test("a page's loads go on after one failed in a way the policy didn't catch", async () => {
+    const { useAccountLoad } = await importRepo("src/ui/components/views/account/accountLoadPolicy.js");
+    const { run } = useAccountLoad({ label: "Test" });
+    // An error whose message can't even be read: reading it throws inside the policy's own catch.
+    const unreadable = {
+        get message() {
+            throw new Error("unreadable");
+        },
+    };
+    await run(async () => {
+        throw unreadable;
+    }).catch(() => {});
+    assert.equal(await run(async () => "read"), "read");
 });

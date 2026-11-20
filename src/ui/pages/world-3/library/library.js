@@ -36,6 +36,7 @@ import {
     runBulkSet,
     toNum,
     useWriteStatus,
+    writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -77,7 +78,17 @@ const getBlockedLibraryTalentIds = (rawBlockedList) => {
 const TalentBadge = ({ curState, maxState }) =>
     span({}, () => (maxState.val === -1 ? "LOCKED" : `${curState.val} / ${maxState.val}`));
 
-const TalentRow = ({ talentId, talentName, curState, maxState, maxBookLvState, isBookAvailable, isSpecial }) => {
+const TalentRow = ({
+    talentId,
+    talentName,
+    curState,
+    maxState,
+    maxBookLvState,
+    isBookAvailable,
+    isSpecial,
+    character,
+    checkCharacter,
+}) => {
     if (!isBookAvailable) {
         return AccountRow({
             rowClass: "talent-row talent-row--unavailable",
@@ -95,7 +106,13 @@ const TalentRow = ({ talentId, talentName, curState, maxState, maxBookLvState, i
 
     return ClampedLevelRow({
         valueState: maxState,
-        writePath: `SkillLevelsMAX[${talentId}]`,
+        // The character the rows were read for, kept by the save even when it waits behind another: it refuses once
+        // another is in play, and the game checks again as it writes.
+        write: async (nextLevel) => {
+            await checkCharacter(character);
+            await writeManyVerified([{ path: `SkillLevelsMAX[${talentId}]`, value: nextLevel }], { character });
+            return nextLevel;
+        },
         max: isSpecial ? Infinity : () => maxBookLvState.val,
         integerMode: isSpecial ? "floor" : null,
         renderInfo: () => [
@@ -140,6 +157,16 @@ const LibraryTab = () => {
 
     let staticMeta = null;
     let currentAvailableTalentIds = [];
+    let loadedCharacter = null;
+
+    // SkillLevelsMAX is the live copy of whoever is in play: a save goes there only while that is still the
+    // character the page shows.
+    // The character is taken before the read: a Refresh that ends meanwhile doesn't make the rows the new one's.
+    const checkCharacter = async (shown = loadedCharacter) => {
+        if (String(await gga("UserInfo[0]")) !== shown) {
+            throw new Error("another character is in play; press Refresh");
+        }
+    };
 
     const getCurState = (talentId) => getOrCreateState(curStates, talentId);
     const getMaxState = (talentId) => getOrCreateState(maxStates, talentId);
@@ -151,8 +178,18 @@ const LibraryTab = () => {
         const cap = toNum(maxBookLvState.val, 0);
         if (!currentAvailableTalentIds.length || cap <= 0) return;
 
+        // The character the rows were read for: the game checks it again as it writes.
+        const character = loadedCharacter;
         await runBulk(async () => {
+            try {
+                await checkCharacter(character);
+            } catch (caughtError) {
+                // The page shows who is in play now.
+                await load();
+                throw caughtError;
+            }
             await runBulkSet({
+                character,
                 entries: currentAvailableTalentIds,
                 getTargetValue: () => cap,
                 getValueState: (talentId) => getMaxState(talentId),
@@ -168,16 +205,19 @@ const LibraryTab = () => {
         activeClassNameState.val = activeClassName;
         maxBookLvState.val = maxBookLv;
 
+        // Another character gets new rows, so a save still waiting in the old ones stays with the old character.
         rowReconciler(
-            groups
-                .map((group) =>
-                    [
-                        group.classId,
-                        group.className,
-                        ...group.talents.map((talent) => `${talent.talentId}:${talent.isBookAvailable ? 1 : 0}`),
-                    ].join("|")
-                )
-                .join("||"),
+            loadedCharacter +
+                "||" +
+                groups
+                    .map((group) =>
+                        [
+                            group.classId,
+                            group.className,
+                            ...group.talents.map((talent) => `${talent.talentId}:${talent.isBookAvailable ? 1 : 0}`),
+                        ].join("|")
+                    )
+                    .join("||"),
             () => [
                 AccountRow({
                     rowClass: "account-row--info",
@@ -208,6 +248,8 @@ const LibraryTab = () => {
                                     maxBookLvState,
                                     isBookAvailable: talent.isBookAvailable,
                                     isSpecial: group.isSpecial,
+                                    character: loadedCharacter,
+                                    checkCharacter,
                                 })
                             )
                         ),
@@ -290,6 +332,8 @@ const LibraryTab = () => {
                 });
             }
 
+            // Only now do the rows show this character; a Refresh that failed leaves them, and saves, with the last.
+            loadedCharacter = String(rawUserInfo);
             reconcileRows({ activeClassName, maxBookLv, groups, availableTalentIds });
         });
 

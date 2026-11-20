@@ -53,6 +53,25 @@ export const createStaticRowReconciler = (container) => {
     };
 };
 
+/**
+ * Build row nodes with `build(row)`, reusing the node of a row whose data is unchanged, so a redraw keeps that row's
+ * button state (a failure stays red on the row that asked). Rows are compared by their JSON, index included.
+ */
+export const createKeptRows = (build) => {
+    let kept = new Map();
+    return (rows) => {
+        const next = new Map();
+        const nodes = rows.map((row) => {
+            const key = JSON.stringify(row);
+            const node = kept.get(key) ?? build(row);
+            next.set(key, node);
+            return node;
+        });
+        kept = next;
+        return nodes;
+    };
+};
+
 /** Coerce a value to a finite number, or return `fallback` for NaN/Infinity. */
 export const toNum = (value, fallback = 0) => {
     const n = Number(value);
@@ -247,7 +266,10 @@ const writeManyLogged = async (writes, change, character) => {
     const failedWrite = writes.find((entry) => normalizeGgaPath(entry.path) === failedPath);
     const expected = failedWrite?.value ?? "unknown";
 
-    const error = new Error(`Write mismatch at ${failedPath}: expected ${expected}`);
+    // An entry that never reached its slot keeps its own reason; only a value the game didn't keep is a mismatch.
+    const error = new Error(
+        failed.error === "Write mismatch" ? `Write mismatch at ${failedPath}: expected ${expected}` : failed.error
+    );
     error.results = result.results;
     throw error;
 };
@@ -287,9 +309,11 @@ const toWriteEntries = (writeOrWrites) => {
  * @param {function} [opts.getWrites]
  * @param {function} [opts.shouldWrite]
  * @param {function} [opts.applyLocal]
+ * @param {string} [opts.character] - when set, the game writes only while this character is in play
  * @returns {Promise<void>}
  */
 export const runBulkSet = async ({
+    character,
     entries,
     getTargetValue,
     getValueState,
@@ -299,28 +323,32 @@ export const runBulkSet = async ({
     applyLocal = null,
 }) => {
     const resolvedEntries = typeof entries === "function" ? entries() : (entries ?? []);
-    const targets = [];
+    // Only the entries written take the target afterwards: a skipped row saved meanwhile keeps what it saved.
+    const targets = new Map();
     const writes = [];
 
     resolvedEntries.forEach((entry, index) => {
         const targetValue = getTargetValue(entry, index);
         const valueState = getValueState(entry, index);
         const currentValue = resolveValue(valueState);
-        targets[index] = targetValue;
 
         if (typeof getWrites === "function") {
-            writes.push(...toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState })));
+            const entryWrites = toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState }));
+            if (entryWrites.length) targets.set(index, targetValue);
+            writes.push(...entryWrites);
             return;
         }
 
         if (!shouldWrite({ entry, index, currentValue, targetValue, valueState })) return;
+        targets.set(index, targetValue);
         writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
     });
 
-    await writeManyVerified(writes);
+    await writeManyVerified(writes, { character });
 
     resolvedEntries.forEach((entry, index) => {
-        const targetValue = targets[index];
+        if (!targets.has(index)) return;
+        const targetValue = targets.get(index);
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);
             return;
@@ -357,6 +385,9 @@ export const oneAtATime = () => {
  */
 export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
     const status = van.state(null);
+    // How each run ended and which button press started it (`pressedBy`, set by ActionButton): a press says its own
+    // run's result, though the colour cleared already or another press's run ended first.
+    status.ended = [];
     let clearTimer = null;
 
     const clearStatus = () => {
@@ -394,18 +425,25 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
         }
 
         status.val = loadingState;
+        // A press's announcement (ActionButton) tells its own run from an earlier one's result by this count.
+        const id = (status.runs = (status.runs ?? 0) + 1);
+        const by = status.pressedBy;
+        const end = (outcome) => (status.ended = [...status.ended, { id, by, outcome }].slice(-10));
 
         try {
             const result = await task();
             if (result?.cancelled) {
+                end("cancelled");
                 status.val = null;
                 return { ok: false, cancelled: true, result };
             }
+            end("success");
             status.val = successState;
             if (typeof onSuccess === "function") onSuccess(result);
             if (successMs > 0) scheduleClear(successMs);
             return { ok: true, result };
         } catch (error) {
+            end("error");
             status.val = errorState;
             if (typeof onError === "function") onError(error);
             if (errorMs > 0) scheduleClear(errorMs);

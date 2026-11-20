@@ -16,6 +16,7 @@ import { AccountToggleRow } from "../../../components/views/account/components/A
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     getOrCreateState,
+    oneAtATime,
     resolveNumberInput,
     runBulkSet,
     useWriteStatus,
@@ -82,11 +83,8 @@ const IslandUnlockRow = ({ island, unlocksState, writeUnlocks }) =>
         name: island.label,
         checked: () => unlocksState.val.includes(island.token),
         title: `Toggle ${island.label}`,
-        write: async (enabled) => {
-            const current = canonicalizeUnlocks(unlocksState.val);
-            const next = canonicalizeUnlocks(enabled ? `${current}${island.token}` : current.replace(island.token, ""));
-            await writeUnlocks(next);
-        },
+        write: (enabled) =>
+            writeUnlocks((current) => (enabled ? `${current}${island.token}` : current.replace(island.token, ""))),
     });
 
 const NumericRow = ({ field, valueState, badge }) =>
@@ -102,11 +100,13 @@ const NumericRow = ({ field, valueState, badge }) =>
     });
 
 const IslandsTab = () => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Islands" });
     const unlockBulk = useWriteStatus();
     const garbageBulk = useWriteStatus();
     const randoBulk = useWriteStatus();
     const shimmerBulk = useWriteStatus();
+    const bulkRunning = () =>
+        [unlockBulk, garbageBulk, randoBulk, shimmerBulk].some(({ status }) => status.val === "loading");
+    const { loading, error, run: runLoad, reload, pending } = useAccountLoad({ label: "Islands", busy: bulkRunning });
     const valueStates = new Map();
     const unlocksState = van.state("");
     const bribeState = van.state(0);
@@ -115,6 +115,9 @@ const IslandsTab = () => {
     const shimmerSetAll = van.state("200");
 
     const getValueState = (index) => getOrCreateState(valueStates, index);
+    // A bulk action waits for a read, and Refresh for a bulk action, so an older read can't land over a newer write.
+    // After a failed read the values shown may be old, so the bulk actions wait for one that works.
+    const readPending = () => loading.val || Boolean(error.val) || pending.val;
 
     const load = async () =>
         runLoad(async () => {
@@ -127,21 +130,39 @@ const IslandsTab = () => {
             });
         });
 
-    const writeUnlocks = async (nextValue, { batch = false } = {}) => {
-        const canonical = canonicalizeUnlocks(nextValue);
-        if (batch) {
-            await writeManyVerified([{ path: UNLOCK_PATH, value: canonical }]);
-        } else {
-            await writeVerified(UNLOCK_PATH, canonical, { write: gga });
-        }
-        unlocksState.val = canonical;
+    // Every island lives in one string, so unlock writes save one at a time, each from the string the game holds now.
+    const unlocksInTurn = oneAtATime();
+    // `next`: the new string, or a function from the string the game holds to the new one.
+    const writeUnlocks = (next, { batch = false } = {}) =>
+        unlocksInTurn(async () => {
+            const held = typeof next === "function" ? canonicalizeUnlocks(await gga(UNLOCK_PATH)) : null;
+            const canonical = canonicalizeUnlocks(held === null ? next : next(held));
+            try {
+                if (batch) {
+                    await writeManyVerified([{ path: UNLOCK_PATH, value: canonical }]);
+                } else {
+                    await writeVerified(UNLOCK_PATH, canonical, { write: gga });
+                }
+            } catch (error) {
+                // A failed save leaves the switches on what the game held when it started.
+                if (held !== null) unlocksState.val = held;
+                throw error;
+            }
+            unlocksState.val = canonical;
+        });
+
+    // Lowering takes upgrade levels away, so it asks first; raising runs on one click.
+    const confirmSetAll = (fields, inputState) => () => {
+        const target = resolveNumberInput(inputState.val, { min: 0, fallback: null });
+        const lowered = fields.filter((field) => Number(getValueState(field.index).val) > target).length;
+        return lowered ? `lower ${lowered} upgrade${lowered === 1 ? "" : "s"} to ${target}.` : null;
     };
 
     const setAll = async (fields, inputState, status) => {
         const target = resolveNumberInput(inputState.val, { min: 0, fallback: null });
         if (target === null) return;
 
-        await status.run(() =>
+        const result = await status.run(() =>
             runBulkSet({
                 entries: fields,
                 getTargetValue: () => target,
@@ -149,6 +170,8 @@ const IslandsTab = () => {
                 getPath: (field) => `OptionsListAccount[${field.index}]`,
             })
         );
+        // Some of it may have landed: the rows show what the game holds, read once every other Set all ended too.
+        if (!result.ok && !result.cancelled) reload();
     };
 
     load();
@@ -162,6 +185,7 @@ const IslandsTab = () => {
                     {
                         label: "Unlock all",
                         status: unlockBulk.status,
+                        disabled: readPending,
                         tooltip: "Write the canonical unlock string abcde_",
                         onClick: () => unlockBulk.run(() => writeUnlocks(CANONICAL_UNLOCK_ORDER, { batch: true })),
                     },
@@ -169,7 +193,10 @@ const IslandsTab = () => {
                         label: "Lock all",
                         variant: "danger",
                         status: unlockBulk.status,
+                        disabled: readPending,
                         tooltip: "Clear every island unlock",
+                        // It removes, so it asks in place first (#25).
+                        confirm: "lock every island.",
                         onClick: () => unlockBulk.run(() => writeUnlocks("", { batch: true })),
                     },
                 ],
@@ -194,7 +221,9 @@ const IslandsTab = () => {
                     label: "Set all",
                     value: garbageSetAll,
                     status: garbageBulk.status,
+                    disabled: readPending,
                     onApply: () => setAll(GARBAGE_FIELDS, garbageSetAll, garbageBulk),
+                    confirm: confirmSetAll(GARBAGE_FIELDS, garbageSetAll),
                 })
             ),
             body: div(
@@ -225,7 +254,9 @@ const IslandsTab = () => {
                     label: "Set all",
                     value: randoSetAll,
                     status: randoBulk.status,
+                    disabled: readPending,
                     onApply: () => setAll(RANDO_FIELDS, randoSetAll, randoBulk),
+                    confirm: confirmSetAll(RANDO_FIELDS, randoSetAll),
                 })
             ),
             body: div(
@@ -241,7 +272,9 @@ const IslandsTab = () => {
                     label: "Set upgrades",
                     value: shimmerSetAll,
                     status: shimmerBulk.status,
+                    disabled: readPending,
                     onApply: () => setAll(SHIMMER_FIELDS, shimmerSetAll, shimmerBulk),
+                    confirm: confirmSetAll(SHIMMER_FIELDS, shimmerSetAll),
                 })
             ),
             body: div(
@@ -277,7 +310,7 @@ const IslandsTab = () => {
         actions: BulkActionBar({
             refresh: {
                 onClick: load,
-                disabled: () => loading.val,
+                disabled: () => loading.val || bulkRunning(),
                 tooltip: "Re-read Islands data from game",
             },
         }),

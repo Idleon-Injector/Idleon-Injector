@@ -12,6 +12,7 @@ import { EditableFieldsRow, StackedNumberField } from "../../../components/views
 import { renderTabNav } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
+    createStaticRowReconciler,
     resolveNumberInput,
     toInt,
     useWriteStatus,
@@ -255,7 +256,7 @@ const MapCrystalsTab = () => {
 
     const applyBulkKills = async (mapsToUpdate, killCount) => {
         if (!mapsToUpdate || mapsToUpdate.length === 0) return;
-        await runBulk(async () => {
+        const result = await runBulk(async () => {
             const writes = [];
             for (const map of mapsToUpdate) {
                 const states = getMapStates(map.mapIndex);
@@ -284,6 +285,8 @@ const MapCrystalsTab = () => {
                 states.blue.val = killCount;
             }
         });
+        // Some writes may have landed before one failed: show what the game holds now.
+        if (!result.ok && !result.cancelled) await load();
     };
 
     const getActiveWorldMaps = () => {
@@ -294,6 +297,8 @@ const MapCrystalsTab = () => {
 
     load();
 
+    const mapList = div({ class: "account-list map-crystals-list" });
+    const reconcileMaps = createStaticRowReconciler(mapList);
     const renderMapList = () => {
         const query = searchQuery.val.trim().toLowerCase();
         const worldMaps = getActiveWorldMaps();
@@ -308,7 +313,10 @@ const MapCrystalsTab = () => {
             });
         }
 
-        return div({ class: "account-list map-crystals-list" }, ...visibleMaps.map((map) => getMapRow(map)));
+        // A reload that shows the same rows leaves them in place: taking a row out, even to put it back, drops the
+        // focus and saves what is half typed in it.
+        reconcileMaps(visibleMaps.map((map) => map.mapIndex).join(","), () => visibleMaps.map((map) => getMapRow(map)));
+        return mapList;
     };
 
     const bulkActions = [
@@ -337,6 +345,8 @@ const MapCrystalsTab = () => {
             tooltip:
                 "Reset all crystals on maps in the current world view to 0 kills (select a specific world tab to enable)",
             confirm: () => (activeTab.val === "all" ? null : "reset every crystal in this world to 0 kills."),
+            // The world the question was about: another one picked meanwhile asks again.
+            confirmTargets: activeTab,
             onClick: () => {
                 if (activeTab.val === "all") return;
                 applyBulkKills(getActiveWorldMaps(), 0);
