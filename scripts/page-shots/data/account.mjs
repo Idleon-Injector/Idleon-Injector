@@ -16,6 +16,9 @@ const EVENT_SHOP = 20;
 const ARMORY = 70;
 
 const vaultMax = (index) => 10 + (index % 5) * 10;
+// World 7 › Bubba › Automation: costs climb by upgrade, the last few unlock with more meat made.
+const bubbaCost = (i) => Math.round(40 * 1.6 ** i);
+const bubbaUnlock = (i) => (i < 22 ? 0 : 10 ** (i - 16));
 
 // Attire Rack: outfits (EquipmentGown1..), their stats and bonuses, and the attire slot (row 0, slot 15).
 const OUTFITS = 8;
@@ -64,6 +67,9 @@ const built = (map, i) => [i + 1, i, 2, 40 * i, 12, 3, 0, 0, -1, -1, i % 3, 2222
 const SHOP_MAPS = [1, 2, 51, 52, 101, 151, 201, 251, 301];
 const shopItems = (shop) =>
     list(4 + (shop % 3), (i) => (i === 3 ? `EquipmentHatsPrem${shop + 1}` : `item${(shop * 3 + i) % 30}`));
+
+// Grimoire › Automation: each upgrade's next level costs more bones the later it comes.
+const grimoireCost = (i) => Math.round(10 * 1.6 ** i);
 
 export default () => ({
     gga: {
@@ -149,7 +155,8 @@ export default () => ({
         CustomMaps: h({ RG_KillReq: h({ 2: 900 }) }),
         // TotStatMAP: the stat cache the Attire Rack empties after an attire change.
         DNSM: h({ ArcMultBon: [75], TotStatMAP: h({}), TotalStatsETCmap: h({}), BoxRewards: h({ OneSlot: 0.5 }) }),
-        OptionsListAccount: { 311: "_bcf" },
+        // 330-333: Grimoire bones (femur, ribcage, cranium, bovinae).
+        OptionsListAccount: { 311: "_bcf", 330: 48200, 331: 9100, 332: 650, 333: 0 },
         CustomLists: {
             h: {
                 ShopNames: SHOP_MAPS.map((_, shop) => shopItems(shop)),
@@ -181,7 +188,14 @@ export default () => ({
                 ObolXYcoords: [list(4, (i) => [0, 0, String(i)]), list(4, (i) => [0, 0, String(i)])],
                 UpgradeVault: upgradeDefs(VAULT, 2),
                 BubbaUpg: upgradeDefs(28, 5),
-                GrimoireUpg: upgradeDefs(30, 1),
+                // Grimoire: each upgrade's bone [3] and the total level that unlocks it [6].
+                GrimoireUpg: upgradeDefs(30, 1).map((row, i) => [
+                    ...row.slice(0, 3),
+                    String(Math.floor(i / 8)),
+                    row[4],
+                    row[5],
+                    String(i * 40),
+                ]),
                 ArcaneUpg: upgradeDefs(30, 3),
                 CompassUpg: upgradeDefs(40, 4),
                 ArmoryUpg: upgradeDefs(ARMORY, 1),
@@ -212,6 +226,19 @@ export default () => ({
             },
         },
     },
-    computed: { _customBlock_Summoning: { VaultUpgMaxLV: vaultMax }, ...wardrobeComputed() },
+    computed: {
+        _customBlock_Summoning: {
+            VaultUpgMaxLV: vaultMax,
+            GrimoireUpgUNLOCKED: 24,
+            GrimoireUpgCost: grimoireCost,
+        },
+        _customBlock_Bubbastuff: {
+            BubbaUnlocked: 1,
+            DoWeNeedToSelectGift: 0,
+            UpgCost: bubbaCost,
+            MeatProdREQ: bubbaUnlock,
+        },
+        ...wardrobeComputed(),
+    },
     cheatStates: { wide: { attire: true } },
 });

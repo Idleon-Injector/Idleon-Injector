@@ -270,7 +270,10 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
 // Send cheatConfig.automation[key] to the game, then to the config file. A failure only at the file is marked
 // `fileOnly`: the game has the value.
 const sendToGame = async (key, value) => {
-    const result = await updateSessionConfig({ cheatConfig: { automation: { [key]: value } } });
+    // No answer at all (not a refusal): whether the game took it is unknown.
+    const result = await updateSessionConfig({ cheatConfig: { automation: { [key]: value } } }).catch((error) => {
+        throw Object.assign(error, { unknown: true });
+    });
     if (result.message !== "Configuration updated successfully")
         throw new Error(result.details || result.message || "The game didn't take the change");
 };
@@ -397,6 +400,10 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
             const read = await fetchConfig().catch(() => null);
             const held = read?.cheatConfig.automation[group];
             if (held) sync(held);
+            // The game didn't answer the save, so it may or may not have taken it, and the game itself couldn't be
+            // read back (no read, or only the server's copy): until a read of the game, a save would send a list the
+            // game may no longer hold.
+            if (failure?.unknown && !read?.gameRead) synced = false;
             // A read of the game is the truth, even after a failed save (the game may have applied it before its
             // answer failed). A read that couldn't reach the game is the server's copy, which takes an edit before
             // the game does: there a refused edit stays refused.
@@ -502,6 +509,8 @@ export const createAutomationSetting = (key, { afterSave = null } = {}) => {
             // game did, so there a refused edit stays refused.
             const read = await fetchConfig().catch(() => null);
             if (read && (read.gameRead || accepted === next)) accepted = read.cheatConfig.automation[key] ?? accepted;
+            // As for the picks: an unanswered save without a read of the game leaves the game unknown until one.
+            if (failure?.unknown && !read?.gameRead) synced = false;
             show();
             await readAfter(afterSave);
             if (failure) throw failure;
@@ -678,9 +687,19 @@ export const PRIORITY = {
  * [{ value, label }] }, PRIORITY say) adds a pick before the stop-at that saves that setting of the item; a value of
  * null is the default, left out of the config. The switch, the picks and the stop-at share one save state, whose writes
  * take turns in the order the player made them (a stop-at, then the switch, reach the game in that order), so what it
- * shows is the newest one's outcome.
+ * shows is the newest one's outcome. `label` names the item for screen readers when `name` alone doesn't (a kitchen's
+ * "Speed" under its kitchen's heading, say).
  */
-export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], stopAtTitle = "Stop at" }) => {
+export const PickRow = ({
+    picks,
+    id,
+    name,
+    label = name,
+    badge,
+    detail = null,
+    selects = [],
+    stopAtTitle = "Stop at",
+}) => {
     const item = picks.get(id);
     const field = useQueuedField({
         value: item.stopAt,
@@ -693,7 +712,7 @@ export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], s
     const checkbox = input({
         type: "checkbox",
         role: "switch",
-        "aria-label": `Buy ${name}`,
+        "aria-label": `Buy ${label}`,
         checked: () => item.on.val,
         onchange: (e) => {
             const on = e.target.checked;
@@ -706,7 +725,7 @@ export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], s
         const pick = select(
             {
                 class: "select-base",
-                "aria-label": `${name} ${title.toLowerCase()}`,
+                "aria-label": `${label} ${title.toLowerCase()}`,
                 onchange: (e) => {
                     const next = options[Number(e.target.value)].value;
                     // What the game holds again once the save ends, taken or not.
@@ -731,7 +750,7 @@ export const PickRow = ({ picks, id, name, badge, detail = null, selects = [], s
                 draft: item.draft,
                 parse: parseStopAt,
                 title: stopAtTitle,
-                ariaLabel: `${name} ${stopAtTitle.toLowerCase()}`,
+                ariaLabel: `${label} ${stopAtTitle.toLowerCase()}`,
                 placeholder: "No limit",
             }),
             switchLabel(checkbox),

@@ -14,7 +14,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { readGgaEntries } from "../../../services/api.js";
-import { Icons } from "../../../assets/icons.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import {
@@ -58,23 +57,12 @@ const RefinerySection = ({ refIndex, name, levelState, chargeState }) => {
     const gameIndex = refIndex + REFINERY_OFFSET;
     const isPolymer = refIndex >= POLYMER_LOCK_FROM;
     const isPlaceholder = refIndex === PLACEHOLDER_INDEX;
-    const badges = [
-        isPolymer ? span({ class: "refinery-badge refinery-badge--polymer" }, "POLYMER") : null,
-        isPlaceholder
-            ? span({ class: "refinery-badge refinery-badge--placeholder" }, Icons.Warning(), " NOT IN GAME")
-            : null,
-    ].filter(Boolean);
+    // The section names its state in plain words, like a switch's word: no box, no colour of its own.
+    const state = [isPolymer ? "Polymer" : "", isPlaceholder ? "Not in game" : ""].filter(Boolean).join(" · ");
 
     return AccountSection({
         title: typeof name === "function" ? () => `#${refIndex + 1} ${name()}` : `#${refIndex + 1} ${name}`,
-        meta: badges.length ? div({ class: "refinery-section__badges" }, ...badges) : null,
-        rootClass: [
-            "refinery-section",
-            isPolymer ? "refinery-section--polymer" : "",
-            isPlaceholder ? "refinery-section--placeholder" : "",
-        ]
-            .filter(Boolean)
-            .join(" "),
+        meta: state ? span({ class: "refinery-section__state" }, state) : null,
         body: [
             RefineryValueRow({
                 label: "LEVEL",

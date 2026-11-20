@@ -14,7 +14,8 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { readComputedMany } from "../../../services/api.js";
+import { gga, readComputedMany } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -50,14 +51,18 @@ const AtomColliderTab = () => {
 
     const doSetAll = async (targetLevel) => {
         if (!atomsMeta.length) return;
-        await runBulk(async () => {
+        const result = await runBulk(async () => {
+            const fresh = toIndexedArray(await gga("Atoms"));
             await runBulkSet({
                 entries: atomsMeta,
                 getTargetValue: (atom) => (targetLevel === null ? atom.maxLevel : targetLevel),
                 getValueState: (_, index) => getLevelState(index),
                 getPath: (_, index) => `Atoms[${index}]`,
+                // Planned from the game, not the fields: a level bought there since the page read it is reset too.
+                shouldWrite: ({ index, targetValue }) => Number(fresh[index] ?? 0) !== targetValue,
             });
         });
+        if (!result.ok) await load();
     };
 
     const load = async () =>
