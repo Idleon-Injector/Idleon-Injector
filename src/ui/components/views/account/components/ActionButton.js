@@ -6,17 +6,25 @@ import { announce, clickAgain, disarm } from "../../../inPlace.js";
 
 const { button } = van.tags;
 
-// A press's result for screen readers, once its status settles: the button itself only changes colour (#77).
-const sayResult = async (name, pending, status) => {
-    try {
-        await pending;
-    } catch {
-        // The status says it failed.
+// A press's result for screen readers: the button itself only changes colour (#77). It is the result this press
+// reached: one that only asked "Click again" says nothing, though the status still holds an earlier press's done
+// (`before`), and a failure is said even when the handler goes on re-reading the page after the status cleared.
+const sayResult = async (name, pending, status, before) => {
+    let settled = false;
+    Promise.resolve(pending).then(
+        () => (settled = true),
+        () => (settled = true)
+    );
+    let started = false;
+    for (let i = 0; i < 1200; i++) {
+        const now = resolveValue(status);
+        if (now === "loading") started = true;
+        else if ((now === "success" || now === "error") && (started || now !== before))
+            return announce(`${name}: ${now === "success" ? "done" : "failed"}`);
+        else if (settled) return undefined;
+        await new Promise((r) => setTimeout(r, 50));
     }
-    for (let i = 0; i < 600 && resolveValue(status) === "loading"; i++) await new Promise((r) => setTimeout(r, 100));
-    const now = resolveValue(status);
-    if (now === "success") announce(`${name}: done`);
-    else if (now === "error") announce(`${name}: failed`);
+    return undefined;
 };
 
 // The three kinds (DESIGN.md): main is an area's one blue button; quiet is any other action, Max included; danger
@@ -89,8 +97,9 @@ export const ActionButton = ({
                       }
                       if (shared) pressedBy.set(status, buttonNode);
                       const name = String(resolveValue(label)).trim();
+                      const before = resolveValue(status);
                       const result = withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e));
-                      if (status) void sayResult(name, result, status);
+                      if (status) void sayResult(name, result, status, before);
                       return result;
                   }
                 : null,

@@ -112,3 +112,38 @@ test("a pressed button's done or failed colour beats its kind's hover colour", a
         );
     }
 });
+
+// A failed bulk write re-reads the page before its handler ends (Masterclass), and its status clears after 1.2 s:
+// the failure is still said, though the status is empty again by the time the handler ends.
+test("a failure is said even when the status clears while the page reads again", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const status = van.state(null);
+    const button = ActionButton({
+        label: "Max all",
+        status,
+        onClick: async () => {
+            status.val = "loading";
+            await settle();
+            status.val = "error";
+            await settle(150);
+            status.val = null; // useWriteStatus clears it while the re-read still runs
+            await settle(150);
+        },
+    });
+    await click(button);
+    await settle(50);
+    const region = elements(globalThis.document.body).find((node) => node.attributes.role === "status");
+    assert.equal(region.textContent, "Max all: failed");
+});
+
+// Bribes: Enable all succeeds, and Disable all pressed within 1.2 s only asks "Click again" in its own handler.
+test("a press that only asks says nothing of an earlier press's done", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const status = van.state("success"); // Enable all's result, still showing
+    const button = ActionButton({ label: "Disable all", status, onClick: async () => settle() });
+    const region = elements(globalThis.document.body).find((node) => node.attributes.role === "status");
+    region.textContent = "";
+    await click(button);
+    await settle(150);
+    assert.equal(region.textContent, "", "nothing said");
+});
