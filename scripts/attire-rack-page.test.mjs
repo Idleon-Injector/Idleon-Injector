@@ -110,7 +110,8 @@ test("the cards are the outfits; with all saved and the cheat on, every bonus sh
     assert.match(text(card(page, names[2])), /worn/, "the outfit the character in play wears");
 });
 
-test("a card click turns its bonus off: session config, cheat and config file, as Pets saves", async () => {
+// The config file first, so a save that fails there changes nothing; then the session (and the game), then the cheat.
+test("a card click turns its bonus off: config file, session config and cheat, as Pets saves", async () => {
     const since = requests.length;
     await card(page, names[0]).listeners.click({});
     await until(() => !pressed(page, names[0]), "the card to show off");
@@ -118,10 +119,13 @@ test("a card click turns its bonus off: session config, cheat and config file, a
     assert.equal(await savedOutfits(), ids);
     assert.deepEqual(
         requests.slice(since).filter((entry) => entry.startsWith("POST")),
-        ["POST /api/config/update", "POST /api/toggle", "POST /api/config/save"]
+        ["POST /api/config/save", "POST /api/config/update", "POST /api/toggle"]
     );
     assert.match(text(page), /7 of 8 outfit bonuses are on/);
     assert.deepEqual(startup(), ["wide attire"], "chosen outfits turn the cheat on at start");
+    // Only what it changed: a whole config read before another page's change would put that change back.
+    assert.deepEqual(saves.at(-1).cheatConfig, { wide: { attire: { outfits: ids } } });
+    assert.equal(saves.at(-1).injectorConfig, undefined);
 });
 
 test("clicking it again turns every outfit on, so outfits a game update adds count too", async () => {

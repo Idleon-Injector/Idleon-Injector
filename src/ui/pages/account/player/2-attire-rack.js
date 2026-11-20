@@ -2,8 +2,8 @@
  * Account - Player: Attire Rack (#89, ported from VoidKitten's #3)
  *
  * Outfit bonuses: a card per outfit; a click turns its bonus on or off. The choice is
- * cheatConfig.wide.attire.outfits ("all" once every outfit is on, so outfits a game update adds count too), applied
- * to the session and saved to config.custom.js on each click, as the Pets page saves its pets. `wide attire` is on,
+ * cheatConfig.wide.attire.outfits ("all" once every outfit is on, so outfits a game update adds count too), saved to
+ * config.custom.js and the session on each click, as the Pets page saves its pets. `wide attire` is on,
  * now and at every start (a startup cheat), while any outfit is chosen. As on Pets, the cards show the saved choice
  * even while the cheat is off, and a click edits that choice.
  *
@@ -22,8 +22,8 @@ import {
     fetchCheatStates,
     fetchConfig,
     readComputed,
-    saveConfigFile,
-    updateSessionConfig,
+    saveConfigPart,
+    startupWith,
 } from "../../../services/api.js";
 import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
 import { Said, clickAgain, useSaid } from "../../../components/inPlace.js";
@@ -117,9 +117,9 @@ const AttireRackPage = () => {
 
     // A choice saved since this read began is newer than what it read: the read drops its answer.
     let choiceSaves = 0;
-    const readChoice = async () => {
+    const readChoice = async (read = fetchConfig()) => {
         const saves = choiceSaves;
-        const [config, cheatStates] = await Promise.all([fetchConfig(), fetchCheatStates()]);
+        const [config, cheatStates] = await Promise.all([read, fetchCheatStates()]);
         if (saves !== choiceSaves) return;
         enabled.val = Boolean(cheatStates?.data?.wide?.attire);
         const saved = config?.cheatConfig?.wide?.attire?.outfits ?? "all";
@@ -135,25 +135,6 @@ const AttireRackPage = () => {
         );
     };
 
-    // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config. `onAtStart`:
-    // chosen outfits also turn the cheat on at every start; none takes it off that list. Startup cheats toggle, so a
-    // list that already has "wide" (every account-wide cheat) gets no "wide attire", which would turn it back off.
-    const persistConfig = async (onAtStart) => {
-        const config = await fetchConfig();
-        if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
-        const startup = config.startupCheats ?? [];
-        const listed = startup.includes(ATTIRE_CHEAT) || startup.includes("wide");
-        await saveConfigFile({
-            startupCheats: onAtStart
-                ? listed
-                    ? startup
-                    : [...startup, ATTIRE_CHEAT]
-                : startup.filter((command) => command !== ATTIRE_CHEAT),
-            cheatConfig: config.cheatConfig,
-            injectorConfig: config.injectorConfig,
-        });
-    };
-
     // `next(chosen)`: the outfits to give, from the saved choice. Built after a fresh read, so a choice saved from the
     // Config page meanwhile isn't overwritten. `write`: the status it runs under (the cards have their own).
     const writeChoice = (next, write = choiceWrite) =>
@@ -167,16 +148,17 @@ const AttireRackPage = () => {
                     ids.length && ids.every((id) => wanted.has(id))
                         ? "all"
                         : ids.filter((id) => wanted.has(id)).join(",");
-                const result = await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: value } } } });
+                // Chosen outfits also turn the cheat on at every start; none takes it off that list.
+                const { result, config } = await saveConfigPart(({ startupCheats }) => ({
+                    cheatConfig: { wide: { attire: { outfits: value } } },
+                    startupCheats: startupWith(startupCheats, ATTIRE_CHEAT, value !== ""),
+                }));
                 if (result.message !== "Configuration updated successfully") {
                     throw new Error(result.details || result.message || "The game didn't take the outfit choice");
                 }
                 await executeCheatAction(ATTIRE_CHEAT, value !== "");
-                enabled.val = value !== "";
-                allChosen.val = value === "all";
-                chosen.val = new Set(value === "all" ? ids : ids.filter((id) => wanted.has(id)));
                 choiceSaves++;
-                await persistConfig(value !== "");
+                await readChoice(config);
             },
             {
                 // Part of it may have landed (the session took the choice): the cards show what is saved now, and a
