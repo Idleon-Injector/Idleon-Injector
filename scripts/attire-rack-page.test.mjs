@@ -129,7 +129,7 @@ test("no outfits asks Click again, then turns the cheat off, now and at start", 
     const none = button(page, "No outfits");
     const since = requests.length;
     await none.listeners.click({ currentTarget: none, preventDefault() {} });
-    assert.equal(none.attributes["data-again"], "CLICK AGAIN");
+    assert.equal(none.attributes["data-again"], "Click again");
     assert.equal(none.attributes["aria-label"], "Click again to stop giving every outfit bonuses, now and at start.");
     assert.deepEqual(after(since, "/api/config"), [], "the first click changes nothing");
     await none.listeners.click({ currentTarget: none, preventDefault() {} });
@@ -246,7 +246,7 @@ test("give everyone asks Click again, then gives every character the outfit as o
     const give = elements(page).find((node) => node.nodeName === "button" && text(node) === "Give everyone");
     const since = requests.length;
     await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    assert.equal(give.attributes["data-again"], "CLICK AGAIN");
+    assert.equal(give.attributes["data-again"], "Click again");
     assert.match(give.attributes["aria-label"], /^Click again to give 3 characters .*not moved to storage\.$/);
     assert.deepEqual(after(since, "write"), [], "the first click writes nothing");
 
