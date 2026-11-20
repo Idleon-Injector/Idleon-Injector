@@ -20,3 +20,30 @@
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
 }
+
+/* A clicker upgrade (stop-at, High / Low / Balanced, switch) and a saving %. What's under the name wraps, never cut. */
+.automation-pick--priority .account-field-metric,
+.automation-saving .account-field-metric {
+    width: 150px;
+}
+
+.automation-priority {
+    width: 7.5rem;
+}
+
+.automation-pick--priority .account-row__sub-label,
+.automation-saving .account-row__sub-label {
+    white-space: normal;
+}
+
+/* The overlay: the stop-at gets its own line, the pick and the switch go under it. */
+@media (max-width: 600px) {
+    .automation-pick--priority .account-row__controls {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .automation-pick--priority .account-field-metric {
+        flex: 1 1 100%;
+    }
+}
