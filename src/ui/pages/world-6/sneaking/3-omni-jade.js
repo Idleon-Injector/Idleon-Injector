@@ -11,6 +11,7 @@ import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    oneAtATime,
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -68,7 +69,6 @@ const OmniJadeTab = () => {
                             write: (next) => save(() => writeVerified(path, next)),
                             renderInfo: () => span({ class: "account-row__name" }, `${name} bonus levels`),
                             adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
-                            disabled,
                             rowClass: "account-row--wide-controls",
                             controlsClass: "account-row__controls--xl",
                             inputProps: { "aria-label": `${name} bonus levels` },
@@ -78,16 +78,18 @@ const OmniJadeTab = () => {
             );
         });
 
-    const save = async (task) => {
-        if (disabled()) throw new Error("Another Omni Jade operation is in progress.");
-        saving.val = true;
-        try {
-            return await task();
-        } finally {
-            await load();
-            saving.val = false;
-        }
-    };
+    // Saves wait their turn, so the fields stay usable while one runs; each reads the game again after it.
+    const inTurn = oneAtATime();
+    const save = (task) =>
+        inTurn(async () => {
+            saving.val = true;
+            try {
+                return await task();
+            } finally {
+                await load();
+                saving.val = false;
+            }
+        });
 
     // Saves on flip, then reads the game again; a failed save says why on the switch.
     const toggleRow = (name, path, note) => {

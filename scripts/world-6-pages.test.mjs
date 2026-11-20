@@ -92,3 +92,36 @@ test("markets: a level above its cap shows as the game holds it, and Max brings 
     assert.equal(stateOf(row), "success");
     assert.equal(game.gga.FarmUpg[2], 20);
 });
+
+test("omni jade: the next bonus-levels field stays usable while one saves, and both save", async () => {
+    const levels = game.gga.Menagerie[7];
+    const root = await openPage("src/ui/pages/world-6/sneaking/3-omni-jade.js", (r) => {
+        return byClass(r, "account-row--value").length >= 2;
+    });
+    const [rowA, rowB] = byClass(root, "account-row--value");
+    const [fieldA] = inputs(rowA);
+    const [fieldB] = inputs(rowB);
+    const writes = hold("/write");
+    focus(fieldA);
+    type(fieldA, 7);
+    leave(rowA, fieldA, fieldB);
+    focus(fieldB);
+    await until(writes.reached, "A's write to reach the game");
+    assert.equal(disabled(fieldB), false, "the field the player moved to takes typing");
+    assert.deepEqual(
+        buttons(rowB)
+            .filter((node) => text(node).trim() === "")
+            .map(disabled),
+        [false, false],
+        "its -/+ stay usable"
+    );
+    type(fieldB, 9);
+    press(rowB, fieldB, "Enter");
+    writes.release();
+    await settled(rowA);
+    await settled(rowB);
+    assert.equal(stateOf(rowA), "success");
+    assert.equal(stateOf(rowB), "success", "B's save waits its turn instead of being refused");
+    assert.equal(levels[0], 7);
+    assert.equal(levels[1], 9);
+});
