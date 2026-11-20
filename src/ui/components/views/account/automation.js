@@ -29,8 +29,8 @@
  *   switchAutomation(cheat, on), ensureOn(cheat), switchAll(on)   // queued switches, for buttons
  *
  * Inside a step, call the game and the file directly (readAutomations, readComputed, fetchConfig, ...): never await
- * inTurn, switchAutomation, ensureOn, switchAll or a page's queued load, which would wait for the step itself. A step
- * that takes longer than `steps.timeoutMs` is given up with a plain reason, so the pages carry on.
+ * inTurn, switchAutomation, ensureOn, switchAll or a page's queued load, which would wait for the step itself and hold
+ * the queue for good. A step past `steps.timeoutMs` tells its caller it is late; the steps after it still wait for it.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -52,25 +52,31 @@ const { div, input, label, span } = van.tags;
 /** Every automation, with its status while it runs. A direct read: inside a step it gives the settled answer. */
 export const readAutomations = () => readComputed("automation", "list");
 
-/** How long a step may take before it is given up (neither the game bridge nor the API calls time out). */
+/** How long a step may take before its caller is told it is late (neither the game bridge nor the API calls time out). */
 export const steps = { timeoutMs: 30000 };
 
 let queue = Promise.resolve();
 
-/** Run `task` as the next step in the pages' one queue; resolves or rejects with it. */
+/**
+ * Run `task` as the next step in the pages' one queue; resolves or rejects with it. A step past `steps.timeoutMs`
+ * rejects its caller with a plain reason, but the next step still waits for it to end: an answer that comes late
+ * can't land after a newer change.
+ */
 export const inTurn = (task) => {
-    const run = queue.then(() => {
-        let timer;
-        const late = new Promise((resolve, reject) => {
-            timer = setTimeout(
-                () => reject(new Error(`no answer after ${steps.timeoutMs / 1000} s, so it was given up; try again`)),
-                steps.timeoutMs
-            );
-        });
-        return Promise.race([Promise.resolve().then(task), late]).finally(() => clearTimeout(timer));
-    });
+    const before = queue;
+    const run = before.then(task);
     queue = run.catch(() => {});
-    return run;
+    let timer;
+    const late = before.then(
+        () =>
+            new Promise((resolve, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error(`no answer after ${steps.timeoutMs / 1000} s; later changes wait for it`)),
+                    steps.timeoutMs
+                );
+            })
+    );
+    return Promise.race([run, late]).finally(() => clearTimeout(timer));
 };
 
 // The server merges what a save sends into the rest of the file, so only the startup list is read and written back.

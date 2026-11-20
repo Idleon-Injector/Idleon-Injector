@@ -35,6 +35,7 @@ let failNextListRead = false; // the next automation list read fails
 let failListReadAt = null; // the automation list read with this number (listAsked once it arrived) fails
 let holdNextOff = null; // a promise the next switch-off waits on before the game applies it
 let holdNextOn = null; // a promise the next switch-on waits on before the game applies it
+let holdNextOnAnswer = null; // a promise the next switch-on waits on after the game applied it, before it answers
 // The startup cheats in the config file: a save writes them, a read gives them back.
 let fileStartup = [];
 // What the fake game has done, for tests to wait on: switches applied, automation list reads asked and answered.
@@ -66,6 +67,11 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
     const result = switchAutomation(automation.id, on);
     applied.push([action, on]);
     if (on) await wait(slowOnAnswer);
+    if (on && holdNextOnAnswer) {
+        const hold = holdNextOnAnswer;
+        holdNextOnAnswer = null;
+        await hold;
+    }
     res.json(result);
 });
 const readComputedRoute = router.routes.POST.get("/api/game/computed/read");
@@ -1029,43 +1035,46 @@ test("reader 2: on, then off before the save runs, leaves the automation off", a
     assert.equal(shopsOn(), false, "so the automation stays off: the read-back decides, not the save being taken");
 });
 
-test("reader 2: a step that waits on another queued step is given up, and the pages carry on", async () => {
-    const { steps } = await importRepo("src/ui/components/views/account/automation.js");
-    const timeout = steps.timeoutMs;
-    steps.timeoutMs = 200;
-    try {
-        const stuck = ui.inTurn(async () => {
-            await ui.inTurn(async () => ui.readAutomations()); // waits for the step it is in
-        });
-        const later = ui.switchAutomation("automation shops", true);
-        await assert.rejects(stuck, /given up/);
-        await later;
-        assert.equal(shopsOn(), true, "the switch queued after it still ran");
-    } finally {
-        steps.timeoutMs = timeout;
-    }
+test("reader 2: a read the game answers late is said, and a switch clicked meanwhile still wins", async () => {
     await ui.switchAutomation("automation shops", false);
-});
-
-test("reader 2: a read the game never answers is given up, and the pages carry on", async () => {
-    const { steps } = await importRepo("src/ui/components/views/account/automation.js");
-    const timeout = steps.timeoutMs;
-    steps.timeoutMs = 200;
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) === "Off", "the overview to read Shops off");
+    const timeout = ui.steps.timeoutMs;
+    ui.steps.timeoutMs = 100;
     let release;
+    let answered;
     holdNextListRead = new Promise((resolve) => (release = resolve));
     try {
         await until(() => button(overview, "Refresh"), "Refresh");
+        const asked = listAsked;
         void button(overview, "Refresh").listeners.click({ preventDefault() {} });
-        await until(() => /given up/.test(text(overview)), "the overview to say the read was given up");
-        await ui.switchAutomation("automation shops", true);
-        assert.equal(shopsOn(), true, "a switch after it still runs");
+        await until(() => listAsked > asked, "the Refresh's read to be held");
+        await until(() => /no answer after/.test(text(overview)), "the overview to say the read is late");
+        const toggled = commands.length;
+        void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
+        await handled();
+        assert.equal(commands.length, toggled, "the switch waits for the late read ahead of it");
+        assert.notEqual(statusOf(overview), "Off", "the click shows at once");
     } finally {
-        steps.timeoutMs = timeout;
+        ui.steps.timeoutMs = timeout;
+        answered = listAnswered;
         release();
     }
-    await queueIdle();
+    // The late read (Off) lands before the switch runs: the row keeps the click, then shows what the switch did.
+    await until(() => listAnswered > answered, "the held read to be answered");
+    await handled();
+    assert.notEqual(statusOf(overview), "Off", "the late read doesn't put Off back");
+    await until(
+        () => shopsOn() && !/no answer after/.test(text(overview)),
+        () => `the switch to run and a read to clear the delay, not ${text(overview)}`
+    );
+    const reads = listAnswered;
+    await until(() => button(overview, "Refresh"), "Refresh");
     await button(overview, "Refresh").listeners.click({ preventDefault() {} });
-    await until(() => row(overview, "Shops"), "the overview to read again");
+    await until(() => listAnswered > reads, "a new Refresh");
+    await handled();
+    assert.notEqual(statusOf(overview), "Off", "the new Refresh reads the On");
+    assert.doesNotMatch(text(overview), /no answer after/);
     await ui.switchAutomation("automation shops", false);
 });
 
@@ -1088,4 +1097,32 @@ test("reader 2: a new click on an automation's switch clears its last failure wh
     }
     await queueIdle();
     assert.equal(shopsOn(), false);
+});
+
+// CodeRabbit's fifth review of #105: each step sends what the game accepted plus its own change, and a step the game
+// answers late holds the queue instead of letting a later step run under it.
+const { updateSessionConfig } = await importRepo("src/ui/services/api.js");
+
+test("round 5: an On the game answers after the deadline can't undo an Off clicked after it", async () => {
+    await ui.switchAutomation("automation shops", false);
+    const timeout = ui.steps.timeoutMs;
+    ui.steps.timeoutMs = 100;
+    let release;
+    holdNextOnAnswer = new Promise((resolve) => (release = resolve));
+    let off;
+    try {
+        const on = ui.switchAutomation("automation shops", true);
+        await assert.rejects(on, /no answer after/, "the delay is said");
+        assert.equal(shopsOn(), true, "the game applied the On");
+        const toggled = commands.length;
+        off = ui.switchAutomation("automation shops", false);
+        await handled();
+        assert.equal(commands.length, toggled, "the Off waits for the On to end");
+    } finally {
+        ui.steps.timeoutMs = timeout;
+        release();
+    }
+    await off;
+    assert.equal(shopsOn(), false);
+    assert.ok(!fileStartup.includes("automation shops"), "the On's late startup change came before the Off, not after");
 });
