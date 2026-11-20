@@ -9,35 +9,12 @@
     min-width: 0;
 }
 
-.refinery-section--polymer {
-    border-left: 3px solid var(--c-refinery-polymer);
-}
-
-.refinery-section--placeholder {
-    background: #2a2722;
-    border-left: 3px solid var(--c-warning);
+/* A block, so the heading keeps its height and the polymer columns line up with the rest. */
+.refinery-section__state {
+    display: block;
     color: var(--c-text-muted);
-}
-
-.refinery-section__badges {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.refinery-badge {
     font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    padding: 1px 6px;
-    border: 1px solid currentColor;
+    font-weight: 600;
+    line-height: 1.2;
     white-space: nowrap;
-}
-
-.refinery-badge--polymer {
-    color: var(--c-refinery-polymer);
-}
-
-.refinery-badge--placeholder {
-    color: var(--c-warning);
 }

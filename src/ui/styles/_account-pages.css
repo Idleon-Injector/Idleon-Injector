@@ -1317,13 +1317,14 @@
     min-width: 240px;
 }
 
+/* A column's heading reads like a section heading (#26): its name over a thin rule. The name keeps the column's
+ * colour, which says which cauldron or liquid the column is. */
 .col-header {
     display: flex;
     align-items: center;
-    padding: 8px 10px;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    border-left: 3px solid var(--col-color, var(--c-accent));
+    min-height: 26px;
+    padding: 0 2px 6px;
+    border-bottom: 1px solid var(--c-border);
 }
 
 .col-header__name {
