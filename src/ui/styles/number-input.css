@@ -61,3 +61,41 @@ input[type="number"] {
 .number-input-btn:last-child {
     margin-right: 3px;
 }
+
+/*
+ * The cap ("2 / 15"): the most the value can be, inside the same box after it, muted and a step smaller so it reads
+ * as the limit at a glance. It is never part of the typed text. The cap keeps its own width and the value runs up to
+ * it from the left, so a long value never pushes the cap out and equal caps line up down a list.
+ */
+.number-input-wrapper--capped input {
+    flex: 1 1 0;
+    min-width: calc(3ch + 6px);
+    /* Room before a value that fills the field, and for the caret between the last digit and the slash. */
+    padding: 0 2px 0 4px;
+    text-align: right;
+}
+
+.number-input__cap {
+    flex: none;
+    padding: 0 4px 0 0.5ch;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--c-text-muted);
+    opacity: 0.7;
+    white-space: nowrap;
+    cursor: text;
+    user-select: none;
+}
+
+.capped-value .number-input__cap {
+    cursor: auto;
+}
+
+.number-input__cap[hidden] {
+    display: none;
+}
+
+.number-input-wrapper--capped input:disabled + .number-input__cap {
+    opacity: 0.4;
+}

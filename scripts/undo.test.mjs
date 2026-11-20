@@ -79,7 +79,7 @@ const switchCharacter = (name) => {
     gga.UserInfo[0] = name;
 };
 
-const OWL = "src/ui/pages/world-1/owl/owl.js";
+const OWL = "src/ui/pages/world-1/owl/1-orion.js";
 const FEATHERS = "Feather Generation";
 
 test("a saved value offers Undo beside its ✓, and Undo puts the old value back", async () => {
@@ -113,6 +113,8 @@ test("a saved value offers Undo beside its ✓, and Undo puts the old value back
 
 test("a bulk action is one action, and Undo all puts every value back", async () => {
     const cauldron = gga.CauldronInfo[4];
+    // Below 7, so SET ALL 7 raises every vial and runs on one press (lowering asks "Click again" first).
+    cauldron.forEach((_, i) => (cauldron[i] = i % 7));
     const before = [...cauldron];
     const root = await openPage(
         "src/ui/pages/world-2/vials/vials.js",

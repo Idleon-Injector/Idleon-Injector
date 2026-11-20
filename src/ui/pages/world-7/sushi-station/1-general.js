@@ -107,8 +107,11 @@ const KnowledgeRow = ({ entry, fieldStates }) =>
             return nextValues;
         },
         write: async (nextValues) => {
+            // Only what the player changed: the others hold the page's last read, which the game may have moved past.
             await writeManyVerified(
-                KNOWLEDGE_FIELDS.map((field) => ({
+                KNOWLEDGE_FIELDS.filter(
+                    (field) => nextValues[field.id] !== getOrCreateState(fieldStates[field.id], entry.index).val
+                ).map((field) => ({
                     path: `${field.path}[${entry.index}]`,
                     value: nextValues[field.id],
                 }))
@@ -119,7 +122,7 @@ const KnowledgeRow = ({ entry, fieldStates }) =>
             span({ class: "account-row__index" }, `#${entry.index}`),
             span({ class: "account-row__name" }, entry.name),
         ],
-        badge: `TIER ${entry.index + 1}`,
+        badge: `Tier ${entry.index + 1}`,
         controlsClass: "account-row__controls--stack-action",
         renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
             div(

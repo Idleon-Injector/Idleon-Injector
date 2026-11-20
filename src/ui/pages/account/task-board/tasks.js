@@ -60,23 +60,21 @@ const buildTaskEntries = (worldIndex, rawProgress, rawCompletions, rawDescriptio
             const stageTargets = definition
                 .slice(5)
                 .filter((target) => target !== null && target !== undefined && String(target).trim() !== "");
-            const currentCompleted = toInt(completions[index], { min: 0 });
-            const nextTarget = stageTargets[Math.min(currentCompleted, Math.max(0, stageTargets.length - 1))];
-
             return {
                 index,
                 rawName: rawName || `Task ${index + 1}`,
                 name: cleanNameEffect(rawName, `Task ${index + 1}`),
                 path: `Tasks[1][${worldIndex}][${index}]`,
-                completed: currentCompleted,
+                completed: toInt(completions[index], { min: 0 }),
                 maxStages: stageTargets.length,
                 progress: progress[index],
-                nextTarget,
+                stageTargets,
             };
         });
 };
 
-const TaskRow = ({ entry, valueState }) =>
+// entryState follows every load (a Refresh keeps the row); Target follows the saved stages done.
+const TaskRow = ({ entry, entryState, valueState }) =>
     SimpleNumberRow({
         entry: {
             index: entry.index + 1,
@@ -86,12 +84,14 @@ const TaskRow = ({ entry, valueState }) =>
             min: 0,
             max: entry.maxStages,
             subLabel: () => {
-                const parts = [`Progress ${entry.progress ?? 0}`];
-                if (entry.nextTarget !== null && entry.nextTarget !== undefined)
-                    parts.push(`Target ${entry.nextTarget}`);
-                return parts.join(" / ");
+                const { progress, stageTargets } = entryState.val;
+                const nextTarget = stageTargets[Math.min(toInt(valueState.val, { min: 0 }), stageTargets.length - 1)];
+                const parts = [`Progress ${progress ?? 0}`];
+                if (nextTarget !== undefined) parts.push(`Target ${nextTarget}`);
+                // A slash means a cap, so the two facts sit apart with a dot.
+                return parts.join(" · ");
             },
-            badge: (currentValue) => `${currentValue ?? 0} / ${entry.maxStages} DONE`,
+            cap: entry.maxStages,
             maxAction: {
                 value: entry.maxStages,
                 tooltip: `Set completed stages to ${entry.maxStages}`,
@@ -106,6 +106,7 @@ const TasksWorldTasksTab = ({ worldIndex }) => {
     const { loading, error, run } = useAccountLoad({ label: `${worldLabel} Tasks` });
     const entries = van.state([]);
     const valueStates = new Map();
+    const entryStates = new Map();
     const listNode = div({ class: "account-item-stack" });
     const reconcileRows = createStaticRowReconciler(listNode);
 
@@ -118,10 +119,12 @@ const TasksWorldTasksTab = ({ worldIndex }) => {
             ]);
 
             entries.val = buildTaskEntries(worldIndex, rawProgress, rawCompletions, rawDescriptions);
+            for (const entry of entries.val) getOrCreateState(entryStates, entry.index, entry).val = entry;
             reconcileRows(entries.val.map((entry) => entry.rawName).join("|"), () =>
                 entries.val.map((entry) =>
                     TaskRow({
                         entry,
+                        entryState: getOrCreateState(entryStates, entry.index),
                         valueState: getOrCreateState(valueStates, entry.index),
                     })
                 )
@@ -206,7 +209,7 @@ const AchievementRow = ({ entry, valueState }) =>
             path: entry.path,
             formatted: false,
             min: -1,
-            badge: (currentValue) => (Number(currentValue) === -1 ? "COMPLETE" : ""),
+            badge: (currentValue) => (Number(currentValue) === -1 ? "Complete" : ""),
             maxAction: {
                 label: "Done",
                 value: -1,
@@ -339,7 +342,6 @@ const MeritShopRow = ({ entry, valueState }) =>
         ],
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
-        renderBadge: (currentValue) => `${currentValue ?? 0} / ${entry.maxPurchases}`,
         maxAction: true,
     });
 
