@@ -57,12 +57,14 @@ const SushiSlotTile = ({ index, tileState, maxTierState }) => {
 
         const path = `${SUSHI_SLOT_PATH}[${index}]`;
         const save = ++latestSave;
+        const sent = inputValue.val;
         await run(
             async () => {
                 await writeVerified(path, nextValue);
                 if (save !== latestSave) return;
                 tileState.value.val = nextValue;
-                inputValue.val = toDisplayTier(nextValue);
+                // A tier typed since (back in the field, not left yet) is the next save, so it stays.
+                if (inputValue.val === sent) inputValue.val = toDisplayTier(nextValue);
             },
             {
                 // The tile only changes colour, so the result is said to screen readers.

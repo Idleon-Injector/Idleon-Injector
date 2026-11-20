@@ -167,6 +167,34 @@ test("Sushi Station: a slot save the game refuses shows the game's tier again an
     }
 });
 
+// Review of #125: the earlier save, ending, put its tier over the one the player had typed since.
+test("Sushi Station: a tier typed while the last one saves stays in the field", async () => {
+    const tiles = (root) => byClass(root, "sushi-station-tile");
+    Sushi[0][2] = 1; // tier 2
+    const root = await openPage(
+        "src/ui/pages/world-7/sushi-station/2-station.js",
+        (node) => tiles(node).length > 10 && inputs(tiles(node)[2])[0].attributes.value === "2"
+    );
+    const [field] = inputs(tiles(root)[2]);
+    const release = hold("/write");
+    try {
+        field.listeners.focus({ target: field });
+        field.value = "1";
+        field.listeners.input({ target: field });
+        field.listeners.blur({ target: field });
+        field.listeners.focus({ target: field });
+        field.value = "2";
+        field.listeners.input({ target: field });
+    } finally {
+        release();
+    }
+    await until(() => Sushi[0][2] === 0, "tier 1 to save");
+    await tick();
+    assert.equal(field.attributes.value, "2", "the field keeps the tier typed since");
+    field.listeners.blur({ target: field });
+    await until(() => Sushi[0][2] === 1, "the tier typed since to save on leaving");
+});
+
 test("Research Grid: Refresh while a level saves keeps the typed level, and leaving again writes nothing", async () => {
     const GRID = "src/ui/pages/world-7/research/grid.js";
     const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
