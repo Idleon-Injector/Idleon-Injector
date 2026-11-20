@@ -102,6 +102,32 @@ test("a value corrected while the first is written is written next, in the resul
     await correctMidWrite(savedRow, "3", "33");
 });
 
+// Review of #121: the queued write read the editor when it ran, so it wrote 500, typed but never entered.
+test("a value entered while another is written is written as entered, and newer typing stays open", async () => {
+    if (!resultRows().length) await firstScan();
+    const p = pathOf(resultRows().filter(isNumber)[0]);
+    const row = () => resultRows().find((r) => pathOf(r) === p);
+    click(elements(row()).find((n) => n.nodeName === "button" && text(n).trim() === "Edit"));
+    const field = () => byClass(row(), "result-edit-input")[0];
+    const enter = () => field().listeners.keydown({ key: "Enter", stopPropagation() {} });
+    await until(field, "the editor");
+    const count = writes.length;
+    const release = holdWrites();
+    field().listeners.input({ target: { value: "5" } });
+    enter();
+    await until(() => writes.length > count, "the first write to start");
+    field().listeners.input({ target: { value: "50" } });
+    enter();
+    field().listeners.input({ target: { value: "500" } });
+    release();
+    await until(() => writes.length > count + 1, "the second write");
+    await until(() => classes(row()).includes("is-confirmed"), "the second write to be confirmed");
+    assert.deepEqual(writes.slice(count), [5, 50], "the entered value is written, not the one only typed");
+    assert.equal(field()?.attributes.value, "500", "the editor stays open with what was typed since");
+    field().listeners.keydown({ key: "Escape", stopPropagation() {} });
+    await until(() => !field(), "the editor to close");
+});
+
 test("text typed while a value is written stays in the editor when no Enter follows", async () => {
     if (!resultRows().length) await firstScan();
     const p = pathOf(resultRows().filter(isNumber)[0]);
