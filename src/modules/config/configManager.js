@@ -230,9 +230,10 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
     customConfigBroken = false;
     log.info(`Configuration saved to ${savePath}`);
 
-    if (uiStartupCheats) {
+    // Only a list the save sent replaces it: without one, uiStartupCheats is this same array, which clearing would empty.
+    if (receivedFullConfig.startupCheats) {
         startupCheats.length = 0;
-        startupCheats.push(...uiStartupCheats);
+        startupCheats.push(...receivedFullConfig.startupCheats);
     }
     deepMerge(cheatConfig, parsedUiCheatConfig);
     if (filteredInjectorConfig) deepMerge(injectorConfig, filteredInjectorConfig);
