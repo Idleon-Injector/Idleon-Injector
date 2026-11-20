@@ -43,6 +43,17 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     saves.push(await req.json());
     res.json({ ok: true });
 });
+// `holdWrite`: a promise the next attire write (write-many) waits on before it runs.
+let holdWrite = null;
+const writeMany = router.routes.POST.get("/api/game/gga/write-many");
+router.routes.POST.set("/api/game/gga/write-many", async (req, res) => {
+    if (holdWrite) {
+        const held = holdWrite;
+        holdWrite = null;
+        await held;
+    }
+    return writeMany(req, res);
+});
 const startup = () => saves.at(-1).startupCheats;
 const { requests } = await loadUi(router);
 // clickAgain shows its question in the menu's tooltip and reads it out from a live region on the page.
@@ -760,4 +771,33 @@ test("an older stat update refused after a newer one worked says no failure", as
         holdStats = null;
         for (const release of held) release();
     }
+});
+
+// Local CodeRabbit review of #110: a Refresh while a pick of the character in play saves can't settle the stat update
+// that pick owes once it lands in part.
+test("a Refresh during a pick's save leaves its stat update owed when the pick lands in part", async () => {
+    const root = await open();
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const slot = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0];
+    const kept = slot[15];
+    const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    const refresh = button(root, "Refresh");
+    let release;
+    Object.defineProperty(slot, 15, { get: () => kept, set() {}, configurable: true });
+    try {
+        holdWrite = new Promise((resolve) => (release = resolve));
+        field.listeners.change({ target: { value: next } });
+        await until(() => holdWrite === null, "the pick's write to wait");
+        await refresh.listeners.click({});
+        release();
+        await until(() => /save-state--error/.test(saveState(node)), "the saved copy's refusal in the row");
+    } finally {
+        release?.();
+        holdWrite = null;
+        Object.defineProperty(slot, 15, { value: kept, writable: true, configurable: true });
+    }
+    const ran = commands.length;
+    await refresh.listeners.click({});
+    await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run the owed stat update");
 });

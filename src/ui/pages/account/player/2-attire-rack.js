@@ -337,9 +337,10 @@ const AttireRackPage = () => {
             if (!statsOwed) return { cancelled: true };
             return updateStats();
         }
-        // A write that lands only in part still changed the character in play: its stat update is owed.
-        if (character.active) oweStats();
+        // A write that lands only in part still changed the character in play: its stat update is owed, from when the
+        // write ended, so an update that ran meanwhile (a Refresh, an undo) doesn't count for it.
         await writeManyVerified(writes).catch(async (caught) => {
+            if (character.active) oweStats();
             await readStatus().catch(() => {});
             throw caught;
         });
@@ -421,8 +422,10 @@ const AttireRackPage = () => {
         let wrote = false;
         await bulkWrite.run(
             async () => {
-                if (targets.some((character) => character.active)) oweStats();
-                await writeManyVerified(targets.flatMap((character) => slotWrites(character, item)));
+                await writeManyVerified(targets.flatMap((character) => slotWrites(character, item))).catch((caught) => {
+                    if (targets.some((character) => character.active)) oweStats();
+                    throw caught;
+                });
                 wrote = true;
                 await afterChange(targets);
             },
