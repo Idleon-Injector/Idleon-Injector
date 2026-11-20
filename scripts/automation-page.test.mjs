@@ -40,6 +40,7 @@ let holdNextOnAnswer = null; // a promise the next switch-on waits on after the 
 let fileStartup = [];
 // What the fake game has done, for tests to wait on: switches applied, automation list reads asked and answered.
 const applied = [];
+const order = []; // ["toggle", cheat, on] as a switch arrives, ["save"] as a config file save lands, ["list"] as a list read answers
 let listAsked = 0;
 let listAnswered = 0;
 let configAnswered = 0;
@@ -48,6 +49,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
     commands.push([action, on]);
+    order.push(["toggle", action, on]);
     const automation = getAutomations().find(({ cheat }) => cheat === action);
     if (!on) await wait(slowOffBefore);
     if (!on && holdNextOff) {
@@ -95,6 +97,7 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     });
     if (hold) await hold;
     listAnswered++;
+    order.push(["list"]);
     res.json(read);
 });
 const update = router.routes.POST.get("/api/config/update");
@@ -118,6 +121,7 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     await wait(slowSave);
     if (failSave) return res.status(500).json({ error: "the disk is full" });
     saves.push(body);
+    order.push(["save"]);
     fileStartup = body.startupCheats ?? fileStartup; // the server merges a partial save into the file
     res.json({ ok: true });
 });
@@ -1046,17 +1050,16 @@ test("reader 2: a read the game answers late is said, and a switch clicked meanw
     ui.steps.timeoutMs = 100;
     let release;
     let answered;
+    const from = order.length;
     holdNextListRead = new Promise((resolve) => (release = resolve));
     try {
         await until(() => button(overview, "Refresh"), "Refresh");
         const asked = listAsked;
         void button(overview, "Refresh").listeners.click({ preventDefault() {} });
         await until(() => listAsked > asked, "the Refresh's read to be held");
-        await until(() => /no answer after/.test(text(overview)), "the overview to say the read is late");
-        const toggled = commands.length;
+        await until(() => /still waiting/.test(text(overview)), "the overview to say the read is still waiting");
         void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
         await handled();
-        assert.equal(commands.length, toggled, "the switch waits for the late read ahead of it");
         assert.notEqual(statusOf(overview), "Off", "the click shows at once");
     } finally {
         ui.steps.timeoutMs = timeout;
@@ -1068,16 +1071,18 @@ test("reader 2: a read the game answers late is said, and a switch clicked meanw
     await handled();
     assert.notEqual(statusOf(overview), "Off", "the late read doesn't put Off back");
     await until(
-        () => shopsOn() && !/no answer after/.test(text(overview)),
-        () => `the switch to run and a read to clear the delay, not ${text(overview)}`
+        () => shopsOn() && !/still waiting/.test(text(overview)),
+        () => `the switch to run and the outcomes to replace the notices, not ${text(overview)}`
     );
+    const sequence = order.slice(from).map(([kind, , on]) => (kind === "toggle" ? `toggle ${on}` : kind));
+    assert.ok(sequence.indexOf("list") < sequence.indexOf("toggle true"), "the switch ran after the late read ended");
     const reads = listAnswered;
     await until(() => button(overview, "Refresh"), "Refresh");
     await button(overview, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => listAnswered > reads, "a new Refresh");
     await handled();
     assert.notEqual(statusOf(overview), "Off", "the new Refresh reads the On");
-    assert.doesNotMatch(text(overview), /no answer after/);
+    assert.doesNotMatch(text(overview), /still waiting/);
     await ui.switchAutomation("automation shops", false);
 });
 
@@ -1112,20 +1117,23 @@ test("round 5: an On the game answers after the deadline can't undo an Off click
     ui.steps.timeoutMs = 100;
     let release;
     holdNextOnAnswer = new Promise((resolve) => (release = resolve));
+    const notices = [];
+    const from = order.length;
+    let on;
     let off;
     try {
-        const on = ui.switchAutomation("automation shops", true);
-        await assert.rejects(on, /no answer after/, "the delay is said");
+        on = ui.switchAutomation("automation shops", true, (notice) => notices.push(notice));
+        await until(() => notices.length, "the On to say it is still waiting");
+        assert.match(notices[0], /still waiting/);
         assert.equal(shopsOn(), true, "the game applied the On");
-        const toggled = commands.length;
         off = ui.switchAutomation("automation shops", false);
-        await handled();
-        assert.equal(commands.length, toggled, "the Off waits for the On to end");
     } finally {
         ui.steps.timeoutMs = timeout;
         release();
     }
-    await off;
+    await Promise.all([on, off]);
+    const sequence = order.slice(from).map(([kind, , value]) => (kind === "toggle" ? `toggle ${value}` : kind));
+    assert.deepEqual(sequence, ["toggle true", "save", "toggle false", "save"], "the On ended before the Off began");
     assert.equal(shopsOn(), false);
     assert.ok(!fileStartup.includes("automation shops"), "the On's late startup change came before the Off, not after");
 });
@@ -1228,7 +1236,7 @@ test("round 5: a failed switch doesn't overwrite a newer click", async () => {
         await until(() => commands.length > asked + 1, "the On to fail and the Off to reach the game");
         await handled();
         assert.equal(statusOf(overview), "Off", "the newer click shows, not the failed On");
-        assert.equal(box.checked, false);
+        assert.equal(box.attributes.checked, false, "and so does the switch");
     } finally {
         releaseOn();
         releaseOff();
@@ -1236,7 +1244,11 @@ test("round 5: a failed switch doesn't overwrite a newer click", async () => {
     await queueIdle();
     assert.equal(shopsOn(), false);
     assert.equal(statusOf(overview), "Off");
-    assert.equal(box.checked, false);
+    // Once both clicks' runs end, each sets the switch to what shows: the Off.
+    await until(
+        () => box.checked === false,
+        () => `the switch to end off, not ${box.checked}`
+    );
 });
 
 test("round 5: a stop-at that isn't a whole number is refused after the row's file failure went", async () => {
@@ -1270,4 +1282,135 @@ test("round 5 sweep: the overview's Disable all shows what the game answered whe
     assert.equal(statusOf(overview), "Off", "the game answered the Off, so the row shows it");
     await button(overview, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => statusOf(overview) === "Off" && !/didn't answer/.test(text(overview)), "a read that works");
+});
+
+// A second reader's review of b47f9d7: the deadline is a notice while a step waits, and the outcome replaces it.
+const lateBy = async (ms, body) => {
+    const timeout = ui.steps.timeoutMs;
+    ui.steps.timeoutMs = ms;
+    try {
+        return await body();
+    } finally {
+        ui.steps.timeoutMs = timeout;
+    }
+};
+
+test("reader 3: a switch row says it is still waiting while the game hasn't answered, then shows the outcome", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(overview) === "Off", "the overview to read Shops off");
+    let release;
+    holdNextOnAnswer = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void checkbox(row(overview, "Shops")).listeners.change({ target: { checked: true } });
+            await until(() => /still waiting/.test(text(row(overview, "Shops"))), "the row to say it is still waiting");
+        });
+    } finally {
+        release();
+    }
+    await until(
+        () => !/still waiting/.test(text(row(overview, "Shops"))) && statusOf(overview) !== "Off",
+        () => `the outcome to replace the notice, not ${text(row(overview, "Shops"))}`
+    );
+    await queueIdle();
+    assert.doesNotMatch(text(row(overview, "Shops")), /still waiting/);
+    assert.equal(shopsOn(), true);
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader 3: an item row says it is still waiting, then shows the save worked", async () => {
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+            await until(() => /still waiting/.test(text(pickRow("Sleepy Fang"))), "the row to say it is still waiting");
+        });
+    } finally {
+        release();
+    }
+    await until(() => /save-state--success/.test(saveState("Sleepy Fang")), "the save to show it worked");
+    assert.doesNotMatch(text(pickRow("Sleepy Fang")), /still waiting/);
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item4" && on), "Sleepy Fang off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader 3: an item row says it is still waiting, then why the game refused", async () => {
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    refuseUpdateNumber = updates.length + 1;
+    try {
+        await lateBy(100, async () => {
+            void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+            await until(() => /still waiting/.test(text(pickRow("Sleepy Fang"))), "the row to say it is still waiting");
+        });
+    } finally {
+        release();
+    }
+    await until(() => /busy/.test(text(pickRow("Sleepy Fang"))), "the refusal to replace the notice");
+    refuseUpdateNumber = null;
+    assert.doesNotMatch(text(pickRow("Sleepy Fang")), /still waiting/);
+    assert.match(saveState("Sleepy Fang"), /save-state--error/);
+});
+
+test("reader 3: Shops' Enable all says it is still waiting, then the notice goes when it worked", async () => {
+    await ui.switchAutomation("automation shops", false);
+    await until(() => button(shops, "Enable all"), "Enable all");
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void button(shops, "Enable all").listeners.click({ preventDefault() {} });
+            await until(() => /still waiting/.test(text(shops)), "the bar to say it is still waiting");
+        });
+    } finally {
+        release();
+    }
+    await until(() => shopsOn() && !/still waiting/.test(text(shops)), "the outcome to replace the notice");
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await until(() => !saved().some(({ on }) => on), "everything off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+test("reader 3: the overview's Enable all says it is still waiting, then the notice goes when it worked", async () => {
+    await testKit(); // a second automation, so it runs alone too
+    await ui.switchAutomation("automation shops", false);
+    await button(overview, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => button(overview, "Enable all"), "Enable all");
+    let release;
+    holdNextOnAnswer = new Promise((resolve) => (release = resolve));
+    try {
+        await lateBy(100, async () => {
+            void button(overview, "Enable all").listeners.click({ preventDefault() {} });
+            await until(() => /still waiting/.test(text(overview)), "the bar to say it is still waiting");
+        });
+    } finally {
+        release();
+    }
+    await until(
+        () => shopsOn() && !/still waiting/.test(text(overview)),
+        () => `the outcome to replace the notice, not ${text(overview)}`
+    );
+    await queueIdle();
+    assert.doesNotMatch(text(overview), /still waiting/);
+    switchAutomation("account.automation.shops", false);
+    switchAutomation("test.kit", false);
+});
+
+test("reader 3: a step waiting behind a late one says so too", async () => {
+    let release;
+    const hold = new Promise((resolve) => (release = resolve));
+    const ahead = ui.inTurn(() => hold); // an earlier step the game hasn't answered
+    const notices = [];
+    const sent = commands.length;
+    const behind = lateBy(100, () => ui.switchAutomation("automation shops", true, (notice) => notices.push(notice)));
+    await until(() => notices.length, "the queued switch to say it is still waiting");
+    assert.equal(commands.length, sent, "it hasn't run: it waits behind the earlier step");
+    release();
+    await Promise.all([ahead, behind]);
+    assert.equal(shopsOn(), true);
+    await ui.switchAutomation("automation shops", false);
 });

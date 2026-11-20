@@ -28,6 +28,11 @@ const OverviewPage = () => {
     const entries = new Map(); // cheat -> state of its entry
     const list = van.state([]);
     const { loading, error, run } = useAccountLoad({ label: "Automation" });
+    // A read still waiting for the game says so until it ends.
+    const stillWaiting = (notice) => {
+        error.val = notice;
+        loading.val = false;
+    };
     const bulk = useWriteStatus();
     const bulkSaid = useSaid();
     const rowsNode = div({ class: "account-item-stack" });
@@ -52,7 +57,7 @@ const OverviewPage = () => {
                         : [EmptyState({ title: "No automations yet" })]
                 );
                 error.val = null; // this read, the newest to run, worked: an older one's failure goes
-            })
+            }, stillWaiting)
         );
 
     // For the buttons: off now or at start (a startup save that failed, say) still needs the switch.
@@ -64,12 +69,14 @@ const OverviewPage = () => {
             async () => {
                 bulkSaid.clear();
                 try {
-                    await switchAll(on, (cheat) => entries.get(cheat));
+                    // A notice while it waits for the game, until the outcome replaces it.
+                    const notice = (text) => bulkSaid.say("failed", text);
+                    await switchAll(on, (cheat) => entries.get(cheat), notice);
                 } finally {
                     await load();
                 }
             },
-            { onError: (caught) => bulkSaid.say("failed", caught.message) }
+            { onSuccess: () => bulkSaid.clear(), onError: (caught) => bulkSaid.say("failed", caught.message) }
         );
     const busy = () => loading.val || bulk.status.val === "loading";
     const running = () => behind(false).length;

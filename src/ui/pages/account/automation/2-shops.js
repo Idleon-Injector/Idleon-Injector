@@ -53,6 +53,11 @@ const ShopsPage = () => {
     const stock = new Map(); // "shop:item" -> state of today's stock
     const activeWorld = van.state(1);
     const { loading, error, run } = useAccountLoad({ label: "Shop automation" });
+    // A read still waiting for the game says so until it ends.
+    const stillWaiting = (notice) => {
+        error.val = notice;
+        loading.val = false;
+    };
 
     const switchNode = div();
     const panes = renderPersistentPagePanes({ tabs: WORLDS, activeId: activeWorld });
@@ -102,7 +107,7 @@ const ShopsPage = () => {
                         getOrCreateState(stock, `${shop.shop}:${item}`).val = left;
                 ids.val = shops.flatMap((shop) => shop.items.map(({ item }) => `${shop.shop}:${item}`));
                 error.val = null; // this read, the newest to run, worked: an older one's failure goes
-            })
+            }, stillWaiting)
         );
 
     // Enable all runs on one click; Disable all asks "Click again" first (#25).
@@ -110,9 +115,10 @@ const ShopsPage = () => {
         bulk.run(
             async () => {
                 bulkSaid.clear();
-                await picks.setAll(ids.val, on);
+                // A notice while it waits for the game, until the outcome replaces it.
+                await picks.setAll(ids.val, on, (notice) => bulkSaid.say("failed", notice));
             },
-            { onError: (caught) => bulkSaid.say("failed", caught.message) }
+            { onSuccess: () => bulkSaid.clear(), onError: (caught) => bulkSaid.say("failed", caught.message) }
         );
     const busy = () => loading.val || bulk.status.val === "loading";
     const switchedOn = () => ids.val.filter((id) => picks.get(id).on.val).length;

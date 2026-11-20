@@ -17,7 +17,8 @@
  *       Its items, cheatConfig.automation.sneaking. Each save is a step: it sends the accepted list plus its own
  *       change to the game, then the file, reads back what the game holds, and, when the game now runs an item the
  *       save switched on, turns the automation on (now and at start) and reads its entry back into `entry`.
- *       Returns { get(id), sync(entries), set(id, patch), setAll(ids, on), resave(), fileBehind() }.
+ *       Returns { get(id), sync(entries), set(id, patch, onLate), setAll(ids, on, onLate), resave(onLate),
+ *       fileBehind() }.
  *   PickRow({ picks, id, name, badge })                      // an item: stop-at (Enter or leaving it) and switch
  *   AutomationRow({ entry: automation, onSwitched: load })   // the system's own switch and status line
  *   const load = () => run(() => inTurn(async () => {        // a page's read is a step too (run: useAccountLoad)
@@ -25,12 +26,13 @@
  *       showAutomation(automation, list.find(({ cheat }) => cheat === CHEAT) ?? null);
  *       picks.sync(config.cheatConfig.automation.sneaking);   // the accepted list; queued edits still show
  *       error.val = null;                                    // the newest read worked: an older failure goes
- *   }));
- *   switchAutomation(cheat, on), ensureOn(cheat), switchAll(on, entryOf)   // queued switches, for buttons
+ *   }, (notice) => { error.val = notice; loading.val = false; }));   // still waiting: said until the read ends
+ *   switchAutomation(cheat, on, onLate), ensureOn(cheat, onLate), switchAll(on, entryOf, onLate)   // for buttons
  *
  * Inside a step, call the game and the file directly (readAutomations, readComputed, fetchConfig, ...): never await
  * inTurn, switchAutomation, ensureOn, switchAll or a page's queued load, which would wait for the step itself and hold
- * the queue for good. A step past `steps.timeoutMs` tells its caller it is late; the steps after it still wait for it.
+ * the queue for good. A step still waiting for the game after `steps.timeoutMs` calls its `onLate(notice)`: the
+ * caller says the notice where the step's outcome will show, and the outcome replaces it when it comes.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -52,31 +54,29 @@ const { div, input, label, span } = van.tags;
 /** Every automation, with its status while it runs. A direct read: inside a step it gives the settled answer. */
 export const readAutomations = () => readComputed("automation", "list");
 
-/** How long a step may take before its caller is told it is late (neither the game bridge nor the API calls time out). */
+/** How long a step may wait for the game before its caller is told it is still waiting. */
 export const steps = { timeoutMs: 30000 };
 
 let queue = Promise.resolve();
 
 /**
- * Run `task` as the next step in the pages' one queue; resolves or rejects with it. A step past `steps.timeoutMs`
- * rejects its caller with a plain reason, but the next step still waits for it to end: an answer that comes late
- * can't land after a newer change.
+ * Run `task` as the next step in the pages' one queue; resolves or rejects with it, however long that takes (neither
+ * the game bridge nor the API calls time out). The next step waits for it to end, so a late answer can't land after a
+ * newer change. `onLate(notice)`, when given, is called once if the step hasn't ended `steps.timeoutMs` after it was
+ * asked for (waiting behind an earlier step counts): a notice only, which the step's own outcome replaces.
  */
-export const inTurn = (task) => {
-    const before = queue;
-    const run = before.then(task);
+export const inTurn = (task, onLate = null) => {
+    const run = queue.then(task);
     queue = run.catch(() => {});
-    let timer;
-    const late = before.then(
-        () =>
-            new Promise((resolve, reject) => {
-                timer = setTimeout(
-                    () => reject(new Error(`no answer after ${steps.timeoutMs / 1000} s; later changes wait for it`)),
-                    steps.timeoutMs
-                );
-            })
-    );
-    return Promise.race([run, late]).finally(() => clearTimeout(timer));
+    if (onLate) {
+        const timer = setTimeout(
+            () => onLate(`still waiting for the game after ${steps.timeoutMs / 1000} s`),
+            steps.timeoutMs
+        );
+        const stop = () => clearTimeout(timer);
+        run.then(stop, stop);
+    }
+    return run;
 };
 
 // The server merges what a save sends into the rest of the file, so only the startup list is read and written back.
@@ -138,10 +138,10 @@ const ensureNow = async (cheat, entry = null) => {
 };
 
 /** Turn an automation on or off, now and at every start. */
-export const switchAutomation = (cheat, on) => inTurn(() => switchNow(cheat, on));
+export const switchAutomation = (cheat, on, onLate = null) => inTurn(() => switchNow(cheat, on), onLate);
 
 /** Make sure an automation runs, now and at every start; one already running is only put in the startup cheats. */
-export const ensureOn = (cheat) => inTurn(() => ensureNow(cheat));
+export const ensureOn = (cheat, onLate = null) => inTurn(() => ensureNow(cheat), onLate);
 
 /**
  * Switch every automation on or off, now and at every start: those off now or at start (a startup save that failed,
@@ -149,7 +149,7 @@ export const ensureOn = (cheat) => inTurn(() => ensureNow(cheat));
  * One that fails doesn't stop the rest; the first failure is thrown once all were tried. `entryOf(cheat)` gives the
  * entry state a page shows for an automation, so it shows the game's answer even if the page's read after it fails.
  */
-export const switchAll = (on, entryOf = () => null) =>
+export const switchAll = (on, entryOf = () => null, onLate = null) =>
     inTurn(async () => {
         const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
         let failure = null;
@@ -158,7 +158,7 @@ export const switchAll = (on, entryOf = () => null) =>
             await switchNow(cheat, on, entryOf(cheat)).catch((error) => (failure ??= error));
         }
         if (failure) throw failure;
-    });
+    }, onLate);
 
 /**
  * One row per automation: its name, what it is doing, and its switch. `entry` is a state holding the game's
@@ -187,11 +187,14 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
                 async () => {
                     let failed = false;
                     try {
-                        await inTurn(() =>
-                            switchNow(cheat, on, entry).finally(() => {
-                                known.clicks.splice(known.clicks.indexOf(click), 1);
-                                redraw(entry);
-                            })
+                        await inTurn(
+                            () =>
+                                switchNow(cheat, on, entry).finally(() => {
+                                    known.clicks.splice(known.clicks.indexOf(click), 1);
+                                    redraw(entry);
+                                }),
+                            // Until the outcome replaces it.
+                            (notice) => said.say("failed", notice)
                         );
                     } catch (error) {
                         failed = true;
@@ -281,7 +284,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
             .map(([id, { on, stopAt }]) => ({ id, on, ...(stopAt !== null ? { stopAt } : {}) }));
 
     // Show `patches` ([id, { on } or { stopAt }]) and queue the step that saves them onto the accepted list.
-    const save = (patches) => {
+    const save = (patches, onLate) => {
         const mine = patches.map(([id, patch]) => [id, patch]); // this step's own entries in `queued`
         queued.push(...mine);
         show();
@@ -323,15 +326,19 @@ export const createAutomationPicks = (group, { cheat = null, entry = null } = {}
                 if (entry && found !== undefined) showAutomation(entry, found);
             }
             if (failure) throw failure;
-        });
+        }, onLate);
     };
 
-    /** Change one item's fields (`patch`: { on } or { stopAt }). */
-    const set = (id, patch) => save([[id, patch]]);
+    /** Change one item's fields (`patch`: { on } or { stopAt }). `onLate` as for inTurn. */
+    const set = (id, patch, onLate = null) => save([[id, patch]], onLate);
     /** Switch every item in `ids` on or off with one save. */
-    const setAll = (ids, on) => save(ids.map((id) => [id, { on }]));
+    const setAll = (ids, on, onLate = null) =>
+        save(
+            ids.map((id) => [id, { on }]),
+            onLate
+        );
     /** Send the list again: after a file save failed, the field's Enter retries it. */
-    const resave = () => save([]);
+    const resave = (onLate = null) => save([], onLate);
 
     return { get, sync, set, setAll, resave, fileBehind: () => fileBehind.val };
 };
@@ -356,11 +363,15 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
     const item = picks.get(id);
     const draft = item.draft;
     let fileOnly = null; // the reason shown for the row's last failure that was only at the file
+    const late = van.state(null); // the notice while this row's save still waits for the game
+    // `task(onLate)` starts the save; its outcome replaces the notice.
     const track = (task) => () =>
-        task().catch((error) => {
-            if (error.fileOnly) fileOnly = saveFailureReason(error);
-            throw error;
-        });
+        task((notice) => (late.val = notice))
+            .catch((error) => {
+                if (error.fileOnly) fileOnly = saveFailureReason(error);
+                throw error;
+            })
+            .finally(() => (late.val = null));
     const save = useAutoSave({
         prepare: () => {
             const typed = getNumberInputLiveRaw(draft) ?? draft.val;
@@ -368,12 +379,14 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             if (next === item.stopAt.val) {
                 showStopAt(item);
                 // The game has it but the file may not: Enter saves the list again.
-                return picks.fileBehind() ? { write: track(() => picks.resave()) } : { unchanged: true };
+                return picks.fileBehind() ? { write: track((onLate) => picks.resave(onLate)) } : { unchanged: true };
             }
             // A value typed while this one saves stays in the field for the save after it.
             const stillTyped = () => (getNumberInputLiveRaw(draft) ?? draft.val) === typed;
             return {
-                write: track(() => picks.set(id, { stopAt: next }).finally(() => stillTyped() && showStopAt(item))),
+                write: track((onLate) =>
+                    picks.set(id, { stopAt: next }, onLate).finally(() => stillTyped() && showStopAt(item))
+                ),
             };
         },
         revert: () => showStopAt(item),
@@ -390,15 +403,25 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
         checked: () => item.on.val,
         onchange: (e) => {
             const on = e.target.checked;
-            void save.run(track(() => picks.set(id, { on }))).then(() => (checkbox.checked = item.on.val));
+            void save
+                .run(track((onLate) => picks.set(id, { on }, onLate)))
+                .then(() => (checkbox.checked = item.on.val));
         },
     });
 
-    // A failure only at the file goes once a later save (any row's) writes the file.
+    // A save still waiting for the game says so. A failure only at the file goes once a later save (any row's) writes
+    // the file.
+    const waiting = () => save.status.val === "loading" && late.val !== null;
     const status = {
         get val() {
+            if (waiting()) return "error";
             const shown = save.status.val === "error" && save.reason.val === fileOnly;
             return shown && !picks.fileBehind() ? null : save.status.val;
+        },
+    };
+    const reason = {
+        get val() {
+            return waiting() ? late.val : save.reason.val;
         },
     };
 
@@ -412,7 +435,7 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
                 div(
                     { class: "account-inline-field__head" },
                     span({ class: "account-field-metric__label" }, stopAtTitle),
-                    SaveState({ status, reason: save.reason, undo: save.undo })
+                    SaveState({ status, reason, undo: save.undo })
                 ),
                 NumberInput({
                     mode: "int",
