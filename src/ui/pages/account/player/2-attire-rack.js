@@ -21,6 +21,7 @@ import {
     executeCheatAction,
     fetchCheatStates,
     fetchConfig,
+    gga,
     readComputed,
     saveConfigFile,
     updateSessionConfig,
@@ -114,9 +115,18 @@ const AttireRackPage = () => {
     const wornNow = () => rowStates.get(current.val)?.item.val;
 
     // Slot fields a write couldn't verify (the game kept another value), by path, with the character and attire they
-    // were for. Another try at that attire writes them again, though the copy already holds its id; the fields that
-    // landed stay as they are, so upgrades added since aren't wiped.
+    // were for and the value the game kept. Another try at that attire writes them again, though the copy already
+    // holds its id; the fields that landed stay as they are, so upgrades added since aren't wiped. A field the game no
+    // longer holds as it kept it (she changed it in the game since) is forgotten before a write (`recheck`), so a retry
+    // never puts the old value over a newer one.
     const unverified = new Map();
+    const recheck = async () => {
+        const paths = [...unverified.keys()];
+        const now = await Promise.all(paths.map((path) => gga(path)));
+        paths.forEach((path, index) => {
+            if (JSON.stringify(now[index]) !== JSON.stringify(unverified.get(path).kept)) unverified.delete(path);
+        });
+    };
     const writesFor = (character, item) => {
         const writes = slotWrites(character, item).map((entry) => ({ ...entry, name: character.name }));
         for (const [path, field] of unverified) {
@@ -134,8 +144,10 @@ const AttireRackPage = () => {
             },
             (caught) => {
                 writes.forEach((entry, index) => {
-                    if (caught.results?.[index]?.ok === false)
-                        unverified.set(entry.path, { name: entry.name, item, value: entry.value });
+                    const result = caught.results?.[index];
+                    // Only a field whose kept value the game sent back: without it, a later change can't be told.
+                    if (result?.ok === false && "actual" in result)
+                        unverified.set(entry.path, { name: entry.name, item, value: entry.value, kept: result.actual });
                     else unverified.delete(entry.path);
                 });
                 throw caught;
@@ -367,6 +379,7 @@ const AttireRackPage = () => {
     // update is owed.
     const wear = async (name, item) => {
         const status = await readStatus();
+        await recheck();
         const character = status.characters.find((entry) => entry.name === name);
         if (!character || !changeable(character)) throw new Error("can't change this character here");
         const writes = writesFor(character, item);
@@ -440,9 +453,9 @@ const AttireRackPage = () => {
         bulkSaid.clear();
         let targets;
         try {
-            targets = (await readStatus()).characters.filter(
-                (character) => changeable(character) && writesFor(character, item).length
-            );
+            const { characters } = await readStatus();
+            await recheck();
+            targets = characters.filter((character) => changeable(character) && writesFor(character, item).length);
         } catch (caught) {
             bulkSaid.say("failed", caught.message);
             return;

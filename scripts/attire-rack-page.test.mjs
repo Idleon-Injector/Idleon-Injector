@@ -860,3 +860,27 @@ test("a slot field the game kept is written again on the next try, though the at
     await until(() => quantities[15] === 0, "leaving the field to write the quantity again");
     await until(() => /save-state--success/.test(saveState(node)), "the row to say it saved");
 });
+
+// Re-read 3 of #110: a field the game kept, then changed in the game (she upgraded the outfit), isn't written over
+// on the next try: the old empty upgrade list never goes over newer upgrades.
+test("a kept slot field she changed in the game since isn't written over on the next try", async () => {
+    const root = await open();
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const map = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentMap[0][15];
+    const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    map.h = { STR: 3 };
+    const kept = map.h;
+    Object.defineProperty(map, "h", { get: () => kept, set() {}, configurable: true });
+    try {
+        field.listeners.change({ target: { value: next } });
+        await until(() => /save-state--error/.test(saveState(node)), "the kept upgrades' refusal in the row");
+    } finally {
+        Object.defineProperty(map, "h", { value: kept, writable: true, configurable: true });
+    }
+    map.h = { STR: 9 }; // upgraded in the game since
+    node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
+    await until(() => /save-state--success/.test(saveState(node)), "the row's retry to end");
+    assert.equal(JSON.stringify(map.h), JSON.stringify({ STR: 9 }), "the newer upgrades stay");
+    map.h = {};
+});
