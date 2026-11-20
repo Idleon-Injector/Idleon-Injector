@@ -249,6 +249,10 @@ test("Save keeps what the character wears as a loadout, in the config file, and 
     assert.equal(loadout.equipment[1], "EquipmentSword5");
     assert.ok(saves.length > count);
     assert.deepEqual(saves.at(-1).cheatConfig.wide.wardrobe.loadouts, [loadout], "the whole list goes to the file");
+    // Only the wardrobe settings: a whole config read before another page's change would put that change back.
+    assert.deepEqual(Object.keys(saves.at(-1)), ["cheatConfig"]);
+    assert.deepEqual(Object.keys(saves.at(-1).cheatConfig), ["wide"]);
+    assert.deepEqual(Object.keys(saves.at(-1).cheatConfig.wide), ["wardrobe"]);
     // It is picked, previewed, and shows up again on a page opened later.
     await until(() => button(page, "Delete"), "the Delete button of a saved loadout");
     const again = await open();
@@ -454,23 +458,29 @@ test("a loadout whose file save failed is saved once when Save is pressed again"
     }
 });
 
-// CodeRabbit on #110: a failed save puts the list back only while it is the list it submitted; one another tab saved
-// since then (the session replaces the whole list) stays.
-test("a loadout another tab saved while this tab's file save failed stays in the session", async () => {
+// CodeRabbit on #110: a failed save sends nothing more (the file goes first, so there is nothing to put back), and a
+// list another tab saved meanwhile stays as it is.
+test("a loadout another tab saved while this tab's file save failed stays in the session, alone", async () => {
     await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
     name.listeners.input({ target: { value: "Mine" } });
     failSaves = 1;
     onFail = async () => {
         const { loadouts } = await wardrobeConfig();
-        const theirs = { id: "other-tab", name: "Theirs", classes: [] };
+        const theirs = { id: "other-tab", name: "Theirs", classes: ["Mage"] };
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [...loadouts, theirs] } } } });
     };
     try {
         await click(button(page, "Save"));
         await until(() => /The config file is locked/.test(text(page)), "the failure");
         const names = (await wardrobeConfig()).loadouts.map((loadout) => loadout.name);
-        assert.deepEqual(names, ["Mine", "Theirs"]);
+        assert.deepEqual(names, ["Theirs"]);
+        const options = () =>
+            elements(picker(page))
+                .filter((node) => node.nodeName === "option")
+                .map(text);
+        await until(() => options().includes("Theirs"), "the page to read the list again");
+        assert.ok(!options().includes("Mine"), "the page shows the list the file holds");
     } finally {
         failSaves = 0;
         onFail = null;
@@ -480,8 +490,8 @@ test("a loadout another tab saved while this tab's file save failed stays in the
     }
 });
 
-// A failed save whose check of the session can't read it puts the list back anyway, so trying again saves it once.
-test("a loadout whose file save failed is taken back when the session can't be read to check it", async () => {
+// A failed save leaves the session as it was, even when the read after it fails.
+test("a loadout whose file save failed isn't in the session, though the read after the failure failed", async () => {
     await settle();
     const before = (await wardrobeConfig()).loadouts;
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
