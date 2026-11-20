@@ -19,6 +19,7 @@ export const AccountToggleRow = ({ info, words, name, checked, rowClass = "", ti
             words,
             name: name ?? title,
             title,
+            status, // nothing else on the row reads out saving and saved
             onFlip: (next) => run(() => write(next)),
         }),
     });

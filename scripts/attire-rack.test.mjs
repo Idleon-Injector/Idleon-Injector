@@ -52,9 +52,16 @@ const account = () => ({
 
 test("the character in play shows its live attire, the others their saved attire", () => {
     assert.deepEqual(characterAttire(account()), [
-        { name: "One", active: true, available: true, saved: true, item: "EquipmentGown1" },
-        { name: "Two", active: false, available: true, saved: true, item: "EquipmentGown2" },
-        { name: "Three", active: false, available: false, saved: false, item: "Blank" },
+        { name: "One", active: true, available: true, saved: true, item: "EquipmentGown1", savedItem: "Blank" },
+        {
+            name: "Two",
+            active: false,
+            available: true,
+            saved: true,
+            item: "EquipmentGown2",
+            savedItem: "EquipmentGown2",
+        },
+        { name: "Three", active: false, available: false, saved: false, item: "Blank", savedItem: null },
     ]);
 });
 
@@ -67,5 +74,6 @@ test("a character in play without a saved copy of the slot is changed on its liv
         available: true,
         saved: false,
         item: "EquipmentGown1",
+        savedItem: null,
     });
 });

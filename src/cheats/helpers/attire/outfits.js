@@ -73,7 +73,8 @@ function attireSlots(player) {
 
 /**
  * Each character's attire. The character in play is read from the live copy, the others from PlayerDATABASE.
- * `available`: the slot is there to change; `saved`: the PlayerDATABASE copy has the slot too (the page writes it).
+ * `available`: the slot is there to change; `saved`: the PlayerDATABASE copy has the slot too (the page writes it);
+ * `savedItem`: what that copy holds (null without one), so a retry after a write that landed in part writes only it.
  */
 export function characterAttire(attributes) {
     const active = attributes.UserInfo[0];
@@ -86,6 +87,7 @@ export function characterAttire(attributes) {
             available: Boolean(shown),
             saved: Boolean(saved),
             item: shown?.item ?? "Blank",
+            savedItem: saved?.item ?? null,
         };
     });
 }

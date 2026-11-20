@@ -87,12 +87,16 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             await writeVerified(historyPath, next);
             updateHistory(next);
         } catch (caughtError) {
+            // One value (the whole history): it landed or it didn't, and reading it again says which.
+            let now;
             try {
-                await readHistory();
+                now = new Set(await readHistory());
             } catch (readError) {
                 error.val = readError.message;
+                throw new Error("not checked, refresh");
             }
-            throw new Error(`Some changes may have applied and could not be verified. ${caughtError.message}`);
+            if (targets.every((itemId) => now.has(itemId) === registered)) return undefined;
+            throw caughtError;
         }
     };
 
