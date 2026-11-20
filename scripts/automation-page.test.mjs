@@ -1474,3 +1474,42 @@ test("reader 3: an item row's notice stays while its second slow save still wait
     await until(() => !saved().some(({ id }) => id === "1:item4"), "Sleepy Fang cleared");
     await ui.switchAutomation("automation shops", false);
 });
+
+// The re-read of 1c38c56.
+const laterClickKeepsNotice = async (page) => {
+    await ui.switchAutomation("automation shops", false);
+    await button(page, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => statusOf(page) === "Off", "the page to read Shops off");
+    const box = checkbox(row(page, "Shops"));
+    let releaseRead;
+    let releaseOff;
+    holdNextListRead = new Promise((resolve) => (releaseRead = resolve)); // the On's read-back
+    try {
+        await lateBy(100, async () => {
+            const asked = listAsked;
+            void box.listeners.change({ target: { checked: true } });
+            await until(() => listAsked > asked, "the On to end and its read-back to be held");
+            void box.listeners.change({ target: { checked: false } });
+            await until(() => /still waiting/.test(text(row(page, "Shops"))), "the Off's notice");
+        });
+        holdNextOff = new Promise((resolve) => (releaseOff = resolve));
+        const toggled = commands.length;
+        releaseRead();
+        await until(() => commands.length > toggled, "the On's outcome, then the Off to reach the game and be held");
+        await handled();
+        assert.match(text(row(page, "Shops")), /still waiting/, "the Off still waits, so its notice stays");
+    } finally {
+        releaseRead();
+        releaseOff?.();
+    }
+    await until(
+        () => !shopsOn() && statusOf(page) === "Off" && !/still waiting/.test(text(row(page, "Shops"))),
+        () => `the Off's outcome to replace the notice, not ${text(row(page, "Shops"))}`
+    );
+};
+
+test("reader 3: a switch row's notice stays while a later click still waits, after an earlier click's outcome", () =>
+    laterClickKeepsNotice(overview));
+
+test("reader 3: on the Shops tab too, a later click's notice outlasts an earlier click's outcome", () =>
+    laterClickKeepsNotice(shops));

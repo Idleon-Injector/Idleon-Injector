@@ -193,6 +193,8 @@ export const switchAll = (on, entryOf = () => null, onLate = null) =>
 export const AutomationRow = ({ entry, onSwitched = null }) => {
     const { status, run } = useWriteStatus();
     const said = useSaid();
+    // The notice while any of this row's clicks still waits for the game; then the newest outcome shows.
+    const late = useStillWaiting();
     const name = () => entry.val.label ?? entry.val.cheat;
     const checkbox = input({
         type: "checkbox",
@@ -219,8 +221,7 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
                                     known.clicks.splice(known.clicks.indexOf(click), 1);
                                     redraw(entry);
                                 }),
-                            // Until the outcome replaces it.
-                            (notice) => notice && said.say("failed", notice)
+                            late.onLate
                         );
                     } catch (error) {
                         failed = true;
@@ -252,7 +253,7 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
             { class: "account-row__name-group" },
             span({ class: "account-row__name" }, name),
             span({ class: "automation-row__status", role: "status" }, line),
-            Said({ said: said.said, className: "said--line", kinds: ["failed"] })
+            Said({ said: late.over(said.said), className: "said--line", kinds: ["failed"] })
         ),
         controls: label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" })),
     });
