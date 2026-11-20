@@ -602,3 +602,35 @@ test("a finished Undo all goes on its own, even after the pointer passed over it
         t.mock.timers.runAll(); // VanJS's own redraw timers
     }
 });
+
+test("Printer compares a kept draft with the value the reload read", async () => {
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const selects = (root) => elements(root).filter((node) => classes(node).includes("printer-item-select"));
+    const root = await openPage("src/ui/pages/world-3/printer/printer.js", (node) => selects(node).length > 0);
+    const [select] = selects(root);
+    let panel = select;
+    while (!panel.attributes["data-printer-character"]) panel = panel.parentNode;
+    const index = 15 + 14 * gga.GetPlayersUsernames.indexOf(panel.attributes["data-printer-character"]); // print 1
+    let row = select;
+    while (!row.listeners.keydown) row = row.parentNode;
+    const ids = elements(select)
+        .filter((node) => node.nodeName === "option" && node.attributes.value !== "Blank")
+        .map((node) => node.attributes.value);
+    const was = gga.Printer[index];
+    const [draft, undone] = ids.filter((id) => id !== was);
+    const pick = (id) => {
+        select.value = id;
+        select.listeners.change({ target: select });
+    };
+
+    pick(draft);
+    gga.Printer[index] = undone; // an undo in History put another item back
+    const asked = requests.length;
+    reloadPlace.val = { view: "", page: "" };
+    await until(() => requests.length > asked, "the reload to read the game");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    pick(was); // what the row showed before the reload, no longer what the game holds
+    row.listeners.keydown({ key: "Enter", target: select, preventDefault() {} });
+    await until(() => gga.Printer[index] === was, "the pick to save");
+});

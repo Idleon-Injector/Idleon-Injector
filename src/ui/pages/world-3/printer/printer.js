@@ -161,8 +161,9 @@ const PrinterTab = () => {
     const updateRow = (state, item, qty, resetDraft = false) => {
         const retainDraft = !resetDraft && isDirty(state);
         state.saved.val = { item, qty };
+        // A kept draft is compared with what the game holds now.
+        state.baseline = { item, qty };
         if (!retainDraft) {
-            state.baseline = { item, qty };
             state.item.val = item;
             setNumberInputValue(state.quantity, String(qty));
             state.dirty.val++;
