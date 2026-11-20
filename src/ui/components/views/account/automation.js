@@ -19,7 +19,7 @@ import { AccountRow } from "./components/AccountRow.js";
 import { useWriteStatus } from "./accountShared.js";
 import { Said, useSaid } from "../../inPlace.js";
 
-const { div, input, label, span } = van.tags;
+const { div, input, label, option, select, span } = van.tags;
 
 /** Every automation, with its status while it runs. */
 export const readAutomations = () => readComputed("automation", "list");
@@ -105,41 +105,56 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
  * Edits show at once and their saves run one at a time, each sending the whole list. When a save fails, the controls
  * read back what the game holds, so they never show a value it didn't take. `onTurnedOn` runs when a save leaves an
  * item it switched on running in the game (the system's own switch goes on with it, so buying starts at once).
+ * `fields` adds per-item choices with their default ({ pay: "materials" }), saved only when not the default.
+ * `settings` makes the group { ...settings, items: [...] } instead of a bare list, each setting with its default
+ * ({ target: 90 }); sync() then takes that object.
  */
-export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
+export const createAutomationPicks = (group, { onTurnedOn = null, fields = {}, settings = null } = {}) => {
     const items = new Map();
+    const values = Object.fromEntries(Object.entries(settings ?? {}).map(([name, value]) => [name, van.state(value)]));
     let queue = Promise.resolve();
     let pending = 0;
     let edits = 0; // counts saves, so a read started before one can be told apart
     let fileBehind = false; // the game took the last list, the config file didn't
 
     const get = (id) => {
-        if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
+        if (!items.has(id)) {
+            const extra = Object.fromEntries(Object.entries(fields).map(([field, value]) => [field, van.state(value)]));
+            items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state(""), ...extra });
+        }
         return items.get(id);
     };
 
     // A read that lands while a save is queued, or that started before a save, would undo the newest edits, so it
     // waits for the next read. `since` is edits() when the read started.
-    const sync = (entries, since = edits) => {
+    const sync = (config, since = edits) => {
         if (pending || since !== edits) return;
+        for (const [name, value] of Object.entries(values)) value.val = config?.[name] ?? settings[name];
+        const entries = (settings ? config?.items : config) ?? [];
         const byId = new Map(entries.map((entry) => [String(entry.id), entry]));
         for (const id of byId.keys()) get(id);
         for (const [id, item] of items) {
             item.on.val = Boolean(byId.get(id)?.on);
             item.stopAt.val = byId.get(id)?.stopAt ?? null;
+            for (const [field, value] of Object.entries(fields)) item[field].val = byId.get(id)?.[field] ?? value;
             showStopAt(item);
         }
     };
 
-    // Switched-off items stay while they carry a stop-at, so it survives.
-    const toConfig = () =>
-        [...items]
-            .filter(([, item]) => item.on.val || item.stopAt.val !== null)
+    // Switched-off items stay while they carry a stop-at or a field that isn't its default, so those survive.
+    const changed = (item) => Object.keys(fields).filter((field) => item[field].val !== fields[field]);
+    const toConfig = () => {
+        const list = [...items]
+            .filter(([, item]) => item.on.val || item.stopAt.val !== null || changed(item).length)
             .map(([id, item]) => ({
                 id,
                 on: item.on.val,
                 ...(item.stopAt.val !== null ? { stopAt: item.stopAt.val } : {}),
+                ...Object.fromEntries(changed(item).map((field) => [field, item[field].val])),
             }));
+        if (!settings) return list;
+        return { ...Object.fromEntries(Object.entries(values).map(([name, value]) => [name, value.val])), items: list };
+    };
 
     const persist = async () => {
         const list = toConfig();
@@ -155,11 +170,12 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
         fileBehind = false;
     };
 
-    // Apply `patches` ([id, { on } or { stopAt }]) and save them with every other edit.
-    const save = async (patches) => {
+    // Apply `patches` ([id, { on } or { stopAt }]) and `changes` to settings, and save them with every other edit.
+    const save = async (patches, changes = {}) => {
         edits++;
         for (const [id, patch] of patches)
             Object.entries(patch).forEach(([field, value]) => (get(id)[field].val = value));
+        Object.entries(changes).forEach(([name, value]) => (values[name].val = value));
         queue = queue.catch(() => {}).then(persist);
         pending++;
         let failure = null;
@@ -185,8 +201,11 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
     const setAll = (ids, on) => save(ids.map((id) => [id, { on }]));
     /** Send the list again: after a file save failed, the field's Enter retries it. */
     const resave = () => save([]);
+    /** A setting's state, and saving a new value for it. */
+    const setting = (name) => values[name];
+    const setSetting = (name, value) => save([], { [name]: value });
 
-    return { get, sync, set, setAll, resave, edits: () => edits, fileBehind: () => fileBehind };
+    return { get, sync, set, setAll, resave, setting, setSetting, edits: () => edits, fileBehind: () => fileBehind };
 };
 
 /** Put an item's saved stop-at back in its field ("" is no limit). */
@@ -201,9 +220,10 @@ const parseStopAt = (raw) => {
 
 /**
  * An item's row: name, a badge, its stop-at (empty is no limit; saves on Enter or on leaving it) and its switch.
- * The switch and the stop-at share one save state.
+ * The switch and the stop-at share one save state. `notes` are lines under the name (text or functions); `choice`
+ * ({ field, label, options: [{ value, label }] }) adds a dropdown for one of the picks' fields before the switch.
  */
-export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => {
+export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at", notes = [], choice = null }) => {
     const item = picks.get(id);
     const draft = item.draft;
     const save = useAutoSave({
@@ -236,10 +256,35 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             void save.run(() => picks.set(id, { on })).then(() => (checkbox.checked = item.on.val));
         },
     });
+    // Like the switch: shows the pick at once, then what the game holds once the save ends.
+    const dropdown =
+        choice &&
+        select(
+            {
+                class: "select-base automation-pick__choice",
+                "aria-label": `${name} ${choice.label.toLowerCase()}`,
+                title: choice.label,
+                onchange: (e) => {
+                    const value = choice.options.find((entry) => String(entry.value) === e.target.value).value;
+                    void save
+                        .run(() => picks.set(id, { [choice.field]: value }))
+                        .then(() => (dropdown.value = String(item[choice.field].val)));
+                },
+            },
+            choice.options.map((entry) =>
+                option({ value: entry.value, selected: () => item[choice.field].val === entry.value }, entry.label)
+            )
+        );
 
     return AccountRow({
         rowClass: "account-row--wide-controls automation-pick",
-        info: span({ class: "account-row__name" }, name),
+        info: notes.length
+            ? div(
+                  { class: "account-row__name-group" },
+                  span({ class: "account-row__name" }, name),
+                  notes.map((note) => span({ class: "account-row__sub-label" }, note))
+              )
+            : span({ class: "account-row__name" }, name),
         badge,
         controls: [
             div(
@@ -258,6 +303,7 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
                     onIncrement: step(1),
                 })
             ),
+            dropdown,
             label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" })),
         ],
     });

@@ -8,15 +8,23 @@
 /* A shop item: its stop-at field, then its switch. Narrow windows put both on a line of their own. */
 .automation-pick .account-row__controls {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-end;
     gap: 16px;
 }
 
 .automation-pick .account-field-metric {
     --account-field-metric-input-width: 100%;
+    flex-shrink: 0;
     width: 180px;
 }
 
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
+}
+
+/* A row's dropdown (what it pays with, say), between its stop-at and its switch; a narrow row wraps it under. */
+.automation-pick .automation-pick__choice {
+    width: 140px;
+    margin-bottom: 2px;
 }
