@@ -7,8 +7,12 @@ const { div, h3, p, button, a, span } = van.tags;
 export const UpdateModal = () => {
     const hiddenUnless = (condition) => (condition ? "" : "is-hidden");
     const updateInfo = () => store.app.updateInfo || {};
-    // Why the release link didn't open, said in the modal with Accept's result (#77).
+    // Why the release link didn't open, said under the link (#77); Accept's result has its own line.
     const linkError = van.state("");
+    const close = () => {
+        linkError.val = "";
+        store.closeUpdateModal();
+    };
 
     const openReleaseLink = async (event, url) => {
         if (!IS_ELECTRON) return;
@@ -17,14 +21,13 @@ export const UpdateModal = () => {
         const reason = await store.openExternalUrl(url);
         linkError.val = reason ? `The release page didn't open: ${reason}` : "";
     };
-    const result = () =>
-        linkError.val ? { ok: false, text: linkError.val } : store.app.updateResult || { ok: true, text: "" };
+    const result = () => store.app.updateResult || { ok: true, text: "" };
 
     return div(
         {
             class: () =>
                 `modal update-modal ${hiddenUnless(store.app.updateModalOpen && updateInfo().updateAvailable)}`,
-            onclick: () => store.closeUpdateModal(),
+            onclick: close,
         },
         div(
             { class: "modal-box update-modal-box", onclick: (event) => event.stopPropagation() },
@@ -60,6 +63,7 @@ export const UpdateModal = () => {
                     },
                     "GitHub release"
                 ),
+                p({ class: "update-modal-result is-failed", role: "status" }, () => linkError.val),
                 p(
                     { class: () => `update-modal-result ${result().ok ? "" : "is-failed"}`, role: "status" },
                     () => result().text
@@ -72,7 +76,7 @@ export const UpdateModal = () => {
                         id: "modal-cancel",
                         type: "button",
                         disabled: () => store.app.updateApplying,
-                        onclick: () => store.closeUpdateModal(),
+                        onclick: close,
                     },
                     "Deny"
                 ),
