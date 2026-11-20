@@ -97,20 +97,26 @@ export const EditableNumberRow = ({
         {
             class: () =>
                 joinClasses(
-                    "account-row",
+                    "account-row account-row--value",
                     typeof rowClass === "function" ? rowClass() : rowClass,
                     saveStateClass(status.val, undo)
                 ),
             ...handlers,
         },
         div({ class: "account-row__info" }, ...toNodes(renderInfo())),
-        span(
-            {
-                class: () =>
-                    joinClasses("account-row__badge", typeof badgeClass === "function" ? badgeClass() : badgeClass),
-            },
-            () => renderBadge(valueState.val)
-        ),
+        // A badge only adds what the field doesn't say (a cap, a state); the value itself shows once, in the field.
+        renderBadge
+            ? span(
+                  {
+                      class: () =>
+                          joinClasses(
+                              "account-row__badge",
+                              typeof badgeClass === "function" ? badgeClass() : badgeClass
+                          ),
+                  },
+                  () => renderBadge(valueState.val)
+              )
+            : null,
         div(
             {
                 class: () =>

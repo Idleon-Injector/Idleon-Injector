@@ -4,22 +4,3 @@
     border-color: var(--c-accent);
     background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
 }
-
-.stamp-exalted-btn {
-    min-width: 104px;
-    border: 1px solid var(--c-border);
-    background: var(--c-panel);
-    color: var(--c-text-dim);
-}
-
-.stamp-exalted-btn:hover:not(:disabled) {
-    border-color: var(--c-accent);
-    color: var(--c-accent);
-}
-
-.stamp-exalted-btn--active {
-    border-color: var(--c-accent);
-    color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 10%, var(--c-panel));
-    font-weight: 700;
-}

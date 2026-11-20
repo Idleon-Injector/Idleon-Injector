@@ -2,7 +2,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { deleteGga, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { formatNumber, formattedStep } from "../../../utils/numberFormat.js";
+import { formattedStep } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
@@ -181,7 +181,6 @@ const BubbaTab = () => {
                 span({ class: "account-row__name" }, field.name),
                 field.subLabel ? span({ class: "account-row__sub-label" }, field.subLabel) : null,
             ],
-            renderBadge: (value) => (value === undefined ? "—" : field.formatted ? formatNumber(value) : String(value)),
             inputMode: field.float ? "float" : "int",
             inputProps: {
                 "aria-label": field.group === 2 ? `${field.name} free levels` : field.name,

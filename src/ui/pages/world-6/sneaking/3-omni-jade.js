@@ -2,13 +2,16 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList, readComputed } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
+import { parseNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    oneAtATime,
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -16,7 +19,7 @@ import { RefreshButton } from "../../../components/views/account/components/Acco
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, span, label, input } = van.tags;
+const { div, span } = van.tags;
 
 const OmniJadeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Omni Jade" });
@@ -24,7 +27,11 @@ const OmniJadeTab = () => {
     const dailyLevels = van.state(null);
     const states = new Map();
     const state = (path) => getOrCreateState(states, path);
-    const disabled = () => loading.val || saving.val;
+    // Fields and switches stay usable while a save runs (and while it reads the game again after); only a load of the
+    // page itself, or a failed one, holds them.
+    const disabled = () => loading.val && !saving.val;
+    // A write asked for while another runs waits its turn, then reads the game again.
+    const inTurn = oneAtATime();
     const list = div({ class: "account-item-stack" });
     const reconcileRows = createStaticRowReconciler(list);
 
@@ -65,7 +72,6 @@ const OmniJadeTab = () => {
                             },
                             write: (next) => save(() => writeVerified(path, next)),
                             renderInfo: () => span({ class: "account-row__name" }, `${name} bonus levels`),
-                            renderBadge: formatNumber,
                             adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
                             disabled,
                             rowClass: "account-row--wide-controls",
@@ -77,57 +83,36 @@ const OmniJadeTab = () => {
             );
         });
 
-    const save = async (task) => {
-        if (disabled()) throw new Error("Another Omni Jade operation is in progress.");
-        saving.val = true;
-        try {
-            return await task();
-        } finally {
-            await load();
-            saving.val = false;
-        }
-    };
+    const save = (task) =>
+        inTurn(async () => {
+            saving.val = true;
+            try {
+                return await task();
+            } finally {
+                await load();
+                saving.val = false;
+            }
+        });
 
+    // Saves on flip, then reads the game again; a failed save says why on the switch.
     const toggleRow = (name, path, note) => {
         const { status, run: write } = useWriteStatus();
-        const message = van.state("");
-        return div(
-            { class: "account-row" },
-            div(
-                { class: "account-row__info" },
-                div(
-                    { class: "account-row__name-group" },
-                    span({ class: "account-row__name" }, name),
-                    span({ class: "account-row__sub-label" }, note),
-                    span({ class: "account-write-feedback", role: "status" }, () => message.val)
-                )
+        return AccountRow({
+            status,
+            info: div(
+                { class: "account-row__name-group" },
+                span({ class: "account-row__name" }, name),
+                span({ class: "account-row__sub-label" }, note)
             ),
-            span({ class: "account-row__badge" }, () => (state(path).val >= 1 ? "ON" : "OFF")),
-            label(
-                { class: "toggle-switch" },
-                input({
-                    type: "checkbox",
-                    role: "switch",
-                    "aria-label": name,
-                    checked: () => state(path).val >= 1,
-                    disabled: () => disabled() || status.val === "loading",
-                    onchange: (event) => {
-                        const next = event.target.checked ? 1 : 0;
-                        event.target.checked = state(path).val >= 1;
-                        message.val = "Saving…";
-                        void write(() => save(() => writeVerified(path, next)), {
-                            onSuccess: () => {
-                                message.val = "Saved";
-                            },
-                            onError: (error) => {
-                                message.val = error.message;
-                            },
-                        });
-                    },
-                }),
-                span({ class: "slider" })
-            )
-        );
+            controls: StateSwitch({
+                checked: () => state(path).val >= 1,
+                words: ["On", "Off"],
+                name,
+                disabled,
+                status, // nothing else on the row reads out saving and saved
+                onFlip: (on) => write(() => save(() => writeVerified(path, on ? 1 : 0))),
+            }),
+        });
     };
 
     const body = div(
@@ -143,7 +128,7 @@ const OmniJadeTab = () => {
         title: "OMNI JADE",
         description: () =>
             `Daily bonus levels per selected Sneaking upgrade: ${dailyLevels.val === null ? "…" : `+${dailyLevels.val}`}. Purchase costs stay the same.`,
-        actions: RefreshButton({ onRefresh: load, disabled }),
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
         state: { loading, error },
         loadingText: "READING OMNI JADE",
         errorTitle: "OMNI JADE READ FAILED",

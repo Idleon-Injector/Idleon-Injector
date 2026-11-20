@@ -93,7 +93,6 @@ const KillCountRow = ({ killState, rowClass = "", controlsClass = "", renderInfo
             }
         },
         renderInfo,
-        renderBadge: (currentValue) => formatNumber(toInt(currentValue)),
         adjustInput: (rawValue, delta, currentValue) =>
             adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min: 0 }),
         rowClass,

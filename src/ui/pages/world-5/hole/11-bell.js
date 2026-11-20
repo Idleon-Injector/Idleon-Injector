@@ -51,7 +51,6 @@ const buildRandomEntries = (holes, randomBonuses) => {
             name: effect,
             path: `Holes[17][${index}]`,
             value: toNum(values[index], 0),
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
         };
     }).filter(Boolean);
 };

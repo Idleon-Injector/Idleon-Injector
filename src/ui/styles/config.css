@@ -56,6 +56,27 @@
     animation: slideIn 0.2s;
 }
 
+/* --- PAGE TOP (#26) --- */
+/* No panel around a settings tab, so its top lines up with the rows under it. */
+.config-page-top > .account-header,
+.config-page-top > .account-page-toolbar {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.config-page-top {
+    margin-bottom: 16px;
+}
+
+.config-page-top .account-page-toolbar {
+    align-items: flex-end;
+}
+
+/* In the drawer beside Cheats, the drawer's own header names the page. */
+#config-tab.drawer-open .config-page-top > .account-header {
+    display: none;
+}
+
 /* --- FILTER BAR --- */
 .config-filter-contents {
     display: contents;
@@ -79,7 +100,8 @@
 }
 
 .config-filter-search {
-    flex: 1;
+    flex: 1 1 16rem;
+    max-width: 36rem;
 }
 
 /* --- ACTION BAR HELPERS --- */
@@ -94,51 +116,92 @@
 }
 
 /* --- CONFIG ITEM --- */
+/* A setting is a rounded row (#26), like the value rows on the pages: name and description left, control right. */
 .config-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 16px;
     background: var(--c-panel);
     border: 1px solid var(--c-border);
-    padding: 15px;
-    margin-bottom: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    border-radius: 10px;
+    padding: 9px 12px;
+    margin-bottom: 6px;
     position: relative;
-    transition: z-index 0s;
+    transition:
+        z-index 0s,
+        border-color 0.2s;
+}
+
+.config-item--wide {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.config-item-control {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+}
+
+.config-item-control > input[type="text"] {
+    width: 220px;
+    border-radius: 9px;
+}
+
+.config-item-control .number-input-wrapper {
+    width: 180px;
+    border-radius: 9px;
+}
+
+.config-item--wide .config-item-control {
+    flex-direction: column-reverse;
+    align-items: stretch;
+}
+
+.config-item--wide .config-reset-btn {
+    align-self: flex-end;
+}
+
+@media (max-width: 600px) {
+    .config-item {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .config-item-control > input[type="text"] {
+        flex: 1;
+        width: auto;
+    }
 }
 
 .config-item:hover {
     z-index: 100;
 }
 
-.config-item label {
+.config-item-header > label {
     font-size: 0.875rem;
+    font-weight: 600;
     text-transform: uppercase;
-    color: var(--c-text-dim);
+    color: var(--c-text-main);
     letter-spacing: 0.05em;
 }
 
 .config-item-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    gap: 10px;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
 }
 
 .config-description {
-    flex: 1;
     font-size: 0.875rem;
-    color: var(--c-text-dim);
-    text-align: left;
-    padding-left: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: var(--c-text-muted);
 }
 
 /* --- DIFF HIGHLIGHTING --- */
 .config-item.modified-config {
-    border-left: 3px solid var(--c-accent);
+    border-color: var(--c-accent);
     background: var(--c-accent-dim-solid);
 }
 
@@ -146,7 +209,6 @@
     font-size: 0.875rem;
     color: var(--c-accent);
     font-family: var(--font-mono);
-    margin-top: 5px;
 }
 
 .modified-category > summary {

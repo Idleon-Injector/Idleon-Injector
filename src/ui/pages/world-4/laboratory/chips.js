@@ -40,7 +40,6 @@ const readChipEntries = () =>
                 path: `${CHIP_AMOUNTS_PATH}[${index}]`,
                 value: toInt(rawLevel, { min: 0 }),
                 formatted: false,
-                badge: (currentValue) => `${currentValue ?? 0} OWNED`,
             };
         },
     });

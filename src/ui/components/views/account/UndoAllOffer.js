@@ -48,6 +48,20 @@ const onLineWith = (anchor, element) =>
 const place = (node, anchor) => {
     const natural = node.offsetWidth;
     const container = node.offsetParent.clientWidth;
+    // A switch: the offer lies over the switch's words (Owned, Locked), on the surface they sit on.
+    const words = anchor.querySelector?.(".state-switch__words");
+    if (words) {
+        const parent = node.offsetParent;
+        const base = parent.getBoundingClientRect();
+        const box = words.getBoundingClientRect();
+        const width = Math.max(natural, box.width);
+        node.style.setProperty("--undo-all-bg", surfaceOf(words));
+        node.style.top = `${box.top - base.top - parent.clientTop + parent.scrollTop + box.height / 2}px`;
+        node.style.left = `${box.right - base.left - parent.clientLeft + parent.scrollLeft - width}px`;
+        node.style.width = `${width}px`;
+        node.style.height = `${box.height}px`;
+        return true;
+    }
     const right = anchor.offsetLeft - GAP;
     const cover = (box, left, width) => {
         node.style.setProperty("--undo-all-bg", surfaceOf(box.tagName === "BUTTON" ? anchor.parentElement : box));

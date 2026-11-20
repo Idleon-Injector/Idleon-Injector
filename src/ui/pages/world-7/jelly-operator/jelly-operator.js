@@ -72,7 +72,9 @@ const LevelRow = ({
         ],
         renderBadge: (value) => {
             const status = statusLabel ? statusLabel() : locked ? "LOCKED" : "";
-            return `${status ? `${status} · ` : ""}LV ${value ?? 0}${displayMax ? ` / ${max}` : ""}`;
+            // The level is in the field; the badge keeps only the state and the cap.
+            if (!displayMax) return status;
+            return `${status ? `${status} · ` : ""}LV ${value ?? 0} / ${max}`;
         },
         adjustInput: (raw, delta, current) =>
             Math.max(0, Math.min(max, (validLevel(raw, max) ?? current ?? 0) + delta)),

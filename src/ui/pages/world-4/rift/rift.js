@@ -36,7 +36,6 @@ const RiftTab = () => {
                         name: "Rifts Unlocked",
                         path: RIFTS_UNLOCKED_PATH,
                         formatted: false,
-                        badge: (currentValue) => `${currentValue ?? 0} UNLOCKED`,
                     },
                     valueState: riftsUnlockedState,
                 })

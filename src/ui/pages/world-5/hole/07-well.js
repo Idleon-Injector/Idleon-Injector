@@ -58,7 +58,6 @@ const WellTab = () => {
                 name: `${WELL_ORE_NAMES[index] ?? `Ore ${index + 1}`} Bars Filled`,
                 path: `Holes[8][${index}]`,
                 value: toNum(value, 0),
-                badge: (currentValue) => `LV ${currentValue ?? 0}`,
             }));
             oreEntries.val = WELL_ORE_NAMES.map((name, index) => ({
                 key: `well-ore-${index}`,

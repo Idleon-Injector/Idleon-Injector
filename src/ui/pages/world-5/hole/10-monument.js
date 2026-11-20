@@ -48,7 +48,6 @@ const buildBonusEntries = (holes, names, section) => {
             name: cleanNameEffect(bonusNames[index], `${section.title} ${offset + 1}`),
             path: `Holes[15][${index}]`,
             value: toNum(values[index], 0),
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
         };
     });
 };

@@ -13,9 +13,11 @@ import { Icons } from "../../../assets/icons.js";
 import { withTooltip } from "../../Tooltip.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
+import { gga } from "../../../services/api.js";
 import { createStaticRowReconciler, joinClasses, writeVerified } from "./accountShared.js";
 import { SaveState, saveStateClass, useAutoSave } from "./autoSave.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
+import { StateSwitch } from "./components/StateSwitch.js";
 
 const { div, input, label, span } = van.tags;
 
@@ -84,13 +86,23 @@ const createOptionRow = (index, rawValue, schema) => {
     const renderEditor = () => {
         const type = editorType.val;
         if (type === "boolean") {
-            return input({
-                type: "checkbox",
-                class: "option-input",
+            return StateSwitch({
                 checked: currentValue,
-                onchange: (e) => {
-                    currentValue.val = e.target.checked;
-                    void save();
+                words: ["On", "Off"],
+                name: () => name.val,
+                // A save that fails or is refused puts the switch back to what the game holds (read again after a
+                // failure: the write may have landed). The row's own save state says why, so the switch doesn't.
+                onFlip: async (next) => {
+                    currentValue.val = next;
+                    const outcome = await save();
+                    if (outcome?.error) {
+                        try {
+                            store.data.accountOptions[index] = await gga(`OptionsListAccount[${index}]`);
+                        } catch {
+                            // ponytail: unread, it shows the last value read; the row already says it wasn't saved.
+                        }
+                    }
+                    if (!outcome?.ok) currentValue.val = valueToDisplay(editorType.val, stored());
                 },
             });
         }
@@ -113,11 +125,12 @@ const createOptionRow = (index, rawValue, schema) => {
         });
     };
 
+    // A value row like the pages' (#26): index and name, its note and warning, then the field at the right edge.
     const node = div(
         {
             class: () =>
                 joinClasses(
-                    "option-item feature-card",
+                    "option-item account-row account-row--value",
                     isAI.val ? "is-ai-option" : "",
                     warning.val ? "has-warning" : "",
                     saveStateClass(status.val, undo)
@@ -126,19 +139,22 @@ const createOptionRow = (index, rawValue, schema) => {
             "data-change-label": () => `${name.val} (${index})`,
         },
         div(
-            { class: "option-header" },
+            { class: "account-row__info" },
+            span({ class: "account-row__index" }, `#${index}`),
             div(
-                { class: "option-label" },
-                () => (isAI.val ? span({ class: "option-ai-label" }, "AI_GEN // ") : null),
-                () => name.val
-            ),
-            div({ class: "option-index" }, `IDX::${index}`)
+                { class: "account-row__name-group" },
+                span(
+                    { class: "account-row__name option-label" },
+                    () => (isAI.val ? span({ class: "option-ai-label" }, "AI_GEN // ") : span()),
+                    () => name.val
+                ),
+                () => (warning.val ? span({ class: "option-warning" }, Icons.Warning(), ` ${warning.val}`) : span()),
+                () => (description.val ? span({ class: "option-description" }, description.val) : span())
+            )
         ),
-        () => (warning.val ? div({ class: "option-warning" }, Icons.Warning(), ` ${warning.val}`) : null),
-        () => (description.val ? div({ class: "option-description" }, description.val) : null),
         div(
             {
-                class: "option-input-wrapper",
+                class: "account-row__controls option-input-wrapper",
                 ...handlers,
                 onfocusin: () => {
                     isFocused = true;
@@ -149,8 +165,8 @@ const createOptionRow = (index, rawValue, schema) => {
                     handlers.onfocusout(e);
                 },
             },
-            () => renderEditor(),
-            SaveState({ status, reason, undo, className: "save-state--inline" })
+            SaveState({ status, reason, undo }),
+            () => renderEditor()
         )
     );
 
@@ -227,8 +243,11 @@ export const AccountOptionsTab = () => {
             onRefresh: loadAccountOptions,
             tooltip: "Reload from game memory",
         }),
-        subNav: div(
-            { class: "control-bar sticky-header" },
+        toolbar: [
+            SearchBar({
+                placeholder: "FILTER_INDEX",
+                onInput: (val) => (ui.filterText = val),
+            }),
             withTooltip(
                 label(
                     { class: "toggle-switch account-toggle" },
@@ -242,11 +261,7 @@ export const AccountOptionsTab = () => {
                 ),
                 "Hide AI-generated options"
             ),
-            SearchBar({
-                placeholder: "FILTER_INDEX",
-                onInput: (val) => (ui.filterText = val),
-            })
-        ),
+        ],
         state: { loading, error },
         loadingText: "READING ACCOUNT OPTIONS",
         errorTitle: "ACCOUNT OPTIONS READ FAILED",

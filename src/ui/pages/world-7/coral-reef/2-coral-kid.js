@@ -57,7 +57,8 @@ const UnlockRow = ({ unlockedState }) => {
                 span({ class: "account-row__sub-label" }, "NPC unlock and secret W5 move flag")
             ),
         ],
-        badge: () => (unlockedState.val ? "UNLOCKED" : "LOCKED"),
+        words: ["Unlocked", "Locked"],
+        name: "Coral Kid",
         rowClass: "divinity-toggle-row",
         checked: () => Boolean(unlockedState.val),
         title: "Toggle Coral Kid unlock and secret unlock",
@@ -77,7 +78,6 @@ const buildCoralKidEntries = (rawOptions, rawDescriptions) =>
             path: `OptionsListAccount[${field.index}]`,
             description,
             subLabel: description,
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
             level: toInt(rawOptions[String(field.index)] ?? 0, { min: 0 }),
         };
     });
@@ -88,7 +88,6 @@ const buildSingularityEntries = (rawOptions) =>
         key: String(field.index),
         path: `OptionsListAccount[${field.index}]`,
         subLabel: field.description,
-        badge: (currentValue) => `LV ${currentValue ?? 0}`,
         level: toInt(rawOptions[String(field.index)] ?? 0, { min: 0 }),
     }));
 

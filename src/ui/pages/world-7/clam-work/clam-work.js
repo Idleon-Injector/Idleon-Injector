@@ -2,7 +2,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
+import { parseNumber } from "../../../utils/numberFormat.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import {
@@ -55,7 +55,6 @@ const ClamRow = ({ field, fieldState, onWrite }) =>
         onWrite,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
-        emptyBadge: "-",
     });
 
 const ClamTab = () => {
@@ -128,7 +127,6 @@ const ClamTab = () => {
                                               .replace(/[{}$]/g, "…")
                                       )
                             ),
-                        renderBadge: formatNumber,
                         adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
                         disabled,
                         rowClass: "account-row--wide-controls",

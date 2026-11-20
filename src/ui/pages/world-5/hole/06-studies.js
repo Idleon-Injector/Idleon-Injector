@@ -36,7 +36,6 @@ const buildStudyEntries = (holes, names, sectionIndex) => {
             name: cleanName(names[index], `Study ${index + 1}`),
             path: `Holes[26][${index}]`,
             value: toNum(values[index], 0),
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
         };
     });
 };

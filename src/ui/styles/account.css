@@ -21,6 +21,7 @@
 }
 
 .toggle-switch {
+    position: relative;
     display: inline-flex;
     align-items: center;
     cursor: pointer;
@@ -31,8 +32,29 @@
 .toggle-switch.account-toggle {
     margin-left: 25px;
 }
+/* The checkbox stays in the page, out of sight on the switch's end, so a switch is reachable and flips from the
+ * keyboard, and an Undo offered after a flip finds the switch's words on its line and lies over them. */
 .toggle-switch input {
-    display: none;
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 36px;
+    height: 18px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+/* "~", not "+": an Undo offer is placed right after the checkbox for a few seconds. */
+.toggle-switch input:focus-visible ~ .slider {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+
+.toggle-switch input:disabled ~ .slider {
+    opacity: 0.5;
+    cursor: default;
 }
 
 .toggle-switch .slider {
@@ -57,15 +79,43 @@
     transition: 0.3s;
 }
 
-.toggle-switch input:checked + .slider {
+.toggle-switch input:checked ~ .slider {
     background: var(--c-accent-20);
     border-color: var(--c-accent);
 }
 
-.toggle-switch input:checked + .slider::before {
+.toggle-switch input:checked ~ .slider::before {
     transform: translateX(18px);
     background: var(--c-accent);
-    box-shadow: 0 0 5px var(--c-accent);
+}
+
+/* The on/off switch (#26): the game's word for the state, then the switch. The words keep one width, so the
+ * switches in a list line up. */
+.state-switch {
+    gap: 12px;
+}
+
+.state-switch__words {
+    min-width: 5.5em;
+    color: var(--c-text-muted);
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+    transition: color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.state-switch.is-on .state-switch__words {
+    color: var(--c-text-main);
+}
+
+/* A failed save says why where the words were, in the danger colour, until the next flip. */
+.state-switch.is-failed .state-switch__words {
+    max-width: 16em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--c-danger-soft-text);
 }
 
 .toggle-switch .label {
@@ -74,56 +124,37 @@
     font-weight: 600;
 }
 
+/* Account Options rows are value rows (#26); these only add the option's own note and marks. */
 .option-item {
-    position: relative;
-    margin-bottom: 8px;
-    padding: 12px;
+    margin-bottom: 5px;
 }
 
 .option-item:hover {
     z-index: 100;
 }
 
+.option-item .account-row__name {
+    white-space: normal;
+}
+
 .option-description {
     font-size: 0.875rem;
-    color: var(--c-text-dim);
-    margin-bottom: 8px;
+    color: var(--c-text-muted);
     font-style: italic;
     line-height: 1.3;
-}
-
-.option-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-
-.option-label {
-    font-weight: 600;
-    color: var(--c-text-main);
-}
-
-.option-index {
-    background: var(--c-black-40);
-    padding: 2px 6px;
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    color: var(--c-text-dim);
-    border-radius: 2px;
 }
 
 .option-ai-label {
     color: var(--c-accent);
     font-size: 0.875rem;
 }
+
 .option-warning {
     color: var(--c-warning);
     font-size: 0.875rem;
-    margin-bottom: 8px;
 }
 
-.option-input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.option-input-wrapper .number-input-wrapper,
+.option-input-wrapper > input[type="text"] {
+    width: 180px;
 }

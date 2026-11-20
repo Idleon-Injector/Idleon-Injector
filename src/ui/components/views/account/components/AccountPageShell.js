@@ -1,7 +1,7 @@
 import van from "../../../../vendor/van-1.6.0.js";
 import { Loader } from "../../../Loader.js";
 import { EmptyState } from "../../../EmptyState.js";
-import { joinClasses, renderAccountError, renderAccountLoading, resolveValue } from "../accountShared.js";
+import { joinClasses, renderAccountError, renderAccountLoading, resolveValue, toNodes } from "../accountShared.js";
 const { div } = van.tags;
 
 /**
@@ -9,11 +9,14 @@ const { div } = van.tags;
  * - Persistent tabs pass `persistentState` + `body`.
  * - Rebuild-style tabs pass `loadState` + `renderBody`.
  * - `body` is a normal Van child and may itself be a reactive function child.
+ * - The page top: the inner tabs (`subNav`), then the title row (`header`: title and description, the page's buttons
+ *   on the right), then the page's search and filters (`toolbar`) on the line below, then the notices.
  */
 export const AccountPageShell = ({
     header,
     topNotices = null,
     subNav = null,
+    toolbar = null,
     body = null,
     loadState = null,
     renderBody = null,
@@ -69,7 +72,10 @@ export const AccountPageShell = ({
               ]
             : null;
 
-        const chromeNodes = subNav ? [subNav, header, topNotices] : [header, topNotices];
+        const top = toolbar
+            ? div({ class: "account-page-top" }, header, div({ class: "account-page-toolbar" }, ...toNodes(toolbar)))
+            : header;
+        const chromeNodes = subNav ? [subNav, top, topNotices] : [top, topNotices];
         const resolvedPersistentBody = typeof body === "function" ? () => body() ?? div() : body;
         const resolvedBody =
             persistentState || !loadState

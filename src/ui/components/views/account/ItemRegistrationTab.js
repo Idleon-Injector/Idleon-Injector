@@ -3,9 +3,10 @@ import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { debounce, toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar } from "./BulkActionBar.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
-import { cleanName, createStaticRowReconciler, useWriteStatus, writeVerified } from "./accountShared.js";
+import { cleanName, createStaticRowReconciler, oneAtATime, useWriteStatus, writeVerified } from "./accountShared.js";
 import { AccountRow } from "./components/AccountRow.js";
-import { ActionButton } from "./components/ActionButton.js";
+import { StateSwitch } from "./components/StateSwitch.js";
+import { EmptyState } from "../../EmptyState.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 import { clickAgain } from "../../inPlace.js";
 
@@ -26,6 +27,11 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
     const listNode = div({ class: "account-item-stack account-item-stack--dense" });
     const reconcileRows = createStaticRowReconciler(listNode);
     let searchInputEl = null;
+
+    // The game's words for an item's state, and what the switch does.
+    const greenstack = historyPath === "GreenStacks";
+    const onWords = greenstack ? ["Greenstacked", "Not greenstacked"] : ["Registered", "Missing"];
+    const [onVerb, offVerb] = greenstack ? ["Greenstack", "Remove the greenstack of"] : ["Register", "Unregister"];
 
     const onSearchInput = debounce((value) => {
         query.val = value;
@@ -81,85 +87,96 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             await writeVerified(historyPath, next);
             updateHistory(next);
         } catch (caughtError) {
+            // One value (the whole history): it landed or it didn't, and reading it again says which.
+            let now;
             try {
-                await readHistory();
+                now = new Set(await readHistory());
             } catch (readError) {
                 error.val = readError.message;
+                throw new Error("not checked, refresh");
             }
-            throw new Error(`Some changes may have applied and could not be verified. ${caughtError.message}`);
+            if (targets.every((itemId) => now.has(itemId) === registered)) return undefined;
+            throw caughtError;
         }
     };
 
-    const setItem = async (itemId, registered) => {
-        if (cannotWrite()) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            await rowStates.get(itemId).write.run(async () => applyHistory(await readHistory(), [itemId], registered), {
-                onError: (caughtError) => (message.val = caughtError.message),
-            });
-        } finally {
-            busy.val = false;
-        }
-    };
+    // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
+    const inTurn = oneAtATime();
+
+    // Returns the row's save outcome, so the switch can say why a save failed.
+    const setItem = (itemId, registered) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            busy.val = true;
+            message.val = "";
+            try {
+                return await rowStates
+                    .get(itemId)
+                    // The switch says why a row's save failed.
+                    .write.run(async () => applyHistory(await readHistory(), [itemId], registered));
+            } finally {
+                busy.val = false;
+            }
+        });
 
     // `button`: the bulk button clicked, which asks in place (#77).
-    const setShown = async (registered, button) => {
-        if (cannotWrite()) return;
-        const search = (searchInputEl?.value ?? query.val).trim().toLowerCase();
-        if (searchInputEl && searchInputEl.value !== query.val) {
-            query.val = searchInputEl.value;
-        }
-        busy.val = true;
-        message.val = "";
-        const status = filter.val;
-        const getTargets = () =>
-            entries.val.filter(
-                (itemId) => matches(itemId, search, status) && rowStates.get(itemId)?.registered.val !== registered
-            );
-        try {
-            await bulk.run(
-                async () => {
-                    await readHistory();
-                    const targets = getTargets();
-                    if (!targets.length) {
-                        message.val = "No matching items need this change.";
-                        return { cancelled: true };
+    const setShown = (registered, button) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            const search = (searchInputEl?.value ?? query.val).trim().toLowerCase();
+            if (searchInputEl && searchInputEl.value !== query.val) {
+                query.val = searchInputEl.value;
+            }
+            busy.val = true;
+            message.val = "";
+            const status = filter.val;
+            const getTargets = () =>
+                entries.val.filter(
+                    (itemId) => matches(itemId, search, status) && rowStates.get(itemId)?.registered.val !== registered
+                );
+            try {
+                await bulk.run(
+                    async () => {
+                        await readHistory();
+                        const targets = getTargets();
+                        if (!targets.length) {
+                            message.val = "No matching items need this change.";
+                            return { cancelled: true };
+                        }
+                        const detail =
+                            historyPath === "Cards[1]"
+                                ? registered
+                                    ? " Adds registration history without granting physical items."
+                                    : " Removes all history occurrences for these items. Owned items may register again in W5 town."
+                                : "";
+                        if (
+                            !clickAgain(
+                                button,
+                                `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`,
+                                { targets }
+                            )
+                        ) {
+                            return { cancelled: true };
+                        }
+                        const history = await readHistory();
+                        const currentTargets = getTargets();
+                        if (
+                            targets.length !== currentTargets.length ||
+                            !targets.every((id, idx) => id === currentTargets[idx])
+                        ) {
+                            message.val = `${label} targets changed while confirming. Bulk change cancelled; review and try again.`;
+                            return { cancelled: true };
+                        }
+                        return applyHistory(history, targets, registered);
+                    },
+                    {
+                        onError: (caughtError) => (message.val = caughtError.message),
                     }
-                    const detail =
-                        historyPath === "Cards[1]"
-                            ? registered
-                                ? " Adds registration history without granting physical items."
-                                : " Removes all history occurrences for these items. Owned items may register again in W5 town."
-                            : "";
-                    if (
-                        !clickAgain(
-                            button,
-                            `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`,
-                            { targets }
-                        )
-                    ) {
-                        return { cancelled: true };
-                    }
-                    const history = await readHistory();
-                    const currentTargets = getTargets();
-                    if (
-                        targets.length !== currentTargets.length ||
-                        !targets.every((id, idx) => id === currentTargets[idx])
-                    ) {
-                        message.val = `${label} targets changed while confirming. Bulk change cancelled; review and try again.`;
-                        return { cancelled: true };
-                    }
-                    return applyHistory(history, targets, registered);
-                },
-                {
-                    onError: (caughtError) => (message.val = caughtError.message),
-                }
-            );
-        } finally {
-            busy.val = false;
-        }
-    };
+                );
+            } finally {
+                busy.val = false;
+            }
+        });
 
     const createRow = (itemId, state) => {
         const row = AccountRow({
@@ -170,26 +187,22 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                 span({ class: "account-row__name" }, () => state.name.val),
                 span({ class: "account-row__sub-label" }, itemId)
             ),
-            badge: span({ role: "status", "aria-live": "polite", "aria-atomic": "true" }, () => {
-                const status = state.write.status.val;
-                return status === "loading"
-                    ? "SAVING"
-                    : status === "success"
-                      ? "SAVED"
-                      : status === "error"
-                        ? "FAILED"
-                        : state.registered.val
-                          ? "REGISTERED"
-                          : "MISSING";
-            }),
-            controls: ActionButton({
-                label: () => (state.registered.val ? "Unregister" : "Register"),
-                variant: () => (state.registered.val ? "danger" : "quiet"),
-                status: state.write.status,
-                disabled: cannotWrite,
-                tooltip: () => `${state.registered.val ? "Unregister" : "Register"} ${state.name.val}`,
-                onClick: () => setItem(itemId, !state.registered.val),
-            }),
+            // One switch with the game's words (#26); the status words are for screen readers.
+            controls: [
+                // Saving and saved, for screen readers; the switch says why a save failed.
+                span({ class: "account-write-feedback", role: "status", "aria-live": "polite" }, () => {
+                    const status = state.write.status.val;
+                    return status === "loading" ? "Saving" : status === "success" ? "Saved" : "";
+                }),
+                StateSwitch({
+                    checked: state.registered,
+                    words: onWords,
+                    name: () => state.name.val,
+                    disabled: () => loading.val || Boolean(error.val) || !entries.val.length,
+                    title: () => `${state.registered.val ? offVerb : onVerb} ${state.name.val}`,
+                    onFlip: (registered) => setItem(itemId, registered),
+                }),
+            ],
         });
         return div(
             {
@@ -301,26 +314,25 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                         : "";
             })
         ),
+        toolbar: [
+            searchInputEl,
+            select(
+                {
+                    class: "select-base",
+                    "aria-label": `${label} registration filter`,
+                    value: filter,
+                    onchange: (event) => (filter.val = event.target.value),
+                },
+                option({ value: "all" }, "All"),
+                option({ value: "registered" }, onWords[0]),
+                option({ value: "missing" }, onWords[1])
+            ),
+        ],
         state: { loading, error },
         loadingText: `READING ${label.toUpperCase()}`,
         errorTitle: `${label.toUpperCase()} READ FAILED`,
         body: div(
             { class: "scrollable-panel content-stack" },
-            div(
-                { class: "item-registration-filters" },
-                searchInputEl,
-                select(
-                    {
-                        class: "select-base",
-                        "aria-label": `${label} registration filter`,
-                        value: filter,
-                        onchange: (event) => (filter.val = event.target.value),
-                    },
-                    option({ value: "all" }, "All"),
-                    option({ value: "registered" }, historyPath === "GreenStacks" ? "Greenstacked" : "Registered"),
-                    option({ value: "missing" }, historyPath === "GreenStacks" ? "Not greenstacked" : "Missing")
-                )
-            ),
             div({ class: "account-section__note item-registration-summary", role: "status" }, () => {
                 const search = normalizedQuery.val;
                 const status = filter.val;
@@ -335,7 +347,15 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                 return `${registered} registered / ${entries.val.length - registered} missing catalog items · ${historyCount.val} total history entries · ${matching} matching`;
             }),
             div({ class: "write-status write-status--error", role: "alert" }, () => message.val),
-            listNode
+            listNode,
+            div(
+                {
+                    hidden: () =>
+                        !entries.val.length ||
+                        entries.val.some((itemId) => matches(itemId, normalizedQuery.val, filter.val)),
+                },
+                EmptyState({ title: "NO MATCHING ITEMS", subtitle: "No items matched your search and filter." })
+            )
         ),
     });
 };

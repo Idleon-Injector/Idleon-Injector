@@ -19,6 +19,7 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { BulkActionBar, SetAllNumberControl } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -93,34 +94,30 @@ const BubbleRow = ({ bubble, cauldron, levels, prismaSet }) => {
             span({ class: "account-row__index" }, `#${bubble.index}`),
             span({ class: "account-row__name" }, bubble.name),
             prismaBlocked ? span({ class: "account-row__sub-label" }, "BIG BUBBLE") : null,
-            () => (isPrisma.val ? span({ class: "brewing-prisma-badge" }, "PRISMA") : null),
         ],
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0}`,
         rowClass: () => `brewing-row${isPrisma.val ? " brewing-row--prisma" : ""}`,
         badgeClass: "brewing-row__badge",
         controlsClass: "brewing-row__controls account-row__controls--xl",
-        renderExtraActions: ({ status, run }) =>
+        renderExtraActions: ({ run }) =>
             prismaBlocked
                 ? null
-                : ActionButton({
-                      label: () => (isPrisma.val ? "PRISMA ON" : "PRISMA OFF"),
-                      status,
-                      variant: "switch-filled",
-                      className: () => `brewing-prisma-btn${isPrisma.val ? " brewing-prisma-btn--active" : ""}`,
-                      tooltip: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
-                      onClick: async (e) => {
-                          e.preventDefault();
-                          await run(async () => {
+                : StateSwitch({
+                      checked: isPrisma,
+                      words: ["Prisma", "Not prisma"],
+                      name: `${bubble.name} prisma`,
+                      title: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
+                      // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
+                      ownStatus: true,
+                      onFlip: (prisma) =>
+                          run(async () => {
                               const code = prismaCode(cauldron.prismaKey, bubble.index);
                               const next = new Set(prismaSet.val ?? new Set());
-                              const turningOn = !next.has(code);
-                              if (turningOn) next.add(code);
+                              if (prisma) next.add(code);
                               else next.delete(code);
                               const encoded = encodePrisma(next);
                               await writeVerified("OptionsListAccount[384]", encoded);
                               prismaSet.val = next;
-                          });
-                      },
+                          }, "switch"),
                   }),
     });
 };
