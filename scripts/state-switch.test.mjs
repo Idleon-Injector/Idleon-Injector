@@ -932,6 +932,175 @@ test("emperor: a progress typed after Reset is clicked doesn't save before Reset
     }
 });
 
+// ---- Local review of 2ded019 ----
+
+test("stamps: Escape drops a commit still waiting; the one already writing ends", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        const requests = watchRequests(isLevelWrite);
+        const commit = (value) => {
+            const field = typeLevel(row, value);
+            row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+            return field;
+        };
+        commit(before + 1);
+        await until(requests.held, "the first level's write to reach the game");
+        const field = commit(before + 2); // joins the running save
+        row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        requests.release();
+        await until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the first level's save to end");
+        assert.deepEqual(requests.levels, [before + 1], "the commit Escape took back isn't saved");
+    } finally {
+        await runCleanups();
+    }
+});
+
+test("stamps: a commit that joins a running save is logged on its own page after the player moved on", async () => {
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    try {
+        const { root, row, levels, before } = await openStampA1();
+        const { changeLog, store, done } = await startLog(root);
+        cleanups.push(done);
+        store.openMenu({ view: "PAGES" });
+        store.openMenu({ world: 1 });
+        const askedOn = changeLog.currentPlace();
+        const requests = watchRequests(isLevelWrite);
+        const commit = (value) => {
+            const field = typeLevel(row, value);
+            row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        };
+        commit(before + 1);
+        await until(requests.held, "the first level's write to reach the game");
+        commit(before + 2); // joins the running save
+        store.openMenu({ view: "HISTORY" }); // the player moves on before it runs
+        requests.release();
+        await until(() => levels[0] === before + 2, "the second level to save");
+        const { actions } = await fetchChanges();
+        const second = actions.find((action) =>
+            action.entries.some((entry) => entry.path === "StampLevel[0][0]" && entry.after === before + 2)
+        );
+        const { view, page } = second.place;
+        assert.deepEqual({ view, page }, { view: askedOn.view, page: askedOn.page }, "logged where it was committed");
+    } finally {
+        await runCleanups();
+    }
+});
+
+test("killroy: a failed flip the player already took back isn't said", async () => {
+    const writes = holdEachWrite();
+    let restore = () => {};
+    try {
+        ola[115] = 0;
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
+        const row = rowNamed(root, "AIRHORN RESET");
+        restore = refuseWrites(ola, 115);
+        const save = flip(row, true);
+        await until(() => writes.held() === 1, "On to reach the game");
+        void flip(row, false); // taken back while On saves; the game keeps Off
+        writes.all();
+        await save;
+        await until(() => ["Off", "game kept old value"].includes(wordsOf(row)), "the save to end");
+        assert.equal(wordsOf(row), "Off", "the game holds what was asked last");
+    } finally {
+        writes.all();
+        restore();
+        ola[115] = 0;
+    }
+});
+
+// The game takes the write but its answer is lost on the way back.
+const loseAnswers = (path) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (!String(url).includes("/write") || !String(options?.body).includes(path)) return response;
+        return new Response(JSON.stringify({ error: "connection lost" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    return () => (globalThis.fetch = realFetch);
+};
+
+test("slab: a registration whose answer was lost, but which the game kept, isn't said as failed", async () => {
+    const before = [...game.gga.Cards[1]];
+    let restore = () => {};
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-5/slab/slab.js",
+            (root) => pageRead(root) && byClass(root, "state-switch").length > 1
+        );
+        const row = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Missing");
+        restore = loseAnswers("Cards[1]");
+        await flip(row, true);
+        await until(() => wordsOf(row) !== "Missing", "the save to end");
+        assert.equal(game.gga.Cards[1].length, before.length + 1, "the game kept it");
+        assert.equal(wordsOf(row), "Registered", "read back, not said as failed");
+    } finally {
+        restore();
+        game.gga.Cards[1] = before;
+    }
+});
+
+test("account options: an on/off save whose answer was lost shows what the game holds", async () => {
+    const index = 690;
+    let restore = () => {};
+    try {
+        ola[index] = true;
+        const { AccountOptionsTab } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
+        const root = AccountOptionsTab();
+        const optionRow = () => elements(root).find((node) => node.attributes["data-index"] === index);
+        await until(() => optionRow() && switchOf(optionRow()), "Account Options to load");
+        const row = optionRow();
+        restore = loseAnswers(`OptionsListAccount[${index}]`);
+        await flip(row, false);
+        assert.equal(ola[index], false, "the game kept Off");
+        await until(() => wordsOf(row) === "Off", "the switch to show Off, read back");
+    } finally {
+        restore();
+        ola[index] = (index * 13) % 50;
+    }
+});
+
+test("weekly bosses: a skin flipped while trophies save waits and saves", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    const locked = Object.keys(weekly).filter((key) => key.startsWith("UI_") && Number(weekly[key]) === 0);
+    const trophies = ola[188];
+    try {
+        const root = await openPage(
+            "src/ui/pages/world-2/weekly-bosses/weekly-bosses.js",
+            (root) => pageRead(root) && byClass(root, "state-switch").length > 1
+        );
+        const trophyRow = rowNamed(root, "Trophies");
+        const field = elements(trophyRow).find((node) => node.nodeName === "input");
+        const requests = watchRequests(
+            (url, body) => url.includes("/write") && body.includes("OptionsListAccount[188]")
+        );
+        field.value = String(Number(trophies) + 1);
+        field.listeners.input({ target: field });
+        trophyRow.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(requests.held, "the trophy write to reach the game");
+        const skin = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Locked");
+        const flipped = requests.track(flip(skin, true));
+        requests.release();
+        await flipped;
+        assert.equal(locked.filter((key) => Number(weekly[key]) === 1).length, 1, "the skin saved");
+    } finally {
+        await runCleanups();
+        for (const key of locked) weekly[key] = 0;
+        ola[188] = trophies;
+    }
+});
+
+test("a level row with no cap (max null or empty) shows no cap badge", async () => {
+    const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
+    const { ClampedLevelRow } = await importRepo("src/ui/components/views/account/ClampedLevelRow.js");
+    for (const max of [null, ""]) {
+        const row = ClampedLevelRow({ valueState: van.state(3), max, write: async (value) => value, name: "Test" });
+        assert.equal(text(byClass(row, "account-row__badge")[0]), "", `max ${JSON.stringify(max)}`);
+    }
+});
+
 test("a save that failed part-way says some changes may have applied, not that the game kept the old value", async () => {
     const { saveFailureReason } = await importRepo("src/ui/components/views/account/autoSave.js");
     assert.equal(

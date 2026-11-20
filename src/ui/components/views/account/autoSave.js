@@ -54,6 +54,8 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
     const refused = van.state(false);
     // The newest thing in the row's queue while it's a save ({ again, turn }): a save asked for then joins it.
     let lastSave = null;
+    // Goes up on Escape: a commit made before it no longer saves (one already writing still ends).
+    let commits = 0;
     let saveLoops = 0;
     let clearTimer = null;
     let offerTimer = null;
@@ -181,21 +183,23 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
 
     // A save asked for while the newest thing queued is a save joins it (it saves once more when that one ends, so
     // the last value is the one saved); after a switch, a button or Undo, it waits its own turn behind them. Each
-    // keeps the drafts of its own last commit, so a commit made after a switch never saves before that switch.
+    // keeps the drafts and the click of its own last commit, so a commit made after a switch never saves before
+    // that switch, and its save is named and logged after its own click.
     const save = () => {
-        const drafts = capture?.();
+        const commit = { drafts: capture?.(), inGesture: captureGesture(), after: commits };
         if (lastSave) {
             lastSave.again = true;
-            lastSave.drafts = drafts;
+            lastSave.commit = commit;
             return lastSave.turn;
         }
-        const loop = { again: false, drafts };
+        const loop = { again: false, commit };
         saveLoops++;
         loop.turn = inTurn(async () => {
-            let outcome;
+            let outcome = { ok: false, cancelled: true };
             do {
                 loop.again = false;
-                outcome = await saveOnce(loop.drafts);
+                const { drafts, inGesture, after } = loop.commit;
+                if (after === commits) outcome = await inGesture(() => saveOnce(drafts));
             } while (loop.again);
             return outcome;
         }).finally(() => {
@@ -227,9 +231,11 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         if (!holds.pointer && !holds.focus && offer.val) offerTimer = setTimeout(endOffer, UNDO_MS / 2);
     };
 
-    // Escape: the draft is put back, so its failure goes, even while another write says saving….
+    // Escape: the draft is put back, so its failure goes, even while another write says saving…, and a commit
+    // still waiting doesn't save it after all.
     const cancel = () => {
         if (typeof revert === "function") revert();
+        commits++;
         held = null;
         if (status.val === "error") settle(null);
     };
