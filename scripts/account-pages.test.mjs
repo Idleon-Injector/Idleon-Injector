@@ -151,6 +151,29 @@ test("card search: a region tier that would lower cards asks first, and lowers t
     assert.equal(cards.mob1, 6);
 });
 
+test("card search: an arrow key on the closed region select can ask, but never answers the question", async () => {
+    const cards = gga.Cards[0].h;
+    cards.mob0 = 37;
+    cards.mob1 = 74;
+    const root = await openPage(CARDS);
+    const select = regionSelect(root);
+    // Chromium changes a closed select on each arrow press, inside that key's keydown, and the pick resets it, so
+    // every press lands on TIER 1.
+    const arrow = () => {
+        select.listeners.keydown({ key: "ArrowDown", target: select });
+        return pick(select, 0);
+    };
+
+    await arrow();
+    await arrow();
+    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "nothing written");
+    assert.equal(select.attributes["data-again"], "Click again", "it still asks");
+
+    await new Promise((resolve) => setTimeout(resolve)); // the key's task ends
+    await pick(select, 0); // picked from the open list, by Enter or a click
+    assert.deepEqual([cards.mob0, cards.mob1], [6, 6]);
+});
+
 test("card search: a region tier that only raises runs on one pick", async () => {
     const cards = gga.Cards[0].h;
     cards.mob0 = 0;

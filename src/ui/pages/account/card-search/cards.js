@@ -79,6 +79,9 @@ const TierSelect = ({
     className = "",
 }) => {
     const isDisabled = () => Boolean(resolveValue(disabled)) || resolveValue(status) === "loading";
+    // Chromium changes a closed select on each arrow or letter key, inside that key's keydown: a step through
+    // the list, not a pick from it. A pick from the open list (a click, or Enter) comes later.
+    let stepping = false;
 
     return select(
         {
@@ -93,10 +96,14 @@ const TierSelect = ({
                 );
             },
             disabled: isDisabled,
+            onkeydown: () => {
+                stepping = true;
+                setTimeout(() => (stepping = false));
+            },
             onchange: async (event) => {
                 const tierIndex = Number(event.target.value);
                 event.target.value = "";
-                await onSelect(tierIndex, thresholds?.[tierIndex], event.target);
+                await onSelect(tierIndex, thresholds?.[tierIndex], event.target, stepping);
             },
         },
         option({ value: "", disabled: true, selected: true }, label),
@@ -261,7 +268,8 @@ const CardSection = ({
                   status,
                   disabled: () => region.cards.length === 0,
                   className: "card-region__tier-select",
-                  onSelect: (tierIndex, _, selectNode) => setRegionTier(region, tierIndex, selectNode),
+                  onSelect: (tierIndex, _, selectNode, stepping) =>
+                      setRegionTier(region, tierIndex, selectNode, stepping),
               })
             : null
     );
@@ -334,7 +342,8 @@ const CardsTab = () => {
     // A pick made while another region saves waits its turn instead of being dropped.
     const inTurn = oneAtATime();
     // A pick that would lower any card asks in place first (DESIGN.md); one that only raises runs at once.
-    const setRegionTier = (region, tierIndex, selectNode) =>
+    // A step with an arrow key can ask but never answers: each one lands on TIER 1, so a second would.
+    const setRegionTier = (region, tierIndex, selectNode, stepping) =>
         inTurn(async () => {
             const said = getRegionSaid(region.key);
             said.clear();
@@ -343,6 +352,7 @@ const CardsTab = () => {
             );
             if (lowered.length) {
                 const question = `lower ${lowered.length} card${lowered.length === 1 ? "" : "s"} in ${region.name} to tier ${tierIndex + 1}.`;
+                if (stepping) disarm(selectNode);
                 if (!clickAgain(selectNode, question, { targets: lowered.map((card) => card.monsterId) })) return;
             } else disarm(selectNode);
 
