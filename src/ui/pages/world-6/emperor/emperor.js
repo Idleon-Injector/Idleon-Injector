@@ -75,6 +75,8 @@ const EmperorTab = () => {
     const isBusy = () => loading.val || busy.val;
     const cannotWrite = () => isBusy() || Boolean(error.val) || !snapshot.val;
     const cannotWriteEntries = () => cannotWrite() || snapshot.val.cheatEnabled;
+    // Buttons stay enabled while a save runs (the save checks again), so Tab onto them never loses focus.
+    const cannotEdit = () => Boolean(error.val) || !snapshot.val;
     const cacheMatches = (current) =>
         current.cache.length === current.baseRewards.length &&
         current.baseRewards.every((value, index) => current.cache[index] === value);
@@ -212,7 +214,8 @@ const EmperorTab = () => {
             const before = await readSnapshot();
             showSnapshot(before);
             let fresh = before;
-            if (next === before.progress) {
+            // The same count saves again only to repair a base reward cache that's out of sync.
+            if (next === before.progress && cacheMatches(before)) {
                 progressDraft.val = String(before.progress);
                 return { cancelled: true };
             }
@@ -328,7 +331,6 @@ const EmperorTab = () => {
         true
     );
 
-    const busyOnly = (write) => () => (write.status.val === "loading" ? "loading" : null);
     const progressRow = AccountRow({
         rowClass: () => `account-row--wide-controls ${saveStateClass(progressWrite.status.val)}`,
         rowProps: progressWrite.handlers,
@@ -344,8 +346,7 @@ const EmperorTab = () => {
             ActionButton({
                 label: "RESET",
                 variant: "danger",
-                status: busyOnly(progressWrite),
-                disabled: cannotWrite,
+                disabled: cannotEdit,
                 onClick: () => progressWrite.run(() => saveProgress(true)),
             }),
         ],
@@ -373,8 +374,8 @@ const EmperorTab = () => {
             entriesInput,
             ActionButton({
                 label: "REFILL",
-                status: busyOnly(entriesWrite),
-                disabled: () => cannotWriteEntries() || snapshot.val.remaining >= snapshot.val.capacity,
+                disabled: () =>
+                    cannotEdit() || snapshot.val.cheatEnabled || snapshot.val.remaining >= snapshot.val.capacity,
                 onClick: () => entriesWrite.run(() => saveEntries(true)),
             }),
         ],
@@ -394,7 +395,7 @@ const EmperorTab = () => {
         }),
         div({ class: "write-status", role: "status" }, () =>
             snapshot.val && !cacheMatches(snapshot.val)
-                ? "Base reward cache is out of sync or missing. Rewards below are calculated from progress. SET completed showdowns to reconcile the cache."
+                ? "Base reward cache is out of sync or missing. Rewards below are calculated from progress. Enter the completed showdowns again to reconcile the cache."
                 : ""
         ),
         div({ class: "write-status" }, () => {

@@ -95,7 +95,7 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
             ),
         ],
         badge: () => `LV ${levelState.val} · FLAIR ${flairState.val} / ${FLAIR_MAX_LEVEL}`,
-        renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused, status }) =>
+        renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
             div(
                 { class: "account-row__controls--stack" },
                 StackedNumberField({
@@ -130,7 +130,6 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                         {
                             class: "statue-tier-select select-base",
                             onchange: (e) => (draftStates.tier.val = Number(e.target.value)),
-                            disabled: () => status.val === "loading",
                         },
                         ...TIERS.map((tier) =>
                             option(

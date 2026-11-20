@@ -81,7 +81,7 @@ const ObservationTile = ({ index, tileState }) => {
                 .filter(Boolean)
                 .join(" "),
         controlsClass: "observation-tile__body",
-        renderControls: ({ draftStates, resetDraft, setFieldFocused, status }) => [
+        renderControls: ({ draftStates, resetDraft, setFieldFocused }) => [
             div(
                 { class: "observation-tile__header" },
                 div(
@@ -102,7 +102,6 @@ const ObservationTile = ({ index, tileState }) => {
                     input({
                         type: "checkbox",
                         checked: () => Boolean(draftStates.unlocked.val),
-                        disabled: () => status.val === "loading",
                         onchange: (e) => (draftStates.unlocked.val = e.target.checked),
                     }),
                     span({ class: "slider" })

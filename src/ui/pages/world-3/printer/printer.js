@@ -305,11 +305,12 @@ const PrinterTab = () => {
             );
             return state.slot >= kindCap;
         };
-        const unavailable = () => cannotWrite() || lockedCharacter();
+        // Fields and buttons stay enabled while a save runs (the save checks again), so they keep focus.
+        const uneditable = () => loading.val || Boolean(error.val) || !snapshot.val || lockedCharacter();
         const itemSelect = select({
             class: "select-base printer-item-select",
             "aria-label": `${name} ${slotName} item`,
-            disabled: () => unavailable() || lockedSlot(),
+            disabled: () => uneditable() || lockedSlot(),
             onchange: (event) => (state.item.val = event.target.value),
         });
         const reconcileOptions = createStaticRowReconciler(itemSelect);
@@ -363,18 +364,18 @@ const PrinterTab = () => {
                         formatter: largeFormatter,
                         parser: largeParser,
                         "aria-label": `${name} ${slotName} quantity`,
-                        disabled: () => unavailable() || lockedSlot(),
+                        disabled: () => uneditable() || lockedSlot(),
                         oninput: () => {
                             state.dirty.val++;
                         },
                         onDecrement: () => {
-                            if (unavailable() || lockedSlot()) return;
+                            if (uneditable() || lockedSlot()) return;
                             const raw = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
                             state.quantity.val = String(adjustFormattedIntInput(raw, -1, 0, { min: 0 }));
                             state.dirty.val++;
                         },
                         onIncrement: () => {
-                            if (unavailable() || lockedSlot()) return;
+                            if (uneditable() || lockedSlot()) return;
                             const raw = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
                             state.quantity.val = String(adjustFormattedIntInput(raw, 1, 0, { min: 0 }));
                             state.dirty.val++;
@@ -382,10 +383,9 @@ const PrinterTab = () => {
                     }),
                     ActionButton({
                         label: state.kind === "print" ? "STOP" : "CLEAR",
-                        status: () => (state.write.status.val === "loading" ? "loading" : null),
                         variant: "danger",
                         disabled: () =>
-                            unavailable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),
+                            uneditable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),
                         onClick: () => clearSlot(state),
                     }),
                 ],

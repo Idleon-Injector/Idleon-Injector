@@ -193,16 +193,6 @@ const BubbaTab = () => {
                 return Math.max(field.min, Math.min(field.max, value + delta * step));
             },
             controlsClass: "account-row__controls--xl",
-            renderExtraActions: ({ status }) =>
-                span({ role: "status", "aria-live": "polite", class: "write-status" }, () =>
-                    status.val === "loading"
-                        ? `Saving ${field.name}`
-                        : status.val === "success"
-                          ? `${field.name} saved`
-                          : status.val === "error"
-                            ? `${field.name} failed`
-                            : ""
-                ),
         });
     };
 

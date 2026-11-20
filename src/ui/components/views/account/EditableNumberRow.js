@@ -58,9 +58,7 @@ export const EditableNumberRow = ({
         disabled: () => Boolean(resolveValue(disabled)) || Boolean(resolveValue(inputDisabled)),
     });
 
-    // The row's buttons wait while it saves; the save state beside the field shows how it went.
-    const busy = () => (status.val === "loading" ? "loading" : null);
-
+    // Buttons stay enabled while the row saves, so Tab onto one never loses focus; a click then saves after it.
     const renderBuiltInAction = (action, fallbackLabel, fallbackValue) => {
         if (!action) return null;
 
@@ -72,7 +70,6 @@ export const EditableNumberRow = ({
                 : isDisabled;
         return ActionButton({
             label: () => resolveValue(actionLabel),
-            status: busy,
             variant: "max-reset",
             tooltip: action.tooltip ?? null,
             disabled: actionDisabled,
@@ -93,7 +90,7 @@ export const EditableNumberRow = ({
 
     const extraActions =
         typeof renderExtraActions === "function"
-            ? toNodes(renderExtraActions({ status: busy, run, inputValue, applyValue }))
+            ? toNodes(renderExtraActions({ status: null, run, inputValue, applyValue }))
             : [];
 
     return div(
