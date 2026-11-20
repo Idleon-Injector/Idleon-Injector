@@ -307,12 +307,24 @@ async function until(check, what) {
     assert.fail(`timed out waiting for ${what}`);
 }
 let openRoot = null;
+// What the tab hands the config file save (no config file in a test), and the order of its saves and session updates.
+const savedBodies = [];
+const configPosts = [];
 async function openTools() {
     if (openRoot) openRoot.offsetParent = null; // leave the last test's tab, so only this one polls
     const router = new TinyRouter();
     const client = Object.assign(new EventEmitter(), { Runtime: game.runtime });
     setupApiRoutes(router, "context", client, { cheatConfig: {}, startupCheats: [], injectorConfig: {} });
-    router.post("/api/config/save", (req, res) => res.json({ ok: true })); // no config file in a test
+    router.post("/api/config/save", async (req, res) => {
+        savedBodies.push(await req.json());
+        configPosts.push("save");
+        res.json({ ok: true });
+    });
+    const update = router.routes.POST.get("/api/config/update");
+    router.post("/api/config/update", (req, res) => {
+        configPosts.push("update");
+        return update(req, res);
+    });
     await loadUi(router);
     const root = (await importRepo("src/ui/pages/world-7/sushi-station/4-tools.js")).default.component();
     openRoot = root;
@@ -359,6 +371,24 @@ test("Tools tab: a target the board can't hold isn't saved, and Enable says the 
 
     await setField(tab, "Target quantity", 4);
     assert.equal(cheatConfig.w7.sushitools.targetCount, 4, "a target that fits saves");
+});
+
+// A save sent the whole config read before it: another page's change landing in between went back to its old value.
+// Only the tool settings go, to the file first, then to the session and the game.
+test("Tools tab: a settings save sends only the tool settings, to the file and then the session", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
+    const tab = await openTools();
+    const count = savedBodies.length;
+    configPosts.length = 0;
+    await setField(tab, "Target quantity", 3);
+    assert.equal(savedBodies.length, count + 1);
+    assert.deepEqual(Object.keys(savedBodies.at(-1)), ["cheatConfig"]);
+    assert.deepEqual(Object.keys(savedBodies.at(-1).cheatConfig), ["w7"]);
+    assert.deepEqual(Object.keys(savedBodies.at(-1).cheatConfig.w7), ["sushitools"]);
+    assert.equal(savedBodies.at(-1).cheatConfig.w7.sushitools.targetCount, 3);
+    assert.deepEqual(configPosts, ["save", "update"]);
+    assert.equal(cheatConfig.w7.sushitools.targetCount, 3, "the game has it");
 });
 
 // In-game check: a target of 40 said why only on Enter or on leaving the whole section; Tab to the next field

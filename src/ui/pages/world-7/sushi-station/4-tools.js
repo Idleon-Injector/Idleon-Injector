@@ -1,6 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { executeCheatAction, fetchConfig, updateSessionConfig, saveConfigFile } from "../../../services/api.js";
+import { executeCheatAction, fetchConfig, saveConfigPart } from "../../../services/api.js";
 import { AccountTabHeader } from "../../../components/views/account/components/AccountTabHeader.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -32,10 +32,8 @@ function SushiToolsTab() {
         pending.val = true;
         settingsLoaded.val = false;
         try {
-            const config = await fetchConfig();
-            const saved = config.cheatConfig.w7.sushitools;
+            const saved = remember(await fetchConfig());
             for (const [key, value] of Object.entries(settings)) value.val = saved[key];
-            savedDraft = JSON.stringify(Object.fromEntries(Object.keys(settings).map((key) => [key, saved[key]])));
             state.val = await command("status");
             settingsLoaded.val = true;
             enabled.val = state.val.enabled;
@@ -69,16 +67,15 @@ function SushiToolsTab() {
         return draft;
     };
     let savedDraft = null;
+    // The settings as the config holds them, remembered as what is saved.
+    const remember = (config) => {
+        const saved = config.cheatConfig.w7.sushitools;
+        savedDraft = JSON.stringify(Object.fromEntries(Object.keys(settings).map((key) => [key, saved[key]])));
+        return saved;
+    };
     async function saveSettings(draft = readDraft()) {
-        const result = await updateSessionConfig({ cheatConfig: { w7: { sushitools: draft } } });
-        // Saving rewrites all overrides, so read the complete current config first.
-        const config = await fetchConfig();
-        await saveConfigFile({
-            cheatConfig: config.cheatConfig,
-            startupCheats: config.startupCheats,
-            injectorConfig: config.injectorConfig,
-        });
-        savedDraft = JSON.stringify({ ...JSON.parse(savedDraft), ...draft });
+        const { result, config } = await saveConfigPart(() => ({ cheatConfig: { w7: { sushitools: draft } } }));
+        remember(config);
         if (result.message.includes("failed to apply in game"))
             throw new Error("saved, but not applied in game; reconnect");
     }
