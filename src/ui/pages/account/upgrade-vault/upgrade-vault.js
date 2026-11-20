@@ -41,7 +41,7 @@ const VaultRow = ({ index, name, baseMax, realMax, levelState }) => {
         max: Infinity,
         indexLabel: `#${index}`,
         name,
-        renderBadge: (currentValue) => `LV ${currentValue ?? 0} / ${realMax}`,
+        cap: realMax,
         maxAction: {
             value: realMax,
             tooltip: `Set to max level (${maxLabel})`,

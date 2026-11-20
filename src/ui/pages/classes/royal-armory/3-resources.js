@@ -76,9 +76,9 @@ const readNodes = async () => {
 
 const nodeBadge = (node, depleted, grade) => {
     const max = nodeMax(node.nodeIndex, node.baseAmount, grade);
-    if (depleted < 0) return "DEPLETED";
-    if (depleted === 0) return `FULL / ${formatAmount(max)}`;
-    return `LEFT ${formatAmount(max - depleted)}`;
+    if (depleted < 0) return "Depleted";
+    if (depleted === 0) return `Full at ${formatAmount(max)}`;
+    return `${formatAmount(max - depleted)} left`;
 };
 
 const NodeInfo = ({ node, gradeState }) => [
