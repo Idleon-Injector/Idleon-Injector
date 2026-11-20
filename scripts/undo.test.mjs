@@ -301,3 +301,19 @@ test("a save key whose owner couldn't be read is asked about again", async () =>
     await isLiveCharacterKey(key, "Nobody").catch(() => {});
     assert.equal(await isLiveCharacterKey(key, first), true, "asked again, and it is the character's");
 });
+
+test("Undo all is offered once the bulk action's last batch landed", async () => {
+    const { lastBulkAction } = await importRepo("src/ui/services/changeLog.js");
+    const old = [ola[253], ola[254]];
+    let made, offeredMidway;
+    await withAction({ label: "two batches" }, async (action) => {
+        made = action;
+        await writeManyVerified([{ path: "OptionsListAccount[253]", value: 1 }]);
+        offeredMidway = lastBulkAction.val?.action;
+        await writeManyVerified([{ path: "OptionsListAccount[254]", value: 2 }]);
+    });
+    assert.notEqual(offeredMidway, made, "not while a batch is still to come");
+    assert.equal(lastBulkAction.val?.action, made);
+    assert.equal(made.entries, 2);
+    [ola[253], ola[254]] = old;
+});

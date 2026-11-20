@@ -160,7 +160,7 @@ van.derive(() => {
     const action = lastBulkAction.val?.action;
     const anchor = action?.anchor;
     if (!anchor || !anchor.isConnected || !anchor.parentElement) return;
-    // A bulk action logs as its writes land: the newest count replaces the offer.
+    // An action made by a click or key logs as its writes land: the newest count replaces the offer.
     if (shown) {
         clearTimeout(shown.timer);
         shown.node.remove();

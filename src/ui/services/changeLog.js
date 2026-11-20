@@ -146,10 +146,12 @@ export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn
     } finally {
         current = null;
     }
-    Promise.resolve(result).then(
-        () => open.delete(action),
-        () => open.delete(action)
-    );
+    // A bulk action's Undo all is offered once all of its writes landed, so it puts back all of them.
+    const done = () => {
+        open.delete(action);
+        if (action.kind !== "row" && action.entries > 0) lastBulkAction.val = { action };
+    };
+    Promise.resolve(result).then(done, done);
     return result;
 };
 
@@ -213,7 +215,8 @@ export const finishChange = async (change, values, landed = null) => {
     try {
         await logChanges({ id: action.id, page: action.page, label: action.label, place: action.place }, entries);
         action.entries += entries.length;
-        if (action.kind !== "row") lastBulkAction.val = { action };
+        // An action still running is offered when it ends (withAction); one made by a click or key, as it logs.
+        if (action.kind !== "row" && !open.has(action)) lastBulkAction.val = { action };
         changesVersion.val++;
     } catch (error) {
         console.warn("[changes] The change log didn't take this save; it won't be in History.", error);
