@@ -29,6 +29,7 @@ import { ActionButton } from "../../../components/views/account/components/Actio
 import { toInt, toNum, useWriteStatus, writeManyVerified } from "../../../components/views/account/accountShared.js";
 import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { Icons } from "../../../assets/icons.js";
+import { clickAgain } from "../../../components/inPlace.js";
 
 const { div, button, span, h4, p, select, option } = van.tags;
 
@@ -230,7 +231,13 @@ const StarSignDetail = ({ sign, current, usernames = [], onSave, onBack }) => {
                                 type: "button",
                                 class: "btn-danger btn-icon btn-sm starsign-remove-btn",
                                 "aria-label": `Remove ${playerName(playerNum, usernames)}`,
-                                onclick: () => removePlayer(playerNum),
+                                // Taking a player off the sign asks "Click again" first; adding them back is a pick.
+                                onclick: (e) => {
+                                    const name = playerName(playerNum, usernames);
+                                    if (clickAgain(e.currentTarget, `take ${name} off this star sign.`)) {
+                                        removePlayer(playerNum);
+                                    }
+                                },
                             },
                             Icons.Close()
                         )

@@ -6,7 +6,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-await loadUi(router);
+const { requests } = await loadUi(router);
 const g = game.gga;
 // Click again places its tooltip on the next frame and on <body>, as in the menu.
 globalThis.requestAnimationFrame = () => {};
@@ -242,7 +242,46 @@ const openSign = async (label) => {
 };
 const detailOf = (root) => byClass(root, "starsign-detail")[0];
 const chipLetters = (root) => byClass(detailOf(root), "starsign-player-letter").map(text);
-const removeChip = (root, at) => byClass(detailOf(root), "starsign-remove-btn")[at].listeners.click({});
+const pressChip = (root, at) => {
+    const remove = byClass(detailOf(root), "starsign-remove-btn")[at];
+    return remove.listeners.click({ currentTarget: remove });
+};
+// Taking a player off asks "Click again" first; the second press removes them.
+const removeChip = (root, at) => {
+    pressChip(root, at);
+    return pressChip(root, at);
+};
+
+test("star signs: taking a player off asks Click again first, and the second press takes them off", async (t) => {
+    const saved = [...g.StarSignProg[1]];
+    g.StarSignProg[1] = ["_a", 0];
+    const root = await openSign("A-2");
+    const [first, second] = byClass(detailOf(root), "starsign-remove-btn");
+    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+    const before = writes();
+
+    // The first press only asks; the ask runs out after a few seconds, and the press after that asks again.
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+        pressChip(root, 0);
+        assert.equal(first.attributes["data-again"], "Click again", "the first press asks");
+        assert.match(first.attributes["aria-label"], /^Click again to take .+ off this star sign\.$/);
+        t.mock.timers.tick(4000);
+        assert.equal(first.attributes["data-again"], undefined, "the ask runs out");
+        pressChip(root, 0);
+        assert.equal(first.attributes["data-again"], "Click again", "the press after that asks again");
+    } finally {
+        t.mock.timers.reset();
+    }
+    pressChip(root, 1);
+    assert.equal(second.attributes["data-again"], "Click again", "another player's Remove asks for that player");
+    assert.equal(writes(), before, "nothing was written");
+    assert.deepEqual(chipLetters(root), ["_", "a"]);
+
+    pressChip(root, 0);
+    await until(() => g.StarSignProg[1][0] === "a", "the second press to take the player off");
+    g.StarSignProg[1] = saved;
+});
 
 test("star signs: removing a player keeps a completion made in the game since", async () => {
     const saved = [...g.StarSignProg[1]];
