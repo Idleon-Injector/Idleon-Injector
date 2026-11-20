@@ -76,7 +76,7 @@ const turnOff = async () => {
     if (sneaking().on) await cheat("automation sneaking");
 };
 
-test("the Sneaking tab reads jade, every upgrade but the placeholder, its bonus text, lock and goal", () => {
+test("the Sneaking tab reads jade and every upgrade but the placeholder, with its bonus text and lock", () => {
     setGame({ jade: 500, levels: { 13: 3, 14: 0 } });
     setItems([
         { id: "14", on: true, priority: LOW },
@@ -106,7 +106,7 @@ test("the Sneaking tab reads jade, every upgrade but the placeholder, its bonus 
     assert.deepEqual(value.upgrades.find(({ id }) => id === 0).unlockAt, { parent: null }, "unpatched by mastery");
     assert.deepEqual(value.upgrades.find(({ id }) => id === 20).unlockAt, { reef: 4 });
     assert.equal(value.upgrades.find(({ id }) => id === 31).bonus.includes("1.00x"), true, "no omni levels on 17+");
-    assert.deepEqual(value.goal, { id: 14, cost: 80 }, "it saves for the cheapest High or Low upgrade");
+    assert.deepEqual(Object.keys(value), ["jade", "upgrades"], "what it saves for is in the status, not here");
 });
 
 test("it buys the cheapest switched-on upgrade first, re-pricing after each level, until the jade runs out", async () => {
@@ -163,6 +163,17 @@ test("locked upgrades wait for their parent, and the later rows for the Coral Re
         [1, 1, 1, 1, 0, 0]
     );
     assert.deepEqual(gga.QuestStatus.h.Lafu_Shi3, [0, 1], "row 14 marks the quest step the click marks");
+    await turnOff();
+});
+
+test("row 14 leaves the quest step alone once the quest is done, as the click does", async () => {
+    setGame({ jade: 1e6, levels: { 13: 1 } });
+    gga.QuestComplete.h.Lafu_Shi3 = 1;
+    setItems([{ id: "14", on: true, stopAt: 1 }]);
+    await turnOn();
+    tick();
+    assert.equal(levels()[14], 1);
+    assert.deepEqual(gga.QuestStatus.h.Lafu_Shi3, [0, 0]);
     await turnOff();
 });
 

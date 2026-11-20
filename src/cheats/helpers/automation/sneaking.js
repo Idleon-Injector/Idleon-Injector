@@ -55,12 +55,10 @@ function bonusText(i, row) {
         .join("");
 }
 
-/** Jade, what it saves for, and every upgrade, for World 6 › Sneaking › Automation. */
+/** Jade and every upgrade, for World 6 › Sneaking › Automation (what it saves for is in its status). */
 export function getAutomationSneaking() {
-    const goal = nextGoal(buyable());
     return {
         jade: gga.Ninja[102][1],
-        goal: goal && { id: goal.id, cost: goal.cost },
         upgrades: cList.NinjaUpg.flatMap((row, i) => {
             if (i === 9) return [];
             const parent = Number(row[9]);
