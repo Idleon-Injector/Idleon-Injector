@@ -14,10 +14,16 @@ const { router, game } = await createFakeApi(fixture);
 // fake game's cheat state follows the toggle, as the game's does.
 const commands = [];
 const saves = [];
+// How many of the next wide attirestats runs the game refuses.
+let refuseStats = 0;
 const toggle = router.routes.POST.get("/api/toggle");
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
     commands.push(action);
+    if (action === "wide attirestats" && refuseStats > 0) {
+        refuseStats--;
+        return res.json({ ok: false, message: "The game is busy" });
+    }
     if (action === "wide attire") fixture.cheatStates.wide.attire = on;
     return toggle(req, res);
 });
@@ -84,7 +90,8 @@ async function pick(name, item) {
     field.listeners.change({ target: { value: item } });
     // The fake game answers at once, so the row can go from its last ✓ to this save's end between two looks: wait
     // for the save's requests and a few ticks, then read how it ended.
-    await until(() => after(since, "/api/").length >= 3, `${name}'s save to run`);
+    // (two at least: a retry that only owes the stat update reads the game, then runs it).
+    await until(() => after(since, "/api/").length >= 2, `${name}'s save to run`);
     await new Promise((resolve) => setTimeout(resolve, 30));
     await until(() => /save-state--(success|error)/.test(saveState(node)), `${name}'s save to end`);
     return saveState(node).includes("save-state--success") ? "success" : "error";
@@ -272,4 +279,76 @@ test("an outfit choice the config refuses is said above the cards, and the card 
     } finally {
         routes.set("/api/config/update", update);
     }
+});
+
+// A click a test holds at the config update until it calls the returned release().
+const holdConfigUpdate = () => {
+    const routes = router.routes.POST;
+    const update = routes.get("/api/config/update");
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    routes.set("/api/config/update", async (req, res) => {
+        await held;
+        return update(req, res);
+    });
+    return () => {
+        routes.set("/api/config/update", update);
+        release();
+    };
+};
+
+test("while an outfit choice saves, the cards stay enabled and their group says it is busy", async () => {
+    const group = elements(page).find((node) => node.attributes["aria-label"] === "Outfit bonuses");
+    const updates = () => requests.filter((entry) => entry === "POST /api/config/update").length;
+    const before = updates();
+    const release = holdConfigUpdate();
+    try {
+        card(page, names[5]).listeners.click({});
+        await until(() => updates() === before + 1, "the save to start");
+        await until(() => group.attributes["aria-busy"] === true, "the cards to say they're busy");
+        assert.notEqual(card(page, names[5]).attributes.disabled, true, "focus stays on the card");
+        card(page, names[6]).listeners.click({});
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        assert.equal(updates(), before + 1, "a click while it saves starts nothing");
+    } finally {
+        release();
+    }
+    await until(() => group.attributes["aria-busy"] === false, "the cards to settle");
+});
+
+test("a stat update the game refused after the attire landed runs again when the pick is retried", async () => {
+    refuseStats = 1;
+    assert.equal(await pick("Lumi_Main", "EquipmentGown8"), "error");
+    assert.equal(gga.EquipmentOrder[0][15], "EquipmentGown8", "the attire landed");
+    assert.match(text(row(page, "Lumi_Main")), /The game is busy/);
+    const ran = commands.length;
+    assert.equal(await pick("Lumi_Main", "EquipmentGown8"), "success");
+    assert.deepEqual(commands.slice(ran), ["wide attirestats"]);
+    // Owed no more: picking what the game holds again does nothing.
+    const after = commands.length;
+    row(page, "Lumi_Main").listeners.focusout({
+        relatedTarget: null,
+        target: {},
+        currentTarget: row(page, "Lumi_Main"),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.deepEqual(commands.slice(after), []);
+});
+
+test("a stat update refused after giving everyone an outfit runs again on the next give", async () => {
+    const [everyone] = elements(page).filter(
+        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
+    );
+    everyone.listeners.change({ target: { value: "EquipmentGown1" } });
+    const give = button(page, "Give everyone");
+    refuseStats = 1;
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await until(() => /The game is busy/.test(text(page)), "the refusal to be said");
+    assert.equal(gga.EquipmentOrder[0][15], "EquipmentGown1", "the attire landed");
+    const ran = commands.length;
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await until(() => commands.length > ran, "the stat update");
+    assert.deepEqual(commands.slice(ran), ["wide attirestats"], "one click, nothing to ask: no attire changes");
+    assert.doesNotMatch(text(page), /already wears/);
 });

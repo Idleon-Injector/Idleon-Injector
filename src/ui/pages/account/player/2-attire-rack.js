@@ -86,7 +86,13 @@ const AttireRackPage = () => {
     const everyone = van.state("");
     // Character name -> { character, item, draft, write }.
     const rowStates = new Map();
-    const cards = div({ class: "tier-grid" });
+    // Busy while an outfit choice saves, so assistive technology hears the cards are updating.
+    const cards = div({
+        class: "tier-grid",
+        role: "group",
+        "aria-label": "Outfit bonuses",
+        "aria-busy": () => choiceWrite.status.val === "loading",
+    });
     const rows = div({ class: "account-list" });
     const everyoneHolder = span();
     const reconcileCards = createStaticRowReconciler(cards);
@@ -170,7 +176,9 @@ const AttireRackPage = () => {
         return writeChoice(() => new Set());
     };
 
+    // A click while a choice saves is dropped; the cards stay enabled so focus stays on the card.
     const toggleOutfit = (id) =>
+        !busy() &&
         writeChoice((on) => {
             if (on.has(id)) on.delete(id);
             else on.add(id);
@@ -183,7 +191,7 @@ const AttireRackPage = () => {
                 type: "button",
                 class: "tier-card attire-card",
                 "aria-pressed": () => isChosen(outfit.id),
-                disabled: busy,
+                disabled: () => loading.val,
                 title: () => `${isChosen(outfit.id) ? "Stop giving" : "Give"} the ${outfit.name} bonus`,
                 onclick: () => toggleOutfit(outfit.id),
             },
@@ -247,18 +255,31 @@ const AttireRackPage = () => {
         return status;
     };
 
+    // The stats of the character in play are owed from a change whose write landed but whose stat update failed.
+    // A retry finds the game already holds the pick, so it runs the update instead of stopping there.
+    let statsOwed = false;
+    const updateStats = async () => {
+        statsOwed = true;
+        await executeCheatAction(STATS_CHEAT);
+        statsOwed = false;
+    };
+
     // After attire changed: the game works out the stats of the character in play again when that one changed.
     const afterChange = async (changed) => {
-        if (changed.some((character) => character.active)) await executeCheatAction(STATS_CHEAT);
+        if (changed.some((character) => character.active)) await updateStats();
         await readStatus();
     };
 
-    // One character's pick, saved at once. Returns { cancelled: true } when the game already has it.
+    // One character's pick, saved at once. Returns { cancelled: true } when the game already has it and no stat
+    // update is owed.
     const wear = async (name, item) => {
         const status = await readStatus();
         const character = status.characters.find((entry) => entry.name === name);
         if (!character || !changeable(character)) throw new Error("can't change this character here");
-        if (character.item === item) return { cancelled: true };
+        if (character.item === item) {
+            if (!statsOwed) return { cancelled: true };
+            return updateStats();
+        }
         await writeManyVerified(slotWrites(character, item));
         await afterChange([character]);
     };
@@ -327,6 +348,8 @@ const AttireRackPage = () => {
             return;
         }
         if (!targets.length) {
+            if (statsOwed)
+                return bulkWrite.run(updateStats, { onError: (caught) => bulkSaid.say("failed", caught.message) });
             bulkSaid.say("refused", `Everyone already wears ${outfitName(item)}.`);
             return;
         }
@@ -370,7 +393,7 @@ const AttireRackPage = () => {
         if (!target || target === undone) return;
         undone = target;
         if (target.view === place.view && target.page === place.page)
-            void executeCheatAction(STATS_CHEAT).catch((caught) =>
+            void updateStats().catch((caught) =>
                 bulkSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`)
             );
     });
