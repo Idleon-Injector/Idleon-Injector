@@ -270,13 +270,13 @@ test("a save for the character in play lands and goes in the change log", () =>
         assert.equal(await logged(), actions + 1);
     }));
 
-test("a save for another character than the one in play writes nothing and says who is in play", () =>
+test("a save for another character than the one in play writes nothing and says the character changed", () =>
     playing("Lumi_Alt", async () => {
         const before = ola[OLA];
         const actions = await logged();
         await assert.rejects(
             writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 62 }], { character: "Lumi_Main" }),
-            { message: "Lumi_Alt is in play now, not Lumi_Main. Nothing was changed for Lumi_Alt." }
+            { message: "Character changed. Refresh." }
         );
         assert.equal(ola[OLA], before);
         assert.equal(await logged(), actions, "nothing logged");
@@ -294,7 +294,7 @@ test("a switch after the change log read the old values, before the game writes,
         try {
             await assert.rejects(
                 writeManyVerified([{ path: `OptionsListAccount[${OLA}]`, value: 63 }], { character: "Lumi_Main" }),
-                /Lumi_Alt is in play now, not Lumi_Main/
+                /Character changed\. Refresh\./
             );
         } finally {
             game.runtime.evaluate = evaluate;

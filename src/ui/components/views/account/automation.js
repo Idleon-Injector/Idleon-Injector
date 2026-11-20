@@ -61,9 +61,9 @@ export const steps = { timeoutMs: 30000 };
 let queue = Promise.resolve();
 
 /**
- * Run `task` as the next step in the pages' one queue; resolves or rejects with it, however long that takes (neither
- * the game bridge nor the API calls time out). The next step waits for it to end, so a late answer can't land after a
- * newer change. `onLate(notice)`, when given, is called once if the step hasn't ended `steps.timeoutMs` after it was
+ * Run `task` as the next step in the pages' one queue; resolves or rejects with it, however long that takes (each API
+ * call gives up after `requestLimit.timeoutMs`, but a step can make several). The next step waits for it to end, so a
+ * late answer can't land after a newer change. `onLate(notice)`, when given, is called once if the step hasn't ended `steps.timeoutMs` after it was
  * asked for (waiting behind an earlier step counts), and `onLate(null)` once that late step ends: a notice only, which
  * the step's own outcome replaces.
  */

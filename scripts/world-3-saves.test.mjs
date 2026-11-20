@@ -90,7 +90,7 @@ test("Traps refuses a save or Finish once another character is in play, and writ
     enter(row, inputs(row)[0]);
     await until(() => saved(row), "the trap save to end");
     assert.match(saveState(row), /save-state--error/);
-    assert.match(text(row), /The character in play changed\. Refresh and try again\./);
+    assert.match(text(row), /Character changed\. Refresh\./);
 
     const finish = button(finishRow, "Finish");
     finish.listeners.click({ preventDefault() {}, currentTarget: finish });
@@ -115,7 +115,7 @@ test("Worship refuses a charge save once another character is in play, and write
         enter(row, inputs(row)[0]);
         await until(() => saved(row), `${name}'s charge save to end`);
         assert.match(saveState(row), /save-state--error/);
-        assert.match(text(row), /The character in play changed\. Refresh and try again\./);
+        assert.match(text(row), /Character changed\. Refresh\./);
     }
     assert.equal(gga.PlayerStuff[0], live, `${other}'s charge in play is untouched`);
     assert.equal(db[first].h.PlayerStuff[0], stored, `${first}'s stored charge is untouched`);

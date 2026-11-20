@@ -31,6 +31,7 @@ import { AccountSection } from "../../../components/views/account/components/Acc
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    CHARACTER_CHANGED,
     createStaticRowReconciler,
     getOrCreateState,
     runBulkSet,
@@ -165,7 +166,7 @@ const LibraryTab = () => {
     // The character is taken before the read: a Refresh that ends meanwhile doesn't make the rows the new one's.
     const checkCharacter = async (shown = loadedCharacter) => {
         if (String(await gga("UserInfo[0]")) !== shown) {
-            throw new Error("another character is in play; press Refresh");
+            throw new Error(CHARACTER_CHANGED);
         }
     };
 
