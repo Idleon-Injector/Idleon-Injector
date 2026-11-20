@@ -65,6 +65,9 @@ test("clearing every pet takes w1 companion off the startup cheats", async () =>
         }),
         ["godlike reach"]
     );
+    // Only what it changed: a whole config read before another page's change would put that change back.
+    assert.deepEqual(saves.at(-1).cheatConfig, { w1: { companion: { companions: "none" } } });
+    assert.equal(saves.at(-1).injectorConfig, undefined);
 });
 
 // Unselected once the first test cleared them.

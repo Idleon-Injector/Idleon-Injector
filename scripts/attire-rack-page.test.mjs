@@ -117,6 +117,9 @@ test("a card click turns its bonus off: session config, cheat and config file, a
     );
     assert.match(text(page), /7 of 8 outfit bonuses are on/);
     assert.deepEqual(startup(), ["wide attire"], "chosen outfits turn the cheat on at start");
+    // Only what it changed: a whole config read before another page's change would put that change back.
+    assert.deepEqual(saves.at(-1).cheatConfig, { wide: { attire: { outfits: ids } } });
+    assert.equal(saves.at(-1).injectorConfig, undefined);
 });
 
 test("clicking it again turns every outfit on, so outfits a game update adds count too", async () => {

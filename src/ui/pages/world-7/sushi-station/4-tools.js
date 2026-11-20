@@ -71,13 +71,9 @@ function SushiToolsTab() {
     let savedDraft = null;
     async function saveSettings(draft = readDraft()) {
         const result = await updateSessionConfig({ cheatConfig: { w7: { sushitools: draft } } });
-        // Saving rewrites all overrides, so read the complete current config first.
-        const config = await fetchConfig();
-        await saveConfigFile({
-            cheatConfig: config.cheatConfig,
-            startupCheats: config.startupCheats,
-            injectorConfig: config.injectorConfig,
-        });
+        // The save merges what it is sent, so only the tool settings: a whole config read before another page's
+        // change would put that change back.
+        await saveConfigFile({ cheatConfig: { w7: { sushitools: draft } } });
         savedDraft = JSON.stringify({ ...JSON.parse(savedDraft), ...draft });
         if (result.message.includes("failed to apply in game"))
             throw new Error("saved, but not applied in game; reconnect");

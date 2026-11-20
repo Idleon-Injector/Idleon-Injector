@@ -99,20 +99,15 @@ const WardrobePage = () => {
         goldenFood = wardrobe.goldenfood && typeof wardrobe.goldenfood === "object" ? wardrobe.goldenfood : {};
     };
 
-    // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config, read again
-    // after the session took the change. `change(wardrobe)` gets the saved wardrobe settings as they are now.
+    // /api/config/save merges what it is sent, so it gets only the wardrobe settings: a whole config read before
+    // another page's change would put that change back. `change(wardrobe)` gets the saved wardrobe settings as they
+    // are now.
     const persist = async (change) => {
         await readSaved();
         const wardrobe = change({ loadouts: saved.val.slice(), goldenfood: { ...goldenFood } });
         const result = await updateSessionConfig({ cheatConfig: { wide: { wardrobe } } });
         if (!result?.message) throw new Error("The injector didn't take the change");
-        const config = await fetchConfig();
-        if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
-        await saveConfigFile({
-            cheatConfig: config.cheatConfig,
-            startupCheats: config.startupCheats,
-            injectorConfig: config.injectorConfig,
-        });
+        await saveConfigFile({ cheatConfig: { wide: { wardrobe } } });
         await readSaved();
     };
 

@@ -327,11 +327,12 @@ const CompanionsTab = () => {
 
     const setCompanionCheat = (wanted) => executeCheatAction(COMPANION_CHEAT, wanted);
 
-    // /api/config/save rewrites config.custom.js from whatever it is handed, so it needs
-    // the whole config - a partial would drop every other saved override. `onAtStart`: chosen pets also turn the
-    // cheat on at every start (a startup cheat); none takes it off that list. Startup cheats toggle, so a list that
-    // already has "w1" (every W1 cheat on) gets no "w1 companion", which would turn it back off.
-    const persistConfig = async (onAtStart) => {
+    // /api/config/save merges the cheat settings it is sent, so it gets only the pet list (`cheatConfig`): a whole
+    // config read before another page's change would put that change back. The startup cheats are one list, read
+    // again here. `onAtStart`: chosen pets also turn the cheat on at every start (a startup cheat); none takes it off
+    // that list. Startup cheats toggle, so a list that already has "w1" (every W1 cheat on) gets no "w1 companion",
+    // which would turn it back off.
+    const persistConfig = async (onAtStart, cheatConfig) => {
         const config = await fetchConfig();
         if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
         const startup = config.startupCheats ?? [];
@@ -342,8 +343,7 @@ const CompanionsTab = () => {
                     ? startup
                     : [...startup, COMPANION_CHEAT]
                 : startup.filter((command) => command !== COMPANION_CHEAT),
-            cheatConfig: config.cheatConfig,
-            injectorConfig: config.injectorConfig,
+            cheatConfig,
         });
     };
 
@@ -364,10 +364,9 @@ const CompanionsTab = () => {
                 const entries = companions.val
                     .filter(({ id }) => normal.has(id) || plus.has(id))
                     .map(({ id }) => `${id}:${plus.has(id) ? 1 : 0}`);
-                const result = await updateSessionConfig({
-                    // An empty list would mean every pet at Pets+ once the startup cheat runs again.
-                    cheatConfig: { w1: { companion: { companions: entries.join(",") || "none" } } },
-                });
+                // An empty list would mean every pet at Pets+ once the startup cheat runs again.
+                const cheatConfig = { w1: { companion: { companions: entries.join(",") || "none" } } };
+                const result = await updateSessionConfig({ cheatConfig });
                 if (result.message !== "Configuration updated successfully") {
                     throw new Error(result.details || result.message || "Could not apply pet tiers in game");
                 }
@@ -375,7 +374,7 @@ const CompanionsTab = () => {
                 cheatEnabled.val = entries.length > 0;
                 normalIds.val = normal;
                 plusIds.val = plus;
-                await persistConfig(entries.length > 0);
+                await persistConfig(entries.length > 0, cheatConfig);
             },
             {
                 onError: (error) => {

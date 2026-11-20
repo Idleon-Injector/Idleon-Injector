@@ -109,6 +109,10 @@ test("the largest golden food stack seen is saved to the config file on open, fr
     await until(() => saves.length, "the save");
     assert.deepEqual((await wardrobeConfig()).goldenfood, { Lumi_Main: 25000 });
     assert.deepEqual(saves.at(-1).cheatConfig.wide.wardrobe.goldenfood, { Lumi_Main: 25000 });
+    // Only what it changed: a whole config read before another page's change would put that change back.
+    assert.deepEqual(Object.keys(saves.at(-1)), ["cheatConfig"]);
+    assert.deepEqual(Object.keys(saves.at(-1).cheatConfig), ["wide"]);
+    assert.deepEqual(Object.keys(saves.at(-1).cheatConfig.wide), ["wardrobe"]);
 });
 
 test("Apply asks Click again first, then saves the loadout as one action and works the stats out again", async () => {

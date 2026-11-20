@@ -123,10 +123,12 @@ const AttireRackPage = () => {
         );
     };
 
-    // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config. `onAtStart`:
-    // chosen outfits also turn the cheat on at every start; none takes it off that list. Startup cheats toggle, so a
-    // list that already has "wide" (every account-wide cheat) gets no "wide attire", which would turn it back off.
-    const persistConfig = async (onAtStart) => {
+    // /api/config/save merges the cheat settings it is sent, so it gets only the outfit choice (`cheatConfig`): a
+    // whole config read before another page's change would put that change back. The startup cheats are one list,
+    // read again here. `onAtStart`: chosen outfits also turn the cheat on at every start; none takes it off that list.
+    // Startup cheats toggle, so a list that already has "wide" (every account-wide cheat) gets no "wide attire", which
+    // would turn it back off.
+    const persistConfig = async (onAtStart, cheatConfig) => {
         const config = await fetchConfig();
         if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
         const startup = config.startupCheats ?? [];
@@ -137,8 +139,7 @@ const AttireRackPage = () => {
                     ? startup
                     : [...startup, ATTIRE_CHEAT]
                 : startup.filter((command) => command !== ATTIRE_CHEAT),
-            cheatConfig: config.cheatConfig,
-            injectorConfig: config.injectorConfig,
+            cheatConfig,
         });
     };
 
@@ -155,7 +156,8 @@ const AttireRackPage = () => {
                     ids.length && ids.every((id) => wanted.has(id))
                         ? "all"
                         : ids.filter((id) => wanted.has(id)).join(",");
-                const result = await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: value } } } });
+                const cheatConfig = { wide: { attire: { outfits: value } } };
+                const result = await updateSessionConfig({ cheatConfig });
                 if (result.message !== "Configuration updated successfully") {
                     throw new Error(result.details || result.message || "The game didn't take the outfit choice");
                 }
@@ -163,7 +165,7 @@ const AttireRackPage = () => {
                 enabled.val = value !== "";
                 allChosen.val = value === "all";
                 chosen.val = new Set(value === "all" ? ids : ids.filter((id) => wanted.has(id)));
-                await persistConfig(value !== "");
+                await persistConfig(value !== "", cheatConfig);
             },
             { onError: (caught) => choiceSaid.say("failed", caught.message) }
         );
