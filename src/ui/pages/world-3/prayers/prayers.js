@@ -7,6 +7,7 @@ import { EditableNumberRow } from "../../../components/views/account/EditableNum
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { askAtField, clickAgain } from "../../../components/inPlace.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
@@ -70,7 +71,7 @@ export const levelPlan = (state, id, requested) => {
         levels: state.levels[id] !== next ? [{ path: `PrayersUnlocked[${id}]`, value: next }] : [],
         confirmation:
             next === 0 && (affected.length || state.levels[id] !== 0)
-                ? `Set ${cleanName(definition.data[0])} to level 0 and lock it?${affected.length ? ` Unequip from ${affected.length} character(s): ${affected.map((player) => player.name).join(", ")}.` : ""}`
+                ? `lock ${cleanName(definition.data[0])} at level 0.${affected.length ? ` Unequips it from ${affected.length} character(s): ${affected.map((player) => player.name).join(", ")}.` : ""}`
                 : null,
         value: next,
     };
@@ -224,7 +225,8 @@ const PrayersTab = () => {
         }
     };
 
-    const execute = async (buildPlan) => {
+    // `ask(question)`: the in-place confirm (#77) for a plan with a confirmation; true goes ahead.
+    const execute = async (buildPlan, ask) => {
         if (unavailable()) throw new Error("Prayers are busy or unavailable. Refresh and try again.");
         busy.val = true;
         message.val = "";
@@ -246,7 +248,7 @@ const PrayersTab = () => {
                 return { value: plan.value };
             }
             if (plan.confirmation) {
-                if (!window.confirm(plan.confirmation)) return { cancelled: true };
+                if (!ask(plan.confirmation)) return { cancelled: true };
                 const fresh = await readSnapshot();
                 const refreshed = buildPlan(fresh);
                 if (fresh.current !== initial.current || JSON.stringify(refreshed) !== JSON.stringify(plan)) {
@@ -280,6 +282,8 @@ const PrayersTab = () => {
             if (attempted > 0) message.val = `${verified} write(s) verified.`;
             return { value: plan.value };
         } catch (caught) {
+            // Asking again happens beside the field, before anything was written.
+            if (caught.askAgain) throw caught;
             message.val = attempted
                 ? `Operation incomplete: ${verified}/${attempted} attempted writes verified. Some changes may have applied. ${caught.message}`
                 : caught.message;
@@ -297,8 +301,22 @@ const PrayersTab = () => {
         }
     };
 
+    // Locking a prayer (level 0) asks in place (#77): the first 0 is refused beside the field with what it
+    // would do, and Enter on 0 again within a few seconds does it.
+    const lockAsks = new Map();
+    const askAtLevel = (id) => {
+        if (!lockAsks.has(id)) {
+            const label = `${cleanName(getOrCreateState(metadataStates, id).val[0])} level`;
+            lockAsks.set(
+                id,
+                askAtField(() => document.activeElement?.getAttribute("aria-label") === label)
+            );
+        }
+        return lockAsks.get(id);
+    };
+
     const setLevel = async (id, next) => {
-        const result = await execute((state) => levelPlan(state, id, next));
+        const result = await execute((state) => levelPlan(state, id, next), askAtLevel(id));
         return result.cancelled ? result : result.value;
     };
 
@@ -320,42 +338,48 @@ const PrayersTab = () => {
             return { equipment, levels: [] };
         });
 
-    const bulk = async (mode) => {
+    // `button`: the bulk button clicked, which asks in place (#77).
+    const bulk = async (mode, button) => {
         if (unavailable()) return;
         await bulkStatus.run(() =>
-            execute((state) => {
-                if (mode === "unequip") {
-                    const player = state.players.find((entry) => entry.name === selected.val);
-                    if (!player) throw new Error("Selected character no longer exists.");
-                    const ids = state.definitions.map((entry) => entry.id).filter((id) => player.prayers.includes(id));
-                    if (!ids.length) {
-                        message.val = `No prayers equipped on ${player.name}.`;
+            execute(
+                (state) => {
+                    if (mode === "unequip") {
+                        const player = state.players.find((entry) => entry.name === selected.val);
+                        if (!player) throw new Error("Selected character no longer exists.");
+                        const ids = state.definitions
+                            .map((entry) => entry.id)
+                            .filter((id) => player.prayers.includes(id));
+                        if (!ids.length) {
+                            message.val = `No prayers equipped on ${player.name}.`;
+                            return { equipment: [], levels: [], cancelled: true };
+                        }
+                        return {
+                            equipment: equipmentPlan(state, player, ids),
+                            levels: [],
+                            confirmation: `unequip ${ids.length} named prayer(s) from ${player.name}.`,
+                        };
+                    }
+                    const levels = state.definitions
+                        .filter(({ id, data }) =>
+                            mode === "unlock" ? state.levels[id] === 0 : state.levels[id] !== Number(data[9])
+                        )
+                        .map(({ id, data }) => ({
+                            path: `PrayersUnlocked[${id}]`,
+                            value: mode === "unlock" ? 1 : Number(data[9]),
+                        }));
+                    if (!levels.length) {
+                        message.val = `All prayers are already ${mode === "unlock" ? "unlocked" : "maxed"}.`;
                         return { equipment: [], levels: [], cancelled: true };
                     }
                     return {
-                        equipment: equipmentPlan(state, player, ids),
-                        levels: [],
-                        confirmation: `Unequip ${ids.length} named prayer(s) from ${player.name}?`,
+                        equipment: [],
+                        levels,
+                        confirmation: `${mode === "unlock" ? "unlock" : "max"} ${levels.length} named prayer(s) account-wide.`,
                     };
-                }
-                const levels = state.definitions
-                    .filter(({ id, data }) =>
-                        mode === "unlock" ? state.levels[id] === 0 : state.levels[id] !== Number(data[9])
-                    )
-                    .map(({ id, data }) => ({
-                        path: `PrayersUnlocked[${id}]`,
-                        value: mode === "unlock" ? 1 : Number(data[9]),
-                    }));
-                if (!levels.length) {
-                    message.val = `All prayers are already ${mode === "unlock" ? "unlocked" : "maxed"}.`;
-                    return { equipment: [], levels: [], cancelled: true };
-                }
-                return {
-                    equipment: [],
-                    levels,
-                    confirmation: `${mode === "unlock" ? "Unlock" : "Max"} ${levels.length} named prayer(s) account-wide?`,
-                };
-            })
+                },
+                (question) => clickAgain(button, question)
+            )
         );
     };
 
@@ -420,14 +444,19 @@ const PrayersTab = () => {
                     label: "UNLOCK ALL",
                     status: bulkStatus.status,
                     disabled: unavailable,
-                    onClick: () => bulk("unlock"),
+                    onClick: (e) => bulk("unlock", e.currentTarget),
                 },
-                { label: "MAX ALL", status: bulkStatus.status, disabled: unavailable, onClick: () => bulk("max") },
+                {
+                    label: "MAX ALL",
+                    status: bulkStatus.status,
+                    disabled: unavailable,
+                    onClick: (e) => bulk("max", e.currentTarget),
+                },
                 {
                     label: "UNEQUIP ALL",
                     status: bulkStatus.status,
                     disabled: unavailable,
-                    onClick: () => bulk("unequip"),
+                    onClick: (e) => bulk("unequip", e.currentTarget),
                 },
             ],
             refresh: { onClick: load, disabled: () => busy.val || loading.val },

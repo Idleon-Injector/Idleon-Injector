@@ -11,6 +11,7 @@ import { StartupCheats, AddCheatSearchBar } from "../config/StartupCheats.js";
 import { SearchBar } from "../SearchBar.js";
 import { Icons } from "../../assets/icons.js";
 import { withTooltip } from "../Tooltip.js";
+import { Said, replay, useSaid } from "../inPlace.js";
 
 const { div, button, select, option, label, span } = van.tags;
 
@@ -52,9 +53,13 @@ export const Config = () => {
     let queue = Promise.resolve();
     const queued = (task) => (queue = queue.then(task, task));
 
+    // What Apply and Save did, said beside them (#77): a ✓ with where it went, or the reason in warm.
+    const { said, say } = useSaid(5000);
+
     van.derive(() => {
         const isOpen = store.app.activeTab === VIEWS.CONFIG.id || store.app.configDrawerOpen;
-        if (isOpen && draftReady.val) queued(syncDraft).catch((e) => store.notify(e.message, "error"));
+        if (isOpen && draftReady.val)
+            queued(syncDraft).catch((e) => say("failed", `The latest settings didn't load: ${e.message}`));
     });
 
     // Handle forced config path navigation from Cheats tab
@@ -93,8 +98,13 @@ export const Config = () => {
         store.clearForcedConfigPath();
     };
 
-    const save = (isPersistent) => {
+    // The server's plain successes; anything else it answers (the game didn't take it, a broken file kept aside)
+    // is said in warm.
+    const SAVED = /^Configuration (successfully saved to config\.custom\.js|updated successfully)$/;
+
+    const save = (isPersistent, e) => {
         if (!draft) return;
+        const saveButton = e?.currentTarget;
 
         return queued(async () => {
             try {
@@ -102,9 +112,13 @@ export const Config = () => {
                 const toSave = toPlain(merged);
                 delete toSave.defaultConfig;
 
-                if (await store.saveConfig(toSave, isPersistent)) baseline = merged;
-            } catch (e) {
-                store.notify(e.message, "error");
+                const message = await store.saveConfig(toSave, isPersistent);
+                baseline = merged;
+                if (message && !SAVED.test(message)) return say("failed", message);
+                replay(saveButton, "is-confirmed");
+                say("done", isPersistent ? "Saved to config.custom.js" : "Applied until the injector restarts");
+            } catch (error) {
+                say("failed", error.message);
             }
         });
     };
@@ -337,6 +351,13 @@ export const Config = () => {
         { id: "config-tab", class: "tab-pane config-layout" },
 
         () => {
+            if (store.app.configError && !draftReady.val) {
+                return EmptyState({
+                    icon: Icons.Warning(),
+                    title: "THE SETTINGS DIDN'T LOAD",
+                    subtitle: store.app.configError,
+                });
+            }
             if (store.app.isLoading || !draftReady.val) {
                 return Loader({ text: "LOADING CONFIG" });
             }
@@ -375,16 +396,20 @@ export const Config = () => {
             ),
 
             div({ class: () => `spacer ${activeSubTab.val === "startupcheats" && isAddingCheat.val ? "hidden" : ""}` }),
+            Said({ said, className: "said--inline said--config" }),
 
             withTooltip(
                 button(
-                    { id: "update-config-button", class: "btn-secondary", onclick: () => save(false) },
+                    { id: "update-config-button", class: "btn-secondary", onclick: (e) => save(false, e) },
                     "APPLY (RAM)"
                 ),
                 "Apply to session only (lost on restart)"
             ),
             withTooltip(
-                button({ id: "save-config-button", class: "btn-primary", onclick: () => save(true) }, "SAVE (DISK)"),
+                button(
+                    { id: "save-config-button", class: "btn-primary", onclick: (e) => save(true, e) },
+                    "SAVE (DISK)"
+                ),
                 "Save permanently to config file"
             )
         )

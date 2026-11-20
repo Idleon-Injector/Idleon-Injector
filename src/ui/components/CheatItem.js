@@ -1,17 +1,20 @@
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { Icons } from "../assets/icons.js";
+import { Said, plainReason, replay, useSaid } from "./inPlace.js";
 
 const { div, input, button, span } = van.tags;
 
 /**
- * Individual cheat button with optional parameter input and favorite toggle.
+ * Individual cheat button with optional parameter input and favorite toggle. What a run did is said on the row
+ * itself (#77): a ✓ and the cheat's words, why it was refused, or why it failed.
  * @param {object} cheat - Cheat data object with value, message, needsParam, category
  * @returns {Element} Cheat item DOM element
  */
 export const CheatItem = (cheat) => {
     const needsValue = cheat.needsParam === true;
     const hasConfig = store.hasConfigEntry(cheat.value);
+    const { said, say } = useSaid();
 
     // Use direct DOM reference instead of van.state to save thousands of listeners
     const inputRef = needsValue
@@ -19,28 +22,34 @@ export const CheatItem = (cheat) => {
               type: "text",
               class: "cheat-input",
               placeholder: "Val",
+              "aria-label": `Value for ${cheat.value}`,
           })
         : null;
 
     const getInputValue = () => (inputRef ? inputRef.value.trim() : "");
 
-    const feedbackState = van.state(null);
+    // A refusal: the value field (the row's hint) pulses and the row says why.
+    const refuse = (text) => {
+        replay(inputRef, "is-refused");
+        say("refused", text);
+    };
 
-    const handleExecute = async () => {
+    const handleExecute = async (e) => {
+        const row = e.currentTarget;
         let finalAction = cheat.value;
         if (needsValue) {
             const val = getInputValue();
-            if (!val) {
-                store.notify(`Value required for '${cheat.value}'`, "error");
-                feedbackState.val = "error";
-                setTimeout(() => (feedbackState.val = null), 1000);
-                return;
-            }
+            if (!val) return refuse("needs a value");
             finalAction = `${cheat.value} ${val}`;
         }
 
-        feedbackState.val = (await store.executeCheat(finalAction, cheat.message)) ? "success" : "error";
-        setTimeout(() => (feedbackState.val = null), 1000);
+        const result = await store.executeCheat(finalAction);
+        if (result.ok) {
+            replay(row, "is-confirmed");
+            say("done", result.message);
+        } else {
+            say("failed", plainReason(result.message));
+        }
     };
 
     const handleConfigClick = (e) => {
@@ -51,10 +60,7 @@ export const CheatItem = (cheat) => {
     const handleFavorite = () => {
         if (needsValue) {
             const val = getInputValue();
-            if (!val) {
-                store.notify(`Enter a value first to favorite '${cheat.value}'`, "error");
-                return;
-            }
+            if (!val) return refuse("enter a value to favorite it");
             store.toggleFavorite(`${cheat.value} ${val}`);
         } else {
             store.toggleFavorite(cheat.value);
@@ -70,40 +76,35 @@ export const CheatItem = (cheat) => {
         return store.isFavorite(cheat.value);
     };
 
-    // Build button content with optional gear icon
-    const buttonContent = [
-        span(
-            { class: "cheat-button-text" },
-            cheat.message && cheat.message !== cheat.value ? `${cheat.value} - ${cheat.message}` : cheat.value
-        ),
-        hasConfig
-            ? span(
-                  {
-                      class: "cheat-config-icon",
-                      onclick: handleConfigClick,
-                      title: "Open config for this cheat",
-                  },
-                  Icons.Config()
-              )
-            : null,
-    ];
-
     return div(
         { class: "cheat-item-container", "data-cheat": cheat.value },
         button(
             {
                 class: () =>
-                    `cheat-button ${hasConfig ? "has-config" : ""} ${
-                        feedbackState.val === "success" ? "feedback-success" : ""
-                    } ${feedbackState.val === "error" ? "feedback-error" : ""}`,
+                    `cheat-button ${hasConfig ? "has-config" : ""} ${said.val?.kind === "failed" ? "is-failed" : ""}`,
                 onclick: handleExecute,
             },
-            ...buttonContent
+            span(
+                { class: "cheat-button-text" },
+                cheat.message && cheat.message !== cheat.value ? `${cheat.value} - ${cheat.message}` : cheat.value
+            ),
+            Said({ said, className: "said--row" }),
+            hasConfig
+                ? span(
+                      {
+                          class: "cheat-config-icon",
+                          onclick: handleConfigClick,
+                          title: "Open config for this cheat",
+                      },
+                      Icons.Config()
+                  )
+                : null
         ),
         inputRef,
         button(
             {
                 class: () => `favorite-btn ${isFavorited() ? "is-favorite" : ""}`,
+                "aria-label": `Favorite ${cheat.value}`,
                 onclick: (e) => {
                     e.stopPropagation();
                     handleFavorite();

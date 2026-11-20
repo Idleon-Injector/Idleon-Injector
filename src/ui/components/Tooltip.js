@@ -82,7 +82,7 @@ const calculatePosition = (targetEl, preferredPosition, tooltipEl) => {
 
 let tooltipElement = null;
 
-const showTooltip = (targetEl, text, position = "top") => {
+export const showTooltip = (targetEl, text, position = "top") => {
     // First render off-screen to measure size, then position correctly
     tooltipState.val = {
         visible: true,
@@ -100,7 +100,7 @@ const showTooltip = (targetEl, text, position = "top") => {
     });
 };
 
-const hideTooltip = () => {
+export const hideTooltip = () => {
     tooltipState.val = { ...tooltipState.val, visible: false };
 };
 

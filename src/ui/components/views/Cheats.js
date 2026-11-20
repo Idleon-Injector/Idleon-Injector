@@ -9,6 +9,7 @@ import { CATEGORY_ORDER } from "../../state/constants.js";
 import { CheatItem } from "../CheatItem.js";
 import { LazyCategory } from "../LazyCategory.js";
 import { revealFound } from "../../utils/index.js";
+import { Said, plainReason, replay, useSaid } from "../inPlace.js";
 
 const { div, button, span } = van.tags;
 
@@ -40,6 +41,18 @@ const QuickAccessSection = () => {
         return null;
     };
 
+    // A chip moves when it runs (Recent puts it first), so each group says the result in its header.
+    const favoritesSaid = useSaid();
+    const recentSaid = useSaid();
+
+    const run = async (e, cheat, { say }) => {
+        const chip = e.currentTarget;
+        const result = await store.executeCheat(cheat.value);
+        if (!result.ok) return say("failed", `${cheat.value}: ${plainReason(result.message)}`);
+        replay(chip, "is-confirmed");
+        say("done", `${cheat.value}: ${result.message}`);
+    };
+
     const QuickAccessBtn = (cheatValue, isFavorite = false) => {
         const cheat = getCheatByValue(cheatValue);
         if (!cheat) return null;
@@ -49,7 +62,7 @@ const QuickAccessSection = () => {
             button(
                 {
                     class: () => `quick-access-btn ${isFavorite ? "is-favorite-btn" : ""}`,
-                    onclick: () => store.executeCheat(cheat.value, cheat.message),
+                    onclick: (e) => run(e, cheat, isFavorite ? favoritesSaid : recentSaid),
                     title: cheat.message,
                 },
                 span({ class: "quick-access-btn-text" }, cheat.value),
@@ -72,21 +85,29 @@ const QuickAccessSection = () => {
 
     return div(
         { class: "quick-access-section" },
-        div({ class: "quick-access-group" }, div({ class: "quick-access-header" }, "★ FAVORITES"), () => {
+        div(
+            { class: "quick-access-group" },
+            div({ class: "quick-access-header" }, span("★ FAVORITES"), Said({ said: favoritesSaid.said })),
+            () => {
             const favorites = [...store.data.favoriteCheats];
             if (favorites.length === 0) {
                 return div({ class: "quick-access-empty" }, "No favorites yet");
             }
             return div({ class: "quick-access-items" }, ...favorites.map((val) => QuickAccessBtn(val, true)));
-        }),
+            }
+        ),
 
-        div({ class: "quick-access-group" }, div({ class: "quick-access-header" }, "↻ RECENT"), () => {
+        div(
+            { class: "quick-access-group" },
+            div({ class: "quick-access-header" }, span("↻ RECENT"), Said({ said: recentSaid.said })),
+            () => {
             const recent = [...store.data.recentCheats];
             if (recent.length === 0) {
                 return div({ class: "quick-access-empty" }, "No recent cheats");
             }
             return div({ class: "quick-access-items" }, ...recent.slice(0, 5).map((val) => QuickAccessBtn(val, false)));
-        })
+            }
+        )
     );
 };
 
@@ -252,6 +273,14 @@ export const Cheats = () => {
                 const filterTerm = ui.filter;
                 const groupedData = getGroupedCheats(store.data.cheats, filterTerm);
                 const categories = Object.keys(groupedData);
+
+                if (categories.length === 0 && store.app.cheatsError) {
+                    return EmptyState({
+                        icon: Icons.Warning(),
+                        title: "THE CHEAT LIST DIDN'T LOAD",
+                        subtitle: store.app.cheatsError,
+                    });
+                }
 
                 if (categories.length === 0) {
                     return EmptyState({

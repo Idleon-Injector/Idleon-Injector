@@ -69,8 +69,7 @@
 
 .sidebar-collapsed .brand-text,
 .sidebar-collapsed .tab-label,
-.sidebar-collapsed #system-status-text,
-.sidebar-collapsed .notification-history {
+.sidebar-collapsed #system-status-text {
     opacity: 0;
     max-width: 0;
     margin: 0 !important;

@@ -46,9 +46,14 @@ const appState = vanX.reactive({
     updateInfo: null,
     updateModalOpen: false,
     updateApplying: false,
-    toast: { message: "", type: "", id: 0 },
-    notificationHistory: [],
+    // What the update modal's Accept said: null or { ok, text }.
+    updateResult: null,
     config: null,
+    configError: "",
+    cheatsError: "",
+    // System problems the sidebar's status line shows until they're fixed (#77).
+    gameClosed: false,
+    hookFailures: [],
     sidebarCollapsed: localStorage.getItem("sidebarCollapsed") === "true",
     configForcedPath: null,
     // The cheat the menu search sent the player to: the Cheats page shows that row (and `setting` in the drawer).
@@ -67,30 +72,13 @@ const dataState = vanX.reactive({
 
 const rawMonitorState = vanX.reactive({ values: {} });
 
-const MAX_NOTIFICATION_HISTORY = 10;
 let appInfoRequest = null;
-let shownHookFailures = "";
-// Set while the injector reports the game closed; it doesn't re-attach, so only a restart clears it.
-let gameClosed = false;
 
 const Actions = {
-    /** A persistent notification stays on screen until the next one replaces it. */
-    notify: (message, type = "success", persistent = false) => {
-        const notification = { message, type, persistent, id: Date.now() };
-        appState.toast = notification;
-
-        appState.notificationHistory.unshift(notification);
-        if (appState.notificationHistory.length > MAX_NOTIFICATION_HISTORY) {
-            appState.notificationHistory.pop();
-        }
-    },
-
     withLoading: async (fn) => {
         try {
             appState.isLoading = true;
             await fn();
-        } catch (e) {
-            Actions.notify(e.message || "Unknown Error", "error");
         } finally {
             appState.isLoading = false;
         }
@@ -103,23 +91,14 @@ const SystemService = {
 
         onStateUpdate((states, hookFailures, gameOpen) => {
             dataState.activeCheatStates = states || {};
-            const closed = gameOpen === false;
-            if (closed && !gameClosed)
-                Actions.notify("The game closed. Restart the injector to use cheats again.", "error", true);
-            gameClosed = closed;
-            if (closed) appState.heartbeat = false;
-            // Every state update repeats the list; speak up only when it changes.
-            if (!hookFailures) return;
-            const failures = hookFailures.join("; ");
-            if (failures === shownHookFailures) return;
-            shownHookFailures = failures;
-            if (!failures) return Actions.notify("All game hooks are installed now");
-            const count = hookFailures.length;
-            Actions.notify(
-                `${count} game ${count === 1 ? "hook" : "hooks"} failed to install, so the cheats that use ${count === 1 ? "it" : "them"} won't work: ${failures}`,
-                "error",
-                true
-            );
+            // The injector doesn't re-attach to a closed game, so only a restart clears this.
+            if (gameOpen === false) {
+                appState.gameClosed = true;
+                appState.heartbeat = false;
+            }
+            // Every state update repeats the list; the status line changes only when it does.
+            if (hookFailures && hookFailures.join("\n") !== appState.hookFailures.join("\n"))
+                appState.hookFailures = hookFailures;
         });
 
         onMonitorUpdate((data) => {
@@ -130,7 +109,7 @@ const SystemService = {
         const check = async () => {
             // Check WebSocket connection first
             if (getConnectionStatus()) {
-                appState.heartbeat = !gameClosed;
+                appState.heartbeat = !appState.gameClosed;
                 return;
             }
 
@@ -173,14 +152,12 @@ const SystemService = {
         }
     },
 
+    /** Check for an update and open the modal when there is one; resolves whether it opened. */
     openUpdateModal: async () => {
         const updateInfo = await SystemService.checkForUpdate(true);
-        if (updateInfo?.updateAvailable) {
-            appState.updateModalOpen = true;
-            return;
-        }
-
-        Actions.notify("Already on latest version");
+        appState.updateResult = null;
+        appState.updateModalOpen = Boolean(updateInfo?.updateAvailable);
+        return appState.updateModalOpen;
     },
 
     closeUpdateModal: () => {
@@ -191,9 +168,9 @@ const SystemService = {
         try {
             appState.updateApplying = true;
             const result = await API.applyUpdate();
-            Actions.notify(result.message || "Update prepared");
+            appState.updateResult = { ok: true, text: result.message || "Update prepared" };
         } catch (error) {
-            Actions.notify(error.message, "error");
+            appState.updateResult = { ok: false, text: error.message };
             appState.updateApplying = false;
         }
     },
@@ -210,6 +187,7 @@ const CheatService = {
         })),
 
     fetchCheats: async () => {
+        appState.cheatsError = "";
         await Actions.withLoading(async () => {
             const hasConfig = appState.config !== null;
 
@@ -223,7 +201,7 @@ const CheatService = {
             if (config) {
                 appState.config = config;
             }
-        });
+        }).catch((e) => (appState.cheatsError = e.message || "The cheat list didn't load"));
     },
 
     /**
@@ -273,21 +251,18 @@ const CheatService = {
     },
 
     /**
-     * Run a cheat and show the result. A toggle cheat is set to the opposite of the state the player
-     * saw, so a double click or a second tab can't flip it back.
-     * @returns {Promise<boolean>} whether the cheat succeeded
+     * Run a cheat. A toggle cheat is set to the opposite of the state the player saw, so a double click or a
+     * second tab can't flip it back. The caller says the result where the player ran it (#77); cheat states
+     * come back over the WebSocket.
+     * @returns {Promise<{ok: boolean, message: string}>}
      */
-    executeCheat: async (action, message, on = clickedState(action)) => {
+    executeCheat: async (action, on = clickedState(action)) => {
         try {
             const result = await API.executeCheatAction(action, on);
-            Actions.notify(`Cheat ${result.message}`);
             FavoritesService.addToRecent(action);
-            // Note: Cheat states are now updated via WebSocket push from server
-            // No need for manual loadCheatStates() call
-            return true;
+            return { ok: true, message: result.message || "done" };
         } catch (e) {
-            Actions.notify(`Error executing '${message}': ${e.message}`, "error");
-            return false;
+            return { ok: false, message: e.message || "it didn't run" };
         }
     },
 };
@@ -365,58 +340,47 @@ const ConfigService = {
         // Custom error message requirement prevents using generic withLoading wrapper
         try {
             appState.isLoading = true;
+            appState.configError = "";
             const data = await API.fetchConfig();
             appState.config = data;
         } catch (e) {
-            Actions.notify(`Config Load Error: ${e.message}`, "error");
+            appState.configError = e.message;
         } finally {
             appState.isLoading = false;
         }
     },
 
+    /** Save or apply the settings; resolves with the server's words, rejects with why it failed. */
     saveConfig: async (newConfig, isPersistent) => {
-        try {
-            // Strip Proxies via JSON cycle to prevent reactive leaks
-            const cleanConfig = JSON.parse(JSON.stringify(newConfig));
-
-            const result = isPersistent
-                ? await API.saveConfigFile(cleanConfig)
-                : await API.updateSessionConfig(cleanConfig);
-
-            Actions.notify(result.message || (isPersistent ? "SAVED TO DISK" : "RAM UPDATED"));
-            return true;
-        } catch (e) {
-            Actions.notify(e.message, "error");
-            return false;
-        }
+        // Strip Proxies via JSON cycle to prevent reactive leaks
+        const cleanConfig = JSON.parse(JSON.stringify(newConfig));
+        const result = isPersistent
+            ? await API.saveConfigFile(cleanConfig)
+            : await API.updateSessionConfig(cleanConfig);
+        return result?.message || "";
     },
 };
 
 const AccountService = {
     loadAccountOptions: async () => {
-        await Actions.withLoading(
-            async () => {
-                const hasSchema = Object.keys(dataState.accountSchema).length > 0;
+        await Actions.withLoading(async () => {
+            const hasSchema = Object.keys(dataState.accountSchema).length > 0;
 
-                const [schemaRes, dataRes] = await Promise.all([
-                    hasSchema
-                        ? Promise.resolve(null)
-                        : fetch("/config/optionsAccountSchema.json").catch(() => ({ ok: false })),
-                    API.gga("OptionsListAccount"),
-                ]);
+            const [schemaRes, dataRes] = await Promise.all([
+                hasSchema
+                    ? Promise.resolve(null)
+                    : fetch("/config/optionsAccountSchema.json").catch(() => ({ ok: false })),
+                API.gga("OptionsListAccount"),
+            ]);
 
-                if (schemaRes?.ok) {
-                    dataState.accountSchema = await schemaRes.json();
-                }
+            if (schemaRes?.ok) {
+                dataState.accountSchema = await schemaRes.json();
+            }
 
-                const newData = Array.isArray(dataRes) ? dataRes : [];
-                dataState.accountOptions = [];
-                dataState.accountOptions = newData;
-
-                Actions.notify(`ACCOUNT DATA DECRYPTED (${newData.length} ITEMS)`);
-            },
-            (e) => `Error loading options: ${e.message}`
-        );
+            const newData = Array.isArray(dataRes) ? dataRes : [];
+            dataState.accountOptions = [];
+            dataState.accountOptions = newData;
+        });
     },
 };
 
@@ -446,7 +410,6 @@ const store = {
     app: appState,
     data: dataState,
 
-    notify: Actions.notify,
     initHeartbeat: SystemService.initHeartbeat,
     loadAppInfo: SystemService.loadAppInfo,
     checkForUpdate: SystemService.checkForUpdate,
@@ -518,11 +481,13 @@ const store = {
         localStorage.setItem("cheatsViewMode", appState.cheatsViewMode);
     },
 
+    /** Open a link in the player's browser; resolves with why it failed, or "" when it opened. */
     openExternalUrl: async (url) => {
         try {
             await API.openExternalUrl(url);
+            return "";
         } catch (e) {
-            Actions.notify(`Failed to open URL: ${e.message}`, "error");
+            return e.message || "it didn't open";
         }
     },
 

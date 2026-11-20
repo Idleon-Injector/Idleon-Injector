@@ -57,13 +57,22 @@ export const Search = () => {
         error: null,
         allKeysExpanded: false,
         allKeysFilter: "",
-        edit: { path: null, draft: "", type: "" },
+        // `error`: why the value wasn't written, said under the field (#77).
+        edit: { path: null, draft: "", type: "", error: "" },
         isSettingValue: false,
         savedResults: Array.isArray(restoredWorkspace.savedResults)
             ? restoredWorkspace.savedResults.map(normalizeSavedEntry).filter(Boolean)
             : [],
-        savedEdit: { path: null, draft: "", type: "" },
+        savedEdit: { path: null, draft: "", type: "", error: "" },
         isRefreshingSavedResults: false,
+        savedRefreshError: "",
+        // Why the last scan didn't run, said in the search's hint line; `refusals` replays its pulse.
+        searchRefusal: "",
+        refusals: 0,
+        // The last scan stopped at the result cap.
+        truncated: false,
+        // The row whose value was just written, washed once in place.
+        writtenPath: "",
     });
 
     const scanSession = createScanSession({ search: store.searchGga, state: ui.scan });
@@ -135,22 +144,33 @@ export const Search = () => {
 
         const validation = validateEditDraft(editState.type, editState.draft);
         if (!validation.ok) {
-            store.notify(validation.error, "error");
+            editState.error = validation.error;
             return;
         }
 
         try {
             ui.isSettingValue = true;
+            editState.error = "";
             const resp = await store.setGgaValue(path, validation.valueToSend);
             updateValueInUi(path, resp);
-            store.notify(`Updated ${path}`, "success");
             cancel();
+            // The new value shows in the row; the row confirms in place.
+            ui.writtenPath = path;
+            setTimeout(() => {
+                if (ui.writtenPath === path) ui.writtenPath = "";
+            }, 900);
         } catch (e) {
-            store.notify(e?.message || "Failed to update value", "error");
+            editState.error = e?.message || "The game didn't take the value";
         } finally {
             ui.isSettingValue = false;
         }
     };
+
+    // A refusal is about the inputs the scan had; changing them takes it back.
+    van.derive(() => {
+        void [ui.searchQuery, ui.searchQuery2, ui.selectedKeys, ui.scanTypeNew, ui.scanTypeNext];
+        ui.searchRefusal = "";
+    });
 
     // Persist synchronously: selectedKeys/savedResults only change on discrete
     // user actions, so an immediate reload after a change can't lose it.
@@ -267,7 +287,8 @@ export const Search = () => {
             ui.error = null;
             handlers.cancelEdit();
             handlers.cancelSavedEdit();
-            store.notify("Scan reset. Ready for first scan.", "success");
+            ui.searchRefusal = "";
+            ui.truncated = false;
         },
 
         handleNewScanTypeChange: (e) => {
@@ -296,10 +317,7 @@ export const Search = () => {
         addToSavedResults: (result) => {
             if (!result?.path) return;
 
-            if (ui.savedResults.some((entry) => entry.path === result.path)) {
-                store.notify("Already in saved list");
-                return;
-            }
+            if (ui.savedResults.some((entry) => entry.path === result.path)) return;
 
             const initialHistory = getMonitorHistory(store.monitors.get(result.path)).slice(0, 10);
             const seededHistory =
@@ -317,8 +335,6 @@ export const Search = () => {
             ui.savedResults = [...ui.savedResults, entry];
 
             store.monitors.subscribe(result.path);
-
-            store.notify(`Added ${result.path} to saved list and enabled watcher`, "success");
         },
 
         toggleSavedMonitor: (path, enabled) => {
@@ -347,12 +363,10 @@ export const Search = () => {
 
             if (enabled) {
                 store.monitors.subscribe(path);
-                store.notify("Enabled watcher for " + path);
                 return;
             }
 
             store.monitors.unsubscribe(path);
-            store.notify("Stopped watcher for " + path);
         },
 
         removeSavedResult: (path) => {
@@ -360,7 +374,6 @@ export const Search = () => {
 
             ui.savedResults = ui.savedResults.filter((entry) => entry.path !== path);
             if (ui.savedEdit.path === path) handlers.cancelSavedEdit();
-            store.notify(`Removed ${path} from saved list`);
         },
 
         clearSavedResults: () => {
@@ -372,7 +385,6 @@ export const Search = () => {
 
             ui.savedResults = [];
             handlers.cancelSavedEdit();
-            store.notify("Saved list cleared");
         },
 
         refreshSavedResults: async () => {
@@ -382,6 +394,7 @@ export const Search = () => {
 
             try {
                 ui.isRefreshingSavedResults = true;
+                ui.savedRefreshError = "";
 
                 const data = await store.searchGga("", ui.selectedKeys, { withinPaths });
                 const nextByPath = new Map((data.results || []).map((entry) => [entry.path, entry]));
@@ -397,10 +410,8 @@ export const Search = () => {
                         type: next.type ?? entry.type,
                     };
                 });
-
-                store.notify("Saved list refreshed", "success");
             } catch (e) {
-                store.notify(e?.message || "Failed to refresh saved list", "error");
+                ui.savedRefreshError = e?.message || "The saved list didn't refresh";
             } finally {
                 ui.isRefreshingSavedResults = false;
             }
@@ -410,6 +421,7 @@ export const Search = () => {
             if (ui.isSettingValue) return; // don't switch rows mid-write
             handlers.cancelEdit();
             ui.savedEdit.path = entry.path;
+            ui.savedEdit.error = "";
 
             // Prefer the freshest raw value: live monitor > cached history > stored entry value.
             const liveHistory = entry.monitorEnabled ? getMonitorHistory(store.monitors.get(entry.path)) : [];
@@ -432,6 +444,7 @@ export const Search = () => {
             ui.savedEdit.path = null;
             ui.savedEdit.draft = "";
             ui.savedEdit.type = "";
+            ui.savedEdit.error = "";
         },
 
         saveSavedEdit: () => commitEdit(ui.savedEdit, handlers.cancelSavedEdit),
@@ -440,6 +453,7 @@ export const Search = () => {
             if (ui.isSettingValue) return; // don't switch rows mid-write
             handlers.cancelSavedEdit();
             ui.edit.path = result.path;
+            ui.edit.error = "";
             ui.edit.draft = seedEditValue(result);
             ui.edit.type = expectedUiType(result);
         },
@@ -448,6 +462,7 @@ export const Search = () => {
             ui.edit.path = null;
             ui.edit.draft = "";
             ui.edit.type = "";
+            ui.edit.error = "";
         },
 
         saveEdit: () => commitEdit(ui.edit, handlers.cancelEdit),
@@ -470,10 +485,10 @@ export const Search = () => {
                 ui.displayLimit = 50;
             }
             const feedback = await pending;
-            if (feedback?.validationError) store.notify(feedback.validationError, "error");
-            if (feedback?.truncated) {
-                store.notify("Result cap reached — scan is partial. Narrow your keys or query.", "error");
-            }
+            // A refusal is said in the search's own hint line, which pulses; a scan that ran clears it.
+            ui.searchRefusal = feedback?.validationError || "";
+            if (ui.searchRefusal) ui.refusals++;
+            else ui.truncated = Boolean(feedback?.truncated);
         },
     };
 

@@ -19,6 +19,7 @@ import { AccountSection } from "../../../components/views/account/components/Acc
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../../components/NumberInput.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
+import { clickAgain } from "../../../components/inPlace.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 
@@ -262,11 +263,15 @@ const PrinterTab = () => {
         return { write: () => writeSlot(state, item, qty) };
     };
 
-    const clearSlot = (state) => {
+    // STOP and CLEAR ask in place (#77): the button reads CLICK AGAIN for a few seconds.
+    const clearSlot = (state, button) => {
         if (cannotWrite()) return;
         const charName = snapshot.val?.names?.[state.character] ?? "character";
         if (
-            !window.confirm(`${state.kind === "print" ? "Stop" : "Clear"} ${charName} ${state.kind} ${state.slot + 1}?`)
+            !clickAgain(
+                button,
+                `${state.kind === "print" ? "stop" : "clear"} ${charName}'s ${state.kind} ${state.slot + 1}.`
+            )
         )
             return;
         return state.write.run(() => writeSlot(state, "Blank", 0, true));
@@ -391,7 +396,7 @@ const PrinterTab = () => {
                         variant: "danger",
                         disabled: () =>
                             uneditable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),
-                        onClick: () => clearSlot(state),
+                        onClick: (e) => clearSlot(state, e.currentTarget),
                     }),
                 ],
             })
@@ -431,10 +436,13 @@ const PrinterTab = () => {
 
     // A Refresh discards the drafts (it asked first); the reload after an undo elsewhere keeps them.
     let discardDrafts = false;
-    const load = async () => {
+    // `e`: REFRESH's click, which asks in place before it throws drafts away (#77).
+    const load = async (e) => {
         if (
             busy.val ||
-            (!loading.val && hasDrafts() && !window.confirm("Refresh Printer and discard all character drafts?"))
+            (!loading.val &&
+                hasDrafts() &&
+                !clickAgain(e.currentTarget, "refresh Printer and discard every character's drafts."))
         )
             return;
         busy.val = true;

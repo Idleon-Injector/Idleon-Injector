@@ -44,6 +44,8 @@
     --c-danger-20: rgba(243, 71, 71, 0.2);
     --c-danger-40: rgba(243, 71, 71, 0.4);
     --c-warning-10: rgba(255, 183, 0, 0.1);
+    --c-warning-20: rgba(255, 183, 0, 0.2);
+    --c-warning-40: rgba(255, 183, 0, 0.4);
 
     /* -- TEXT -- */
     --c-text-main: #eceff8;
@@ -226,6 +228,8 @@
         --c-danger-20: color-mix(in oklch, var(--c-danger) 20%, transparent);
         --c-danger-40: color-mix(in oklch, var(--c-danger) 40%, transparent);
         --c-warning-10: color-mix(in oklch, var(--c-warning) 10%, transparent);
+        --c-warning-20: color-mix(in oklch, var(--c-warning) 20%, transparent);
+        --c-warning-40: color-mix(in oklch, var(--c-warning) 40%, transparent);
         --c-text-main: oklch(92.24% 0.0115 252.09);
         --c-text-dim: color-mix(in oklch, var(--c-text-main) 93%, transparent);
         --c-text-muted: color-mix(in oklch, var(--c-text-main) 88%, transparent);

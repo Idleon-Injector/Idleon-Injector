@@ -8,6 +8,8 @@ import { Loader } from "../Loader.js";
 import { AccountSection } from "./account/components/AccountSection.js";
 import { menuTree } from "../../menu/pageRegistry.js";
 import { worldClass } from "../../menu/menuModel.js";
+import { Said, useSaid } from "../inPlace.js";
+import { turnOff } from "../Sidebar.js";
 
 const { div, button, span } = van.tags;
 
@@ -41,33 +43,40 @@ const WorldTile = (world) =>
             : null
     );
 
-const ActiveCheats = () =>
-    div({ class: "menu-home-cheats" }, () => {
-        const active = store.getActiveCheats();
-        if (!active.length)
+const ActiveCheats = () => {
+    // Turning one off is a toggle: it leaves the list. Only a failure is said, under the list.
+    const { said, say } = useSaid();
+    return div(
+        { class: "menu-home-cheats" },
+        () => {
+            const active = store.getActiveCheats();
+            if (!active.length)
+                return div(
+                    { class: "menu-home-cheats__empty" },
+                    span({ class: "no-active-cheats" }, "No cheats are on."),
+                    button(
+                        { type: "button", class: "btn-secondary", onclick: () => store.openMenu({ view: "CHEATS" }) },
+                        "OPEN CHEATS"
+                    )
+                );
             return div(
-                { class: "menu-home-cheats__empty" },
-                span({ class: "no-active-cheats" }, "No cheats are on."),
-                button(
-                    { type: "button", class: "btn-secondary", onclick: () => store.openMenu({ view: "CHEATS" }) },
-                    "OPEN CHEATS"
+                { class: "menu-home-cheats__list" },
+                ...active.map((cheat) =>
+                    button(
+                        {
+                            type: "button",
+                            class: "active-cheat-item",
+                            title: `Turn off ${cheat}`,
+                            onclick: () => turnOff(cheat, say),
+                        },
+                        span({ class: "active-cheat-text" }, cheat)
+                    )
                 )
             );
-        return div(
-            { class: "menu-home-cheats__list" },
-            ...active.map((cheat) =>
-                button(
-                    {
-                        type: "button",
-                        class: "active-cheat-item",
-                        title: `Turn off ${cheat}`,
-                        onclick: () => store.executeCheat(cheat, cheat, false),
-                    },
-                    span({ class: "active-cheat-text" }, cheat)
-                )
-            )
-        );
-    });
+        },
+        Said({ said, className: "said--line" })
+    );
+};
 
 export const Home = () =>
     div(

@@ -3,6 +3,7 @@
  * and cheat setting, then the commands the terminal suggests (drop an item, spawn a monster, ...).
  * Picking a cheat shows its row on the Cheats page; it never runs it. Picking a command turns the box into a
  * command box holding its text: Enter runs it (a dangerous one asks for a second Enter), Esc goes back.
+ * What the command did shows in a short line under the box (#77): it lands in the game, out of sight.
  */
 
 import van from "../vendor/van-1.6.0.js";
@@ -11,6 +12,7 @@ import { Icons } from "../assets/icons.js";
 import { menuSearchEntries } from "../menu/pageRegistry.js";
 import { cheatSearchEntries, commandHint, isDangerousCommand, searchMenu } from "../menu/menuModel.js";
 import { configDescriptions } from "../config/configDescriptions.js";
+import { Said, plainReason, useSaid } from "./inPlace.js";
 
 const { div, input, span, button, kbd } = van.tags;
 
@@ -22,6 +24,9 @@ export const MenuSearch = () => {
     const command = van.state(null);
     // A dangerous command waiting for its second Enter.
     const armed = van.state(false);
+    // The last command run and what it did, said under the box until the player types again.
+    const ran = van.state("");
+    const { said, say, clear } = useSaid(6000);
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
     const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions));
     const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
@@ -48,7 +53,7 @@ export const MenuSearch = () => {
         query.val = "";
         field.value = "";
     };
-    const runCommand = () => {
+    const runCommand = async () => {
         const text = query.val.trim().replace(/\s+/g, " ");
         if (!text) return;
         if (!armed.val && isDangerousCommand(text, store.data.cheats)) {
@@ -56,7 +61,9 @@ export const MenuSearch = () => {
             return;
         }
         leaveCommand();
-        store.executeCheat(text, text);
+        const result = await store.executeCheat(text);
+        ran.val = text;
+        say(result.ok ? "done" : "failed", result.ok ? result.message : plainReason(result.message));
     };
     const go = (result, byKeyboard = false) => {
         if (result.kind === "Command") return startCommand(result.target);
@@ -83,6 +90,7 @@ export const MenuSearch = () => {
         oninput: (e) => {
             query.val = e.target.value;
             armed.val = false;
+            clear();
             if (command.val && !e.target.value.trim()) command.val = null;
             highlight.val = 0;
             open.val = true;
@@ -211,7 +219,17 @@ export const MenuSearch = () => {
                                       `Nothing in the menu matches "${query.val.trim()}".`
                                   )
                         )
-                      : span()
+                      : span(),
+            // Always in the page, so screen readers hear the result; shown while the box is open and empty.
+            div(
+                {
+                    class: () =>
+                        `menu-search-results menu-command-hint menu-command-result ${said.val ? `is-${said.val.kind}` : ""}`,
+                    hidden: () => !(open.val && !command.val && !query.val.trim() && said.val),
+                },
+                span({ class: "menu-search-result__label menu-search-result__label--command" }, ran),
+                Said({ said, className: "said--command" })
+            )
         ),
         kbd({ class: "menu-bar__kbd" }, () => (command.val ? "ENTER" : "CTRL K"))
     );
