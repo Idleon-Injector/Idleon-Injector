@@ -30,10 +30,10 @@ const isEditField = (node) => /^(INPUT|SELECT|TEXTAREA)$/.test(String(node?.node
  * Status: null, "loading" (saving…), "success" (read back from the game) or "error" (with `reason`).
  *
  * After a save, `undo.offer` holds its logged action for UNDO_MS: SaveState shows "↶ Undo" beside the ✓. Undo puts
- * the old values back (on the character they were saved on) with the same saving…/✓ states, then calls
- * `onUndone(action)` so the row shows them; without `onUndone` the page reads the game again.
+ * the old values back (on the character they were saved on) with the same saving…/✓ states, then the page reads
+ * the game again, so the row shows what the game now holds.
  */
-export const useAutoSave = ({ prepare, revert = null, successMs = 2400, onUndone = null }) => {
+export const useAutoSave = ({ prepare, revert = null, successMs = 2400 }) => {
     const status = van.state(null);
     const reason = van.state("");
     const offer = van.state(null);
@@ -139,8 +139,7 @@ export const useAutoSave = ({ prepare, revert = null, successMs = 2400, onUndone
         }
         washed.val = true;
         setTimeout(() => (washed.val = false), WASH_MS);
-        if (typeof onUndone === "function") onUndone(action);
-        else reloadAfterUndo(action);
+        reloadAfterUndo(action);
     };
 
     /** Pointer or focus on Undo keeps it (`by` is "pointer" or "focus"); once both left, a few more seconds. */

@@ -102,7 +102,7 @@ test("a saved value offers Undo beside its ✓, and Undo puts the old value back
     await clickUndo(row);
     assert.match(saveState(row), /save-state--success/, "undoing shows the same ✓");
     assert.equal(ola[254], old);
-    assert.equal(text(byClass(row, "account-row__badge")[0]).includes(String(old)), true, "the row shows it");
+    await until(() => text(byClass(row, "account-row__badge")[0]).includes(String(old)), "the row to show it");
     assert.equal(undoOffered(row), false, "nothing left to undo on the row");
     assert.equal((await newest()).entries[0].undone, true);
 });
@@ -339,4 +339,32 @@ test("Undo stays while it has focus, even after the pointer passed over it", asy
     } finally {
         t.mock.timers.runAll(); // VanJS's own redraw timers
     }
+});
+
+test("a row's Undo shows the value the game got back, even when the row's copy was stale", async () => {
+    const root = await openPage(OWL, rowLoaded(FEATHERS));
+    const row = findRow(root, FEATHERS);
+    ola[254] = 15; // the game changed it; the row still shows its last read
+    await saveRow(row, 20);
+    await clickUndo(row);
+    assert.equal(ola[254], 15);
+    await until(() => /\b15\b/.test(text(byClass(row, "account-row__badge")[0])), "the row to show 15");
+});
+
+test("Account Options' Undo shows the value the game got back, even when the row's copy was stale", async () => {
+    const { AccountOptionsTab } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
+    const root = AccountOptionsTab();
+    const optionRow = () => elements(root).find((node) => node.attributes["data-index"] === 254);
+    await until(optionRow, "Account Options to load");
+    const row = optionRow();
+    const [wrapper] = byClass(row, "option-input-wrapper");
+    const [field] = elements(wrapper).filter((node) => node.nodeName === "input");
+    ola[254] = 15; // the game changed it; the row still shows its last read
+    field.value = "20";
+    field.listeners.input({ target: field });
+    wrapper.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+    await until(() => ola[254] === 20 && undoOffered(row), "the save and its Undo");
+    await clickUndo(row);
+    assert.equal(ola[254], 15);
+    await until(() => String(field.attributes.value) === "15", "the row to show 15");
 });
