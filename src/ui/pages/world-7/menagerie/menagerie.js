@@ -211,7 +211,6 @@ const MenagerieTab = () => {
                     span({ class: "account-row__name" }, name),
                     note ? span({ class: "account-row__sub-label" }, note) : null
                 ),
-            renderBadge: formatNumber,
             adjustInput: (raw, delta, current) => {
                 const value = numericInput(raw, integer) ?? current;
                 return Math.max(0, value + delta * (formatted ? formattedStep(value) : 1));
@@ -240,9 +239,9 @@ const MenagerieTab = () => {
                     span({ class: "account-write-feedback", role: "status" }, () => message.val)
                 )
             ),
-            span({ class: "account-row__badge" }, () => (state(path).val >= 1 ? "ON" : "OFF")),
             label(
-                { class: "toggle-switch" },
+                { class: () => `toggle-switch state-switch${state(path).val >= 1 ? " is-on" : ""}` },
+                span({ class: "state-switch__words" }, () => (state(path).val >= 1 ? "On" : "Off")),
                 input({
                     type: "checkbox",
                     role: "switch",
@@ -290,7 +289,6 @@ const MenagerieTab = () => {
                     )
                 ),
             ],
-            renderBadge: (value) => `${value} COMPLETIONS`,
             adjustInput: (raw, delta, current) => Math.max(0, (numericInput(raw, true) ?? current) + delta),
             disabled,
             rowClass: "account-row--wide-controls",

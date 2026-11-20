@@ -76,7 +76,6 @@ const PoppyRow = ({ field, fieldState, onWrite }) =>
         fieldState,
         onWrite,
         controlsClass: "account-row__controls--xl",
-        emptyBadge: "-",
     });
 
 const PoppyTab = () => {

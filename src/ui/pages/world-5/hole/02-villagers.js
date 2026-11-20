@@ -42,7 +42,6 @@ const VillagerRow = ({ entry, valueStates }) =>
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => `LV ${getOrCreateState(valueStates, entry.fields.level.key).val ?? 0}`,
         controlsClass: "account-row__controls--stack",
         controls: [
             InlineEditableNumberField({

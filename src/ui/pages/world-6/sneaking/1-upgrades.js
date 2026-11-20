@@ -38,7 +38,6 @@ const buildUpgradeEntries = (rawDefinitions, rawLevels) => {
                 rawName,
                 name: cleanName(rawName, `Upgrade ${index + 1}`),
                 level: toInt(levels[index], { min: 0 }),
-                badge: (currentValue) => `LV ${currentValue ?? 0}`,
                 formatted: false,
             };
         })

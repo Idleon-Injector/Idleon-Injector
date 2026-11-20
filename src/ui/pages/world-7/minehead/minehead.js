@@ -35,7 +35,6 @@ const MineheadStatRow = ({ stat, valueState }) => {
             path: `${MINEHEAD_STATS_PATH}[${stat.index}]`,
             name: stat.label,
             formatted: isCurrency,
-            badge: isCurrency ? null : (currentValue) => String(currentValue ?? 0),
         },
         valueState,
     });

@@ -14,10 +14,11 @@ import {
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, input, label, span } = van.tags;
+const { div, span } = van.tags;
 
 const NORMAL_ROUNDS_PATH = "Summon[1]";
 const ENDLESS_ROUNDS_PATH = "OptionsListAccount[319]";
@@ -65,19 +66,15 @@ const RoundRow = ({ entry, doneState, completedIdsState }) => {
                 span({ class: "account-row__sub-label" }, entry.enemyId)
             ),
         ],
-        badge: () => (doneState.val ? "DONE" : "OPEN"),
         rowClass: () => (doneState.val ? "summoning-round-row summoning-round-row--done" : "summoning-round-row"),
         status,
-        controls: label(
-            { class: "toggle-switch", title: "Toggle normal round completion" },
-            input({
-                type: "checkbox",
-                checked: () => Boolean(doneState.val),
-                disabled: () => status.val === "loading",
-                onchange: (e) => void writeToggle(e.target.checked),
-            }),
-            span({ class: "slider" })
-        ),
+        controls: StateSwitch({
+            checked: () => Boolean(doneState.val),
+            words: ["Done", "Open"],
+            name: entry.name,
+            title: "Normal round completion",
+            onFlip: writeToggle,
+        }),
     });
 };
 
@@ -88,7 +85,6 @@ const EndlessRoundRow = ({ valueState }) =>
             path: ENDLESS_ROUNDS_PATH,
             formatted: false,
             showIndex: false,
-            badge: (currentValue) => `ROUND ${currentValue ?? 0}`,
         },
         valueState,
     });

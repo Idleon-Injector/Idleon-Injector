@@ -12,10 +12,11 @@ import {
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, input, label, span } = van.tags;
+const { div, span } = van.tags;
 
 const CHARM_UNLOCK_PATH = "Ninja[107]";
 const CHARM_COUNT = 23;
@@ -36,20 +37,16 @@ const CharmRow = ({ entry, unlockedState }) => {
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => (unlockedState.val ? "UNLOCKED" : "LOCKED"),
         rowClass: () =>
             unlockedState.val ? "sneaking-toggle-row sneaking-toggle-row--enabled" : "sneaking-toggle-row",
         status,
-        controls: label(
-            { class: "toggle-switch", title: "Toggle charm unlock" },
-            input({
-                type: "checkbox",
-                checked: () => Boolean(unlockedState.val),
-                disabled: () => status.val === "loading",
-                onchange: (e) => void writeToggle(e.target.checked),
-            }),
-            span({ class: "slider" })
-        ),
+        controls: StateSwitch({
+            checked: () => Boolean(unlockedState.val),
+            words: ["Unlocked", "Locked"],
+            name: entry.name,
+            title: "Charm unlock",
+            onFlip: writeToggle,
+        }),
     });
 };
 

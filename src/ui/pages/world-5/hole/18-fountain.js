@@ -89,7 +89,6 @@ const FountainUpgradeRow = ({ entry, valueStates }) =>
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => `LV ${getOrCreateState(valueStates, entry.fields.level.key).val ?? 0}`,
         controlsClass: "account-row__controls--stack",
         controls: [
             InlineEditableNumberField({
@@ -223,7 +222,7 @@ const FountainTab = () => {
                     name,
                     path: `Holes[30][${index}]`,
                     value: toNum(luckyCoins[index], -1),
-                    badge: (currentValue) => (Number(currentValue) === -1 ? "LOCKED" : String(currentValue ?? 0)),
+                    badge: (currentValue) => (Number(currentValue) === -1 ? "LOCKED" : ""),
                     min: -1,
                     formatted: false,
                 })

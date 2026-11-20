@@ -45,10 +45,12 @@ async function openPage(file, ready) {
 
 const findRow = (root, label) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
-const rowLoaded = (label) => (root) => {
-    const row = findRow(root, label);
-    return row && !/^[-—]?$/.test(text(byClass(row, "account-row__badge")[0]));
-};
+// The page shows its rows once it has read the game; until then its body is hidden.
+const pageRead = (root) =>
+    !byClass(root, "account-page-shell__body").some((node) =>
+        String(node.attributes.class).includes("is-hidden-until-ready")
+    );
+const rowLoaded = (label) => (root) => Boolean(findRow(root, label)) && pageRead(root);
 
 // What the player does, as the browser reports it.
 const focus = (input) => input.listeners.focus?.({ target: input });
@@ -105,8 +107,7 @@ test("Enter saves the value, shows the read-back ✓ and keeps the field", async
     assert.equal(stateOf(row), "success");
     assert.equal(ola[254], 42);
     assert.deepEqual(writesSince(start), ["POST /api/game/gga/write"]);
-    // The ✓ means the value was read back: the badge shows what the game now holds.
-    assert.equal(text(byClass(row, "account-row__badge")[0]), "42");
+    // The ✓ means the value was read back: the field shows what the game now holds.
     assert.equal(words(row), "saved", "screen readers hear that it saved");
     assert.equal(input.value, "42");
     assert.notEqual(input.disabled, true, "the field stays usable, so it keeps focus");

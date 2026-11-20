@@ -54,7 +54,6 @@ const buildPurpleEntries = (rawNames, rawCoefficients, rawRequirements, rawLevel
             path: `${PURPLE_PATH}[${index}]`,
             value: toInt(levels[index], { min: 0 }),
             formatted: false,
-            badge: (currentValue) => `LV ${currentValue ?? 0}`,
         };
     });
 };
@@ -100,7 +99,6 @@ const MasteryRankRow = ({ rankState, refreshPointsAfterWrite }) =>
         },
         indexLabel: "#0",
         name: "Mastery Rank",
-        renderBadge: (currentValue) => `RANK ${currentValue ?? 1}`,
         rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
     });

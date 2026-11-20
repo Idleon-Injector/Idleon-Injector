@@ -16,7 +16,8 @@
 .cheat-category {
     background: var(--c-panel);
     border: 1px solid var(--c-border);
-    border-left: 2px solid var(--c-text-dim);
+    border-radius: 10px;
+    overflow: hidden;
     position: relative;
     transition: z-index 0s;
 }
@@ -26,7 +27,7 @@
 }
 
 .cheat-category[open] {
-    border-left-color: var(--c-accent);
+    border-color: var(--c-border-strong);
     grid-column: 1 / -1;
 }
 
@@ -62,15 +63,18 @@
 }
 
 .cheat-input {
+    border-radius: 9px;
     width: 80px;
     flex: none;
     text-align: center;
 }
 
+/* Rounded rows (#26), like the value rows on the pages. */
 .cheat-button {
     flex: 1;
     background: var(--c-panel);
     border: 1px solid var(--c-control-border-strong);
+    border-radius: 10px;
     color: var(--c-text-dim);
     padding: 0 12px;
     height: 40px;
@@ -90,8 +94,6 @@
 /* --- QUICK ACCESS SECTION (Favorites/Recent) --- */
 .quick-access-section {
     margin-bottom: 20px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--c-border);
 }
 
 .quick-access-group {
@@ -102,12 +104,15 @@
     margin-bottom: 0;
 }
 
+/* Plain section headings (#26): small muted capitals over a thin rule. */
 .quick-access-header {
-    font-size: 0.875rem;
-    color: var(--c-text-dim);
-    letter-spacing: 0.1em;
+    font-size: 0.8125rem;
+    color: var(--c-text-muted);
+    letter-spacing: 0.08em;
     margin-bottom: 8px;
-    font-weight: 600;
+    padding: 0 2px 6px;
+    border-bottom: 1px solid var(--c-border);
+    font-weight: 700;
 }
 
 .quick-access-items {
@@ -255,18 +260,22 @@
     gap: 10px;
 }
 
-/* The control bar's Config and List view / Tab view are quiet buttons; Config stays filled while the drawer is open. */
-/* In the narrow overlay they take the line under the search, so the field keeps its width. */
-@media (max-width: 760px) {
-    #cheats-tab .control-bar {
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        row-gap: 4px;
-    }
+/* The page top (#26) on a page with no panel around it: the title and search line up with the rows under them. */
+.cheats-page-top > .account-header,
+.cheats-page-top > .account-page-toolbar {
+    padding-left: 0;
+    padding-right: 0;
+}
 
-    #cheats-tab .control-bar .search-wrapper {
-        flex: 1 1 100%;
-    }
+.cheats-page-top + .scroll-container {
+    padding-top: 16px;
+}
+
+/* The category chips (tab view) take the line under the search. */
+.cheats-page-top .tabs-bar {
+    flex: 1 1 100%;
+    min-width: 0;
+    margin-bottom: 0;
 }
 
 /* --- TABS MODE --- */

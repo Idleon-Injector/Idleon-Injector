@@ -26,7 +26,6 @@ const MeasureTab = () =>
                         name,
                         path: `Holes[22][${index}]`,
                         value: toNum(value, 0),
-                        badge: (currentValue) => `LV ${currentValue ?? 0}`,
                     };
                 })
                 .filter(Boolean);

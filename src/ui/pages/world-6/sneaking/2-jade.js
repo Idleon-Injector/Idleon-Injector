@@ -12,10 +12,11 @@ import {
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, input, label, span } = van.tags;
+const { div, span } = van.tags;
 
 const JADE_BOUGHT_PATH = "Ninja[102][9]";
 
@@ -42,19 +43,15 @@ const JadeUpgradeRow = ({ entry, boughtState, encodedState }) => {
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
         ],
-        badge: () => (boughtState.val ? "BOUGHT" : "LOCKED"),
         rowClass: () => (boughtState.val ? "sneaking-toggle-row sneaking-toggle-row--enabled" : "sneaking-toggle-row"),
         status,
-        controls: label(
-            { class: "toggle-switch", title: "Toggle Jade Emporium upgrade" },
-            input({
-                type: "checkbox",
-                checked: () => boughtState.val,
-                disabled: () => status.val === "loading",
-                onchange: (e) => void writeToggle(e.target.checked),
-            }),
-            span({ class: "slider" })
-        ),
+        controls: StateSwitch({
+            checked: () => Boolean(boughtState.val),
+            words: ["Bought", "Locked"],
+            name: entry.name,
+            title: "Jade Emporium upgrade",
+            onFlip: writeToggle,
+        }),
     });
 };
 

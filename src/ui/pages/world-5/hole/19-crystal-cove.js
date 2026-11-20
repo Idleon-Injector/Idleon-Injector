@@ -48,7 +48,6 @@ const buildUpgradeEntries = (options, rawNames, rawEffects) => {
                 path: `OptionsListAccount[${optionIndex}]`,
                 value: toInt(optionValue(options, optionIndex), { min: 0 }),
                 formatted: false,
-                badge: (currentValue) => `LV ${currentValue ?? 0}`,
             };
         })
         .filter(Boolean);

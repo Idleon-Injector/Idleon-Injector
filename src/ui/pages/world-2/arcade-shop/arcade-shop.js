@@ -72,8 +72,6 @@ const ArcadeRow = ({ entry }) => {
                     ? null
                     : span({ class: `arcade-row__${levelStatus.val}-badge` }, levelStatus.val.toUpperCase()),
         ],
-        renderBadge: (currentValue) =>
-            levelStatus.val === "normal" ? `LV ${currentValue ?? 0}` : levelStatus.val.toUpperCase(),
         rowClass: () => (levelStatus.val === "normal" ? "arcade-row" : `arcade-row arcade-row--${levelStatus.val}`),
         badgeClass: () =>
             levelStatus.val === "normal"
@@ -92,7 +90,6 @@ const ArcadeBallRow = ({ field, valueState }) =>
             return nextValue;
         },
         renderInfo: () => span({ class: "account-row__name" }, field.label),
-        renderBadge: (currentValue) => largeFormatter(currentValue ?? 0),
         adjustInput: (rawValue, delta, currentValue) =>
             adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min: 0 }),
         controlsClass: "account-row__controls--xl",

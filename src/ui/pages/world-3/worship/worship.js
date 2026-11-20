@@ -75,7 +75,7 @@ const WorshipChargeRow = ({
                     ? activeMaxChargeRef.val
                     : "?";
 
-            return active ? `CHARGE ${currentValue ?? 0} / ${maxLabel} - ACTIVE` : `CHARGE ${currentValue ?? 0}`;
+            return active ? `CHARGE ${currentValue ?? 0} / ${maxLabel} - ACTIVE` : "";
         },
         controlsClass: "account-row__controls--xl",
     });
@@ -90,7 +90,6 @@ const WorshipWaveRow = ({ index, name, waveState, writeWave }) =>
         write: async (nextWave) => writeWave(index, nextWave),
         indexLabel: `#${index + 1}`,
         name,
-        renderBadge: (currentValue) => `BEST WAVE ${currentValue ?? 0}`,
     });
 
 const WorshipTab = () => {

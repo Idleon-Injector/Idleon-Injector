@@ -228,7 +228,6 @@ const CapeVineTab = () => {
                 span({ class: "account-row__name" }, "Golden Vines"),
                 span({ class: "account-row__sub-label" }, () => `${minGolden()} to ${maxGolden()}`)
             ),
-        renderBadge: (owned) => `${owned} OWNED`,
         adjustInput: (raw, delta, current) =>
             Math.max(minGolden(), Math.min(maxGolden(), resolveNumberInput(raw, { fallback: current }) + delta)),
         disabled: () => loading.val || Boolean(error.val),

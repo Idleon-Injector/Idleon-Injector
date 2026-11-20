@@ -64,7 +64,6 @@ const buildGodEntries = (rawLevels, rawGodsInfo) => {
                 rawName: String(god[0] ?? `God_${index}`).trim(),
                 name: cleanName(god[0], `God ${index + 1}`),
                 level: toInt(levels[pathIndex], { min: 0 }),
-                badge: (currentValue) => `LV ${currentValue ?? 0}`,
             };
         });
 };

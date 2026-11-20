@@ -13,7 +13,8 @@ import { AccountTabHeader } from "./AccountTabHeader.js";
  * @param {*} opts.body
  * @param {string} [opts.rootClass]
  * @param {*} [opts.topNotices]
- * @param {*} [opts.subNav]
+ * @param {*} [opts.subNav] inner tabs, above the title
+ * @param {*} [opts.toolbar] the page's search and filters, on the line under the title
  * @param {string|null} [opts.loadingText]
  * @param {string} [opts.errorTitle]
  * @param {string|null} [opts.initialWrapperClass]
@@ -29,6 +30,7 @@ export const PersistentAccountListPage = ({
     rootClass = "tab-container",
     topNotices = null,
     subNav = null,
+    toolbar = null,
     loadingText = null,
     errorTitle = "LOAD FAILED",
     initialWrapperClass = null,
@@ -38,6 +40,7 @@ export const PersistentAccountListPage = ({
         header: AccountTabHeader({ title, description, actions, wrapActions }),
         topNotices,
         subNav,
+        toolbar,
         persistentState: state,
         persistentLoadingText: loadingText,
         persistentErrorTitle: errorTitle,

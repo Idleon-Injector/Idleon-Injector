@@ -46,7 +46,6 @@ const BigFishTab = () => {
                     path: `${BIG_FISH_LEVELS_PATH}[${index}]`,
                     rawName,
                     name: cleanName(rawName, `Big Fish ${index}`),
-                    badge: (currentValue) => `LV ${toInt(currentValue, { min: 0 })}`,
                     formatted: false,
                 };
             })
