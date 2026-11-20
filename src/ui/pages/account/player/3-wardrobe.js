@@ -100,19 +100,28 @@ const WardrobePage = () => {
     };
 
     // /api/config/save rewrites config.custom.js from what it is handed, so it gets the whole config, read again
-    // after the session took the change. `change(wardrobe)` gets the saved wardrobe settings as they are now.
+    // after the session took the change. `change(wardrobe)` gets the saved wardrobe settings as they are now. A file
+    // that didn't take it puts the session's loadouts back, so trying again saves one loadout, not two.
+    // ponytail: puts back the list it read; a loadout another tab saved in those few milliseconds goes with it.
     const persist = async (change) => {
         await readSaved();
-        const wardrobe = change({ loadouts: saved.val.slice(), goldenfood: { ...goldenFood } });
+        const before = saved.val.slice();
+        const wardrobe = change({ loadouts: before.slice(), goldenfood: { ...goldenFood } });
         const result = await updateSessionConfig({ cheatConfig: { wide: { wardrobe } } });
         if (!result?.message) throw new Error("The injector didn't take the change");
-        const config = await fetchConfig();
-        if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
-        await saveConfigFile({
-            cheatConfig: config.cheatConfig,
-            startupCheats: config.startupCheats,
-            injectorConfig: config.injectorConfig,
-        });
+        try {
+            const config = await fetchConfig();
+            if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
+            await saveConfigFile({
+                cheatConfig: config.cheatConfig,
+                startupCheats: config.startupCheats,
+                injectorConfig: config.injectorConfig,
+            });
+        } catch (caught) {
+            await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: before } } } }).catch(() => {});
+            await readSaved().catch(() => {});
+            throw caught;
+        }
         await readSaved();
     };
 
@@ -160,8 +169,20 @@ const WardrobePage = () => {
         }
     };
 
+    // An undo of a change made here (from Undo all or History) puts old gear back. useAccountLoad loads the page again
+    // after it, and that load first has the game work the stats out again, so it reads them as they are now.
+    const place = currentPlace();
+    let undone = reloadPlace.rawVal;
     const load = () =>
         runLoad(async () => {
+            const target = reloadPlace.rawVal;
+            if (target && target !== undone) {
+                undone = target;
+                if (target.view === place.view && target.page === place.page)
+                    await updateStats().catch((caught) =>
+                        loadoutSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`)
+                    );
+            }
             await readSaved();
             const value = await readStatus();
             await showPreview();
@@ -215,8 +236,11 @@ const WardrobePage = () => {
                 loadoutSaid.clear();
                 const shown = preview.val;
                 if (!shown) return { cancelled: true };
+                const run = previewRun;
                 const plan = await planFor();
                 if (plan.fingerprint !== shown.fingerprint) {
+                    // A loadout picked meanwhile has its own preview, newer than this plan: that one stays.
+                    if (run !== previewRun) return { cancelled: true };
                     preview.val = plan;
                     loadoutSaid.say(
                         "refused",
@@ -276,7 +300,18 @@ const WardrobePage = () => {
         return saveWrite.run(
             async () => {
                 const loadout = { ...(await readComputed("wardrobe", "capture")), name: label };
-                await persist((wardrobe) => ({ ...wardrobe, loadouts: [...wardrobe.loadouts, loadout] }));
+                // Counted again on the list just read: another tab may have saved meanwhile.
+                const full = `${MAX_SAVED} loadouts are saved; delete one first.`;
+                try {
+                    await persist((wardrobe) => {
+                        if (wardrobe.loadouts.length >= MAX_SAVED) throw Object.assign(new Error(full), { full: true });
+                        return { ...wardrobe, loadouts: [...wardrobe.loadouts, loadout] };
+                    });
+                } catch (caught) {
+                    if (!caught.full) throw caught;
+                    saveSaid.say("refused", full);
+                    return { cancelled: true };
+                }
                 // A name typed while it saved is the next one; it stays.
                 if (name.val === typed) name.val = "";
                 selected.val = loadout.id;
@@ -321,21 +356,6 @@ const WardrobePage = () => {
                 },
             }
         );
-
-    // An undo of a change made here (from Undo all or History) puts old gear back: the game works the stats out again.
-    const place = currentPlace();
-    let undone = reloadPlace.rawVal;
-    van.derive(() => {
-        const target = reloadPlace.val;
-        if (!target || target === undone) return;
-        undone = target;
-        if (target.view === place.view && target.page === place.page)
-            void updateStats()
-                .then(load)
-                .catch((caught) =>
-                    loadoutSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`)
-                );
-    });
 
     // --- View ---
 
@@ -477,6 +497,8 @@ const WardrobePage = () => {
                                 disabled: () => busy() || previewing.val || !preview.val,
                                 tooltip: "Put this loadout on the character in play",
                                 confirm: applyQuestion,
+                                // Two saved loadouts can share a name: the question is about this one's plan.
+                                confirmTargets: () => preview.val && [selected.val, preview.val.fingerprint],
                                 onClick: apply,
                             }),
                             () =>
