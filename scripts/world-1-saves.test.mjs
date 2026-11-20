@@ -248,6 +248,47 @@ test("statues: a third Flair save doesn't write the deposit an earlier save show
     }
 });
 
+// Review of #117 (same field editor), fourth round: the queued save moved the deposit's stored value on but left the
+// deposit the first save showed, so a Flair edit after both saves wrote that old deposit back.
+test("statues: a Flair edit after two saves keeps the deposit the second save read", async () => {
+    const saved = [[...g.StatueLevels[5]], g.RoyalG[22][5]];
+    g.RoyalG[22][5] = 1;
+    const root = await openPage(STATUES, (root) => statueRow(root, 5));
+    const row = statueRow(root, 5);
+    const realFetch = globalThis.fetch;
+    const releases = [];
+    const gates = [1, 2].map(() => new Promise((resolve) => releases.push(resolve)));
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) {
+            const n = ++writes;
+            if (n <= 2) await gates[n - 1];
+        }
+        return realFetch(url, options);
+    };
+    try {
+        typeFlair(row, "2");
+        await until(() => writes === 1, "the first save to reach the game");
+        g.StatueLevels[5][1] = 77777; // deposited in the game while the first save runs
+        typeFlair(row, "3");
+        releases[0]();
+        await until(() => writes === 2, "the second save to reach the game");
+        g.StatueLevels[5][1] = 88888; // and again while the second runs
+        releases[1]();
+        await until(() => g.RoyalG[22][5] === 3 && saveState(row) === "success", "both saves");
+    } finally {
+        globalThis.fetch = realFetch;
+        releases.forEach((release) => release());
+    }
+    try {
+        typeFlair(row, "4");
+        await until(() => g.RoyalG[22][5] === 4 && saveState(row) === "success", "the third save");
+        assert.equal(g.StatueLevels[5][1], 88888, "the game's newer deposit isn't put back");
+    } finally {
+        [g.StatueLevels[5], g.RoyalG[22][5]] = saved;
+    }
+});
+
 test("statues: names show the game's underscores as spaces", async () => {
     const root = await openPage(STATUES, (root) => statueRow(root, 7));
     assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "THICC SKIN");
