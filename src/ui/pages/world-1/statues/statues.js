@@ -23,6 +23,7 @@ import {
     resolveFormattedIntInput,
     toInt,
     useWriteStatus,
+    writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
@@ -39,6 +40,13 @@ const TIER_ROW_CLASSES = ["", "tier--gold", "tier--onyx", "tier--zenith"];
 const TIER_BADGE_CLASSES = ["stone", "gold", "onyx", "zenith"];
 const FLAIR_MAX_LEVEL = 4;
 const FLAIR_UNLOCK_PATH = "RoyalG[2][78]";
+
+const statueValues = (levels, tier, flair) => ({
+    level: toInt(levels?.[0]),
+    deposited: toInt(levels?.[1]),
+    tier: Math.min(TIERS.length - 1, toInt(tier, { min: 0 })),
+    flair: toInt(flair, { min: 0 }),
+});
 
 const StatueRow = ({ index, nameState, levelState, depositedState, tierState, flairState }) =>
     EditableFieldsRow({
@@ -77,12 +85,32 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                 flair: Math.min(FLAIR_MAX_LEVEL, toInt(rawFlair, { min: 0 })),
             };
         },
-        write: async ({ level, deposited, tier, flair }) => {
-            await writeVerified(`StatueLevels[${index}][0]`, level);
-            await writeVerified(`StatueLevels[${index}][1]`, deposited);
-            await writeVerified(`StatueG[${index}]`, tier);
-            await writeVerified(`RoyalG[22][${index}]`, flair);
-            return { level, deposited, tier, flair };
+        // Only the fields the player changed are written, so what the game gained since the page read it (deposits,
+        // a tier) stays; the row then shows what the game holds.
+        write: async (next) => {
+            const stored = { level: levelState, deposited: depositedState, tier: tierState, flair: flairState };
+            const paths = {
+                level: `StatueLevels[${index}][0]`,
+                deposited: `StatueLevels[${index}][1]`,
+                tier: `StatueG[${index}]`,
+                flair: `RoyalG[22][${index}]`,
+            };
+            const read = async () =>
+                statueValues(
+                    ...(await Promise.all([gga(`StatueLevels[${index}]`), gga(paths.tier), gga(paths.flair)]))
+                );
+            try {
+                await writeManyVerified(
+                    Object.keys(paths)
+                        .filter((key) => next[key] !== stored[key].val)
+                        .map((key) => ({ path: paths[key], value: next[key] }))
+                );
+            } catch (error) {
+                const now = await read().catch(() => null);
+                if (now) Object.keys(stored).forEach((key) => (stored[key].val = now[key]));
+                throw error;
+            }
+            return read();
         },
         rowClass: () => `account-row--wide-controls statue-row ${TIER_ROW_CLASSES[tierState.val] ?? ""}`,
         info: [
@@ -212,11 +240,12 @@ const StatuesTab = () => {
             info.forEach((entry, i) => {
                 if (!entry?.[0] || !entry[0].trim()) return;
 
+                const values = statueValues(levels?.[i], tiers?.[i], flair[i]);
                 getOrCreateState(nameStates, i, entry[0]).val = entry[0];
-                getOrCreateState(levelStates, i).val = toInt(levels?.[i]?.[0]);
-                getOrCreateState(depositedStates, i).val = toInt(levels?.[i]?.[1]);
-                getOrCreateState(tierStates, i).val = Math.min(TIERS.length - 1, toInt(tiers?.[i], { min: 0 }));
-                getOrCreateState(flairStates, i).val = toInt(flair[i], { min: 0 });
+                getOrCreateState(levelStates, i).val = values.level;
+                getOrCreateState(depositedStates, i).val = values.deposited;
+                getOrCreateState(tierStates, i).val = values.tier;
+                getOrCreateState(flairStates, i).val = values.flair;
             });
 
             reconcileRows(info);

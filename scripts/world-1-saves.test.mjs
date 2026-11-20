@@ -105,3 +105,54 @@ test("stamps: a refused exalt says why on the row and shows what the game holds"
     assert.equal(saveState(row), "error");
     assert.equal(switchOf(row).checked, false);
 });
+
+const STATUES = "src/ui/pages/world-1/statues/statues.js";
+const statueRow = (root, index) => byClass(root, "statue-row")[index];
+const tierOf = (row) => text(byClass(row, "statue-tier-badge")[0]);
+// The player types into the row's last field (Flair) and presses Enter.
+const typeFlair = (row, value) => {
+    const flair = elements(row)
+        .filter((node) => node.nodeName === "input")
+        .at(-1);
+    flair.value = value;
+    flair.listeners.input({ target: flair });
+    row.listeners.keydown({ key: "Enter", target: flair, preventDefault() {} });
+};
+
+test("statues: saving one field keeps what the game gained since the page opened", async () => {
+    const saved = [[...g.StatueLevels[1]], g.StatueG[1], g.RoyalG[22][1]];
+    g.RoyalG[22][1] = 1;
+    const root = await openPage(STATUES, (root) => statueRow(root, 1));
+    const row = statueRow(root, 1);
+    g.StatueLevels[1][1] = 99999; // deposited in the game
+    g.StatueG[1] = 3;
+    typeFlair(row, "4");
+    await until(() => ["success", "error"].includes(saveState(row)), "the save");
+    assert.equal(saveState(row), "success");
+    assert.deepEqual([...g.StatueLevels[1]], [saved[0][0], 99999]);
+    assert.equal(g.StatueG[1], 3);
+    assert.equal(g.RoyalG[22][1], 4);
+    await tick();
+    assert.equal(tierOf(row), "Zenith", "the row shows what the game holds");
+    [g.StatueLevels[1], g.StatueG[1], g.RoyalG[22][1]] = saved;
+});
+
+test("statues: a refused save says why and shows what the game holds", async () => {
+    const saved = [g.StatueG[1], g.RoyalG[22][1]];
+    g.RoyalG[22][1] = 1;
+    const root = await openPage(STATUES, (root) => statueRow(root, 1));
+    const row = statueRow(root, 1);
+    g.StatueG[1] = 3;
+    const restore = refuseWrites(g.RoyalG[22], 1);
+    try {
+        typeFlair(row, "4");
+        await until(() => ["success", "error"].includes(saveState(row)), "the save");
+    } finally {
+        restore();
+    }
+    assert.equal(saveState(row), "error");
+    assert.equal(g.StatueG[1], 3);
+    await tick();
+    assert.equal(tierOf(row), "Zenith");
+    [g.StatueG[1], g.RoyalG[22][1]] = saved;
+});
