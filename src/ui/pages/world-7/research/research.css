@@ -232,17 +232,6 @@
     text-align: left;
 }
 
-.observation-tile__status {
-    color: var(--c-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.815rem;
-    white-space: nowrap;
-}
-
-.observation-tile__status--unlocked {
-    color: var(--c-success);
-}
-
 .observation-tile__stats {
     align-items: stretch;
 }
@@ -269,6 +258,10 @@
 
 .observation-tile__toggle {
     justify-self: end;
+}
+
+.observation-tile__toggle .state-switch__words {
+    min-width: 0;
 }
 
 .observation-tile__body .account-btn {

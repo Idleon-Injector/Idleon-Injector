@@ -7,12 +7,14 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import {
     cleanName,
     createStaticRowReconciler,
+    oneAtATime,
     useWriteStatus,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { clickAgain } from "../../../components/inPlace.js";
+import { captureGesture } from "../../../services/changeLog.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
@@ -61,81 +63,94 @@ const BribesTab = () => {
             } catch (readError) {
                 error.val = readError.message;
             }
-            throw new Error(`Some changes may have applied. ${caughtError.message}`);
+            // One value either landed or didn't; of several, some may have.
+            throw writes.length > 1 ? new Error(`Some changes may have applied. ${caughtError.message}`) : caughtError;
         }
     };
 
-    const setBribe = async (entry, enabled) => {
-        if (cannotWrite() || entry.readOnly) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            await rowStates.get(entry.index).write.run(
-                async () => {
-                    const values = await readStatuses();
-                    const writes = [];
-                    const addWrite = (index, value) => writes.push({ index, path: `${STATUS_PATH}[${index}]`, value });
-                    if (enabled) {
-                        if (values[entry.index] === 1) return;
-                        addWrite(entry.index, 1);
-                        for (let index = entry.start; index < entry.start + entry.count; index++) {
-                            if (values[index] === -1) addWrite(index, 0);
+    // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
+    const inTurn = oneAtATime();
+
+    // Returns the row's save outcome, so the switch can say why a save failed.
+    const setBribe = (entry, enabled) =>
+        inTurn(async () => {
+            if (cannotWrite() || entry.readOnly) return;
+            busy.val = true;
+            message.val = "";
+            try {
+                return await rowStates.get(entry.index).write.run(
+                    async () => {
+                        const values = await readStatuses();
+                        const writes = [];
+                        const addWrite = (index, value) =>
+                            writes.push({ index, path: `${STATUS_PATH}[${index}]`, value });
+                        if (enabled) {
+                            if (values[entry.index] === 1) return { cancelled: true };
+                            addWrite(entry.index, 1);
+                            for (let index = entry.start; index < entry.start + entry.count; index++) {
+                                if (values[index] === -1) addWrite(index, 0);
+                            }
+                        } else {
+                            if (values[entry.index] !== 1) return { cancelled: true };
+                            addWrite(entry.index, 0);
                         }
-                    } else {
-                        if (values[entry.index] !== 1) return;
-                        addWrite(entry.index, 0);
+                        await applyWrites(writes);
                     }
-                    await applyWrites(writes);
-                },
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-        } finally {
-            busy.val = false;
-        }
-    };
+                    // The switch says why a row's save failed.
+                );
+            } finally {
+                busy.val = false;
+            }
+        });
 
     // `button`: the bulk button clicked, which asks in place (#77).
-    const setAll = async (enabled, button) => {
-        if (cannotWrite()) return;
-        busy.val = true;
-        message.val = "";
-        try {
-            const values = await readStatuses();
-            const targets = entries.filter(
-                (entry) => !entry.readOnly && (enabled ? values[entry.index] !== 1 : values[entry.index] === 1)
-            );
-            if (!targets.length) return;
-            // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
-            if (
-                !enabled &&
-                !clickAgain(
-                    button,
-                    `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${
-                        enabled
-                            ? "Grants ownership without spending coins."
-                            : "Removes ownership. Locked bribes stay locked."
-                    }`,
-                    { targets: targets.map((entry) => entry.index) }
+    const setAll = (enabled, button) =>
+        inTurn(async () => {
+            if (cannotWrite()) return;
+            // The bulk action starts after a read: keep the button's click, so it's named after and offers Undo all
+            // beside the button even if something else was clicked meanwhile.
+            const inGesture = captureGesture();
+            busy.val = true;
+            message.val = "";
+            try {
+                const values = await readStatuses();
+                const targets = entries.filter(
+                    (entry) => !entry.readOnly && (enabled ? values[entry.index] !== 1 : values[entry.index] === 1)
+                );
+                if (!targets.length) return;
+                // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
+                if (
+                    !enabled &&
+                    !clickAgain(
+                        button,
+                        `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${
+                            enabled
+                                ? "Grants ownership without spending coins."
+                                : "Removes ownership. Locked bribes stay locked."
+                        }`,
+                        { targets: targets.map((entry) => entry.index) }
+                    )
                 )
-            )
-                return;
-            await bulk.run(
-                () =>
-                    applyWrites(
-                        targets.map(({ index }) => ({
-                            index,
-                            path: `${STATUS_PATH}[${index}]`,
-                            value: enabled ? 1 : 0,
-                        }))
-                    ),
-                { onError: (caughtError) => (message.val = caughtError.message) }
-            );
-        } catch (caughtError) {
-            message.val = caughtError.message;
-        } finally {
-            busy.val = false;
-        }
-    };
+                    return;
+                await inGesture(() =>
+                    bulk.run(
+                        () =>
+                            applyWrites(
+                                targets.map(({ index }) => ({
+                                    index,
+                                    path: `${STATUS_PATH}[${index}]`,
+                                    value: enabled ? 1 : 0,
+                                }))
+                            ),
+                        { onError: (caughtError) => (message.val = caughtError.message) }
+                    )
+                );
+            } catch (caughtError) {
+                message.val = caughtError.message;
+            } finally {
+                busy.val = false;
+            }
+        });
 
     const renderRow = (entry) => {
         const state = rowStates.get(entry.index);
@@ -147,30 +162,25 @@ const BribesTab = () => {
                 span({ class: "account-row__name" }, entry.name),
                 span({ class: "bribes-row__bonus" }, entry.bonus)
             ),
-            badge: () => (state.value.val === 1 ? "OWNED" : state.value.val === 0 ? "AVAILABLE" : "LOCKED"),
             controls: entry.readOnly
                 ? span({ class: "write-status" }, "READ ONLY")
                 : [
-                      span({ class: "write-status", role: "status" }, () => {
+                      // Saving and saved, for screen readers; the switch says why a save failed.
+                      span({ class: "account-write-feedback", role: "status" }, () => {
                           const status = state.write.status.val;
-                          return status === "loading"
-                              ? "SAVING"
-                              : status === "success"
-                                ? "SAVED"
-                                : status === "error"
-                                  ? "FAILED"
-                                  : "";
+                          return status === "loading" ? "SAVING" : status === "success" ? "SAVED" : "";
                       }),
-                      ActionButton({
-                          label: () => (state.value.val === 1 ? "Disable" : "Enable"),
-                          variant: () => (state.value.val === 1 ? "danger" : "quiet"),
-                          status: state.write.status,
-                          disabled: cannotWrite,
-                          tooltip: () =>
+                      StateSwitch({
+                          checked: () => state.value.val === 1,
+                          words: () =>
+                              state.value.val === 1 ? "Owned" : state.value.val === 0 ? "Not owned" : "Locked",
+                          name: entry.name,
+                          disabled: () => loading.val || Boolean(error.val) || !entries.length,
+                          title: () =>
                               state.value.val === 1
-                                  ? `Disable ${entry.name}`
-                                  : `Enable ${entry.name} without spending coins`,
-                          onClick: () => setBribe(entry, state.value.val !== 1),
+                                  ? `Remove ${entry.name}`
+                                  : `Own ${entry.name} without spending coins`,
+                          onFlip: (owned) => setBribe(entry, owned),
                       }),
                   ],
         });

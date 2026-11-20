@@ -54,7 +54,6 @@ const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false, onA
             span({ class: "po-currency-row__label" }, label),
             note ? span({ class: "po-currency-row__note" }, note) : null,
         ],
-        renderBadge: (currentValue) => String(currentValue ?? 0),
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);

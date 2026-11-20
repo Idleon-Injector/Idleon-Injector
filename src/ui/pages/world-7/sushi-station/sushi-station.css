@@ -115,9 +115,9 @@
     min-width: 0;
 }
 
+/* Plain sections (#26): no inset box inside the page. */
 .sushi-automation-controls {
-    padding: 18px;
-    gap: 18px;
+    gap: 14px;
 }
 
 .sushi-automation-footer {

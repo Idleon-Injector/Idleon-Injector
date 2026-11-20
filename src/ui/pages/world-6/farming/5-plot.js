@@ -25,7 +25,6 @@ const PlotFieldRow = ({ label, valueState, writePath, float = false }) =>
             showIndex: false,
             rowClass: "farming-grid-field-row",
             controlsClass: "account-row__controls--xl",
-            badge: float ? null : (currentValue) => `LV ${currentValue ?? 0}`,
         },
         valueState,
     });

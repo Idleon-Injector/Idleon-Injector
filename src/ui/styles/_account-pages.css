@@ -21,20 +21,59 @@
     gap: 5px;
 }
 
+/*
+ * The page top (#26): the title and description, the page's buttons on the right of the same row, then the page's
+ * search and filters on the line below (.account-page-toolbar). One rule runs under the whole top.
+ */
 .account-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     padding: 10px 18px;
     border-bottom: 1px solid var(--c-border);
     flex-shrink: 0;
-    gap: 12px;
+    gap: 8px 12px;
 }
 
-/* 240 px before it shares its line: where the header wraps, the actions go under the words, not beside a sliver. */
+/* The words keep 26rem before they share their line: when the buttons don't fit beside that, they move to the line
+ * under the description (still on the right), so the description never turns into a thin column. */
 .account-tab-header__main {
     min-width: 0;
-    flex: 1 1 240px;
+    flex: 1 1 26rem;
+}
+
+.account-tab-header > .account-header__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.account-page-top {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--c-border);
+}
+
+.account-page-top > .account-header {
+    border-bottom: 0;
+}
+
+.account-page-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 20px;
+    padding: 0 18px 12px;
+}
+
+.account-page-toolbar .search-wrapper {
+    flex: 1 1 16rem;
+    max-width: 36rem;
+}
+
+.account-page-toolbar .toggle-switch.account-toggle {
+    margin-left: 0;
 }
 
 .account-tab-header__title {
@@ -49,11 +88,6 @@
     font-size: 0.875rem;
     color: var(--c-text-muted);
     max-width: 80ch;
-}
-
-.account-tab-header__actions {
-    flex-shrink: 0;
-    justify-content: flex-end;
 }
 
 .account-page-nav {
@@ -119,13 +153,15 @@
 }
 
 @media (max-width: 1100px) {
-    .grid-3col {
+    .grid-3col,
+    .grid-4col {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 720px) {
-    .grid-3col {
+    .grid-3col,
+    .grid-4col {
         grid-template-columns: 1fr;
     }
 }
@@ -137,27 +173,37 @@
     justify-content: center;
 }
 
+/* Sections (#26): a plain heading over a thin rule, the rows straight under it. No box inside the page. */
 .account-section {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: var(--c-panel-dim);
-    border: 1px solid var(--c-border);
-    padding: 10px 12px;
+}
+
+.account-section + .account-section {
+    margin-top: 14px;
 }
 
 .account-section__header {
     display: flex;
-    align-items: baseline;
-    gap: 10px;
+    align-items: center;
+    gap: 6px 10px;
+    min-height: 26px;
     border-bottom: 1px solid var(--c-border);
-    padding-bottom: 6px;
+    padding: 0 2px 6px;
     flex-wrap: wrap;
 }
 
+/* A list inside a section sits straight under the heading, not inset as if it were the page's own list. */
+.account-section > .account-list {
+    flex: none;
+    padding: 0;
+    overflow: visible;
+}
+
 .account-section__title {
-    color: var(--c-accent);
-    font-size: 0.875rem;
+    color: var(--c-text-muted);
+    font-size: 0.8125rem;
     font-weight: 700;
     letter-spacing: 0.08em;
 }
@@ -677,6 +723,10 @@
     }
 }
 
+.account-row__badge:empty {
+    display: none;
+}
+
 .account-row__badge {
     font-family: var(--font-mono);
     font-size: 0.875rem;
@@ -688,9 +738,48 @@
     flex-shrink: 0;
 }
 
+/* In the narrow overlay a value row keeps its name and badge on the first line and puts the field and its buttons on
+ * the line under it, so neither squeezes the name into a sliver nor runs off the window. */
+@media (max-width: 600px) {
+    .account-row--value {
+        grid-template-columns: minmax(0, 1fr) auto;
+        row-gap: 6px;
+    }
+
+    .account-row--value > .account-row__badge {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .account-row--value > .account-row__controls {
+        grid-column: 1 / -1;
+        flex-wrap: wrap;
+    }
+
+    /* The save's words (saving…, the reason, Undo) lie at the end of the name's line, where the badge steps aside,
+     * since the field's line has no room beside it. */
+    .account-row--value {
+        position: relative;
+    }
+
+    .account-row--value .save-state {
+        position: static;
+    }
+
+    .account-row--value .save-state__label,
+    .account-row--value .save-state__undo {
+        top: 19px;
+        right: 10px;
+    }
+}
+
+/* The controls take the row's last column and sit at its right edge, so a row without a badge keeps its field where
+ * the eye expects it. */
 .account-row__controls {
     display: flex;
+    grid-column-end: -1;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
     flex-shrink: 0;
 }

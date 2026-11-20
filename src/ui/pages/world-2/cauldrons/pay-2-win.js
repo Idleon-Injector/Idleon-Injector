@@ -117,7 +117,7 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
         renderBadge: (currentValue) => {
             const cur = currentValue ?? 0;
             const max = maxState.val;
-            return max > 0 ? `${cur} / ${max}` : String(cur);
+            return max > 0 ? `${cur} / ${max}` : "";
         },
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);

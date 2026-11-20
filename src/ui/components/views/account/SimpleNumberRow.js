@@ -50,8 +50,7 @@ export const SimpleNumberRow = ({ entry, valueState, renderExtraActions = null }
             info.push(nameGroup);
             return info;
         },
-        renderBadge: (currentValue) =>
-            typeof entry.badge === "function" ? entry.badge(currentValue) : largeFormatter(currentValue ?? 0),
+        renderBadge: typeof entry.badge === "function" ? entry.badge : null,
         adjustInput: (rawValue, delta, currentValue) =>
             formatted
                 ? adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min, max })

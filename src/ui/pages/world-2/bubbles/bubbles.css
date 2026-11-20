@@ -44,7 +44,7 @@
     gap: 7px;
 }
 
-.brewing-row .account-row__info {
+.brewing-row > .account-row__info {
     grid-area: info;
     align-items: flex-start;
     flex-wrap: wrap;
@@ -61,13 +61,13 @@
     background: var(--col-bg, #1f2a39);
 }
 
-.brewing-row__badge {
+.brewing-row > .brewing-row__badge {
     grid-area: badge;
     justify-self: start;
     white-space: normal;
 }
 
-.brewing-row__controls {
+.brewing-row > .brewing-row__controls {
     grid-area: controls;
     justify-self: stretch;
     flex-wrap: wrap;
@@ -83,32 +83,4 @@
 
 .brewing-section .account-section__title {
     color: var(--col-color, var(--c-accent));
-}
-
-.brewing-prisma-badge {
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: var(--col-color, var(--c-accent));
-}
-
-.brewing-prisma-btn {
-    flex: 0 0 112px;
-    border: 1px solid var(--c-border);
-    background: var(--c-panel);
-    color: var(--c-text-dim);
-    justify-content: center;
-}
-
-.brewing-prisma-btn:hover:not(:disabled) {
-    border-color: var(--col-color, var(--c-accent));
-    color: var(--col-color, var(--c-accent));
-}
-
-.brewing-prisma-btn.brewing-prisma-btn--active,
-.brewing-prisma-btn.brewing-prisma-btn--active:hover:not(:disabled) {
-    border-color: var(--col-color, var(--c-accent));
-    color: var(--col-color, var(--c-accent));
-    background: var(--col-bg, #1f2a39);
-    font-weight: 700;
 }

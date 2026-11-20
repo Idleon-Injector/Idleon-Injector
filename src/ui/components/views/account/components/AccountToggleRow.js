@@ -1,45 +1,26 @@
-import van from "../../../../vendor/van-1.6.0.js";
 import { useWriteStatus } from "../accountShared.js";
 import { AccountRow } from "./AccountRow.js";
-
-const { input, label, span } = van.tags;
+import { StateSwitch } from "./StateSwitch.js";
 
 /**
- * Shared toggle row that keeps native checkbox state aligned with committed data.
+ * Shared on/off row: the thing's name, then one switch with the game's word for its state (`words`: on, off).
+ * Saves on flip; the switch shows what the game holds once the save is done or refused.
  */
-export const AccountToggleRow = ({ info, badge, checked, rowClass = "", title, write, controlsClass = "" }) => {
+export const AccountToggleRow = ({ info, words, name, checked, rowClass = "", title, write, controlsClass = "" }) => {
     const { status, run } = useWriteStatus();
-    const isChecked = () => Boolean(typeof checked === "function" ? checked() : checked.val);
-    let checkboxNode = null;
-
-    const syncCheckbox = () => {
-        if (checkboxNode) checkboxNode.checked = isChecked();
-    };
-
-    checkboxNode = input({
-        type: "checkbox",
-        checked: isChecked(),
-        disabled: () => status.val === "loading",
-        onchange: (e) => {
-            const nextChecked = e.target.checked;
-            void run(() => write(nextChecked), {
-                onSuccess: syncCheckbox,
-                onError: syncCheckbox,
-            }).then(syncCheckbox);
-        },
-    });
-
-    van.derive(() => {
-        isChecked();
-        syncCheckbox();
-    });
 
     return AccountRow({
         info,
-        badge,
         rowClass,
         status,
         controlsClass,
-        controls: label({ class: "toggle-switch", title }, checkboxNode, span({ class: "slider" })),
+        controls: StateSwitch({
+            checked,
+            words,
+            name: name ?? title,
+            title,
+            status, // nothing else on the row reads out saving and saved
+            onFlip: (next) => run(() => write(next)),
+        }),
     });
 };

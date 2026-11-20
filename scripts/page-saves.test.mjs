@@ -45,10 +45,12 @@ async function openPage(file, ready) {
 const findRow = (root, label) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
 // The badge shows a dash until the page has read the value.
-const rowLoaded = (root, label) => {
-    const row = findRow(root, label);
-    return row && !/^[-—]?$/.test(text(byClass(row, "account-row__badge")[0]));
-};
+// The page shows its rows once it has read the game; until then its body is hidden.
+const pageRead = (root) =>
+    !byClass(root, "account-page-shell__body").some((node) =>
+        String(node.attributes.class).includes("is-hidden-until-ready")
+    );
+const rowLoaded = (root, label) => Boolean(findRow(root, label)) && pageRead(root);
 
 async function setRow(root, label, value) {
     const row = findRow(root, label);
@@ -222,7 +224,7 @@ test("prayers.js: the level field stays enabled while its save runs", async (t) 
     const firstRow = (root) => byClass(root, "prayer-row")[0];
     const root = await openPage(
         "src/ui/pages/world-3/prayers/prayers.js",
-        (root) => firstRow(root) && !/^[-—]?$/.test(text(byClass(firstRow(root), "account-row__badge")[0]))
+        (root) => Boolean(firstRow(root)) && pageRead(root)
     );
     const row = firstRow(root);
     const [input] = elements(row).filter((node) => node.nodeName === "input");

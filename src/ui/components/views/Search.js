@@ -28,7 +28,7 @@ import {
 } from "./search/workspaceUtils.js";
 import { KeysSection, SearchInputSection, ResultsSection, SavedResultsSection } from "./search/sections.js";
 
-const { div } = van.tags;
+const { div, h3, p } = van.tags;
 
 export const Search = () => {
     const restoredWorkspace = loadSearchWorkspace() || {};
@@ -520,6 +520,21 @@ export const Search = () => {
 
     return div(
         { id: "search-tab", class: "tab-pane" },
+        // The page top (#26).
+        div(
+            { class: "account-page-top search-page-top" },
+            div(
+                { class: "account-header account-tab-header" },
+                div(
+                    { class: "account-tab-header__main" },
+                    h3({ class: "account-tab-header__title" }, "VALUE SEARCH"),
+                    p(
+                        { class: "account-tab-header__desc" },
+                        "Find where the game keeps a value: scan the keys you pick, change the value in game, then scan again to narrow the results."
+                    )
+                )
+            )
+        ),
         div(
             { class: "search-layout" },
             KeysSection({ ui, handlers }),

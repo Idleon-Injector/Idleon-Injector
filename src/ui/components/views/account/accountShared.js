@@ -6,7 +6,7 @@ import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { finishChange, startChange, withAction } from "../../../services/changeLog.js";
+import { captureGesture, finishChange, startChange, withAction } from "../../../services/changeLog.js";
 
 const { div } = van.tags;
 
@@ -309,6 +309,23 @@ export const runBulkSet = async ({
 
         getValueState(entry, index).val = targetValue;
     });
+};
+
+/**
+ * Runs a page's writes one after another: a write asked for while another runs waits its turn instead of being
+ * dropped, so a switch flipped on one row while another row saves still saves. Each task reads the game again
+ * when its turn comes.
+ */
+export const oneAtATime = () => {
+    let last = Promise.resolve();
+    return (task) => {
+        // The write is named after, and offers Undo beside, the control that asked for it, even when it waits.
+        const inGesture = captureGesture();
+        const run = () => inGesture(task);
+        const next = last.then(run, run);
+        last = next.catch(() => {});
+        return next;
+    };
 };
 
 /**

@@ -344,18 +344,7 @@ const MapCrystalsTab = () => {
         },
     ];
 
-    const body = div(
-        { class: "map-crystals-container" },
-        div(
-            { class: "map-crystals-search-bar" },
-            SearchBar({
-                placeholder: "SEARCH MAPS OR INDEX",
-                value: searchQuery,
-                onInput: (val) => (searchQuery.val = val),
-            })
-        ),
-        () => renderMapList()
-    );
+    const body = div({ class: "map-crystals-container" }, () => renderMapList());
 
     return PersistentAccountListPage({
         rootClass: "tab-container",
@@ -383,6 +372,11 @@ const MapCrystalsTab = () => {
             activeId: activeTab,
             navClass: "account-page-nav",
             buttonClass: "account-page-btn",
+        }),
+        toolbar: SearchBar({
+            placeholder: "SEARCH MAPS OR INDEX",
+            value: searchQuery,
+            onInput: (val) => (searchQuery.val = val),
         }),
         state: { loading, error },
         loadingText: "READING MAP CRYSTALS",

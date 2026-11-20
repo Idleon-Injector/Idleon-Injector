@@ -1,4 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { NumberInput } from "../../../components/NumberInput.js";
@@ -9,7 +10,7 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { EditableFieldsRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { cleanName, writeManyVerified } from "../../../components/views/account/accountShared.js";
 
-const { div, span, input, label } = van.tags;
+const { div, span } = van.tags;
 
 const OBSERVATION_COUNT = 80;
 const OBSERVATION_FIELDS = [
@@ -88,24 +89,14 @@ const ObservationTile = ({ index, tileState }) => {
                     { class: "observation-tile__title-group" },
                     span({ class: "observation-tile__name" }, () => tileState.name.val)
                 ),
-                span(
-                    {
-                        class: () =>
-                            `observation-tile__status ${
-                                tileState.unlocked.val === 1 ? "observation-tile__status--unlocked" : ""
-                            }`,
-                    },
-                    () => (tileState.unlocked.val === 1 ? "UNLOCKED" : "LOCKED")
-                ),
-                label(
-                    { class: "toggle-switch observation-tile__toggle", title: "Toggle unlock" },
-                    input({
-                        type: "checkbox",
-                        checked: () => Boolean(draftStates.unlocked.val),
-                        onchange: (e) => (draftStates.unlocked.val = e.target.checked),
-                    }),
-                    span({ class: "slider" })
-                )
+                StateSwitch({
+                    checked: () => Boolean(draftStates.unlocked.val),
+                    words: ["Unlocked", "Locked"],
+                    name: () => `${tileState.name.val} unlock`,
+                    className: "observation-tile__toggle",
+                    rowField: true, // a draft the tile saves with its other fields
+                    onFlip: (next) => (draftStates.unlocked.val = next),
+                })
             ),
             div(
                 { class: "observation-tile__stats" },

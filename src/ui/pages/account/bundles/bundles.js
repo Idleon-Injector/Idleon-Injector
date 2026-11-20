@@ -1,6 +1,7 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { SearchBar } from "../../../components/SearchBar.js";
+import { EmptyState } from "../../../components/EmptyState.js";
 import { executeCheatAction, fetchBundleCatalog, gga } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
@@ -334,17 +335,9 @@ const BundlesTab = () => {
         WarningBanner(() => purchaseBlockMessage.val)
     );
 
+    const noMatches = () => !catalogState.val.some((bundle) => matchesSearch(bundle, searchQuery.val));
     const body = div(
         { class: "scrollable-panel content-stack bundles-scroll" },
-        div(
-            { class: "bundles-search" },
-            SearchBar({
-                placeholder: "SEARCH BUNDLES OR CODES",
-                value: searchQuery,
-                debounceMs: 0,
-                onInput: (value) => (searchQuery.val = value),
-            })
-        ),
         AccountSection({
             title: "BUNDLE CATALOG",
             note: () => {
@@ -355,11 +348,24 @@ const BundlesTab = () => {
             body: () =>
                 catalogState.val.length
                     ? listNode
-                    : div({ class: "tab-empty" }, "No bundle codes were returned by the running game."),
-        })
+                    : EmptyState({
+                          title: "NO BUNDLES",
+                          subtitle: "No bundle codes were returned by the running game.",
+                      }),
+        }),
+        div(
+            { hidden: () => !catalogState.val.length || !noMatches() },
+            EmptyState({ title: "NO MATCHING BUNDLES", subtitle: "No bundles matched your search." })
+        )
     );
 
     return PersistentAccountListPage({
+        toolbar: SearchBar({
+            placeholder: "SEARCH BUNDLES OR CODES",
+            value: searchQuery,
+            debounceMs: 0,
+            onInput: (value) => (searchQuery.val = value),
+        }),
         title: "BUNDLES",
         description:
             "Buy bundles and see which ones your account has received. Unbuy lets you mark a bundle as not received again, but does not remove its items from the Slab.",

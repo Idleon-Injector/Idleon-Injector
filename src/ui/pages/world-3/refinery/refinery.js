@@ -38,7 +38,7 @@ const REFINERY_OFFSET = 3;
 const POLYMER_LOCK_FROM = 6;
 const PLACEHOLDER_INDEX = 8;
 
-const RefineryValueRow = ({ label, badgePrefix, fieldIndex, gameIndex, valueState }) =>
+const RefineryValueRow = ({ label, fieldIndex, gameIndex, valueState }) =>
     EditableNumberRow({
         valueState,
         normalize: (rawValue) => {
@@ -51,7 +51,6 @@ const RefineryValueRow = ({ label, badgePrefix, fieldIndex, gameIndex, valueStat
             return nextValue;
         },
         renderInfo: () => span({ class: "account-row__name" }, label),
-        renderBadge: (currentValue) => `${badgePrefix} ${currentValue ?? 0}`,
         controlsClass: "account-row__controls--xl",
     });
 
@@ -79,14 +78,12 @@ const RefinerySection = ({ refIndex, name, levelState, chargeState }) => {
         body: [
             RefineryValueRow({
                 label: "LEVEL",
-                badgePrefix: "LV",
                 fieldIndex: 1,
                 gameIndex,
                 valueState: levelState,
             }),
             RefineryValueRow({
                 label: "CHARGE",
-                badgePrefix: "CHARGE",
                 fieldIndex: 0,
                 gameIndex,
                 valueState: chargeState,

@@ -70,6 +70,7 @@ const EmperorTab = () => {
         prepare: () => ({ write: () => saveEntries() }),
         revert: () => (entriesDraft.val = String(snapshot.val?.remaining ?? entriesDraft.val)),
     });
+    let resetting = false;
     const rewardList = div({ class: "account-item-stack" });
     const reconcileRewards = createStaticRowReconciler(rewardList);
 
@@ -340,7 +341,6 @@ const EmperorTab = () => {
             span({ class: "account-row__name" }, "Completed showdowns"),
             span({ class: "account-row__sub-label" }, `0–${PROGRESS_LIMIT}, numeric safety ceiling`)
         ),
-        badge: () => String(snapshot.val?.progress ?? "—"),
         controls: [
             SaveState(progressWrite),
             progressInput,
@@ -349,8 +349,12 @@ const EmperorTab = () => {
                 variant: "danger",
                 disabled: cannotEdit,
                 onClick: (e) => {
+                    // A click while a reset waits or runs isn't an answer to the "Click again" that one may ask: it
+                    // was made before the question showed (a double-click), so it's ignored.
+                    if (resetting) return;
+                    resetting = true;
                     const resetButton = e.currentTarget;
-                    return progressWrite.run(() => saveProgress(true, resetButton));
+                    return progressWrite.run(() => saveProgress(true, resetButton)).finally(() => (resetting = false));
                 },
             }),
         ],

@@ -66,8 +66,10 @@ export const currentPlace = () => {
 };
 
 let actionCount = 0;
+// Set while a deferred write runs as if asked for now (captureGesture): the page it was asked for on.
+let keptPlace = null;
 const newAction = (label, kind, anchor = null) => {
-    const place = currentPlace();
+    const place = keptPlace ?? currentPlace();
     return {
         id: `${Date.now().toString(36)}-${++actionCount}`,
         label: String(label || "").trim(),
@@ -113,8 +115,36 @@ export const labelOf = (node) => {
 
 // Writes that no field or button claimed (a page's own button, say) group by the click or key that led to them.
 const noteGesture = (target) => {
-    const control = typeof target?.closest === "function" ? target.closest("button, select, label, input") : null;
+    // A switch is one control whether its words, its track or its checkbox took the click or key.
+    const control =
+        typeof target?.closest === "function"
+            ? target.closest(".toggle-switch") || target.closest("button, select, label, input")
+            : null;
     gesture = { count: gesture.count + 1, label: labelOf(target), target: control || target };
+};
+
+/**
+ * Keep what asked for a write, for a write that runs later (one waiting its turn): `inGesture(fn)` runs `fn` as if
+ * then were now. Its save joins the action that asked for it (a bulk button's), or is named after, and offers Undo
+ * beside, the control that was clicked; and it's logged on the page it was asked for on, even if the player has
+ * moved on since.
+ */
+export const captureGesture = () => {
+    const kept = gesture;
+    const keptAction = current;
+    // Inside another kept write (a switch's next flip queued again), keep the place that one kept.
+    const place = keptPlace ?? (app ? currentPlace() : null);
+    return (fn) => {
+        const now = { gesture, current, keptPlace };
+        gesture = kept;
+        if (keptAction && open.has(keptAction)) current = keptAction;
+        keptPlace = place;
+        try {
+            return fn();
+        } finally {
+            ({ gesture, current, keptPlace } = now);
+        }
+    };
 };
 
 /** The app starts the log: where saves are made (its menu state), and the clicks and keys that make them. */
@@ -160,6 +190,14 @@ export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn
     return result;
 };
 
+/**
+ * Let go of the action whose code is running: a write that waits its turn opens its own when it starts (its kept
+ * click still names it), so the action doesn't stay open meanwhile and split another save's writes from each other.
+ */
+export const releaseAction = () => {
+    if (current) open.delete(current);
+};
+
 /*
  * The action a save belongs to: the one whose code is running, else the only one still waiting on the game.
  * ponytail: two actions waiting at once (a quick tab through two fields whose pages read before writing) can't be
@@ -169,7 +207,8 @@ export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn
 const actionForWrite = () => {
     if (current) return current;
     if (open.size === 1) return [...open][0];
-    if (open.size > 1) return newAction(gesture.label, "bulk");
+    // Not named after the newest click: that click may be another control's (a pick made while this save waited).
+    if (open.size > 1) return newAction("", "bulk");
     if (!gestureAction || gestureAction.gesture !== gesture.count) {
         gestureAction = newAction(gesture.label, "bulk", gesture.target);
         gestureAction.gesture = gesture.count;
