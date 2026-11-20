@@ -279,6 +279,9 @@ const sendToFile = (key, value) =>
         throw Object.assign(new Error(`in the game, but not saved to the file: ${error.message}`), { fileOnly: true });
     });
 
+// A save before the first read of what the game holds would replace it with the page's empty start.
+const NOT_READ = "not read from the game yet: press Refresh";
+
 // The page's own read at the end of a save step (direct reads only: it runs inside the step), so its levels, costs
 // and status lines follow the save. Its failure is the page's to say; the save's outcome stands.
 const readAfter = (afterSave) => Promise.resolve(afterSave?.()).catch(() => {});
@@ -299,6 +302,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
     let accepted = new Map(); // id -> { on, stopAt }: what the game holds, as far as the page knows
     const queued = []; // [id, patch] of the edits whose step hasn't ended, oldest first
     const fileBehind = van.state(false); // the game may hold a list the config file doesn't
+    let synced = false; // a read of the list has landed: before it, a save would send a list without the saved items
 
     const get = (id) => {
         if (!items.has(id))
@@ -339,6 +343,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
 
     /** Take a read of the list (a step's, so it is newer than every step before it) as what the game holds. */
     const sync = (entries) => {
+        synced = true;
         accepted = new Map(
             entries.map(({ id, on, stopAt = null, ...fields }) => [String(id), { ...fields, on: Boolean(on), stopAt }])
         );
@@ -365,6 +370,11 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
         show();
         const switched = patches.filter(([, patch]) => patch.on).map(([id]) => id);
         return inTurn(async () => {
+            if (!synced) {
+                for (const edit of mine) queued.splice(queued.indexOf(edit), 1);
+                show();
+                throw new Error(NOT_READ);
+            }
             let failure = null;
             const next = withEdits(accepted, patches);
             try {
@@ -433,6 +443,7 @@ export const createAutomationSetting = (key, { afterSave = null } = {}) => {
     let accepted = null; // what the game holds, as far as the page knows
     const queued = []; // [index, value] of the edits whose step hasn't ended, oldest first
     const fileBehind = van.state(false);
+    let synced = false; // as for the picks: before a read, a save would overwrite what the game holds
     const fields = new Map(); // index -> { value, draft }
 
     const at = (whole, index) => (index === null ? whole : whole?.[index]) ?? null;
@@ -459,6 +470,7 @@ export const createAutomationSetting = (key, { afterSave = null } = {}) => {
     };
     /** Take a read of the setting (a step's) as what the game holds. */
     const sync = (held) => {
+        synced = true;
         accepted = held ?? null;
         show();
     };
@@ -468,6 +480,11 @@ export const createAutomationSetting = (key, { afterSave = null } = {}) => {
         queued.push(...mine);
         show();
         return inTurn(async () => {
+            if (!synced) {
+                for (const edit of mine) queued.splice(queued.indexOf(edit), 1);
+                show();
+                throw new Error(NOT_READ);
+            }
             let failure = null;
             const next = withEdits(accepted, edits);
             try {
@@ -783,14 +800,14 @@ export const usePicksBulk = ({ targets, done, noun, waiting }) => {
         {
             label: "Enable all",
             status: bulk.status,
-            disabled: () => pageBusy() || busy() || (done(count(), total()) && !behind()),
+            disabled: () => pageBusy() || busy() || !total() || (done(count(), total()) && !behind()),
             onClick: () => setAll(true),
         },
         {
             label: "Disable all",
             variant: "danger",
             status: bulk.status,
-            disabled: () => pageBusy() || busy() || (!count() && !behind()),
+            disabled: () => pageBusy() || busy() || !total() || (!count() && !behind()),
             confirm: () => `switch off ${noun(count())}.`,
             onClick: () => setAll(false),
         },
