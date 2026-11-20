@@ -13,7 +13,8 @@ const normalizeReadValue = (value) => {
 
 /**
  * Write many game paths through the game's writeGamePaths helper: the write-many route, and restoring a save copy.
- * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }> }>}
+ * Each written entry's `value` is read back in the game's same call, so a game tick can't change it first.
+ * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> }>}
  * @throws {Error} when the game couldn't run the writes at all
  */
 async function writeGamePaths(gameBridge, writes) {
@@ -245,7 +246,8 @@ function setupGameRoutes(app, gameBridge) {
             if (data.error) return res.status(500).json({ error: data.error });
 
             log.debug(`Write path: ${path} = ${serialized}`);
-            res.json({ ok: true });
+            // `value` is read back in the game's same call, before any game tick (writePath).
+            res.json({ ok: true, value: normalizeReadValue(data.value) });
         } catch (err) {
             log.error("Error in /api/game/gga/write:", err);
             res.status(500).json({ error: err.message });
@@ -308,7 +310,12 @@ function setupGameRoutes(app, gameBridge) {
         try {
             const data = await writeGamePaths(gameBridge, writes);
             log.debug(`Batch write: ${writes.length} paths`);
-            res.json(data);
+            res.json({
+                ...data,
+                results: data.results.map((entry) =>
+                    entry.ok ? { ...entry, value: normalizeReadValue(entry.value) } : entry
+                ),
+            });
         } catch (err) {
             log.error("Error in /api/game/gga/write-many:", err);
             res.status(500).json({ error: err.message });

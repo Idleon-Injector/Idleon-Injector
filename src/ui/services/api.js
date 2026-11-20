@@ -269,18 +269,12 @@ export async function gga(path, value) {
     }
 
     try {
-        await _request("/game/gga/write", {
+        // The game reads the value back in the same call as the write, before a game tick can change it (#78).
+        const { value: verifiedValue } = await _request("/game/gga/write", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ path: ggaPath, value }),
         });
-
-        const verifiedData = await _request("/game/gga/read", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path: ggaPath }),
-        });
-        const verifiedValue = verifiedData.value;
         const matches = matchesVerifiedValue(value, verifiedValue);
 
         if (!matches) {
@@ -310,8 +304,8 @@ export async function deleteGga(path) {
 }
 
 /**
- * Write many GGA paths in one backend/CDP round-trip, then verify from the UI
- * using one follow-up batch read and the same typed comparison as single writes.
+ * Write many GGA paths in one backend/CDP round-trip and verify each against the value the game
+ * read back in that same call, with the same typed comparison as single writes.
  *
  * @param {Array<{ path: string, value: any }>} writes
  * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, actual?: any, error?: string }> }>}
@@ -339,23 +333,7 @@ export async function ggaMany(writes) {
     const writeEntries = normalizedWrites.map(
         (entry, index) => writeByPath.get(entry.path) ?? writeResult?.results?.[index]
     );
-    const paths = normalizedWrites.filter((_entry, index) => writeEntries[index]?.ok).map((entry) => entry.path);
-    let verificationResults = [];
-    let verificationError = null;
-    if (paths.length) {
-        try {
-            const data = await _request("/game/gga/read-many", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ paths }),
-            });
-            verificationResults = data?.results;
-        } catch (error) {
-            verificationError = error?.message ?? String(error);
-        }
-    }
-
-    let verificationIndex = 0;
+    // Each written entry's `value` is read back in the game's same call, before a game tick can change it (#78).
     const results = normalizedWrites.map((entry, index) => {
         const writeEntry = writeEntries[index];
         if (!writeEntry?.ok) {
@@ -366,30 +344,15 @@ export async function ggaMany(writes) {
             };
         }
 
-        try {
-            const verifiedData = verificationResults?.[verificationIndex++];
-            if (verificationError) throw new Error(verificationError);
-            if (!verifiedData || verifiedData.path !== entry.path) throw new Error("Missing batch verification result");
-            if (!verifiedData.ok) throw new Error(verifiedData.error ?? "Batch verification failed");
-            const actual = verifiedData.value;
-            const matches = matchesVerifiedValue(entry.value, actual);
-
-            if (!matches) {
-                console.error(
-                    `[ggaMany] Write mismatch at ${entry.path}: expected ${JSON.stringify(entry.value)}, got ${JSON.stringify(actual)}`
-                );
-                return { path: entry.path, ok: false, actual, error: "Write mismatch" };
-            }
-
-            return { path: entry.path, ok: true, actual };
-        } catch (error) {
-            console.error(`[ggaMany] Verification failed at ${entry.path}:`, error);
-            return {
-                path: entry.path,
-                ok: false,
-                error: error?.message ?? String(error),
-            };
+        const actual = writeEntry.value;
+        if (!matchesVerifiedValue(entry.value, actual)) {
+            console.error(
+                `[ggaMany] Write mismatch at ${entry.path}: expected ${JSON.stringify(entry.value)}, got ${JSON.stringify(actual)}`
+            );
+            return { path: entry.path, ok: false, actual, error: "Write mismatch" };
         }
+
+        return { path: entry.path, ok: true, actual };
     });
 
     return {

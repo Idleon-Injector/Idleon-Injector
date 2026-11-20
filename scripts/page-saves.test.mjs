@@ -95,6 +95,41 @@ for (const { file, label, index } of ROW_PAGES) {
     });
 }
 
+// The game raises the value on every tick (issue #78), and ticks only between game calls: its code is
+// single-threaded, so nothing runs inside one call.
+const tickBetweenCalls = (list, index, step) => {
+    const evaluate = game.runtime.evaluate;
+    game.runtime.evaluate = async (options) => {
+        const result = await evaluate(options);
+        list[index] += step;
+        return result;
+    };
+    return () => (game.runtime.evaluate = evaluate);
+};
+
+test("owl.js: a save of a value the game keeps raising shows success", async () => {
+    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Filler Bar"));
+    const stop = tickBetweenCalls(ola, 263, 1e7);
+    try {
+        assert.equal(await setRow(root, "Filler Bar", 1.69e12), "success");
+        assert.ok(ola[263] >= 1.69e12, "the save landed and the game kept counting from it");
+    } finally {
+        stop();
+    }
+});
+
+test("owl.js: a value the game keeps raising still shows failed when the game refuses the write", async () => {
+    const root = await openPage("src/ui/pages/world-1/owl/owl.js", (r) => rowLoaded(r, "Filler Bar"));
+    ola[263] = 5;
+    const restore = refuseWrites(ola, 263);
+    try {
+        assert.equal(await setRow(root, "Filler Bar", 1.69e12), "error");
+        assert.equal(ola[263], 5);
+    } finally {
+        restore();
+    }
+});
+
 // Pets: the token list in OptionsListAccount[606] and the missing token sources.
 const petCard = (root, id) => byClass(root, "companion-card-wrap").find((card) => text(card).includes(`ID ${id}`));
 const petsLoaded = (root) => Boolean(petCard(root, 2));
@@ -151,6 +186,19 @@ test("pets.js: granting the missing tokens writes every source in one batch", as
         ["POST /api/game/gga/write-many"]
     );
     assert.equal(alertText(root), "");
+});
+
+test("pets.js: a batch save of a value the game keeps raising shows success", async () => {
+    grantFixture();
+    const root = await openPage("src/ui/pages/world-1/pets/pets.js", petsLoaded);
+    const stop = tickBetweenCalls(ola, 615, 1);
+    try {
+        const outcome = await grantButton(root).listeners.click();
+        assert.equal(outcome.ok, true);
+        assert.equal(alertText(root), "");
+    } finally {
+        stop();
+    }
 });
 
 test("pets.js: a grant the game doesn't keep shows as failed", async () => {

@@ -104,7 +104,8 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
 
     /**
      * { id, select: "all" | paths } -> { ok, results: [{ path, ok, error? }] }. Writes through the same game helper
-     * as the write-many route, then reads every path back and checks it holds the copy's value.
+     * as the write-many route, and checks every path holds the copy's value, as the game read it back in that
+     * same call (a later read could see a game tick first, #78).
      */
     app.post("/api/save-copies/restore", async (req, res) => {
         try {
@@ -118,13 +119,10 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
             if (writes.length === 0) return res.json({ ok: true, results: [] });
 
             const written = await writeGamePaths(gameBridge, writes);
-            const read = await gameBridge.callHelper("readGamePaths", [writes.map((w) => w.path)]);
-            const readBack = read.error ? [] : (read.value?.results ?? []);
             const results = writes.map((write, i) => {
                 const wrote = written.results?.[i];
                 if (!wrote?.ok) return { path: write.path, ok: false, error: wrote?.error ?? "Write failed" };
-                const back = readBack[i];
-                if (!back?.ok || !isDeepStrictEqual(normalizeReadValue(back.value), write.value)) {
+                if (!isDeepStrictEqual(normalizeReadValue(wrote.value), write.value)) {
                     return { path: write.path, ok: false, error: "Write mismatch" };
                 }
                 return { path: write.path, ok: true };
