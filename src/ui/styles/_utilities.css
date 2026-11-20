@@ -44,11 +44,11 @@
     color: var(--c-text-muted);
     border-bottom: 1px solid var(--c-border);
     flex-shrink: 0;
-    background: #2a2722;
+    background: var(--c-warning-tint);
 }
 
 .warning-banner--polymer {
-    background: #1f2032;
+    background: var(--c-void-soft);
 }
 
 .warning-banner__icon {
@@ -97,7 +97,7 @@ details[open] > summary > .group-chevron {
 
 .warning-banner__highlight {
     font-weight: 700;
-    color: var(--c-accent);
+    color: var(--c-text-main);
 }
 
 /* --- DEVTOOLS FRAME --- */

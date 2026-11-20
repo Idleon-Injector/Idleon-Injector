@@ -150,7 +150,7 @@
 .cogs-modal-header h3 {
     margin: 0;
     font-size: 0.95rem;
-    color: var(--c-accent);
+    color: var(--c-text-main);
 }
 
 .cogs-modal-cog-name {
@@ -193,7 +193,7 @@
 }
 
 .cogs-selection-state--charging {
-    color: var(--c-ui-yellow);
+    color: var(--c-warning);
 }
 
 .cogs-selection-state--unlocked {
@@ -227,10 +227,7 @@
     align-items: center;
     gap: 6px;
     width: fit-content;
-    border: 1px solid var(--c-accent);
-    color: var(--c-accent);
-    background: #1e293a;
-    padding: 3px 8px;
+    color: var(--c-text-main);
     font-size: 0.875rem;
     letter-spacing: 0.04em;
     font-family: var(--font-mono);
@@ -284,7 +281,7 @@
 .cogs-cog-stat-row__code {
     font-size: 0.875rem;
     font-family: var(--font-mono);
-    color: var(--c-accent);
+    color: var(--c-text-muted);
     text-transform: uppercase;
 }
 

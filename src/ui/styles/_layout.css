@@ -1,33 +1,7 @@
 /**
  * Layout Styles
- * Background effects, app layout, viewport, and tab panes
+ * App layout, viewport, and tab panes
  */
-
-/* --- BACKGROUND FX --- */
-.hud-background {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background: radial-gradient(circle at 70% 30%, var(--c-void-soft) 0%, var(--c-void) 70%);
-}
-
-.grid-overlay {
-    position: absolute;
-    inset: 0;
-    background-image:
-        linear-gradient(var(--c-white-03) 1px, transparent 1px),
-        linear-gradient(90deg, var(--c-white-03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: radial-gradient(circle at center, var(--c-black) 40%, transparent 100%);
-    pointer-events: none;
-}
-
-.vignette {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle, transparent 50%, var(--c-black) 120%);
-    pointer-events: none;
-}
 
 /* --- APP LAYOUT --- */
 .app-layout {

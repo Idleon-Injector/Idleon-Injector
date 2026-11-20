@@ -111,7 +111,7 @@
     width: 60px;
     border: none;
     background: transparent;
-    color: var(--c-accent);
+    color: var(--c-text-main);
     font-family: var(--font-mono);
     font-size: 0.875rem;
     font-weight: 600;
@@ -126,7 +126,7 @@
 }
 
 .function-value-suffix {
-    color: var(--c-accent);
+    color: var(--c-text-muted);
     font-family: var(--font-mono);
     font-size: 0.875rem;
     font-weight: 600;

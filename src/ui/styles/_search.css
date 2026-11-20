@@ -118,7 +118,7 @@
 .keys-group-header {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--c-accent);
+    color: var(--c-text-main);
     margin-bottom: 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -355,11 +355,7 @@
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--c-accent);
-    background: var(--c-accent-dim);
-    border: 1px solid var(--c-accent-25);
-    border-radius: var(--radius-sm);
-    padding: 0.2rem 0.5rem;
+    color: var(--c-text-muted);
 }
 
 .results-content {
@@ -493,11 +489,11 @@
 }
 
 .saved-result-item.monitored {
-    border-color: rgba(204, 255, 0, 0.35);
+    border-color: var(--c-accent-40);
 }
 
 .saved-result-item.monitor-enabled:not(.monitored) {
-    border-color: rgba(204, 255, 0, 0.2);
+    border-color: var(--c-accent-25);
 }
 
 .saved-result-item .result-path {

@@ -145,7 +145,7 @@
 }
 
 .option-ai-label {
-    color: var(--c-accent);
+    color: var(--c-text-muted);
     font-size: 0.875rem;
 }
 
