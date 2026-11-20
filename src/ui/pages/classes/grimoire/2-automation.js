@@ -137,7 +137,10 @@ const GrimoireAutomationPage = () => {
             picks.sync(config.cheatConfig.automation.grimoire, since);
             if (!switchNode.firstChild && automation.val)
                 switchNode.append(AutomationRow({ entry: automation, onSwitched: readSwitch }));
-            if (n === reads) apply(data);
+            if (n === reads) {
+                apply(data);
+                readSaid.clear();
+            }
             reconcile(data.upgrades.map(({ id }) => id).join("|"), () => data.upgrades.map(({ id }) => UpgradeRow(id)));
             ids.val = data.upgrades.map(({ id }) => id);
         });

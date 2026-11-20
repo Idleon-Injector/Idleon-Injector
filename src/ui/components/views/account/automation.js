@@ -191,13 +191,16 @@ export const createAutomationPicks = (group, { onTurnedOn = null, onSaved = null
         } finally {
             pending--;
         }
-        // A save still queued carries these edits and reports its own outcome; otherwise the game is the truth.
-        if (failure && !pending) {
-            const since = edits;
-            sync((await fetchConfig()).cheatConfig.automation[group], since);
+        try {
+            // A save still queued carries these edits and reports its own outcome; otherwise the game is the truth.
+            if (failure && !pending) {
+                const since = edits;
+                sync((await fetchConfig()).cheatConfig.automation[group], since);
+            }
+            if (patches.some(([id, patch]) => patch.on && get(id).on.val)) await onTurnedOn?.();
+        } finally {
+            void onSaved?.(); // not awaited: the row's ✓ doesn't wait on the page's read
         }
-        if (patches.some(([id, patch]) => patch.on && get(id).on.val)) await onTurnedOn?.();
-        void onSaved?.(); // not awaited: the row's ✓ doesn't wait on the page's read
         if (failure) throw failure;
     };
 

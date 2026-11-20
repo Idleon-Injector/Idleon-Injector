@@ -16,15 +16,21 @@ const updates = [];
 const saves = [];
 let refuseUpdate = false;
 let holdGrimoireReads = null; // grimoire reads wait on this, then answer what they read before it
+let failGrimoireReads = false;
+let grimoireReads = 0;
+let refuseToggle = false;
 let fileStartup = [];
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action, on } = await req.json();
     commands.push([action, on]);
+    if (refuseToggle) return res.status(500).json({ error: "the game went away" });
     res.json(switchAutomation(getAutomations().find(({ cheat }) => cheat === action).id, on));
 });
 const readComputedRoute = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     const { name } = await req.json();
+    if (name === "grimoire") grimoireReads++;
+    if (name === "grimoire" && failGrimoireReads) return res.status(500).json({ error: "the game went away" });
     const hold = name === "grimoire" ? holdGrimoireReads : null;
     if (!hold) return readComputedRoute(req, res);
     let read;
@@ -215,6 +221,8 @@ test("a refused priority save puts the game's choice back and says why at the ro
 });
 
 test("the saving % saves on Enter, and a value outside 0 to 100 is refused at its field", async () => {
+    await checkbox(pick(0)).listeners.change({ target: { checked: true } });
+    await until(() => saved()?.items.some((item) => item.id === "0" && item.on), "upgrade 0 to go on");
     await typeSaving("25");
     assert.equal(saved().saving, 25);
     assert.ok(saved().items.length > 0, "the picks go with it");
@@ -229,7 +237,7 @@ test("the saving % saves on Enter, and a value outside 0 to 100 is refused at it
 
 test("a read that answers after a newer one doesn't put the older bones back", async () => {
     await checkbox(pick(2)).listeners.change({ target: { checked: true } });
-    await until(() => saved().items.some((item) => item.id === "2" && item.on), "upgrade 2 to go on");
+    await until(() => saved()?.items.some((item) => item.id === "2" && item.on), "upgrade 2 to go on");
     let release;
     holdGrimoireReads = new Promise((resolve) => (release = resolve));
     // Low makes it the goal, but that read is held; Balanced's read answers first, with nothing to save for.
@@ -264,4 +272,25 @@ test("Enable all switches every upgrade on in one save; Disable all asks Click a
         { id: "3", on: false, priority: 1 }
     );
     await switchAutomation("classes.automation.grimoire", false);
+});
+
+test("Refresh clears a failed read of the bones once it reads them", async () => {
+    failGrimoireReads = true;
+    await choose(4, "1");
+    await until(() => /Couldn't read the bones again/.test(text(page)), "the failed read to show");
+    failGrimoireReads = false;
+    await until(() => button(page, "Refresh"), "Refresh");
+    await button(page, "Refresh").listeners.click({ preventDefault() {} });
+    await until(() => !/Couldn't read the bones again/.test(text(page)), "Refresh to clear the failed read");
+    await choose(4, "0");
+});
+
+test("a save whose switching on fails still reads the bones again", async () => {
+    await switchAutomation("classes.automation.grimoire", false);
+    refuseToggle = true;
+    const before = grimoireReads;
+    await checkbox(pick(5)).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState(pick(5))), "the row to show the failure");
+    await until(() => grimoireReads > before, "the bones to be read again");
+    refuseToggle = false;
 });
