@@ -249,6 +249,7 @@ test("a typed value that needs confirming asks beside its field; only Enter agai
         "the first Enter is refused; the field's save state says Re-enter"
     );
     globalThis.document.activeElement = field;
+    field.listeners.keydown({ key: "Enter" });
     assert.equal(ask("lower showdowns from 9 to 3."), true, "Enter again in the field answers");
 
     globalThis.document.activeElement = null; // leaving the field saves too, but never answers
@@ -256,6 +257,7 @@ test("a typed value that needs confirming asks beside its field; only Enter agai
     assert.throws(() => ask("lower showdowns from 9 to 3."));
     globalThis.document.activeElement = field;
     assert.throws(() => ask("lower showdowns from 9 to 3."), "back in the field, it asks before it answers");
+    field.listeners.keydown({ key: "Enter" });
     assert.equal(ask("lower showdowns from 9 to 3."), true);
 });
 
@@ -271,5 +273,50 @@ test("leaving the field forgets the question, even if the player is back in it w
     field.listeners.focusout({ relatedTarget: null });
     globalThis.document.activeElement = field;
     assert.throws(() => ask("lower showdowns from 9 to 3."), "the save from leaving only asks again");
+    field.listeners.keydown({ key: "Enter" });
     assert.equal(ask("lower showdowns from 9 to 3."), true, "an Enter after that answers");
+});
+
+test("a save queued before the question was asked can't answer it; only an Enter after it does", async () => {
+    const { askAtField } = await importRepo("src/ui/components/inPlace.js");
+    const { useAutoSave } = await importRepo("src/ui/components/views/account/autoSave.js");
+    const row = globalThis.document.createElement("div");
+    const field = globalThis.document.createElement("input");
+    row.append(field);
+    const ask = askAtField(() => field);
+    // Like a prayer's level: each save reads the game first (the test ends each read), then asks to lock it.
+    const reads = [];
+    const written = [];
+    const { handlers } = useAutoSave({
+        prepare: () => ({
+            write: async () => {
+                await new Promise((resolve) => reads.push(resolve));
+                ask("lock Big Brain Time.");
+                written.push(0);
+                return 0;
+            },
+        }),
+    });
+    // The field's own listeners hear a key before the row's save handler does.
+    const pressEnter = () => {
+        field.listeners.keydown?.({ key: "Enter" });
+        handlers.onkeydown({ key: "Enter", target: field, preventDefault() {} });
+    };
+    const endRead = async () => {
+        reads.shift()();
+        await settle();
+    };
+
+    globalThis.document.activeElement = field;
+    pressEnter(); // Enter on 0: the save reads the game
+    globalThis.document.activeElement = null; // the player leaves: a save is queued behind it
+    handlers.onfocusout({ relatedTarget: null, currentTarget: row });
+    globalThis.document.activeElement = field; // and comes back before the read ends
+    await endRead(); // the first save asks
+    await endRead(); // the queued save runs
+    assert.deepEqual(written, [], "the queued save only asks again");
+
+    pressEnter();
+    await endRead();
+    assert.deepEqual(written, [0], "an Enter after the question answers it");
 });

@@ -145,18 +145,21 @@ export const clickAgain = (button, question, { targets = null, ms = 4000 } = {})
  * The in-place confirm for a typed value (#77), where a save used to open the browser's confirm popup. Returns
  * `ask(question)`: the first time it throws an Error ("Re-enter", short enough for the save state beside a field
  * at 400 px), the menu's tooltip and screen readers say "Enter again to …" at the field, and nothing is written. The same
- * question again within `ms`, asked and answered in the field (Enter, not leaving it), returns true.
+ * question again within `ms`, answered by an Enter pressed in the field after it was asked, returns true.
  * `field()`: the field's element (or the element around it).
  */
 export const askAtField = (field, ms = 10000) => {
     let asked = "";
     let askedAt = null;
+    let entered = false;
     let timer = null;
     const forget = () => {
         clearTimeout(timer);
         asked = "";
+        entered = false;
         if (!askedAt) return;
         askedAt.removeEventListener("focusout", left);
+        askedAt.removeEventListener("keydown", enter);
         hideTooltip(askedAt);
         askedAt = null;
     };
@@ -165,10 +168,15 @@ export const askAtField = (field, ms = 10000) => {
     const left = (e) => {
         if (!askedAt.contains(e.relatedTarget)) forget();
     };
+    // Only an Enter pressed after the question answers it: a save queued before it (the player left and came
+    // back while the first save read the game) can't. A held Enter's repeats don't count.
+    const enter = (e) => {
+        if (e.key === "Enter" && !e.repeat) entered = true;
+    };
     return (question) => {
         const el = field();
         const inField = Boolean(el?.contains(document.activeElement));
-        if (asked === question && inField) {
+        if (asked === question && entered && inField) {
             forget();
             return true;
         }
@@ -179,6 +187,7 @@ export const askAtField = (field, ms = 10000) => {
             asked = question;
             askedAt = el;
             el.addEventListener("focusout", left);
+            el.addEventListener("keydown", enter);
             timer = setTimeout(forget, ms);
             showTooltip(el, `Enter again to ${question}`);
             announce(`Enter again to ${question}`);
