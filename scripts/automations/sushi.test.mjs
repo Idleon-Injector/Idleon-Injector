@@ -306,13 +306,16 @@ async function until(check, what) {
     }
     assert.fail(`timed out waiting for ${what}`);
 }
+let openRoot = null;
 async function openTools() {
+    if (openRoot) openRoot.offsetParent = null; // leave the last test's tab, so only this one polls
     const router = new TinyRouter();
     const client = Object.assign(new EventEmitter(), { Runtime: game.runtime });
     setupApiRoutes(router, "context", client, { cheatConfig: {}, startupCheats: [], injectorConfig: {} });
     router.post("/api/config/save", (req, res) => res.json({ ok: true })); // no config file in a test
     await loadUi(router);
     const root = (await importRepo("src/ui/pages/world-7/sushi-station/4-tools.js")).default.component();
+    openRoot = root;
     const tab = {
         root,
         button: (label) => elements(root).find((node) => node.nodeName === "button" && text(node) === label),
@@ -389,4 +392,74 @@ test("Tools tab: Show in-game buttons reaches the game at once, even beside a se
     toggle.listeners.change({ target: { checked: false } });
     await advance(200);
     assert.equal(cheatConfig.w7.sushitools.ingameButtons, false);
+});
+
+/**
+ * Holds the next request `match(url, body)` picks: `sent` lists every picked request's body as the server got it.
+ * Held "before", it reaches the server only on `release()`; held "after", the server answers at once and the tab
+ * gets that answer, or `release(body)` instead, only on release.
+ */
+function holdNext(match, at) {
+    const real = globalThis.fetch;
+    const held = { started: false, sent: [] };
+    const gate = new Promise((resolve) => (held.release = resolve));
+    globalThis.fetch = async (url, options = {}) => {
+        const body = JSON.parse(options.body ?? "{}");
+        if (!match(url, body)) return real(url, options);
+        const first = !held.started;
+        held.started = true;
+        if (first && at === "before") await gate;
+        held.sent.push(body);
+        const response = await real(url, options);
+        if (!first || at !== "after") return response;
+        const instead = await gate;
+        return instead
+            ? new Response(JSON.stringify(instead), { headers: { "content-type": "application/json" } })
+            : response;
+    };
+    return held;
+}
+
+// PR #86 review: two quick flips of "Show in-game buttons" saved at once, and the older save could land last.
+test("Tools tab: quick flips of Show in-game buttons save one after another, so the file keeps the last choice", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2, ingameButtons: false };
+    const tab = await openTools();
+    const saves = holdNext((url) => url.endsWith("/config/save"), "before");
+    const toggle = tab.toggle("Show in-game buttons");
+    toggle.listeners.change({ target: { checked: true } });
+    await until(() => saves.started, "the first save to reach the file");
+    toggle.listeners.change({ target: { checked: false } });
+    await advance(200);
+    saves.release();
+    await advance(400);
+    assert.deepEqual(
+        saves.sent.map((config) => config.cheatConfig.w7.sushitools.ingameButtons),
+        [true, false],
+        "the file ends with the switch as shown"
+    );
+    assert.equal(cheatConfig.w7.sushitools.ingameButtons, false);
+});
+
+// PR #86 review: a status poll that read the game before a click landed after it and undid the click on screen.
+test("Tools tab: a status poll from before a click doesn't undo the click's result or its message", async () => {
+    station();
+    cheatConfig.w7.sushitools = { ...cheatConfig.w7.sushitools, targetCount: 2, reserveSlots: 2 };
+    const tab = await openTools();
+    const isStatus = (url, body) => body.action === "w7 sushitools status";
+    let poll = holdNext(isStatus, "after");
+    await until(() => poll.started, "a status poll"); // it has read Auto Play off
+    tab.button("Enable Auto Play").listeners.click();
+    await until(() => tab.button("Disable Auto Play"), "the click to turn Auto Play on");
+    poll.release();
+    await advance(50);
+    assert.ok(tab.button("Disable Auto Play"), "the older poll left Auto Play on");
+
+    poll = holdNext(isStatus, "after");
+    await until(() => poll.started, "another status poll");
+    tab.button("Disable Auto Play").listeners.click();
+    await until(() => tab.button("Enable Auto Play"), "the click to turn Auto Play off");
+    poll.release({ ok: false, message: "Lost the game." });
+    await advance(50);
+    assert.equal(tab.status(), "Auto Play disabled.", "the older poll's failure didn't replace the click's message");
 });

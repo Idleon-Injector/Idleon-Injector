@@ -26,7 +26,9 @@ function SushiToolsTab() {
     const knowledgeTier = van.state("1");
     const knowledgeQuantity = van.state("1");
     const feedback = van.state("");
+    let actions = 0; // counts refreshes and clicks, so a status poll that started before one doesn't undo it
     async function refresh() {
+        actions++;
         pending.val = true;
         settingsLoaded.val = false;
         try {
@@ -98,6 +100,7 @@ function SushiToolsTab() {
         return JSON.parse(response.message);
     }
     async function run(action) {
+        actions++;
         pending.val = true;
         try {
             if (action === "" && !enabled.val) await saveSettings();
@@ -111,6 +114,8 @@ function SushiToolsTab() {
             pending.val = false;
         }
     }
+    // "Show in-game buttons" saves one at a time, each saving the switch as it is then, so the last choice wins.
+    let buttonsSave = Promise.resolve();
     const locked = () => enabled.val || pending.val || !settingsLoaded.val;
     // Settings fields stay usable while they save, so a save never takes their focus away.
     const settingsLocked = () => enabled.val || !settingsLoaded.val;
@@ -214,8 +219,13 @@ function SushiToolsTab() {
                             ActionButton({ label: "Sort", disabled: locked, onClick: () => run("sort") })
                         ),
                         // Saved on its own, so a board setting that can't be saved doesn't hold it back.
-                        toggle("Show in-game buttons", settings.ingameButtons, () =>
-                            settingsSave.run(() => saveSettings({ ingameButtons: settings.ingameButtons.val }))
+                        toggle(
+                            "Show in-game buttons",
+                            settings.ingameButtons,
+                            () =>
+                                (buttonsSave = buttonsSave.then(() =>
+                                    settingsSave.run(() => saveSettings({ ingameButtons: settings.ingameButtons.val }))
+                                ))
                         ),
                         div(
                             { class: "sushi-automation-info" },
@@ -264,14 +274,16 @@ function SushiToolsTab() {
     setInterval(async () => {
         if (polling || pending.val || !settingsLoaded.val || root.offsetParent === null || document.hidden) return;
         polling = true;
+        const started = actions;
         try {
             const status = await command("status");
-            if (pending.val) return; // a click's own answer is newer
+            if (started !== actions) return; // a click's own answer is newer
             if (pollFailed || status.message !== state.val.message || status.enabled !== enabled.val) feedback.val = "";
             pollFailed = false;
             state.val = status;
             enabled.val = status.enabled;
         } catch (error) {
+            if (started !== actions) return;
             pollFailed = true;
             feedback.val = error.message;
         } finally {
