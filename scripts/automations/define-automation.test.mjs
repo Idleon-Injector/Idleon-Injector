@@ -81,6 +81,7 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
     assert.deepEqual(automation("fixture.steady"), {
         id: "fixture.steady",
         cheat: "fixture steady",
+        label: undefined,
         on: true,
         error: null,
         status: "ticked 3",
@@ -98,6 +99,7 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
         [
             ["w7.sushi", false],
             ["wide.autoboss", false],
+            ["account.automation.shops", false],
             ["fixture.steady", true],
             ["fixture.flaky", true],
             ["fixture.picky", false],
@@ -175,6 +177,6 @@ test("every automation's cheat is a command, and the folder holds the real ones"
         getAutomations()
             .map(({ id }) => id)
             .filter((id) => !id.startsWith("fixture")),
-        ["w7.sushi", "wide.autoboss"]
+        ["w7.sushi", "wide.autoboss", "account.automation.shops"]
     );
 });

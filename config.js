@@ -19,6 +19,9 @@ exports.cheatConfig = {
         creditcap: 10000000, // Maximum credit capacity for dungeons
         flurbocap: 1000000, // Maximum flurbo capacity for dungeons
     },
+    automation: {
+        shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+    },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)
     },
