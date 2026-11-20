@@ -187,3 +187,33 @@ test("Undo of a Jelly cell level clears the game's cached cell total", async () 
     await until(() => gga.Research[16][0] === 0 && !("CellLV_tot" in gga.DNSM.h), "the undo to clear the cache");
     assert.equal(total(), 2);
 });
+
+test("Clam Scurge fields stay open while another Scurge field saves, and both edits save", async (t) => {
+    gga.Menagerie[5] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const page = await openPage("src/ui/pages/world-7/clam-work/clam-work.js", (root) =>
+        Boolean(findRow(root, "Scurge level"))
+    );
+    const exp = findRow(page, "Scurge EXP");
+    const level = findRow(page, "Scurge level");
+    const expField = input(exp);
+    const levelField = input(level);
+
+    const release = holdWrites();
+    t.after(release);
+    expField.listeners.focus?.({ target: expField });
+    type(expField, 500);
+    // Tab to Scurge level: leaving the EXP row saves it.
+    expField.listeners.blur?.({ target: expField, relatedTarget: levelField });
+    exp.listeners.focusout({ target: expField, currentTarget: exp, relatedTarget: levelField });
+    levelField.listeners.focus?.({ target: levelField });
+    await until(() => stateOf(exp) === "loading", "the EXP save to start");
+    assert.equal(isDisabled(levelField), false, "Scurge level stays open while EXP saves");
+
+    type(levelField, 77);
+    levelField.listeners.blur?.({ target: levelField, relatedTarget: null });
+    level.listeners.focusout({ target: levelField, currentTarget: level, relatedTarget: null });
+    release();
+    await until(() => stateOf(exp) === "success" && stateOf(level) === "success", "both saves to finish");
+    assert.equal(gga.Menagerie[0][7], 500);
+    assert.equal(gga.Menagerie[0][8], 77);
+});
