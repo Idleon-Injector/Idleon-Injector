@@ -776,23 +776,31 @@ export const usePicksBulk = ({ targets, done, noun, waiting }) => {
         bulk.run(
             async () => {
                 bulkSaid.clear();
-                for (const [picks, ids] of targets()) await picks.setAll(ids, on, waiting.onLate);
+                // Every target's save is queued now, in order, so a row edit made after the click lands after them
+                // all. One that fails doesn't stop the rest; the first failure is said once all have ended.
+                const saves = await Promise.allSettled(
+                    targets().map(([picks, ids]) => picks.setAll(ids, on, waiting.onLate))
+                );
+                const failed = saves.find(({ status }) => status === "rejected");
+                if (failed) throw failed.reason;
             },
             { onSuccess: () => bulkSaid.clear(), onError: (caught) => bulkSaid.say("failed", caught.message) }
         );
     const busy = () => bulk.status.val === "loading";
+    // The game may hold a list the config file doesn't (a file save failed): the buttons stay, to save it again.
+    const behind = () => targets().some(([picks]) => picks.fileBehind());
     const actions = (pageBusy) => [
         {
             label: "Enable all",
             status: bulk.status,
-            disabled: () => pageBusy() || busy() || done(count(), total()),
+            disabled: () => pageBusy() || busy() || (done(count(), total()) && !behind()),
             onClick: () => setAll(true),
         },
         {
             label: "Disable all",
             variant: "danger",
             status: bulk.status,
-            disabled: () => pageBusy() || busy() || !count(),
+            disabled: () => pageBusy() || busy() || (!count() && !behind()),
             confirm: () => `switch off ${noun(count())}.`,
             onClick: () => setAll(false),
         },
@@ -821,12 +829,15 @@ export const useAutomationTab = ({ label, cheats, read }) => {
                 showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null)
             );
         }, waiting.onLate);
-    const readTab = async () => {
+    const readTab = async (afterSave = false) => {
         const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);
         cheats.forEach((cheat, i) => showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null));
         startup.val = config.startupCheats ?? [];
         if (!switches.firstChild && entries.every((entry) => entry.val))
             switches.append(...entries.map((entry) => AutomationRow({ entry, onSwitched: readSwitches })));
+        // After a save, only a read of the game itself: the server's copy may hold an edit the game refused, which
+        // the save's own read-back already kept out.
+        if (afterSave && !config.gameRead) return;
         await read(config.cheatConfig.automation);
         error.val = null; // this read, the newest to run, worked: an older one's failure goes
     };
@@ -837,9 +848,9 @@ export const useAutomationTab = ({ label, cheats, read }) => {
         loading,
         error,
         atStart: (cheat) => startup.val.includes(cheat),
-        load: () => run(() => inTurn(readTab, waiting.onLate)),
+        load: () => run(() => inTurn(() => readTab(), waiting.onLate)),
         afterSave: () =>
-            readTab().catch((caught) => {
+            readTab(true).catch((caught) => {
                 error.val = caught.message;
             }),
     };
