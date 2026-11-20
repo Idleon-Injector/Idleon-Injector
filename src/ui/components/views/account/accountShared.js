@@ -280,28 +280,32 @@ export const runBulkSet = async ({
     applyLocal = null,
 }) => {
     const resolvedEntries = typeof entries === "function" ? entries() : (entries ?? []);
-    const targets = [];
+    // Only the entries written take the target afterwards: a skipped row saved meanwhile keeps what it saved.
+    const targets = new Map();
     const writes = [];
 
     resolvedEntries.forEach((entry, index) => {
         const targetValue = getTargetValue(entry, index);
         const valueState = getValueState(entry, index);
         const currentValue = resolveValue(valueState);
-        targets[index] = targetValue;
 
         if (typeof getWrites === "function") {
-            writes.push(...toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState })));
+            const entryWrites = toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState }));
+            if (entryWrites.length) targets.set(index, targetValue);
+            writes.push(...entryWrites);
             return;
         }
 
         if (!shouldWrite({ entry, index, currentValue, targetValue, valueState })) return;
+        targets.set(index, targetValue);
         writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
     });
 
     await writeManyVerified(writes);
 
     resolvedEntries.forEach((entry, index) => {
-        const targetValue = targets[index];
+        if (!targets.has(index)) return;
+        const targetValue = targets.get(index);
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);
             return;
