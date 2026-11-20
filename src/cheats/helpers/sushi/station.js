@@ -113,7 +113,7 @@ export function sushiTools(action, expected = null, options = {}) {
         const storedTier = purchaseTier - 1;
         const cost = Number(rules._customBlock_SushiStuff("FuelCost", storedTier, 0));
         if (!(cost > 0) || !(Number(gga.Sushi[4][0]) >= cost))
-            throw new Error(`Not enough fuel for tier ${purchaseTier} sushi.`);
+            return { bought: false, reason: `Not enough fuel for tier ${purchaseTier} sushi.` };
         const trigger = actor._TRIGGEREDtext;
         try {
             // Use the game's tier selector so its purchase icon updates too.

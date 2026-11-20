@@ -42,15 +42,23 @@ function canClick(ui, index) {
     );
 }
 
-function buttonImage(label) {
-    const bitmap = behavior.newImage(width, height);
-    const background = behavior.getExternalImage("UIboxbg.png");
+/** A button-styled image showing `label`; with `fit`, as wide as the label needs (at least a button). */
+function buttonImage(label, fit = false) {
+    const font = behavior.getFont(336);
+    let bitmap = behavior.newImage(width, height);
     const scale = bitmap.width / width;
+    const text = font.getTextWidth(label) / scale;
+    const w = fit ? Math.max(width, Math.ceil(text) + 24) : width;
+    if (w !== width) {
+        bitmap.dispose();
+        bitmap = behavior.newImage(w, height);
+    }
+    const background = behavior.getExternalImage("UIboxbg.png");
     // Stretch the fill and edges separately to keep the native 3px border crisp.
     for (const [sx, sw, dx, dw] of [
         [0, 3, 0, 3],
-        [3, background.width - 6, 3, width - 6],
-        [background.width - 3, 3, width - 3, 3],
+        [3, background.width - 6, 3, w - 6],
+        [background.width - 3, 3, w - 3, 3],
     ]) {
         for (const [sy, sh, dy, dh] of [
             [0, 3, 0, 3],
@@ -65,19 +73,18 @@ function buttonImage(label) {
             part.dispose();
         }
     }
-    const font = behavior.getFont(336);
     behavior.drawTextOnImage(
         bitmap,
         label,
-        (width - font.getTextWidth(label) / scale) / 2,
+        (w - text) / 2,
         // This font's uppercase letters are 22px; its line height also includes larger icons.
         (height - 22) / 2,
         font
     );
     const image = events(124)._customBlock_imginstACTOR(bitmap);
-    image.set_scaleX((image.get_scaleX() * width) / bitmap.width);
+    image.set_scaleX((image.get_scaleX() * w) / bitmap.width);
     image.set_scaleY((image.get_scaleY() * height) / bitmap.height);
-    return image;
+    return { image, w };
 }
 
 defineHook({ id: "w7.sushitools", early: "scripts.ActorEvents_741", method: "_event_Sushi" }, function (base) {
@@ -91,8 +98,8 @@ defineHook({ id: "w7.sushitools", early: "scripts.ActorEvents_741", method: "_ev
     }
     if (!button) {
         const images = {};
-        for (const label of ["START", "STOP", "SORT", "ERROR"]) {
-            images[label] = buttonImage(label);
+        for (const label of ["START", "STOP", "SORT"]) {
+            images[label] = buttonImage(label).image;
             behavior.attachImageToActor(images[label], this.actor, x, y[label === "SORT" ? 1 : 0], 1);
         }
         button = { images, armed: -1, errorIndex: -1, errorUntil: 0 };
@@ -103,8 +110,7 @@ defineHook({ id: "w7.sushitools", early: "scripts.ActorEvents_741", method: "_ev
     button.images.START.set_visible(!enabled && errorIndex !== 0);
     button.images.STOP.set_visible(enabled && errorIndex !== 0);
     button.images.SORT.set_visible(errorIndex !== 1);
-    button.images.ERROR.set_visible(errorIndex >= 0);
-    if (errorIndex >= 0) button.images.ERROR.set_imgY(y[errorIndex]);
+    button.images.ERROR?.set_visible(errorIndex >= 0);
     for (const label of ["START", "STOP", "SORT"]) {
         const index = label === "SORT" ? 1 : 0;
         button.images[label].set_alpha(
@@ -134,8 +140,13 @@ defineHook({ id: "w7.sushitools", early: "scripts.ActorEvents_741", method: "_ev
         const result = index === 1 ? sortSushi() : enabled ? stopSushi() : startSushi();
         console.log(result.message);
     } catch (error) {
+        // Why it failed, on the button that was pressed: the button grows left to fit the reason.
+        if (button.images.ERROR) behavior.removeImage(button.images.ERROR);
+        const { image, w } = buttonImage(error.message, true);
+        behavior.attachImageToActor(image, this.actor, x + width - w, y[index], 1);
+        button.images.ERROR = image;
         button.errorIndex = index;
-        button.errorUntil = Date.now() + 2000;
+        button.errorUntil = Date.now() + 4000;
         console.error("Sushi tools:", error.message);
     }
     return base;
