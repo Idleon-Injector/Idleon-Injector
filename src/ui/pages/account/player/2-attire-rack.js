@@ -21,7 +21,6 @@ import {
     executeCheatAction,
     fetchCheatStates,
     fetchConfig,
-    gga,
     readComputed,
     saveConfigFile,
     updateSessionConfig,
@@ -113,54 +112,6 @@ const AttireRackPage = () => {
     const outfitName = (id) =>
         id === NO_ATTIRE ? "no attire" : (outfits.val.find((outfit) => outfit.id === id)?.name ?? id);
     const wornNow = () => rowStates.get(current.val)?.item.val;
-
-    // Slot fields a write couldn't verify (the game kept another value), by path, with the character and attire they
-    // were for and the value the game kept. Another try at that attire writes them again, though the copy already
-    // holds its id; the fields that landed stay as they are, so upgrades added since aren't wiped. A field the game no
-    // longer holds as it kept it (she changed it in the game since) is forgotten before a write (`recheck`), so a retry
-    // never puts the old value over a newer one.
-    const unverified = new Map();
-    // A record another save replaced or settled while this one read is left to that save.
-    const recheck = async () => {
-        const records = [...unverified];
-        const now = await Promise.all(records.map(([path]) => gga(path)));
-        records.forEach(([path, field], index) => {
-            if (unverified.get(path) === field && JSON.stringify(now[index]) !== JSON.stringify(field.kept))
-                unverified.delete(path);
-        });
-    };
-    const writesFor = (character, item) => {
-        const writes = slotWrites(character, item).map((entry) => ({ ...entry, name: character.name }));
-        for (const [path, field] of unverified) {
-            const copy = path.startsWith("PlayerDATABASE") ? character.saved : character.active;
-            if (copy && field.name === character.name && field.item === item && !writes.some((w) => w.path === path))
-                writes.push({ path, value: field.value, name: character.name });
-        }
-        return writes;
-    };
-    // `inPlay`: the character in play when the writes were planned. The live copy's paths name no character, so the game
-    // writes nothing if another one is in play by then, and the refusal says who is.
-    const writeSlots = (writes, item, inPlay) =>
-        writeManyVerified(
-            writes.map(({ path, value }) => ({ path, value })),
-            { character: inPlay }
-        ).then(
-            (result) => {
-                for (const entry of writes) unverified.delete(entry.path);
-                return result;
-            },
-            (caught) => {
-                writes.forEach((entry, index) => {
-                    const result = caught.results?.[index];
-                    if (result?.ok) unverified.delete(entry.path);
-                    // Remembered only with the value the game kept: without it, a later change can't be told. A write
-                    // with no read-back (the request failed) leaves a field remembered before as it was.
-                    else if (result && "actual" in result)
-                        unverified.set(entry.path, { name: entry.name, item, value: entry.value, kept: result.actual });
-                });
-                throw caught;
-            }
-        );
 
     // --- Outfit bonuses ---
 
@@ -304,8 +255,8 @@ const AttireRackPage = () => {
                     // with yet isn't written each time the player leaves the field.
                     prepare: () =>
                         state.draft.val === state.item.val &&
-                        !(statsOwed && state.character.val.active) &&
-                        !(state.write.status.val === "error" && writesFor(state.character.val, state.draft.val).length)
+                        !(owed.has(character.name) && state.character.val.active) &&
+                        !(state.write.status.val === "error" && slotWrites(state.character.val, state.draft.val).length)
                             ? { unchanged: true }
                             : { write: () => wear(character.name, state.draft.val) },
                     revert: () => (state.draft.val = state.item.val),
@@ -334,35 +285,46 @@ const AttireRackPage = () => {
         return status;
     };
 
-    // The stats of the character in play are owed from a change whose write landed but whose stat update failed.
-    // A retry finds the game already holds the pick, so it runs the update instead of stopping there.
-    let statsOwed = false;
-    // Each change that owes the stats, and each update, is newer than the last. An older update answering late neither
-    // clears a newer one's failure nor says its own failure once a newer one worked.
-    let statsDebt = 0;
-    const oweStats = () => {
-        statsOwed = true;
-        return ++statsDebt;
+    // Characters whose attire changed while in play and whose stat update is still to run: it failed, or it runs now,
+    // or their write failed after it may have landed. Each one's update runs again from its row, from Give everyone or
+    // from Refresh, while it is in play.
+    const owed = new Set();
+    // Each owed update, and each write that owes one, is newer than the last for its character: an older update that
+    // answers late neither clears a newer debt nor says its own failure once a newer update worked.
+    let statsRuns = 0;
+    const latestRun = new Map();
+    const owe = (name) => {
+        owed.add(name);
+        latestRun.set(name, ++statsRuns);
+        return statsRuns;
     };
-    // The line a refused stat update left above the rows (after an undo or Give everyone); it goes once an owed update
-    // runs, as does the in-play row's reason when its pick is what the game holds.
+    // The line a refused stat update left above the rows (after an undo or Give everyone), with the character it was
+    // for; it goes once that character's update runs, as does the reason in its row (another failure there, such as a
+    // refused undo, stays).
     let owedLine = null;
-    const updateStats = async () => {
-        const debt = oweStats();
+    const sayOwed = (name, caught) => {
+        bulkSaid.say("failed", caught.message);
+        owedLine = { name, said: bulkSaid.said.val };
+    };
+    const updateStats = async (name) => {
+        const wasOwed = owed.has(name);
+        const run = owe(name);
         try {
             await executeCheatAction(STATS_CHEAT);
         } catch (caught) {
             // A newer update that worked already cleared the debt: this failure is no longer true.
-            if (statsOwed) throw caught;
+            if (owed.has(name)) throw caught;
             return;
         }
-        if (debt !== statsDebt) return;
-        statsOwed = false;
-        if (owedLine && bulkSaid.said.val === owedLine) bulkSaid.clear();
-        owedLine = null;
-        const inPlay = rowStates.get(current.val);
-        if (inPlay?.write.status.val === "error" && !writesFor(inPlay.character.val, inPlay.draft.val).length)
-            inPlay.write.cancel();
+        if (latestRun.get(name) !== run) return;
+        owed.delete(name);
+        if (owedLine?.name === name) {
+            if (bulkSaid.said.val === owedLine.said) bulkSaid.clear();
+            owedLine = null;
+        }
+        const state = rowStates.get(name);
+        if (wasOwed && state?.write.status.val === "error" && !slotWrites(state.character.val, state.draft.val).length)
+            state.write.cancel();
     };
 
     // After attire changed: the game works out the stats of the character in play again when that one changed.
@@ -371,7 +333,8 @@ const AttireRackPage = () => {
     const afterChange = async (changed) => {
         let failed = null;
         try {
-            if (changed.some((character) => character.active)) await updateStats();
+            const inPlay = changed.find((character) => character.active);
+            if (inPlay) await updateStats(inPlay.name);
         } catch (caught) {
             failed = caught;
         }
@@ -384,21 +347,20 @@ const AttireRackPage = () => {
     };
 
     // One character's pick, saved at once. Returns { cancelled: true } when the game already has it and no stat
-    // update is owed.
+    // update is owed. Only the copies that lack the pick are written, under the character in play when they were
+    // planned (#109): the game writes nothing if another one is in play by then, and the refusal says who is.
     const wear = async (name, item) => {
         const status = await readStatus();
-        await recheck();
         const character = status.characters.find((entry) => entry.name === name);
         if (!character || !changeable(character)) throw new Error("can't change this character here");
-        const writes = writesFor(character, item);
+        const writes = slotWrites(character, item);
         if (!writes.length) {
-            if (!statsOwed) return { cancelled: true };
-            return updateStats();
+            if (!(character.active && owed.has(name))) return { cancelled: true };
+            return updateStats(name);
         }
-        // A write that lands only in part still changed the character in play: its stat update is owed, from when the
-        // write ended, so an update that ran meanwhile (a Refresh, an undo) doesn't count for it.
-        await writeSlots(writes, item, status.current).catch(async (caught) => {
-            if (character.active) oweStats();
+        // A write that failed may have landed in part: the stat update is owed, and the row shows what the game holds.
+        await writeManyVerified(writes, { character: status.current }).catch(async (caught) => {
+            if (character.active) owe(name);
             await readStatus().catch(() => {});
             throw caught;
         });
@@ -464,15 +426,14 @@ const AttireRackPage = () => {
         try {
             const { characters, current } = await readStatus();
             inPlay = current;
-            await recheck();
-            targets = characters.filter((character) => changeable(character) && writesFor(character, item).length);
+            targets = characters.filter((character) => changeable(character) && slotWrites(character, item).length);
         } catch (caught) {
             bulkSaid.say("failed", caught.message);
             return;
         }
         if (!targets.length) {
-            if (statsOwed)
-                return bulkWrite.run(updateStats, { onError: (caught) => bulkSaid.say("failed", caught.message) });
+            if (owed.has(inPlay))
+                return bulkWrite.run(() => updateStats(inPlay), { onError: (caught) => sayOwed(inPlay, caught) });
             bulkSaid.say("refused", `Everyone already wears ${outfitName(item)}.`);
             return;
         }
@@ -482,12 +443,11 @@ const AttireRackPage = () => {
         let wrote = false;
         await bulkWrite.run(
             async () => {
-                await writeSlots(
-                    targets.flatMap((character) => writesFor(character, item)),
-                    item,
-                    inPlay
+                await writeManyVerified(
+                    targets.flatMap((character) => slotWrites(character, item)),
+                    { character: inPlay }
                 ).catch((caught) => {
-                    if (targets.some((character) => character.active)) oweStats();
+                    if (targets.some((character) => character.active)) owe(inPlay);
                     throw caught;
                 });
                 wrote = true;
@@ -495,9 +455,9 @@ const AttireRackPage = () => {
             },
             {
                 onError: (caught) => {
-                    bulkSaid.say("failed", caught.message);
                     // Everyone has the outfit and only the stat update failed: the line goes once one runs.
-                    if (wrote && statsOwed) owedLine = bulkSaid.said.val;
+                    if (wrote && owed.has(inPlay)) sayOwed(inPlay, caught);
+                    else bulkSaid.say("failed", caught.message);
                     void readStatus().catch(() => {});
                 },
             }
@@ -527,17 +487,16 @@ const AttireRackPage = () => {
         if (!target || target === undone) return;
         undone = target;
         if (target.view === place.view && target.page === place.page)
-            void updateStats().catch((caught) => {
-                bulkSaid.say("failed", `Undone, but the stats weren't worked out again: ${caught.message}`);
-                owedLine = bulkSaid.said.val;
-            });
+            void updateStats(current.rawVal).catch((caught) =>
+                sayOwed(current.rawVal, new Error(`Undone, but the stats weren't worked out again: ${caught.message}`))
+            );
     });
 
-    // Refresh also runs a stat update still owed (Refresh is where a player tries again).
+    // Refresh also runs the stat update the character in play still owes (Refresh is where a player tries again).
     const load = () =>
         runLoad(async () => {
-            if (statsOwed) await updateStats().catch(() => {});
-            await readStatus();
+            const { current: inPlay } = await readStatus();
+            if (owed.has(inPlay)) await updateStats(inPlay).catch(() => {});
             await readChoice();
         });
     load();
