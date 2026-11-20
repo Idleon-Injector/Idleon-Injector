@@ -428,6 +428,8 @@ const PrinterTab = () => {
         panelsNode.append(panel);
     };
 
+    // A Refresh discards the drafts (it asked first); the reload after an undo elsewhere keeps them.
+    let discardDrafts = false;
     const load = async () => {
         if (
             busy.val ||
@@ -435,6 +437,7 @@ const PrinterTab = () => {
         )
             return;
         busy.val = true;
+        discardDrafts = true;
         try {
             await runLoad(async () => {
                 const next = await readSnapshot();
@@ -450,10 +453,11 @@ const PrinterTab = () => {
                 }
                 accountIdentity = identity;
                 characterSelector.setCharacters(next.names);
-                syncSnapshot(next, true);
+                syncSnapshot(next, discardDrafts);
             });
         } finally {
             busy.val = false;
+            discardDrafts = false;
         }
     };
 

@@ -7,7 +7,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-const { store } = await loadUi(router);
+const { store, requests } = await loadUi(router);
 const gga = game.gga;
 const ola = gga.OptionsListAccount;
 const { fetchChanges } = await importRepo("src/ui/services/api.js");
@@ -423,4 +423,21 @@ test("the research grid's Undo goes when another tile is picked", async () => {
     assert.ok(undoOffered(card()), "Undo beside the save");
     second.listeners.click({});
     await until(() => !undoOffered(card()), "the other tile's card without that Undo");
+});
+
+test("Printer's reload after an undo elsewhere keeps an unsaved draft", async () => {
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const selects = (root) => elements(root).filter((node) => classes(node).includes("printer-item-select"));
+    const root = await openPage("src/ui/pages/world-3/printer/printer.js", (node) => selects(node).length > 0);
+    const [select] = selects(root);
+    const draft = elements(select).find((node) => node.nodeName === "option" && node.attributes.value !== select.value)
+        .attributes.value;
+    select.value = draft;
+    select.listeners.change({ target: select });
+
+    const asked = requests.length;
+    reloadPlace.val = { view: "", page: "" }; // an undo made in History
+    await until(() => requests.length > asked, "the reload to read the game");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(select.value, draft, "the draft is still there");
 });
