@@ -69,7 +69,7 @@ export async function createFakeGame(fixture = fakeGameData()) {
         readComputedValues: (ns, name, argSets) =>
             noteMiss(`${ns}.${name}`, accessors.readComputedMany(ns, name, argSets)),
         writeGamePath: paths.writePath,
-        writeGamePaths: paths.writePaths,
+        writeGamePaths: accessors.writePaths,
         deleteGamePath: paths.deletePath,
         getAutoCompleteSuggestions,
         getBundleCatalog,
