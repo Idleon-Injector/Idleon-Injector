@@ -96,6 +96,30 @@ const saved = () => updates.at(-1)?.cheatConfig.automation.construction ?? [];
 const fileList = () => saves.findLast((body) => body.cheatConfig)?.cheatConfig.automation.construction;
 const constructionOn = () => getAutomations().find(({ cheat }) => cheat === CHEAT).on;
 const settled = (name) => until(() => /save-state--success/.test(saveState(name)), `${name}'s save`);
+const enterStopAt = (name, value) => {
+    const input = field(name);
+    input.listeners.input({ target: { value } });
+    metric(name).listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+};
+// Brings a building to what a test starts from, through the page, so each test also runs alone; after the tests
+// before it, it is already there and nothing is saved.
+async function given(name, id, { on, priority, stopAt }) {
+    const has = () => saved().find((entry) => entry.id === id) ?? {};
+    if (on && !has().on) {
+        await checkbox(name).listeners.change({ target: { checked: true } });
+        await until(() => has().on && constructionOn(), `${name} to go on`);
+        await settled(name);
+    }
+    if (priority && has().priority !== priority) {
+        await pick(name, String(priority));
+        await until(() => has().priority === priority, `${name}'s priority`);
+        await settled(name);
+    }
+    if (stopAt && has().stopAt !== stopAt) {
+        enterStopAt(name, String(stopAt));
+        await until(() => has().stopAt === stopAt, `${name}'s stop-at`);
+    }
+}
 
 test("the tab shows the switch, the build queue and a row per building in the menu's three rows", () => {
     assert.ok(row("Construction"), "the same switch as the overview");
@@ -138,6 +162,7 @@ test("switching a building on saves it and turns Construction on, now and at sta
 });
 
 test("a priority saves with the building, and Balanced saves none", async () => {
+    await given("Mossy Pebble Tower", "1", { on: true });
     await pick("Mossy Pebble Tower", "1");
     await settled("Mossy Pebble Tower");
     assert.deepEqual(saved(), [{ id: "1", on: true, priority: 1 }]);
@@ -170,6 +195,7 @@ test("quick priority changes save one after another, and the last one stays", as
 });
 
 test("a priority the game refuses goes back to the saved one and says why at the row; the next save clears it", async () => {
+    await given("Mossy Pebble Tower", "1", { priority: 1 });
     refuseUpdate = true;
     await pick("Mossy Pebble Tower", "2");
     await until(() => /save-state--error/.test(saveState("Mossy Pebble Tower")), "the row to show the failure");
@@ -185,9 +211,8 @@ test("a priority the game refuses goes back to the saved one and says why at the
 });
 
 test("a stop-at saves on Enter beside the priority", async () => {
-    const input = field("Mossy Pebble Tower");
-    input.listeners.input({ target: { value: "30" } });
-    metric("Mossy Pebble Tower").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await given("Mossy Pebble Tower", "1", { on: true, priority: 2 });
+    enterStopAt("Mossy Pebble Tower", "30");
     await until(() => saved().find(({ id }) => id === "1")?.stopAt === 30, "the stop-at save");
     assert.deepEqual(
         saved().find(({ id }) => id === "1"),
@@ -196,6 +221,8 @@ test("a stop-at saves on Enter beside the priority", async () => {
 });
 
 test("Enable all switches every building on in one save; Disable all asks Click again, then keeps priorities", async () => {
+    await given("Copper Spark Tower", "0", { priority: 2 });
+    await given("Mossy Pebble Tower", "1", { on: true, priority: 2, stopAt: 30 });
     const before = updates.length;
     await button("Enable all").listeners.click({ preventDefault() {} });
     await until(() => updates.length > before && !button("Enable all"), "every building to go on");
