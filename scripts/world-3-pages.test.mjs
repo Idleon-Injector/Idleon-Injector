@@ -418,7 +418,7 @@ test("Library: after a Refresh that fails on the new character, the old rows sti
     try {
         await quietly(async () => {
             click(buttonIn(root, "Refresh"));
-            await until(() => /No active character/.test(text(root)), "the Refresh to fail");
+            await until(() => /No character in play\./.test(text(root)), "the Refresh to fail");
         });
         await typeAndEnter(row, 5);
         assert.match(text(byClass(row, "save-state__label")[0]), /^Character changed\. Refresh\.$/);

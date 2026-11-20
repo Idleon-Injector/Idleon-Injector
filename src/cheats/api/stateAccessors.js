@@ -55,7 +55,10 @@ export function writePaths(writes, character) {
 const WARDROBE = {
     status: wardrobeStatus,
     preview: wardrobePreview,
-    capture: () => captureWardrobe(),
+    capture: () => {
+        characterInPlay();
+        return captureWardrobe();
+    },
     food: wardrobeFood,
     perfect: wardrobePerfect,
     perfectFood: wardrobePerfectFood,
@@ -116,6 +119,15 @@ export function readComputed(namespace, name, args = []) {
     if (namespace === "player" && name === "expRequired") {
         try {
             return { value: getPlayerExpRequired(...args) };
+        } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    // Who is in play, by the same check the game's writes for a character make: the WebUI's readCharacterInPlay.
+    if (namespace === "player" && name === "inPlay") {
+        try {
+            return { value: characterInPlay(...args) };
         } catch (error) {
             return { error: error.message };
         }

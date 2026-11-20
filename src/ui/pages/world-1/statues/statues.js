@@ -17,10 +17,12 @@ import { RefreshButton, WarningBanner } from "../../../components/views/account/
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    NO_CHARACTER,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
+    readCharacterInPlay,
     resolveFormattedIntInput,
     toInt,
     useWriteStatus,
@@ -48,7 +50,7 @@ const statueValues = (levels, tier, flair) => ({
     flair: toInt(flair, { min: 0 }),
 });
 
-const StatueRow = ({ index, nameState, levelState, depositedState, tierState, flairState }) =>
+const StatueRow = ({ index, nameState, levelState, depositedState, tierState, flairState, getCharacter }) =>
     EditableFieldsRow({
         fields: [
             {
@@ -100,10 +102,12 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                     ...(await Promise.all([gga(`StatueLevels[${index}]`), gga(paths.tier), gga(paths.flair)]))
                 );
             try {
+                // StatueLevels is the character in play's own: the game writes only while that is still the one read.
                 await writeManyVerified(
                     Object.keys(paths)
                         .filter((key) => next[key] !== stored[key].val)
-                        .map((key) => ({ path: paths[key], value: next[key] }))
+                        .map((key) => ({ path: paths[key], value: next[key] })),
+                    { character: getCharacter() }
                 );
             } catch (error) {
                 const now = await read().catch(() => null);
@@ -182,6 +186,12 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
 
 const StatuesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Statues" });
+    // The character the page read: its saves go to it only while it is in play, and none go before a read.
+    let character;
+    const getCharacter = () => {
+        if (character === undefined) throw new Error(NO_CHARACTER);
+        return character;
+    };
 
     const nameStates = new Map();
     const levelStates = new Map();
@@ -209,6 +219,7 @@ const StatuesTab = () => {
                     depositedState: getOrCreateState(depositedStates, statue.index),
                     tierState: getOrCreateState(tierStates, statue.index),
                     flairState: getOrCreateState(flairStates, statue.index),
+                    getCharacter,
                 })
             );
         });
@@ -216,6 +227,7 @@ const StatuesTab = () => {
 
     const load = async () =>
         run(async () => {
+            character = await readCharacterInPlay();
             const [rawInfo, rawLevels, rawTiers, rawFlair, rawFlairUnlock] = await Promise.all([
                 readCList("StatueInfo"),
                 gga("StatueLevels"),

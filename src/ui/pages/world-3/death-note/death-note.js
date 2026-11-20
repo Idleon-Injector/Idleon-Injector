@@ -33,6 +33,7 @@ import {
     getOrCreateState,
     largeFormatter,
     largeParser,
+    readCharacterInPlay,
     resolveFormattedIntInput,
     toInt,
     unwrapH,
@@ -129,7 +130,7 @@ const PlayerKillRow = ({ playerName, killState, isCurrentPlayer, mob }) =>
 
             // Who is in play now, not when the page read the game: the live kills belong to that character. The game
             // checks again as it writes, so a switch meanwhile refuses the save instead of changing another's kills.
-            if (String(await gga("UserInfo[0]")) === playerName) {
+            if ((await readCharacterInPlay()) === playerName) {
                 await writeManyVerified([{ path: liveKillsLeftPath(mob.mapIndex), value: newKillsLeft }], {
                     character: playerName,
                 });
@@ -295,7 +296,7 @@ const DeathNoteTab = () => {
             if (!staticMeta) staticMeta = await buildStaticMeta();
 
             const [currentPlayer, rawPlayerNames, rawKillsLeft, rawMinibossKills] = await Promise.all([
-                gga("UserInfo[0]"),
+                readCharacterInPlay(),
                 gga("GetPlayersUsernames"),
                 gga("KillsLeft2Advance"),
                 gga("Ninja[105]"),

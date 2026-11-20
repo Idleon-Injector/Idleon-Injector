@@ -17,6 +17,7 @@ import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    readCharacterInPlay,
     resolveNumberInput,
     unwrapH,
     useWriteStatus,
@@ -107,7 +108,7 @@ const PrayersTab = () => {
     const unavailable = () => busy.val || loading.val || Boolean(error.val) || !snapshot.val;
 
     const readSnapshot = async () => {
-        const current = await gga("UserInfo[0]");
+        const current = await readCharacterInPlay();
         const [
             rawNames,
             rawLevels,
@@ -136,9 +137,8 @@ const PrayersTab = () => {
         const trialKeys = [...new Set(trials.filter((key) => typeof key === "string" && key.length > 0))];
         const trialMonsters =
             trialKeys.length > 0 ? await readGgaEntries("MonsterDefinitionsGET.h", trialKeys, ["Name"]) : {};
-        if (!names.includes(current) || (await gga("UserInfo[0]")) !== current) {
-            throw new Error(CHARACTER_CHANGED);
-        }
+        if (!names.includes(current)) throw new Error(CHARACTER_CHANGED);
+        await readCharacterInPlay(current);
         const levels = toIndexedArray(rawLevels).map(Number);
         const definitions = toIndexedArray(rawDefinitions)
             .map((raw, id) => ({ id, data: toIndexedArray(raw) }))
@@ -207,9 +207,8 @@ const PrayersTab = () => {
     };
 
     const checkContext = async (current, target) => {
-        if (selected.val !== target || (await gga("UserInfo[0]")) !== current) {
-            throw new Error(CHARACTER_CHANGED);
-        }
+        if (selected.val !== target) throw new Error(CHARACTER_CHANGED);
+        await readCharacterInPlay(current);
     };
 
     const refreshEffectCache = async (current, target) => {

@@ -4,6 +4,7 @@
  */
 
 import { events, gga } from "../../core/globals.js";
+import { characterInPlay } from "../wardrobe/perfect.js";
 
 const STATS = ["Weapon_Power", "STR", "AGI", "WIS", "LUK", "Defence"];
 
@@ -96,7 +97,7 @@ export function characterAttire(attributes) {
 export function attireStatus() {
     return {
         outfits: attireCatalog(gga.ItemDefinitionsGET.h),
-        current: gga.UserInfo[0],
+        current: characterInPlay(),
         characters: characterAttire(gga),
     };
 }

@@ -5,7 +5,7 @@
  * Reads live game state — not a selected database character.
  *
  * Data sources:
- *   gga.UserInfo[0]                      - null when no live character is loaded
+ *   readCharacterInPlay()                - who is in play; rejects at character select
  *   gga.CharacterClass                   - active player's class ID
  *   gga.SkillLevelsMAX[talentId]         - max talent level (editable)
  *   cList.TalentOrder        - talent IDs per class page + slot
@@ -32,8 +32,10 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     CHARACTER_CHANGED,
+    NO_CHARACTER,
     createStaticRowReconciler,
     getOrCreateState,
+    readCharacterInPlay,
     runBulkSet,
     toNum,
     useWriteStatus,
@@ -264,19 +266,15 @@ const LibraryTab = () => {
             if (!staticMeta) staticMeta = await buildStaticMeta();
 
             const [rawUserInfo, rawCharClass, rawSkillLevelsMAX, rawMaxBookLv, rawTalentDL2] = await Promise.all([
-                gga("UserInfo[0]"),
+                readCharacterInPlay(),
                 gga("CharacterClass"),
                 gga("SkillLevelsMAX"),
                 readComputed("workbench", "maxBookLv", [0, 0]),
                 gga("DNSM.h.TalentDL2"),
             ]);
 
-            if (rawUserInfo === null || rawUserInfo === undefined) {
-                throw new Error("Select a character in-game before using this tab.");
-            }
-
             const classId = toNum(rawCharClass);
-            if (!classId) throw new Error("No active character loaded.");
+            if (!classId) throw new Error(NO_CHARACTER);
 
             const maxBookLv = Math.max(1, toNum(rawMaxBookLv));
             const skillLevelsMAX = toIndexedArray(rawSkillLevelsMAX ?? []);

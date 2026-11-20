@@ -19,7 +19,7 @@ import {
     rootKey,
 } from "../../../services/changeLog.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
-import { writeManyVerified } from "./accountShared.js";
+import { NO_CHARACTER, readCharacterInPlay, writeManyVerified } from "./accountShared.js";
 
 const shortValue = (value) => {
     if (typeof value === "number") return formatNumber(value);
@@ -95,10 +95,13 @@ export const undoAction = async (id) => {
     if (!todo.length) throw new Error("already undone");
     if (todo.some((entry) => !entry.hasBefore)) throw new Error("old value unknown");
 
-    const [activeRead] = await readGgaMany(["UserInfo[0]"]);
-    const active = activeRead?.ok && typeof activeRead.value === "string" ? activeRead.value : null;
+    // At character select no one is in play: a character's live values there are placeholders the game drops.
+    const active = await readCharacterInPlay().catch((error) => {
+        if (error.message === NO_CHARACTER) return null;
+        throw new Error("can't tell who is in play");
+    });
     // Without who is in play, a character's value could go to its saved copy while the game keeps the live one.
-    if (active === null && todo.some((entry) => entry.character !== null)) throw new Error("can't tell who is in play");
+    if (active === null && todo.some((entry) => entry.character !== null)) throw new Error(NO_CHARACTER);
     const targets = [];
     for (const entry of todo) targets.push(await targetPath(entry, active));
 
@@ -131,7 +134,8 @@ export const undoAction = async (id) => {
         else if (todo[i].live) write.value = before;
     });
     try {
-        await writeManyVerified(writes, { log: false });
+        // The game puts them back only while `active` is still the one in play, checked as it writes.
+        await writeManyVerified(writes, { log: false, character: active ?? undefined });
     } catch (error) {
         const kept = new Set(
             (error.results ?? []).filter((result) => result.ok).map((result) => result.path.replace(/^gga\./, ""))

@@ -46,6 +46,10 @@ export async function createFakeGame(fixture = fakeGameData()) {
         {
             // The scene a character plays in; automations buy only there.
             "com.stencyl.Engine": { engine: { gameAttributes: { h: gga }, scene: { name: fixture.scene ?? "" } } },
+            // As in the game, the scene name is the engine scene's (getScene().name).
+            "com.stencyl.behavior.Script": {
+                getCurrentSceneName: () => context["com.stencyl.Engine"].engine.scene.name,
+            },
             "scripts.CustomMapsREAL": { GemPopupBundleMessages: () => ({ h: fixture.bundleMessages ?? {} }) },
             // The pets the account owns, as the game's server copy lists them ("id,x,y,z,plus").
             FirebaseStorage: { getCompanionInfoMe: () => structuredClone(fixture.companions ?? []) },

@@ -2,14 +2,16 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { SearchBar } from "../../../components/SearchBar.js";
 import { EmptyState } from "../../../components/EmptyState.js";
-import { executeCheatAction, fetchBundleCatalog, gga } from "../../../services/api.js";
+import { executeCheatAction, fetchBundleCatalog } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    NO_CHARACTER,
     createStaticRowReconciler,
+    readCharacterInPlay,
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -22,8 +24,6 @@ const BUNDLES_RECEIVED_PATH = "BundlesReceived.h";
 const BUY_POLL_INTERVAL_MS = 1000;
 const BUY_POLL_ATTEMPTS = 10;
 const BUY_ALL_WARNING = "Free up inventory space first, or items may be lost.";
-const PLAYER_SELECTION_MESSAGE =
-    "Select a character in-game before buying bundles. Without an active character, bundle items would not be delivered.";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isOwned = (owned) => Number(owned) === 1;
@@ -129,21 +129,19 @@ const BundlesTab = () => {
 
     const buyableCount = van.derive(() => getBuyableBundles().length);
 
+    // A bundle's items go to the character in play; at character select they would land on placeholders.
     const ensurePlayerSelected = async () => {
         try {
-            const player = await gga("UserInfo[0]");
-            if (player !== null && player !== undefined) {
-                purchaseBlockMessage.val = null;
-                return true;
-            }
+            await readCharacterInPlay();
+            purchaseBlockMessage.val = null;
+            return true;
         } catch (caughtError) {
-            console.error("[bundles] Active character check failed:", caughtError);
-            purchaseBlockMessage.val = "Could not verify the selected character. Select a character and try again.";
+            if (caughtError.message !== NO_CHARACTER)
+                console.error("[bundles] Active character check failed:", caughtError);
+            purchaseBlockMessage.val =
+                caughtError.message === NO_CHARACTER ? NO_CHARACTER : "Could not tell who is in play. Try again.";
             return false;
         }
-
-        purchaseBlockMessage.val = PLAYER_SELECTION_MESSAGE;
-        return false;
     };
 
     const askThenBuyAll = async (e) => {
@@ -234,8 +232,7 @@ const BundlesTab = () => {
         state.said.clear();
         return state.run(
             async () => {
-                if (!(await ensurePlayerSelected()))
-                    throw new Error(purchaseBlockMessage.val ?? PLAYER_SELECTION_MESSAGE);
+                if (!(await ensurePlayerSelected())) throw new Error(purchaseBlockMessage.val ?? NO_CHARACTER);
 
                 state.pending.val = true;
                 try {
@@ -254,7 +251,7 @@ const BundlesTab = () => {
         if (buyAllStatus.val === "loading") return;
         return runBuyAll(async () => {
             if (!(await ensurePlayerSelected())) {
-                throw new Error(purchaseBlockMessage.val ?? PLAYER_SELECTION_MESSAGE);
+                throw new Error(purchaseBlockMessage.val ?? NO_CHARACTER);
             }
 
             const bundles = getBuyableBundles();

@@ -5,11 +5,11 @@
  *   gga.GetPlayersUsernames                          - all character names
  *   gga.PlayerDATABASE.h[charName].h.PlayerStuff[0] - stored worship charge for charName
  *   gga.PlayerStuff[0]                               - active character live current worship charge
- *   gga.UserInfo[0]                                  - active character name
+ *   readCharacterInPlay()                            - active character name; rejects at character select
  *   gga.TotemInfo[0][trialIndex]                     - max wave achieved for worship trialIndex
  *
  * Important write rule:
- *   If gga.UserInfo[0] equals the target character name, write to
+ *   If the character in play equals the target character name, write to
  *   gga.PlayerStuff[0] instead of the PlayerDATABASE entry to avoid snap-back.
  *
  * Max charge (x._customBlock_SkillStats("WorshipChargeMax")) isn't shown: charge saves above it, so it isn't a cap.
@@ -25,9 +25,9 @@ import { AccountSection } from "../../../components/views/account/components/Acc
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
-    CHARACTER_CHANGED,
     createStaticRowReconciler,
     getOrCreateState,
+    readCharacterInPlay,
     toInt,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
@@ -88,10 +88,7 @@ const WorshipTab = () => {
 
     const writeCharge = async (playerName, nextCharge) => {
         // PlayerStuff holds the charge of the character in play now, so a save asks the game who that is first.
-        const inPlay = await gga("UserInfo[0]");
-        if (inPlay !== activeCharacterNameRef.val) {
-            throw new Error(CHARACTER_CHANGED);
-        }
+        const inPlay = await readCharacterInPlay(activeCharacterNameRef.val);
         const isActiveCharacter = typeof inPlay === "string" && inPlay.length > 0 && inPlay === playerName;
 
         const writePath = isActiveCharacter ? "PlayerStuff[0]" : `PlayerDATABASE.h[${playerName}].h.PlayerStuff[0]`;
@@ -143,7 +140,7 @@ const WorshipTab = () => {
                 playerNames.length
                     ? readGgaEntries("PlayerDATABASE.h", playerNames, ["PlayerStuff"])
                     : Promise.resolve({}),
-                gga("UserInfo[0]"),
+                readCharacterInPlay(),
                 gga("PlayerStuff[0]"),
                 gga("TotemInfo[0]"),
             ]);

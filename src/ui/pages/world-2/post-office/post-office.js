@@ -17,7 +17,9 @@ import { RefreshButton, WarningBanner } from "../../../components/views/account/
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import {
+    NO_CHARACTER,
     cleanName,
+    readCharacterInPlay,
     runBulkSet,
     toInt,
     useWriteStatus,
@@ -65,14 +67,15 @@ const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false }) =
     });
 };
 
-const POBoxRow = ({ box }) => {
+const POBoxRow = ({ box, getCharacter }) => {
     return ClampedLevelRow({
         valueState: box.current,
         max: () => box.cap.val,
         integerMode: "round",
         write: async (nextValue) => {
             const path = `PostOfficeInfo[3][${box.index}][0]`;
-            await writeVerified(path, nextValue);
+            // The boxes are the character in play's own: the game writes only while that is still the one read.
+            await writeVerified(path, nextValue, { character: getCharacter() });
             return nextValue;
         },
         renderInfo: () => span({ class: "po-box-row__name" }, () => box.name.val),
@@ -93,6 +96,12 @@ const PostOfficeTab = () => {
     const boxStates = [];
     let boxDefsLoaded = false;
     let boxRowCount = -1;
+    // The character the page read: its saves go to it only while it is in play, and none go before a read.
+    let character;
+    const getCharacter = () => {
+        if (character === undefined) throw new Error(NO_CHARACTER);
+        return character;
+    };
 
     const ensureBoxStateCount = (count) => {
         while (boxStates.length < count) {
@@ -120,6 +129,7 @@ const PostOfficeTab = () => {
 
     const load = async ({ forceDefinitions = false } = {}) =>
         run(async () => {
+            character = await readCharacterInPlay();
             const reads = [
                 gga("PostOfficeInfo[3]"),
                 gga("CurrenciesOwned"),
@@ -155,7 +165,7 @@ const PostOfficeTab = () => {
                     boxesListNode.replaceChildren();
                 } else {
                     const rows = Array.from({ length: boxCount.val }, (_, index) =>
-                        POBoxRow({ box: boxStates[index] })
+                        POBoxRow({ box: boxStates[index], getCharacter })
                     );
                     boxesListNode.replaceChildren(div({ class: "po-boxes-grid" }, ...rows));
                 }
@@ -181,6 +191,7 @@ const PostOfficeTab = () => {
 
         await runBoxBulkWrite(async () => {
             await runBulkSet({
+                character: getCharacter(),
                 entries: boxStates.slice(0, boxCount.val),
                 getTargetValue: getNextValue,
                 getValueState: (box) => box.current,

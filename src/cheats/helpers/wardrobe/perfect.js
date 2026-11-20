@@ -4,7 +4,7 @@
  * rules. `wide perfectequipped` does it at once; the Wardrobe page asks for the same plan as writes
  * (perfectEquippedWrites, then perfectFoodWrites after the stats are worked out again), so it lands in the change log.
  */
-import { cList, events, gga, itemDefs } from "../../core/globals.js";
+import { behavior, cList, events, gga, itemDefs } from "../../core/globals.js";
 import { equippedSpecialRolls } from "./special.js";
 import { equipmentStones, equipmentWorld } from "./stones.js";
 
@@ -142,14 +142,24 @@ export function planFoodStacks(attributes, foodCapacity) {
     return food;
 }
 
+// The scenes the game itself treats as having no player: its player events skip PlayerSelect, and its chip and
+// achievement code skip PlayerSwap with it. There UserInfo[0] can already name the character clicked while the
+// per-character values are still placeholders that belong to no one, and the game drops them on PLAY.
+const NO_PLAYER_SCENES = new Set(["PlayerSelect", "PlayerSwap"]);
+
 /**
- * The character in play, or an Error saying to select one. With `expected` (the character a plan was made for), an
+ * The character in play, or an Error saying none is. With `expected` (the character a plan was made for), an
  * Error too when another character is in play now, so nothing meant for one character lands on another.
  */
 export function characterInPlay(expected) {
     const character = gga.UserInfo[0];
-    if (typeof character !== "string" || !gga.GetPlayersUsernames.includes(character))
-        throw new Error("Select a character in the game first.");
+    if (
+        typeof character !== "string" ||
+        !gga.GetPlayersUsernames.includes(character) ||
+        NO_PLAYER_SCENES.has(behavior.getCurrentSceneName())
+    )
+        // The WebUI's NO_CHARACTER (the game can't import it); scripts/character-changed.test.mjs keeps them the same.
+        throw new Error("No character in play.");
     // The WebUI's CHARACTER_CHANGED (the game can't import it); scripts/character-changed.test.mjs keeps them the same.
     if (expected !== undefined && expected !== character) throw new Error("Character changed. Refresh.");
     return character;
