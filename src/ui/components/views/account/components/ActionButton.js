@@ -9,9 +9,9 @@ const { button } = van.tags;
 // A press's result for screen readers: the button itself only changes colour (#77). It is the result this press
 // reached: one that only asked "Click again" says nothing, though the status still holds an earlier press's done
 // (`before`), and a failure is said even when the handler goes on re-reading the page after the status cleared.
-// Once the handler ended without leaving `button` asking, its status is its result, though it equals `before` (a
-// quick retry that failed again).
-const sayResult = async (name, pending, status, before, button) => {
+// A save this press started counts though its result equals `before` (a quick retry that failed again): a
+// useWriteStatus status counts its runs (`runs`, `runsBefore` at the press).
+const sayResult = async (name, pending, status, before, runsBefore) => {
     let settled = false;
     const ended = Promise.resolve(pending).then(
         () => (settled = true),
@@ -20,13 +20,10 @@ const sayResult = async (name, pending, status, before, button) => {
     let started = false;
     for (let i = 0; i < 1200; i++) {
         const now = resolveValue(status);
-        if (now === "loading") started = true;
-        else if (
-            (now === "success" || now === "error") &&
-            (started || now !== before || (settled && button.getAttribute("data-again") === null))
-        )
+        if (now === "loading" || status.runs !== runsBefore) started = true;
+        if ((now === "success" || now === "error") && (started || now !== before))
             return announce(`${name}: ${now === "success" ? "done" : "failed"}`);
-        else if (settled) return undefined;
+        if (settled && now !== "loading") return undefined;
         // Said as soon as the handler ends, as before; a status still saving after that is looked at every 50 ms.
         const tick = new Promise((r) => setTimeout(r, 50));
         await (settled ? tick : Promise.race([ended, tick]));
@@ -108,8 +105,9 @@ export const ActionButton = ({
                       if (shared) pressedBy.set(status, buttonNode);
                       const name = String(resolveValue(label)).trim();
                       const before = resolveValue(status);
+                      const runsBefore = status?.runs;
                       const result = withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e));
-                      if (status) void sayResult(name, result, status, before, buttonNode);
+                      if (status) void sayResult(name, result, status, before, runsBefore);
                       return result;
                   }
                 : null,

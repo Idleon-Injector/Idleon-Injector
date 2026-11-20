@@ -157,29 +157,71 @@ test("a press that only asks says nothing of an earlier press's done", async () 
     assert.equal(region.textContent, "", "nothing said");
 });
 
-// A retry within the 1.2 s the failure shows, whose write fails as quickly: the status is never seen saving, and the
-// retry's failure is still said.
+async function until(check, what) {
+    for (let i = 0; i < 300; i++) {
+        if (check()) return;
+        await settle(10);
+    }
+    assert.fail(`timed out waiting for ${what}`);
+}
+// One macrotask: a press's announcement has decided by then once its handler ended.
+const turn = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+// A retry within the 1.2 s the failure shows: the page reads the game first, and its write fails before the status
+// is looked at again, so the retry is never seen saving. Its failure is still said.
 test("a quick retry that fails again is said", async () => {
     const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
     const { useWriteStatus } = await importRepo("src/ui/components/views/account/accountShared.js");
     const { announce } = await importRepo("src/ui/components/inPlace.js");
     const write = useWriteStatus();
+    let read; // the page's read of the game, which the test answers
     const button = ActionButton({
         label: "Max all",
         status: write.status,
         onClick: async () => {
-            await settle(20); // the page reads the game first
+            await new Promise((resolve) => (read = resolve));
             await write.run(async () => {
-                await settle(10); // the write is refused quickly
                 throw new Error("The game is busy");
             });
         },
     });
-    await click(button);
-    await settle(60);
+    const region = () => elements(globalThis.document.body).find((node) => node.attributes.role === "status");
+    let press = click(button);
+    read();
+    await press;
+    await until(() => region()?.textContent === "Max all: failed", "the first failure to be said");
     announce("");
-    const region = elements(globalThis.document.body).find((node) => node.attributes.role === "status");
+    press = click(button);
+    await turn(); // the announcement looked at the status before the read was answered
+    read();
+    await press;
+    await until(() => region().textContent === "Max all: failed", "the retry's failure to be said");
+});
+
+// Give everyone, Bribes, Weekly Bosses: a press within 1.2 s of a done that reads the game and finds nothing to do
+// (or fails the read) starts no save, and says nothing of the earlier press's done.
+test("a press that starts no save says nothing of the earlier done", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const { useWriteStatus } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { announce } = await importRepo("src/ui/components/inPlace.js");
+    const write = useWriteStatus();
+    let nothingToDo = false;
+    const button = ActionButton({
+        label: "Give everyone",
+        status: write.status,
+        onClick: async () => {
+            await turn(); // the page reads the game
+            if (nothingToDo) return; // "Everyone already wears it."
+            await write.run(async () => {});
+        },
+    });
+    const region = () => elements(globalThis.document.body).find((node) => node.attributes.role === "status");
     await click(button);
-    await settle(60);
-    assert.equal(region.textContent, "Max all: failed");
+    await until(() => region()?.textContent === "Give everyone: done", "the first press's done");
+    announce("");
+    nothingToDo = true;
+    await click(button);
+    await turn();
+    assert.equal(write.status.val, "success", "the earlier done still shows");
+    assert.equal(region().textContent, "", "nothing said");
 });

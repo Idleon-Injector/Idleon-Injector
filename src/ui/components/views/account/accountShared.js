@@ -356,6 +356,8 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
         }
 
         status.val = loadingState;
+        // A press's announcement (ActionButton) tells its own run from an earlier one's result by this count.
+        status.runs = (status.runs ?? 0) + 1;
 
         try {
             const result = await task();
