@@ -372,6 +372,30 @@ test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the g
     ola[123] = 2;
 });
 
+test("pay 2 win: Raise on a count past 4 leaves it, and Lower steps it down without writing past 4", async () => {
+    ola[123] = 9;
+    const root = await openPage(
+        "src/ui/pages/world-2/cauldrons/pay-2-win.js",
+        (root) => rowNamed(root, "COUNT") && text(rowNamed(root, "COUNT")).includes("9 / 4")
+    );
+    const row = rowNamed(root, "COUNT");
+    const [input] = inputs(row);
+    const stepper = (label) =>
+        elements(row).find((node) => node.nodeName === "button" && node.attributes["aria-label"] === label);
+    const before = writes();
+    input.listeners.focus?.({ target: input });
+    // Raise then Lower: 9 stays 9, then steps to 8 (a Raise that pulled it to 4 would show 3).
+    click(stepper("Raise"));
+    click(stepper("Lower"));
+    await until(() => shown(input) !== "9", "the field to show the steps");
+    assert.equal(shown(input), "8", "Raise didn't pull the count down to 4");
+    leave(row, input);
+    await until(() => stateOf(row) === "error", "the save to be refused");
+    assert.equal(ola[123], 9, "nothing was written");
+    assert.equal(writes(), before);
+    ola[123] = 2;
+});
+
 test("post office: the points summary follows a box or misc save as soon as it's saved", async () => {
     const root = await openPage(
         "src/ui/pages/world-2/post-office/post-office.js",

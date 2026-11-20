@@ -126,6 +126,8 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             const max = Number(maxState.val);
             const updated = Math.max(0, next + delta);
+            // A count the game holds past the max: Raise leaves it, Lower steps it (normalize refuses saving it).
+            if (max > 0 && next > max) return delta > 0 ? next : updated;
             return max > 0 ? Math.min(max, updated) : updated;
         },
         inputMode: "int",
