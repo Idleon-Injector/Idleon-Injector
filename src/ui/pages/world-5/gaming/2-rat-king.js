@@ -1,4 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { CappedValue } from "../../../components/NumberInput.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { Icons } from "../../../assets/icons.js";
 import { gga } from "../../../services/api.js";
@@ -76,6 +77,12 @@ const RatKingTab = () => {
         matrixStatus.status.val === "loading" ||
         maxLogbookStatus.status.val === "loading";
 
+    const crownsFrom = (raw) => new Set(Array.isArray(raw) ? raw.filter((id) => ALL_CROWNS_SET.has(id)) : []);
+    // Each change starts from the crowns the game holds now, so one reclaimed in game since the page opened stays.
+    // A removal that would take more crowns than its question named (counted from the page) saves nothing instead:
+    // the read has put the game's crowns on the page, so the next press asks with the real count.
+    const readCrowns = async () => (crownsSet.val = crownsFrom(await gga("Research[11]")));
+
     const sortAndSaveCrowns = async (nextSet) => {
         const sorted = ALL_CROWNS.filter((id) => nextSet.has(id));
         await writeVerified("Research[11]", sorted);
@@ -85,9 +92,11 @@ const RatKingTab = () => {
 
     const toggleCrown = (crownId) => {
         if (isWriting()) return;
+        // The click asks for the opposite of what the chip showed, whatever the game holds by the time it saves.
+        const claim = !crownsSet.val.has(crownId);
         return matrixStatus.run(async () => {
-            const next = new Set(crownsSet.val);
-            next.has(crownId) ? next.delete(crownId) : next.add(crownId);
+            const next = new Set(await readCrowns());
+            claim ? next.add(crownId) : next.delete(crownId);
             await sortAndSaveCrowns(next);
         });
     };
@@ -99,13 +108,17 @@ const RatKingTab = () => {
 
     const handleClearAll = () => {
         if (isWriting()) return;
-        return clearStatus.run(() => sortAndSaveCrowns(new Set()));
+        const asked = crownsSet.val.size;
+        return clearStatus.run(async () => {
+            if ((await readCrowns()).size > asked) return { cancelled: true };
+            await sortAndSaveCrowns(new Set());
+        });
     };
 
     const handleReclaimDiscovered = () => {
         if (isWriting()) return;
         return discoveredStatus.run(async () => {
-            const next = new Set(crownsSet.val);
+            const next = new Set(await readCrowns());
             for (let p = 0; p < PLANT_COUNT; p++) {
                 const unlocked = getUnlockedMutationCount(logbookStr.val, p);
                 for (let m = 0; m < unlocked; m++) next.add(`${p}${MUTATION_CHARS[m]}`);
@@ -116,13 +129,16 @@ const RatKingTab = () => {
 
     const handleSetCount = () => {
         if (isWriting()) return;
+        const desired = Math.max(0, Math.min(ALL_CROWNS.length, toInt(targetCount.val, 0)));
+        const asked = Math.max(0, crownsSet.val.size - desired);
         return setCountStatus.run(async () => {
-            const desired = Math.max(0, Math.min(ALL_CROWNS.length, toInt(targetCount.val, 0)));
             targetCount.val = String(desired);
-            if (desired === crownsSet.val.size) return;
+            const held = await readCrowns();
+            if (held.size - desired > asked) return { cancelled: true };
+            if (desired === held.size) return;
 
-            const current = ALL_CROWNS.filter((id) => crownsSet.val.has(id));
-            const missing = ALL_CROWNS.filter((id) => !crownsSet.val.has(id));
+            const current = ALL_CROWNS.filter((id) => held.has(id));
+            const missing = ALL_CROWNS.filter((id) => !held.has(id));
             const next =
                 desired > current.length
                     ? [...current, ...missing.slice(0, desired - current.length)]
@@ -132,10 +148,13 @@ const RatKingTab = () => {
         });
     };
 
-    const updatePlantCrowns = (plantIndex, shouldClaim) => {
+    // `asked`: how many crowns on the plant a Clear's question named.
+    const updatePlantCrowns = (plantIndex, shouldClaim, asked = 0) => {
         if (isWriting()) return;
         return matrixStatus.run(async () => {
-            const next = new Set(crownsSet.val);
+            const next = new Set(await readCrowns());
+            const held = MUTATION_CHARS.filter((m) => next.has(`${plantIndex}${m}`)).length;
+            if (!shouldClaim && held > asked) return { cancelled: true };
             for (const m of MUTATION_CHARS) {
                 const id = `${plantIndex}${m}`;
                 if (shouldClaim) next.add(id);
@@ -157,8 +176,7 @@ const RatKingTab = () => {
     const load = async () =>
         run(async () => {
             const [rawCrowns, rawLogbook] = await Promise.all([gga("Research[11]"), gga("Gaming[11]")]);
-            const loadedCrowns = Array.isArray(rawCrowns) ? rawCrowns.filter((id) => ALL_CROWNS_SET.has(id)) : [];
-            const loadedSet = new Set(loadedCrowns);
+            const loadedSet = crownsFrom(rawCrowns);
             crownsSet.val = loadedSet;
             targetCount.val = String(loadedSet.size);
             logbookStr.val = typeof rawLogbook === "string" ? rawLogbook : "__________";
@@ -286,7 +304,7 @@ const RatKingTab = () => {
                                 const owned = MUTATION_CHARS.filter((m) => crownsSet.val.has(`${p}${m}`)).length;
                                 if (owned && !clickAgain(e.currentTarget, `clear ${owned} crowns on Plant ${p + 1}.`))
                                     return undefined;
-                                return updatePlantCrowns(p, false);
+                                return updatePlantCrowns(p, false, owned);
                             },
                             title: `Clear crowns for Plant ${p + 1}`,
                         },
@@ -340,7 +358,9 @@ const RatKingTab = () => {
                         ),
                     ],
                     badge: () =>
-                        logbookStr.val === "jjjjjjjjjj" ? "ALL MAXED" : `${logbookStr.val.replace(/_/g, "").length}/10`,
+                        logbookStr.val === "jjjjjjjjjj"
+                            ? "All maxed"
+                            : CappedValue({ value: logbookStr.val.replace(/_/g, "").length, cap: 10 }),
                     status: maxLogbookStatus.status,
                     controls: [
                         ActionButton({

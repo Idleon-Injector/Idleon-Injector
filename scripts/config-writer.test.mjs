@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { test } from "node:test";
 import vm from "node:vm";
 import { captureLogger, loadCommonJs, request } from "./known-bugs/index.mjs";
@@ -67,7 +67,11 @@ test("a WebUI save loads back after a restart, on top of the generated config.js
     loadCommonJs("src/modules/server/routes/config.js", { "../../config/configManager": config }).setupConfigRoutes(
         router,
         // A game where `nomore Copper` ran: its patterns come back when the WebUI reads the config.
-        { callHelper: async () => ({ value: JSON.stringify({ nomore: { items: ["/Copper/"] } }) }) },
+        {
+            callHelper: async () => ({ value: JSON.stringify({ nomore: { items: ["/Copper/"] } }) }),
+            isAttached: async () => true,
+            updateConfig: async () => ({ value: "Config updated in game." }),
+        },
         {
             cheatConfig: config.getCheatConfig(),
             defaultConfig: config.getDefaultConfig(),
@@ -169,4 +173,110 @@ test("a save that leaves out the startup cheats keeps them, loaded and in the fi
     assert.deepEqual(config.getStartupCheats(), startup, "the loaded list keeps them");
     await config.saveConfiguration({ cheatConfig: {} });
     assert.deepEqual(start().config.getStartupCheats(), startup, "and so does the file after a second save");
+});
+
+test("two saves at once write the file one after the other, so it still loads", async (t) => {
+    useInstall(t);
+    // Every file step the saves take, in the order they take them.
+    const steps = [];
+    const realFs = require("fs");
+    const logged =
+        (name) =>
+        async (path, ...rest) => {
+            steps.push(`${name} ${basename(path)}`);
+            return realFs.promises[name](path, ...rest);
+        };
+    const fs = {
+        ...realFs,
+        promises: { ...realFs.promises, writeFile: logged("writeFile"), rename: logged("rename") },
+    };
+    const config = loadCommonJs("src/modules/config/configManager.js", { "../utils/logger": captureLogger(), fs });
+    for (const key of Object.keys(require.cache)) if (/config(\.custom)?\.js$/.test(key)) delete require.cache[key];
+    config.loadConfiguration();
+
+    // Sushi Tools: a field's blur and the "Show in-game buttons" switch each save the whole config.
+    await Promise.all([
+        config.saveConfiguration({ cheatConfig: { unlock: { islands: "a" } } }),
+        config.saveConfiguration({ cheatConfig: { unlock: { islands: "abc" } } }),
+    ]);
+    const tmp = "writeFile config.custom.js.tmp";
+    const rename = "rename config.custom.js.tmp";
+    assert.deepEqual(
+        steps,
+        [tmp, rename, tmp, rename],
+        "a save starts its temporary file after the last one is in place"
+    );
+    assert.equal(start().config.getCheatConfig().unlock.islands, "abc", "the file loads with the later save");
+});
+
+test("a save the running game refuses is still written, and says the game kept its old settings", async (t) => {
+    const dir = useInstall(t);
+    const { config } = start();
+    const router = new TinyRouter();
+    const game = {
+        callHelper: async () => ({ value: "{}" }),
+        isAttached: async () => true,
+        updateConfig: async () => ({ error: { text: "cheatConfig is not defined" } }),
+    };
+    loadCommonJs("src/modules/server/routes/config.js", { "../../config/configManager": config }).setupConfigRoutes(
+        router,
+        game,
+        { cheatConfig: config.getCheatConfig(), startupCheats: config.getStartupCheats() }
+    );
+    const save = (islands) => request(router, "POST", "/api/config/save", { cheatConfig: { unlock: { islands } } });
+    const saved = await save("a");
+    assert.equal(saved.statusCode, 200);
+    assert.equal(
+        saved.body.message,
+        "Configuration saved to config.custom.js. The running game kept its old settings " +
+            "(Failed to apply in game: cheatConfig is not defined)"
+    );
+    assert.match(readFileSync(join(dir, "config.custom.js"), "utf8"), /islands: "a"/);
+
+    // A game that isn't there gets the saved settings when it's injected, so that save is a plain success:
+    // closed, closed with its socket gone (the injector UI kept open after the game), or mid-reload.
+    const plain = "Configuration successfully saved to config.custom.js";
+    game.isAttached = async () => false;
+    assert.equal((await save("b")).body.message, plain);
+    game.isAttached = async () => {
+        throw new Error("WebSocket is not open: readyState 3 (CLOSED)");
+    };
+    assert.equal((await save("c")).body.message, plain);
+    game.isAttached = async () => true;
+    game.updateConfig = async () => {
+        throw new Error("Cannot find context with specified id");
+    };
+    assert.equal((await save("d")).body.message, plain);
+    assert.match(readFileSync(join(dir, "config.custom.js"), "utf8"), /islands: "d"/);
+});
+
+// Review of #127: a config read during a save's game update merged the game's old value over the one just saved,
+// and the next partial save wrote that old value to the file.
+test("a config read while a save updates the game keeps the saved value, in the injector and the file", async (t) => {
+    const dir = useInstall(t);
+    const { config } = start();
+    let gameIslands = "x";
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let updating;
+    const updateStarted = new Promise((resolve) => (updating = resolve));
+    const game = {
+        callHelper: async () => ({ value: JSON.stringify({ unlock: { islands: gameIslands } }) }),
+        isAttached: async () => true,
+        updateConfig: async (cheatConfig) => {
+            updating();
+            await held;
+            gameIslands = cheatConfig.unlock.islands;
+            return { value: "ok" };
+        },
+    };
+    const save = config.saveConfiguration({ cheatConfig: { unlock: { islands: "a" } } }, game);
+    await updateStarted;
+    const read = config.pullGameConfig(game, config.getCheatConfig());
+    release();
+    await Promise.all([save, read]);
+    assert.equal(config.getCheatConfig().unlock.islands, "a", "the injector keeps the saved value");
+    // A save that leaves the setting out, as an automation tab's does.
+    await config.saveConfiguration({ cheatConfig: {} });
+    assert.match(readFileSync(join(dir, "config.custom.js"), "utf8"), /islands: "a"/);
 });

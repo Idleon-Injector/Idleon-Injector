@@ -22,6 +22,7 @@ import {
     createIndexedStateGetter,
     createStaticRowReconciler,
     readLevelDefinitions,
+    resolveNumberInput,
     runBulkSet,
     toNum,
     useWriteStatus,
@@ -74,9 +75,17 @@ const VialTab = () => {
             );
         });
 
+    const typedLevel = () => resolveNumberInput(setAllInput.val, { min: 0, max: MAX_VIAL_LEVEL, fallback: null });
+    // Lowering takes levels away, so it asks first; raising runs on one click.
+    const confirmSetAll = () => {
+        const lvl = typedLevel();
+        const lowered = (vialDefs.val ?? []).filter((vial) => Number(getLevelState(vial.index).val) > lvl).length;
+        return lowered ? `lower ${lowered} vial${lowered === 1 ? "" : "s"} to level ${lvl}.` : null;
+    };
+
     const doSetAll = async () => {
-        const lvl = Math.min(MAX_VIAL_LEVEL, Math.max(0, Math.round(Number(setAllInput.val))));
-        if (Number.isNaN(lvl)) return;
+        const lvl = typedLevel();
+        if (lvl === null) return;
         const vials = vialDefs.val ?? [];
         if (vials.length === 0) return;
 
@@ -103,6 +112,7 @@ const VialTab = () => {
                 value: setAllInput,
                 status: bulkStatus,
                 onApply: doSetAll,
+                confirm: confirmSetAll,
                 max: MAX_VIAL_LEVEL,
             }),
             refresh: { onClick: load },

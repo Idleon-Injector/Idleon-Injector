@@ -90,7 +90,8 @@ const LegendTalentTab = () => {
     const reconcileSection = (section) => {
         const node = getSectionNode(section.id);
         const reconcileRows = reconcilers.get(section.id);
-        reconcileRows(section.talents.map((talent) => talent.talentIndex).join("|"), () =>
+        // The cap is built into each row, so a new max (Research grid bonuses raise it) rebuilds the section's rows.
+        reconcileRows(section.talents.map((talent) => `${talent.talentIndex}:${talent.maxLevel}`).join("|"), () =>
             section.talents.map((talent) => LegendTalentRow({ talent }))
         );
         return node;
@@ -137,6 +138,7 @@ const LegendTalentTab = () => {
                     currentTalent.maxLevel = nextTalent.maxLevel;
                     currentTalent.levelState.val = nextTalent.levelState.val;
                 }
+                reconcileSection(currentSection);
             }
         });
 
