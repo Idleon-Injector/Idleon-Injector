@@ -62,10 +62,28 @@ const apply = async () => {
 test("an emptied or half-typed cap field is refused in place and Apply keeps the cap", async () => {
     const cap = field("creditcap");
     const before = shown(cap);
-    for (const typed of ["", "-", "abc"]) {
+    // 1e400 and Infinity parse to Infinity, which Apply would send as null: a cap of 0 again.
+    for (const typed of ["", "-", "abc", "1e400", "Infinity"]) {
         edit(cap, typed);
         assert.equal(shown(cap), before, `"${typed}" is put back to the cap it would have replaced`);
         assert.equal((await apply()).creditcap, Number(before), `"${typed}" never reaches the game`);
+    }
+});
+
+test("a cap cleared with Backspace and left empty keeps the cap it held, not the last digit", async () => {
+    for (const key of ["creditcap", "bones"]) {
+        const cap = field(key);
+        const before = shown(cap);
+        cap.listeners.focus({ target: cap });
+        // Each Backspace is one input event; the prefixes on the way are numbers too ("1000", "1e+2", "1").
+        for (let typed = before; typed.length > 0; ) {
+            typed = typed.slice(0, -1);
+            cap.value = typed;
+            cap.listeners.input({ target: cap });
+        }
+        cap.listeners.blur({ target: cap });
+        assert.equal(shown(cap), before, `${key} shows the cap it held`);
+        assert.equal((await apply())[key], Number(before), `${key} keeps the cap it held`);
     }
 });
 
