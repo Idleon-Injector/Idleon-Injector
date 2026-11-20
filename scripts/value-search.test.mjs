@@ -115,12 +115,16 @@ test("text typed while a value is written stays in the editor when no Enter foll
     field().listeners.keydown({ key: "Enter", stopPropagation() {} });
     await until(() => writes.length > count, "the write to start");
     field().listeners.input({ target: { value: "77" } });
+    const typingIn = field();
     release();
     // The row confirms the write in place.
     await until(() => classes(row()).includes("is-confirmed"), "the write to be confirmed");
     assert.equal(writes.length, count + 1);
     assert.equal(field()?.attributes.value, "77", "the editor stays open with what was typed");
+    assert.equal(field(), typingIn, "the field being typed in is kept, so it keeps focus");
     field().listeners.keydown({ key: "Escape", stopPropagation() {} });
+    await until(() => !field(), "the editor to close");
+    assert.equal(text(byClass(row(), "result-value")[0]), "7", "the row shows the value written");
 });
 
 test("New scan asks Click again before it drops the results", async () => {

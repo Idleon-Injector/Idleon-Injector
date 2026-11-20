@@ -89,12 +89,16 @@ const Note = (text) =>
         text() ? span({ class: "search-note__body" }, Icons.Warning({ class: "said__icon" }), text()) : span()
     );
 
-const ResultItem = ({ result, ui, handlers }) => {
-    const { copyFeedback, handleCopy, copySaid } = useCopy(result.path);
+// Returns { node, sync } like SavedResultItem: a written value reaches the row through sync(result), so an
+// editor left open after a write keeps its field (and focus).
+const ResultItem = ({ result: initialResult, ui, handlers }) => {
+    const resultState = van.state(initialResult);
+    const path = initialResult.path;
+    const { copyFeedback, handleCopy, copySaid } = useCopy(path);
 
-    const isEditing = () => ui.edit.path === result.path;
+    const isEditing = () => ui.edit.path === path;
     const editError = EditError(isEditing, ui.edit);
-    const isInSavedList = () => ui.savedResults.some((entry) => entry.path === result.path);
+    const isInSavedList = () => ui.savedResults.some((entry) => entry.path === path);
 
     const handleAddToList = (e) => {
         e.stopPropagation();
@@ -103,16 +107,16 @@ const ResultItem = ({ result, ui, handlers }) => {
         }
 
         if (isInSavedList()) {
-            handlers.removeSavedResult(result.path);
+            handlers.removeSavedResult(path);
             return;
         }
 
-        handlers.addToSavedResults(result);
+        handlers.addToSavedResults(resultState.val);
     };
 
     const handleStartEdit = (e) => {
         e.stopPropagation();
-        handlers.startEdit(result);
+        handlers.startEdit(resultState.val);
     };
 
     const handleCancel = (e) => {
@@ -131,20 +135,23 @@ const ResultItem = ({ result, ui, handlers }) => {
             class: () =>
                 "search-result-item " +
                 (copyFeedback.val === "success" ? "copied " : "") +
-                (ui.writtenPath === result.path ? "is-confirmed" : ""),
+                (ui.writtenPath === path ? "is-confirmed" : ""),
         },
-        span({ class: "result-path" }, result.path),
+        span({ class: "result-path" }, path),
         span({ class: "result-equals" }, "="),
 
         () => {
             if (!isEditing()) {
-                return span({ class: "result-value type-" + result.type }, result.formattedValue);
+                return span(
+                    { class: () => "result-value type-" + resultState.val.type },
+                    () => resultState.val.formattedValue
+                );
             }
 
             return input({
                 class: "result-edit-input",
                 value: () => ui.edit.draft,
-                "aria-label": `New value for ${result.path}`,
+                "aria-label": `New value for ${path}`,
                 ...editError.fieldProps,
                 oninput: (e) => {
                     ui.edit.draft = e.target.value;
@@ -224,7 +231,10 @@ const ResultItem = ({ result, ui, handlers }) => {
             );
         })
     );
-    return div({ class: "search-result-entry" }, row, editError.line);
+    return {
+        node: div({ class: "search-result-entry" }, row, editError.line),
+        sync: (nextResult) => (resultState.val = nextResult),
+    };
 };
 
 const SearchButton = ({
@@ -565,60 +575,90 @@ export const ResultsSection = ({ ui, handlers }) =>
                           )
                         : null
             ),
-            () => {
-                if (ui.scan.isSearching) {
-                    return Loader({ text: "Searching" });
-                }
-
-                if (ui.scan.error || ui.error) {
-                    return EmptyState({
-                        failed: true,
-                        title: "SEARCH ERROR",
-                        subtitle: ui.scan.error || ui.error,
-                    });
-                }
-
-                if (ui.scan.results.length === 0) {
-                    if (ui.scan.hasSearched) {
-                        return EmptyState({
-                            title: "NO RESULTS",
-                            subtitle: "Try a different search value or select more keys",
-                        });
-                    }
-                    return EmptyState({
-                        title: "SEARCH GGA",
-                        subtitle: "Enter a value and press First scan, or use UNKNOWN INITIAL VALUE to scan all values",
-                    });
-                }
-
-                const filteredResults = handlers.getFilteredResults();
-                const visibleResults = filteredResults.slice(0, ui.displayLimit);
-                const hasMore = filteredResults.length > ui.displayLimit;
-                const remaining = filteredResults.length - ui.displayLimit;
-
-                return div(
-                    { class: "results-list" },
-                    filteredResults.length === 0
-                        ? EmptyState({
-                              title: "NO FILTER MATCH",
-                              subtitle: "Try a different path/value filter",
-                          })
-                        : null,
-                    ...visibleResults.map((result) => ResultItem({ result, ui, handlers })),
-                    hasMore
-                        ? button(
-                              {
-                                  type: "button",
-                                  class: "btn-quiet load-more-btn",
-                                  onclick: () => (ui.displayLimit += 50),
-                              },
-                              `Load more (${remaining} remaining)`
-                          )
-                        : null
-                );
-            }
+            ResultsList({ ui, handlers })
         )
     );
+
+// The list is rebuilt only when the rows shown change; a written value reaches its row through sync(), so the
+// rows (and an editor open in one) stay in place.
+const ResultsList = ({ ui, handlers }) => {
+    let rows = new Map();
+    let list = null;
+    let listKey = null;
+    const forget = () => {
+        rows = new Map();
+        list = listKey = null;
+    };
+
+    return () => {
+        if (ui.scan.isSearching) {
+            forget();
+            return Loader({ text: "Searching" });
+        }
+
+        if (ui.scan.error || ui.error) {
+            forget();
+            return EmptyState({
+                failed: true,
+                title: "SEARCH ERROR",
+                subtitle: ui.scan.error || ui.error,
+            });
+        }
+
+        if (ui.scan.results.length === 0) {
+            forget();
+            if (ui.scan.hasSearched) {
+                return EmptyState({
+                    title: "NO RESULTS",
+                    subtitle: "Try a different search value or select more keys",
+                });
+            }
+            return EmptyState({
+                title: "SEARCH GGA",
+                subtitle: "Enter a value and press First scan, or use UNKNOWN INITIAL VALUE to scan all values",
+            });
+        }
+
+        const filteredResults = handlers.getFilteredResults();
+        const visibleResults = filteredResults.slice(0, ui.displayLimit);
+        const hasMore = filteredResults.length > ui.displayLimit;
+        const remaining = filteredResults.length - ui.displayLimit;
+
+        // Only the rows shown are kept, so a row is never reused after it left the page.
+        const shown = new Map();
+        for (const result of visibleResults) {
+            const row = rows.get(result.path) ?? ResultItem({ result, ui, handlers });
+            row.sync(result);
+            shown.set(result.path, row);
+        }
+        rows = shown;
+
+        const key = [filteredResults.length, remaining, ...shown.keys()].join("|");
+        if (key === listKey) return list;
+        listKey = key;
+        list = div(
+            { class: "results-list" },
+            filteredResults.length === 0
+                ? EmptyState({
+                      title: "NO FILTER MATCH",
+                      subtitle: "Try a different path/value filter",
+                  })
+                : null,
+            ...[...shown.values()].map((row) => row.node),
+            hasMore
+                ? button(
+                      {
+                          type: "button",
+                          class: "btn-quiet load-more-btn",
+                          onclick: () => (ui.displayLimit += 50),
+                      },
+                      `Load more (${remaining} remaining)`
+                  )
+                : null
+        );
+        return list;
+    };
+};
 
 // Returns { node, sync }: the node is cached and reused by SavedResultsSection's
 // row reconciler, and sync(entry) pushes fresh entry data into the row's state
