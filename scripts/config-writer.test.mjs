@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { test } from "node:test";
 import vm from "node:vm";
 import { captureLogger, loadCommonJs, request } from "./known-bugs/index.mjs";
@@ -169,4 +169,38 @@ test("a save that leaves out the startup cheats keeps them, loaded and in the fi
     assert.deepEqual(config.getStartupCheats(), startup, "the loaded list keeps them");
     await config.saveConfiguration({ cheatConfig: {} });
     assert.deepEqual(start().config.getStartupCheats(), startup, "and so does the file after a second save");
+});
+
+test("two saves at once write the file one after the other, so it still loads", async (t) => {
+    useInstall(t);
+    // Every file step the saves take, in the order they take them.
+    const steps = [];
+    const realFs = require("fs");
+    const logged =
+        (name) =>
+        async (path, ...rest) => {
+            steps.push(`${name} ${basename(path)}`);
+            return realFs.promises[name](path, ...rest);
+        };
+    const fs = {
+        ...realFs,
+        promises: { ...realFs.promises, writeFile: logged("writeFile"), rename: logged("rename") },
+    };
+    const config = loadCommonJs("src/modules/config/configManager.js", { "../utils/logger": captureLogger(), fs });
+    for (const key of Object.keys(require.cache)) if (/config(\.custom)?\.js$/.test(key)) delete require.cache[key];
+    config.loadConfiguration();
+
+    // Sushi Tools: a field's blur and the "Show in-game buttons" switch each save the whole config.
+    await Promise.all([
+        config.saveConfiguration({ cheatConfig: { unlock: { islands: "a" } } }),
+        config.saveConfiguration({ cheatConfig: { unlock: { islands: "abc" } } }),
+    ]);
+    const tmp = "writeFile config.custom.js.tmp";
+    const rename = "rename config.custom.js.tmp";
+    assert.deepEqual(
+        steps,
+        [tmp, rename, tmp, rename],
+        "a save starts its temporary file after the last one is in place"
+    );
+    assert.equal(start().config.getCheatConfig().unlock.islands, "abc", "the file loads with the later save");
 });

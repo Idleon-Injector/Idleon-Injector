@@ -177,9 +177,17 @@ async function pullGameConfig(gameBridge, cheatConfig) {
 /**
  * Persist UI overrides, then update the loaded configuration only after the write succeeds.
  * What it's sent is merged into the current settings, so a partial save keeps the rest.
+ * Saves run one at a time: they share one temporary file, and two at once could leave a config.custom.js
+ * that doesn't load.
  * @returns {Promise<{ brokenFileKeptAs?: string }>} Where a config.custom.js that failed to load was kept
  */
-async function saveConfiguration(receivedFullConfig) {
+function saveConfiguration(receivedFullConfig) {
+    const save = () => writeConfiguration(receivedFullConfig);
+    return (saving = saving.then(save, save));
+}
+let saving = Promise.resolve();
+
+async function writeConfiguration(receivedFullConfig) {
     const cheatConfig = getCheatConfig();
     const startupCheats = getStartupCheats();
     const injectorConfig = getInjectorConfig();
