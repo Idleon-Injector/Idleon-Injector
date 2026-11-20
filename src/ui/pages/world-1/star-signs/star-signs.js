@@ -127,7 +127,7 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
     const players = van.state([...sign.players]);
     let saved = encodeProgress(sign.players);
     // Every change to the list saves; a change made while one saves is saved after it.
-    const { status, reason, save } = useAutoSave({
+    const { status, reason, save, undo } = useAutoSave({
         prepare: () => {
             const progress = encodeProgress(players.val);
             if (progress === saved) return { unchanged: true };
@@ -244,7 +244,7 @@ const StarSignDetail = ({ sign, usernames = [], onSave, onBack }) => {
             );
         }),
 
-        div({ class: "starsign-detail-actions" }, SaveState({ status, reason, className: "save-state--inline" }))
+        div({ class: "starsign-detail-actions" }, SaveState({ status, reason, undo, className: "save-state--inline" }))
     );
 };
 

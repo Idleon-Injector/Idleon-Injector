@@ -401,7 +401,7 @@ const WeeklyBossTab = () => {
                   : "";
         };
         return AccountRow({
-            rowClass: () => saveStateClass(state.write.status.val),
+            rowClass: () => saveStateClass(state.write.status.val, state.write.undo),
             rowProps: state.write.handlers,
             info: div(
                 { class: "account-row__name-group" },

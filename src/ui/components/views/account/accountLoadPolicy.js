@@ -1,4 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
 
 /**
  * Shared account-page load helpers.
@@ -23,8 +24,12 @@ import van from "../../../vendor/van-1.6.0.js";
 export const useAccountLoad = ({ label = "Account page", fallbackMessage } = {}) => {
     const loading = van.state(true);
     const error = van.state(null);
+    // A page mounts while it is open, so this is the page it loads for.
+    const place = currentPlace();
+    let lastTask = null;
 
     const run = async (task) => {
+        lastTask = task;
         loading.val = true;
         error.val = null;
 
@@ -55,6 +60,18 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage } = {})
             loading.val = false;
         }
     };
+
+    // An undo made elsewhere (History, or a bulk Undo all) changed values this page shows: read them again.
+    // One asked for while a load runs waits for it to end, as that load may have read the values before the undo.
+    // ponytail: re-runs the page's last load; a load must only read, which is how every page loads today.
+    let handled = reloadPlace.rawVal;
+    van.derive(() => {
+        const target = reloadPlace.val;
+        const busy = loading.val;
+        if (!target || target === handled || !lastTask || busy) return;
+        handled = target;
+        if (target.view === place.view && target.page === place.page) void run(lastTask);
+    });
 
     return { loading, error, run };
 };

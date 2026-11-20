@@ -50,7 +50,7 @@ export const EditableNumberRow = ({
     } = inputProps;
     const formatCommittedValue = (value) =>
         typeof formatter === "function" ? formatter(value ?? 0) : String(value ?? 0);
-    const { inputValue, status, reason, handlers, run, isDisabled, applyValue, focus, blur } = useNumericEditor({
+    const { inputValue, status, reason, undo, handlers, run, isDisabled, applyValue, focus, blur } = useNumericEditor({
         valueState,
         normalize,
         write,
@@ -99,7 +99,7 @@ export const EditableNumberRow = ({
                 joinClasses(
                     "account-row",
                     typeof rowClass === "function" ? rowClass() : rowClass,
-                    saveStateClass(status.val)
+                    saveStateClass(status.val, undo)
                 ),
             ...handlers,
         },
@@ -119,7 +119,7 @@ export const EditableNumberRow = ({
                         typeof controlsClass === "function" ? controlsClass() : controlsClass
                     ),
             },
-            SaveState({ status, reason }),
+            SaveState({ status, reason, undo }),
             NumberInput({
                 mode: inputMode,
                 value: inputValue,

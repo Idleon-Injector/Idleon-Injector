@@ -53,7 +53,7 @@ const createOptionRow = (index, rawValue, schema) => {
     const warning = van.state(schema?.warning ?? null);
     let isFocused = false;
     const stored = () => store.data.accountOptions[index];
-    const { status, reason, save, handlers } = useAutoSave({
+    const { status, reason, save, handlers, undo } = useAutoSave({
         prepare: () => {
             const nextValue = normalizeForWrite(editorType.val, currentValue.val);
             if (JSON.stringify(nextValue) === JSON.stringify(stored())) return { unchanged: true };
@@ -120,9 +120,10 @@ const createOptionRow = (index, rawValue, schema) => {
                     "option-item feature-card",
                     isAI.val ? "is-ai-option" : "",
                     warning.val ? "has-warning" : "",
-                    saveStateClass(status.val)
+                    saveStateClass(status.val, undo)
                 ),
             "data-index": index,
+            "data-change-label": () => `${name.val} (${index})`,
         },
         div(
             { class: "option-header" },
@@ -149,7 +150,7 @@ const createOptionRow = (index, rawValue, schema) => {
                 },
             },
             () => renderEditor(),
-            SaveState({ status, reason, className: "save-state--inline" })
+            SaveState({ status, reason, undo, className: "save-state--inline" })
         )
     );
 

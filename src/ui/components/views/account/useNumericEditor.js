@@ -22,6 +22,7 @@ export const useNumericEditor = ({ valueState, normalize, write, format, disable
         reason: editor.reason,
         handlers: editor.handlers,
         run: editor.run,
+        undo: editor.undo,
         isDisabled: editor.isDisabled,
         applyValue: async (rawValue) => {
             const outcome = await editor.applyValue(rawValue === undefined ? undefined : { value: rawValue });

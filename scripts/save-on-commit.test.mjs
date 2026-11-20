@@ -81,6 +81,8 @@ const holdWrites = () => {
 
 const saveState = (row) => byClass(row, "save-state")[0];
 const stateOf = (row) => /save-state--(\w+)/.exec(classes(saveState(row)))?.[1] ?? null;
+// What the state says (Undo, beside it after a save, is its own button).
+const words = (row) => text(byClass(row, "save-state__label")[0]);
 const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
 const writesSince = (start) => requests.slice(start).filter((entry) => entry.includes("/write"));
 
@@ -97,7 +99,7 @@ test("Enter saves the value, shows the read-back ✓ and keeps the field", async
     press(row, input, "Enter");
     await tick();
     assert.equal(stateOf(row), "loading");
-    assert.equal(text(saveState(row)), "saving…");
+    assert.equal(words(row), "saving…");
     release();
     await settled(row);
     assert.equal(stateOf(row), "success");
@@ -105,7 +107,7 @@ test("Enter saves the value, shows the read-back ✓ and keeps the field", async
     assert.deepEqual(writesSince(start), ["POST /api/game/gga/write"]);
     // The ✓ means the value was read back: the badge shows what the game now holds.
     assert.equal(text(byClass(row, "account-row__badge")[0]), "42");
-    assert.equal(text(saveState(row)), "saved", "screen readers hear that it saved");
+    assert.equal(words(row), "saved", "screen readers hear that it saved");
     assert.equal(input.value, "42");
     assert.notEqual(input.disabled, true, "the field stays usable, so it keeps focus");
 });
@@ -133,7 +135,7 @@ test("a save the game doesn't keep shows why, and the typed value stays", async 
         press(row, input, "Enter");
         await settled(row);
         assert.equal(stateOf(row), "error");
-        assert.equal(text(saveState(row)), "game kept old value");
+        assert.equal(words(row), "game kept old value");
         assert.equal(input.value, "7", "what the player typed stays");
         assert.notEqual(ola[257], 7);
         assert.match(classes(row), /is-save-failed/);
@@ -203,7 +205,7 @@ test("text that isn't a number shows why and doesn't save", async () => {
     leave(row, input);
     await tick();
     assert.equal(stateOf(row), "error");
-    assert.equal(text(saveState(row)), "not a number");
+    assert.equal(words(row), "not a number");
     assert.equal(input.value, "lots");
     assert.deepEqual(writesSince(start), []);
 });
@@ -218,7 +220,7 @@ test("a value out of range shows the bound and doesn't save", async () => {
     press(row, input, "Enter");
     await tick();
     assert.equal(stateOf(row), "error");
-    assert.equal(text(saveState(row)), "max 600");
+    assert.equal(words(row), "max 600");
     assert.equal(input.value, "9999");
     assert.deepEqual(writesSince(start), []);
 });

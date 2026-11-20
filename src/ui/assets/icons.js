@@ -275,6 +275,13 @@ export const Icons = {
             { "stroke-width": "2", "aria-hidden": "true", ...props }
         ),
 
+    Undo: (props) =>
+        SvgBase([polyline({ points: "9 14 4 9 9 4" }), path({ d: "M20 20v-7a4 4 0 0 0-4-4H4" })], {
+            "stroke-width": "2",
+            "aria-hidden": "true",
+            ...props,
+        }),
+
     Check: (props) =>
         SvgBase(polyline({ points: "20 6 9 17 4 12" }), { "stroke-width": "2", "aria-hidden": "true", ...props }),
 

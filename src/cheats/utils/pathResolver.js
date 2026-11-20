@@ -255,7 +255,7 @@ export function writePath(path, value) {
  * are not rolled back if a later entry fails. Each written entry carries `value`, read back
  * in this same call (see writePath); callers verify against it before treating the batch as committed.
  *
- * @param {Array<{ path: string, value: any }>} writes
+ * @param {Array<{ path: string, value: any, expect?: any }>} writes
  * @returns {{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> } | { error: string }}
  */
 export function writePaths(writes = []) {
@@ -277,6 +277,14 @@ export function writePaths(writes = []) {
             if (resolved.error) return { path, ok: false, error: resolved.error };
 
             const { target, prop } = resolved;
+            // `expect` (an undo's write): the value checked before; refused if the game changed it since, in this
+            // same evaluation, so nothing can land between the check and the write.
+            // ponytail: compares JSON, so a numeric-key object (the server reads it back as an array) always refuses.
+            if (Object.prototype.hasOwnProperty.call(entry, "expect")) {
+                if (JSON.stringify(target[prop]) !== JSON.stringify(entry.expect)) {
+                    return { path, ok: false, error: "changed since" };
+                }
+            }
             target[prop] = entry.value;
             const { value } = readPath(path);
             // Keep a non-serializable value from failing the entire CDP response.

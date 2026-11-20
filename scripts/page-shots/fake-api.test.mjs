@@ -38,6 +38,8 @@ const EXAMPLES = {
     "/save-copies": ["GET"],
     "/save-copies/compare": ["POST", { id: "2026-11-20T00-00-00-000Z_Lumi_Main" }, 404],
     "/save-copies/restore": ["POST", { id: "2026-11-20T00-00-00-000Z_Lumi_Main", select: "all" }, 404],
+    "/changes": ["GET"],
+    "/changes/undone": ["POST", { id: "no-such-action", indexes: [0] }, 404],
 };
 
 const uiRoutes = [

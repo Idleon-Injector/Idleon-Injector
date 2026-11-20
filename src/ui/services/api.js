@@ -223,7 +223,7 @@ const coerceBooleanForCompare = (input) => {
     return undefined;
 };
 
-const matchesVerifiedValue = (expected, actual) => {
+export const matchesVerifiedValue = (expected, actual) => {
     if (typeof expected === "number") {
         const normalizedActual = coerceNumericForCompare(actual);
         if (typeof normalizedActual === "undefined") return false;
@@ -317,6 +317,7 @@ export async function ggaMany(writes) {
               return {
                   path: rawPath.startsWith("gga.") ? rawPath : rawPath ? `gga.${rawPath}` : "",
                   value: entry?.value,
+                  expect: entry?.expect,
               };
           })
         : [];
@@ -433,5 +434,45 @@ export async function restoreSaveCopy(id, select) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, select }),
+    });
+}
+
+/**
+ * Read many GGA paths in one round-trip, without verification: each result says whether its path could be read.
+ * @param {string[]} paths
+ * @returns {Promise<Array<{ path: string, ok: boolean, value?: any, error?: string }>>}
+ */
+export async function readGgaMany(paths) {
+    const data = await _request("/game/gga/read-many", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: paths.map((path) => (path.startsWith("gga.") ? path : `gga.${path}`)) }),
+    });
+    return data.results;
+}
+
+/**
+ * The change log this game session, newest action first.
+ * @returns {Promise<{ actions: Array<{ id: string, page: string, label: string, time: number, undoneAt?: number, entries: Array<{ path: string, before: any, hasBefore: boolean, after: any, character: string|null, live: boolean, undone: boolean }> }> }>}
+ */
+export async function fetchChanges() {
+    return _request("/changes");
+}
+
+/** Add saved values to an action in the change log (the action is made on its first save). */
+export async function logChanges(action, entries) {
+    return _request("/changes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, entries }),
+    });
+}
+
+/** Mark entries of an action (by their index) as undone. */
+export async function markChangesUndone(id, indexes) {
+    return _request("/changes/undone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, indexes }),
     });
 }

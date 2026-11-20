@@ -253,6 +253,21 @@ export async function loadUi(router) {
             this.childNodes = [];
             this.append(...children);
         }
+        get firstChild() {
+            return this.childNodes[0] ?? null;
+        }
+        get nextSibling() {
+            const siblings = this.parentNode?.childNodes ?? [];
+            return siblings[siblings.indexOf(this) + 1] ?? null;
+        }
+        insertBefore(node, before) {
+            node.remove?.();
+            node.parentNode = this;
+            const index = before ? this.childNodes.indexOf(before) : -1;
+            if (index < 0) this.childNodes.push(node);
+            else this.childNodes.splice(index, 0, node);
+            return node;
+        }
         contains(node) {
             for (let at = node; at; at = at.parentNode) if (at === this) return true;
             return false;

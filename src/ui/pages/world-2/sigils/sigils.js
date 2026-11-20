@@ -42,7 +42,7 @@ const SigilCard = ({ index, tierState, nameState }) => {
     const tierInput = van.state(String(tierState.val));
     const isFocused = van.state(false);
     // Picking a tier saves it.
-    const { status, reason, save, handlers } = useAutoSave({
+    const { status, reason, save, handlers, undo } = useAutoSave({
         prepare: () => {
             const tier = Math.min(4, Math.max(-1, Math.round(Number(tierInput.val))));
             if (tier === Number(tierState.val)) return { unchanged: true };
@@ -67,7 +67,9 @@ const SigilCard = ({ index, tierState, nameState }) => {
         {
             class: () => {
                 const tier = getTierInfo(tierState.val);
-                return ["tier-card", `sigil-card--${tier.cls}`, saveStateClass(status.val)].filter(Boolean).join(" ");
+                return ["tier-card", `sigil-card--${tier.cls}`, saveStateClass(status.val, undo)]
+                    .filter(Boolean)
+                    .join(" ");
             },
         },
         div(
@@ -77,7 +79,7 @@ const SigilCard = ({ index, tierState, nameState }) => {
                 span({ class: "tier-card__index" }, `#${index}`),
                 span({ class: "tier-card__name" }, () => nameState.val)
             ),
-            SaveState({ status, reason }),
+            SaveState({ status, reason, undo }),
             span(
                 { class: () => `tier-card__badge sigil-tier-badge--${getTierInfo(tierState.val).cls}` },
                 () => getTierInfo(tierState.val).label

@@ -67,6 +67,7 @@ const GridTab = () => {
     const detailInput = van.state("0");
     // The selected tile's level saves on Enter or on leaving the field.
     const detailSave = useAutoSave({
+        subject: () => selectedIndex.val,
         prepare: () => {
             const index = selectedIndex.val;
             const tile = index === null ? null : gridStates[index];
@@ -275,7 +276,8 @@ const GridTab = () => {
                     ),
                     div(
                         {
-                            class: () => `research-grid-detail__edit-row ${saveStateClass(detailSave.status.val)}`,
+                            class: () =>
+                                `research-grid-detail__edit-row ${saveStateClass(detailSave.status.val, detailSave.undo)}`,
                             ...detailSave.handlers,
                         },
                         span({ class: "research-grid-detail__edit-label" }, "Level"),

@@ -9,6 +9,7 @@ const { setupSearchRoutes } = require("./routes/search");
 const { setupConfigRoutes } = require("./routes/config");
 const { setupUpdateRoutes } = require("./routes/updates");
 const { setupSaveCopyRoutes } = require("./routes/saveCopies");
+const { setupChangeRoutes } = require("./routes/changes");
 const { gameClosed } = require("./wsServer");
 
 const log = createLogger("API");
@@ -35,6 +36,7 @@ function setupApiRoutes(app, context, client, config) {
     setupSearchRoutes(app, gameBridge);
     setupConfigRoutes(app, gameBridge, config);
     const saveCopies = setupSaveCopyRoutes(app, gameBridge, config.saveCopiesDir);
+    setupChangeRoutes(app);
 
     // Nothing re-attaches after the game closes, so the status stays "game closed" until a restart.
     let gameOpen = true;

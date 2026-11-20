@@ -161,8 +161,9 @@ const PrinterTab = () => {
     const updateRow = (state, item, qty, resetDraft = false) => {
         const retainDraft = !resetDraft && isDirty(state);
         state.saved.val = { item, qty };
+        // A kept draft is compared with what the game holds now.
+        state.baseline = { item, qty };
         if (!retainDraft) {
-            state.baseline = { item, qty };
             state.item.val = item;
             setNumberInputValue(state.quantity, String(qty));
             state.dirty.val++;
@@ -333,7 +334,8 @@ const PrinterTab = () => {
         return div(
             { "data-printer-slot": `${state.kind}-${state.slot + 1}` },
             AccountRow({
-                rowClass: () => `printer-row account-row--wide-controls ${saveStateClass(state.write.status.val)}`,
+                rowClass: () =>
+                    `printer-row account-row--wide-controls ${saveStateClass(state.write.status.val, state.write.undo)}`,
                 controlsClass: "account-row__controls--xl",
                 rowProps: state.write.handlers,
                 info: div(
@@ -427,6 +429,8 @@ const PrinterTab = () => {
         panelsNode.append(panel);
     };
 
+    // A Refresh discards the drafts (it asked first); the reload after an undo elsewhere keeps them.
+    let discardDrafts = false;
     const load = async () => {
         if (
             busy.val ||
@@ -434,6 +438,7 @@ const PrinterTab = () => {
         )
             return;
         busy.val = true;
+        discardDrafts = true;
         try {
             await runLoad(async () => {
                 const next = await readSnapshot();
@@ -449,10 +454,11 @@ const PrinterTab = () => {
                 }
                 accountIdentity = identity;
                 characterSelector.setCharacters(next.names);
-                syncSnapshot(next, true);
+                syncSnapshot(next, discardDrafts);
             });
         } finally {
             busy.val = false;
+            discardDrafts = false;
         }
     };
 

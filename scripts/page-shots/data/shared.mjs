@@ -52,6 +52,8 @@ const skillLevels = (seed) => list(25, (i) => (i === 0 ? 120 + seed * 30 : (i * 
 const player = (seed) =>
     h({
         Lv0: skillLevels(seed),
+        Exp0: list(25, (i) => (i * 7 + seed) % 90),
+        ExpReq0: list(25, (i) => 100 + i * 10),
         Money: 1234567 * (seed + 1),
         CharacterClass: [7, 34, 6][seed],
         Prayers: list(12, (slot) => (slot < 2 ? slot * 2 + seed : -1)),

@@ -134,6 +134,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         handlers: autoSave.handlers,
         cancel: autoSave.cancel,
         run: autoSave.run,
+        undo: autoSave.undo,
         isDisabled,
         applyValue,
     };

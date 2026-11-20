@@ -1,6 +1,7 @@
 import van from "../../../../vendor/van-1.6.0.js";
 import { withTooltip } from "../../../Tooltip.js";
 import { joinClasses, resolveValue } from "../accountShared.js";
+import { labelOf, withAction } from "../../../../services/changeLog.js";
 
 const { button } = van.tags;
 
@@ -43,7 +44,10 @@ export const ActionButton = ({
             disabled: () => {
                 return Boolean(resolveValue(disabled)) || resolveValue(status) === "loading";
             },
-            onclick: onClick,
+            // One press is one action: everything it saves, now or after its awaits, undoes together.
+            onclick: onClick
+                ? (e) => withAction({ label: labelOf(buttonNode), anchor: buttonNode }, () => onClick(e))
+                : null,
         },
         () => resolveValue(label)
     );

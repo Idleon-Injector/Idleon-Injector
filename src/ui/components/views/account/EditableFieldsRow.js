@@ -71,7 +71,7 @@ export const EditableFieldsRow = ({
     renderExtraActions = null,
 }) => {
     const editor = useFieldEditor({ fields, normalize, write });
-    const { status, reason, handlers } = editor;
+    const { status, reason, undo, handlers } = editor;
     // The row's buttons stay enabled while it saves, so Tab onto one never loses focus (a save during a save
     // runs after it); the save state beside the fields shows how it went.
     const actions = { ...editor, status: null };
@@ -80,10 +80,11 @@ export const EditableFieldsRow = ({
     return AccountRow({
         info,
         badge,
-        rowClass: () => joinClasses(typeof rowClass === "function" ? rowClass() : rowClass, saveStateClass(status.val)),
+        rowClass: () =>
+            joinClasses(typeof rowClass === "function" ? rowClass() : rowClass, saveStateClass(status.val, undo)),
         badgeClass,
         controlsClass,
         rowProps: handlers,
-        controls: [SaveState({ status, reason }), ...toNodes(renderControls(actions)), ...extraActions],
+        controls: [SaveState({ status, reason, undo }), ...toNodes(renderControls(actions)), ...extraActions],
     });
 };
