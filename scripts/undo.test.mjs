@@ -276,3 +276,20 @@ test("a value saved to both copies of the character in play goes back as the liv
     assert.equal(gga.Lv0[2], old);
     saved.Lv0[2] = old;
 });
+
+test("an undo refuses a value the game changes between its check and its write", async () => {
+    await withAction({ label: "test" }, () => writeVerified("OptionsListAccount[254]", 55));
+    const action = await newest();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) => {
+        if (String(url).endsWith("/game/gga/write-many")) ola[254] = 56; // the game moved on
+        return realFetch(url, options);
+    };
+    try {
+        await assert.rejects(undoAction(action.id), { message: "changed since" });
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(ola[254], 56, "the game's value stays");
+    assert.equal((await newest()).entries[0].undone, false, "still in the log");
+});

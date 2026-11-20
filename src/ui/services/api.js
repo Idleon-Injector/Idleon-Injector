@@ -317,6 +317,7 @@ export async function ggaMany(writes) {
               return {
                   path: rawPath.startsWith("gga.") ? rawPath : rawPath ? `gga.${rawPath}` : "",
                   value: entry?.value,
+                  expect: entry?.expect,
               };
           })
         : [];

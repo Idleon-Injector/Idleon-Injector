@@ -75,11 +75,12 @@ export const undoAction = async (id) => {
     if (changed.length) throw new Error(`${changed.length} of ${todo.length} changed since`);
 
     // A value saved to both copies of the character in play goes back once, as the live copy had it: the game
-    // keeps that one, so the saved copy's old value may be stale.
+    // keeps that one, so the saved copy's old value may be stale. Each write is refused in the game if the value
+    // moved on from what was just checked (`expect`).
     const writes = [];
     targets.forEach((path, i) => {
         const write = writes.find((entry) => entry.path === path);
-        if (!write) writes.push({ path, value: todo[i].before });
+        if (!write) writes.push({ path, value: todo[i].before, expect: now[i].value });
         else if (todo[i].live) write.value = todo[i].before;
     });
     try {
@@ -92,10 +93,15 @@ export const undoAction = async (id) => {
         if (landed.length) await markChangesUndone(id, landed);
         changesVersion.val++;
         const missed = writes.length - kept.size;
+        const moved = (error.results ?? []).some((result) => result.error === "changed since");
         throw new Error(
-            error.results
-                ? `${missed === writes.length ? "game kept the value" : `${missed} of ${writes.length} not undone`}`
-                : error.message || "not undone"
+            !error.results
+                ? error.message || "not undone"
+                : missed < writes.length
+                  ? `${missed} of ${writes.length} not undone`
+                  : moved
+                    ? "changed since"
+                    : "game kept the value"
         );
     }
     await markChangesUndone(
