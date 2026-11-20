@@ -1297,3 +1297,21 @@
     justify-content: flex-end;
     padding: 0 8px 8px;
 }
+
+/*
+ * Rounded value rows (the concept board, not decided yet): rows get 10 px corners and their fields 9 px, so the
+ * pill buttons don't sit in sharp boxes. The field's own input stays square inside its rounded box.
+ */
+.account-row {
+    border-radius: 10px;
+}
+
+.account-row .number-input-wrapper,
+.account-row input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.account-row select {
+    border-radius: 9px;
+}
+
+.account-row .number-input-wrapper input {
+    border-radius: 0;
+}
