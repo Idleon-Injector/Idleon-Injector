@@ -648,7 +648,7 @@ test("a loadout whose file save failed is saved once when Save is pressed again"
 });
 
 // CodeRabbit on #110: a failed save puts the list back only while it is the list it submitted; one another tab saved
-// since then (the session replaces the whole list) stays.
+// since then (the session replaces the whole list) stays. Save pressed again then saves that loadout once, not twice.
 test("a loadout another tab saved while this tab's file save failed stays in the session", async () => {
     await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
@@ -664,6 +664,12 @@ test("a loadout another tab saved while this tab's file save failed stays in the
         await until(() => /The config file is locked/.test(text(page)), "the failure");
         const names = (await wardrobeConfig()).loadouts.map((loadout) => loadout.name);
         assert.deepEqual(names, ["Mine", "Theirs"]);
+        onFail = null;
+        await settle();
+        await click(button(page, "Save"));
+        await until(() => /Saved Mine from Lumi_Main/.test(text(page)), "the retry");
+        const written = saves.at(-1).cheatConfig.wide.wardrobe.loadouts.map((loadout) => loadout.name);
+        assert.deepEqual(written, ["Mine", "Theirs"], "the file gets one Mine");
     } finally {
         failSaves = 0;
         onFail = null;

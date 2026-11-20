@@ -302,27 +302,39 @@ const WardrobePage = () => {
             { onError: (caught) => loadoutSaid.say("failed", caught.message) }
         );
 
+    // A save whose file save failed may still be in the session's list (another tab's list kept it): Save pressed again
+    // with that name replaces that entry, by its id, so the file gets one copy. Two loadouts may share a name, so only
+    // that attempt's entry is replaced.
+    let unsaved = null;
     const saveCurrent = () => {
         const label = name.val.trim();
         saveSaid.clear();
         if (busy()) return;
         if (!label) return saveSaid.say("refused", "Give the loadout a name first.");
         if (label.length > 80) return saveSaid.say("refused", "A name has 80 characters at most.");
-        if (saved.val.length >= MAX_SAVED)
+        if (saved.val.length >= MAX_SAVED && unsaved?.label !== label)
             return saveSaid.say("refused", `${MAX_SAVED} loadouts are saved; delete one first.`);
         const typed = name.val;
         return saveWrite.run(
             async () => {
                 const loadout = { ...(await readComputed("wardrobe", "capture")), name: label };
+                if (unsaved?.label === label) loadout.id = unsaved.id;
                 // Counted again on the list just read: another tab may have saved meanwhile.
                 const full = `${MAX_SAVED} loadouts are saved; delete one first.`;
                 try {
                     await persist((wardrobe) => {
-                        if (wardrobe.loadouts.length >= MAX_SAVED) throw Object.assign(new Error(full), { full: true });
-                        return { ...wardrobe, loadouts: [...wardrobe.loadouts, loadout] };
+                        const loadouts = wardrobe.loadouts.some(({ id }) => id === loadout.id)
+                            ? wardrobe.loadouts.map((entry) => (entry.id === loadout.id ? loadout : entry))
+                            : [...wardrobe.loadouts, loadout];
+                        if (loadouts.length > MAX_SAVED) throw Object.assign(new Error(full), { full: true });
+                        return { ...wardrobe, loadouts };
                     });
+                    unsaved = null;
                 } catch (caught) {
-                    if (!caught.full) throw caught;
+                    if (!caught.full) {
+                        unsaved = { label, id: loadout.id };
+                        throw caught;
+                    }
                     saveSaid.say("refused", full);
                     return { cancelled: true };
                 }
