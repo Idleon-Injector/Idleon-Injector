@@ -90,3 +90,24 @@ test("rat king: clicking a crown keeps a crown reclaimed in game since the page 
     assert.ok(active("5c"), "the page shows the crown the game holds");
     gga.Research[11] = before;
 });
+
+test("boats: saving a captain's level keeps the XP a voyage gave since the page opened", async () => {
+    const before = [...gga.Captains[0]];
+    const root = await open("src/ui/pages/world-5/sailing/4-boats.js");
+    const row = () => rowNamed(root, "Captain 1");
+    const inputs = () => elements(row()).filter((node) => node.nodeName === "input");
+    await until(() => row() && inputs()[2]?.value !== undefined, "Captain 1 to load");
+    const saveState = () => /save-state--(\w+)/.exec(attr(byClass(row(), "save-state")[0], "class"))?.[1];
+    gga.Captains[0][4] = 9999;
+    const level = inputs()[1];
+    level.listeners.focus?.({ target: level });
+    level.value = "77";
+    level.listeners.input({ target: level });
+    row().listeners.keydown({ key: "Enter", target: level, preventDefault() {} });
+    await until(() => ["success", "error"].includes(saveState()), "the save");
+    assert.equal(saveState(), "success");
+    assert.equal(gga.Captains[0][3], 77, "the typed level saved");
+    assert.equal(gga.Captains[0][4], 9999, "the XP the game holds stays");
+    assert.equal(gga.Captains[0][5], before[5], "an untouched bonus amount stays");
+    gga.Captains[0] = before;
+});
