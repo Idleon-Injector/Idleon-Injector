@@ -1,5 +1,5 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
+import { changesVersion, currentPlace, reloadPlace } from "../../../services/changeLog.js";
 
 /**
  * Shared account-page load helpers.
@@ -32,9 +32,12 @@ export const useAccountLoad = ({ label = "Account page", fallbackMessage } = {})
         lastTask = task;
         loading.val = true;
         error.val = null;
+        const saves = changesVersion.rawVal;
 
         try {
-            return await task();
+            const result = await task();
+            // A save that landed while this load ran may have been read before it landed: read once more.
+            return changesVersion.rawVal === saves ? result : await task();
         } catch (caughtError) {
             console.error(`[account-load] ${label} load failed:`, caughtError);
 

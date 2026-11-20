@@ -142,3 +142,27 @@ test("emperor: leaving the showdowns field untouched with a count above the limi
     assert.equal(ola[369], 2000);
     assert.equal(text(byClass(root, "write-status--error")[0]).trim(), "");
 });
+
+test("beanstalk: a Refresh that read the game before a save landed doesn't put the old level back", async () => {
+    const levels = game.gga.Ninja[104];
+    levels[0] = 0;
+    const root = await openPage("src/ui/pages/world-6/beanstalk/beanstalk.js", (r) => Boolean(rowAt(r, 0)));
+    const row = rowAt(root, 0);
+    const [field] = inputs(row);
+    const refresh = buttons(root).find((node) => text(node).trim() === "Refresh");
+    const names = hold("/read-entries");
+    const writes = hold("/write");
+    focus(field);
+    type(field, 3);
+    press(row, field, "Enter");
+    await until(writes.reached, "the save's write to reach the game");
+    click(refresh);
+    // The refresh has read the level (still 0) and waits on the names.
+    await until(names.reached, "the refresh to read the level");
+    writes.release();
+    await settled(row);
+    assert.equal(stateOf(row), "success");
+    names.release();
+    await until(() => badge(row) === "LV 3 / 3" && !disabled(refresh), "the refresh to show what the game holds");
+    assert.equal(levels[0], 3);
+});
