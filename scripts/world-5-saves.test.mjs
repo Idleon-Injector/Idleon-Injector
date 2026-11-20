@@ -91,6 +91,82 @@ test("rat king: clicking a crown keeps a crown reclaimed in game since the page 
     gga.Research[11] = before;
 });
 
+// Rat King with Research[11] = `crowns` on screen; the helpers find its parts.
+const openRatKing = async (crowns) => {
+    gga.Research[11] = crowns;
+    const root = await open("src/ui/pages/world-5/gaming/2-rat-king.js");
+    const chip = (id) => elements(root).find((node) => attr(node, "title").startsWith(`Crown ${id} `));
+    const active = (id) => attr(chip(id), "class").includes("rat-king-crown-chip--active");
+    const button = (label) =>
+        elements(root).find(
+            (node) => node.nodeName === "button" && (text(node).trim() === label || attr(node, "title") === label)
+        );
+    const press = (node) => node.listeners.click({ preventDefault() {}, stopPropagation() {}, currentTarget: node });
+    const loaded = () => attr(button("Clear crowns for Plant 1"), "disabled") === "false";
+    await until(() => chip("0_") && loaded() && crowns.every(active), "the page to load its crowns");
+    return { root, active, button, press };
+};
+
+test("rat king: Set Count asks before it removes a crown reclaimed in game since the page opened", async () => {
+    const before = gga.Research[11];
+    const { root, active, press } = await openRatKing(["0_", "0a", "0b"]);
+    gga.Research[11] = ["0_", "0a", "0b", "5c", "9i"];
+    const row = byClass(root, "account-setall-row")[0];
+    const input = elements(row).find((node) => node.nodeName === "input");
+    const apply = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Apply");
+    // The player means to add one crown to the 3 the page shows; the game holds 5, so 4 removes one.
+    input.value = "4";
+    input.listeners.input({ target: input });
+    const start = writes();
+    await press(apply);
+    await until(() => active("9i"), "the page to show the crowns the game holds");
+    assert.equal(writes(), start, "nothing is removed without asking");
+    await press(apply);
+    assert.equal(apply.attributes["data-again"], "Click again", "the next press asks with the real count");
+    assert.equal(writes(), start);
+    await press(apply);
+    await until(() => gga.Research[11].length === 4, "the asked removal to save");
+    gga.Research[11] = before;
+});
+
+test("rat king: Clear and Clear all ask before they remove crowns reclaimed in game since the page opened", async () => {
+    const before = gga.Research[11];
+    const { active, button, press } = await openRatKing([]);
+    const start = writes();
+    // Plant 6 shows 0/10, so its Clear doesn't ask, but the game has reclaimed 5c since.
+    gga.Research[11] = ["5c"];
+    const clear = button("Clear crowns for Plant 6");
+    await press(clear);
+    await until(() => active("5c"), "the page to show crown 5c");
+    assert.equal(writes(), start, "Clear removed nothing without asking");
+    await press(clear);
+    assert.equal(clear.attributes["data-again"], "Click again", "the next Clear asks");
+    // Clear all asks about the 1 crown shown; the game reclaims a second before the answer.
+    const clearAll = button("Clear all (0)");
+    await press(clearAll);
+    assert.equal(clearAll.attributes["data-again"], "Click again");
+    gga.Research[11] = ["5c", "7d"];
+    await press(clearAll);
+    await until(() => active("7d"), "the page to show crown 7d");
+    assert.equal(writes(), start, "Clear all removed nothing it didn't ask about");
+    assert.deepEqual([...gga.Research[11]], ["5c", "7d"]);
+    gga.Research[11] = before;
+});
+
+test("rat king: All and Reclaim discovered keep crowns reclaimed in game since the page opened", async () => {
+    const [crownsBefore, logbookBefore] = [gga.Research[11], gga.Gaming[11]];
+    gga.Gaming[11] = "__________"; // nothing discovered, so Reclaim discovered adds no crown of its own
+    const { button, press } = await openRatKing(["0_"]);
+    gga.Research[11] = ["0_", "5c"];
+    await press(button("Reclaim all 10 crowns for Plant 3"));
+    assert.ok(gga.Research[11].includes("5c"), "All keeps crown 5c");
+    assert.ok(gga.Research[11].includes("2i"), "All reclaims Plant 3");
+    gga.Research[11] = [...gga.Research[11], "7d"];
+    await press(button("Reclaim discovered"));
+    assert.ok(gga.Research[11].includes("7d"), "Reclaim discovered keeps crown 7d");
+    [gga.Research[11], gga.Gaming[11]] = [crownsBefore, logbookBefore];
+});
+
 test("boats: saving a captain's level keeps the XP a voyage gave since the page opened", async () => {
     const before = [...gga.Captains[0]];
     const root = await open("src/ui/pages/world-5/sailing/4-boats.js");
