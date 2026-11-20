@@ -15,22 +15,25 @@ import "./account/UndoAllOffer.js";
 
 const { div, button, span, p } = van.tags;
 
-const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label }) =>
-    div(
-        { class: `account-sub-nav menu-tabs ${navClass}`, role: "tablist", "aria-label": label },
-        ...tabs.map((tab) =>
-            button(
-                {
-                    type: "button",
-                    role: "tab",
-                    class: `account-sub-tab-btn ${buttonClass} ${isActive(tab) ? "active" : ""}`,
-                    "aria-selected": String(isActive(tab)),
-                    onclick: () => onPick(tab),
-                },
-                tab.label
-            )
+const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label }) => {
+    const buttons = tabs.map((tab) =>
+        button(
+            {
+                type: "button",
+                role: "tab",
+                class: `account-sub-tab-btn ${buttonClass} ${isActive(tab) ? "active" : ""}`,
+                "aria-selected": String(isActive(tab)),
+                onclick: () => onPick(tab),
+            },
+            tab.label
         )
     );
+    // A narrow menu (400 px) scrolls the row sideways: the picked tab is scrolled into view once the row is in the
+    // page, as the Cheats page does for its category tabs.
+    const active = buttons[tabs.findIndex(isActive)];
+    if (active) queueMicrotask(() => active.scrollIntoView({ block: "nearest", inline: "center" }));
+    return div({ class: `account-sub-nav menu-tabs ${navClass}`, role: "tablist", "aria-label": label }, ...buttons);
+};
 
 /** A world none of whose pages loaded (the menu error says why). */
 const NoPages = (world) =>
