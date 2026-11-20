@@ -8,6 +8,10 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 const { router, game } = await createFakeApi();
 const { requests } = await loadUi(router);
 const gga = game.gga;
+// A "Click again" tooltip places itself on the next frame, and its question is read out from a live region on the page.
+globalThis.requestAnimationFrame = () => {};
+globalThis.document.body = globalThis.document.createElement("body");
+globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
 
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
@@ -131,8 +135,6 @@ const refuseWrites = (object, key) => {
 };
 
 test("card search: a region tier that would lower cards asks first, and lowers them on the second pick", async () => {
-    // A tooltip places itself on the next frame.
-    globalThis.requestAnimationFrame ??= () => {};
     const cards = gga.Cards[0].h;
     cards.mob0 = 37;
     cards.mob1 = 74;
@@ -179,6 +181,8 @@ test("card search: a refused region tier says why under the region, and the next
 });
 
 test("card search: a tier picked in a second region while the first saves waits its turn instead of being dropped", async () => {
+    const cards = gga.Cards[0].h;
+    for (const id of Object.keys(cards)) cards[id] = 0;
     const root = await openPage(CARDS);
     const [first, second] = elements(root).filter(
         (node) => node.nodeName === "select" && classes(node).includes("card-region__tier-select")
@@ -207,4 +211,58 @@ test("card search: a tier picked in a second region while the first saves waits 
     }
     await picks;
     assert.equal(writes() - before, 2, "both regions were written");
+});
+
+const BUNDLES = "src/ui/pages/account/bundles/bundles.js";
+const rowWith = (root, label) =>
+    byClass(root, "account-row").find((row) =>
+        elements(row).some((node) => node.nodeName === "button" && text(node).trim() === label)
+    );
+const rowReason = (row) => text(byClass(row, "bundle-row__said")[0]);
+const ownedFlag = (row) => text(byClass(row, "bundle-row__code")[0]);
+
+test("bundles: a refused Unbuy says why on its row, and the next try clears it", async () => {
+    const root = await openPage(BUNDLES);
+    const row = rowWith(root, "Unbuy");
+    const received = gga.BundlesReceived.h;
+    const restore = refuseWrites(received, ownedFlag(row));
+    try {
+        await button(row, "Unbuy").listeners.click({});
+        assert.equal(rowReason(row), "game kept old value");
+        assert.equal(byClass(row, "bundle-row__said")[0].attributes.role, "status");
+    } finally {
+        restore();
+    }
+    await button(row, "Unbuy").listeners.click({});
+    assert.equal(rowReason(row), "", "the retry cleared it");
+    received[ownedFlag(row)] = 1;
+});
+
+test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why beside it", async () => {
+    const root = await openPage(BUNDLES);
+    const row = rowWith(root, "Buy");
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/toggle")
+            ? new Response(JSON.stringify({ error: "the cheat didn't run" }), {
+                  status: 500,
+                  headers: { "content-type": "application/json" },
+              })
+            : realFetch(url, options);
+    try {
+        await button(row, "Buy").listeners.click({});
+        assert.equal(rowReason(row), "the cheat didn't run");
+
+        const buyAll = elements(root).find(
+            (node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim())
+        );
+        const click = () => buyAll.listeners.click({ currentTarget: buyAll });
+        await click(); // asks first
+        await click();
+        const said = text(byClass(root, "said--buy-all")[0]);
+        assert.match(said, /One or more bundle purchases could not be completed/);
+        assert.equal(rowReason(row), "the cheat didn't run");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
 });
