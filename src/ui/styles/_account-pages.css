@@ -357,7 +357,7 @@
 .save-state--error .save-state__label {
     display: -webkit-box;
     width: max-content;
-    max-width: 15ch;
+    max-width: 18ch;
     height: auto;
     padding: 2px 8px;
     overflow: hidden;
@@ -366,6 +366,15 @@
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+}
+
+/* A field's own label steps aside the same way when the words lie over it. */
+.is-saving > .account-inline-field__head > :first-child {
+    animation: save-state-hide 0.3s steps(1, end) forwards;
+}
+
+.is-save-failed > .account-inline-field__head > :first-child {
+    visibility: hidden;
 }
 
 /* The badge (the stored value) steps aside while a save takes a moment and while it has failed. */
@@ -844,8 +853,20 @@
     font-family: var(--font-display);
 }
 
+/* A card's header has no room to spare: its save state takes none and lies over the name's end. */
 .tier-card__header .save-state {
+    justify-content: flex-end;
+    width: 0;
     margin-left: auto;
+}
+
+.tier-card__header .save-state__mark {
+    padding: 0 4px;
+    background: var(--save-state-bg);
+}
+
+.tier-card__header .save-state__label {
+    right: 22px;
 }
 
 .account-row--info {
