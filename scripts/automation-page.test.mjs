@@ -15,6 +15,10 @@ globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
 const { router } = await createFakeApi();
 // The fake game's cheats don't run; this one runs the real automation switch, as the game's cheat does.
 const { getAutomations, switchAutomation } = await importRepo("src/cheats/core/automations.js");
+// The automations of the systems other than Shops (each has its own tab and page test).
+const otherSystems = getAutomations()
+    .filter(({ id, cheat }) => cheat.startsWith("automation ") && id !== "account.automation.shops")
+    .map(({ id }) => id);
 const commands = [];
 const saves = [];
 const updates = [];
@@ -41,8 +45,8 @@ router.routes.POST.set("/api/toggle", async (req, res) => {
 const readComputedRoute = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     const { name } = await req.json();
-    const hold = name === "list" ? holdNextListRead : null;
-    if (!hold) return readComputedRoute(req, res);
+    if (name !== "list") return readComputedRoute(req, res);
+    const hold = holdNextListRead;
     holdNextListRead = null;
     let read;
     await readComputedRoute(req, {
@@ -51,7 +55,9 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
         },
         json: (data) => (read = data),
     });
-    await hold;
+    // These tests drive the overview with Shops alone: the other systems' automations have their own page tests.
+    read.value = read.value?.filter(({ id }) => !otherSystems.includes(id));
+    if (hold) await hold;
     res.json(read);
 });
 const update = router.routes.POST.get("/api/config/update");

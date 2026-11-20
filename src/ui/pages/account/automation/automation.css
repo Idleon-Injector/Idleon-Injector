@@ -20,3 +20,34 @@
 .automation-pick .toggle-switch {
     margin-bottom: 8px;
 }
+
+/* A pick's lines under its name (its bonus, its next cost or what unlocks it) wrap instead of cutting off. */
+.automation-pick .account-row__sub-label {
+    white-space: normal;
+}
+
+/* The High / Low / Balanced choice, as tall as the field beside it. */
+.automation-pick__priority {
+    flex: none;
+    width: 128px;
+    height: 36px;
+    padding: 0 8px;
+    border-radius: 9px;
+}
+
+/* In the narrow overlay the choice takes a line of its own, and the field the room the switch leaves. */
+@media (max-width: 600px) {
+    .automation-pick .account-row__controls {
+        flex-wrap: wrap;
+    }
+
+    .automation-pick__priority {
+        width: 100%;
+    }
+
+    .automation-pick .account-field-metric {
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto;
+    }
+}

@@ -19,7 +19,14 @@ import { AccountRow } from "./components/AccountRow.js";
 import { useWriteStatus } from "./accountShared.js";
 import { Said, useSaid } from "../../inPlace.js";
 
-const { div, input, label, span } = van.tags;
+const { div, input, label, option, select, span } = van.tags;
+
+// The buying rule's priorities (engine.js): saved as 1, 2 or nothing.
+const PRIORITIES = [
+    ["1", "High"],
+    ["2", "Low"],
+    ["", "Balanced"],
+];
 
 /** Every automation, with its status while it runs. */
 export const readAutomations = () => readComputed("automation", "list");
@@ -101,45 +108,66 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
 };
 
 /**
- * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, kept as states by id.
- * Edits show at once and their saves run one at a time, each sending the whole list. When a save fails, the controls
+ * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt?, priority? } per item, kept as states
+ * by id (priority 1 is High, 2 Low, none Balanced). With `withSaving` the group is { saving, items } instead of the
+ * list: `saving` is how many % of what it saves for a Balanced item may cost.
+ * Edits show at once and their saves run one at a time, each sending the whole group. When a save fails, the controls
  * read back what the game holds, so they never show a value it didn't take. `onTurnedOn` runs when a save leaves an
  * item it switched on running in the game (the system's own switch goes on with it, so buying starts at once).
  */
-export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
+export const createAutomationPicks = (group, { onTurnedOn = null, withSaving = false } = {}) => {
     const items = new Map();
+    const saving = van.state(null);
+    const savingDraft = van.state("");
     let queue = Promise.resolve();
     let pending = 0;
     let edits = 0; // counts saves, so a read started before one can be told apart
     let fileBehind = false; // the game took the last list, the config file didn't
 
     const get = (id) => {
-        if (!items.has(id)) items.set(id, { on: van.state(false), stopAt: van.state(null), draft: van.state("") });
+        if (!items.has(id))
+            items.set(id, {
+                on: van.state(false),
+                stopAt: van.state(null),
+                priority: van.state(null),
+                draft: van.state(""),
+            });
         return items.get(id);
     };
 
     // A read that lands while a save is queued, or that started before a save, would undo the newest edits, so it
-    // waits for the next read. `since` is edits() when the read started.
-    const sync = (entries, since = edits) => {
+    // waits for the next read. `saved` is cheatConfig.automation[group]; `since` is edits() when the read started.
+    const sync = (saved, since = edits) => {
         if (pending || since !== edits) return;
+        if (withSaving) {
+            saving.val = saved.saving;
+            showSaving();
+        }
+        const entries = withSaving ? saved.items : saved;
         const byId = new Map(entries.map((entry) => [String(entry.id), entry]));
         for (const id of byId.keys()) get(id);
         for (const [id, item] of items) {
             item.on.val = Boolean(byId.get(id)?.on);
             item.stopAt.val = byId.get(id)?.stopAt ?? null;
+            item.priority.val = byId.get(id)?.priority ?? null;
             showStopAt(item);
         }
     };
+    /** Put the saved saving % back in its field. */
+    const showSaving = () => setNumberInputValue(savingDraft, saving.val === null ? "" : String(saving.val));
 
-    // Switched-off items stay while they carry a stop-at, so it survives.
-    const toConfig = () =>
-        [...items]
-            .filter(([, item]) => item.on.val || item.stopAt.val !== null)
+    // Switched-off items stay while they carry a stop-at or a priority, so it survives.
+    const toConfig = () => {
+        const list = [...items]
+            .filter(([, item]) => item.on.val || item.stopAt.val !== null || item.priority.val !== null)
             .map(([id, item]) => ({
                 id,
                 on: item.on.val,
                 ...(item.stopAt.val !== null ? { stopAt: item.stopAt.val } : {}),
+                ...(item.priority.val !== null ? { priority: item.priority.val } : {}),
             }));
+        return withSaving ? { saving: saving.val, items: list } : list;
+    };
 
     const persist = async () => {
         const list = toConfig();
@@ -179,14 +207,31 @@ export const createAutomationPicks = (group, { onTurnedOn = null } = {}) => {
         if (failure) throw failure;
     };
 
-    /** Change one item's fields (`patch`: { on } or { stopAt }). */
+    /** Change one item's fields (`patch`: { on }, { stopAt } or { priority }). */
     const set = (id, patch) => save([[id, patch]]);
     /** Switch every item in `ids` on or off with one save. */
     const setAll = (ids, on) => save(ids.map((id) => [id, { on }]));
     /** Send the list again: after a file save failed, the field's Enter retries it. */
     const resave = () => save([]);
+    /** Change the saving % (withSaving only). */
+    const setSaving = (value) => {
+        saving.val = value;
+        return save([]);
+    };
 
-    return { get, sync, set, setAll, resave, edits: () => edits, fileBehind: () => fileBehind };
+    return {
+        get,
+        sync,
+        set,
+        setAll,
+        resave,
+        saving,
+        savingDraft,
+        showSaving,
+        setSaving,
+        edits: () => edits,
+        fileBehind: () => fileBehind,
+    };
 };
 
 /** Put an item's saved stop-at back in its field ("" is no limit). */
@@ -201,9 +246,10 @@ const parseStopAt = (raw) => {
 
 /**
  * An item's row: name, a badge, its stop-at (empty is no limit; saves on Enter or on leaving it) and its switch.
- * The switch and the stop-at share one save state.
+ * `detail` adds lines under the name; `priority` adds the High / Low / Balanced pick, saved on change.
+ * The controls share one save state.
  */
-export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => {
+export const PickRow = ({ picks, id, name, badge, detail = null, priority = false, stopAtTitle = "Stop at" }) => {
     const item = picks.get(id);
     const draft = item.draft;
     const save = useAutoSave({
@@ -236,12 +282,30 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             void save.run(() => picks.set(id, { on })).then(() => (checkbox.checked = item.on.val));
         },
     });
+    // Balanced is saved as no priority.
+    const choice = () => String(item.priority.val ?? "");
+    const priorityPick =
+        priority &&
+        select(
+            {
+                class: "select-base automation-pick__priority",
+                "aria-label": `${name} priority`,
+                onchange: (e) => {
+                    const next = e.target.value === "" ? null : Number(e.target.value);
+                    void save.run(() => picks.set(id, { priority: next })).then(() => (e.target.value = choice()));
+                },
+            },
+            PRIORITIES.map(([value, text]) => option({ value, selected: () => choice() === value }, text))
+        );
 
     return AccountRow({
         rowClass: "account-row--wide-controls automation-pick",
-        info: span({ class: "account-row__name" }, name),
+        info: detail
+            ? div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, name), detail)
+            : span({ class: "account-row__name" }, name),
         badge,
         controls: [
+            ...(priority ? [priorityPick] : []),
             div(
                 { class: () => `account-field-metric ${saveStateClass(save.status.val, save.undo)}`, ...save.handlers },
                 div(
@@ -260,5 +324,62 @@ export const PickRow = ({ picks, id, name, badge, stopAtTitle = "Stop at" }) => 
             ),
             label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" })),
         ],
+    });
+};
+
+/**
+ * The saving % of a group made withSaving: while it saves for a High or Low item, a Balanced one may cost up to this
+ * much of it. Saves on Enter or on leaving the field, like a stop-at.
+ */
+export const SavingRow = ({ picks }) => {
+    const draft = picks.savingDraft;
+    const typed = () => getNumberInputLiveRaw(draft) ?? draft.val;
+    const parse = (raw) => {
+        const text = String(raw ?? "").trim();
+        if (!/^\d+$/.test(text) || Number(text) > 100) throw new Error("a whole number from 0 to 100");
+        return Number(text);
+    };
+    const save = useAutoSave({
+        prepare: () => {
+            const raw = typed();
+            const next = parse(raw);
+            if (next === picks.saving.val) {
+                picks.showSaving();
+                return picks.fileBehind() ? { write: () => picks.resave() } : { unchanged: true };
+            }
+            return { write: () => picks.setSaving(next).finally(() => typed() === raw && picks.showSaving()) };
+        },
+        revert: () => picks.showSaving(),
+    });
+    const step = (delta) => () => {
+        const current = Number(typed()) || 0;
+        setNumberInputValue(draft, String(Math.min(100, Math.max(0, current + delta))));
+    };
+
+    return AccountRow({
+        rowClass: "account-row--wide-controls automation-pick",
+        info: div(
+            { class: "account-row__name-group" },
+            span({ class: "account-row__name" }, "Saving"),
+            span(
+                { class: "account-row__sub-label" },
+                "While it saves for a High or Low pick, a Balanced one may cost up to this % of it"
+            )
+        ),
+        controls: div(
+            { class: () => `account-field-metric ${saveStateClass(save.status.val, save.undo)}`, ...save.handlers },
+            div(
+                { class: "account-inline-field__head" },
+                span({ class: "account-field-metric__label" }, "Saving %"),
+                SaveState({ status: save.status, reason: save.reason, undo: save.undo })
+            ),
+            NumberInput({
+                mode: "int",
+                value: draft,
+                "aria-label": "Saving percent",
+                onDecrement: step(-1),
+                onIncrement: step(1),
+            })
+        ),
     });
 };
