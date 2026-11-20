@@ -18,14 +18,27 @@ const { router, game } = await createFakeApi(fixture);
 // The cheats the page runs, and what it hands the config file save (the fake API's own save writes nothing).
 const commands = [];
 const saves = [];
+// Run once at the next wide wardrobestats (a player switching characters) and at the next config file save.
+let onStats = null;
+let onSave = null;
 const toggle = router.routes.POST.get("/api/toggle");
 router.routes.POST.set("/api/toggle", async (req, res) => {
     const { action } = await req.json();
     commands.push(action);
+    if (action === "wide wardrobestats" && onStats) {
+        const run = onStats;
+        onStats = null;
+        run();
+    }
     return toggle(req, res);
 });
 router.routes.POST.set("/api/config/save", async (req, res) => {
     saves.push(await req.json());
+    if (onSave) {
+        const run = onSave;
+        onSave = null;
+        run();
+    }
     res.json({ ok: true });
 });
 const { requests } = await loadUi(router);
@@ -35,7 +48,7 @@ globalThis.document.body = globalThis.document.createElement("body");
 globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
 
 const gga = game.gga;
-const { fetchChanges, fetchConfig } = await importRepo("src/ui/services/api.js");
+const { fetchChanges, fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
 const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
 const PAGE = "src/ui/pages/account/player/3-wardrobe.js";
 
@@ -66,6 +79,11 @@ const pick = (root, id) => picker(root).listeners.change({ target: { value: id }
 const previewShown = async (root = page) => {
     await new Promise((resolve) => setTimeout(resolve, 30));
     await until(() => titles(root).includes("Tools"), "the preview");
+};
+// After an undo or a failure the page reads the game again; its buttons wait for that.
+const settle = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await previewShown();
 };
 const wardrobeConfig = async () => (await fetchConfig()).cheatConfig.wide.wardrobe;
 
@@ -142,12 +160,18 @@ test("a write the game refuses is said where Apply was pressed", async () => {
     const row = gga.EquipmentOrder[0];
     const kept = row[1];
     Object.defineProperty(row, 1, { get: () => kept, set() {}, configurable: true });
+    const ran = commands.length;
+    const sinceFail = requests.length;
     try {
         const apply = button(page, "Apply");
         await click(apply);
         await click(apply);
         await until(() => /Write mismatch at EquipmentOrder\[0\]\[1\]/.test(text(page)), "the failure to be said");
         assert.ok(byClass(page, "said--failed").length, "said as a failure, in place");
+        // What landed before the refusal counts: the stats are worked out again and the preview read again.
+        await until(() => commands.slice(ran).includes("wide wardrobestats"), "the stats after the failure");
+        await until(() => requests.slice(sinceFail).includes("POST /api/game/computed/read"), "the preview again");
+        assert.match(text(page), /Write mismatch at EquipmentOrder\[0\]\[1\]/, "the failure stays said");
         assert.equal(row[1], kept);
     } finally {
         Object.defineProperty(row, 1, { value: kept, writable: true, configurable: true });
@@ -159,9 +183,7 @@ test("a write the game refuses is said where Apply was pressed", async () => {
 });
 
 test("Save keeps what the character wears as a loadout, in the config file, and it can be picked and deleted", async () => {
-    // The page reads the game again after the last undo; its buttons wait for that.
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    await previewShown();
+    await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
     const save = button(page, "Save");
     await save.listeners.click({ currentTarget: save, preventDefault() {} });
@@ -191,8 +213,7 @@ test("Save keeps what the character wears as a loadout, in the config file, and 
 });
 
 test("Perfect Equipped asks Click again, rebuilds the gear as one action, and Undo puts the old rolls back", async () => {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    await previewShown();
+    await settle();
     gga.EquipmentMap[0][0].h = { STR: 3 };
     const perfect = button(page, "Perfect Equipped");
     const since = requests.length;
@@ -207,4 +228,65 @@ test("Perfect Equipped asks Click again, rebuilds the gear as one action, and Un
     await undoAction(action.id);
     assert.equal(JSON.stringify(gga.EquipmentMap[0][0].h), JSON.stringify({ STR: 3 }));
     assert.equal(gga.EquipmentQuantity[2][1], 800);
+});
+
+test("a larger golden stack saved meanwhile (another tab, the Config page) is kept, not lowered", async () => {
+    await settle();
+    // Behind the page's back: 90,000 is saved; the page still remembers 25,000.
+    await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { goldenfood: { Lumi_Main: 90000 } } } } });
+    gga.EquipmentQuantity[2][0] = 30000;
+    const apply = button(page, "Apply");
+    await click(apply);
+    await click(apply);
+    await until(() => /is on Lumi_Main/.test(text(page)), "the loadout to land");
+    assert.equal((await wardrobeConfig()).goldenfood.Lumi_Main, 90000);
+    assert.equal(saves.at(-1).cheatConfig.wide.wardrobe.goldenfood.Lumi_Main, 90000);
+    const [action] = (await fetchChanges()).actions;
+    await undoAction(action.id);
+    gga.EquipmentQuantity[2][0] = 25000;
+});
+
+test("a player who switches characters while Apply runs gets no food stacks set for the planned one", async () => {
+    await settle();
+    const since = requests.length;
+    const remembered = (await wardrobeConfig()).goldenfood.Lumi_Main;
+    onStats = () => (gga.UserInfo[0] = "Lumi_Alt");
+    const apply = button(page, "Apply");
+    await click(apply);
+    await click(apply);
+    await until(() => /food stacks weren't set: Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the stop");
+    assert.deepEqual(after(since, "write"), ["POST /api/game/gga/write-many"], "the gear, and no food");
+    assert.equal((await wardrobeConfig()).goldenfood.Lumi_Main, remembered, "nothing recorded for Lumi_Main");
+    gga.UserInfo[0] = "Lumi_Main";
+    const [action] = (await fetchChanges()).actions;
+    await undoAction(action.id);
+    await settle();
+});
+
+test("Perfect Equipped refuses before writing when another character is in play than the one it asked about", async () => {
+    const since = requests.length;
+    gga.UserInfo[0] = "Lumi_Alt";
+    try {
+        const perfect = button(page, "Perfect Equipped");
+        await click(perfect);
+        assert.match(perfect.attributes["aria-label"], /rebuild Lumi_Main's gear/);
+        await click(perfect);
+        await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+        assert.deepEqual(after(since, "write"), []);
+    } finally {
+        gga.UserInfo[0] = "Lumi_Main";
+    }
+});
+
+test("a name typed while a loadout saves stays in the field for the next one", async () => {
+    await settle();
+    const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+    const save = button(page, "Save");
+    name.listeners.input({ target: { value: "First" } });
+    onSave = () => name.listeners.input({ target: { value: "Second" } });
+    await save.listeners.click({ currentTarget: save, preventDefault() {} });
+    await until(() => /Saved First from Lumi_Main/.test(text(page)), "the save");
+    // The fake DOM keeps a field's value as its attribute.
+    await until(() => name.attributes.value === "Second", "the field to show the new name");
+    await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
 });

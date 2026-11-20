@@ -116,10 +116,17 @@ const WardrobePage = () => {
         await readSaved();
     };
 
-    // The largest golden food stack seen for a character, so a loadout's golden food keeps that size.
+    // The largest golden food stack seen for a character, so a loadout's golden food keeps that size. A larger one
+    // saved meanwhile (another tab, the Config page) stays.
     const rememberGolden = (character, quantity) =>
         quantity > (Number(goldenFood[character]) || 0)
-            ? persist((wardrobe) => ({ ...wardrobe, goldenfood: { ...wardrobe.goldenfood, [character]: quantity } }))
+            ? persist((wardrobe) => ({
+                  ...wardrobe,
+                  goldenfood: {
+                      ...wardrobe.goldenfood,
+                      [character]: Math.max(Number(wardrobe.goldenfood[character]) || 0, quantity),
+                  },
+              }))
             : undefined;
 
     // --- The game ---
@@ -171,6 +178,29 @@ const WardrobePage = () => {
         await writeManyVerified(food);
         await updateStats();
     };
+    // The food step of a run whose gear landed; it refuses a character other than the one planned for.
+    const foodFor = async (character, name, read) => {
+        try {
+            return await read();
+        } catch (caught) {
+            throw new Error(`${name} landed on ${character}, but its food stacks weren't set: ${caught.message}`);
+        }
+    };
+    // After a run failed, some of its writes may have landed (Undo puts them back): the stats and the preview catch
+    // up, and the failure stays what is said.
+    const catchUp = async () => {
+        await updateStats().catch(() => {});
+        const run = ++previewRun;
+        try {
+            await readStatus();
+            const plan = selected.val ? await planFor() : null;
+            if (run === previewRun) preview.val = plan;
+        } catch {
+            // The failure is already said.
+        } finally {
+            if (run === previewRun) previewing.val = false;
+        }
+    };
 
     // --- Apply ---
 
@@ -196,7 +226,11 @@ const WardrobePage = () => {
                 }
                 await writeManyVerified(plan.writes);
                 await updateStats();
-                const food = await readComputed("wardrobe", "food", [{ goldenMaximum: plan.foodLimits.golden }]);
+                const food = await foodFor(plan.character, plan.name, () =>
+                    readComputed("wardrobe", "food", [
+                        { goldenMaximum: plan.foodLimits.golden, character: plan.character },
+                    ])
+                );
                 await saveFood(food.writes);
                 await rememberGolden(plan.character, food.limits.golden);
                 await readStatus();
@@ -206,7 +240,7 @@ const WardrobePage = () => {
             {
                 onError: (caught) => {
                     loadoutSaid.say("failed", caught.message);
-                    void readStatus().catch(() => {});
+                    void catchUp();
                 },
             }
         );
@@ -238,11 +272,13 @@ const WardrobePage = () => {
         if (label.length > 80) return saveSaid.say("refused", "A name has 80 characters at most.");
         if (saved.val.length >= MAX_SAVED)
             return saveSaid.say("refused", `${MAX_SAVED} loadouts are saved; delete one first.`);
+        const typed = name.val;
         return saveWrite.run(
             async () => {
                 const loadout = { ...(await readComputed("wardrobe", "capture")), name: label };
                 await persist((wardrobe) => ({ ...wardrobe, loadouts: [...wardrobe.loadouts, loadout] }));
-                name.val = "";
+                // A name typed while it saved is the next one; it stays.
+                if (name.val === typed) name.val = "";
                 selected.val = loadout.id;
                 await showPreview();
                 saveSaid.say("done", `Saved ${label} from ${status.val.character}.`);
@@ -257,14 +293,18 @@ const WardrobePage = () => {
         perfectWrite.run(
             async () => {
                 perfectSaid.clear();
-                const plan = await readComputed("wardrobe", "perfect");
+                // The character the question named; another one in play is refused before anything is written.
+                const character = status.val.character;
+                const plan = await readComputed("wardrobe", "perfect", [{ character }]);
                 if (!plan.writes.length) {
                     perfectSaid.say("refused", "Nothing worn can be rebuilt.");
                     return { cancelled: true };
                 }
                 await writeManyVerified(plan.writes);
                 await updateStats();
-                const food = await readComputed("wardrobe", "perfectFood");
+                const food = await foodFor(character, "Perfect Equipped", () =>
+                    readComputed("wardrobe", "perfectFood", [{ character }])
+                );
                 if (food.length) await saveFood(food);
                 await readStatus();
                 await showPreview();
@@ -274,7 +314,12 @@ const WardrobePage = () => {
                         `skipped ${plan.skipped.length}. Undo puts the old rolls back.`
                 );
             },
-            { onError: (caught) => perfectSaid.say("failed", caught.message) }
+            {
+                onError: (caught) => {
+                    perfectSaid.say("failed", caught.message);
+                    void catchUp();
+                },
+            }
         );
 
     // An undo of a change made here (from Undo all or History) puts old gear back: the game works the stats out again.
