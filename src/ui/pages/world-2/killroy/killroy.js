@@ -10,7 +10,7 @@
  *   [205]              -> highest killroy score on archer
  *   [206]              -> highest killroy score on mage
  *   [227..230]         -> shop meta bonus values
- *   [467..471]         -> meta bonus values
+ *   [467..470]         -> meta bonus values
  *
  * Tome label rows (name/label only):
  *   cList.Tome[27] -> warrior label row
@@ -37,7 +37,6 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import {
     cleanName,
     createStaticRowReconciler,
-    joinClasses,
     resolveValue,
     toNum,
     useWriteStatus,
@@ -67,7 +66,6 @@ const META_FIELDS = [
     { index: 468, label: "MASTERCLASS BONUS" },
     { index: 469, label: "W7 SKILL XP BONUS" },
     { index: 470, label: "W7 DAILY CORAL BONUS" },
-    { index: 471, label: "BOOST SOMETHING BONUS", blurred: true },
 ];
 
 const RECORD_FIELDS = [{ index: 112, label: "TOTAL FINISHED RUNS" }];
@@ -82,7 +80,7 @@ const AIRHORN_INDEX = 115;
 const ALL_FIELD_DEFS = [...CURRENCY_FIELDS, ...SHOP_FIELDS, ...META_FIELDS, ...RECORD_FIELDS, { index: AIRHORN_INDEX }];
 const FIELD_INDEXES = Array.from(new Set(ALL_FIELD_DEFS.map((f) => f.index)));
 
-const KillroyNumRow = ({ field, valueState, writePath, getBadgeText = null, disableEdit = false }) => {
+const KillroyNumRow = ({ field, valueState, writePath }) => {
     const normalize = (raw) => {
         const trimmed = typeof raw === "string" ? raw.trim() : raw;
         if (trimmed === "" || trimmed === null || trimmed === undefined) return null;
@@ -91,32 +89,18 @@ const KillroyNumRow = ({ field, valueState, writePath, getBadgeText = null, disa
         if (field.allowNegative) return parsed;
         return Math.max(0, parsed);
     };
-    const rowClass = () => joinClasses("killroy-row", field.blurred ? "killroy-row--blur" : "");
     const labelText = () => resolveValue(field?.label) ?? "";
-
-    if (disableEdit) {
-        return AccountRow({
-            rowClass,
-            info: span({ class: "account-row__name" }, labelText),
-            badge: () => {
-                if (typeof getBadgeText === "function") return getBadgeText(valueState.val);
-                return String(valueState.val);
-            },
-            controls: span({ class: "killroy-row__locked" }, "LOCKED"),
-        });
-    }
 
     return EditableNumberRow({
         valueState,
         normalize,
         write: async (nextValue) => writeVerified(writePath, nextValue),
         renderInfo: () => span({ class: "account-row__name" }, labelText),
-        renderBadge: typeof getBadgeText === "function" ? getBadgeText : null,
         adjustInput: (rawValue, delta, currentValue) => {
             const next = toNum(rawValue, toNum(currentValue, 0)) + delta;
             return field.allowNegative ? next : Math.max(0, next);
         },
-        rowClass,
+        rowClass: "killroy-row",
     });
 };
 
@@ -279,7 +263,6 @@ const KillroyTab = () => {
                         field,
                         valueState: getState(field.index),
                         writePath: `OptionsListAccount[${field.index}]`,
-                        disableEdit: Boolean(field.blurred),
                     })
                 )
             ),
@@ -295,7 +278,6 @@ const KillroyTab = () => {
                         field,
                         valueState: getState(field.index),
                         writePath: `OptionsListAccount[${field.index}]`,
-                        disableEdit: Boolean(field.blurred),
                     })
                 )
             ),
