@@ -175,11 +175,13 @@ const WardrobePage = () => {
     // food's bonus grows with its stack).
     const updateStats = () => executeCheatAction(STATS_CHEAT);
     // Each save names the character it was planned for: the game writes nothing if another one is in play by then.
-    const saveFood = async (food, character) => {
-        await writeManyVerified(food, { character });
+    // The food save comes after the gear landed, so its failure says so.
+    const saveFood = async (food, character, name) => {
+        await foodFor(character, name, () => writeManyVerified(food, { character }));
         await updateStats();
     };
-    // The food step of a run whose gear landed; it refuses a character other than the one planned for.
+    // The food step (its read or its save) of a run whose gear landed; it refuses a character other than the one
+    // planned for.
     const foodFor = async (character, name, read) => {
         try {
             return await read();
@@ -232,7 +234,7 @@ const WardrobePage = () => {
                         { goldenMaximum: plan.foodLimits.golden, character: plan.character },
                     ])
                 );
-                await saveFood(food.writes, plan.character);
+                await saveFood(food.writes, plan.character, plan.name);
                 await rememberGolden(plan.character, food.limits.golden);
                 await readStatus();
                 await showPreview();
@@ -306,7 +308,7 @@ const WardrobePage = () => {
                 const food = await foodFor(character, "Perfect Equipped", () =>
                     readComputed("wardrobe", "perfectFood", [{ character }])
                 );
-                if (food.length) await saveFood(food, character);
+                if (food.length) await saveFood(food, character, "Perfect Equipped");
                 await readStatus();
                 await showPreview();
                 perfectSaid.say(
