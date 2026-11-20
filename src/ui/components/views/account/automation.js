@@ -281,6 +281,7 @@ const sendToFile = (key, value) =>
 
 // A save before the first read of what the game holds would replace it with the page's empty start.
 const NOT_READ = "not read from the game yet: press Refresh";
+const GAME_NOT_READ = "the game didn't answer with its settings: press Refresh";
 
 // The page's own read at the end of a save step (direct reads only: it runs inside the step), so its levels, costs
 // and status lines follow the save. Its failure is the page's to say; the save's outcome stands.
@@ -842,9 +843,13 @@ export const useAutomationTab = ({ label, cheats, read }) => {
         startup.val = config.startupCheats ?? [];
         if (!switches.firstChild && entries.every((entry) => entry.val))
             switches.append(...entries.map((entry) => AutomationRow({ entry, onSwitched: readSwitches })));
-        // After a save, only a read of the game itself: the server's copy may hold an edit the game refused, which
-        // the save's own read-back already kept out.
-        if (afterSave && !config.gameRead) return;
+        // Only a read of the game itself is taken. The server's copy may hold an edit the game refused (after a save,
+        // its own read-back already kept that out), and taken as the first read it would let a later save overwrite
+        // what the game holds.
+        if (!config.gameRead) {
+            if (afterSave) return;
+            throw new Error(GAME_NOT_READ);
+        }
         await read(config.cheatConfig.automation);
         error.val = null; // this read, the newest to run, worked: an older one's failure goes
     };
