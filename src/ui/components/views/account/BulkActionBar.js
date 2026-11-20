@@ -6,12 +6,13 @@ import { toNodes } from "./accountShared.js";
 
 const { div, span, select, option } = van.tags;
 
-const SetAllApplyButton = ({ label, status, onApply, confirm = null }) =>
+const SetAllApplyButton = ({ label, status, onApply, confirm = null, disabled = false }) =>
     onApply
         ? ActionButton({
               label,
               status,
               confirm,
+              disabled,
               onClick: async (e) => {
                   e.preventDefault();
                   await onApply();
@@ -58,6 +59,7 @@ export const SetAllNumberControl = ({
     applyLabel = "Set all",
     onApply = null,
     confirm = null,
+    disabled = false,
     min = 0,
     max = Infinity,
 }) =>
@@ -82,7 +84,7 @@ export const SetAllNumberControl = ({
                 },
             })
         ),
-        SetAllApplyButton({ label: applyLabel, status, onApply, confirm })
+        SetAllApplyButton({ label: applyLabel, status, onApply, confirm, disabled })
     );
 
 export const SetAllSelectControl = ({ label, value, options, status = null, applyLabel = "Set all", onApply }) =>

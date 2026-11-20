@@ -36,6 +36,25 @@ async function until(check, what) {
 
 const click = (button) => button.listeners.click({ preventDefault() {}, stopPropagation() {}, currentTarget: button });
 
+// holdNext(matches): the next request `matches` picks waits until its `release()`; `reached` says it was sent.
+let held = null;
+const holdNext = (matches) => {
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    held = { matches, gate, reached: false, release };
+    return held;
+};
+const send = globalThis.fetch;
+globalThis.fetch = async (url, options = {}) => {
+    const hold = held;
+    if (hold?.matches(url, options.body ? JSON.parse(options.body) : {})) {
+        held = null;
+        hold.reached = true;
+        await hold.gate;
+    }
+    return send(url, options);
+};
+
 async function openPage(file, label, open = null) {
     const root = (await importRepo(file)).default.component();
     if (open) {
@@ -348,24 +367,6 @@ test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait 
     levels[0] = caps[0] + 5;
     const kept = caps[1] + 5;
     Object.defineProperty(levels, 1, { get: () => kept, set() {}, configurable: true });
-    const fetch = globalThis.fetch;
-    // The next request `matches` picks waits until it is let go.
-    let held = null;
-    const holdNext = (matches) => {
-        let release;
-        const gate = new Promise((resolve) => (release = resolve));
-        held = { matches, gate, reached: false, release };
-        return held;
-    };
-    globalThis.fetch = async (url, options = {}) => {
-        const hold = held;
-        if (hold?.matches(url, options.body ? JSON.parse(options.body) : {})) {
-            held = null;
-            hold.reached = true;
-            await hold.gate;
-        }
-        return fetch(url, options);
-    };
     try {
         const root = (await importRepo("src/ui/pages/world-3/salt-lick/salt-lick.js")).default.component();
         const named = (label) => buttonsNamed(root, label);
@@ -388,9 +389,36 @@ test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait 
         await pressed;
         await until(() => max() && badge(0).includes(`LV ${caps[0]} `), "the row to show what the game holds");
     } finally {
-        globalThis.fetch = fetch;
         held = null;
         Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
         levels[0] = 0;
+    }
+});
+
+// CodeRabbit on #110 (the same race on Islands): Refresh waits for a bulk action, and every bulk action waits for a read.
+test("islands: Refresh waits for a bulk action, and the bulk actions wait for a read", async () => {
+    const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
+    const named = (label) => buttonsNamed(root, label);
+    const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
+    await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
+    const unlocks = game.gga.OptionsListAccount[169];
+    try {
+        const write = holdNext((url) => url.endsWith("/game/gga/write-many"));
+        const pressed = click(named("Unlock all")[0]);
+        await until(() => write.reached, "the Unlock all write to be sent");
+        await until(() => named("Refresh").every((node) => node.attributes.disabled), "Refresh to wait for Unlock all");
+        write.release();
+        await pressed;
+        await until(() => named("Refresh").every((node) => !node.attributes.disabled), "Refresh after Unlock all");
+        const read = holdNext((url) => url.endsWith("/game/gga/read-entries"));
+        const refreshed = named("Refresh")[0].listeners.click({});
+        await until(() => read.reached, "the Refresh read to be sent");
+        await until(() => bulk().every((node) => node.attributes.disabled), "the bulk actions to wait for the read");
+        read.release();
+        await refreshed;
+        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions after the read");
+    } finally {
+        held = null;
+        game.gga.OptionsListAccount[169] = unlocks;
     }
 });
