@@ -445,6 +445,39 @@ test("an Apply whose loadout was changed during its recheck writes nothing and s
     }
 });
 
+// Re-read of #110: an Apply whose pick stayed isn't dropped quietly when a reload (after an undo) showed a newer preview
+// during its recheck; it says the game changed since its preview.
+test("an undo during an Apply's recheck leaves the Apply saying what happened", async () => {
+    await settle();
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    // A change the undo puts back, which changes the plan: the preview below is made with it.
+    await withAction({ label: "level" }, () => writeManyVerified([{ path: "Lv0[0]", value: 700 }]));
+    const [action] = (await fetchChanges()).actions;
+    await click(button(page, "Refresh"));
+    await settle();
+    let release;
+    try {
+        holdPreview = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        const pressed = click(apply);
+        await until(() => holdPreview === null, "the recheck to wait");
+        const previews = () => log.filter((entry) => entry === "wardrobe.preview").length;
+        const before = previews();
+        await undoAction(action.id);
+        await until(() => previews() > before, "the reload's preview");
+        release();
+        await pressed;
+        assert.match(text(page), /changed since this preview/);
+    } finally {
+        release?.();
+        gga.Lv0[0] = 500;
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
 // CodeRabbit on #103: the limit is counted on the list read just before the save, not on the page's older one.
 test("Save is refused when another tab filled the list since the page read it", async () => {
     await settle();

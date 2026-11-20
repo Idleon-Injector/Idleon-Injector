@@ -243,12 +243,14 @@ const WardrobePage = () => {
                 loadoutSaid.clear();
                 const shown = preview.val;
                 if (!shown) return { cancelled: true };
+                const asked = selected.val;
                 const run = previewRun;
                 const plan = await planFor();
                 // A loadout picked meanwhile isn't the one asked about: Apply stops quietly, and its preview stays.
-                if (run !== previewRun) return { cancelled: true };
+                if (selected.val !== asked) return { cancelled: true };
                 if (plan.fingerprint !== shown.fingerprint) {
-                    preview.val = plan;
+                    // A newer preview of this loadout (a reload after an undo, say) shows its own plan.
+                    if (run === previewRun) preview.val = plan;
                     loadoutSaid.say(
                         "refused",
                         "The game changed since this preview, so it shows the new plan. Apply again."
