@@ -1,5 +1,6 @@
 /**
- * Town shops: switched-on items are bought into the storage chest with chest coins, cheapest first.
+ * Town shops: switched-on items are bought into the storage chest with chest coins, cheapest first, from whatever
+ * map the character is in (like the chest, the shops need no visit).
  *
  * Shop i sells cList.ShopNames[i] in the town map cList.ShopLocations[i]; maps 0-49 are W1, 50-99 W2, ...
  * Settings: cheatConfig.automation.shops, one { id: "shop:item", on, stopAt } per item; stopAt counts what the
@@ -82,6 +83,8 @@ function shopItems() {
             // Equipment, bags and stamps hold one per slot; "nocap" would merge them, so use the capped flag.
             amount = Math.min(amount, blanks);
         }
+        // Whole items only: a stop-at typed into config.custom.js can carry a fraction.
+        amount = Math.floor(amount);
         if (!(amount > 0)) return [];
 
         return [

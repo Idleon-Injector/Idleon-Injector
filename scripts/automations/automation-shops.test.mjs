@@ -210,3 +210,18 @@ test("it buys only what the coins and the chest can take, and nothing outside a 
     assert.equal(shops().status, "No shop item is switched on");
     await cheat("automation shops", false);
 });
+
+test("it buys whole items only, even when a stop-at in the config file has a fraction", async () => {
+    setShopGame();
+    setShops([{ id: "0:CopperOre", on: true, stopAt: 40.5 }]);
+    await cheat("automation shops", true);
+    mock.timers.tick(1000);
+    assert.deepEqual(given, [], "half an item is no buy");
+    assert.deepEqual(gga.ShopStock[0], [100, 2]);
+
+    setShops([{ id: "0:CopperOre", on: true, stopAt: 45.7 }]);
+    mock.timers.tick(1000);
+    assert.deepEqual(given, [["CopperOre", 5, "YESputInChest8910nocap"]]);
+    assert.equal(gga.MoneyBANK, 990);
+    await cheat("automation shops", false);
+});
