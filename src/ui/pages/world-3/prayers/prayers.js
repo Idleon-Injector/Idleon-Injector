@@ -225,7 +225,7 @@ const PrayersTab = () => {
         }
     };
 
-    // `ask(question)`: the in-place confirm (#77) for a plan with a confirmation; true goes ahead.
+    // `ask(question, plan)`: the in-place confirm (#77) for a plan with a confirmation; true goes ahead.
     const execute = async (buildPlan, ask) => {
         if (unavailable()) throw new Error("Prayers are busy or unavailable. Refresh and try again.");
         busy.val = true;
@@ -248,7 +248,7 @@ const PrayersTab = () => {
                 return { value: plan.value };
             }
             if (plan.confirmation) {
-                if (!ask(plan.confirmation)) return { cancelled: true };
+                if (!ask(plan.confirmation, plan)) return { cancelled: true };
                 const fresh = await readSnapshot();
                 const refreshed = buildPlan(fresh);
                 if (fresh.current !== initial.current || JSON.stringify(refreshed) !== JSON.stringify(plan)) {
@@ -379,7 +379,7 @@ const PrayersTab = () => {
                         confirmation: `${mode === "unlock" ? "unlock" : "max"} ${levels.length} named prayer(s) account-wide.`,
                     };
                 },
-                (question) => clickAgain(button, question)
+                (question, plan) => clickAgain(button, question, { targets: plan })
             )
         );
     };

@@ -114,18 +114,20 @@ const disarm = (button) => {
  * The in-place confirm (#25), where a click used to open the browser's confirm popup. `question` is what the second click
  * does, as words that follow "Click again to" ("disable 12 bribes."). The first click arms `button` and returns
  * false: it reads CLICK AGAIN, the menu's tooltip and screen readers say "Click again to …", and its fill drains
- * over `ms`. A second click within `ms` returns true. If the question changed meanwhile (other targets), the
- * button asks again instead.
+ * over `ms`. A second click within `ms` returns true. If the question or `targets` (what the change touches,
+ * ids the question doesn't name) changed meanwhile, the button asks again instead.
  */
-export const clickAgain = (button, question, ms = 4000) => {
+export const clickAgain = (button, question, { targets = null, ms = 4000 } = {}) => {
     const state = armed.get(button);
-    if (state && state.question === question) {
+    const touches = JSON.stringify(targets);
+    if (state && state.question === question && state.touches === touches) {
         disarm(button);
         return true;
     }
     if (state) disarm(button);
     armed.set(button, {
         question,
+        touches,
         label: button.getAttribute("aria-label"),
         timer: setTimeout(() => disarm(button), ms),
     });

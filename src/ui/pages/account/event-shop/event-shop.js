@@ -167,7 +167,8 @@ const EventshopTab = () => {
                         if (
                             !clickAgain(
                                 button,
-                                `${enabled ? "enable" : "disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`
+                                `${enabled ? "enable" : "disable"} ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`,
+                                { targets: targets.map((entry) => entry.code) }
                             )
                         )
                             return { cancelled: true };

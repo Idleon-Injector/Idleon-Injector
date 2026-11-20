@@ -117,6 +117,21 @@ test("a risky button asks in place: CLICK AGAIN, then the second click runs it, 
     assert.equal(clickAgain(button, "disable 13 bribes."), false, "a click after that asks again");
 });
 
+test("a second click on other targets asks again, even when the question reads the same", async (t) => {
+    const { clickAgain } = await importRepo("src/ui/components/inPlace.js");
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const button = globalThis.document.createElement("button");
+    // The player asks for 2 shown items, then searches for 2 others and clicks again.
+    assert.equal(clickAgain(button, "register 2 shown items.", { targets: ["Grasslands1", "Jungle1"] }), false);
+    assert.equal(
+        clickAgain(button, "register 2 shown items.", { targets: ["Desert1", "Snow1"] }),
+        false,
+        "the new items get their own question"
+    );
+    assert.equal(button.attributes["data-again"], "CLICK AGAIN");
+    assert.equal(clickAgain(button, "register 2 shown items.", { targets: ["Desert1", "Snow1"] }), true);
+});
+
 test("one button's question running out doesn't hide another button's question", async (t) => {
     const { clickAgain } = await importRepo("src/ui/components/inPlace.js");
     const { TooltipContainer } = await importRepo("src/ui/components/Tooltip.js");

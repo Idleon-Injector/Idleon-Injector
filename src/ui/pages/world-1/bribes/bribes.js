@@ -112,7 +112,8 @@ const BribesTab = () => {
                         enabled
                             ? "Grants ownership without spending coins."
                             : "Removes ownership. Locked bribes stay locked."
-                    }`
+                    }`,
+                    { targets: targets.map((entry) => entry.index) }
                 )
             )
                 return;

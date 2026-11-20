@@ -135,7 +135,8 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                     if (
                         !clickAgain(
                             button,
-                            `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`
+                            `${registered ? "register" : "unregister"} ${targets.length} shown ${label} items.${detail}`,
+                            { targets }
                         )
                     ) {
                         return { cancelled: true };

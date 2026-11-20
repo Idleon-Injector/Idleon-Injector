@@ -275,7 +275,8 @@ const WeeklyBossTab = () => {
                 !clickAgain(
                     button,
                     `${enabled ? "enable" : "disable"} ${countLabel}. ` +
-                        "Trophies and character selections will stay unchanged."
+                        "Trophies and character selections will stay unchanged.",
+                    { targets: targets.map(({ key }) => key) }
                 )
             )
                 return;
