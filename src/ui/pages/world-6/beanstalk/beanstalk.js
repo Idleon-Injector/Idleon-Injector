@@ -53,7 +53,7 @@ const buildItemEntries = async (rawLevels, rawFoodInfo) => {
         index,
         itemId,
         name: cleanName(definitions[itemId]?.displayName, itemId),
-        level: resolveNumberInput(levels[index], { min: 0, max: BEANSTACK_MAX_LEVEL, fallback: 0 }),
+        level: resolveNumberInput(levels[index], { min: 0, fallback: 0 }),
     }));
 };
 
