@@ -245,9 +245,9 @@ const WardrobePage = () => {
                 if (!shown) return { cancelled: true };
                 const run = previewRun;
                 const plan = await planFor();
+                // A loadout picked meanwhile isn't the one asked about: Apply stops quietly, and its preview stays.
+                if (run !== previewRun) return { cancelled: true };
                 if (plan.fingerprint !== shown.fingerprint) {
-                    // A loadout picked meanwhile has its own preview, newer than this plan: that one stays.
-                    if (run !== previewRun) return { cancelled: true };
                     preview.val = plan;
                     loadoutSaid.say(
                         "refused",

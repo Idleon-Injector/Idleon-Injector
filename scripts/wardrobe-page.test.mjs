@@ -411,6 +411,34 @@ test("an older Apply recheck doesn't put its plan under a loadout picked meanwhi
     }
 });
 
+// CodeRabbit on #110: an Apply whose recheck finds the same plan still stops quietly when another loadout was picked
+// meanwhile, instead of writing the first one.
+test("an Apply whose loadout was changed during its recheck writes nothing and says nothing", async () => {
+    await settle();
+    const [first, second] = options(page).map((node) => node.attributes.value);
+    pick(page, first);
+    await previewShown();
+    let release;
+    try {
+        holdPreview = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        const since = requests.length;
+        const pressed = click(apply);
+        await until(() => holdPreview === null, "the recheck to wait");
+        pick(page, second);
+        await until(() => /^(?!Loadout$)/.test(changeLabel(page)), "the second pick's preview");
+        release();
+        await pressed;
+        assert.deepEqual(after(since, "write"), [], "nothing was applied");
+        assert.doesNotMatch(text(page), /is on Lumi_Main|changed since this preview/);
+    } finally {
+        release?.();
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
 // CodeRabbit on #103: the limit is counted on the list read just before the save, not on the page's older one.
 test("Save is refused when another tab filled the list since the page read it", async () => {
     await settle();
