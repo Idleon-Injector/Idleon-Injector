@@ -38,7 +38,8 @@ const { CheatItem } = await importRepo("src/ui/components/CheatItem.js");
 // The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
 globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
 globalThis.document.addEventListener = () => {};
-const { Sidebar } = await importRepo("src/ui/components/Sidebar.js");
+const { Sidebar, turnOff } = await importRepo("src/ui/components/Sidebar.js");
+const { useSaid } = await importRepo("src/ui/components/inPlace.js");
 const { Home } = await importRepo("src/ui/components/views/Home.js");
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
@@ -148,3 +149,21 @@ for (const [where, render] of [
         assert.equal(crit(), true, "the other active cheat stays on");
     });
 }
+
+test("a failed turn-off is said until that cheat turns off; another cheat's failure stays", async (t) => {
+    const results = [];
+    t.mock.method(store, "executeCheat", async () => results.shift());
+    const line = useSaid();
+
+    results.push({ ok: false, message: "the game didn't answer" });
+    await turnOff("godlike crit", line);
+    assert.equal(line.said.val.text, "godlike crit: the game didn't answer");
+
+    results.push({ ok: true, message: "done" });
+    await turnOff("wide candy", line);
+    assert.equal(line.said.val.text, "godlike crit: the game didn't answer", "another cheat working says nothing");
+
+    results.push({ ok: true, message: "done" });
+    await turnOff("godlike crit", line);
+    assert.equal(line.said.val, null, "the retry worked, so the failure goes");
+});

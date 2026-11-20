@@ -45,7 +45,7 @@ const WorldTile = (world) =>
 
 const ActiveCheats = () => {
     // Turning one off is a toggle: it leaves the list. Only a failure is said, under the list.
-    const { said, say } = useSaid();
+    const line = useSaid();
     return div(
         { class: "menu-home-cheats" },
         () => {
@@ -67,14 +67,14 @@ const ActiveCheats = () => {
                             type: "button",
                             class: "active-cheat-item",
                             title: `Turn off ${cheat}`,
-                            onclick: () => turnOff(cheat, say),
+                            onclick: () => turnOff(cheat, line),
                         },
                         span({ class: "active-cheat-text" }, cheat)
                     )
                 )
             );
         },
-        Said({ said, className: "said--line" })
+        Said({ said: line.said, className: "said--line" })
     );
 };
 

@@ -73,14 +73,18 @@ const MenuNav = () =>
         )
     );
 
-/** Turn an active cheat off. It leaving the list says it worked; a failure is said under the list. */
-export const turnOff = async (cheat, say) => {
+/**
+ * Turn an active cheat off. It leaving the list says it worked; a failure is said under the list (`line`, a
+ * `useSaid()`) until that cheat turns off.
+ */
+export const turnOff = async (cheat, { said, say, clear }) => {
     const result = await store.executeCheat(cheat, false);
-    if (!result.ok) say("failed", `${cheat}: ${plainReason(result.message)}`);
+    if (!result.ok) return say("failed", `${cheat}: ${plainReason(result.message)}`);
+    if (said.val?.text.startsWith(`${cheat}: `)) clear();
 };
 
 const ActiveCheatList = () => {
-    const { said, say } = useSaid();
+    const line = useSaid();
     return div(
         { class: "active-cheats" },
         div({ class: "active-cheats-header" }, "ACTIVE CHEATS"),
@@ -95,13 +99,13 @@ const ActiveCheatList = () => {
                 { class: "active-cheats-list" },
                 ...activeCheats.map((cheat) =>
                     span(
-                        { class: "active-cheat-item", onclick: () => turnOff(cheat, say) },
+                        { class: "active-cheat-item", onclick: () => turnOff(cheat, line) },
                         span({ class: "active-cheat-text" }, cheat)
                     )
                 )
             );
         },
-        Said({ said, className: "said--line" })
+        Said({ said: line.said, className: "said--line" })
     );
 };
 
