@@ -412,10 +412,10 @@ const AttireRackPage = () => {
         wrapActions: false,
         actions: BulkActionBar({
             actions: [
-                // Adds: the shared quiet button (btn-secondary, as Refresh beside it).
+                // Adds: a quiet button (DESIGN.md).
                 {
                     label: "All outfits",
-                    variant: "btn-secondary",
+                    variant: "quiet",
                     status: choiceWrite.status,
                     disabled: () => busy() || !outfits.val.length,
                     tooltip: "Give every outfit's bonus, including outfits a game update adds",
