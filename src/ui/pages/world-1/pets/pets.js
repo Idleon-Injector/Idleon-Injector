@@ -41,6 +41,7 @@ import {
 
 const { div, button, span, label, input } = van.tags;
 
+const COMPANION_CHEAT = "w1 companion";
 const TOKEN_PATH = "OptionsListAccount[606]";
 
 const PLUS_WARNINGS = {
@@ -324,15 +325,23 @@ const CompanionsTab = () => {
             await readSelection();
         });
 
-    const setCompanionCheat = (wanted) => executeCheatAction("w1 companion", wanted);
+    const setCompanionCheat = (wanted) => executeCheatAction(COMPANION_CHEAT, wanted);
 
     // /api/config/save rewrites config.custom.js from whatever it is handed, so it needs
-    // the whole config - a partial would drop every other saved override.
-    const persistConfig = async () => {
+    // the whole config - a partial would drop every other saved override. `onAtStart`: chosen pets also turn the
+    // cheat on at every start (a startup cheat); none takes it off that list. Startup cheats toggle, so a list that
+    // already has "w1" (every W1 cheat on) gets no "w1 companion", which would turn it back off.
+    const persistConfig = async (onAtStart) => {
         const config = await fetchConfig();
         if (!config?.cheatConfig) throw new Error("Could not read the config back to save it");
+        const startup = config.startupCheats ?? [];
+        const listed = startup.includes(COMPANION_CHEAT) || startup.includes("w1");
         await saveConfigFile({
-            startupCheats: config.startupCheats ?? [],
+            startupCheats: onAtStart
+                ? listed
+                    ? startup
+                    : [...startup, COMPANION_CHEAT]
+                : startup.filter((command) => command !== COMPANION_CHEAT),
             cheatConfig: config.cheatConfig,
             injectorConfig: config.injectorConfig,
         });
@@ -366,7 +375,7 @@ const CompanionsTab = () => {
                 cheatEnabled.val = entries.length > 0;
                 normalIds.val = normal;
                 plusIds.val = plus;
-                await persistConfig();
+                await persistConfig(entries.length > 0);
             },
             {
                 onError: (error) => {
@@ -558,7 +567,7 @@ const CompanionsTab = () => {
                 },
                 "CLEAR ALL"
             ),
-            "Clear all injector pet selections and turn the W1 Companion cheat off. Tokens are not touched."
+            "Clear every injector pet choice: no pets now or after a restart. Tokens are not touched."
         ),
         withTooltip(
             button(
