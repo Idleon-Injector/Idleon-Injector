@@ -14,7 +14,7 @@ import {
     largeFormatter,
     resolveNumberInput,
     toInt,
-    writeManyVerified,
+    writeChangedFields,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -52,18 +52,21 @@ const buildPetSections = (rawBreeding, rawPetStats, monsterDefinitions) =>
 
                     const fields = PET_FIELDS.map((field) => {
                         const breedingIndex = field.baseIndex + worldIndex;
-                        return {
-                            ...field,
-                            key: `pet:${worldIndex}:${petIndex}:${field.key}`,
-                            path: `${BREEDING_PATH}[${breedingIndex}][${petIndex}]`,
-                            value: field.formatted
-                                ? resolveNumberInput(rawBreeding?.[breedingIndex]?.[petIndex] ?? 0, {
+                        const fromGame = (raw) =>
+                            field.formatted
+                                ? resolveNumberInput(raw ?? 0, {
                                       formatted: true,
                                       float: field.float,
                                       min: 0,
                                       fallback: 0,
                                   })
-                                : toInt(rawBreeding?.[breedingIndex]?.[petIndex], { min: 0 }),
+                                : toInt(raw, { min: 0 });
+                        return {
+                            ...field,
+                            key: `pet:${worldIndex}:${petIndex}:${field.key}`,
+                            path: `${BREEDING_PATH}[${breedingIndex}][${petIndex}]`,
+                            value: fromGame(rawBreeding?.[breedingIndex]?.[petIndex]),
+                            fromGame,
                         };
                     });
 
@@ -109,12 +112,7 @@ const PetRow = ({ entry, fieldStates }) => {
             }
             return nextValues;
         },
-        write: async (nextValues) => {
-            // Only the changed fields: the game moves the rest on while the page is open.
-            const changed = fields.filter((field) => nextValues[field.key] !== field.valueState.val);
-            await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
-            return nextValues;
-        },
+        write: (nextValues) => writeChangedFields(fields, nextValues),
         info: [
             span({ class: "account-row__index" }, `W${entry.worldIndex + 1}-${entry.petIndex + 1}`),
             div(

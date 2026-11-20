@@ -15,7 +15,7 @@ import {
     getOrCreateState,
     readLevelDefinitions,
     toInt,
-    writeManyVerified,
+    writeChangedFields,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, option, select, span } = van.tags;
@@ -63,6 +63,7 @@ const buildPlayerChipEntries = (rawLab, chipOptions) =>
                 label: `Slot ${slotIndex + 1}`,
                 path: `Lab[${playerIndex}][${slotIndex}]`,
                 value: toInt(rawSlots[slotIndex], { min: -1 }),
+                fromGame: (raw) => toInt(raw, { min: -1 }),
                 min: -1,
                 max: maxChipIndex,
                 options: chipOptions,
@@ -109,12 +110,7 @@ const PlayerChipsRow = ({ entry, fieldStates }) => {
             }
             return nextValues;
         },
-        write: async (nextValues) => {
-            // Only the changed fields: the game moves the rest on while the page is open.
-            const changed = fields.filter((field) => nextValues[field.key] !== field.valueState.val);
-            await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
-            return nextValues;
-        },
+        write: (nextValues) => writeChangedFields(fields, nextValues),
         info: [
             span({ class: "account-row__index" }, `#${entry.playerNumber}`),
             div(

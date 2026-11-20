@@ -14,7 +14,7 @@ import {
     largeFormatter,
     resolveNumberInput,
     toInt,
-    writeManyVerified,
+    writeChangedFields,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -26,9 +26,29 @@ const MEAL_RIBBON_OFFSET = 28;
 const MEAL_RIBBON_MAX_LEVEL = 25;
 
 const MEAL_FIELDS = [
-    { key: "level", label: "Level", path: MEAL_LEVELS_PATH, formatted: false },
-    { key: "amount", label: "Amount", path: MEAL_AMOUNTS_PATH, formatted: true, float: true },
-    { key: "ribbon", label: "Ribbon", path: RIBBON_LEVELS_PATH, formatted: false, max: MEAL_RIBBON_MAX_LEVEL },
+    {
+        key: "level",
+        label: "Level",
+        path: MEAL_LEVELS_PATH,
+        formatted: false,
+        fromGame: (raw) => toInt(raw, { min: 0 }),
+    },
+    {
+        key: "amount",
+        label: "Amount",
+        path: MEAL_AMOUNTS_PATH,
+        formatted: true,
+        float: true,
+        fromGame: (raw) => raw ?? 0,
+    },
+    {
+        key: "ribbon",
+        label: "Ribbon",
+        path: RIBBON_LEVELS_PATH,
+        formatted: false,
+        max: MEAL_RIBBON_MAX_LEVEL,
+        fromGame: (raw) => Math.min(MEAL_RIBBON_MAX_LEVEL, toInt(raw, { min: 0 })),
+    },
 ];
 
 const buildMealEntries = (rawMealInfo, rawLevels, rawAmounts, rawRibbons) => {
@@ -48,17 +68,13 @@ const buildMealEntries = (rawMealInfo, rawLevels, rawAmounts, rawRibbons) => {
                 name: cleanName(rawName, `Meal ${index + 1}`),
                 fields: MEAL_FIELDS.map((field) => {
                     const dataIndex = field.key === "ribbon" ? MEAL_RIBBON_OFFSET + index : index;
-                    let value = amounts[index] ?? 0;
-                    if (field.key === "level") value = toInt(levels[index], { min: 0 });
-                    if (field.key === "ribbon") {
-                        value = Math.min(MEAL_RIBBON_MAX_LEVEL, toInt(ribbons[dataIndex], { min: 0 }));
-                    }
+                    const source = { level: levels, amount: amounts, ribbon: ribbons }[field.key];
 
                     return {
                         ...field,
                         key: `meal:${index}:${field.key}`,
                         path: `${field.path}[${dataIndex}]`,
-                        value,
+                        value: field.fromGame(source[dataIndex]),
                     };
                 }),
             };
@@ -90,12 +106,7 @@ const MealRow = ({ entry, fieldStates }) => {
             }
             return nextValues;
         },
-        write: async (nextValues) => {
-            // Only the changed fields: the game moves the rest on while the page is open.
-            const changed = fields.filter((field) => nextValues[field.key] !== field.valueState.val);
-            await writeManyVerified(changed.map((field) => ({ path: field.path, value: nextValues[field.key] })));
-            return nextValues;
-        },
+        write: (nextValues) => writeChangedFields(fields, nextValues),
         info: [
             span({ class: "account-row__index" }, `#${entry.index}`),
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),

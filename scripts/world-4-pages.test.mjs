@@ -23,6 +23,7 @@ await loadUi(router);
 const gga = game.gga;
 const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
 const { fetchChanges } = await importRepo("src/ui/services/api.js");
+const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
 
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
@@ -59,6 +60,8 @@ const rowByIndex = (root, index) =>
 
 const stateOf = (row) => /save-state--(\w+)/.exec(classes(byClass(row, "save-state")[0]))?.[1] ?? null;
 const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
+// What a field shows: a formatted field and typing set the property; a plain one binds the attribute.
+const shown = (input) => input.value ?? String(input.attributes.value);
 const typeAndEnter = (row, input, value) => {
     input.listeners.focus?.({ target: input });
     input.value = String(value);
@@ -69,7 +72,7 @@ const typeAndEnter = (row, input, value) => {
 test("saving a meal's Level keeps the Amount and Ribbon the game moved on since the page read them", async () => {
     const root = await openPage("src/ui/pages/world-4/cooking/2-meals.js");
     const row = rowByIndex(root, "#1");
-    const [level] = byTag(row, "input");
+    const [level, amount, ribbon] = byTag(row, "input");
     gga.Meals[2][1] = 50000;
     gga.Ribbon[29] = 9;
     typeAndEnter(row, level, 7);
@@ -78,12 +81,14 @@ test("saving a meal's Level keeps the Amount and Ribbon the game moved on since 
     assert.equal(gga.Meals[0][1], 7);
     assert.equal(gga.Meals[2][1], 50000);
     assert.equal(gga.Ribbon[29], 9);
+    // The fields beside the ✓ show what the game holds, not what the page read before.
+    await until(() => shown(amount) === largeFormatter(50000) && shown(ribbon) === "9", "the game's Amount and Ribbon");
 });
 
 test("saving a pet's DNA keeps the Breedability and Shiny Days the game counted since the page read them", async () => {
     const root = await openPage("src/ui/pages/world-4/breeding/pets.js");
     const row = rowByIndex(root, "W2-3");
-    const [dna] = byTag(row, "input");
+    const [dna, breedField, shinyField] = byTag(row, "input");
     gga.Breeding[14][2] += 777;
     gga.Breeding[23][2] += 1.5;
     const [breed, shiny] = [gga.Breeding[14][2], gga.Breeding[23][2]];
@@ -97,12 +102,16 @@ test("saving a pet's DNA keeps the Breedability and Shiny Days the game counted 
     assert.equal(gga.Breeding[5][2], 17);
     assert.equal(gga.Breeding[14][2], breed);
     assert.equal(gga.Breeding[23][2], shiny);
+    await until(
+        () => shown(breedField) === largeFormatter(breed) && shown(shinyField) === largeFormatter(shiny),
+        "the game's Breedability and Shiny Days"
+    );
 });
 
 test("saving a kitchen's Fire keeps a Speed level bought in game since the page read it", async () => {
     const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
     const row = rowByIndex(root, "#1");
-    const [, fire] = byTag(row, "input");
+    const [speedField, fire] = byTag(row, "input");
     gga.Cooking[0][6] += 5;
     const speed = gga.Cooking[0][6];
     typeAndEnter(row, fire, 3);
@@ -110,19 +119,48 @@ test("saving a kitchen's Fire keeps a Speed level bought in game since the page 
     assert.equal(stateOf(row), "success");
     assert.equal(gga.Cooking[0][7], 3);
     assert.equal(gga.Cooking[0][6], speed);
+    await until(() => shown(speedField) === String(speed), "the game's Speed");
 });
 
-test("changing one chip slot keeps a chip swapped in game since the page read the slots", async () => {
+test("a kitchen save that landed shows ✓ even when reading back the other fields fails", async () => {
+    const root = await openPage("src/ui/pages/world-4/cooking/1-tables.js");
+    const row = rowByIndex(root, "#2");
+    const [speedField, fire] = byTag(row, "input");
+    const shownSpeed = shown(speedField);
+    const speed = gga.Cooking[1][6];
+    // A value the game can't send back makes that path's read fail.
+    gga.Cooking[1][6] = {
+        toJSON() {
+            throw new Error("unreadable");
+        },
+    };
+    try {
+        typeAndEnter(row, fire, 4);
+        await settled(row);
+        assert.equal(stateOf(row), "success");
+        assert.equal(gga.Cooking[1][7], 4);
+        assert.equal(shown(speedField), shownSpeed);
+    } finally {
+        gga.Cooking[1][6] = speed;
+    }
+});
+
+test("changing one chip slot keeps a chip taken off in game since the page read the slots", async () => {
     const root = await openPage("src/ui/pages/world-4/laboratory/chips.js");
     const row = byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === "Player 1");
     const [, secondSlot] = byTag(row, "select");
-    gga.Lab[1][0] = 5;
+    gga.Lab[1][0] = -1;
     secondSlot.listeners.change({ target: { value: "2" } });
     row.listeners.focusout({ target: secondSlot, currentTarget: row, relatedTarget: null });
     await settled(row);
     assert.equal(stateOf(row), "success");
     assert.equal(gga.Lab[1][1], 2);
-    assert.equal(gga.Lab[1][0], 5);
+    assert.equal(gga.Lab[1][0], -1);
+    const equipped = gga.Lab[1].filter((slot) => slot >= 0).length;
+    await until(
+        () => text(byClass(row, "account-row__badge")[0]) === `${equipped} EQUIPPED`,
+        "the badge to count the chip taken off in game"
+    );
 });
 
 for (const [name, findRow, read] of [
