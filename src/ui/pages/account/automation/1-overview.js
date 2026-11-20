@@ -5,9 +5,7 @@
  */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { definePage } from "../../../menu/menuModel.js";
-import store from "../../../state/store.js";
-import { VIEWS } from "../../../state/constants.js";
+import { definePage, whenShown } from "../../../menu/menuModel.js";
 import { fetchConfig } from "../../../services/api.js";
 import { EmptyState } from "../../../components/EmptyState.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
@@ -82,14 +80,8 @@ const OverviewPage = () => {
     const running = () => behind(false).length;
 
     load();
-    // Shown again (back from a system's own tab, which may have switched its automation since): read again. The first
-    // showing is the mount, which reads above.
-    let shown = true;
-    van.derive(() => {
-        const now = store.app.activeTab === VIEWS.PAGES.id && store.app.menuPage === PAGE_ID;
-        if (now && !shown) load();
-        shown = now;
-    });
+    // Shown again (back from a system's own tab, which may have switched its automation since): read again.
+    whenShown(PAGE_ID, load);
 
     return PersistentAccountListPage({
         title: "AUTOMATION",
