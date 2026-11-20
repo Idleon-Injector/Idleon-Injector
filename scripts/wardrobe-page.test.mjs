@@ -278,6 +278,74 @@ test("Perfect Equipped refuses before writing when another character is in play 
     }
 });
 
+// The player switches characters just as a save reaches the game: after the page planned for Lumi_Main and the change
+// log read the old values. The game checks who is in play in the same call as the writes.
+// `skip`: writes that land first (1 lets the gear land and switches at the food).
+const switchAtNextWrite = (skip = 0) => {
+    const write = router.routes.POST.get("/api/game/gga/write-many");
+    router.routes.POST.set("/api/game/gga/write-many", (req, res) => {
+        if (skip-- > 0) return write(req, res);
+        router.routes.POST.set("/api/game/gga/write-many", write);
+        gga.UserInfo[0] = "Lumi_Alt";
+        return write(req, res);
+    });
+};
+
+test("a player who switches characters as Apply writes gets no gear put on the new one", async () => {
+    await settle();
+    const actions = (await fetchChanges()).actions.length;
+    switchAtNextWrite();
+    try {
+        const apply = button(page, "Apply");
+        await click(apply);
+        await click(apply);
+        await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+        assert.ok(byClass(page, "said--failed").length, "said in place");
+        assert.equal(gga.EquipmentOrder[0][1], "EquipmentSword5");
+        assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
+        assert.equal((await fetchChanges()).actions.length, actions, "nothing logged");
+    } finally {
+        gga.UserInfo[0] = "Lumi_Main";
+    }
+    await settle();
+});
+
+test("a player who switches characters as Apply writes the food stacks gets none set on the new one", async () => {
+    await settle();
+    gga.EquipmentQuantity[2][0] = 30000;
+    switchAtNextWrite(1);
+    try {
+        const apply = button(page, "Apply");
+        await click(apply);
+        await click(apply);
+        await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+        assert.equal(gga.EquipmentOrder[0][1], "EquipmentWands9", "the gear landed on Lumi_Main");
+        assert.equal(gga.EquipmentQuantity[2][0], 30000, "no food stack set");
+    } finally {
+        gga.UserInfo[0] = "Lumi_Main";
+    }
+    const [action] = (await fetchChanges()).actions;
+    await undoAction(action.id);
+    gga.EquipmentQuantity[2][0] = 25000;
+    await settle();
+});
+
+test("a player who switches characters as Perfect Equipped writes gets no gear rebuilt on the new one", async () => {
+    await settle();
+    gga.EquipmentMap[0][0].h = { STR: 3 };
+    switchAtNextWrite();
+    try {
+        const perfect = button(page, "Perfect Equipped");
+        await click(perfect);
+        await click(perfect);
+        await until(() => /Lumi_Alt is in play now, not Lumi_Main/.test(text(page)), "the refusal");
+        assert.equal(JSON.stringify(gga.EquipmentMap[0][0].h), JSON.stringify({ STR: 3 }));
+    } finally {
+        gga.UserInfo[0] = "Lumi_Main";
+    }
+    await settle();
+});
+
 test("a name typed while a loadout saves stays in the field for the next one", async () => {
     await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");

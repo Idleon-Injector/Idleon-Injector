@@ -174,8 +174,9 @@ const WardrobePage = () => {
     // After gear changed: the stats again, then the food stacks the game hands back, then the stats once more (golden
     // food's bonus grows with its stack).
     const updateStats = () => executeCheatAction(STATS_CHEAT);
-    const saveFood = async (food) => {
-        await writeManyVerified(food);
+    // Each save names the character it was planned for: the game writes nothing if another one is in play by then.
+    const saveFood = async (food, character) => {
+        await writeManyVerified(food, { character });
         await updateStats();
     };
     // The food step of a run whose gear landed; it refuses a character other than the one planned for.
@@ -224,14 +225,14 @@ const WardrobePage = () => {
                     );
                     return { cancelled: true };
                 }
-                await writeManyVerified(plan.writes);
+                await writeManyVerified(plan.writes, { character: plan.character });
                 await updateStats();
                 const food = await foodFor(plan.character, plan.name, () =>
                     readComputed("wardrobe", "food", [
                         { goldenMaximum: plan.foodLimits.golden, character: plan.character },
                     ])
                 );
-                await saveFood(food.writes);
+                await saveFood(food.writes, plan.character);
                 await rememberGolden(plan.character, food.limits.golden);
                 await readStatus();
                 await showPreview();
@@ -300,12 +301,12 @@ const WardrobePage = () => {
                     perfectSaid.say("refused", "Nothing worn can be rebuilt.");
                     return { cancelled: true };
                 }
-                await writeManyVerified(plan.writes);
+                await writeManyVerified(plan.writes, { character });
                 await updateStats();
                 const food = await foodFor(character, "Perfect Equipped", () =>
                     readComputed("wardrobe", "perfectFood", [{ character }])
                 );
-                if (food.length) await saveFood(food);
+                if (food.length) await saveFood(food, character);
                 await readStatus();
                 await showPreview();
                 perfectSaid.say(
