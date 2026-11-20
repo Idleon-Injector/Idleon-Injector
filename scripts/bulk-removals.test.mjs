@@ -521,7 +521,11 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
             () => bulk().every((node) => !node.attributes.disabled) && text(root).includes(`LV ${caps[0] + 5}`),
             "Salt Lick"
         );
-        const reread = holdNext((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        // Max all reads the levels first to plan its writes; the read after its refusal is the second one.
+        let reads = 0;
+        const reread = holdNext(
+            (url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick" && ++reads === 2
+        );
         const pressed = click(named("Max all")[0]);
         await until(() => reread.reached, "the read after the refused Max all");
         reread.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));
