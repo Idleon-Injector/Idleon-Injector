@@ -75,3 +75,18 @@ test("superbits: two superbits flipped on while the first saves both stay unlock
     assert.equal(String(gga.Gaming[12]).length, before.length + 2, "the game holds both new letters");
     gga.Gaming[12] = before;
 });
+
+test("rat king: clicking a crown keeps a crown reclaimed in game since the page opened", async () => {
+    const before = gga.Research[11];
+    gga.Research[11] = ["0_", "1a"];
+    const root = await open("src/ui/pages/world-5/gaming/2-rat-king.js");
+    const chip = (id) => elements(root).find((node) => attr(node, "title").startsWith(`Crown ${id} `));
+    const active = (id) => attr(chip(id), "class").includes("rat-king-crown-chip--active");
+    await until(() => chip("1a") && active("1a"), "the page to show crown 1a");
+    gga.Research[11] = ["0_", "1a", "5c"];
+    await chip("9i").listeners.click({});
+    await until(() => gga.Research[11].includes("9i"), "crown 9i to save");
+    assert.deepEqual([...gga.Research[11]], ["0_", "1a", "5c", "9i"]);
+    assert.ok(active("5c"), "the page shows the crown the game holds");
+    gga.Research[11] = before;
+});
