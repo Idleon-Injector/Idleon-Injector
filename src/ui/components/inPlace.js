@@ -31,7 +31,8 @@ export const replay = (el, name) => {
 
 /**
  * What a control last said: null, or `{ kind, text }` with kind "done", "refused" or "failed".
- * "done" and "refused" fade after `ms`; "failed" stays until the next `say`.
+ * "done" and "refused" fade after `ms`; "failed" stays until the next `say`. A said state may also hold kind
+ * "waiting" (a step still waiting for the game): muted words with no mark, like "saving…".
  */
 export const useSaid = (ms = 4000) => {
     const said = van.state(null);
@@ -76,12 +77,14 @@ export const Said = ({ said, className = "", kinds = null }) => {
             shown()
                 ? span(
                       { class: "said__body" },
-                      span(
-                          { class: "said__mark", "aria-hidden": "true" },
-                          shown().kind === "done"
-                              ? Icons.Check({ class: "said__icon" })
-                              : Icons.Warning({ class: "said__icon" })
-                      ),
+                      shown().kind === "waiting"
+                          ? null
+                          : span(
+                                { class: "said__mark", "aria-hidden": "true" },
+                                shown().kind === "done"
+                                    ? Icons.Check({ class: "said__icon" })
+                                    : Icons.Warning({ class: "said__icon" })
+                            ),
                       span({ class: "said__text" }, shown().text)
                   )
                 : span()
