@@ -42,11 +42,10 @@ export const CheatItem = (cheat) => {
 
     const handleExecute = async () => {
         let finalAction = cheat.value;
-        if (needsValue) {
-            const val = getInputValue();
-            if (!val) return refuse("needs a value");
-            finalAction = `${cheat.value} ${val}`;
-        }
+        const val = getInputValue();
+        // Turning a cheat off takes no value: a bare click on one that is on turns it off.
+        if (needsValue && !val && !store.getActiveCheats().includes(cheat.value)) return refuse("needs a value");
+        if (val) finalAction = `${cheat.value} ${val}`;
 
         const result = await store.executeCheat(finalAction);
         if (result.ok) {

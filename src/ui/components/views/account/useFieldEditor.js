@@ -7,11 +7,11 @@ import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
 const defaultToDraft = (value) => String(value ?? 0);
 
 /**
- * A field still showing the stored value (as typed back, or as its rounded display, like "1.03K") is
- * untouched: it keeps the stored value exactly, so tabbing through a field never saves a rounded copy.
+ * A field still showing the value its draft was taken from (as typed back, or as its rounded display, like
+ * "1.03K") is untouched: it keeps the stored value exactly, so tabbing through a field never saves a rounded
+ * copy, and a reload that moves the stored value on doesn't make the old one an edit.
  */
-const isUntouched = (field, raw) => {
-    const stored = field.valueState.val;
+const isUntouched = (field, raw, stored) => {
     const text = String(raw ?? "").trim();
     return [String(stored ?? ""), (field.toDraft ?? defaultToDraft)(stored), largeFormatter(stored ?? 0)].includes(
         text
@@ -39,10 +39,13 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const fieldByKey = new Map(fields.map((field) => [field.key, field]));
     const draftStates = {};
     const focusByKey = new Map();
+    // The stored value each draft was taken from.
+    const baseByKey = new Map();
 
     const resetDraft = (key) => {
         const field = fieldByKey.get(key);
         if (!field) return;
+        baseByKey.set(key, field.valueState.val);
         setNumberInputValue(draftStates[key], (field.toDraft ?? defaultToDraft)(field.valueState.val));
     };
 
@@ -54,7 +57,9 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         prepare: () => {
             if (isDisabled()) return { unchanged: true };
             const submitted = getDrafts();
-            const touched = fields.filter((field) => !isUntouched(field, submitted[field.key]));
+            const touched = fields.filter(
+                (field) => !isUntouched(field, submitted[field.key], baseByKey.get(field.key))
+            );
             if (!touched.length) {
                 fields.forEach((field) => resetDraft(field.key));
                 return { unchanged: true };
@@ -94,6 +99,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
                     }
                     fields.forEach((field) => {
                         field.valueState.val = verified[field.key];
+                        baseByKey.set(field.key, verified[field.key]);
                         // A draft typed while this save ran is the next save; leave it.
                         if (getDraftValue(field.key) === submitted[field.key]) resetDraft(field.key);
                     });
@@ -107,11 +113,13 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
 
     fields.forEach((field) => {
         draftStates[field.key] = van.state((field.toDraft ?? defaultToDraft)(field.valueState.val));
+        baseByKey.set(field.key, field.valueState.val);
         focusByKey.set(field.key, false);
-        // A reload shows the new value, unless the field is being edited or saved.
+        // A reload shows the new value, unless the field is being edited or saved, or holds the player's draft.
         van.derive(() => {
             field.valueState.val;
-            if (!focusByKey.get(field.key) && !autoSave.isBusy() && autoSave.status.val !== "error")
+            const draft = getNumberInputLiveRaw(draftStates[field.key]) ?? draftStates[field.key].rawVal;
+            if (!focusByKey.get(field.key) && !autoSave.isBusy() && isUntouched(field, draft, baseByKey.get(field.key)))
                 resetDraft(field.key);
         });
     });

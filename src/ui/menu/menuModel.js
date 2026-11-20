@@ -365,11 +365,17 @@ const scoreText = (text, q) => {
     return 0;
 };
 
-/** How well a cheat, setting or command matches, 0-100: by name or command, then description, then every word. */
+/**
+ * How well a cheat, setting or command matches, 0-100: by name or command (NAME_MATCH and up), then description,
+ * then every word.
+ */
 const scoreCheat = (entry, q) => {
     const last = entry.command.split(" ").pop();
     const score = Math.max(scoreText(entry.label, q), scoreText(entry.command, q), scoreText(last, q));
     if (score) return { score, matched: null };
+    // Every typed word in the name, in any order: "damage multiply".
+    const name = `${entry.label} ${entry.command}`.toLowerCase();
+    if (q.includes(" ") && q.split(/\s+/).every((part) => name.includes(part))) return { score: 50, matched: null };
     const word = entry.description.split(/[^A-Za-z0-9']+/).find((w) => w.toLowerCase().startsWith(q));
     if (word) return { score: 20, matched: word };
     if (entry.description.toLowerCase().includes(q)) return { score: 10, matched: null };
@@ -384,12 +390,16 @@ const scoreCheat = (entry, q) => {
     return { score: 0, matched: null };
 };
 
-// Tiers: menu places, then cheats and settings, then commands, each best first.
+// Tiers: menu places; cheats and settings matched by name, then commands; then the same matched only by
+// description, so a name with every typed word ("multiply damage") beats a description that has them. Best first.
 const TIER = { Cheat: 100, Setting: 100, Command: 0 };
+const NAME_MATCH = 45; // the lowest name score (50, less 5 for the plural fold); descriptions score 20 at most
+const BY_NAME = 200;
 
 /**
  * Search the menu. Matches labels, then extra words (returned as `matched` so the result can show the old name),
- * then descriptions. Every menu place ranks above every cheat or setting, and those above every command.
+ * then descriptions. Every menu place ranks above every cheat, setting or command; a cheat or setting matched by
+ * name ranks above a command, and a command matched by name above anything matched only by description.
  * Best first, at most MAX_RESULTS.
  */
 export const searchMenu = (entries, query) => {
@@ -399,7 +409,8 @@ export const searchMenu = (entries, query) => {
     for (const entry of entries) {
         if (entry.kind) {
             const { score, matched } = scoreCheat(entry, q);
-            if (score > 0) hits.push({ ...entry, matched, score: TIER[entry.kind] + score });
+            const byName = score >= NAME_MATCH ? BY_NAME : 0;
+            if (score > 0) hits.push({ ...entry, matched, score: byName + TIER[entry.kind] + score });
             continue;
         }
         let score = scoreText(entry.label, q);
@@ -412,7 +423,7 @@ export const searchMenu = (entries, query) => {
             }
         }
         if (!score && entry.description && entry.description.toLowerCase().includes(q)) score = 25;
-        if (score > 0) hits.push({ ...entry, matched, score: 200 + score });
+        if (score > 0) hits.push({ ...entry, matched, score: BY_NAME + 200 + score });
     }
     return hits.sort((a, b) => b.score - a.score || (a.group ?? 0) - (b.group ?? 0)).slice(0, MAX_RESULTS);
 };

@@ -85,6 +85,8 @@ export const undoAction = async (id) => {
     const changed = todo.filter(
         (entry, i) => last.get(entry.path) === i && (!now[i]?.ok || !matchesVerifiedValue(entry.after, now[i].value))
     );
+    // A value that moved on: the page reads the game again, so its rows show what the game holds now.
+    if (changed.length) reloadPlaceOf(action);
     if (changed.length === 1 && todo.length === 1) throw new Error(`changed since: now ${shortValue(now[0].value)}`);
     if (changed.length) throw new Error(`${changed.length} of ${todo.length} changed since`);
 
@@ -106,11 +108,11 @@ export const undoAction = async (id) => {
             (error.results ?? []).filter((result) => result.ok).map((result) => result.path.replace(/^gga\./, ""))
         );
         const landed = todo.filter((_entry, i) => kept.has(targets[i])).map((entry) => entry.index);
-        if (kept.size) reloadPlaceOf(action);
+        const moved = (error.results ?? []).some((result) => result.error === "changed since");
+        if (kept.size || moved) reloadPlaceOf(action);
         if (landed.length) await markChangesUndone(id, landed);
         changesVersion.val++;
         const missed = writes.length - kept.size;
-        const moved = (error.results ?? []).some((result) => result.error === "changed since");
         throw new Error(
             !error.results
                 ? error.message || "not undone"

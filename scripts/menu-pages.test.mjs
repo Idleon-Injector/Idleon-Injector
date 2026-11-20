@@ -290,3 +290,26 @@ test("search finds the terminal's commands after cheats, by item name, and knows
     assert.equal(commandHint("drop Timecandy1"), "Amount optional");
     assert.equal(commandHint("godlike speed"), "");
 });
+
+// In-game check: "multiply damage" listed "w3 towerdamage" first (its description has both words), so Enter ran it.
+test("a name with every typed word ranks above one that has only some of them", () => {
+    // As GET /api/cheats has them: "w3" and "godlike" have their own rows, "multiply" (registerParent: false) doesn't.
+    const cheats = [
+        { value: "w3", message: "all w3 cheats", category: "w3" },
+        { value: "w3 towerdamage", message: "multiply tower damage (see config)", category: "w3" },
+        { value: "godlike", message: "all godlike powers", category: "godlike" },
+        {
+            value: "multiply damage",
+            message: "Multiplies damage by the number given (use reasonably!)",
+            category: "multiply",
+            needsParam: true,
+        },
+        { value: "godlike crit", message: "100% crit chance, damage stays", category: "godlike" },
+    ];
+    const entries = cheatSearchEntries(cheats, {});
+    const top = (q) => searchMenu(entries, q)[0].command;
+    assert.equal(top("multiply damage"), "multiply damage");
+    assert.equal(top("damage multiply"), "multiply damage", "in any order");
+    assert.equal(top("multiply dam"), "multiply damage", "while it's typed");
+    assert.equal(top("tower damage"), "w3 towerdamage", "a name match still wins for the other cheat");
+});
