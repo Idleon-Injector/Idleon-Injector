@@ -284,6 +284,6 @@ export default definePage({
     world: 7,
     system: "Jelly Operator",
     description: "Bloodcells, operations left, upgrade and cell levels, and which upgrades are doubled.",
-    keywords: ["Jelly", "Bloodcells", "Cells"],
+    keywords: ["Jelly", "Bloodcells", "Upgrades", "Cells"],
     component: JellyTab,
 });

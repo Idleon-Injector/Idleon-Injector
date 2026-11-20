@@ -31,7 +31,7 @@ function addChoices(choices, source, formatter) {
 
 /**
  * Get autocomplete suggestions for the CLI/WebUI.
- * @returns {Array<{value: string, message: string, category: string}>}
+ * @returns {Array<{value: string, message: string, category: string, needsParam?: boolean, dangerous?: boolean}>}
  */
 export function getAutoCompleteSuggestions() {
     const choices = [];
@@ -134,6 +134,18 @@ export function getAutoCompleteSuggestions() {
     // Remaining providers follow the legacy groups, including jar gems.
     for (const name of pendingProviders.keys()) {
         addCommandSuggestions(name);
+    }
+
+    // Mark what can damage the account, from the cheat the suggestion runs (the longest registered name it
+    // starts with), so the WebUI can ask before running it.
+    for (const choice of choices) {
+        const words = choice.value.split(" ");
+        for (let i = words.length; i > 0; i--) {
+            const definition = cheats[words.slice(0, i).join(" ")];
+            if (!definition) continue;
+            if (definition.dangerous) choice.dangerous = true;
+            break;
+        }
     }
 
     return choices;

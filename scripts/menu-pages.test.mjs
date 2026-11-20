@@ -5,11 +5,15 @@ import { dirname, join, relative } from "node:path";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { configDescriptions } from "../src/ui/config/configDescriptions.js";
 import {
     AREAS,
     WORLDS,
     buildMenuTree,
+    cheatSearchEntries,
+    commandHint,
     definePage,
+    isDangerousCommand,
     pageFolder,
     searchEntries,
     searchMenu,
@@ -159,4 +163,130 @@ test("every module under src/ui/pages declares a page in its world and system fo
         pages.push(declared);
     }
     assert.doesNotThrow(() => buildMenuTree(pages), "page ids are unique");
+});
+
+// Rows as GET /api/cheats returns them (copied from the fake game's list).
+const CHEATS = [
+    { value: "godlike", message: "all godlike powers", category: "godlike" },
+    { value: "godlike reach", message: "reach set to 666", category: "godlike" },
+    { value: "godlike respawn", message: "instant mob respawn", category: "godlike" },
+    { value: "godlike hp", message: "never lose hp, become invincible (when active)", category: "godlike" },
+    { value: "w1", message: "all w1 cheats", category: "w1" },
+    { value: "w1 forge", message: "forge speed and capacity multiplier check config", category: "w1" },
+    { value: "w1 stampcost", message: "stamp cost reduction multiplier check config", category: "w1" },
+    { value: "lvl stamp", message: "Change all stamp levels", category: "lvl", needsParam: true, dangerous: true },
+    { value: "godlike speed", message: "weapon super speed (default 9)", category: "godlike", needsParam: true },
+    { value: "wide", message: "all account-wide cheats", category: "wide" },
+    { value: "wide candy", message: "candy use everywhere", category: "wide" },
+    { value: "wipe inv", message: "Wipe your inventory", category: "wipe", dangerous: true },
+    { value: "drop Timecandy1", message: "24 Hr Time Candy", category: "drop", needsParam: true },
+    { value: "nomore Timecandy1", message: "24 Hr Time Candy", category: "nomore" },
+    { value: "drop Timecandy2", message: "72 Hr Time Candy", category: "drop", needsParam: true },
+    { value: "drop Copper", message: "Copper Ore", category: "drop", needsParam: true },
+    { value: "class mossy_fang", message: "Change to Mossy_Fang (ID: 1)", category: "class", dangerous: true },
+];
+
+test("search finds cheats and their settings after the menu's own places, and inner tabs by name", async () => {
+    const pages = [];
+    for (const file of await collectPageModules(PAGES_DIR))
+        pages.push((await import(pathToFileURL(file).href)).default);
+    const entries = [...searchEntries(buildMenuTree(pages)), ...cheatSearchEntries(CHEATS, configDescriptions)];
+    const search = (q) => searchMenu(entries, q);
+
+    const godlike = search("godlike");
+    assert.deepEqual(godlike[0].target, { view: "CHEATS", cheat: "godlike" });
+    assert.equal(godlike[0].where, "Cheat · Cheats › Godlike");
+    assert.ok(godlike.some((hit) => hit.label === "godlike reach"));
+    assert.deepEqual(search("godlike reach")[0].target, { view: "CHEATS", cheat: "godlike reach" });
+
+    const stampcost = search("stampcost");
+    assert.deepEqual(
+        stampcost.map((hit) => [hit.label, hit.where]),
+        [
+            ["w1 stampcost", "Cheat · Cheats › W1"],
+            ["stampcost", "Setting · w1 stampcost"],
+        ]
+    );
+    assert.deepEqual(stampcost[1].target, {
+        view: "CHEATS",
+        cheat: "w1 stampcost",
+        setting: "cheatConfig.w1.stampcost",
+    });
+    assert.deepEqual(
+        search("capacity").find((hit) => hit.kind === "Setting").target,
+        { view: "CHEATS", cheat: "w1 forge", setting: "cheatConfig.w1.forge.capacity" },
+        "a setting opens the cheat whose gear shows it"
+    );
+    assert.equal(search("invincible")[0].label, "godlike hp", "a cheat is found by its description words");
+    assert.equal(search("invincible")[0].matched, "invincible");
+    assert.ok(!entries.some((entry) => entry.kind && /unban|maxval/.test(entry.label)), "core settings stay out");
+
+    const stamps = search("stamps");
+    assert.equal(stamps[0].label, "Stamps", "the page beats a cheat or setting with the same word");
+    assert.deepEqual(stamps[0].target, { world: 1, page: "w1.stamps" });
+    assert.ok(
+        stamps.some((hit) => hit.kind === "Setting" && hit.label === "stampcost"),
+        "then the stamp settings"
+    );
+    assert.ok(
+        stamps.some((hit) => hit.label === "w1 stampcost") && stamps.some((hit) => hit.command === "lvl stamp"),
+        "and the stamp cheats"
+    );
+    const stamp = search("stamp");
+    assert.ok(stamp.findIndex((hit) => hit.kind) > stamp.findIndex((hit) => hit.label === "Stamps"));
+    assert.ok(stamp.some((hit) => hit.label === "w1 stampcost") && stamp.some((hit) => hit.command === "lvl stamp"));
+
+    for (const [q, system] of [
+        ["combat", "Stamps"],
+        ["skills", "Stamps"],
+        ["misc", "Stamps"],
+        ["overview", "Menagerie"],
+        ["unlocks", "Menagerie"],
+        ["cells", "Jelly Operator"],
+        ["units", "Outposts"],
+    ]) {
+        assert.equal(search(q)[0].label, system, `"${q}" (an inner tab) finds ${system}`);
+    }
+    assert.ok(search("e").length <= 8, "at most 8 results");
+});
+
+test("search finds the terminal's commands after cheats, by item name, and knows which need a second Enter", () => {
+    const pages = [page("w1.stamps", 1, "Stamps", { keywords: ["Combat"] })];
+    const entries = [...searchEntries(buildMenuTree(pages)), ...cheatSearchEntries(CHEATS, configDescriptions)];
+    const search = (q) => searchMenu(entries, q);
+
+    const candy = search("candy");
+    assert.deepEqual(
+        candy.map((hit) => [hit.kind, hit.label, hit.where]),
+        [
+            ["Cheat", "wide candy", "Cheat · Cheats › Wide"],
+            ["Command", "drop · 24 Hr Time Candy", "Command · drop Timecandy1"],
+            ["Command", "drop · 72 Hr Time Candy", "Command · drop Timecandy2"],
+            ["Command", "nomore · 24 Hr Time Candy", "Command · nomore Timecandy1"],
+        ],
+        "cheats first, then the commands by the item's name, every drop before every nomore"
+    );
+    assert.deepEqual(candy[1].target, { command: "drop Timecandy1", message: "24 Hr Time Candy", needsParam: true });
+    assert.equal(search("drop candy")[0].command, "drop Timecandy1", "every word, like the terminal");
+    assert.equal(search("timecandy1")[0].command, "drop Timecandy1", "and by the command itself");
+    assert.equal(search("stamp")[0].label, "Stamps", "pages still come first");
+
+    const speed = search("godlike speed")[0];
+    assert.deepEqual(
+        [speed.kind, speed.where],
+        ["Command", "Command · Cheats › Godlike"],
+        "a cheat that needs a value"
+    );
+    assert.equal(search("godlike reach").filter((hit) => hit.command === "godlike reach").length, 1, "no duplicates");
+    assert.equal(search("godlike reach")[0].kind, "Cheat", "a bare cheat still opens its row");
+
+    assert.equal(isDangerousCommand("wipe inv", CHEATS), true);
+    assert.equal(isDangerousCommand("  wipe   inv ", CHEATS), true);
+    assert.equal(isDangerousCommand("lvl stamp 50", CHEATS), true, "the row it starts with");
+    assert.equal(isDangerousCommand("class someone_new", CHEATS), true, "a command whose every suggestion is");
+    assert.equal(isDangerousCommand("drop Timecandy1 5", CHEATS), false);
+    assert.equal(isDangerousCommand("godlike reach", CHEATS), false);
+    assert.equal(isDangerousCommand("nothing here", CHEATS), false);
+    assert.equal(commandHint("drop Timecandy1"), "Amount optional");
+    assert.equal(commandHint("godlike speed"), "");
 });

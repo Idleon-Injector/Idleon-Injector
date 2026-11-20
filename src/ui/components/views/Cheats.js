@@ -8,6 +8,7 @@ import { Icons } from "../../assets/icons.js";
 import { CATEGORY_ORDER } from "../../state/constants.js";
 import { CheatItem } from "../CheatItem.js";
 import { LazyCategory } from "../LazyCategory.js";
+import { revealFound } from "../../utils/index.js";
 
 const { div, button, span } = van.tags;
 
@@ -176,6 +177,32 @@ export const Cheats = () => {
         resetPagination();
     };
 
+    // The menu search sent the player to a cheat: clear this page's filter, open its category and show the row.
+    // It only shows the row; the player runs the cheat from it.
+    const searchBar = SearchBar({ placeholder: "SEARCH_COMMANDS", onInput: handleSearch });
+    let shownFocus = 0;
+    van.derive(() => {
+        const { cheat: value, setting, focus, n } = store.app.cheatFocus;
+        const cheats = store.data.cheats;
+        if (!n || n === shownFocus || !cheats.length) return;
+        shownFocus = n;
+        const category = cheats.find((cheat) => cheat.value === value)?.category || "general";
+        const inCategory = cheats.filter((cheat) => (cheat.category || "general") === category);
+        searchBar.querySelector("input").value = "";
+        handleSearch("");
+        ui.activeCategory = category;
+        pagination.limit = Math.max(50, Math.ceil((inCategory.findIndex((c) => c.value === value) + 1) / 50) * 50);
+        const page = document.getElementById("cheats-tab") || document;
+        revealFound(() => {
+            const details = page.querySelector(`details[data-category="${CSS.escape(category)}"]`);
+            if (details && !details.open) details.open = true;
+            const row = page.querySelector(`[data-cheat="${CSS.escape(value)}"] .cheat-button`);
+            if (row) page.querySelector(".tabs-bar .tab-btn.active")?.scrollIntoView({ block: "nearest", inline: "center" });
+            return row;
+        }, focus && !setting);
+        if (setting) revealFound(() => document.querySelector(`[data-config-key="${CSS.escape(setting)}"]`), focus);
+    });
+
     const handleConfigDrawerToggle = () => {
         store.clearForcedConfigPath();
 
@@ -195,10 +222,7 @@ export const Cheats = () => {
 
             div(
                 { class: "control-bar" },
-                SearchBar({
-                    placeholder: "SEARCH_COMMANDS",
-                    onInput: handleSearch,
-                }),
+                searchBar,
                 button(
                     {
                         class: () => `config-drawer-toggle ${store.app.configDrawerOpen ? "active" : ""}`,

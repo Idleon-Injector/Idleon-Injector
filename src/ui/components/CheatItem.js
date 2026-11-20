@@ -89,7 +89,7 @@ export const CheatItem = (cheat) => {
     ];
 
     return div(
-        { class: "cheat-item-container" },
+        { class: "cheat-item-container", "data-cheat": cheat.value },
         button(
             {
                 class: () =>

@@ -51,6 +51,8 @@ const appState = vanX.reactive({
     config: null,
     sidebarCollapsed: localStorage.getItem("sidebarCollapsed") === "true",
     configForcedPath: null,
+    // The cheat the menu search sent the player to: the Cheats page shows that row (and `setting` in the drawer).
+    cheatFocus: { cheat: "", setting: "", focus: false, n: 0 },
     cheatsViewMode: localStorage.getItem("cheatsViewMode") || "tabs",
 });
 
@@ -197,8 +199,17 @@ const SystemService = {
     },
 };
 
+// The cheat list's own load in flight, so a second caller waits for it instead of starting another (and an
+// unrelated load, like Settings, never stops a cheat list retry).
+let cheatsLoad = null;
+
 const CheatService = {
-    loadCheats: async () => {
+    loadCheats: () =>
+        (cheatsLoad ??= CheatService.fetchCheats().finally(() => {
+            cheatsLoad = null;
+        })),
+
+    fetchCheats: async () => {
         await Actions.withLoading(async () => {
             const hasConfig = appState.config !== null;
 
@@ -471,10 +482,18 @@ const store = {
 
     /**
      * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }` (page "" or null = the world's first page).
+     * `{ view: "CHEATS", cheat, setting, focus }` shows that cheat's row, and with `setting` opens its settings drawer;
+     * `focus` (picked by keyboard) also focuses the row or the setting's field. It never runs the cheat.
      */
     openMenu: (target) => {
         if (target.view) {
             appState.activeTab = VIEWS[target.view].id;
+            if (target.cheat) {
+                const setting = target.setting || "";
+                const focus = Boolean(target.focus);
+                appState.cheatFocus = { cheat: target.cheat, setting, focus, n: appState.cheatFocus.n + 1 };
+                if (setting) CheatService.navigateToCheatConfig(target.cheat);
+            }
             return;
         }
         appState.menuWorld = target.world;

@@ -18,6 +18,7 @@ export const LazyCategory = ({ category, isOpen, cheats }) => {
     return details(
         {
             class: "cheat-category",
+            "data-category": category,
             open: isOpen,
             ontoggle: (e) => {
                 isExpanded.val = e.target.open;

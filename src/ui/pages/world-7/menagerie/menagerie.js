@@ -378,6 +378,6 @@ export default definePage({
     world: 7,
     system: "Menagerie",
     description: "Menagerie progress: unlocks, boosts, missions and side jellies.",
-    keywords: ["Side Jellies", "Missions", "Boosts"],
+    keywords: ["Overview", "Unlocks", "Boosts", "Missions", "Side Jellies"],
     component: MenagerieTab,
 });

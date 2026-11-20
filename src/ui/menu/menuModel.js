@@ -249,6 +249,104 @@ export const searchEntries = (tree) => {
     return out;
 };
 
+/** A cheat category as a place name: "w1" -> "W1", "godlike" -> "Godlike". */
+const categoryName = (category) =>
+    /^w\d$/.test(category) ? category.toUpperCase() : category.charAt(0).toUpperCase() + category.slice(1);
+
+/**
+ * Search entries for the Cheats page's list (GET /api/cheats: the game's autocomplete suggestions,
+ * { value, message, category, needsParam?, dangerous? }) and every cheat setting (`descriptions` is
+ * configDescriptions, "cheatConfig.<path>": text).
+ *
+ * - A Cheat is a command that runs as it is ("godlike reach", "w1 stampcost"): picking it shows its row.
+ * - A Command needs or takes words the player types (needsParam), or is a suggestion for a command the list
+ *   hides ("drop Timecandy1": no bare "drop" row): picking it fills the search box to run from there.
+ *   An item-style one is labelled by its name ("drop · 24 Hr Time Candy"), the command on its second line.
+ * - A Setting belongs to the longest command its path starts with, the one whose gear shows it; settings no
+ *   command owns (unban, maxval, ...) live on the Settings page and stay out.
+ */
+export const cheatSearchEntries = (cheats, descriptions) => {
+    const values = new Set(cheats.map((cheat) => cheat.value));
+    // Equal matches list by command, in the game's order: "candy" gives every candy to drop, then to nomore.
+    const groups = new Map();
+    for (const cheat of cheats)
+        if (!groups.has(cheat.value.split(" ")[0])) groups.set(cheat.value.split(" ")[0], groups.size);
+    const out = cheats.map((cheat) => {
+        const value = cheat.value;
+        const base = value.split(" ")[0];
+        const place = `Cheats › ${categoryName(cheat.category || "general")}`;
+        const message = cheat.message || "";
+        const hiddenBase = value.includes(" ") && !values.has(base);
+        if (!cheat.needsParam && !hiddenBase) {
+            return {
+                kind: "Cheat",
+                group: groups.get(base),
+                label: value,
+                where: `Cheat · ${place}`,
+                command: value,
+                description: message,
+                target: { view: "CHEATS", cheat: value },
+            };
+        }
+        const named = hiddenBase && message !== "";
+        return {
+            kind: "Command",
+            group: groups.get(base),
+            named,
+            label: named ? `${base} · ${message}` : value,
+            where: named ? `Command · ${value}` : `Command · ${place}`,
+            command: value,
+            description: named ? "" : message,
+            target: { command: value, message, needsParam: cheat.needsParam === true },
+        };
+    });
+    for (const [key, description] of Object.entries(descriptions)) {
+        if (!key.startsWith("cheatConfig.")) continue;
+        const path = key.split(".").slice(1);
+        let owner = "";
+        for (let i = path.length; i > 0 && !owner; i--) {
+            if (values.has(path.slice(0, i).join(" "))) owner = path.slice(0, i).join(" ");
+        }
+        if (!owner) continue;
+        out.push({
+            kind: "Setting",
+            group: groups.get(path[0]),
+            label: path[path.length - 1],
+            where: `Setting · ${owner}`,
+            command: "",
+            description,
+            target: { view: "CHEATS", cheat: owner, setting: key },
+        });
+    }
+    return out;
+};
+
+/**
+ * Whether running `text` from the command box needs a second Enter: the longest listed command it starts with
+ * is dangerous ("wipe inv", "bulk MATERIAL 5"), or, for a command the list only has suggestions of
+ * ("class foo"), every suggestion of it is.
+ */
+export const isDangerousCommand = (text, cheats) => {
+    const words = text.trim().split(/\s+/);
+    for (let i = words.length; i > 0; i--) {
+        const row = cheats.find((cheat) => cheat.value === words.slice(0, i).join(" "));
+        if (row) return row.dangerous === true;
+    }
+    const family = cheats.filter((cheat) => cheat.value.startsWith(`${words[0]} `));
+    return family.length > 0 && family.every((cheat) => cheat.dangerous === true);
+};
+
+/**
+ * What the command box says under a command: amounts the item commands take (see their defineCheat rows).
+ * ponytail: the three item-style commands by name; read it from the cheat rows if more need a hint.
+ */
+export const commandHint = (command) => {
+    const base = command.split(" ")[0];
+    if (base === "drop" || base === "spawn") return "Amount optional";
+    if (base === "multiplestacks") return "Needs a stack count";
+    return "";
+};
+
 const MAX_RESULTS = 8;
 
 const scoreText = (text, q) => {
@@ -260,15 +358,43 @@ const scoreText = (text, q) => {
     return 0;
 };
 
+/** How well a cheat, setting or command matches, 0-100: by name or command, then description, then every word. */
+const scoreCheat = (entry, q) => {
+    const last = entry.command.split(" ").pop();
+    const score = Math.max(scoreText(entry.label, q), scoreText(entry.command, q), scoreText(last, q));
+    if (score) return { score, matched: null };
+    const word = entry.description.split(/[^A-Za-z0-9']+/).find((w) => w.toLowerCase().startsWith(q));
+    if (word) return { score: 20, matched: word };
+    if (entry.description.toLowerCase().includes(q)) return { score: 10, matched: null };
+    // Every word somewhere, like the terminal's autocomplete: "drop candy".
+    const all = `${entry.label} ${entry.command} ${entry.description}`.toLowerCase();
+    if (q.includes(" ") && q.split(/\s+/).every((part) => all.includes(part))) return { score: 15, matched: null };
+    // ponytail: one plural fold, so "stamps" also finds the stamp cheats; a stemmer if more words need it.
+    if (q.length > 3 && q.endsWith("s")) {
+        const single = scoreCheat(entry, q.slice(0, -1));
+        return { score: Math.max(0, single.score - 5), matched: single.matched };
+    }
+    return { score: 0, matched: null };
+};
+
+// Tiers: menu places, then cheats and settings, then commands, each best first.
+const TIER = { Cheat: 100, Setting: 100, Command: 0 };
+
 /**
  * Search the menu. Matches labels, then extra words (returned as `matched` so the result can show the old name),
- * then descriptions. Best first, at most MAX_RESULTS.
+ * then descriptions. Every menu place ranks above every cheat or setting, and those above every command.
+ * Best first, at most MAX_RESULTS.
  */
 export const searchMenu = (entries, query) => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     const hits = [];
     for (const entry of entries) {
+        if (entry.kind) {
+            const { score, matched } = scoreCheat(entry, q);
+            if (score > 0) hits.push({ ...entry, matched, score: TIER[entry.kind] + score });
+            continue;
+        }
         let score = scoreText(entry.label, q);
         let matched = null;
         for (const word of entry.words || []) {
@@ -279,7 +405,7 @@ export const searchMenu = (entries, query) => {
             }
         }
         if (!score && entry.description && entry.description.toLowerCase().includes(q)) score = 25;
-        if (score > 0) hits.push({ ...entry, matched, score });
+        if (score > 0) hits.push({ ...entry, matched, score: 200 + score });
     }
-    return hits.sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
+    return hits.sort((a, b) => b.score - a.score || (a.group ?? 0) - (b.group ?? 0)).slice(0, MAX_RESULTS);
 };

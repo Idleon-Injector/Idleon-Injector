@@ -57,6 +57,34 @@ export function toIndexedArray(raw) {
 }
 
 /**
+ * Bring an element the menu search landed on into view and flash it once (`.search-found`).
+ * `find` returns the element or null; it is retried while the page is still rendering it (about 2 s at most).
+ * @param {() => Element|null} find
+ * @param {boolean} [focus] - also focus it (a button or field), or the first field inside it
+ */
+export function revealFound(find, focus = false, tries = 40) {
+    // Always wait a beat first: the page switch and the row's category render on VanJS's next update.
+    setTimeout(() => {
+        const el = find();
+        if (!el || !el.offsetParent) {
+            if (tries > 0) revealFound(find, focus, tries - 1);
+            return;
+        }
+        showFound(el, focus);
+    }, 50);
+}
+
+function showFound(el, focus) {
+    el.scrollIntoView({ block: "center" });
+    el.classList.remove("search-found");
+    void el.offsetWidth; // restart the flash when the same row is found twice
+    el.classList.add("search-found");
+    el.addEventListener("animationend", () => el.classList.remove("search-found"), { once: true });
+    const fields = el.matches("button, input, select") ? [el] : el.querySelectorAll("input, select, textarea, button");
+    if (focus) [...fields].find((field) => field.offsetParent)?.focus();
+}
+
+/**
  * Get the config path parts for a cheat value.
  * Maps cheat command like "w1 owl" to path parts ["w1", "owl"].
  * @param {string} cheatValue - e.g., "w1 owl"
