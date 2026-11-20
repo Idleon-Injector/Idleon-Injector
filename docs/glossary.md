@@ -36,6 +36,8 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Never rolled back   | Save values a restore leaves alone because putting an old one back grants things twice.              |
 | Attire Rack         | The outfits whose bonuses `wide attire` gives as if worn, chosen on the Attire Rack page.            |
 | Appearance          | The attire (outfit) a character wears, in its equipment's attire slot.                               |
+| Loadout             | Gear, tools, food, cards, prayers, chips and obols set at once on the Wardrobe page.                 |
+| Perfect Equipped    | The gear in play rebuilt with the stones of the world reached and the account's crafting bonuses.    |
 
 Source entry points: [game globals](../src/cheats/core/globals.js),
 [command registration](../src/cheats/core/registration.js),

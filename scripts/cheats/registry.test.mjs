@@ -64,7 +64,18 @@ test("errors come back as ok: false", async () => {
 });
 
 test("dangerous rows mark their commands, subcheats included", () => {
-    for (const name of ["chng", "class", "lvl", "bulk", "equipall", "wipe inv", "wipe exp", "egga", "eggk"])
+    for (const name of [
+        "chng",
+        "class",
+        "lvl",
+        "bulk",
+        "equipall",
+        "wipe inv",
+        "wipe exp",
+        "egga",
+        "eggk",
+        "wide perfectequipped",
+    ])
         assert.equal(cheats[name].dangerous, true, name);
     for (const name of ["drop", "godlike reach", "fix_magnifier"])
         assert.equal(cheats[name].dangerous, undefined, name);
