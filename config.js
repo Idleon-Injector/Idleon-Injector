@@ -21,6 +21,29 @@ exports.cheatConfig = {
     },
     automation: {
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
+        orion: [
+            { id: "8", on: false, priority: 1 },
+            { id: "4", on: false, priority: 2 },
+        ], // Automation: Orion upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        orionSaving: 10, // Automation: while Orion saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
+        poppy: [], // Automation: Poppy upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        poppySaving: 10, // Automation: while Poppy saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
+        tarpit: [], // Automation: Tar Pit upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        tarpitSaving: 10, // Automation: while the Tar Pit saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
+        bubbles: [], // Automation: alchemy bubbles to raise, { id: "cauldron:bubble", on, stopAt, pay }; stopAt is a level, pay is "particles" or left out for materials.
+        bubblesTarget: 90, // Automation: bubbles that have a max are raised to this % of it (0 to 99.9).
+        construction: [], // Automation: W3 buildings to build, { id, on, stopAt, priority }; id is the building (0-8 buildings, 9-17 towers, 18-26 shrines), priority 1 is High, 2 Low, none Balanced. Empty slots take High, Low, then Balanced buildings, the closest to done first, up to stopAt; the 8th slot stays free once it feeds the Menagerie jelly.
+        kitchens: [], // Automation: kitchen upgrades to level, { id: 3 * kitchen + slot (0 Speed, 1 Fire, 2 Luck), on, stopAt, priority }; priority 1 is High, 2 Low, none Balanced.
+        kitchenSaving: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10], // Automation: per spice, the % of what it saves for that Balanced kitchen upgrades may spend meanwhile.
+        meals: [], // Automation: meals to level with their own quantity, { id: meal index, on, stopAt }.
+        sneaking: [], // Automation: Ninja Knowledge upgrades to buy with jade, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        sneakingSaving: 10, // Automation: while Sneaking saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
+        summoning: [], // Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        summoningSaving: [10, 10, 10, 10, 10, 10, 10, 10], // Automation: per essence colour, the % of what it saves for that Balanced summoning upgrades may spend meanwhile.
+        bubba: [], // Automation: Bubba upgrades to buy with meat, { id, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        bubbaSaving: 10, // Automation: while Bubba saves for a High or Low upgrade, Balanced ones may cost up to this % of it.
+        grimoire: [], // Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.
+        grimoireSaving: 10, // Automation: while a bone type saves for its cheapest High or Low upgrade, Balanced upgrades may cost up to this % of it.
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)
