@@ -516,3 +516,52 @@ test("star signs: star points move by what a sign gives, so points spent on star
         g.OptionsListAccount[40] = savedPoints;
     }
 });
+
+test("star signs: star points that aren't a number are refused, and nothing is written", async () => {
+    const saved = [...g.StarSignProg[1]];
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[1] = ["_a", 1];
+    g.OptionsListAccount[40] = "lots";
+    try {
+        const root = await openSign("A-2");
+        const detail = detailOf(root);
+        const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+        const before = writes();
+        removeChip(root, 0);
+        await until(() => saveState(detail) === "error", "the save to fail");
+        assert.equal(writes(), before, "nothing was written");
+        assert.equal(g.StarSignProg[1][0], "_a");
+        assert.equal(g.OptionsListAccount[40], "lots");
+    } finally {
+        g.StarSignProg[1] = saved;
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
+
+test("star signs: points the game spends while a save runs aren't given back", async () => {
+    const saved = [...g.StarSignProg[1]];
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[1] = ["_a", 1];
+    g.OptionsListAccount[40] = 5;
+    // The game spends 4 points on a star sign right after the page read the balance.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (String(url).includes("/gga/read") && String(options?.body ?? "").includes("OptionsListAccount[40]")) {
+            g.OptionsListAccount[40] = 1;
+        }
+        return response;
+    };
+    try {
+        const root = await openSign("A-2");
+        const detail = detailOf(root);
+        removeChip(root, 0);
+        await until(() => ["success", "error"].includes(saveState(detail)), "the save");
+        assert.equal(saveState(detail), "error", "the save says the game changed it");
+        assert.equal(Number(g.OptionsListAccount[40]), 1, "the spent points stay spent");
+    } finally {
+        globalThis.fetch = realFetch;
+        g.StarSignProg[1] = saved;
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});

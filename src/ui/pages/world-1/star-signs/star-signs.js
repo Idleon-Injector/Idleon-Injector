@@ -328,11 +328,15 @@ const getClaimedRewardTotal = (list) =>
 // OptionsListAccount[40] is the star points balance the game spends on star signs (claiming a sign adds its points,
 // unlocking a star sign takes its cost), so a change moves it by what the signs give or take back, never below zero:
 // points already spent on star signs stay spent. Null when nothing changes.
+// An account that never had points holds nothing there yet (0); anything else that isn't a number is refused, not
+// saved over. The write carries the balance it read as `expect`, so points the game spends meanwhile aren't given back.
 const starPointsWrite = async (list, nextSigns) => {
     const change = getClaimedRewardTotal(nextSigns) - getClaimedRewardTotal(list);
     if (!change) return null;
-    const balance = toNum(await gga("OptionsListAccount[40]"), 0);
-    return { path: "OptionsListAccount[40]", value: Math.max(0, balance + change) };
+    const read = await gga("OptionsListAccount[40]");
+    const balance = read === undefined || read === null || read === "" ? 0 : Number(read);
+    if (!Number.isFinite(balance)) throw new Error("Star points unreadable. Nothing changed.");
+    return { path: "OptionsListAccount[40]", value: Math.max(0, balance + change), expect: read };
 };
 
 const syncActiveSign = (activeSign, nextSigns) => {
