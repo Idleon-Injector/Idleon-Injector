@@ -235,221 +235,240 @@
         "AI": true
     },
     "41": {
-        "name": "Quest38 Item Counter",
-        "description": "Counts special items related to Quest38",
+        "name": "Guild Giftboxes Waiting",
+        "description": "Guild Giftboxes still to hand out this week. Each week it is set to 2 plus the Guild Gifts bonus, then the boxes go into your storage chest when it has room.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "42": {
-        "name": "Multiplayer Account Flag",
-        "description": "Flags accounts with multiple characters",
+        "name": "Old Account Gift Owed",
+        "description": "1 = this account is owed a one-time gift from an old update: 3 Sub Class Swap Tokens and 5 Post Office Box Reseto Magnificos, given on load when the inventory has room.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "43": {
-        "name": "Asset Management System",
-        "description": "Asset loading, compression algorithm constants, and actor type identifier",
+        "name": "Unused",
+        "description": "Not read or written by the game. Only touched by the loops that fill empty slots with 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "44": {
-        "name": "Bundle Expiration Timer",
-        "description": "Tracks days remaining for bundle offers",
+        "name": "Daily Gem Days Left",
+        "description": "Days of 350 free gems left from gem shop packs. Each daily reset gives 350 gems and lowers it by 1. The Starter Pack adds 4 days.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "45": {
-        "name": "Bundle Cooldown Timer",
-        "description": "Tracks bundle activation status and cooldown",
+        "name": "Starter Pack Offer Timer",
+        "description": "Seconds on the Starter Pack offer clock. The shop offers the pack while this is under 172800 (2 days); it counts up while slot 46 is 1, offline time too. Buying the pack sets it to 259201.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "46": {
-        "name": "Bundle Activation Flag",
-        "description": "Indicates if a bundle offer is currently active",
+        "name": "Starter Pack Timer On",
+        "description": "1 = the Starter Pack offer clock (slot 45) is running. Turned on the first time the gem shop shows the pack, or by the daily reset for accounts with few bought gems.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "47": {
-        "name": "Critter Spawning Counter",
-        "description": "Tracks NONdummies array for Quest69/critters",
+        "name": "Critters Unlocked",
+        "description": "How many critters you can trap. Raised by the Lord of the Hunt quests and later unlocks, up to 11.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "48": {
-        "name": "Account List Display Mode",
-        "description": "Controls player list display style",
+        "name": "Character Select View",
+        "description": "Which view the character select screen uses (0 or 1), switched by a button there. The button appears once your first character is over level 15.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "49": {
-        "name": "Starter Bundle Reset",
-        "description": "Tracks starter bundle reset timing",
+        "name": "Starter Pack Reset Version",
+        "description": "The last StarterBundleReset number from the server. When the server number changes and you have not bought the Starter Pack, its offer clock starts over.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "50": {
-        "name": "Master Volume Control",
-        "description": "Overall game audio volume (0-100)",
+        "name": "Master Volume",
+        "description": "Overall volume slider, 0 to 100. Sounds stay off while it is 0. New accounts start at 45.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "51": {
-        "name": "Music Volume Control",
-        "description": "Background music volume (0-100)",
+        "name": "Music Volume",
+        "description": "Music volume slider, 0 to 100. New accounts start at 47.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "52": {
-        "name": "Effects Volume Control",
-        "description": "Sound effects volume (0-100)",
+        "name": "Sound Effects Volume",
+        "description": "Sound effects volume slider, 0 to 100. New accounts start at 39.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "53": {
-        "name": "Electron App Version",
-        "description": "Tracks Desktop/Electron app version state",
+        "name": "Steam Welcome Gift",
+        "description": "83734 once the Steam welcome gift was given during a Steam event. The rate-the-game popup also writes 1 or 3 here, but that popup no longer opens.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "54": {
-        "name": "Asset Positioning System",
-        "description": "Asset loading, sprite management, and coordinate positioning",
+        "name": "Unused",
+        "description": "Not read or written by the game. Only touched by the loops that fill empty slots with 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "55": {
-        "name": "Accumulated Talent Skill Book Checkouts",
-        "description": "Total talent skill book checkouts",
-        "type": "number"
+        "name": "Library Checkouts",
+        "description": "Talent book checkouts waiting in the library. One more is added each time the timer fills, and each one waiting makes the next slower. Checking out a book uses them.",
+        "type": "number",
+        "verified": true
     },
     "56": {
         "name": "Unclaimed W3 Colosseum Ticket Days",
-        "description": "Number of unclaimed W3 colosseum ticket days",
-        "type": "number"
+        "description": "Days of free colosseum tickets waiting in World 3. One more each day. Claiming gives up to 3 tickets and resets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "57": {
-        "name": "Giant Mobs Spawn Decrease Multiplier",
-        "description": "Controls giant mob spawn rate",
-        "type": "number"
+        "name": "Giant Mobs This Week",
+        "description": "Giant monsters spawned this week. Each one makes the next less likely. Resets weekly.",
+        "type": "number",
+        "verified": true
     },
     "58": {
-        "name": "Quest Categorization & Star Sign Progression",
-        "description": "Quest categorization with '^' prefix display marker + StarSignProg tracking array (index 0)",
-        "type": "number"
+        "name": "Construction Building Info",
+        "description": "On/off switch at the top right of the Construction buildings screen. When 1, each building shows its upgrade cost and build progress bar.",
+        "type": "number",
+        "verified": true
     },
     "59": {
-        "name": "Graphics Vertex Buffer & Food System",
-        "description": "59th vertex buffer coordinate for rendering + quest item quantities in _ScrollCircleINFO[59] + food slot purchases (2 + GemItemsPurchased[59])",
-        "type": "number"
+        "name": "Unused",
+        "description": "Not read or written by the game. Only touched by the loops that fill empty slots with 0.",
+        "type": "number",
+        "verified": true
     },
     "60": {
-        "name": "Item Shop Popup",
-        "description": "Item shop popup setting",
-        "type": "number"
+        "name": "Gem Shop Popup Seen",
+        "description": "Which gem shop pack popup was shown last, like \"bun_c\". Set to \"non\" by the daily reset for accounts with few bought gems, so a popup can show again.",
+        "type": "string",
+        "verified": true
     },
     "61": {
-        "name": "Localized Text & World Selection",
-        "description": "Localized text storage in RANDOlist[61] + world selection system with pagination math ((worldIndex - 1) / 20)",
-        "type": "number"
+        "name": "Favorite Server",
+        "description": "The server marked as favorite in the server list, as its number plus 1 (0 = none). Play joins it instead of a random server.",
+        "type": "number",
+        "verified": true
     },
     "62": {
-        "name": "Low Capacity Threshold & Hole Parser",
-        "description": "Low capacity threshold (80) + primary hole info parser + cooking/anvil/guild state management + quest tracking",
-        "type": "number"
+        "name": "Bargain Tags",
+        "description": "Bargain Tags held. Each one takes 25% off the next bubble upgrade, up to 90% off. All are used on that upgrade.",
+        "type": "number",
+        "verified": true
     },
     "63": {
-        "name": "Medium Capacity Threshold & UI Control",
-        "description": "Medium capacity threshold (160) + hole info parsing + monster scaling exponent + UI scrolling control",
-        "type": "number"
+        "name": "Rate Prompt Version",
+        "description": "The last RateAgain number from the server. When it changes, the game resets the rate-the-game state in slot 20, unless that slot is 10.",
+        "type": "number",
+        "verified": true
     },
     "64": {
-        "name": "Quest Completion & Monster Scaling",
-        "description": "Quest completion flag + high capacity threshold (320) + equipment validation + monster scaling multiplier",
-        "type": "number"
+        "name": "Unused",
+        "description": "Not read or written by the game. Only touched by the loops that fill empty slots with 0.",
+        "type": "number",
+        "verified": true
     },
     "65": {
-        "name": "Frame Rate Configuration",
-        "description": "Game frame rate configuration and actor management",
-        "type": "number"
+        "name": "Old Gem Gift Tier",
+        "description": "Read only by an old one-time update, which gave 200, 160, 120 or 100 gems for values 1, 3, 2 or 4. Nothing writes it.",
+        "type": "number",
+        "verified": true
     },
     "66": {
-        "name": "UI Container & Spirit Reindeer Tracker",
-        "description": "UI object container + option cache system + exponential decay timing threshold + Spirit Reindeer location tracking",
-        "type": "number"
+        "name": "YouTube Button Gems Claimed",
+        "description": "12 once the YouTube button gave its 60 gems. The button shows on the HUD when the server turns it on and your first character is over level 14.",
+        "type": "number",
+        "verified": true
     },
     "67": {
-        "name": "Option Cache & Spelunk Data",
-        "description": "Option tracking cache + counter with threshold checking + Spelunk data storage system",
-        "type": "number"
+        "name": "Event Box Card Today",
+        "description": "2 once today's first event box opened during an event also dropped a random card. Back to 0 at the daily reset.",
+        "type": "number",
+        "verified": true
     },
     "68": {
         "name": "DO NOT TOUCH",
-        "description": "Triggers Abuse Message (different shadowban)",
+        "description": "Cheater flag. When 1, gem items give no gems and show \"You've been caught cheating\", and your Tome score is no longer sent.",
         "type": "number",
-        "warning": "DO NOT MODIFY - Will trigger shadowban"
+        "warning": "DO NOT MODIFY - Will trigger shadowban",
+        "verified": true
     },
     "69": {
-        "name": "Camera Positioning Actor",
-        "description": "Special camera and positioning actor type identifier",
+        "name": "Statue Tools Used",
+        "description": "Which tools you gave the statue man: 1 Guilding Tools (golden statues), 2 Onyx Tools (onyx statues), 3 Zenith Tools (zenith statues).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "70": {
-        "name": "Recipe Points",
-        "description": "Recipe points tracking",
+        "name": "Alchemy Button Clicked",
+        "description": "Set by a button at the top of the Alchemy menu: 1 after a click on the first tab, 2 on the second, 3 on both. Nothing uses the value any more.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "71": {
         "name": "Dungeon Credits (Blue) - Total",
-        "description": "Total number - determines rank - keep lower than 100m",
+        "description": "All blue dungeon credits ever earned. Sets your dungeon rank.",
         "type": "number",
-        "warning": "Keep lower than 100m"
+        "warning": "Keep lower than 100m",
+        "verified": true
     },
     "72": {
         "name": "Dungeon Credits (Blue) - Actual",
-        "description": "Actual amount of blue dungeon credits",
-        "type": "number"
+        "description": "Blue dungeon credits you can spend in a dungeon hub.",
+        "type": "number",
+        "verified": true
     },
     "73": {
         "name": "Dungeon Credits (Pink/Flurbos)",
-        "description": "Pink dungeon credits (flurbos)",
-        "type": "number"
+        "description": "Flurbo dungeon credits you can spend in a dungeon hub.",
+        "type": "number",
+        "verified": true
     },
     "74": {
         "name": "Arcade Balls (Normal)",
-        "description": "Normal arcade balls",
-        "type": "number"
+        "description": "Arcade balls. Each arcade launch uses one.",
+        "type": "number",
+        "verified": true
     },
     "75": {
         "name": "Arcade Balls (Golden)",
-        "description": "Golden arcade balls",
-        "type": "number"
+        "description": "Golden arcade balls. Spent on arcade shop upgrades.",
+        "type": "number",
+        "verified": true
     },
     "76": {
-        "name": "Character Code L",
-        "description": "Character encoding for keyboard input (L=76)",
+        "name": "Dungeon Passes",
+        "description": "Dungeon passes. The dungeon shows this minus 1. Each week adds 12 (more with the gem shop upgrade), and each run uses some. At 0, dungeon loot drops less often.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "77": {
-        "name": "Character Code M",
-        "description": "Character encoding for keyboard input (M=77)",
+        "name": "Unlimited Dungeon Pass Days",
+        "description": "Days of unlimited dungeon passes. While above 0, runs use no passes. Goes down by 1 each day.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "78": {
-        "name": "Character Code N",
-        "description": "Character encoding for keyboard input (N=78)",
+        "name": "New Stuff Seen",
+        "description": "The last NewStuffButton number from the server you have seen. While it differs, the sixth main menu button wiggles until you open it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "79": {
-        "name": "Character Code O",
-        "description": "Character encoding for keyboard input (O=79)",
+        "name": "Starter Pack Popup Shown",
+        "description": "1.7 once the Starter Pack popup slid in on a town map. It slides in only once.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "80": {
         "name": "Unclaimed W3 Boss Keys Days",
