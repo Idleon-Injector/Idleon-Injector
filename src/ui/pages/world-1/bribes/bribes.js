@@ -1,34 +1,37 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
-    createStaticRowReconciler,
     oneAtATime,
     useWriteStatus,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
-import { clickAgain } from "../../../components/inPlace.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import { captureGesture } from "../../../services/changeLog.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 const STATUS_PATH = "BribeStatus";
 
-/** Edit account-wide bribe ownership without spending coins. */
+/**
+ * Bribe ownership across the account, without spending coins. The game's sets are tabs: a set's last bribe is its
+ * expansion, which unlocks the next set (BribeStatus: 1 owned, 0 not owned, -1 locked). A row is the bribe's bonus, its
+ * name under it, and a switch that says "Owned" when on and "Locked" while its set is locked.
+ */
 const BribesTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Bribes" });
     const busy = van.state(false);
     const message = van.state("");
     const bulk = useWriteStatus();
     const rowStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
-    const reconcileRows = createStaticRowReconciler(listNode);
     let entries = [];
 
     const isBusy = () => loading.val || busy.val;
@@ -103,35 +106,28 @@ const BribesTab = () => {
             }
         });
 
-    // `button`: the bulk button clicked, which asks in place (#77).
-    const setAll = (enabled, button) =>
+    // A set's bribes the tools act on: the buyable ones, or the ones the top bar's search shows.
+    const rowOf = new Map();
+    const inSet = (set) =>
+        (set?.entries ?? []).filter((entry) => !entry.readOnly && shownBySearch(rowOf.get(entry.index)));
+    const ownedIn = (set) => inSet(set).filter((entry) => rowStates.get(entry.index).value.val === 1);
+    const bribeWord = (n) => `bribe${n === 1 ? "" : "s"}`;
+
+    // Enabling adds, so it runs on one press; disabling takes away, so the tray asks first.
+    const setAll = (enabled, set) =>
         inTurn(async () => {
             if (cannotWrite()) return;
-            // The bulk action starts after a read: keep the button's click, so it's named after and offers Undo all
-            // beside the button even if something else was clicked meanwhile.
+            // The bulk action starts after a read: keep the press, so it's named after and offers Undo all beside the
+            // button even if something else was clicked meanwhile.
             const inGesture = captureGesture();
             busy.val = true;
             message.val = "";
             try {
                 const values = await readStatuses();
-                const targets = entries.filter(
-                    (entry) => !entry.readOnly && (enabled ? values[entry.index] !== 1 : values[entry.index] === 1)
+                const targets = inSet(set).filter((entry) =>
+                    enabled ? values[entry.index] !== 1 : values[entry.index] === 1
                 );
                 if (!targets.length) return;
-                // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
-                if (
-                    !enabled &&
-                    !clickAgain(
-                        button,
-                        `${enabled ? "enable" : "disable"} ${targets.length} bribes. ${
-                            enabled
-                                ? "Grants ownership without spending coins."
-                                : "Removes ownership. Locked bribes stay locked."
-                        }`,
-                        { targets: targets.map((entry) => entry.index) }
-                    )
-                )
-                    return;
                 await inGesture(() =>
                     bulk.run(
                         () =>
@@ -154,36 +150,103 @@ const BribesTab = () => {
 
     const renderRow = (entry) => {
         const state = rowStates.get(entry.index);
-        return AccountRow({
+        const row = AccountRow({
             rowClass: "bribes-row",
             status: state.write.status,
-            info: div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, entry.name),
-                span({ class: "bribes-row__bonus" }, entry.bonus)
-            ),
+            info: RowTitles({ bonus: entry.bonus, name: entry.name }),
             controls: entry.readOnly
-                ? span({ class: "write-status" }, "READ ONLY")
+                ? span({ class: "bribes-row__note" }, "Can't be bought")
                 : [
                       // Saving and saved, for screen readers; the switch says why a save failed.
                       span({ class: "account-write-feedback", role: "status" }, () => {
                           const status = state.write.status.val;
-                          return status === "loading" ? "SAVING" : status === "success" ? "SAVED" : "";
+                          return status === "loading" ? "Saving…" : status === "success" ? "Saved" : "";
                       }),
                       StateSwitch({
                           checked: () => state.value.val === 1,
-                          words: () =>
-                              state.value.val === 1 ? "Owned" : state.value.val === 0 ? "Not owned" : "Locked",
+                          // Only an owned bribe says so; a locked one says why it isn't on.
+                          words: () => (state.value.val === 1 ? "Owned" : state.value.val === -1 ? "Locked" : ""),
                           name: entry.name,
                           disabled: () => loading.val || Boolean(error.val) || !entries.length,
-                          title: () =>
-                              state.value.val === 1
-                                  ? `Remove ${entry.name}`
-                                  : `Own ${entry.name} without spending coins`,
                           onFlip: (owned) => setBribe(entry, owned),
                       }),
                   ],
         });
+        rowOf.set(entry.index, row);
+        return row;
+    };
+
+    // The game's sets: the first starts at bribe 0, and each expansion's set starts where the expansion says.
+    const setsOf = (list) => {
+        const starts = [0, ...list.filter((entry) => entry.count > 0).map((entry) => entry.start)];
+        return starts
+            .map((first, at) => ({
+                label: `Set ${at + 1}`,
+                entries: list.filter(
+                    (entry) => entry.index >= first && (at + 1 >= starts.length || entry.index < starts[at + 1])
+                ),
+            }))
+            .filter((set) => set.entries.length);
+    };
+    let sets = [];
+    const setOf = (activeId) => sets.find((set) => set.label === activeId.val);
+
+    const tools = (activeId, ask) => {
+        const disableButton = ActionButton({
+            label: "Disable all",
+            status: bulk.status,
+            variant: "danger",
+            disabled: () => cannotWrite() || !ownedIn(setOf(activeId)).length,
+            onClick: (e) => {
+                e.preventDefault();
+                const set = setOf(activeId);
+                const n = ownedIn(set).length;
+                ask({
+                    question: `Disable ${n} ${bribeWord(n)} in ${set.label}?`,
+                    confirmLabel: n === 1 ? "Disable it" : "Disable them",
+                    from: disableButton,
+                    onConfirm: () => setAll(false, set),
+                });
+            },
+        });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Enable all",
+                status: bulk.status,
+                disabled: () => cannotWrite() || ownedIn(setOf(activeId)).length === inSet(setOf(activeId)).length,
+                onClick: (e) => {
+                    e.preventDefault();
+                    void setAll(true, setOf(activeId));
+                },
+            }),
+            disableButton
+        );
+    };
+
+    // The tabs are the game's sets, built once read, and again only when the bribes change.
+    const panelHost = div({ class: "account-list account-list--tabbed" });
+    let panelKey = null;
+    const renderPanel = () => {
+        const key = JSON.stringify(entries);
+        if (key === panelKey) return;
+        panelKey = key;
+        rowOf.clear();
+        sets = setsOf(entries);
+        panelHost.replaceChildren(
+            TabbedList({
+                name: "Bribes",
+                tabs: sets.map((set) => ({ id: set.label, label: set.label, content: set.entries.map(renderRow) })),
+                tools,
+                toolsLabel: (activeId) => {
+                    const set = setOf(activeId);
+                    const n = inSet(set).length;
+                    return isSearching()
+                        ? `${n} matching ${bribeWord(n)} in ${set?.label ?? ""}`
+                        : `All ${n} ${bribeWord(n)} in ${set?.label ?? ""}`;
+                },
+            })
+        );
     };
 
     const load = () => {
@@ -215,14 +278,14 @@ const BribesTab = () => {
                 return {
                     index,
                     name: cleanName(definition[0], `Bribe ${index + 1}`),
-                    bonus: isPlaceholder ? "No bonus. Unpurchasable placeholder." : cleanName(definition[1]),
+                    bonus: cleanName(definition[1]),
                     start,
                     count,
                     readOnly: isPlaceholder,
                 };
             });
             await readStatuses();
-            reconcileRows(JSON.stringify(entries), () => entries.map(renderRow));
+            renderPanel();
             message.val = "";
         });
     };
@@ -231,36 +294,16 @@ const BribesTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "bribes-tab tab-container",
-        title: "BRIBES",
-        description:
-            "Edit account-wide ownership without spending coins. Enabling an expansion unlocks its next group.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            actions: [
-                {
-                    label: "Enable all",
-                    status: bulk.status,
-                    disabled: cannotWrite,
-                    onClick: (e) => setAll(true, e.currentTarget),
-                },
-                {
-                    label: "Disable all",
-                    variant: "danger",
-                    status: bulk.status,
-                    disabled: cannotWrite,
-                    onClick: (e) => setAll(false, e.currentTarget),
-                },
-            ],
-            refresh: { onClick: load, disabled: isBusy },
-        }),
+        title: "Bribes",
+        description: "Own bribes without spending coins. An expansion unlocks the next set.",
+        actions: RefreshButton({ onRefresh: load, disabled: isBusy }),
+        // Always a node: a binding that returns nothing is dropped for good, and a later failure couldn't show.
+        topNotices: () => div(message.val ? WarningBanner(span({ role: "alert" }, message.val)) : null),
         state: { loading, error },
-        loadingText: "READING BRIBES",
-        errorTitle: "BRIBES READ FAILED",
-        body: div(
-            { class: "scrollable-panel content-stack" },
-            div({ class: "write-status write-status--error", role: "alert" }, () => message.val),
-            listNode
-        ),
+        loadingText: "Reading bribes",
+        errorTitle: "Couldn't read bribes",
+        initialWrapperClass: "account-list",
+        body: panelHost,
     });
 };
 

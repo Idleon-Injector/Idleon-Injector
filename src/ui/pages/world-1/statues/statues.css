@@ -1,45 +1,176 @@
-/* ── Statue tiers ─────────────────────────────────────────────────────── */
+/*
+ * Statues: one statue per line in the list's columns (Level, Deposited, Tier, Flair). The column head and every row
+ * share one grid, so the values line up under their names. A table needs more room than a list, so this page takes
+ * the wider measure.
+ */
 
-.tier--gold {
-    color: var(--c-tier-gold);
+.statues-tab {
+    --page-measure: 60rem;
 }
 
-.tier--onyx {
-    color: var(--c-tier-onyx);
+.viewport .statue-cells {
+    display: grid;
+    grid-template-columns: 9.5rem 9.5rem 16rem 7.5rem;
+    align-items: center;
+    gap: 10px;
 }
 
-.tier--zenith {
-    color: var(--c-tier-zenith);
+/* A grid, not a column of flex items: a field keeps its own height whatever flex size a narrow rule gives it. */
+.statue-cell {
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    min-width: 0;
 }
 
-/* Base background/color/border/cursor handled by .select-base; unique properties only */
-.statue-tier-select {
-    padding: 0 6px;
-    height: 32px;
-    width: 180px;
+/* The column head names each field once; the field keeps its name for screen readers. */
+.statue-cell__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.viewport .statue-cells .number-input-wrapper {
+    width: 100%;
+    min-width: 0;
+}
+
+/* Every value starts 12px into its column, where the column's name starts, so a column reads straight down whether
+   the row is quiet or touched. A value with a cap (Flair "1 / 4") keeps its cap right after it. */
+.viewport .statue-cells .number-input-wrapper input {
+    padding: 0 4px 0 12px;
+    text-align: left;
+}
+
+/* Flair is one digit (0 to 4): its box holds just that, so "/ 4" follows it closely. */
+.viewport .statue-cells .number-input-wrapper--capped input {
+    flex: 0 0 26px;
+    min-width: 0;
+    padding-right: 0;
+}
+
+.viewport .statue-cells .number-input-wrapper--capped .number-input__cap {
+    margin-right: auto;
+}
+
+.statue-head .statue-cells > .statue-head__label {
+    padding-left: 12px;
+}
+
+/* Deposited is progress toward the next level, so it reads a step quieter than the level: one main number a row. */
+.viewport .statue-cell--quiet .number-input-wrapper input {
     font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
 }
 
-/* ── Statue stacked controls ──────────────────────────────────────────── */
+/* The head: quiet column names, held at the top of the list while it scrolls. */
+.viewport .tabbed-list .statue-head,
+.viewport .tabbed-list .statue-head:hover {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-height: 40px;
+    border-width: 0 0 1px;
+    background: var(--c-void-soft);
+}
 
-.statue-control-row {
+.statue-head__label {
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+.statue-head__flair {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
 }
 
-.statue-control-label {
-    font-size: 0.875rem;
-    color: var(--c-text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    width: 78px;
-    text-align: right;
+.statue-head__flair .state-switch {
+    gap: 0;
 }
 
+.statue-head__flair .state-switch__words:empty {
+    display: none;
+}
+
+/* The first row sits under the head's hairline. */
+.viewport .tabbed-list .statue-rows .account-row:first-child {
+    border-top-width: 0;
+}
+
+/* On a phone each statue folds: Level and Deposited side by side, the tier under them, then Flair; each field shows
+   its name again, and the head keeps only the Flair switch. */
 @media (max-width: 760px) {
-    .statue-row .account-row__controls {
-        flex-direction: column;
-        align-items: flex-end;
+    .viewport .tabbed-list .statue-row {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 10px;
+    }
+
+    .viewport .statue-row .account-row__info,
+    .viewport .statue-row .account-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+
+    /* The save mark (✓, Undo) goes to the end of the name's line, so the fields start under the name. */
+    .viewport .tabbed-list .statue-row {
+        position: relative;
+    }
+
+    .viewport .statue-row .save-state {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+    }
+
+    /* The tray's tier tool, a little tighter, so all four tiers fit on one line. */
+    .viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn {
+        padding: 0 9px;
+    }
+
+    .tabbed-list__tools .tabbed-list__tool-label {
+        padding: 0 10px;
+    }
+
+    .viewport .statue-cells {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        width: 100%;
+    }
+
+    .viewport .statue-cells > :nth-child(3) {
+        grid-column: 1 / -1;
+    }
+
+    /* Each field shows its name again, starting where its value starts. */
+    .statue-cell__label {
+        position: static;
+        width: auto;
+        height: auto;
+        padding-left: 12px;
+        overflow: visible;
+        clip: auto;
+        font-size: 0.75rem;
+        color: var(--c-text-muted);
+    }
+
+    .viewport .statue-head .account-row__info,
+    .viewport .statue-head .statue-cells > :not(.statue-head__flair) {
+        display: none;
+    }
+
+    .viewport .statue-head .statue-cells {
+        grid-template-columns: 1fr;
+    }
+
+    /* The tray's tier tool says just "Tier" here, so it fits on one line. */
+    .tabbed-list__tool-label-more {
+        display: none;
     }
 }

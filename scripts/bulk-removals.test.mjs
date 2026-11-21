@@ -149,13 +149,10 @@ const removals = [
     ["src/ui/pages/world-3/atom-collider/atom-collider.js", "Reset all"],
     ["src/ui/pages/world-3/salt-lick/salt-lick.js", "Reset all"],
     ["src/ui/pages/world-2/post-office/post-office.js", "Reset"],
-    ["src/ui/pages/world-1/star-signs/star-signs.js", "Reset all"],
     ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
     ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
     ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
-    ["src/ui/pages/world-1/pets/pets.js", "Clear all"],
-    ["src/ui/pages/world-1/pets/pets.js", "Clear Pets+"],
     ["src/ui/pages/account/event-shop/event-shop.js", "Disable all"],
 ];
 
@@ -249,21 +246,24 @@ test("value search: clearing the saved list asks in place first", async () => {
     assert.equal(cleared, 1, "the second click clears it");
 });
 
-test("bribes: Disable all, which asks in its own handler, still runs on the second click", async () => {
+// Disabling takes away, so it asks in the tools tray first; the answer runs it.
+test("bribes: Disable all asks in the tray, then runs on the answer", async () => {
     const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
     let before = writes();
     await click(enable);
     await until(() => writes() > before, "Enable all to write");
     await settle(100);
-    const root = enable.parentNode;
+    let root = enable;
+    while (root.parentNode) root = root.parentNode;
+    const inTray = (name) => elements(root).find((node) => String(node.attributes.class).split(" ").includes(name));
     const disable = buttonsNamed(root, "Disable all").find((node) => !node.attributes.disabled);
     before = writes();
     await click(disable);
     await settle(100);
-    assert.equal(disable.attributes["data-again"], "Click again", "the first click asks");
+    assert.match(text(inTray("tabbed-list__tools-label")), /^Disable \d+ bribes? in Set 1\?$/, "the first click asks");
     assert.equal(writes(), before);
-    await click(disable);
-    await until(() => writes() > before, "the second click to write");
+    await click(inTray("tabbed-list__yes"));
+    await until(() => writes() > before, "the answer to write");
 });
 
 for (const [file, label] of [

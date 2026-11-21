@@ -73,32 +73,32 @@ const STAMPS = "src/ui/pages/world-1/stamps/stamps.js";
 
 test("stamps: two exalt flips saving at once both land", async () => {
     g.Compass[4] = ["_1", "a0", "b4"];
-    const root = await openPage(STAMPS, (root) => rowNamed(root, "Stamp A3"));
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Mana Stamp"));
     const release = holdWrites();
-    const saves = [flip(rowNamed(root, "Stamp A1"), true)];
+    const saves = [flip(rowNamed(root, "Sword Stamp"), true)];
     await tick();
-    saves.push(flip(rowNamed(root, "Stamp A3"), true));
+    saves.push(flip(rowNamed(root, "Mana Stamp"), true));
     await tick();
     release();
     await Promise.all(saves);
     assert.deepEqual([...g.Compass[4]], ["_0", "_1", "_2", "a0", "b4"]);
-    assert.equal(switchOf(rowNamed(root, "Stamp A1")).checked, true);
+    assert.equal(switchOf(rowNamed(root, "Sword Stamp")).checked, true);
 });
 
 test("stamps: an exalt flip keeps a stamp exalted in the game since the page opened", async () => {
     g.Compass[4] = ["_1", "a0", "b4"];
-    const root = await openPage(STAMPS, (root) => rowNamed(root, "Stamp A6"));
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Shield Stamp"));
     g.Compass[4] = [...g.Compass[4], "_9"]; // exalted in the game
-    await flip(rowNamed(root, "Stamp A6"), true);
+    await flip(rowNamed(root, "Shield Stamp"), true);
     assert.deepEqual([...g.Compass[4]], ["_1", "_5", "_9", "a0", "b4"]);
     await tick();
-    assert.equal(wordsOf(rowNamed(root, "Stamp A10")), "Exalted", "the page shows the game's own exalt too");
+    assert.equal(wordsOf(rowNamed(root, "Battleaxe Stamp")), "Exalted", "the page shows the game's own exalt too");
 });
 
 test("stamps: a refused exalt says why on the row and shows what the game holds", async () => {
     g.Compass[4] = ["_1", "a0", "b4"];
-    const root = await openPage(STAMPS, (root) => rowNamed(root, "Stamp A6"));
-    const row = rowNamed(root, "Stamp A6");
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Shield Stamp"));
+    const row = rowNamed(root, "Shield Stamp");
     g.Compass[4] = [...g.Compass[4], "_9"]; // exalted in the game
     const restore = refuseWrites(g.Compass, 4);
     try {
@@ -110,18 +110,14 @@ test("stamps: a refused exalt says why on the row and shows what the game holds"
     assert.equal(wordsOf(row), "game kept old value", "the switch says why it wasn't saved");
     assert.equal(switchOf(row).checked, false);
     await tick();
-    assert.equal(wordsOf(rowNamed(root, "Stamp A10")), "Exalted", "the page shows the game's own exalt too");
+    assert.equal(wordsOf(rowNamed(root, "Battleaxe Stamp")), "Exalted", "the page shows the game's own exalt too");
 });
 
 const STATUES = "src/ui/pages/world-1/statues/statues.js";
 const statueRow = (root, index) => byClass(root, "statue-row")[index];
-// The tier shows once, in its dropdown: the option it has selected.
+// The tier shows once, in its step picker: the step that is picked.
 const tierOf = (row) =>
-    text(
-        elements(byClass(row, "statue-tier-select")[0]).find(
-            (node) => node.nodeName === "option" && node.attributes.selected === true
-        )
-    );
+    text(byClass(row, "step-picker__step").find((node) => node.attributes["aria-checked"] === "true"));
 // The player types into the row's last field (Flair) and presses Enter.
 const typeFlair = (row, value) => {
     const flair = elements(row)
@@ -274,83 +270,87 @@ test("statues: a third Flair save doesn't write the deposit an earlier save show
     }
 });
 
-test("statues: names show the game's underscores as spaces", async () => {
+test("statues: names show the game's underscores as spaces, in normal case", async () => {
     const root = await openPage(STATUES, (root) => statueRow(root, 7));
-    assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "THICC SKIN");
+    assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "Thicc Skin");
 });
 
 const PETS = "src/ui/pages/world-1/pets/pets.js";
-const petCard = (root, id) =>
-    byClass(root, "companion-card-wrap").find((wrap) => text(byClass(wrap, "companion-card__id")[0]) === `ID ${id}`);
+// A pet is a row: its tier is a step picker (Off | Normal | Pets+), its token a switch.
+const petRow = (root, id) =>
+    byClass(root, "pet-row").find((row) => String(row.attributes["data-pet-id"]) === String(id));
+const pickTier = (root, id, tier) =>
+    byClass(petRow(root, id), "step-picker__step")
+        .find((step) => text(step) === tier)
+        .listeners.click({});
+const tierShown = (root, id) =>
+    text(byClass(petRow(root, id), "step-picker__step").find((step) => step.attributes["aria-checked"] === "true"));
+const flipToken = (root, id) => {
+    const box = elements(petRow(root, id)).find((node) =>
+        String(node.attributes["aria-label"]).startsWith("Pet token for")
+    );
+    return box.listeners.change({ target: box });
+};
 const alertText = (root) => text(elements(root).find((node) => node.attributes.role === "alert"));
 // The game's trade-screen token button: adds the pet when a token is free (the fake game owns 2).
 const tokenInGame = (id) => (g.OptionsListAccount[606] = `${g.OptionsListAccount[606]},${id}`);
 
 test("pets: removing a token in the page keeps a token picked in the game since", async () => {
     g.OptionsListAccount[606] = "2";
-    const root = await openPage(PETS, (root) => petCard(root, 2));
+    const root = await openPage(PETS, (root) => petRow(root, 2));
     tokenInGame(9);
-    await petCard(root, 2)
-        .childNodes.find((node) => node.nodeName === "button")
-        .listeners.click({});
+    await flipToken(root, 2);
     assert.equal(g.OptionsListAccount[606], "9");
     g.OptionsListAccount[606] = "2,5";
 });
 
 test("pets: a token the game no longer has room for is refused, and says why", async () => {
     g.OptionsListAccount[606] = "2";
-    const root = await openPage(PETS, (root) => petCard(root, 5));
+    const root = await openPage(PETS, (root) => petRow(root, 5));
     tokenInGame(9); // the page still shows a free token
-    await elements(petCard(root, 5))
-        .find((node) => String(node.attributes["aria-label"]).startsWith("Pet token for"))
-        .listeners.click({});
+    await flipToken(root, 5);
     assert.equal(g.OptionsListAccount[606], "2,9");
     await tick();
     assert.equal(alertText(root), "All tokens are in use. Remove one first.");
     g.OptionsListAccount[606] = "2,5";
 });
 
-const petControl = (root, id, label) =>
-    label === "card"
-        ? petCard(root, id).childNodes.find((node) => node.nodeName === "button")
-        : elements(petCard(root, id)).find((node) => String(node.attributes["aria-label"]).startsWith(label));
-
-for (const [press, label] of [
-    ["a card click", "card"],
-    ["T", "Pet token for"],
-    ["+", "Pets+ tier for"],
+for (const [press, act] of [
+    ["picking Normal", (root, id) => pickTier(root, id, "Normal")],
+    ["the token switch", (root, id) => flipToken(root, id)],
+    ["picking Pets+", (root, id) => pickTier(root, id, "Pets+")],
 ]) {
     test(`pets: ${press} on a pet tokened in the game since the page opened keeps that token`, async () => {
         g.OptionsListAccount[606] = "2";
-        const root = await openPage(PETS, (root) => petCard(root, 12));
+        const root = await openPage(PETS, (root) => petRow(root, 12));
         tokenInGame(12); // the page still shows pet 12 without a token
-        await petControl(root, 12, label).listeners.click({});
+        await act(root, 12);
         assert.equal(g.OptionsListAccount[606], "2,12");
         g.OptionsListAccount[606] = "2,5";
     });
 }
 
-test("pets: removing a token the game dropped since does not select the pet", async () => {
+test("pets: picking Off for a token the game dropped since leaves the pet off", async () => {
     g.OptionsListAccount[606] = "2";
-    const root = await openPage(PETS, (root) => petCard(root, 2));
+    const root = await openPage(PETS, (root) => petRow(root, 2));
     g.OptionsListAccount[606] = ""; // the game dropped it
-    await petControl(root, 2, "card").listeners.click({});
+    await pickTier(root, 2, "Off");
     assert.equal(g.OptionsListAccount[606], "");
     await tick();
-    assert.equal(text(byClass(petCard(root, 2), "companion-card__tier")[0]), "NOT SELECTED");
+    assert.equal(tierShown(root, 2), "Off");
     g.OptionsListAccount[606] = "2,5";
 });
 
 // Review of #122: the click read the saved tiers against the tokens the page had before, and dropped pet 2's Pets+.
-test("pets: a click keeps a Pets+ pick saved for a pet whose token the game dropped since", async () => {
+test("pets: a pick keeps a Pets+ pick saved for a pet whose token the game dropped since", async () => {
     const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
     const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
     g.OptionsListAccount[606] = "2";
-    const root = await openPage(PETS, (root) => petCard(root, 12));
+    const root = await openPage(PETS, (root) => petRow(root, 12));
     g.OptionsListAccount[606] = ""; // the game dropped pet 2's token
     await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "2:1,5:0" } } } }); // the Config tab
     try {
-        await petControl(root, 12, "card").listeners.click({});
+        await pickTier(root, 12, "Normal");
         const saved = (await fetchConfig()).cheatConfig.w1.companion.companions;
         assert.ok(String(saved).split(",").includes("2:1"), `pet 2 stays at Pets+ (saved: ${saved})`);
     } finally {
@@ -361,9 +361,9 @@ test("pets: a click keeps a Pets+ pick saved for a pet whose token the game drop
 
 // Review of #147: with every pet chosen (an empty list, the cheat on), a token pet's press is worked out again on the
 // tiers read in the save's turn, where the pet, its token gone, already counts at Pets+.
-for (const [press, label, wanted] of [
-    ["a card click deselects", "card", null],
-    ["+ moves to Pets+", "Pets+ tier for", "2:1"],
+for (const [press, tier, wanted] of [
+    ["Off deselects", "Off", null],
+    ["Pets+ moves to Pets+", "Pets+", "2:1"],
 ]) {
     test(`pets: with every pet chosen, ${press} a token pet`, async () => {
         const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
@@ -371,9 +371,15 @@ for (const [press, label, wanted] of [
         await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "" } } } });
         g.OptionsListAccount[606] = "2";
         try {
-            const root = await openPage(PETS, (root) => petCard(root, 2));
-            await petControl(root, 2, label).listeners.click({});
-            const saved = String((await fetchConfig()).cheatConfig.w1.companion.companions).split(",");
+            const root = await openPage(PETS, (root) => petRow(root, 2));
+            await pickTier(root, 2, tier);
+            // The pick saves in the background: the list the save leaves is no longer the empty one.
+            let list = "";
+            for (let i = 0; i < 100 && !list; i++) {
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                list = String((await fetchConfig()).cheatConfig.w1.companion.companions);
+            }
+            const saved = list.split(",");
             assert.equal(g.OptionsListAccount[606], "", "the token is removed");
             assert.equal(saved.find((entry) => entry.startsWith("2:")) ?? null, wanted, `saved: ${saved}`);
         } finally {
@@ -384,54 +390,31 @@ for (const [press, label, wanted] of [
 }
 
 const STAR_SIGNS = "src/ui/pages/world-1/star-signs/star-signs.js";
+const signsReady = (root) => byClass(root, "starsign-row").length > 0;
+// A sign's row opens its players in place, from the task (the row's opener).
 const openSign = async (label) => {
-    const root = await openPage(STAR_SIGNS, (root) => byClass(root, "starsign-card").length > 0);
-    byClass(root, "starsign-card")
-        .find((card) => text(byClass(card, "starsign-label-badge")[0]) === label)
-        .listeners.click({});
+    const root = await openPage(STAR_SIGNS, signsReady);
+    const row = byClass(root, "starsign-row").find((node) => node.attributes["data-sign"] === label);
+    byClass(row, "starsign-row__open")[0].listeners.click({});
     await until(() => byClass(root, "starsign-detail")[0], "the sign to open");
     return root;
 };
 const detailOf = (root) => byClass(root, "starsign-detail")[0];
-const chipLetters = (root) => byClass(detailOf(root), "starsign-player-letter").map(text);
-const pressChip = (root, at) => {
+const chipLetters = (root) =>
+    byClass(detailOf(root), "starsign-player-chip").map((chip) => chip.attributes["data-letter"]);
+// Taking a player off is one press; Undo puts them back.
+const removeChip = (root, at) => {
     const remove = byClass(detailOf(root), "starsign-remove-btn")[at];
     return remove.listeners.click({ currentTarget: remove });
 };
-// Taking a player off asks "Click again" first; the second press removes them.
-const removeChip = (root, at) => {
-    pressChip(root, at);
-    return pressChip(root, at);
-};
 
-test("star signs: taking a player off asks Click again first, and the second press takes them off", async (t) => {
+test("star signs: taking a player off saves at once, with no Click again", async () => {
     const saved = [...g.StarSignProg[1]];
     g.StarSignProg[1] = ["_a", 0];
     const root = await openSign("A-2");
-    const [first, second] = byClass(detailOf(root), "starsign-remove-btn");
-    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
-    const before = writes();
-
-    // The first press only asks; the ask runs out after a few seconds, and the press after that asks again.
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-    try {
-        pressChip(root, 0);
-        assert.equal(first.attributes["data-again"], "Click again", "the first press asks");
-        assert.match(first.attributes["aria-label"], /^Click again to take .+ off this star sign\.$/);
-        t.mock.timers.tick(4000);
-        assert.equal(first.attributes["data-again"], undefined, "the ask runs out");
-        pressChip(root, 0);
-        assert.equal(first.attributes["data-again"], "Click again", "the press after that asks again");
-    } finally {
-        t.mock.timers.reset();
-    }
-    pressChip(root, 1);
-    assert.equal(second.attributes["data-again"], "Click again", "another player's Remove asks for that player");
-    assert.equal(writes(), before, "nothing was written");
     assert.deepEqual(chipLetters(root), ["_", "a"]);
-
-    pressChip(root, 0);
-    await until(() => g.StarSignProg[1][0] === "a", "the second press to take the player off");
+    removeChip(root, 0);
+    await until(() => g.StarSignProg[1][0] === "a", "the press to take the player off");
     g.StarSignProg[1] = saved;
 });
 
@@ -451,7 +434,7 @@ test("star signs: removing a player keeps a completion made in the game since", 
 });
 
 test("star signs: a refused save says why in the open sign and shows the game's players", async () => {
-    const root = await openSign("B-1");
+    const root = await openSign("A-4");
     const detail = detailOf(root);
     const before = chipLetters(root);
     const restore = refuseWrites(g.StarSignProg[3], 0);
@@ -483,65 +466,69 @@ test("star signs: Undo in the open sign puts the players back and shows them", a
     g.StarSignProg[1] = saved;
 });
 
-test("star signs: Reset all clears a sign completed in the game since the page opened", async () => {
+test("star signs: Reset all asks in the tray, then clears a sign completed in the game since the page opened", async () => {
     const saved = [...g.StarSignProg[2]];
     g.StarSignProg[2] = ["", 0];
-    const root = await openPage(STAR_SIGNS, (root) => byClass(root, "starsign-card").length > 0);
+    const root = await openPage(STAR_SIGNS, signsReady);
     g.StarSignProg[2] = ["_", 0]; // completed in the game
     const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset all");
-    reset.listeners.click({}); // asks "Click again"
-    await reset.listeners.click({});
-    assert.equal(g.StarSignProg[2][0], "");
+    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+    const before = writes();
+    reset.listeners.click({ preventDefault() {} }); // asks in the tray
+    await tick();
+    assert.equal(writes(), before, "nothing is written before the answer");
+    await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+    await until(() => g.StarSignProg[2][0] === "", "the reset");
     g.StarSignProg[2] = saved;
 });
 
 // OptionsListAccount[40] is the star points balance the game spends on star signs: a change moves it by the sign's
-// points (A-2 gives 2), so points already spent on star signs stay spent.
+// points (A-4 needs 3 players and gives 4), so points already spent on star signs stay spent.
 test("star signs: star points move by what a sign gives, so points spent on star signs stay spent", async () => {
-    const saved = [...g.StarSignProg[1]];
+    const saved = [...g.StarSignProg[3]];
     const savedPoints = g.OptionsListAccount[40];
-    g.StarSignProg[1] = ["_a", 1]; // A-2 is done (2 players) and claimed: it gave 2 points
+    g.StarSignProg[3] = ["_ab", 1]; // A-4 is done (3 players) and claimed: it gave 4 points
     g.OptionsListAccount[40] = 5; // what's left after spending points on star signs
     try {
-        const root = await openSign("A-2");
+        const root = await openSign("A-4");
         const detail = detailOf(root);
         removeChip(root, 0);
         await until(() => saveState(detail) === "success", "the save");
-        assert.equal(Number(g.OptionsListAccount[40]), 3, "unclaiming takes back the sign's 2 points, not the total");
+        assert.equal(Number(g.OptionsListAccount[40]), 1, "unclaiming takes back the sign's 4 points, not the total");
         await byClass(detail, "save-state__undo")[0].listeners.click({});
-        await until(() => g.StarSignProg[1][0] === "_a", "the undo");
+        await until(() => g.StarSignProg[3][0] === "_ab", "the undo");
         await until(() => Number(g.OptionsListAccount[40]) === 5, "and claiming again gives them back");
     } finally {
-        g.StarSignProg[1] = saved;
+        g.StarSignProg[3] = saved;
         g.OptionsListAccount[40] = savedPoints;
     }
 });
 
 test("star signs: star points that aren't a number are refused, and nothing is written", async () => {
-    const saved = [...g.StarSignProg[1]];
+    const saved = [...g.StarSignProg[3]];
     const savedPoints = g.OptionsListAccount[40];
-    g.StarSignProg[1] = ["_a", 1];
+    g.StarSignProg[3] = ["_ab", 1];
     g.OptionsListAccount[40] = "lots";
     try {
-        const root = await openSign("A-2");
+        const root = await openSign("A-4");
         const detail = detailOf(root);
         const writes = () => requests.filter((entry) => entry.includes("/write")).length;
         const before = writes();
         removeChip(root, 0);
         await until(() => saveState(detail) === "error", "the save to fail");
         assert.equal(writes(), before, "nothing was written");
-        assert.equal(g.StarSignProg[1][0], "_a");
+        assert.equal(g.StarSignProg[3][0], "_ab");
         assert.equal(g.OptionsListAccount[40], "lots");
     } finally {
-        g.StarSignProg[1] = saved;
+        g.StarSignProg[3] = saved;
         g.OptionsListAccount[40] = savedPoints;
     }
 });
 
 test("star signs: points the game spends while a save runs aren't given back", async () => {
-    const saved = [...g.StarSignProg[1]];
+    const saved = [...g.StarSignProg[3]];
     const savedPoints = g.OptionsListAccount[40];
-    g.StarSignProg[1] = ["_a", 1];
+    g.StarSignProg[3] = ["_ab", 1];
     g.OptionsListAccount[40] = 5;
     // The game spends 4 points on a star sign right after the page read the balance.
     const realFetch = globalThis.fetch;
@@ -553,7 +540,7 @@ test("star signs: points the game spends while a save runs aren't given back", a
         return response;
     };
     try {
-        const root = await openSign("A-2");
+        const root = await openSign("A-4");
         const detail = detailOf(root);
         removeChip(root, 0);
         await until(() => ["success", "error"].includes(saveState(detail)), "the save");
@@ -561,7 +548,7 @@ test("star signs: points the game spends while a save runs aren't given back", a
         assert.equal(Number(g.OptionsListAccount[40]), 1, "the spent points stay spent");
     } finally {
         globalThis.fetch = realFetch;
-        g.StarSignProg[1] = saved;
+        g.StarSignProg[3] = saved;
         g.OptionsListAccount[40] = savedPoints;
     }
 });
@@ -569,14 +556,14 @@ test("star signs: points the game spends while a save runs aren't given back", a
 test("star signs: a sign the game claims during a save isn't counted twice", async () => {
     const saved = g.StarSignProg.map((entry) => [...entry]);
     const savedPoints = g.OptionsListAccount[40];
-    // Every sign done and claimed but A-2 (it needs 2 players and gives 2 points); 5 points to spend.
+    // Every sign done and claimed but A-4 (it needs 3 players and gives 4 points); 5 points to spend.
     g.StarSignProg.forEach((_, i) => (g.StarSignProg[i] = ["_abc".slice(0, 1 + (i % 3)), 1]));
-    g.StarSignProg[1] = ["_", 0];
+    g.StarSignProg[3] = ["_", 0];
     g.OptionsListAccount[40] = 5;
     const realFetch = globalThis.fetch;
     try {
-        const root = await openPage(STAR_SIGNS, (node) => byClass(node, "starsign-card").length > 0);
-        // Right after Unlock all reads the signs, the game claims A-2 itself and adds its 2 points.
+        const root = await openPage(STAR_SIGNS, signsReady);
+        // Right after Unlock all reads the signs, the game claims A-4 itself and adds its 4 points.
         let claimedInGame = false;
         globalThis.fetch = async (url, options) => {
             const response = await realFetch(url, options);
@@ -584,8 +571,8 @@ test("star signs: a sign the game claims during a save isn't counted twice", asy
             // The read asks for "gga.StarSignProg".
             if (/(^|\.)StarSignProg$/.test(path ?? "") && !claimedInGame) {
                 claimedInGame = true;
-                g.StarSignProg[1] = ["_a", 1];
-                g.OptionsListAccount[40] = 7;
+                g.StarSignProg[3] = ["_ab", 1];
+                g.OptionsListAccount[40] = 9;
             }
             return response;
         };
@@ -595,10 +582,50 @@ test("star signs: a sign the game claims during a save isn't counted twice", asy
         await unlock.listeners.click({ preventDefault() {}, currentTarget: unlock });
         await until(() => claimedInGame && writes() > before, "Unlock all to save");
         await tick();
-        assert.equal(Number(g.OptionsListAccount[40]), 7, "A-2's points count once");
+        assert.equal(Number(g.OptionsListAccount[40]), 9, "A-4's points count once");
     } finally {
         globalThis.fetch = realFetch;
         saved.forEach((entry, i) => (g.StarSignProg[i] = entry));
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
+
+test("star signs: the row's switch fills a sign with the players it still needs, and off clears it", async () => {
+    const saved = [...g.StarSignProg[0]];
+    g.StarSignProg[0] = ["c", 0]; // A-1 needs 4; character c has it
+    const root = await openPage(STAR_SIGNS, signsReady);
+    const row = byClass(root, "starsign-row").find((node) => node.attributes["data-sign"] === "A-1");
+    const box = elements(row).find((node) => node.nodeName === "input" && node.attributes.role === "switch");
+    box.checked = true;
+    await box.listeners.change({ target: box });
+    await until(() => g.StarSignProg[0][0].length === 4, "the sign to fill");
+    assert.equal(g.StarSignProg[0][0], "c_ab", "who had it stays first");
+    assert.equal(Number(g.StarSignProg[0][1]), 1, "and it's claimed");
+    box.checked = false;
+    await box.listeners.change({ target: box });
+    await until(() => g.StarSignProg[0][0] === "", "the sign to clear");
+    g.StarSignProg[0] = saved;
+});
+
+// OptionsListAccount[40] is the star points balance the game spends on star signs: a change moves it by the sign's
+// points (A-1 gives 3), so points already spent stay spent.
+test("star signs: the row's switch moves star points by what a sign gives, so points spent stay spent", async () => {
+    const saved = [...g.StarSignProg[0]];
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[0] = ["", 0];
+    g.OptionsListAccount[40] = 5; // what's left after spending points on star signs
+    try {
+        const root = await openPage(STAR_SIGNS, signsReady);
+        const row = byClass(root, "starsign-row").find((node) => node.attributes["data-sign"] === "A-1");
+        const box = elements(row).find((node) => node.nodeName === "input" && node.attributes.role === "switch");
+        box.checked = true;
+        await box.listeners.change({ target: box });
+        await until(() => Number(g.OptionsListAccount[40]) === 8, "the sign's 3 points to be added");
+        box.checked = false;
+        await box.listeners.change({ target: box });
+        await until(() => Number(g.OptionsListAccount[40]) === 5, "and taken back");
+    } finally {
+        g.StarSignProg[0] = saved;
         g.OptionsListAccount[40] = savedPoints;
     }
 });

@@ -94,6 +94,8 @@ const COMPUTED_SOURCES = {
     thingies: { eventId: 579, method: "_customBlock_Thingies" },
     minehead: { eventId: 579, method: "_customBlock_Minehead" },
     farming: { eventId: 579, method: "_customBlock_FarmingStuffs" },
+    // A talent's number as the game uses it: readComputed("talent", "1", [281]) is GetTalentNumber(1, 281).
+    talent: { eventId: 124, method: "_customBlock_GetTalentNumber" },
 };
 
 /** Which cheats are on, running automations included, for the WebUI's active-cheats list. */
