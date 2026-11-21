@@ -1,232 +1,245 @@
 {
     "0": {
-        "name": "Player Character Count",
-        "description": "Number of characters on account",
+        "name": "Attack Loadouts Unlocked",
+        "description": "How many attack bar pages every character has: 2 at the start, 3 from the first time you enter map 154 (Outskirts of Fallstar Isle). The attack bar arrows and the 7/8 keys cycle through them.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "1": {
-        "name": "Chest System",
-        "description": "Controls chest functionality and storage operations",
+        "name": "Storage Chest - Quick Deposit",
+        "description": "1 = with the storage chest open, one tap on an inventory item moves it into the chest. Turning it off also turns off Quick Withdraw (slot 18).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "2": {
-        "name": "UI Scaling Factor",
-        "description": "Interface scaling setting for display size",
+        "name": "Storage Chest - Button Panel Open",
+        "description": "1 = the storage chest's side panel of buttons is slid out, 0 = tucked away. Opens by itself once for a new account (first character level 6 to 11).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "3": {
-        "name": "Quick Tap Feature Toggle",
-        "description": "Enable/disable quick tap feature (1=On)",
+        "name": "Shop - Quick Tap",
+        "description": "1 = buy and sell in shops by clicking items, no dragging. Turns off every time a map loads.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "4": {
-        "name": "Quick Tap Secondary State",
-        "description": "Secondary state tracking for quick tap",
+        "name": "Shop - Quick Tap Tip Seen",
+        "description": "1 once you've turned on shop Quick Tap for the first time and the shopkeeper's one-time line has played.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "5": {
-        "name": "Skill Point Allocation Amount",
-        "description": "Cycling amount (1, 5, 10, 25, 900) for skill points",
+        "name": "Talent Points Per Click",
+        "description": "How many talent points one click adds: cycles 1, 5, 10, 25, 900 (900 shows as MAX).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "6": {
-        "name": "Enhanced Skill Allocation Mode",
-        "description": "Toggle for enhanced skill point allocation interface",
+        "name": "Talent Points Per Click Unlocked",
+        "description": "1 once a character above level 25 has loaded a map. Shows the points-per-click button on the talent page.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "7": {
-        "name": "AFK Detection/Party Counter",
-        "description": "Tracks AFK detection or party member count",
+        "name": "Spiketrap Surprise - Daily Gems",
+        "description": "Daily gem run of the Spiketrap Surprise minigame. 1 = today's run is ready, 0 = used. After a run it holds the gems won (up to 40); they drop at the next map load and it goes back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "8": {
         "name": "Chat Window X Position",
-        "description": "Horizontal position of chat window",
+        "description": "Chat window's distance from the left edge of the screen, in pixels. Set by dragging the window.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "9": {
         "name": "Chat Window Y Position",
-        "description": "Vertical position of chat window",
+        "description": "Chat window's distance from the top of the screen, in pixels. Set by dragging the window.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "10": {
-        "name": "Chat Window Width/Columns",
-        "description": "Controls chat window width/column count",
+        "name": "Chat Window Width",
+        "description": "Chat window width step, 0 to 2. Each step makes it 50 pixels wider.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "11": {
-        "name": "Chat Window Height/Rows",
-        "description": "Controls chat window height/row count",
+        "name": "Chat Window Height",
+        "description": "Chat window height step, 0 to 2. Each step makes it 40 pixels taller.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "12": {
         "name": "Chat Window Active State",
         "description": "Chat window visibility state (-1=Inactive, 1=Active)",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "13": {
-        "name": "Auto-Transfer/Banking",
-        "description": "Toggle for automated banking/transfer features",
+        "name": "Chat Option (Account Copy)",
+        "description": "Account-wide copy of the Options menu's chat toggle (character option 21). When 1, that option turns on for every character above level 10.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "14": {
-        "name": "Achievement/Quest System",
-        "description": "Tracks completion of special achievements/trophies",
+        "name": "Original Gamer Trophy Received",
+        "description": "1 once the account has been given the Original Gamer trophy (only while the game's server turns that giveaway on).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "15": {
         "name": "Unclaimed W1 Colosseum Ticket Days",
-        "description": "Number of unclaimed W1 colosseum ticket days",
-        "type": "number"
+        "description": "Number of unclaimed W1 colosseum ticket days. Goes up by 1 each day; claiming gives up to 3 tickets and resets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "16": {
         "name": "Unclaimed W1 Boss Keys Days",
-        "description": "Number of unclaimed W1 boss keys days",
-        "type": "number"
+        "description": "Number of unclaimed W1 boss keys days. Goes up by 1 each day; claiming gives up to 3 keys and resets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "17": {
-        "name": "Settings Toggle",
-        "description": "General settings binary toggle",
+        "name": "Character List - Show Time Away",
+        "description": "1 = the character list shows how long each character has been away (\"Currently Playing!\" for the one you're on). Toggled by a button at the top right of that menu.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "18": {
-        "name": "Chest UI Management",
-        "description": "Controls chest interface style and active element",
+        "name": "Storage Chest - Quick Withdraw",
+        "description": "1 = one tap on a storage chest item moves it to your inventory. Turning it on also turns on Quick Deposit (slot 1).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "19": {
-        "name": "Task Completion Tracking",
-        "description": "Tracks completed tasks/skills string",
+        "name": "Task - Maximum Efficiency Progress",
+        "description": "Progress text for the W2 task \"Maximum Efficiency\": the skills that already meet the efficiency goal, written like \".0.|.3.|\". Goes back to \"none.|\" when the task moves on.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "20": {
-        "name": "Rating/Popup System",
-        "description": "Manages rating prompts display state",
+        "name": "Rate Game Prompt",
+        "description": "Set to 1 when the game's server asks players to rate the game again; 10 opts out. Nothing in this game version reads the 1, so no prompt comes from it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "21": {
-        "name": "Advanced Settings Toggle",
-        "description": "Controls advanced settings menu state",
+        "name": "Anvil Production Tab Seen",
+        "description": "1 once you've opened the Anvil's Production tab. Until then its tab button blinks.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "22": {
-        "name": "Chat Server Message Tracking",
-        "description": "Tracks chat-related server message states",
-        "type": "number",
-        "AI": true
+        "name": "Chat - Last Server Message Read",
+        "description": "The text of the last server announcement you've seen in chat. A newer one marks the Server tab as unread.",
+        "type": "string",
+        "verified": true
     },
     "23": {
-        "name": "Forge/Inventory Auto-Move Toggle",
-        "description": "Toggle for auto-move feature in forge/inventory (0/1)",
+        "name": "Forge - Quick Tap",
+        "description": "1 = with the forge open, one tap moves items between your inventory and the forge, no dragging.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "24": {
-        "name": "Player/Character Actor Type ID",
-        "description": "Player/character actor type identifier and coordinate offset constant",
+        "name": "Unused",
+        "description": "Not used by the game: nothing reads or writes it beyond filling empty slots with 0.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "25": {
         "name": "Seasonal Event Item Counter opened",
         "description": "Tracks collected event items opened (coolers, presents, baskets)",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "26": {
         "name": "Shadowban",
-        "description": "Set to 0 to remove shadowban",
+        "description": "0 = not flagged. Any other number is the game's cheat flag; the number says why (1 too-high level or stats, 4 too many gems, 7 and 8 other checks). While set, guild joins and some online features are blocked. The game also tells its server when it sets or clears this; editing the number here does not.",
         "type": "number",
-        "warning": "Modifying this may affect your account status"
+        "warning": "Modifying this may affect your account status",
+        "verified": true
     },
     "27": {
         "name": "Idleon Discord Button Clicked",
         "description": "Idleon discord button clicked (50 gems)",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "28": {
         "name": "Lava's Twitch Button Clicked",
         "description": "Lava's twitch button clicked (50 gems)",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "29": {
-        "name": "Daily Seasonal Event Item Counter dropped",
-        "description": "Daily Seasonal Event Item Counter dropped / Event progression counter for free spins",
-        "type": "number"
+        "name": "Event Boxes Dropped Today",
+        "description": "Event boxes monsters have dropped today, out of 50. Drops stop at 50; goes back to 0 each day.",
+        "type": "number",
+        "verified": true
     },
     "30": {
-        "name": "BoltCutter Quest Progress",
-        "description": "Flag for BoltCutter secret unlock on Map 9",
+        "name": "Bolt Cutters Used",
+        "description": "1 once you've used Bolt Cutters in the last Sewers map (map 9), which opens its secret entrance.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "31": {
         "name": "Unclaimed W2 Boss Keys Days",
-        "description": "Number of unclaimed W2 boss keys days",
-        "type": "number"
+        "description": "Number of unclaimed W2 boss keys days. Goes up by 1 each day; claiming gives up to 3 keys and resets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "32": {
-        "name": "Cauldron Boost Status",
-        "description": "String flags (e.g., '0000') for 4 cauldrons (1=boost active)",
+        "name": "Ivory Bubble Cauldrons",
+        "description": "One digit per bubble cauldron (4); 1 = that cauldron has the gem shop's Ivory upgrade: +2 players, 1.5x brewing and 1.5x new bubble chance.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "33": {
-        "name": "Minigames Amount",
-        "description": "Number of minigames",
-        "type": "number"
+        "name": "Minigame Plays Left",
+        "description": "Minigame plays you have left. Refilled each day; each play uses at least 1.",
+        "type": "number",
+        "verified": true
     },
     "34": {
-        "name": "Inventory Operation Mode",
-        "description": "Current inventory interaction mode",
+        "name": "Quick Ref View-Only Lock",
+        "description": "1 while a menu opened from the Quick Ref page is view-only (the storage chest without the right pet, and one other menu). Item moves and purchases show a popup instead. Goes back to 0 when menus close.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "35": {
         "name": "Unclaimed W2 Colosseum Ticket Days",
-        "description": "Number of unclaimed W2 colosseum ticket days",
-        "type": "number"
+        "description": "Number of unclaimed W2 colosseum ticket days. Goes up by 1 each day; claiming gives up to 3 tickets and resets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "36": {
-        "name": "Player Nametag Display Toggle",
-        "description": "Controls display of player nametags (0=Enabled)",
+        "name": "Hide Guild Name",
+        "description": "Account-wide copy of the Options menu toggle for your guild name (character option 26). 0 shows your guild name under your character, 1 hides it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "37": {
         "name": "Guild Name",
-        "description": "Your guild name",
-        "type": "string"
+        "description": "Your guild name, as the game's server sends it. Empty when you're not in a guild.",
+        "type": "string",
+        "verified": true
     },
     "38": {
         "name": "Guild Icon Index",
-        "description": "Index of the selected guild icon",
+        "description": "Which icon your guild uses, as the game's server sends it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "39": {
-        "name": "Weekly Reset Counter",
-        "description": "Tracks weekly reset cycles for shops/divinity",
+        "name": "Days Until Weekly Reset",
+        "description": "Days left until the weekly reset (Killroy rooms, the weekly storage chest reward and other weekly upgrades). Counts down each day and starts again at 6.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "40": {
         "name": "Star Sign Progress",
