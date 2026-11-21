@@ -494,3 +494,25 @@ test("star signs: Reset all clears a sign completed in the game since the page o
     assert.equal(g.StarSignProg[2][0], "");
     g.StarSignProg[2] = saved;
 });
+
+// OptionsListAccount[40] is the star points balance the game spends on star signs: a change moves it by the sign's
+// points (A-2 gives 2), so points already spent on star signs stay spent.
+test("star signs: star points move by what a sign gives, so points spent on star signs stay spent", async () => {
+    const saved = [...g.StarSignProg[1]];
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[1] = ["_a", 1]; // A-2 is done (2 players) and claimed: it gave 2 points
+    g.OptionsListAccount[40] = 5; // what's left after spending points on star signs
+    try {
+        const root = await openSign("A-2");
+        const detail = detailOf(root);
+        removeChip(root, 0);
+        await until(() => saveState(detail) === "success", "the save");
+        assert.equal(Number(g.OptionsListAccount[40]), 3, "unclaiming takes back the sign's 2 points, not the total");
+        await byClass(detail, "save-state__undo")[0].listeners.click({});
+        await until(() => g.StarSignProg[1][0] === "_a", "the undo");
+        await until(() => Number(g.OptionsListAccount[40]) === 5, "and claiming again gives them back");
+    } finally {
+        g.StarSignProg[1] = saved;
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});

@@ -325,6 +325,16 @@ const StarSignCard = ({ sign, onClick }) => {
 const getClaimedRewardTotal = (list) =>
     list.reduce((total, sign) => total + (toInt(sign.claimed, 0) ? toNum(sign.rewardPoints, 0) : 0), 0);
 
+// OptionsListAccount[40] is the star points balance the game spends on star signs (claiming a sign adds its points,
+// unlocking a star sign takes its cost), so a change moves it by what the signs give or take back, never below zero:
+// points already spent on star signs stay spent. Null when nothing changes.
+const starPointsWrite = async (list, nextSigns) => {
+    const change = getClaimedRewardTotal(nextSigns) - getClaimedRewardTotal(list);
+    if (!change) return null;
+    const balance = toNum(await gga("OptionsListAccount[40]"), 0);
+    return { path: "OptionsListAccount[40]", value: Math.max(0, balance + change) };
+};
+
 const syncActiveSign = (activeSign, nextSigns) => {
     if (!activeSign.val) return;
     const updated = nextSigns.find((sign) => sign.index === activeSign.val.index);
@@ -413,11 +423,8 @@ const StarSignsTab = () => {
                 writes.push({ path: `StarSignProg[${sign.index}][1]`, value: claimed });
             }
 
-            const currentTotal = getClaimedRewardTotal(list);
-            const nextTotal = getClaimedRewardTotal(nextSigns);
-            if (nextTotal !== currentTotal) {
-                writes.push({ path: "OptionsListAccount[40]", value: nextTotal });
-            }
+            const points = await starPointsWrite(list, nextSigns);
+            if (points) writes.push(points);
 
             await writeManyVerified(writes);
 
@@ -503,11 +510,8 @@ const StarSignsTab = () => {
                     return { ...sign, players, unlocked: true, claimed: 1 };
                 });
 
-                const currentTotal = getClaimedRewardTotal(list);
-                const nextTotal = getClaimedRewardTotal(nextSigns);
-                if (nextTotal !== currentTotal) {
-                    writes.push({ path: "OptionsListAccount[40]", value: nextTotal });
-                }
+                const points = await starPointsWrite(list, nextSigns);
+                if (points) writes.push(points);
 
                 await writeManyVerified(writes);
 
