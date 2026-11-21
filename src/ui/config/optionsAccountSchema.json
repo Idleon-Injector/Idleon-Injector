@@ -1211,214 +1211,249 @@
         "verified": true
     },
     "200": {
-        "name": "Highest Drop rarity Multi (Tome)",
-        "description": "Tracks the highest drop rarity multiplier",
-        "type": "number"
+        "name": "Highest Drop Rate Multi (Tome)",
+        "description": "Your highest Drop Rate multi so far (not counted on map 216). Shown in the Tome and also boosts one Hole fountain upgrade.",
+        "type": "number",
+        "verified": true
     },
     "201": {
-        "name": "Best Spiketrap Surprise round (Tome)",
-        "description": "Tracks rounds in spike game logic",
-        "type": "number"
+        "name": "Best Spiketrap Surprise Round (Tome)",
+        "description": "Best round reached in the Spiketrap Surprise minigame.",
+        "type": "number",
+        "verified": true
     },
     "202": {
-        "name": "Crystal Spawn Tracking (Tome)",
-        "description": "Average kills for a Crystal Spawn",
-        "type": "number"
+        "name": "Best Crystal Spawn Chance (Tome)",
+        "description": "Best Crystal mob spawn chance per kill you've had, as a fraction (like 0.001). The Tome's \"Average kills for a Crystal Spawn\" is 1 divided by this.",
+        "type": "number",
+        "warning": "The Tome system uses 1 / this value",
+        "verified": true
     },
     "203": {
         "name": "Most DMG Dealt to Gravestone in a Weekly Battle (Tome)",
-        "description": "Most DMG Dealt to Gravestone in a Weekly Battle",
-        "type": "number"
+        "description": "Most damage dealt to the Gravestone in a weekly boss battle. The Gravestone shows up once all weekly bosses are beaten.",
+        "type": "number",
+        "verified": true
     },
     "204": {
-        "name": "Killroy Kills - Melee (Tome)",
-        "description": "Killroy kills for melee classes",
-        "type": "number"
+        "name": "Highest Killroy Score on a Warrior (Tome)",
+        "description": "Most kills in one Killroy run on a Warrior.",
+        "type": "number",
+        "verified": true
     },
     "205": {
-        "name": "Killroy Kills - Ranged (Tome)",
-        "description": "Killroy kills for ranged classes",
-        "type": "number"
+        "name": "Highest Killroy Score on an Archer (Tome)",
+        "description": "Most kills in one Killroy run on an Archer.",
+        "type": "number",
+        "verified": true
     },
     "206": {
-        "name": "Killroy Kills - Magic (Tome)",
-        "description": "Killroy kills for magic classes",
-        "type": "number"
+        "name": "Highest Killroy Score on a Mage (Tome)",
+        "description": "Most kills in one Killroy run on a Mage.",
+        "type": "number",
+        "verified": true
     },
     "207": {
-        "name": "Boss Kill Timer Chaotic Efaunt (Tome)",
-        "description": "Fastest Time to kill Chaotic Efaunt (in Seconds)",
-        "type": "number"
+        "name": "Fastest Chaotic Efaunt Kill (Tome)",
+        "description": "Fastest Chaotic Efaunt kill, stored as 1000 minus the seconds it took. Higher is faster.",
+        "type": "number",
+        "warning": "The Tome system uses 1000 - this value",
+        "verified": true
     },
     "208": {
-        "name": "Most Spore Caps held in Inventory at once (Tome)",
-        "description": "Tracks the most spore caps held in inventory at once",
-        "type": "number"
+        "name": "Most Spore Caps Held at Once (Tome)",
+        "description": "Most Spore Caps you've held in your inventory at once. Checked when the Tome is opened.",
+        "type": "number",
+        "verified": true
     },
     "209": {
         "name": "Best Non Duplicate Goblin Gorefest Wave (Tome)",
-        "description": "Tracks the best non-duplicate goblin gorefest wave",
-        "type": "number"
+        "description": "Best wave reached in Goblin Gorefest (Worship) with no wizard type placed twice. Values over 160 are set to 120 on load.",
+        "type": "number",
+        "verified": true
     },
     "210": {
         "name": "Highest Immortal Snail LV (Tome)",
-        "description": "Tracks the highest level of an immortal snail in Gaming",
-        "type": "number"
+        "description": "Highest level your Immortal Snail has reached in Gaming.",
+        "type": "number",
+        "verified": true
     },
     "211": {
-        "name": "OakTree 3D Sampling Data (Tome)",
-        "description": "Sampling data for OakTree",
-        "type": "number"
+        "name": "Largest Oak Log Printer Sample (Tome)",
+        "description": "Largest Oak Log sample you've taken for the 3D Printer.",
+        "type": "number",
+        "verified": true
     },
     "212": {
-        "name": "Copper 3D Sampling Data (Tome)",
-        "description": "Sampling data for Copper",
-        "type": "number"
+        "name": "Largest Copper Ore Printer Sample (Tome)",
+        "description": "Largest Copper Ore sample you've taken for the 3D Printer.",
+        "type": "number",
+        "verified": true
     },
     "213": {
-        "name": "Spore 3D Sampling Data (Tome)",
-        "description": "Sampling data for Grasslands1",
-        "type": "number"
+        "name": "Largest Spore Cap Printer Sample (Tome)",
+        "description": "Largest Spore Cap sample you've taken for the 3D Printer.",
+        "type": "number",
+        "verified": true
     },
     "214": {
-        "name": "Goldfish 3D Sampling Data (Tome)",
-        "description": "Sampling data for Fish1",
-        "type": "number"
+        "name": "Largest Goldfish Printer Sample (Tome)",
+        "description": "Largest Goldfish sample you've taken for the 3D Printer.",
+        "type": "number",
+        "verified": true
     },
     "215": {
-        "name": "Fly 3D Sampling Data (Tome)",
-        "description": "Sampling data for Bug1",
-        "type": "number"
+        "name": "Largest Fly Printer Sample (Tome)",
+        "description": "Largest Fly sample you've taken for the 3D Printer.",
+        "type": "number",
+        "verified": true
     },
     "216": {
-        "name": "Nametags Found (Tome) (Unsure)",
-        "description": "Tracks the number of nametags found",
-        "type": "number"
+        "name": "Giants Killed This Week",
+        "description": "Giant monsters killed this week. Set back to 0 at the weekly reset; feeds Most Giants Killed in a Single Week (217).",
+        "type": "number",
+        "verified": true
     },
     "217": {
         "name": "Most Giants Killed in a Single Week (Tome)",
-        "description": "Tracks the most giants killed in a single week",
-        "type": "number"
+        "description": "Most giant monsters killed in one week (the best value of 216).",
+        "type": "number",
+        "verified": true
     },
     "218": {
         "name": "Fastest Time to Kill 200 Tremor Wurms (Tome)",
-        "description": "Tracks the fastest time to kill 200 Tremor Wurms",
+        "description": "Fastest time to kill 200 Tremor Wurms, stored as 1000 minus the seconds it took. Higher is faster.",
+        "type": "number",
         "warning": "The Tome system uses 1000 - this value",
-        "type": "number"
+        "verified": true
     },
     "219": {
         "name": "Highest Crop OG (Tome)",
-        "description": "Highest crop OG level achieved",
+        "description": "Highest OG level any crop has reached in Farming. The Tome shows 2 to the power of this.",
+        "type": "number",
         "warning": "The Tome system uses 2^this value as the actual value",
-        "type": "number"
+        "verified": true
     },
     "220": {
-        "name": "Fastest Time reaching Round 100 Arena (Tome)",
-        "description": "Tracks the fastest time to reach round 100 in Arena",
+        "name": "Fastest Time Reaching Round 100 Arena (Tome)",
+        "description": "Fastest time to reach round 100 in the Arena, stored as 1000 minus the seconds it took. Higher is faster.",
+        "type": "number",
         "warning": "The Tome system uses 1000 - this value",
-        "type": "number"
+        "verified": true
     },
     "221": {
         "name": "Largest Magic Bean Trade (Tome)",
-        "description": "Maximum beans obtained in single trade",
-        "type": "number"
+        "description": "Most Magic Beans you've got from one trade with the Legumulyte.",
+        "type": "number",
+        "verified": true
     },
     "222": {
-        "name": "Most Balls earned from LBoFaF (Tome)",
-        "description": "Tracks the most balls earned from LBoFaF",
-        "type": "number"
+        "name": "Most Balls Earned from LBoFaF (Tome)",
+        "description": "Most balls earned from one round of Lava's Ballpit of Fire and Fury, the Arcade bonus round.",
+        "type": "number",
+        "verified": true
     },
     "223": {
-        "name": "Tome State Flag",
-        "description": "State/quality level of Tome system",
+        "name": "Tome Score Sent Today",
+        "description": "3 once today's Tome score was sent to the server; set back to 0 each day.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "224": {
         "name": "Most Greenstacks in Storage (Tome)",
-        "description": "Tracks the most greenstacks in storage",
-        "type": "number"
+        "description": "Most Greenstacks (10 million or more of one item) you've had in your storage chest.",
+        "type": "number",
+        "verified": true
     },
     "225": {
-        "name": "Accumulated W5 Miniboss Days",
-        "description": "Tracks the accumulated w5 miniboss days",
-        "type": "number"
+        "name": "W5 Miniboss Days",
+        "description": "Days stacked up for the World 5 miniboss, Domeo Magmus. +1 each day; more days drop more boulders (up to 6), each one spawns a Domeo Magmus. Set to 0 when the fight starts.",
+        "type": "number",
+        "verified": true
     },
     "226": {
-        "name": "Accumulated W6 Miniboss Days",
-        "description": "Tracks the accumulated w6 miniboss days",
-        "type": "number"
+        "name": "W6 Miniboss Days",
+        "description": "Days stacked up for the World 6 miniboss, Demented Spiritlord. +1 each day; more days mean more of them in the fight (up to 6). Set to 0 when the fight starts.",
+        "type": "number",
+        "verified": true
     },
     "227": {
-        "name": "Skull Shop Event Flag",
-        "description": "Single-use event trigger for skull shop",
+        "name": "Killroy 3rd Weekly Fight Unlocked",
+        "description": "1 once the Skull Shop's 1% roll permanently unlocked the 3rd Killroy weekly fight.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "228": {
-        "name": "Skull Shop Counter 1",
-        "description": "Progressive counter for skull shop reward tier 1",
+        "name": "Skull Shop - Artifact Find Buys",
+        "description": "Times you bought the Skull Shop's Artifact Find Chance boost. Bonus is 1 + n/(300+n) times.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "229": {
-        "name": "Skull Shop Counter 2",
-        "description": "Progressive counter for skull shop reward tier 2",
+        "name": "Skull Shop - Crop Evolution Buys",
+        "description": "Times you bought the Skull Shop's Crop Evolution Chance boost. Bonus is 1 + 9n/(300+n) times.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "230": {
-        "name": "Skull Shop Counter 3",
-        "description": "Progressive counter for skull shop reward tier 3",
+        "name": "Skull Shop - Jade Gain Buys",
+        "description": "Times you bought the Skull Shop's Jade Gain boost. Bonus is 1 + 2n/(300+n) times.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "231": {
-        "name": "Ninja Floors System",
-        "description": "Tracks current floor progression in ninja system",
+        "name": "Sneaking Mastery Difficulty",
+        "description": "The Sneaking Mastery difficulty you're on (0 = normal). You can switch any time, up to the highest you've unlocked (232). Higher gives more Jade and Sneaking EXP, and harder floors.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "232": {
-        "name": "Multi-System Bonus Calc",
-        "description": "Master bonus multiplier for talents/damage/drops",
+        "name": "Sneaking Mastery Unlocked",
+        "description": "Highest Sneaking Mastery tier you've unlocked, by clearing all 12 floors on your current top difficulty. Each tier adds a Mastery bonus.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "233": {
-        "name": "Sneaking Gems 1 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Gemstones - Aquamarine",
+        "description": "Aquamarine Gemstones added to your Sneaking collection (Ninja Knowledge). Its bonus (Stealth for all Ninjas) grows with more, with diminishing returns.",
+        "type": "number",
+        "verified": true
     },
     "234": {
-        "name": "Sneaking Gems 2 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Gemstones - Malachite",
+        "description": "Malachite Gemstones added to your Sneaking collection (Ninja Knowledge). Its bonus (Jade Gain) grows with more, with diminishing returns.",
+        "type": "number",
+        "verified": true
     },
     "235": {
-        "name": "Sneaking Gems 3 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Gemstones - Garnet",
+        "description": "Garnet Gemstones added to your Sneaking collection (Ninja Knowledge). Its bonus (Damage to Doors) grows with more, with diminishing returns.",
+        "type": "number",
+        "verified": true
     },
     "236": {
-        "name": "Sneaking Gems 4 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Gemstones - Starite",
+        "description": "Starite Gemstones added to your Sneaking collection (Ninja Knowledge). Its bonus (Gold Charm Bonus) grows with more, with diminishing returns.",
+        "type": "number",
+        "verified": true
     },
     "237": {
-        "name": "Sneaking Gems 5 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Gemstones - Topaz",
+        "description": "Topaz Gemstones added to your Sneaking collection (Ninja Knowledge). Its bonus (Sneak EXP Gain) grows with more, with diminishing returns.",
+        "type": "number",
+        "verified": true
     },
     "238": {
-        "name": "Sneaking Gems 6 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Gemstones - Moissanite",
+        "description": "Moissanite Gemstones added to your Sneaking collection (Ninja Knowledge). Its bonus (bonuses from the other Gemstones) grows with more, with diminishing returns.",
+        "type": "number",
+        "verified": true
     },
     "239": {
-        "name": "Sneaking Gems 7 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Gemstones - Emerald",
+        "description": "Emerald Gemstones added to your Sneaking collection (Ninja Knowledge). Its bonus (Cheaper Upgrades) grows with more, with diminishing returns.",
+        "type": "number",
+        "verified": true
     },
     "240": {
         "name": "Sneaking Gems 8 counter",
