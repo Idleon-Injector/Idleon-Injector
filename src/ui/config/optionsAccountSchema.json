@@ -1513,7 +1513,7 @@
     },
     "274": {
         "name": "Poppy - Fisheroo Reset",
-        "description": "How many Fisheroo Resets you have done. Each one costs 20x more. Cleared by Greatest Catch.",
+        "description": "How many Fisheroo Resets you have done. Each one costs 20x more.",
         "type": "number",
         "warning": "Keep reasonable like 30-40",
         "verified": true
@@ -1610,31 +1610,31 @@
     },
     "291": {
         "name": "Poppy - Reset Spiral: Bluefin Caught",
-        "description": "Reset Spiral level. Each level: +40% bluefin caught. Cleared by Greatest Catch.",
+        "description": "Reset Spiral level. Each level: +40% bluefin caught.",
         "type": "number",
         "verified": true
     },
     "292": {
         "name": "Poppy - Reset Spiral: Shiny Speed and Luck",
-        "description": "Reset Spiral level. Each level: +30% shiny fishing speed and luck. Cleared by Greatest Catch.",
+        "description": "Reset Spiral level. Each level: +30% shiny fishing speed and luck.",
         "type": "number",
         "verified": true
     },
     "293": {
         "name": "Poppy - Reset Spiral: Cheaper Upgrades",
-        "description": "Reset Spiral level. Each level: all upgrades 15% cheaper. Cleared by Greatest Catch.",
+        "description": "Reset Spiral level. Each level: all upgrades 15% cheaper.",
         "type": "number",
         "verified": true
     },
     "294": {
         "name": "Poppy - Reset Spiral: Other Spirals Stronger",
-        "description": "Reset Spiral level. Each level: the other spirals 4% stronger. Cleared by Greatest Catch.",
+        "description": "Reset Spiral level. Each level: the other spirals 4% stronger.",
         "type": "number",
         "verified": true
     },
     "295": {
         "name": "Poppy - Reset Spiral: Tartar Caught",
-        "description": "Reset Spiral level. Each level: +20% tartar fish caught. Cleared by Greatest Catch.",
+        "description": "Reset Spiral level. Each level: +20% tartar fish caught.",
         "type": "number",
         "verified": true
     },
