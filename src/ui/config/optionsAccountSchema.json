@@ -484,225 +484,250 @@
         "verified": true
     },
     "80": {
-        "name": "Unclaimed W3 Boss Keys Days",
-        "description": "Number of unclaimed W3 boss keys days",
-        "type": "number"
+        "name": "Chizoar's Cavern Keys Waiting (Days)",
+        "description": "Days of Chizoar's Cavern Keys (World 3 boss key) waiting for you. Goes up by 1 each day. Talking to Bellows or the quick-access board gives you up to 3 keys and sets it back to 0.",
+        "type": "number",
+        "verified": true
     },
     "81": {
-        "name": "Tome/Guild State",
-        "description": "Tome UI state and Guild join functionality",
+        "name": "Cosmic Time Candy Pity Counter",
+        "description": "Luck counter for Cosmic Time Candy. A roll of 100+ hours sets it to 15, every smaller roll lowers it by 1. At 1 or less, each candy has a 1 in 3 chance of 100 to 250 hours.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "82": {
-        "name": "DoOnceREAL Init",
-        "description": "System initialization flag (approx -6.3)",
+        "name": "Old Update Marker",
+        "description": "Set once to -6.3 by an old game update. Nothing in the game reads it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "83": {
-        "name": "Autoloot toggle",
-        "description": "Autoloot toggle (0 = on / 1 = off)",
-        "type": "number"
+        "name": "Auto Loot Off",
+        "description": "Auto loot switch from the quick-access board: 0 = on, 1 = off. Only works once you own the Auto Loot gem shop bundle; buying it sets 0.",
+        "type": "number",
+        "verified": true
     },
     "84": {
-        "name": "Character Code T",
-        "description": "Character encoding for keyboard input (T=84)",
+        "name": "Unused",
+        "description": "Not read or written by the game. Only touched by the generic \"fill missing slots with 0\" loops.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "85": {
-        "name": "Quest/Progress Limiter",
-        "description": "Quest integration and DoOnce capping logic",
+        "name": "Breeding Territories Unlocked",
+        "description": "How many Breeding territories you have beaten. Winning a new territory fight raises it; it unlocks the next territory and the Mutated Mush days (slot 98).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "86": {
-        "name": "Recipe Points",
-        "description": "Recipe points (needs confirmation)",
-        "type": "number"
+        "name": "Breeding Failure Streak",
+        "description": "Breeds in a row without a new or shiny Mob. Feeds the 5th Breeding Multi (Failure) from the Failsafe Restitution Cloud upgrade, up to that upgrade's max. Goes back to 0 when you get a new Mob.",
+        "type": "number",
+        "verified": true
     },
     "87": {
-        "name": "W4 Breeding Egg Incubation Timer",
-        "description": "Elapsed egg incubation time in seconds; increases by 1 every second",
-        "type": "number"
+        "name": "Egg Incubator Progress",
+        "description": "Seconds of progress toward the next egg in the Breeding incubator. Goes up with time (also offline time and time candy); each full egg time spent makes an egg.",
+        "type": "number",
+        "verified": true
     },
     "88": {
-        "name": "W4 Arena Timer",
-        "description": "World 4 arena timer",
-        "type": "number"
+        "name": "Arena Attempt Ready",
+        "description": "1 = today's Breeding Arena fight is ready. Set to 1 at each daily reset; starting the Arena fight sets 0 (unless a bonus keeps it). While 0, the Arena shows the time until reset.",
+        "type": "number",
+        "verified": true
     },
     "89": {
-        "name": "Character Code Y",
-        "description": "Character encoding for keyboard input (Y=89)",
+        "name": "Arena Best Round",
+        "description": "Best round you have beaten in the Breeding Arena (normal mode). Arena bonuses unlock at set rounds.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "90": {
-        "name": "Cooking Timer",
-        "description": "Tracks cooking activity time",
+        "name": "Fence Yard Eggs Laid",
+        "description": "Eggs laid by Eggshell Mobs in the Fence Yard, waiting to be picked up (max 10). They drop when you enter the Fence Yard, which sets it back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "91": {
-        "name": "Chip Jewel System",
-        "description": "Special item crafting/spawn system",
+        "name": "Chip Repository Unlock",
+        "description": "0 = locked. 1 = Chip Repository unlocked (hold 3 Piles of Processor Chips). 2 = Jewel Spinner also unlocked (hold 7 Strung Jewels), which shows the extra chip and jewel slots.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "92": {
         "name": "4-Star Cardifiers",
-        "description": "Number of 4-star cardifiers",
-        "type": "number"
+        "description": "Cardifiers you own, bought in the gem shop. Each one raises a 3-star card to 4 stars.",
+        "type": "number",
+        "verified": true
     },
     "93": {
-        "name": "Scene Event Identifier",
-        "description": "Scene event identification and positioning coordinates",
+        "name": "Dungeon Weekly Big Run Ready",
+        "description": "1 = this week's big Dungeon run is unused: a full party (3+) in the hourly bonus window uses up to 20 passes at once for that many times the rewards. Using it sets 0, after that it's 3x at most until the weekly reset sets 1.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "94": {
-        "name": "Gem Bundle Tracker",
-        "description": "Tracks gem bundle purchases",
+        "name": "Keychain Fragments",
+        "description": "Keychain Fragments on your account, spent on keychains at the Keychain Pile. Holding Keychain Fragment items adds them here; gem shop packs add 40, 120 or 300.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "95": {
-        "name": "Asset Management 95",
-        "description": "Asset management and positioning coordinate constant",
+        "name": "Free Town Teleports",
+        "description": "1 = you used the Bottled World Town Teleport, so teleporting between world towns is free.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "96": {
-        "name": "Accumulated Dilapidated Slush Days",
-        "description": "Days of accumulated dilapidated slush",
-        "type": "number"
+        "name": "Dilapidated Slush Days",
+        "description": "Days of snow built up at the Refrigeration Station (World 3), +1 a day once Construction is unlocked. Above 3, dropping a Bucket of Slush there spawns up to 10 Dilapidated Slush minibosses and sets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "97": {
-        "name": "Character Code A/NUMPAD_1",
-        "description": "Character encoding for keyboard and numpad input",
+        "name": "Patch Notes Seen",
+        "description": "Number of the last patch notes you opened.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "98": {
-        "name": "Accumulated Mutated Mush Days",
-        "description": "Days of accumulated mutated mush",
-        "type": "number"
+        "name": "Mutated Mush Days",
+        "description": "Days of build-up for the Mutated Mush, +1 a day once a Breeding territory is beaten. Above 3, an oil barrel drop on its World 4 map spawns up to 8 Mutated Mush minibosses and sets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "99": {
-        "name": "Pen-pal Minigame Counter",
-        "description": "Pen-pal minigame counter max bonus at 225",
-        "type": "number"
+        "name": "Trapping Minigame Best Score",
+        "description": "Best score in the Trapping minigame. Every 25 points unlocks one of 9 bonuses (all at 225); it also counts toward the Tome.",
+        "type": "number",
+        "verified": true
     },
     "100": {
-        "name": "W4 Spiceclaim counter",
-        "description": "Daily counter for pet spiceclaims, starts at 0 to 100 and locks after that",
-        "type": "number"
+        "name": "Spice Claims Used Today",
+        "description": "Breeding spice claims used today. Each claim adds 1 until the daily limit. Resets each day to 0 minus 25 for each Trasher Mob in the Fence Yard, so it can start below 0.",
+        "type": "number",
+        "verified": true
     },
     "101": {
-        "name": "Killroy Crystals",
-        "description": "Killroy crystals (minus value)",
-        "type": "number"
+        "name": "Crystal Mobs Spawned Today",
+        "description": "Crystal Mobs spawned today. While it's below your guaranteed amount, every kill spawns one. Resets to 0 each day; Killroy's skull shop item lowers it by 1 (so it can go below 0).",
+        "type": "number",
+        "verified": true
     },
     "102": {
-        "name": "Event Spawn Limiter",
-        "description": "Caps daily special event spawns (e.g. Twitch events)",
+        "name": "Dev Event Rewards Today",
+        "description": "How many rewards the game developer gave you today through live in-game chat events (spawned monsters, gems and so on). Stops at 10; resets each day.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "103": {
-        "name": "Lava Guide / Tutorial Progression",
-        "description": "Tracks Lava tutorial/story stages (-2 to 7)",
-        "type": "number"
+        "name": "Starter Guide Progress",
+        "description": "Step of Lava's new-player guide bar (0 to 7). -1 = finished or hidden; -2 jumps to 7 on the next load. An old update set -1 on every account.",
+        "type": "number",
+        "verified": true
     },
     "104": {
-        "name": "Tutorial UI Toggle",
-        "description": "Controls tutorial UI visibility (LavaTutStuff)",
+        "name": "Starter Guide Collapsed",
+        "description": "1 = Lava's new-player guide bar starts collapsed. Only matters while the guide is active (slot 103 at 0 or more).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "105": {
         "name": "Killroy Skulls",
-        "description": "Killroy skulls currency",
-        "type": "number"
+        "description": "Skulls to spend in Killroy's skull shop. Killroy fights drop them; each week they reset to your Armory bonus amount.",
+        "type": "number",
+        "verified": true
     },
     "106": {
-        "name": "Killroy Upgrade - Timer",
-        "description": "Killroy timer upgrade level",
-        "type": "number"
+        "name": "Killroy Upgrade 1 - Timer",
+        "description": "Level of Killroy's 1st upgrade. A Killroy run lasts 100 + level seconds.",
+        "type": "number",
+        "verified": true
     },
     "107": {
-        "name": "Killroy Upgrade - Talent Drops",
-        "description": "Killroy talent drops upgrade level",
-        "type": "number"
+        "name": "Killroy Upgrade 2 - Talent Point Drops",
+        "description": "Level of Killroy's 2nd upgrade. With at least 1 level, Killroy kills can drop Talent Points; each level raises the chance by 5%. Shown after 2 finished runs.",
+        "type": "number",
+        "verified": true
     },
     "108": {
-        "name": "Killroy Upgrade - Bonus Skulls",
-        "description": "Killroy bonus skulls upgrade (do not set if not unlocked)",
+        "name": "Killroy Upgrade 3 - Bonus Skulls",
+        "description": "Level of Killroy's 3rd upgrade. Raises the skull drop chance in Killroy runs by 1% per level. Shown after 16 finished runs.",
         "type": "number",
-        "warning": "Do not set if you haven't unlocked this upgrade yet"
+        "warning": "Do not set if you haven't unlocked this upgrade yet",
+        "verified": true
     },
     "109": {
-        "name": "Killroy Upgrade - Respawn",
-        "description": "Killroy respawn upgrade (do not set if not unlocked)",
+        "name": "Killroy Upgrade 4 - Respawn",
+        "description": "Level of Killroy's 4th upgrade. Each spawn wave in a Killroy run has a level% chance of one extra monster. Shown after 36 finished runs.",
         "type": "number",
-        "warning": "Do not set if you haven't unlocked this upgrade yet"
+        "warning": "Do not set if you haven't unlocked this upgrade yet",
+        "verified": true
     },
     "110": {
-        "name": "Killroy Upgrade - 5th",
-        "description": "Killroy 5th upgrade (do not set if not unlocked)",
+        "name": "Killroy Upgrade 5 - Dungeon Credit Drops",
+        "description": "Level of Killroy's 5th upgrade. Killroy monsters drop Dungeon Credits with chance 1% x (1 + level/100). Shown after 64 finished runs.",
         "type": "number",
-        "warning": "Do not set if you haven't unlocked this upgrade yet"
+        "warning": "Do not set if you haven't unlocked this upgrade yet",
+        "verified": true
     },
     "111": {
-        "name": "Killroy Upgrade - 6th",
-        "description": "Killroy 6th upgrade (do not set if not unlocked)",
+        "name": "Killroy Upgrade 6 - Pearl Drops",
+        "description": "Level of Killroy's 6th upgrade. Killroy monsters drop a Black, Holy or Divinity Pearl with chance 0.2% x (1 + level/100). Shown after 100 finished runs.",
         "type": "number",
-        "warning": "Do not set if you haven't unlocked this upgrade yet"
+        "warning": "Do not set if you haven't unlocked this upgrade yet",
+        "verified": true
     },
     "112": {
         "name": "Killroy Runs Total",
-        "description": "Total number of finished Killroy runs",
-        "type": "number"
+        "description": "Total finished Killroy runs. Upgrade rows unlock at 2, 16, 36, 64 and 100 runs.",
+        "type": "number",
+        "verified": true
     },
     "113": {
-        "name": "Killroy Wake Status",
-        "description": "Set to 0 to wake up Killroy",
-        "type": "number"
+        "name": "Killroy Fights Done This Week",
+        "description": "Which weekly Killroy fights you've started, as digits: fight 1 adds 1, fight 2 adds 20, fight 3 adds 300 (so 21 = fights 1 and 2). Resets to 0 each week or with the Airhorn.",
+        "type": "number",
+        "verified": true
     },
     "114": {
-        "name": "Talent Point System",
-        "description": "Tracks/cycles talent point rewards",
+        "name": "Killroy Talent Points Found",
+        "description": "Talent Points found in Killroy runs, all time. Each one makes the next rarer. They cycle through Tabs 1 to 4, with every 9th a Special Tab point.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "115": {
-        "name": "Killroy Airhorn Reset",
-        "description": "Set to 0 to make airhorn reset available",
-        "type": "number"
+        "name": "Killroy Airhorn Used",
+        "description": "1 = this week's Airhorn is used (400 gems to redo all weekly Killroy fights). Resets to 0 each week.",
+        "type": "number",
+        "verified": true
     },
     "116": {
-        "name": "Vertex Buffer Index",
-        "description": "Vertex buffer index and map identifier in rendering system",
+        "name": "Unused",
+        "description": "Not read or written by the game. Only touched by the generic \"fill missing slots with 0\" loops.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "117": {
-        "name": "Boss Kill Achievement",
-        "description": "Tracks major boss kills, unlocks breeding/classes",
+        "name": "Breeding Worlds Unlocked",
+        "description": "How many worlds of Mobs you can breed (at least 3). Beating the World 4, 5 or 6 boss sets it to 4.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "118": {
-        "name": "Town Popup for Gemshop",
-        "description": "Controls town popup for gemshop",
-        "type": "number"
+        "name": "Gem Shop Limited Offer Seen",
+        "description": "Number of the last limited-time gem shop offer you were shown. When the server has a new one, the game shows the gem shop popup once and stores the new number.",
+        "type": "number",
+        "verified": true
     },
     "119": {
-        "name": "Story Quest Completion",
-        "description": "Tracks major story quests and world access",
+        "name": "World 5 Portal Restored",
+        "description": "1 = you gave the Architect Toucan the Magma Geode, so the World 4 town portal to World 5 works.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "120": {
         "name": "Idle Skilling Code Tracker",
