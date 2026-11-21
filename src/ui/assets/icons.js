@@ -182,4 +182,109 @@ export const Icons = {
             "aria-hidden": "true",
             ...props,
         }),
+
+    /**
+     * A system's own line drawing (the sidebar's lists, the page title), or null when it has none yet. Thinner
+     * than the controls' icons: these name a place, they aren't pressed.
+     */
+    System: ({ name, ...props } = {}) => {
+        const key = Object.keys(SYSTEM_ICONS).find((k) => k.toLowerCase() === String(name).toLowerCase());
+        const parts = key && SYSTEM_ICONS[key];
+        if (!parts) return null;
+        return SvgBase(
+            parts.map((part) =>
+                Array.isArray(part)
+                    ? circle({ cx: part[0], cy: part[1], r: part[2] })
+                    : typeof part === "string"
+                      ? path({ d: part })
+                      : path({ d: part.d, transform: part.t })
+            ),
+            { "stroke-width": "1.7", "aria-hidden": "true", ...props }
+        );
+    },
+
+    /** The mark in a list's icon column for a system that has no drawing yet. */
+    Waypoint: (props) =>
+        SvgBase(path({ d: "M12 8.5 15.5 12 12 15.5 8.5 12z" }), {
+            "stroke-width": "1.7",
+            "aria-hidden": "true",
+            ...props,
+        }),
+};
+
+// Drawn on the 24 grid: a string is a path, [cx, cy, r] a circle, { d, t } a turned path.
+const ELLIPSE = "M3 12a9 3.6 0 1 0 18 0 9 3.6 0 1 0-18 0z";
+const SYSTEM_ICONS = {
+    Home: ["M4 10.5 12 4l8 6.5", "M6 9v10.5h4.5V15h3v4.5H18V9"],
+    Stamps: [
+        "M9.5 4.5a2.5 2.5 0 1 1 5 0c0 1.2-.8 1.8-1 2.8V10h-3V7.3c-.2-1-1-1.6-1-2.8z",
+        "M5 13a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v2H5z",
+        "M6 19h12",
+    ],
+    Anvil: [
+        "M3 6h13.5c.5 2.3 2.2 3.6 4.5 4H15a2 2 0 0 0-2 2v2h-2v-2a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z",
+        "M8.5 18.5 10 14h4l1.5 4.5",
+        "M6.5 18.5h11",
+    ],
+    Forge: [
+        "M12 3.5c.6 2.6 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-2 .9-3.4 2-4.4.1 1.5.8 2.6 1.9 2.9-.4-2.6-.2-5.3.6-7.5z",
+        "M5 20.5h14",
+    ],
+    Statues: [[12, 5.25, 2.25], "M9 15v-3.5a3 3 0 0 1 6 0V15", "M7 15h10v5.5H7z"],
+    "Star Signs": ["M12 3.5l1.7 5.1 5.3 1.4-5.3 1.4L12 16.5l-1.7-5.1L5 10l5.3-1.4z", "M18.5 16.5v4M16.5 18.5h4"],
+    Pets: [
+        [6, 10.5, 1.7],
+        [9.5, 6.5, 1.7],
+        [14.5, 6.5, 1.7],
+        [18, 10.5, 1.7],
+        "M12 12c-2.8 0-5 3.1-5 5.2 0 1.6 1.3 2.3 2.6 2.3 1 0 1.6-.6 2.4-.6s1.4.6 2.4.6c1.3 0 2.6-.7 2.6-2.3 0-2.1-2.2-5.2-5-5.2z",
+    ],
+    Bribes: [
+        "M5 7c0-1.4 3.1-2.5 7-2.5s7 1.1 7 2.5-3.1 2.5-7 2.5S5 8.4 5 7z",
+        "M5 7v5c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V7",
+        "M5 12v5c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-5",
+    ],
+    Owl: ["M5 4.5 8 7h8l3-2.5V13a7 7 0 0 1-14 0z", [9.2, 11.2, 2], [14.8, 11.2, 2], "M11 14.8l1 1.2 1-1.2"],
+    Construction: ["M4 20.5V10l5-3v13.5", "M9 20.5V4.5l10 4.5v11.5", "M2.5 20.5h19", "M12.5 11h3M12.5 14h3M12.5 17h3"],
+    Printer: [
+        "M7 8V3.5h10V8",
+        "M7 17H5a1.5 1.5 0 0 1-1.5-1.5v-6A1.5 1.5 0 0 1 5 8h14a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 19 17h-2",
+        "M7 13.5h10v7H7z",
+    ],
+    Refinery: [
+        "M9.5 3.5h5",
+        "M10.5 3.5V9l-5.6 9.4a1.4 1.4 0 0 0 1.2 2.1h11.8a1.4 1.4 0 0 0 1.2-2.1L13.5 9V3.5",
+        "M7.5 15h9",
+    ],
+    "Salt Lick": ["M12 3.5l7.5 4.2v8.6L12 20.5l-7.5-4.2V7.7z", "M4.5 7.7 12 12l7.5-4.3", "M12 12v8.5"],
+    "Atom Collider": [
+        [12, 12, 1.6],
+        ELLIPSE,
+        { d: ELLIPSE, t: "rotate(60 12 12)" },
+        { d: ELLIPSE, t: "rotate(-60 12 12)" },
+    ],
+    "Hat Rack": [
+        "M7.5 15V6.5A1.5 1.5 0 0 1 9 5h6a1.5 1.5 0 0 1 1.5 1.5V15",
+        "M7.5 11.5h9",
+        "M3.5 15h17c0 2.2-1.8 4-4 4h-9c-2.2 0-4-1.8-4-4z",
+    ],
+    "Armor Smithy": ["M12 3.5 19 6v5.5c0 4.6-3 7.9-7 9-4-1.1-7-4.4-7-9V6z", "M12 3.5v17"],
+    Worship: ["M8.5 20.5V8.5h7v12", "M6.5 20.5h11", "M8.5 12.5h7M8.5 16.5h7", "M12 3.5l2.5 2.5-2.5 2.5L9.5 6z"],
+    Prayers: [
+        "M9.5 10.5h5v10h-5z",
+        "M12 3.5c1.2 1.6 1.8 2.7 1.8 3.7a1.8 1.8 0 0 1-3.6 0c0-1 .6-2.1 1.8-3.7z",
+        "M7 20.5h10",
+    ],
+    "Death Note": [
+        "M6.5 3.5h11A1.5 1.5 0 0 1 19 5v14a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z",
+        "M8.5 3.5v17",
+        "M12 8.5h4M12 11.5h4",
+    ],
+    Library: ["M3 5.5c3-1.2 6.2-.9 9 1 2.8-1.9 6-2.2 9-1v13c-3-1.2-6.2-.9-9 1-2.8-1.9-6-2.2-9-1z", "M12 6.5v13"],
+    Equinox: [
+        [12, 12, 4],
+        "M12 8v8",
+        "M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6",
+    ],
+    Traps: ["M5.5 20.5V10a6.5 6.5 0 0 1 13 0v10.5", "M3.5 20.5h17", "M9.5 20.5V4.5M14.5 20.5V4.5", "M5.5 14h13"],
 };

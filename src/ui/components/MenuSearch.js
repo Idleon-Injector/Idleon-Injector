@@ -4,15 +4,21 @@
  * Picking a cheat shows its row on the Cheats page; it never runs it. Picking a command turns the box into a
  * command box holding its text: Enter runs it (a dangerous one asks for a second Enter), Esc goes back.
  * What the command did shows in a short line under the box (#77): it lands in the game, out of sight.
+ * On a page with rows, the bar searches that page first (`createPageSearch`): "This page | Everywhere" sits in the bar,
+ * the page's rows filter as the player types, and the typed text stays when they switch.
  */
 
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
+import { VIEWS } from "../state/constants.js";
 import { Icons } from "../assets/icons.js";
-import { menuSearchEntries } from "../menu/pageRegistry.js";
+import { menuSearchEntries, menuTree } from "../menu/pageRegistry.js";
 import { cheatSearchEntries, commandHint, isDangerousCommand, searchMenu } from "../menu/menuModel.js";
+import { createPageSearch } from "../menu/pageSearch.js";
 import { configDescriptions } from "../config/configDescriptions.js";
 import { Said, plainReason, useSaid } from "./inPlace.js";
+import { StepPicker } from "./views/account/components/StepPicker.js";
+import { pageNow, worldNow } from "./views/Pages.js";
 
 const { div, input, span, button, kbd } = van.tags;
 
@@ -31,7 +37,22 @@ export const MenuSearch = () => {
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
     const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions));
     const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
-    const results = van.derive(() => (command.val ? [] : searchMenu(entries.val, query.val)));
+    // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu.
+    const openPage = van.derive(() =>
+        store.app.activeTab === VIEWS.PAGES.id && menuTree.val ? (pageNow(worldNow(menuTree.val)) ?? null) : null
+    );
+    const pageSearch = createPageSearch();
+    const mode = van.state("page");
+    const searchingPage = () => pageSearch.hasRows.val && mode.val === "page";
+    const results = van.derive(() => (command.val || searchingPage() ? [] : searchMenu(entries.val, query.val)));
+    // Another page starts fresh, on its own rows; the page left behind shows all of them again.
+    van.derive(() => {
+        pageSearch.follow(openPage.val?.id ?? "");
+        mode.val = "page";
+        query.val = "";
+    });
+    // The rows follow the bar while "This page" is picked.
+    van.derive(() => pageSearch.search(mode.val === "page" ? query.val : ""));
 
     const close = () => {
         open.val = false;
@@ -80,15 +101,16 @@ export const MenuSearch = () => {
     const field = input({
         type: "text",
         class: "menu-search-input",
-        placeholder: "SEARCH PAGES AND CHEATS",
+        placeholder: () =>
+            searchingPage() ? `Search ${openPage.val.tab ?? openPage.val.system}` : "Search pages and cheats",
         autocomplete: "off",
         spellcheck: "false",
         role: "combobox",
-        "aria-label": () => (command.val ? "Command to run" : "Search the menu"),
+        "aria-label": () => (command.val ? "Command to run" : searchingPage() ? "Search this page" : "Search the menu"),
         "aria-describedby": () => (command.val ? "menu-command-hint" : ""),
         "aria-autocomplete": "list",
         "aria-controls": "menu-search-results",
-        "aria-expanded": () => String(open.val && query.val.trim() !== ""),
+        "aria-expanded": () => String(open.val && !searchingPage() && query.val.trim() !== ""),
         "aria-activedescendant": () => (open.val && results.val.length ? `menu-search-${highlight.val}` : ""),
         value: query,
         oninput: (e) => {
@@ -163,9 +185,30 @@ export const MenuSearch = () => {
         );
     };
 
+    // Picking a side keeps the typed text and puts the caret back in the box (a press by keyboard stays on the switch).
+    const scope = div(
+        { class: "menu-search-scope", hidden: () => !pageSearch.hasRows.val || Boolean(command.val) },
+        StepPicker({
+            name: "Search where",
+            steps: [
+                { value: "page", label: "This page", tone: "accent" },
+                { value: "everywhere", label: "Everywhere", tone: "accent" },
+            ],
+            picked: () => mode.val,
+            onPick: (value) => {
+                mode.val = value;
+                highlight.val = 0;
+                field.focus();
+            },
+        })
+    );
+
     return div(
         {
-            class: () => `control-bar menu-bar${command.val ? " is-command" : ""}${armed.val ? " is-armed" : ""}`,
+            class: () =>
+                `control-bar menu-bar${command.val ? " is-command" : ""}${armed.val ? " is-armed" : ""}${
+                    pageSearch.hasRows.val && !command.val ? " has-scope" : ""
+                }`,
         },
         div(
             { class: "search-wrapper" },
@@ -174,7 +217,7 @@ export const MenuSearch = () => {
             () =>
                 open.val && command.val
                     ? CommandHint()
-                    : open.val && query.val.trim()
+                    : open.val && query.val.trim() && !searchingPage()
                       ? div(
                             // mousedown, not click: the result must win before the field's blur closes the list.
                             { id: "menu-search-results", class: "menu-search-results", role: "listbox" },
@@ -235,6 +278,7 @@ export const MenuSearch = () => {
                 Said({ said, className: "said--command" })
             )
         ),
-        kbd({ class: "menu-bar__kbd" }, () => (command.val ? "ENTER" : "CTRL K"))
+        scope,
+        kbd({ class: "menu-bar__kbd" }, () => (command.val ? "Enter" : "Ctrl K"))
     );
 };

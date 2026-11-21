@@ -154,3 +154,120 @@ button {
 .key-favorite-btn.active .icon-star {
     fill: currentColor;
 }
+@media (max-width: 600px) {
+    /* The row's remove-or-lower button (Relock) moves up to the end of the name's line, away from the field; the save
+     * state sits just before it. */
+    .viewport .account-row--value .account-row__controls > .btn-danger:last-child {
+        position: absolute;
+        top: 22px;
+        right: 4px;
+        transform: translateY(-50%);
+    }
+}
+
+/* − and + rest as quiet glyphs inside the well, a close pair at its end (no gap between them, room before the edge),
+   and take a small round fill when pointed at. */
+.viewport .number-input-btn.btn-quiet {
+    width: 24px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    color: var(--c-text-muted);
+    background: transparent;
+    border: 0;
+}
+.viewport .number-input-btn.btn-quiet:last-child {
+    margin-right: 6px;
+}
+.viewport .number-input-btn.btn-quiet:hover:not(:disabled) {
+    background: #34305a;
+    color: #ffffff;
+}
+.viewport .number-input-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+/* ============ BUTTONS: a little body (a faint fill, a faint edge), a real hover and press ============ */
+.viewport .btn-quiet,
+.viewport .btn-danger,
+.viewport .btn-main {
+    border: 1px solid var(--c-btn-edge);
+    background: var(--c-btn);
+    color: var(--c-text-body);
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0;
+    transition:
+        background-color 150ms var(--ease-soft),
+        border-color 150ms var(--ease-soft),
+        color 150ms var(--ease-soft),
+        transform 120ms var(--ease-soft);
+}
+.viewport .btn-sm {
+    height: 30px;
+    padding: 0 14px;
+    font-size: 0.8125rem;
+}
+.viewport .btn-quiet:hover:not(:disabled),
+.viewport .btn-danger:hover:not(:disabled),
+.viewport .btn-main:hover:not(:disabled) {
+    background: var(--c-btn-hover);
+    border-color: var(--c-btn-edge-hover);
+    color: #ffffff;
+}
+.viewport .btn-quiet:active:not(:disabled),
+.viewport .btn-danger:active:not(:disabled),
+.viewport .btn-main:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+/* The one strong button an area has: the lavender body, dark words (9.1:1). */
+.viewport .btn-main {
+    border-color: transparent;
+    background: var(--c-accent);
+    color: var(--c-accent-ink);
+}
+.viewport .btn-main:hover:not(:disabled) {
+    border-color: transparent;
+    background: var(--c-accent-hover);
+    color: var(--c-accent-ink);
+}
+.viewport .btn-quiet:disabled,
+.viewport .btn-danger:disabled {
+    border-color: var(--c-hairline);
+    background: transparent;
+}
+
+/* A row's own buttons (Max, Reset, Relock): filled like the value's well beside them, no edge, so a list isn't a
+   column of outlined boxes. One that lowers or removes turns red only when pointed at. */
+.viewport .account-row__controls > .btn-quiet,
+.viewport .account-row__controls > .btn-danger {
+    border-color: transparent;
+    background: var(--c-panel-dim);
+}
+.viewport .account-row__controls > .btn-quiet:hover:not(:disabled) {
+    border-color: transparent;
+    background: var(--c-well-hover);
+}
+.viewport .account-row__controls > .btn-danger:hover:not(:disabled) {
+    border-color: transparent;
+    background: rgba(255, 138, 128, 0.14);
+    color: var(--c-danger-soft-text);
+}
+.viewport .account-row__controls > .btn-quiet:disabled,
+.viewport .account-row__controls > .btn-danger:disabled {
+    border-color: transparent;
+}
+
+/* Icon-only buttons stay bare until pointed at (the − / + have their own rule above). */
+.viewport .btn-icon:not(.number-input-btn) {
+    border-color: transparent;
+    background: transparent;
+}
+.viewport .btn-quiet:focus-visible,
+.viewport .btn-danger:focus-visible,
+.viewport .btn-main:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}

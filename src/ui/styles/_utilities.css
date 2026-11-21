@@ -123,3 +123,14 @@ details[open] > summary > .group-chevron {
     font-family: var(--font-mono);
     color: var(--c-text-dim);
 }
+
+/* A warning said on a page (a notice, not a failure): amber words on a breath of amber, on the group's shape. */
+.viewport .warning-banner {
+    max-width: var(--page-measure);
+    margin: 14px 0 0;
+    padding: 12px 16px;
+    border: 1px solid #3a2e1f;
+    border-radius: 12px;
+    background: var(--c-warning-tint);
+    color: #f4dcb0;
+}

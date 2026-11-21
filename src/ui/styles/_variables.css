@@ -1,7 +1,8 @@
 /**
  * CSS Custom Properties (Design Tokens)
- * Dusk: one violet family. Colour means something (status, on/off, the worlds, names that identify a thing);
- * everything else is six surfaces and two text colours.
+ * Ink: a violet night. The page is the darkest step; everything a player reads rests on a surface one step up,
+ * edged by a hairline. Colour means something (trouble, on/off and where you are, the worlds, names that identify a
+ * thing); everything else is surfaces and text steps.
  * One set in hex/rgba: the Steam client runs Chromium 87 (no oklch or color-mix), so the WebUI uses the same values.
  */
 
@@ -11,36 +12,42 @@
     --c-black: #000000;
 
     /* -- SURFACES -- */
-    /* Six roles. The row (#2d2e4f) is where a player reads and changes values; the page is the same violet a
-       step darker, sections sit between, and inputs sink back to the page. Borders nearly dissolve: rows are
-       told apart by their fill. */
-    --c-void: #1c1d33; /* page */
-    --c-void-soft: #222440; /* section */
-    --c-panel: #2d2e4f; /* row, card */
-    --c-panel-hover: #36385c; /* row hover */
-    --c-border: #34365b;
-    --c-border-strong: #4a4d7a;
-    --c-panel-dim: var(--c-void); /* input wells, sub-navs */
-    --c-panel-dark-dim: var(--c-void);
+    /* The page, then one step up for a group of rows (and the search, a panel); a value rests in its well. */
+    --c-void: #0d0c18; /* page */
+    --c-void-soft: #161526; /* a group of rows */
+    --c-panel: #161526; /* row, card */
+    --c-panel-hover: #1c1a2f; /* row hover */
+    --c-border: #252340;
+    --c-border-strong: #36325a;
+    --c-panel-dim: #211f3a; /* a value's well */
+    --c-panel-dark-dim: #211f3a;
     --c-bg: var(--c-void);
+    --c-hairline: #1f1d35; /* between rows inside a group */
+    --c-well-hover: #27244a;
+    --c-here: #262244; /* where you are, in the sidebar */
+    --c-btn: #1d1b33; /* a button's body */
+    --c-btn-edge: #34305a;
+    --c-btn-hover: #282546;
+    --c-btn-edge-hover: #4a4480;
 
     /* -- ACCENT -- */
     /* Lavender: what you can press, what is on, where you are. */
-    --c-accent: #aaa6f7;
-    --c-accent-hover: #c9c6fb;
-    --c-accent-dim: rgba(170, 166, 247, 0.1);
-    --c-accent-dim-solid: #333352;
-    --c-accent-glow: rgba(170, 166, 247, 0.3);
-    --c-accent-06: rgba(170, 166, 247, 0.055);
-    --c-accent-20: rgba(170, 166, 247, 0.2);
-    --c-accent-25: rgba(170, 166, 247, 0.25);
-    --c-accent-40: rgba(170, 166, 247, 0.42);
-    --c-accent-ink: #0f0f1c;
+    --c-accent: #b0a7ff;
+    --c-accent-hover: #c9c3ff;
+    --c-accent-dim: rgba(176, 167, 255, 0.12);
+    --c-accent-dim-solid: #221f3f;
+    --c-accent-glow: rgba(176, 167, 255, 0.3);
+    --c-accent-06: rgba(176, 167, 255, 0.06);
+    --c-accent-20: rgba(176, 167, 255, 0.2);
+    --c-accent-25: rgba(176, 167, 255, 0.25);
+    --c-accent-40: rgba(176, 167, 255, 0.42);
+    --c-accent-ink: #0d0c18;
+    --c-switch-on: #7d72ee; /* the white knob on it: 3.8:1 (a shape, so 3:1 is the bar) */
 
     /* -- STATUS -- */
     --c-success: #59f57d;
-    --c-warning: #ffb700;
-    --c-danger: #ff8585;
+    --c-warning: #ffc24d;
+    --c-danger: #ff8a80;
     --c-success-10: rgba(89, 245, 125, 0.1);
     --c-success-20: rgba(89, 245, 125, 0.2);
     --c-success-40: rgba(89, 245, 125, 0.4);
@@ -50,21 +57,24 @@
     --c-danger-40: rgba(255, 133, 133, 0.4);
     --c-warning-40: rgba(255, 183, 0, 0.4);
     /* Status fills: the row with a little of the status colour, solid so text on them is measured (AA). */
-    --c-success-tint: #324655;
-    --c-success-flash: #345454;
-    --c-danger-tint: #3f324d;
-    --c-danger-flash: #4e3652;
-    --c-warning-tint: #463e46;
-    --c-accent-tint: #3e3f67;
+    --c-success-tint: var(--c-void-soft);
+    --c-success-flash: var(--c-panel-hover);
+    --c-danger-tint: #241626;
+    --c-danger-flash: #2e1a2e;
+    --c-warning-tint: #221b1c;
+    --c-accent-tint: #221f3f;
 
     /* -- TEXT -- */
-    /* Two colours: main and muted. */
-    --c-text-main: #eeedf9;
-    --c-text-muted: #c0bfdc;
+    /* Main, row names, muted and faint: each meets WCAG AA on every surface it sits on. */
+    --c-text-main: #f3f1ff;
+    --c-text-body: #e3e0f6; /* row names */
+    --c-text-muted: #aaa6c8;
+    --c-text-faint: #8e8ab0; /* indices, a field's cap */
+    --c-nav-text: #b4b0d0; /* the sidebar's words at rest */
     --c-text-dim: var(--c-text-muted);
     --c-text: var(--c-text-main);
-    --c-text-disabled: rgba(238, 237, 249, 0.34); /* disabled: exempt from AA */
-    --c-danger-soft-text: #ffb2a5;
+    --c-text-disabled: rgba(243, 241, 255, 0.32); /* disabled: exempt from AA */
+    --c-danger-soft-text: #ff9d94;
 
     /* -- NAMES THAT IDENTIFY A THING -- */
     /* Tiers, signs, cauldrons, liquids, brews and the worlds keep their colour, lifted to AA on a row. */
@@ -125,13 +135,13 @@
     --c-black-45: rgba(0, 0, 0, 0.45);
     --c-black-50: rgba(0, 0, 0, 0.5);
     --c-black-80: rgba(0, 0, 0, 0.8);
-    --c-sidebar-bg: rgba(23, 24, 43, 0.96);
-    --c-panel-95: rgba(45, 46, 79, 0.95);
-    --c-panel-98: rgba(45, 46, 79, 0.98);
-    --c-panel-80: rgba(28, 29, 51, 0.8);
-    --c-control-border-strong: var(--c-border-strong);
-    --c-control-thumb: var(--c-text-muted);
-    --c-scrollbar-thumb: var(--c-border-strong);
+    --c-sidebar-bg: #121120;
+    --c-panel-95: rgba(22, 21, 38, 0.97);
+    --c-panel-98: rgba(22, 21, 38, 0.99);
+    --c-panel-80: rgba(13, 12, 24, 0.8);
+    --c-control-border-strong: #3d3962;
+    --c-control-thumb: #cbc7e6;
+    --c-scrollbar-thumb: #2e2b4d;
     --c-border-faint: var(--c-white-05);
     --c-cogs-selected-ring: var(--c-accent);
 
@@ -139,9 +149,31 @@
     --nav-width: 240px;
     --radius-sm: 2px;
     --radius-md: 4px;
-    --font-display: "Rajdhani", sans-serif;
+    --font-display: "Fira Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
     --font-mono: "JetBrains Mono", monospace;
+    --font-mark: "Rajdhani", "Fira Sans", "Segoe UI", sans-serif; /* the logo and the codes (W1, HOM) */
+    --radius-group: 14px;
+
+    /* -- TYPE SIZES & THE PAGE -- */
+    --size-title: 1.875rem;
+    --size-heading: 0.9375rem;
+    --size-name: 0.9375rem;
+    --size-body: 0.9375rem;
+    --size-small: 0.8125rem;
+    --size-index: 0.75rem;
+    --size-value: 1.0625rem; /* the value leads its row */
+    --page-measure: 48rem; /* a list page; a table page takes 60rem */
+    --page-pad: 40px;
 
     /* -- TRANSITIONS -- */
     --ease-tech: cubic-bezier(0.2, 0.6, 0.3, 1);
+    --ease-slide: cubic-bezier(0.2, 0.7, 0.2, 1); /* the sidebar's lists */
+    --ease-soft: cubic-bezier(0.32, 0.72, 0.28, 1); /* hovers, presses, the open tab's glide */
+}
+
+@media (max-width: 760px) {
+    :root {
+        --page-pad: 14px;
+        --size-title: 1.625rem;
+    }
 }

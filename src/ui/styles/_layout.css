@@ -17,7 +17,24 @@
     flex-direction: column;
     position: relative;
     overflow: hidden;
-    padding-top: 16px;
+    padding-top: 24px;
+    --c-leader: var(--c-accent-20);
+    background: var(--c-void);
+    --c-void-soft: #161526;
+    --c-panel-dim: #211f3a;
+    --c-panel-dark-dim: #211f3a;
+    --c-panel-hover: #1c1a2f;
+    --c-lift: #1c1a2f;
+    --c-fill: var(--c-here);
+    --c-faint: var(--c-text-faint);
+    --c-field: var(--c-panel-dim);
+    --c-panel: #161526;
+    --c-border: #252340;
+    --c-border-strong: #36325a;
+    --c-scrollbar-thumb: #2e2b4d;
+    --c-accent-tint: #221f3f;
+    --c-success-tint: var(--c-void-soft);
+    --c-success-flash: #1c1a2f;
 }
 
 #tab-content {
@@ -81,11 +98,6 @@
     background: var(--c-void);
 }
 
-.scroll-container::-webkit-scrollbar-thumb {
-    background-color: var(--c-border);
-    border-radius: 4px;
-}
-
 .scroll-container::-webkit-scrollbar-thumb:hover {
     background-color: var(--c-text-muted);
 }
@@ -120,5 +132,31 @@
         border-left: none;
         box-shadow: none;
         background: var(--c-panel-95);
+    }
+}
+
+/* Capitals live in the sidebar only. */
+.viewport * {
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+.viewport input::placeholder {
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+/* ============ FOCUS, SCROLLBARS ============ */
+.viewport :focus-visible {
+    outline-color: var(--c-accent);
+}
+.scroll-container::-webkit-scrollbar-thumb,
+.account-list::-webkit-scrollbar-thumb,
+.menu-nav::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--c-scrollbar-thumb);
+}
+@media (max-width: 760px) {
+    .viewport {
+        padding-top: 14px;
     }
 }

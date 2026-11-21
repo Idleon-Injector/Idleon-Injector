@@ -1,5 +1,5 @@
 /**
- * Home: the worlds and the active cheats. The menu search sits above every view, Home included.
+ * Home: every page by world, as a contents page, and the cheats that are on. The menu search sits above it.
  */
 
 import van from "../../vendor/van-1.6.0.js";
@@ -7,33 +7,34 @@ import store from "../../state/store.js";
 import { Loader } from "../Loader.js";
 import { AccountSection } from "./account/components/AccountSection.js";
 import { menuTree } from "../../menu/pageRegistry.js";
-import { worldClass } from "../../menu/menuModel.js";
+import { WORLDS, worldClass } from "../../menu/menuModel.js";
+import { Icons } from "../../assets/icons.js";
 import { Said, useSaid } from "../inPlace.js";
 import { turnOff } from "../Sidebar.js";
 
-const { div, button, span } = van.tags;
+const { div, button, span, h3, p } = van.tags;
 
-const WorldTile = (world) =>
+/** One world as a contents entry: its name opens it, its systems are plain words under it. */
+const WorldEntry = (world) =>
     div(
-        { class: `menu-world-tile ${worldClass(world)} ${world.systems.length ? "" : "is-unmoved"}` },
+        { class: `home-world ${world.systems.length ? "" : "is-unmoved"}` },
         button(
-            {
-                type: "button",
-                class: "menu-world-tile__head",
-                onclick: () => store.openMenu({ world: world.id }),
-            },
-            span({ class: "menu-world-tile__code" }, world.code),
-            span({ class: "menu-world-tile__label" }, world.label),
-            span({ class: "menu-world-tile__name" }, world.name)
+            { type: "button", class: "home-world__title", onclick: () => store.openMenu({ world: world.id }) },
+            span(
+                { class: `home-world__code ${worldClass(world)}`, "aria-hidden": "true" },
+                WORLDS.find((w) => w.id === world.id)?.code ?? ""
+            ),
+            span({ class: "home-world__label" }, world.label),
+            span({ class: "home-world__name" }, world.name)
         ),
         world.systems.length
             ? div(
-                  { class: "menu-world-tile__systems" },
+                  { class: "home-world__systems" },
                   ...world.systems.map((system) =>
                       button(
                           {
                               type: "button",
-                              class: "menu-world-tile__system",
+                              class: "home-world__system",
                               onclick: () => store.openMenu({ world: world.id, page: system.pages[0].id }),
                           },
                           system.name
@@ -87,20 +88,26 @@ export const Home = () =>
         { id: "home-tab", class: "tab-pane" },
         div(
             { class: "scroll-container menu-home" },
-            AccountSection({
-                title: "WORLDS",
-                body: () =>
+            div(
+                { class: "account-header account-tab-header" },
+                span({ class: "account-tab-header__icon", "aria-hidden": "true" }, Icons.System({ name: "Home" })),
+                div(
+                    { class: "account-tab-header__main" },
+                    h3({ class: "account-tab-header__title" }, "Home"),
+                    p({ class: "account-tab-header__desc" }, "Every page, by world. Pick a system to open it.")
+                )
+            ),
+            div(
+                { class: "home-body" },
+                () =>
                     menuTree.val
-                        ? div({ class: "menu-world-grid" }, ...menuTree.val.map(WorldTile))
-                        : div({ class: "account-loader" }, Loader({ text: "LOADING PAGES" })),
-            }),
-            AccountSection({
-                title: "ACTIVE CHEATS",
-                note: () => {
-                    const count = store.getActiveCheats().length;
-                    return count ? `${count} on. Click one to turn it off.` : "";
-                },
-                body: ActiveCheats(),
-            })
+                        ? div({ class: "home-contents" }, ...menuTree.val.map(WorldEntry))
+                        : div({ class: "account-loader" }, Loader({ text: "Loading pages" })),
+                AccountSection({
+                    title: "Cheats that are on",
+                    note: () => (store.getActiveCheats().length ? "Click one to turn it off." : ""),
+                    body: ActiveCheats(),
+                })
+            )
         )
     );

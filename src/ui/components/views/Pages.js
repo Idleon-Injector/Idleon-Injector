@@ -1,6 +1,5 @@
 /**
- * Pages view: one world of the menu. Its systems as tabs, a system's pages as a second tab row,
- * then the page itself. Built from the page declarations under src/ui/pages/.
+ * Pages view: the open page of one world. Its systems and pages are its list in the sidebar (MenuLevels.js).
  */
 
 import van from "../../vendor/van-1.6.0.js";
@@ -8,100 +7,46 @@ import store from "../../state/store.js";
 import { Icons } from "../../assets/icons.js";
 import { Loader } from "../Loader.js";
 import { menuTree, menuError } from "../../menu/pageRegistry.js";
-import { pageShown, pageTitle, worldClass } from "../../menu/menuModel.js";
+import { pageShown, worldClass } from "../../menu/menuModel.js";
 import { VIEWS } from "../../state/constants.js";
 import { renderLazyPanes } from "./account/tabShared.js";
 // Undo all, offered beside a page's bulk control after it changed values.
 import "./account/UndoAllOffer.js";
 
-const { div, button, span, p } = van.tags;
-
-// `picked`: the rows' picked tabs, so the view scrolls them into view again as it shows (WorldFrame).
-const TabRow = ({ navClass, buttonClass, tabs, isActive, onPick, label, picked }) => {
-    const buttons = tabs.map((tab) =>
-        button(
-            {
-                type: "button",
-                role: "tab",
-                class: `account-sub-tab-btn ${buttonClass} ${isActive(tab) ? "active" : ""}`,
-                "aria-selected": String(isActive(tab)),
-                onclick: () => onPick(tab),
-            },
-            tab.label
-        )
-    );
-    // A narrow menu (400 px) scrolls the row sideways: the picked tab is scrolled into view once the row is in the
-    // page, as the Cheats page does for its category tabs.
-    const active = buttons[tabs.findIndex(isActive)];
-    if (active) {
-        picked.push(active);
-        queueMicrotask(() => active.scrollIntoView({ block: "nearest", inline: "center" }));
-    }
-    return div({ class: `account-sub-nav menu-tabs ${navClass}`, role: "tablist", "aria-label": label }, ...buttons);
-};
+const { div, span, p } = van.tags;
 
 /** A world none of whose pages loaded (the menu error says why). */
 const NoPages = (world) =>
     div(
         { class: "world-sub-pane active world-sub-pane--empty" },
-        p(
-            { class: "world-empty-label" },
-            Icons.Warning({ class: "empty-state-mark" }),
-            `${world.label.toUpperCase()} HAS NO PAGES`
-        ),
+        p({ class: "world-empty-label" }, Icons.Warning({ class: "empty-state-mark" }), `${world.label} has no pages`),
         p({ class: "world-empty-desc" }, menuError.val || "None of its pages loaded.")
     );
 
+/** The world on screen and its open page (its first page until one is picked). Shared with the sidebar's lists. */
+export const worldNow = (tree) => tree.find((world) => world.id === store.app.menuWorld) || tree[0];
+const pagesOf = (world) => world.systems.flatMap((system) => system.pages);
+export const pageNow = (world) => pagesOf(world).find((page) => page.id === store.app.menuPage) || pagesOf(world)[0];
+
 const WorldFrame = (tree) => {
-    const allPages = tree.flatMap((world) => world.systems.flatMap((system) => system.pages));
-    const worldNow = () => tree.find((world) => world.id === store.app.menuWorld) || tree[0];
-    const pagesOf = (world) => world.systems.flatMap((system) => system.pages);
-    const activePage = van.derive(() => {
-        const pages = pagesOf(worldNow());
-        return (pages.find((page) => page.id === store.app.menuPage) || pages[0] || { id: "" }).id;
-    });
-    let picked = [];
-    // Each time a page is shown (picked, or the Pages view shown again), the pages that asked are told. A row built
-    // while the view was hidden scrolled nothing, so its picked tab scrolls into view as the view shows.
+    const allPages = tree.flatMap(pagesOf);
+    const activePage = van.derive(() => (pageNow(worldNow(tree)) || { id: "" }).id);
+    // Each time a page is shown (picked, or the Pages view shown again), the pages that asked are told.
     van.derive(() => {
         if (store.app.activeTab !== VIEWS.PAGES.id) return;
         pageShown(activePage.val);
-        queueMicrotask(() => picked.forEach((tab) => tab.scrollIntoView({ block: "nearest", inline: "center" })));
     });
 
+    // No tab rows: a world's systems and a system's pages are its list in the sidebar (MenuLevels.js); this view is
+    // only the page.
     return div(
-        { class: () => `world-tab menu-world ${worldClass(worldNow())}` },
+        { class: () => `world-tab menu-world ${worldClass(worldNow(tree))}` },
         () => {
-            const world = worldNow();
-            if (!world.systems.length) return NoPages(world);
-            const system = world.systems.find((s) => s.pages.some((page) => page.id === activePage.val));
-            picked = [];
-            return div(
-                { class: "menu-world__nav" },
-                TabRow({
-                    label: `${world.label} systems`,
-                    navClass: "menu-system-nav",
-                    buttonClass: "account-world-sub-tab-btn",
-                    tabs: world.systems.map((s) => ({ ...s, label: s.name })),
-                    isActive: (s) => s.name === system.name,
-                    onPick: (s) => store.openMenu({ world: world.id, page: s.pages[0].id }),
-                    picked,
-                }),
-                system.pages.length > 1
-                    ? TabRow({
-                          label: `${system.name} pages`,
-                          navClass: "account-page-nav",
-                          buttonClass: "account-page-btn",
-                          tabs: system.pages.map((page) => ({ ...page, label: pageTitle(page, system) })),
-                          isActive: (page) => page.id === activePage.val,
-                          onPick: (page) => store.openMenu({ world: world.id, page: page.id }),
-                          picked,
-                      })
-                    : span()
-            );
+            const world = worldNow(tree);
+            return world.systems.length ? span({ hidden: true }) : NoPages(world);
         },
         div(
-            { class: "world-sub-content", hidden: () => !worldNow().systems.length },
+            { class: "world-sub-content", hidden: () => !worldNow(tree).systems.length },
             ...renderLazyPanes({
                 tabs: allPages,
                 activeId: activePage,
@@ -115,5 +60,5 @@ const WorldFrame = (tree) => {
 
 export const Pages = () =>
     div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
-        menuTree.val ? WorldFrame(menuTree.val) : div({ class: "account-loader" }, Loader({ text: "LOADING PAGES" }))
+        menuTree.val ? WorldFrame(menuTree.val) : div({ class: "account-loader" }, Loader({ text: "Loading pages" }))
     );

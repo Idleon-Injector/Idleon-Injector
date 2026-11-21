@@ -345,3 +345,39 @@
     width: 100%;
     margin-top: 10px;
 }
+
+/* The Cheats page follows the page's general rules: normal case, no boxes. */
+.viewport .cheat-button {
+    border-color: transparent;
+    background: transparent;
+    color: var(--c-text-main);
+}
+.viewport .cheat-button:hover {
+    border-color: transparent;
+    background: var(--c-panel-hover);
+    color: var(--c-text-main);
+}
+.viewport .tab-btn {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-display);
+    font-size: var(--size-body);
+    font-weight: 600;
+    color: var(--c-text-muted);
+}
+.viewport .tab-btn:hover {
+    background: var(--c-white-03);
+    color: var(--c-text-main);
+}
+.viewport .tab-btn.active {
+    background: var(--c-here);
+    color: var(--c-text-main);
+}
+.viewport .quick-access-header {
+    font-family: var(--font-display);
+    font-size: var(--size-heading);
+    font-weight: 600;
+    color: var(--c-text-main);
+}

@@ -173,13 +173,6 @@
     grid-template-columns: minmax(260px, 1fr) max-content minmax(560px, auto);
 }
 
-.resource-node-row .account-row__info {
-    display: grid;
-    grid-template-columns: max-content max-content minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-}
-
 .resource-node-row__text,
 .outpost-row__text {
     display: flex;
@@ -462,13 +455,6 @@
     grid-template-columns: minmax(240px, 1fr) auto auto;
     align-items: center;
     gap: 12px;
-}
-
-.map-crystal-row .account-row__info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 200px;
 }
 
 .map-crystal-row__badge {

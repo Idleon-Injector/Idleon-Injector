@@ -7,6 +7,7 @@ import { AccountTabHeader } from "./AccountTabHeader.js";
  * @param {object} opts
  * @param {string} opts.title
  * @param {string|null} [opts.description]
+ * @param {*} [opts.total] a read-only amount beside the title (`AmountLeft`)
  * @param {*} [opts.actions]
  * @param {boolean} [opts.wrapActions]
  * @param {{loading: *, error: *}} opts.state
@@ -23,6 +24,7 @@ import { AccountTabHeader } from "./AccountTabHeader.js";
 export const PersistentAccountListPage = ({
     title,
     description = null,
+    total = null,
     actions = null,
     wrapActions = true,
     state,
@@ -37,7 +39,7 @@ export const PersistentAccountListPage = ({
 }) =>
     AccountPageShell({
         rootClass,
-        header: AccountTabHeader({ title, description, actions, wrapActions }),
+        header: AccountTabHeader({ title, description, actions, wrapActions, total }),
         topNotices,
         subNav,
         toolbar,

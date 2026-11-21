@@ -62,6 +62,25 @@ const place = (node, anchor) => {
         node.style.height = `${box.height}px`;
         return true;
     }
+    // A line of tools that asks for it (data-undo-at-end, a tabbed list's tools) keeps its controls whole: the offer
+    // sits at the line's free right end, beside the last control on the anchor's line, when it fits there.
+    const line = anchor.closest?.("[data-undo-at-end]");
+    if (line) {
+        const at = anchor.getBoundingClientRect();
+        const mid = at.top + at.height / 2;
+        const end = line.getBoundingClientRect().right;
+        const onLine = [...line.children]
+            .map((child) => child.getBoundingClientRect())
+            .filter((box) => Math.abs(box.top + box.height / 2 - mid) < 8);
+        const used = Math.max(...onLine.map((box) => box.right));
+        if (end - used >= natural + GAP) {
+            node.style.setProperty("--undo-all-bg", "transparent");
+            node.style.top = `${middle(anchor)}px`;
+            node.style.left = `${anchor.offsetLeft + (end - at.left) - natural}px`;
+            node.style.width = `${natural}px`;
+            return false;
+        }
+    }
     const right = anchor.offsetLeft - GAP;
     const cover = (box, left, width) => {
         node.style.setProperty("--undo-all-bg", surfaceOf(box.tagName === "BUTTON" ? anchor.parentElement : box));

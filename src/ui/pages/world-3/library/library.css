@@ -15,8 +15,6 @@
 
 .library-maxbooklv__label {
     color: var(--c-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     font-size: 0.875rem;
 }
 
@@ -25,23 +23,9 @@
     color: var(--c-text-main);
 }
 
-.library-section-points {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--c-text-main);
-    letter-spacing: 0.04em;
-}
-
-.library-section-points__label {
-    font-size: 0.875rem;
-    font-weight: 400;
+/* A talent that isn't a Library book: no fill, its name a step quieter. */
+.talent-row--unavailable .account-row__name {
     color: var(--c-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.talent-row--unavailable {
-    background: var(--c-panel-dim);
 }
 
 .talent-row__text {

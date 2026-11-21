@@ -71,7 +71,8 @@ export const refuseSetAll = (value) => {
 
 /**
  * A typed value every row gets. An empty or invalid value is refused at the field, never written as 0. `confirm`
- * (see ActionButton) asks only while the field holds a number.
+ * (see ActionButton) asks only while the field holds a number. `placeholder` puts the label inside the empty field
+ * instead (pass `label: ""`), so the field and its button are one shape the Undo all offer can cover whole.
  */
 export const SetAllNumberControl = ({
     label,
@@ -83,8 +84,10 @@ export const SetAllNumberControl = ({
     disabled = false,
     min = 0,
     max = Infinity,
+    placeholder = null,
 }) => {
     const field = NumberInput({
+        ...(placeholder ? { placeholder, "aria-label": placeholder } : {}),
         mode: "int",
         value,
         oninput: (e) => (value.val = e.target.value),
@@ -102,7 +105,7 @@ export const SetAllNumberControl = ({
     fieldByValue.set(value, field);
     return div(
         { class: "account-setall-row" },
-        span({ class: "account-setall-row__label" }, label),
+        label ? span({ class: "account-setall-row__label" }, label) : null,
         div({ class: "account-setall-row__input" }, field),
         SetAllApplyButton({
             label: applyLabel,

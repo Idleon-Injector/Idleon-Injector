@@ -58,6 +58,8 @@ const appState = vanX.reactive({
     configForcedPath: null,
     // The cheat the menu search sent the player to: the Cheats page shows that row (and `setting` in the drawer).
     cheatFocus: { cheat: "", setting: "", focus: false, n: 0 },
+    // Counts every openMenu, so the sidebar shows the opened place's list even when the place didn't change.
+    menuOpens: 0,
     cheatsViewMode: localStorage.getItem("cheatsViewMode") || "tabs",
 });
 
@@ -458,6 +460,7 @@ const store = {
      * `focus` (picked by keyboard) also focuses the row or the setting's field. It never runs the cheat.
      */
     openMenu: (target) => {
+        appState.menuOpens++;
         if (target.view) {
             appState.activeTab = VIEWS[target.view].id;
             if (target.cheat) {

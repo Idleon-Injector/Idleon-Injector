@@ -43,6 +43,33 @@
     flex: 1 1 26rem;
 }
 
+/* The title and a read-only amount beside it ("12 points left"), on one baseline. */
+.account-tab-header__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 16px;
+}
+
+/* A read-only amount still to spend: plain words, the number a step brighter. */
+.amount-left {
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+    white-space: nowrap;
+}
+
+.amount-left__value {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--c-text-main);
+}
+
+/* More spent than owned: the whole amount in the failed red. */
+.amount-left--over,
+.amount-left--over .amount-left__value {
+    color: var(--c-danger);
+}
+
 .account-tab-header > .account-header__actions {
     flex: 0 1 auto;
     min-width: 0;
@@ -478,7 +505,7 @@
     background: linear-gradient(var(--c-white-05), var(--c-white-05)), var(--save-state-bg);
 }
 
-.save-state__undo:active:not(:disabled) {
+.viewport .save-state__undo:active:not(:disabled) {
     transform: translateY(-50%) scale(0.94);
 }
 
@@ -492,7 +519,7 @@
     transform: none;
 }
 
-.save-state--inline .save-state__undo:active:not(:disabled) {
+.viewport .save-state--inline .save-state__undo:active:not(:disabled) {
     transform: scale(0.94);
 }
 
@@ -838,6 +865,42 @@
 .account-row__controls .number-input-wrapper--capped {
     width: auto;
     min-width: 140px;
+}
+
+/*
+ * A list that mixes fields with and without a cap (Anvil) takes `field-columns`, so its values and its − / + each read
+ * as one column. Every field has one width; the value runs right to the same edge; a field without a cap keeps the
+ * cap's room empty after its value, so the value sits where the others do instead of floating. The row's own button
+ * (Max or Reset) keeps one width, so the fields' right edges line up too.
+ */
+.field-columns {
+    --field-columns-width: 10.25rem;
+    --field-columns-cap: 3rem; /* "/ 700"; a list with longer caps sets more */
+}
+
+.field-columns .account-row__controls .number-input-wrapper {
+    width: var(--field-columns-width);
+    min-width: 0;
+    flex: none;
+}
+
+.field-columns .number-input-wrapper input {
+    padding: 0 calc(var(--field-columns-cap) + 2px) 0 4px;
+    text-align: right;
+}
+
+.field-columns .number-input-wrapper--capped input {
+    padding-right: 2px;
+}
+
+.field-columns .number-input__cap {
+    flex: 0 0 var(--field-columns-cap);
+    box-sizing: border-box;
+}
+
+.field-columns .account-row__controls > .btn-quiet:last-child,
+.field-columns .account-row__controls > .btn-danger:last-child {
+    min-width: 4.5rem;
 }
 
 .account-row__controls--stack {
@@ -1462,4 +1525,350 @@
 
 .account-row .number-input-wrapper input {
     border-radius: 0;
+}
+
+.viewport .account-page-top {
+    border: 0;
+}
+
+.viewport .account-list > * {
+    max-width: var(--page-measure);
+}
+
+/* Section headings: plain words in normal case, space above, no rule and no box. */
+.page-section {
+    display: flex;
+    flex-direction: column;
+}
+.page-section__title:focus {
+    outline: none;
+}
+.page-section__title:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+    border-radius: 6px;
+}
+.viewport .account-section {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+.viewport .account-section__note {
+    font-size: var(--size-small);
+    font-style: normal;
+    color: var(--c-text-faint);
+}
+.viewport .account-section__meta {
+    font-size: var(--size-small);
+    color: var(--c-text-muted);
+}
+.viewport .account-row__info {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+.viewport .save-state__mark,
+.viewport .account-row--success .save-state {
+    color: var(--c-text-main);
+}
+.viewport .account-row--error {
+    border: 0;
+}
+@media (max-width: 600px) {
+    .viewport .account-row {
+        padding: 8px 8px 10px;
+        row-gap: 8px;
+    }
+    .viewport .account-row__controls {
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    /* ponytail: without :has() (Chromium 87) every value row leaves Relock's room; narrow it once :has() is there. */
+    .viewport .account-row--value .save-state {
+        top: 22px;
+        right: 72px;
+    }
+}
+
+/* The header: the system's drawing on its tile, the title that leads, the amount beside it, the words under. */
+.viewport .account-header {
+    max-width: var(--page-measure);
+    box-sizing: border-box;
+    border: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 16px;
+    padding: 36px 0 6px;
+}
+.account-tab-header__icon {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    width: 48px;
+    height: 48px;
+    margin-top: 2px;
+    border: 1px solid var(--c-border);
+    border-radius: 14px;
+    background: var(--c-void-soft);
+    color: var(--c-accent);
+}
+.account-tab-header__icon svg {
+    width: 26px;
+    height: 26px;
+}
+.viewport .account-tab-header__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--size-title);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.015em !important;
+    color: #ffffff;
+}
+.viewport .account-tab-header__line {
+    gap: 2px 14px;
+}
+.viewport .amount-left {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.viewport .amount-left__value {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+/* More spent than owned ("−18 points left"): the whole amount in the failed red, trouble's only colour. */
+.viewport .amount-left--over,
+.viewport .amount-left--over .amount-left__value {
+    color: var(--c-danger);
+}
+.viewport .account-tab-header__desc {
+    margin: 6px 0 0;
+    margin-top: 4px;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    color: var(--c-text-muted);
+}
+.viewport .account-tab-header > .account-header__actions,
+.viewport .account-header__actions {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    align-self: flex-start;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+.viewport .account-list {
+    gap: 0;
+    padding: 4px 0 56px;
+}
+
+/* A group's heading: a step above the row names in size and weight, in the main text colour, just above its surface. */
+.page-section__title,
+.viewport .account-section__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.1875rem;
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--c-text-main);
+}
+.page-section__title {
+    align-self: flex-start;
+    padding: 28px 16px 10px;
+}
+.viewport .account-section__header {
+    display: flex;
+    gap: 14px;
+    border: 0;
+    background: transparent;
+    align-items: baseline;
+    padding: 28px 16px 10px;
+}
+.viewport .account-section__meta .amount-left {
+    font-size: 0.875rem;
+}
+.viewport .account-section__meta .amount-left__value {
+    font-size: 0.9375rem;
+}
+
+/*
+ * A group of rows is one surface. The rows paint it between them: each row carries the surface and the group's side
+ * edges, the first rounds the top, the last rounds the bottom, and a hairline parts two rows. No wrapper is needed,
+ * so it works for every list the pages build (a section's rows, a stack's, a long page's panes).
+ */
+.viewport .account-row {
+    min-height: 54px;
+    padding: 7px 16px;
+    gap: 14px;
+    background: var(--c-void-soft);
+    border: 1px solid var(--c-border);
+    border-bottom-width: 0;
+    border-radius: 0;
+    transition: background-color 150ms var(--ease-soft);
+}
+
+/* The rows of a group touch: the hairline is the only thing between them. */
+.viewport .account-section,
+.viewport .content-stack,
+.viewport .account-item-stack {
+    gap: 0;
+}
+.viewport .account-row.account-row--alone {
+    border-bottom-width: 1px;
+    border-radius: var(--radius-group);
+}
+.viewport .account-row:first-child,
+.viewport .account-section__header + .account-row {
+    border-top-left-radius: var(--radius-group);
+    border-top-right-radius: var(--radius-group);
+}
+.viewport .account-row:last-child {
+    border-bottom-width: 1px;
+    border-bottom-left-radius: var(--radius-group);
+    border-bottom-right-radius: var(--radius-group);
+}
+.viewport .account-row:hover,
+.viewport .account-row:focus-within {
+    background: var(--c-panel-hover);
+}
+.viewport .account-row__index {
+    flex-shrink: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    min-width: 2.4em;
+    font-family: var(--font-display);
+    font-size: var(--size-index);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--c-text-faint);
+}
+.viewport .account-row__name {
+    font-family: var(--font-display);
+    font-size: var(--size-name);
+    font-weight: 500;
+    color: var(--c-text-body);
+}
+.viewport .account-row__badge {
+    padding: 4px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--c-panel-dim);
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-text-main);
+}
+.viewport .account-row__controls {
+    gap: 12px;
+}
+
+/* The words lie on the row, so they take the row's own fill (at rest, or pointed at). */
+.viewport .save-state {
+    --save-state-bg: var(--c-void-soft);
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    letter-spacing: 0;
+}
+.viewport .save-state--success .save-state__mark,
+.viewport .account-row--success .save-state {
+    color: var(--c-text-muted);
+}
+.viewport .save-state--error .save-state__mark,
+.viewport .save-state--error .save-state__label {
+    color: var(--c-danger-soft-text);
+}
+
+/* Colour only for trouble: saved is a quiet tick in the text colour; failed keeps its red. */
+.viewport .account-row--success,
+.viewport .feature-card.account-row--success {
+    background: var(--c-void-soft) !important;
+    border-color: var(--c-border) !important;
+    animation: none;
+}
+.viewport .account-row--error,
+.viewport .feature-card.account-row--error {
+    background: var(--c-danger-tint) !important;
+    border-color: var(--c-border) !important;
+    animation: none;
+}
+.viewport .account-row--error .save-state {
+    --save-state-bg: var(--c-danger-tint);
+}
+.viewport .has-warning:not(.account-row--success):not(.account-row--error) {
+    background: var(--c-warning-tint);
+    border-color: var(--c-border) !important;
+}
+.viewport .has-warning:not(.account-row--success):not(.account-row--error) .save-state {
+    --save-state-bg: var(--c-warning-tint);
+}
+.viewport .account-row:hover .save-state,
+.viewport .account-row:focus-within .save-state {
+    --save-state-bg: var(--c-panel-hover);
+}
+.viewport .save-state--said .save-state__label {
+    max-width: 26ch;
+    border-radius: 6px;
+}
+
+/* The page stops scrolling: the panel fills the height left under the title. A window too short for the panel's
+   least height scrolls the page again, so nothing is ever cut off. */
+.viewport .account-list--tabbed {
+    padding: 4px 0 0;
+}
+
+/* A page's own search (on the line under its title) speaks in the menu's font, like everything else on the page. */
+.viewport .account-page-toolbar .global-search-input,
+.viewport .account-page-toolbar .global-search-input::placeholder {
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+    letter-spacing: 0;
+    text-transform: none;
+}
+@media (max-width: 760px) {
+    .viewport .account-header {
+        padding-top: 22px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .account-tab-header__icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+    }
+
+    .account-tab-header__icon svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .viewport .account-tab-header__main {
+        flex: 1 1 0;
+    }
+
+    .viewport .account-tab-header > .account-header__actions,
+    .viewport .account-header__actions {
+        margin-top: 0;
+    }
+
+    .viewport .account-row {
+        padding: 10px 14px;
+    }
+
+    .page-section__title,
+    .viewport .account-section__header {
+        padding: 22px 14px 8px;
+    }
 }

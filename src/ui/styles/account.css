@@ -38,8 +38,8 @@
     position: absolute;
     top: 50%;
     right: 0;
-    width: 36px;
-    height: 18px;
+    width: 38px;
+    height: 22px;
     margin: 0;
     opacity: 0;
     pointer-events: none;
@@ -57,36 +57,40 @@
     cursor: default;
 }
 
+/* ============ SWITCH: a lavender track when on, a grey one when off; the game's word beside it ============ */
 .toggle-switch .slider {
-    width: 36px;
-    height: 18px;
+    width: 38px;
+    height: 22px;
     background: var(--c-control-border-strong);
-    border-radius: 20px;
+    border-radius: 999px;
     position: relative;
-    transition: 0.3s;
-    border: 1px solid var(--c-border);
+    transition: background-color 180ms var(--ease-soft);
+    border: 0;
 }
 
 .toggle-switch .slider::before {
     content: "";
     position: absolute;
-    width: 12px;
-    height: 12px;
-    left: 2px;
-    top: 2px;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
     background: var(--c-control-thumb);
     border-radius: 50%;
-    transition: 0.3s;
+    transition:
+        transform 180ms var(--ease-soft),
+        background-color 180ms var(--ease-soft);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .toggle-switch input:checked ~ .slider {
-    background: var(--c-accent-20);
-    border-color: var(--c-accent);
+    background: var(--c-switch-on);
+    border-color: transparent;
 }
 
 .toggle-switch input:checked ~ .slider::before {
-    transform: translateX(18px);
-    background: var(--c-accent);
+    transform: translateX(16px);
+    background: #ffffff;
 }
 
 /* The on/off switch (#26): the game's word for the state, then the switch. The words keep one width, so the
@@ -157,4 +161,32 @@
 .option-input-wrapper .number-input-wrapper,
 .option-input-wrapper > input[type="text"] {
     width: 180px;
+}
+
+.toggle-switch:hover .slider {
+    background: #4a4573;
+}
+
+.toggle-switch:hover input:checked ~ .slider {
+    background: #8d83f5;
+}
+
+.viewport .state-switch__words {
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+.viewport .state-switch.is-on .state-switch__words {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+@media (max-width: 760px) {
+    /* The switch sits at the line's end, so its word needs no kept room: an empty one ("Exalted" only when on) gives
+       the field its space. */
+    .viewport .account-row__controls .state-switch__words {
+        min-width: 0;
+    }
 }

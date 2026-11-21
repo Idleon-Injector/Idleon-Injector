@@ -216,7 +216,7 @@ const PAGES = {
     "src/ui/pages/account/player/1-levels.js": "LEVELS & MONEY",
     "src/ui/pages/world-1/statues/statues.js": "STATUES",
     "src/ui/pages/world-2/post-office/post-office.js": "POINT SOURCES",
-    "src/ui/pages/world-3/library/library.js": "LIBRARY",
+    "src/ui/pages/world-3/library/library.js": "Library",
     "src/ui/pages/world-3/prayers/prayers.js": "PRAYERS",
     "src/ui/pages/world-3/traps/traps.js": "TRAPPING",
     "src/ui/pages/world-3/worship/worship.js": "WORSHIP",

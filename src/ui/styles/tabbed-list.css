@@ -1,0 +1,501 @@
+@media (max-width: 600px) {
+    .viewport .field-columns .account-row--value .account-row__controls > .btn-danger:last-child {
+        position: static;
+        transform: none;
+    }
+}
+.tabbed-list {
+    --tab-open-fill: var(--c-void);
+    display: flex;
+    flex-direction: column;
+    flex: 0 1 auto;
+    width: 100%;
+    min-height: 17rem;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-group);
+    background: var(--c-void-soft);
+    overflow: hidden;
+}
+
+/* The panel's head: the tabs, then the open tab's tools; a hairline parts it from the rows. */
+.tabbed-list__head {
+    flex: none;
+    border-bottom: 1px solid var(--c-border);
+}
+
+/* Without tools the head is the darker ground and the open tab runs down into the rows. */
+.tabbed-list:not(.has-tools) {
+    --tab-open-fill: var(--c-void-soft);
+}
+.tabbed-list:not(.has-tools) .tabbed-list__head {
+    background: var(--c-void);
+    border-bottom: 0;
+}
+
+/* The tabs: plain words; the open one is a block with soft top corners that runs down into what it opens. */
+.viewport .tabbed-list .tabbed-list__tabs {
+    position: relative;
+    z-index: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+    max-width: none;
+    padding: 8px 8px 0;
+    border: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+/* The block is drawn once and glides to the open tab (placed from the tab's box by TabbedList). Its feet curve out into
+   the tray, so the tab and the tray read as one shape. */
+.tabbed-list__pill {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    width: var(--pill-w, 0);
+    height: 40px;
+    border-radius: 10px 10px 0 0;
+    background: var(--tab-open-fill);
+    transform: translateX(var(--pill-x, 0));
+    opacity: 0;
+    pointer-events: none;
+}
+.tabbed-list__tabs.has-pill .tabbed-list__pill {
+    opacity: 1;
+}
+.tabbed-list__pill::before,
+.tabbed-list__pill::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    width: 10px;
+    height: 10px;
+}
+.tabbed-list__pill::before {
+    left: -10px;
+    background: radial-gradient(circle at 0 0, transparent 10px, var(--tab-open-fill) 10.5px);
+}
+.tabbed-list__pill::after {
+    right: -10px;
+    background: radial-gradient(circle at 100% 0, transparent 10px, var(--tab-open-fill) 10.5px);
+}
+
+/* The first tab stands on the tray's left edge: the tray's corner there is square and there is no foot to curve. */
+.tabbed-list.has-tools .tabbed-list__head.first-open .tabbed-list__tools {
+    border-top-left-radius: 0;
+}
+.tabbed-list.has-tools .tabbed-list__head.first-open .tabbed-list__pill::before {
+    display: none;
+}
+.tabbed-list__tabs.pill-glides .tabbed-list__pill {
+    transition:
+        transform 260ms var(--ease-soft),
+        width 260ms var(--ease-soft);
+}
+
+/*
+ * The tools for the open tab: a tray set into the panel (the page's own ground showing through), so what you do never
+ * reads as more tabs. Its first line says what the tools act on; under it, each tool is one joined shape with soft
+ * corners (not a pill, which is a tab's shape): the level and its Set all, then Exalt all | Unexalt all.
+ */
+.tabbed-list__tools {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 8px 8px;
+    padding: 10px 12px 12px;
+    border-radius: 12px;
+    background: var(--c-void);
+}
+.tabbed-list__tools-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.tabbed-list__tools-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+
+/* A joined tool: one filled shape; its parts are parted by a hairline and fill on their own when pointed at. */
+.viewport .tabbed-list__tools .account-setall-row,
+.viewport .tabbed-list__tools .tabbed-list__tool-group {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--c-panel-dim);
+}
+.viewport .tabbed-list__tools .account-setall-row__label {
+    padding: 0 2px 0 12px;
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--c-text-muted);
+}
+.viewport .tabbed-list__tools .number-input-wrapper input::placeholder {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+    opacity: 1;
+}
+
+/* No ring or fill while typing in the tray's field (Lumi, 2026-11-21): the caret shows where the typing goes. */
+.viewport .tabbed-list__tools .number-input-wrapper:focus-within {
+    outline: none;
+    box-shadow: none;
+    background: transparent;
+}
+.viewport .tabbed-list__tools .account-btn {
+    height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 0.875rem;
+}
+.viewport .tabbed-list__tools .account-setall-row .account-btn,
+.viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn + .account-btn {
+    border-left: 1px solid var(--c-btn-edge);
+}
+.viewport .tabbed-list__tools .account-setall-row .account-btn,
+.viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn:last-child {
+    border-radius: 0 10px 10px 0;
+}
+.viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn:first-child {
+    border-radius: 10px 0 0 10px;
+}
+.viewport .tabbed-list__tools .account-btn.btn-quiet:hover:not(:disabled) {
+    border-color: var(--c-btn-edge);
+    background: var(--c-well-hover);
+}
+.viewport .tabbed-list__tools .account-btn.btn-danger:hover:not(:disabled) {
+    border-color: var(--c-btn-edge);
+    background: rgba(255, 138, 128, 0.14);
+    color: var(--c-danger-soft-text);
+}
+.viewport .tabbed-list__tools .account-btn:disabled {
+    border-color: var(--c-btn-edge);
+    background: transparent;
+    color: var(--c-text-disabled);
+}
+.viewport .tabbed-list__tools .account-btn:focus-visible {
+    outline-offset: -2px;
+}
+
+/* A row with a bonus (RowTitles): what it does first, in the row's name style, then its name small and muted under it. */
+.account-row__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+.viewport .account-row__bonus {
+    font-size: var(--size-name);
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--c-text-body);
+}
+.viewport .account-row__bonus + .account-row__name {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--c-text-muted);
+}
+
+/* A warning under the name, only while its trouble is real: amber, the name's size, one short line. */
+.viewport .account-row__warning {
+    margin-top: 3px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--c-warning);
+}
+
+/* A tab's count (how many of its rows match a search): a small muted number after the label. */
+.viewport .tabbed-list__tab[data-search-count]::after {
+    content: attr(data-search-count);
+    display: inline !important;
+    position: static;
+    width: auto;
+    height: auto;
+    background: none;
+    margin-left: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+/* A joined tool can start with a quiet word saying what it sets ("Tier for all"). */
+.tabbed-list__tool-label {
+    padding: 0 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+    white-space: nowrap;
+}
+.viewport .tabbed-list__tools .tabbed-list__tool-label + .account-btn {
+    border-left: 1px solid var(--c-btn-edge);
+}
+
+/* A list without tabs (ListPanel): the tray is the head's only part. */
+.tabbed-list.no-tabs .tabbed-list__tools {
+    margin-top: 8px;
+}
+
+/*
+ * A step picker (StepPicker): one choice out of a few, as one joined shape like the tools. The picked step is lit; a
+ * step with a tone (a tier) lights in its own colour, because it names a thing.
+ */
+.step-picker {
+    display: flex;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--c-panel-dim);
+}
+.step-picker__step {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 8px;
+    border: 0;
+    border-left: 1px solid var(--c-btn-edge);
+    background: transparent;
+    color: var(--c-text-muted);
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background-color 150ms var(--ease-soft),
+        color 150ms var(--ease-soft);
+}
+.step-picker__step:first-child {
+    border-left: 0;
+    border-radius: 10px 0 0 10px;
+}
+.step-picker__step:last-child {
+    border-radius: 0 10px 10px 0;
+}
+.step-picker__step:hover {
+    background: var(--c-well-hover);
+    color: var(--c-text-main);
+}
+.step-picker__step.is-picked {
+    background: var(--c-well-hover);
+    color: var(--c-text-main);
+    font-weight: 650;
+}
+.step-picker__step--gold.is-picked {
+    background: rgba(255, 183, 0, 0.14);
+    color: var(--c-tier-gold);
+}
+.step-picker__step--onyx.is-picked {
+    background: rgba(191, 133, 255, 0.16);
+    color: var(--c-tier-onyx);
+}
+.step-picker__step--zenith.is-picked {
+    background: rgba(0, 229, 255, 0.12);
+    color: var(--c-tier-zenith);
+}
+
+/* "Off" picked is the quiet state; an accent step (Pets+) is "what is on" in lavender. */
+.step-picker__step--off.is-picked {
+    color: var(--c-text-muted);
+    font-weight: 500;
+}
+.step-picker__step--accent.is-picked {
+    background: rgba(176, 167, 255, 0.14);
+    color: var(--c-accent);
+}
+.step-picker__step:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+}
+@media (hover: hover) {
+    .viewport .tabbed-list__body .account-row .number-input-wrapper,
+    .viewport .tabbed-list__body .account-row .number-input-btn {
+        transition:
+            background-color 150ms var(--ease-soft),
+            opacity 150ms var(--ease-soft);
+    }
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .number-input-wrapper {
+        background: transparent;
+    }
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .number-input-btn {
+        opacity: 0;
+    }
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .step-picker {
+        background: transparent;
+    }
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .step-picker__step:not(.is-picked) {
+        display: none;
+    }
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .step-picker__step.is-picked {
+        flex: none;
+        padding: 0 12px;
+        border-left: 0;
+        background: transparent;
+    }
+}
+
+/* A question in the tray: its first line asks, in the main colour; the answer is two shapes of their own, the change
+   in the soft red (it lowers or takes away) and Cancel plain. Nothing times out. */
+.tabbed-list__tools-row[hidden] {
+    display: none;
+}
+.tabbed-list__tools-label.is-question {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-text-main);
+}
+.viewport .tabbed-list__tools .tabbed-list__answer .account-btn {
+    padding: 0 16px;
+    border-radius: 10px;
+    background: var(--c-panel-dim);
+}
+.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.tabbed-list__yes {
+    background: rgba(255, 138, 128, 0.14);
+    color: var(--c-danger-soft-text);
+}
+.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.tabbed-list__yes:hover {
+    background: rgba(255, 138, 128, 0.24);
+}
+.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.btn-quiet:hover {
+    background: var(--c-well-hover);
+}
+.tabbed-list__answer:not([hidden]) {
+    animation: tabbed-list-in 200ms var(--ease-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+    .tabbed-list__answer:not([hidden]) {
+        animation: none;
+    }
+}
+
+/* A newly opened tab's rows rise into place. */
+.tabbed-list__body[data-switched] {
+    animation: tabbed-list-in 240ms var(--ease-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+    .tabbed-list__body[data-switched] {
+        animation: none;
+    }
+    .tabbed-list__tabs.pill-glides .tabbed-list__pill {
+        transition: none;
+    }
+}
+.tabbed-list__tabs::-webkit-scrollbar {
+    display: none;
+}
+.viewport .tabbed-list .tabbed-list__tab {
+    z-index: 1;
+    flex: none;
+    bottom: 0;
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 10px 10px 0 0;
+    font-size: 1rem;
+    font-weight: 550;
+    letter-spacing: 0;
+    white-space: nowrap;
+    color: var(--c-text-muted);
+    transition:
+        background-color 150ms var(--ease-soft),
+        color 150ms var(--ease-soft),
+        transform 120ms var(--ease-soft);
+}
+.viewport .tabbed-list .tabbed-list__tab:not(.active):hover {
+    background: var(--c-panel-hover) !important;
+    color: var(--c-text-main);
+}
+
+/* The open tab is where you are, so its word takes the lavender (Ink: lavender is where you are and what is on); until
+   the block is placed, it carries the block's fill itself. */
+.viewport .tabbed-list .tabbed-list__tab.active {
+    background: var(--tab-open-fill) !important;
+    color: var(--c-accent);
+    font-weight: 650;
+}
+.viewport .tabbed-list .has-pill .tabbed-list__tab.active {
+    background: transparent !important;
+}
+.viewport .tabbed-list .tabbed-list__tab:active {
+    transform: scale(0.96);
+}
+.viewport .tabbed-list .tabbed-list__tab:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+}
+
+/* The rows' own scroll, with a slim bar inside the panel's edge (no arrows). The page's scroll-container sets the
+   standard scrollbar-color, which newer Chrome obeys over the bar drawn below (it then adds arrows); it is reset here
+   so Chrome, new and 87, draws this bar, and only browsers without it take the standard thin one. */
+.tabbed-list__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: auto;
+    scrollbar-width: auto;
+}
+@supports not selector(::-webkit-scrollbar) {
+    .tabbed-list__body {
+        scrollbar-width: thin;
+        scrollbar-color: var(--c-scrollbar-thumb) transparent;
+    }
+}
+.tabbed-list__body::-webkit-scrollbar {
+    width: 10px;
+}
+.tabbed-list__body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.tabbed-list__body::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: var(--c-scrollbar-thumb) padding-box;
+}
+.tabbed-list__body::-webkit-scrollbar-thumb:hover {
+    background: var(--c-text-faint) padding-box;
+}
+
+/* Inside the panel the rows are its lines: no edges or corners of their own, a hairline between two. */
+.viewport .tabbed-list .account-row,
+.viewport .tabbed-list .account-row:first-child,
+.viewport .tabbed-list .account-row:last-child {
+    border-width: 1px 0 0;
+    border-radius: 0;
+}
+.viewport .tabbed-list .account-row:first-child {
+    border-top-width: 0;
+}
+
+/*
+ * A group of rows inside a panel (an AccountSection in a TabbedList or ListPanel, Anvil's "Points" and "Spent on"): its
+ * name is a quiet line over its rows, set on the panel like a column head, never a box or a big heading of its own. A
+ * hairline parts two groups.
+ */
+.viewport .tabbed-list .account-section__header {
+    padding: 16px 16px 8px;
+}
+.viewport .tabbed-list .account-section + .account-section .account-section__header {
+    border-top: 1px solid var(--c-border);
+}
+.viewport .tabbed-list .account-section__title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--c-text-muted);
+}
+
+@keyframes tabbed-list-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}

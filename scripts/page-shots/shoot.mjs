@@ -296,8 +296,15 @@ async function main() {
             await settle();
             errors = [];
 
+            // A world's pages are its list in the sidebar, so each one is opened by its id.
             const worlds = await evaluate(
-                `import("/menu/menuModel.js").then((m) => m.WORLDS.map((w) => ({ name: w.folder, open: { world: w.id } })))`
+                `import("/menu/pageRegistry.js").then((r) => r.menuTree.val.map((w) => ({
+                    name: w.folder,
+                    open: { world: w.id },
+                    pages: w.systems.flatMap((s) =>
+                        s.pages.map((p) => ({ id: p.id, path: s.pages.length > 1 ? [s.name, p.tab] : [s.name] }))
+                    ),
+                })))`
             );
             const areas = [
                 { name: "home", open: { view: "HOME" } },
@@ -337,11 +344,14 @@ async function main() {
                 }
             };
             for (const area of areas) {
-                await evaluate(
-                    `import("/state/store.js").then((m) => m.default.openMenu(${JSON.stringify(area.open)}))`
-                );
-                await settle();
-                await crawl([area.name], []);
+                for (const page of area.pages?.length ? area.pages : [null]) {
+                    const open = page ? { ...area.open, page: page.id } : area.open;
+                    await evaluate(
+                        `import("/state/store.js").then((m) => m.default.openMenu(${JSON.stringify(open)}))`
+                    );
+                    await settle();
+                    await crawl([area.name, ...(page ? page.path.map(slug) : [])], []);
+                }
             }
         }
         process.stdout.write("\n");
