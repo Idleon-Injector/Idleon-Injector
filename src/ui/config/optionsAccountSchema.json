@@ -1836,225 +1836,245 @@
         "verified": true
     },
     "306": {
-        "name": "Farming Autofeeder",
-        "description": "Toggle for automated resource feeding",
+        "name": "Land Rank Bars Hidden",
+        "description": "Checkbox in the Land Rank menu. 1 hides the land rank bars drawn on your farm plots, 0 shows them.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "307": {
-        "name": "Farming Reset Flag",
-        "description": "Tracks reset state for farming upgrades",
+        "name": "Land Rank Reset Used",
+        "description": "1 once you have reset your Land Rank upgrades this week. Goes back to 0 at the weekly reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "308": {
-        "name": "Voting Selection",
-        "description": "Tracks weekly community voting choice",
+        "name": "Ballot Vote This Week",
+        "description": "Which option you voted for in this week's ballot: 1 to 3, or 0 if you have not voted. Goes back to 0 when a new voting week starts.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "309": {
-        "name": "Voting Week Tracker",
-        "description": "Tracks current voting week cycle",
+        "name": "Ballot Vote Week",
+        "description": "The voting week of your last ballot vote (game time divided by one week). When it no longer matches the current week, your vote is cleared.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "310": {
         "name": "Event Points",
-        "description": "Event points (as displayed in account info)",
-        "type": "number"
+        "description": "Event Points to spend in the Event Shop. You get them from Event Point items and event minigame rewards; unspent points carry over.",
+        "type": "number",
+        "verified": true
     },
     "311": {
-        "name": "Event Bonuses",
-        "description": "Tracks event bonuses, Set to '0abc_defghijkmlopn' to apply all (up to 4th Anniversary)",
-        "type": "string"
+        "name": "Event Shop Items Owned",
+        "description": "The Event Shop items you own, one letter per item (the shop has 68 items). Change it on the Event Shop page.",
+        "type": "string",
+        "verified": true
     },
     "312": {
-        "name": "Villager Selection Tracking",
-        "description": "Part of Villager management system, tracks selected villager and increments selection count",
+        "name": "Villager Info Hints Seen",
+        "description": "Which villager's info button still blinks in the Villagers menu. Opening that villager's info panel moves it on to the next villager.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "313": {
-        "name": "Villager Action Flag",
-        "description": "Set to 1 when villager actions are available; controls UI display conditions for villager interactions",
+        "name": "Opal Investing Opened",
+        "description": "1 once you have opened the opal investing panel in the Villagers menu. Until then its button blinks whenever you have opals to invest.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "314": {
-        "name": "Coordinate/Length Value",
-        "description": "Used as X/Y coordinate for portal positioning and in monster/scene element placement calculations",
+        "name": "Unused",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "315": {
-        "name": "Daily Reset Trigger",
-        "description": "Manages time-based daily reset logic",
+        "name": "Gold Pocketwatch Day Skip",
+        "description": "1 after you use a Gold Pocketwatch. The next daily reset then skips the shop restock and the other daily refills, and sets this back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "316": {
-        "name": "Combat System Flag",
-        "description": "Generic combat state flag",
+        "name": "Bravery Defeat Warning Seen",
+        "description": "1 after your first defeat at the Bravery Monument. That first time the game warns that a defeat keeps no bonuses and gives you another try.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "317": {
-        "name": "Daily Event Counter",
-        "description": "Monitors daily event participation",
+        "name": "Gem Shop Opals Bought Today",
+        "description": "Opals bought from the Gem Shop today. At 4 you can't buy more until the daily reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "318": {
-        "name": "Daily Hole Resources Destroyed",
-        "description": "Daily number of resource nodes in the Hole destroyed (max 5)",
-        "type": "number"
+        "name": "Skilling Cavern Layers Today",
+        "description": "Layers cleared today in the skilling caverns (Motherlode, Undying Hive, Evertree, Trench), counted together. At 6 they refuse more until the daily reset.",
+        "type": "number",
+        "verified": true
     },
     "319": {
-        "name": "Endless Summoning Level",
-        "description": "Current endless summoning level",
+        "name": "Endless Summoning Wins",
+        "description": "Endless Summoning fights won. The endless win bonuses and several summoning upgrades are worked out from this number, and later endless fights get harder.",
         "type": "number",
-        "warning": "Does not provide associated win rewards"
+        "verified": true
     },
     "320": {
         "name": "Equinox Pengy Count",
-        "description": "Number of equinox pengy (can be increased above 5)",
-        "type": "number"
+        "description": "How many pengies you have. Each one adds 10% to the Equinox bar fill rate, and that many Pingy critters walk around one map.",
+        "type": "number",
+        "verified": true
     },
     "321": {
-        "name": "Endless Summoning High Performance",
-        "description": "Endless summoning high performance toggle",
-        "type": "number"
+        "name": "Summoning High Performance",
+        "description": "Switch in the summoning battle screen. 1 hides the damage numbers that pop up when you click enemies.",
+        "type": "number",
+        "verified": true
     },
     "322": {
-        "name": "Popup Cooldown Timer",
-        "description": "Controls gem/bundle popup display intervals",
+        "name": "Bundle Popup Skips",
+        "description": "Bundle offer popups stay hidden while this is above 0. It goes down by 1 each time you press Play, and is set to 1 when every character was away for 30+ days.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "323": {
-        "name": "Supreme Wiring Bonus Days",
-        "description": "Accumulated days of Supreme Wiring Bonus (safe to max at 50)",
-        "type": "number"
+        "name": "Supreme Wiring Days",
+        "description": "Days counted for the Supreme Wiring event-shop bonus: +2% printer output per day, up to 50. Taking a new printer sample resets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "324": {
         "name": "Cosmic Balls",
-        "description": "Number of Cosmic Balls",
-        "type": "number"
+        "description": "Cosmic Balls for the Arcade Shop. Spend them on a level 100 upgrade to double its bonus.",
+        "type": "number",
+        "verified": true
     },
     "325": {
-        "name": "Event Tries Left",
-        "description": "Event (Valentines, Anniversaries...) tries left",
-        "type": "number"
+        "name": "Event Plays Left",
+        "description": "Plays left for the current event minigame in town. You get more each day, from kills and from buying extra plays.",
+        "type": "number",
+        "verified": true
     },
     "326": {
-        "name": "Daily Event Tries Gem Purchases",
-        "description": "Cap of daily Event tries gem purchases (set to 0 to purchase again)",
-        "type": "number"
+        "name": "Event Extra Plays Bought Today",
+        "description": "1 once you have bought extra event plays with gems today (\"Come Back Tomorrow!\"). Goes back to 0 at the daily reset.",
+        "type": "number",
+        "verified": true
     },
     "327": {
-        "name": "Quest93 Drop Prevention",
-        "description": "Flag for Quest93 drop prevention",
+        "name": "Worship Save/Load Unlocked",
+        "description": "1 once you have used the Worship Floppy Discs, which unlocks Save/Load for all Worship runs. Until then worship monsters can drop the discs.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "328": {
-        "name": "Worship Totem Calculation Factor",
-        "description": "Used as a key ('_Plunderous_Kills') in the achievement system and as a division factor in worship/trial calculations (stores Meal Bonus)",
+        "name": "Worship Cannoli Multiplier",
+        "description": "The Cannoli meal's Tower Defence points multiplier when you last started a worship run. If the meal bonus changed, starting a run rescales the saved totem points to match.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "329": {
         "name": "Grimoire - total bones collected",
-        "description": "Accumulated total bones from Grimoire Wraith",
-        "type": "number"
+        "description": "All Grimoire bones ever collected, all four kinds together. It never goes down; a talent and a construction bonus use it.",
+        "type": "number",
+        "verified": true
     },
     "330": {
         "name": "Grimoire - current bone1 (femur)",
-        "description": "Current bone1 (femur) from Grimoire Wraith",
-        "type": "number"
+        "description": "Femur bones you have, spent on Grimoire upgrades.",
+        "type": "number",
+        "verified": true
     },
     "331": {
         "name": "Grimoire - current bone2 (ribcage)",
-        "description": "Current bone2 (ribcage) from Grimoire Wraith",
-        "type": "number"
+        "description": "Ribcage bones you have, spent on Grimoire upgrades.",
+        "type": "number",
+        "verified": true
     },
     "332": {
         "name": "Grimoire - current bone3 (cranium)",
-        "description": "Current bone3 (cranium) from Grimoire Wraith",
-        "type": "number"
+        "description": "Cranium bones you have, spent on Grimoire upgrades.",
+        "type": "number",
+        "verified": true
     },
     "333": {
         "name": "Grimoire - current bone4 (bovinae)",
-        "description": "Current bone4 (bovinae) from Grimoire Wraith",
-        "type": "number"
+        "description": "Bovinae bones you have, spent on Grimoire upgrades.",
+        "type": "number",
+        "verified": true
     },
     "334": {
-        "name": "Grimoire - knockout! level",
-        "description": "",
-        "type": "number"
+        "name": "Grimoire - knockout! stacks",
+        "description": "Targets beaten in order for the Grimoire's Knockout! upgrade, one stack each (78 targets). Each stack adds Wraith damage.",
+        "type": "number",
+        "verified": true
     },
     "335": {
-        "name": "Grimoire - elimination! level",
-        "description": "",
-        "type": "number"
+        "name": "Grimoire - elimination! stacks",
+        "description": "Targets beaten in order for the Grimoire's Elimination! upgrade, one stack each (78 targets). Each stack adds Wraith damage.",
+        "type": "number",
+        "verified": true
     },
     "336": {
-        "name": "Grimoire - annihilation! level",
-        "description": "",
-        "type": "number"
+        "name": "Grimoire - annihilation! stacks",
+        "description": "Targets beaten in order for the Grimoire's Annihilation! upgrade, one stack each (78 targets). Each stack adds Wraith damage.",
+        "type": "number",
+        "verified": true
     },
     "337": {
-        "name": "Ribbon Shelf/Event Activation Flag",
-        "description": "Tracks Ribbon Shelf unlock status and is set to 1 when a specific server event (e.g., 'ValOn') is active",
+        "name": "Ribbon Shelf Unlocked",
+        "description": "1 unlocks the Ribbon Shelf. Set when you get your first ribbon: a Gem Shop ribbon, a cooking ribbon, or opening the event wheel during the \"ValOn\" event.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "338": {
-        "name": "Vault Knockout Progress",
-        "description": "Tracks knockout achievements for Vault upgrades",
+        "name": "Vault Knockout! Progress",
+        "description": "Targets beaten in order for the Upgrade Vault's Knockout! upgrade (78 targets). Each adds total damage.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "339": {
-        "name": "Tutorial Hint Dismissal Flag",
-        "description": "Tracks tutorial hints/prompts; set to 1 upon interaction to dismiss the hint UI",
+        "name": "Portal Kills Box Clicked",
+        "description": "1 once you have clicked the kills-to-next-portal box at the top left of the screen. Until then it shows a \"!\".",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "340": {
         "name": "Total Ores Mined",
-        "description": "Accumulated total ores for bonuses",
+        "description": "Lifetime count of ores mined (Copper to Godshard). The Upgrade Vault's Mining Payday gives coins based on it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "341": {
-        "name": "New Character Tutorial Flag",
-        "description": "Flag for new character tutorial display",
+        "name": "New Character Hint Shown",
+        "description": "1 once the game has shown its \"make a new character\" hint. It shows once, when your only character is above level 35.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "342": {
-        "name": "Gaming Mutation Mechanics",
-        "description": "Gaming mutation mechanics and probability calculations",
+        "name": "Gaming Mutation Pity",
+        "description": "Builds up from failed sprout mutation attempts in Gaming and raises the next mutation chance. Goes back to 0 when a mutation succeeds.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "343": {
-        "name": "Chest View Mode",
-        "description": "Toggle for chest view display mode",
+        "name": "Storage Chest Compact View",
+        "description": "Storage chest view. 1 shows small slots, 96 per page; 0 shows the normal 24 per page. The switch unlocks at level 40.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "344": {
-        "name": "Event Wheel Counter spins until event pity",
-        "description": "Remaining spins until event pity",
-        "type": "number"
+        "name": "Event Wheel Jackpot Countdown",
+        "description": "Event wheel spins left until the guaranteed jackpot. At 1 the next spin hits the jackpot; after that nothing more is guaranteed.",
+        "type": "number",
+        "verified": true
     },
     "345": {
-        "name": "Fish Caught Counter upgrade vault - schoolin the fish",
-        "description": "Cumulative fish caught for bonuses",
-        "type": "number"
+        "name": "Total Fish Caught",
+        "description": "Lifetime fish caught. The Upgrade Vault's Schoolin' the Fish gives class EXP based on it.",
+        "type": "number",
+        "verified": true
     },
     "346": {
         "name": "Bugs Caught Counter upgrade vault - bug power en masse",
