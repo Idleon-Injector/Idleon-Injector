@@ -673,228 +673,245 @@
         "AI": true
     },
     "120": {
-        "name": "Idle Skilling Code Tracker",
-        "description": "Tracks sequential code input for rewards",
+        "name": "Idle Skilling Codes Claimed",
+        "description": "How many Idle Skilling reward codes you've claimed (0 to 10). Codes are typed in chat and must be claimed in order.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "121": {
-        "name": "Next Idleskilling Codes Days",
-        "description": "Days left for next idleskilling codes",
-        "type": "number"
+        "name": "Idle Skilling Code Wait Days",
+        "description": "Days to wait before the next Idle Skilling code works. Goes down by 1 each day; 0 or less means ready.",
+        "type": "number",
+        "verified": true
     },
     "122": {
-        "name": "UI Inventory Management",
-        "description": "UI inventory slot configurations and player preferences",
+        "name": "Unused",
+        "description": "Not read or written by the game. Only touched by the generic 'fill missing slots with 0' loops.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "123": {
-        "name": "Draconic Cauldrons",
-        "description": "Number of draconic cauldrons for liquid cauldrons in alchemy",
-        "type": "number"
+        "name": "Draconic Liquid Cauldrons",
+        "description": "How many of the 4 liquid cauldrons are Draconic (0 to 4). The gem shop stops selling them at 4.",
+        "type": "number",
+        "verified": true
     },
     "124": {
-        "name": "Sailing Time Tracker",
-        "description": "Tracks sailing activity time for display",
+        "name": "Sailing Bonus Time",
+        "description": "Banked sailing time in seconds, from AFK bonuses and items. It plays out fast while the Sailing menu is open; you can't leave the menu while it's over 100.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "125": {
-        "name": "3D Printer Days for Multi",
-        "description": "3D printer days for multi artifact",
-        "type": "number"
+        "name": "Gold Relic Days",
+        "description": "Days counted by the Gold Relic artifact, up to 40 (more at higher artifact tiers). Each day makes 3D printer samples 2% bigger; taking a sample resets it.",
+        "type": "number",
+        "verified": true
     },
     "126": {
-        "name": "Gallery State Machine",
-        "description": "4-mode gallery system state: 1=trophy, 2=trophy info, 3=nametag, 4=nametag info with toggle mechanisms",
-        "type": "number"
+        "name": "Giants Eye Shiny Bonus",
+        "description": "Bonus % to shiny pet breeding chance from the Giants Eye artifact. Grows each day; resets to 0 when you breed a shiny.",
+        "type": "number",
+        "verified": true
     },
     "127": {
-        "name": "Status Effect Timers & Graphics Data",
-        "description": "Status effect countdown timers using Math.round(c.asNumber(_GenINFO[127]) + -1) + 3D vertex buffer graphics data",
-        "type": "number"
+        "name": "Arrowhead Chest Filter",
+        "description": "Lowest sailing chest rarity your captains bring back (0 to 4; 0 keeps all). Set with the Arrowhead artifact button in Sailing.",
+        "type": "number",
+        "verified": true
     },
     "128": {
-        "name": "UTF-8 Encoding & Graphics Constants",
-        "description": "UTF-8 encoding threshold + 128x128 graphics dimensions + power-of-2 values for graphics efficiency + mode flags",
-        "type": "number"
+        "name": "Found Items Cleanup Done",
+        "description": "Set to 7 after a one-time fix that removes gems, cards, spices and other non-Slab items from your found-items list.",
+        "type": "number",
+        "verified": true
     },
     "129": {
-        "name": "Gem Economy & Chest Spawn System",
-        "description": "Gem shop purchase tracking → chest spawn mechanics using Math.ceil(GemItemsPurchased[129] / 3.5) with 120ms timer delay",
-        "type": "number"
+        "name": "Talent Preset Hint Done",
+        "description": "1 once you've used talent presets. Until then the Talents page points at the preset button for level 30+ characters.",
+        "type": "number",
+        "verified": true
     },
     "130": {
-        "name": "Skill Tree Tutorial Gate",
-        "description": "Flag for tutorial completion/skill tree unlock",
+        "name": "Attack Bar Hint Done",
+        "description": "1 once you've put a talent on your attack bar. Until then the Talents page shows hint arrows.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "131": {
-        "name": "Silver Pen Tracker",
-        "description": "Tracks accumulated silver pens from bonuses",
+        "name": "Bonus Post Office Boxes",
+        "description": "Extra Post Office box points, added to the ones from deliveries. They come from some sailing artifacts, the Beryllium atom (turns silver pens into boxes) and daily box bonuses.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "132": {
-        "name": "Atom Collider Interface",
-        "description": "Visual state control for Atom Collider UI",
+        "name": "Atom Collider On",
+        "description": "Atom Collider switch, 1 = on. While on, storage stacks over the threshold (slot 133) turn into particles.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "133": {
-        "name": "Atom Threshold Multiplier",
-        "description": "Cycles threshold difficulty (0-3)",
+        "name": "Atom Collider Threshold",
+        "description": "Storage amount the Atom Collider keeps: 0 = 15M, 1 = 25M, 2 = 100M, 3 = 250M, 4 = 1.05B.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "134": {
-        "name": "Hydrogen Bonus Stamp Days",
-        "description": "Days of accumulated hydrogen bonus for stamp",
-        "type": "number"
+        "name": "Hydrogen Stamp Days",
+        "description": "Days counted by the Hydrogen atom. Stamp max-level upgrades get cheaper each day, up to 90%; upgrading any stamp's max level resets it.",
+        "type": "number",
+        "verified": true
     },
     "135": {
-        "name": "Current Daily Boron Clicks Left",
-        "description": "Current daily boron clicks left",
-        "type": "number"
+        "name": "Boron Particle Upgrades Left",
+        "description": "Bubble upgrades you can still pay for with particles today (Boron atom). Refills each day.",
+        "type": "number",
+        "verified": true
     },
     "136": {
-        "name": "UI Component Lava Message",
-        "description": "Lava message",
-        "type": "number"
+        "name": "Last Read Lava Message",
+        "description": "Text of the last message from Lava you've seen. When the server has a new one, characters level 25+ get a notice.",
+        "type": "string",
+        "verified": true
     },
     "137": {
-        "name": "Progression State Flag",
-        "description": "Controls tutorial/dungeon access state",
+        "name": "Random Event Done Today",
+        "description": "1 once you've beaten today's random event boss. Random events stop showing until the daily reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "138": {
-        "name": "Divine Knight Orb Kill Count",
-        "description": "Divine knight orb kill count (Divine Orb skill)",
-        "type": "number"
+        "name": "Orb of Remembrance Kills",
+        "description": "Kills of monsters marked by the Divine Knight's Orb of Remembrance. Boosts King of the Remembered.",
+        "type": "number",
+        "verified": true
     },
     "139": {
-        "name": "Siege Breaker Flag Kill Count",
-        "description": "Siege breaker flag kill count (Pirate Flag skill)",
-        "type": "number"
+        "name": "Pirate Flag Kills",
+        "description": "Kills counted by the Siege Breaker's Pirate Flag. Boosts Archlord of the Pirates.",
+        "type": "number",
+        "verified": true
     },
     "140": {
-        "name": "Keybind: Move Up/W",
-        "description": "Keycode for upward movement",
+        "name": "Key: Jump / Rope / Portal",
+        "description": "Key code for jump, ropes and portals (default 87 = W). Set it in the game's keybind menu so the shown letter (slot 146) matches.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "141": {
-        "name": "Keybind: Move Down/S",
-        "description": "Keycode for downward movement",
+        "name": "Key: Jump Down",
+        "description": "Key code for dropping down (default 83 = S). Set it in the game's keybind menu so the shown letter (slot 147) matches.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "142": {
-        "name": "Keybind: Move Left/A",
-        "description": "Keycode for left movement",
+        "name": "Key: Move Left",
+        "description": "Key code for moving left (default 65 = A). Set it in the game's keybind menu so the shown letter (slot 148) matches.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "143": {
-        "name": "Keybind: Move Right/D",
-        "description": "Keycode for right movement",
+        "name": "Key: Move Right",
+        "description": "Key code for moving right (default 68 = D). Set it in the game's keybind menu so the shown letter (slot 149) matches.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "144": {
-        "name": "Keybind: Action/E",
-        "description": "Keycode for action/interact",
+        "name": "Key: Interact / Talk",
+        "description": "Key code for interacting and talking (default 69 = E). Set it in the game's keybind menu so the shown letter (slot 150) matches.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "145": {
-        "name": "Keybind: Special/R",
-        "description": "Keycode for special action",
+        "name": "Key: Attack",
+        "description": "Key code for attacking (default 82 = R). Set it in the game's keybind menu so the shown letter (slot 151) matches.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "146": {
-        "name": "Keybind Display: Up/W",
-        "description": "Display string for Up key",
+        "name": "Key Label: Jump / Rope / Portal",
+        "description": "Text shown for slot 140's key in the keybind menu (default \"W\"). Display only.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "147": {
-        "name": "Keybind Display: Down/S",
-        "description": "Display string for Down key",
+        "name": "Key Label: Jump Down",
+        "description": "Text shown for slot 141's key in the keybind menu (default \"S\"). Display only.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "148": {
-        "name": "Keybind Display: Left/A",
-        "description": "Display string for Left key",
+        "name": "Key Label: Move Left",
+        "description": "Text shown for slot 142's key in the keybind menu (default \"A\"). Display only.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "149": {
-        "name": "Keybind Display: Right/D",
-        "description": "Display string for Right key",
+        "name": "Key Label: Move Right",
+        "description": "Text shown for slot 143's key in the keybind menu (default \"D\"). Display only.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "150": {
-        "name": "Keybind Display: Action/E",
-        "description": "Display string for Action key",
+        "name": "Key Label: Interact / Talk",
+        "description": "Text shown for slot 144's key in the keybind menu (default \"E\"). Display only.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "151": {
-        "name": "Keybind Display: Special/R",
-        "description": "Display string for Special key",
+        "name": "Key Label: Attack",
+        "description": "Text shown for slot 145's key in the keybind menu (default \"R\"). Display only.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "152": {
-        "name": "Mage Kill Count",
-        "description": "Mage kill count (Wormhole skill)",
-        "type": "number"
+        "name": "Dimensional Wormhole Kills",
+        "description": "Kills of monsters from the Elemental Sorcerer's Dimensional Wormhole. Boosts Wormhole Emperor.",
+        "type": "number",
+        "verified": true
     },
     "153": {
-        "name": "Language Selection",
-        "description": "Selected language index (1-7)",
+        "name": "Language",
+        "description": "Game language, 1 to 7. 0 means not picked yet, and the game asks for it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "154": {
-        "name": "95% Stamp Cost Reduction",
-        "description": "95% stamp cost reduction amount",
-        "type": "number"
+        "name": "Gilded Stamps",
+        "description": "Gilded stamps you have. Each takes 95% off one stamp upgrade. You get them by chance each day from the Rift bonus.",
+        "type": "number",
+        "verified": true
     },
     "155": {
-        "name": "Card Level Override",
-        "description": "Comma-separated Card IDs forced to level 6",
+        "name": "5-Star Cards",
+        "description": "Cards raised to 5 stars with a 5-Star Cardifier, as card IDs separated by commas.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "156": {
         "name": "5-Star Cardifiers",
-        "description": "Number of 5-star cardifiers",
-        "type": "number"
+        "description": "5-Star Cardifiers left. Each one raises a 4-star card to 5 stars.",
+        "type": "number",
+        "verified": true
     },
     "157": {
-        "name": "Player Auto-Move",
-        "description": "Toggle for player auto-movement (1=On)",
+        "name": "Auto-Move Hint Done",
+        "description": "1 once you've turned on auto-move while on map 1. Until then a hint for it shows on that map.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "158": {
-        "name": "Void Man Portals Cleared",
-        "description": "Void man portals cleared highscore (for talent calculations)",
-        "type": "number"
+        "name": "Void Trial Best Portals",
+        "description": "Most portals opened in one Void Walker trial run; boss kills count too. Void Trial Rerun and Master of the System use it.",
+        "type": "number",
+        "verified": true
     },
     "159": {
-        "name": "Sailing/Gem Init Flag",
-        "description": "One-time initialization flag (Set to 1)",
+        "name": "Sailing Exploit Fix Flag",
+        "description": "Set to 1 if an old one-time patch found exploited sailing numbers on this account and reset them. Nothing reads it now.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "160": {
         "name": "Uncollected Garbage (Ground)",
