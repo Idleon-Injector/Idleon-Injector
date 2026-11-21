@@ -897,216 +897,244 @@
         "AI": true
     },
     "160": {
-        "name": "Uncollected Garbage (Ground)",
-        "description": "Uncollected garbage on the ground",
-        "type": "number"
+        "name": "Trash Island Garbage Days",
+        "description": "Days of garbage piled up on Trash Island. Goes up by 1 each day; visiting the island drops the garbage and sets it back to 0.",
+        "type": "number",
+        "verified": true
     },
     "161": {
-        "name": "Garbage Currency",
-        "description": "Garbage currency in Fishing Islands",
-        "type": "number"
+        "name": "Garbage",
+        "description": "Garbage held. Picked up on Trash Island and spent in the Garbage Tuna's shop there.",
+        "type": "number",
+        "verified": true
     },
     "162": {
-        "name": "Bottles Currency",
-        "description": "Bottles currency in Fishing Islands",
-        "type": "number"
+        "name": "Bottles",
+        "description": "Bottles held. Picked up at the docks and spent on maps to new islands and on Rando Island upgrades.",
+        "type": "number",
+        "verified": true
     },
     "163": {
-        "name": "Garbage Island - % Garbage",
-        "description": "Garbage Island upgrade (+% Garbage)",
-        "type": "number"
+        "name": "Trash Island Garbage Upgrade",
+        "description": "Level of the Trash Island upgrade that gives more Garbage from the daily pile. Bought with Garbage; each level costs 1.4x more.",
+        "type": "number",
+        "verified": true
     },
     "164": {
-        "name": "Garbage Island - % Bottles",
-        "description": "Garbage Island upgrade (+% Bottles)",
-        "type": "number"
+        "name": "Trash Island Bottle Upgrade",
+        "description": "Level of the Trash Island upgrade that gives +10% Bottles per level from each bottle at the docks. Bought with Garbage; each level costs 1.5x more.",
+        "type": "number",
+        "verified": true
     },
     "165": {
-        "name": "Emporium Bonus Bribe",
-        "description": "Controls premium bribe features for fishing islands",
+        "name": "Art of the Bail Unlocked",
+        "description": "1 once bought from the Garbage Tuna's shop on Trash Island. Lets you buy the bribe The Art of the Bail.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "166": {
-        "name": "Rando Island - % Loot",
-        "description": "Rando Island upgrade (+% Loot - all random events)",
-        "type": "number"
+        "name": "Rando Island Loot Upgrade",
+        "description": "Level of the Rando Island upgrade that gives +5% random event boss loot per level. Bought with Bottles; each level costs 1.5x more.",
+        "type": "number",
+        "verified": true
     },
     "167": {
-        "name": "Rando Island - Double Boss",
-        "description": "Rando Island upgrade (+% for Double Boss)",
-        "type": "number"
+        "name": "Rando Island Double Boss Upgrade",
+        "description": "Level of the Rando Island upgrade that gives +3% chance per level for a second boss when a random event boss spawns on the islands. Bought with Bottles; each level costs 1.6x more.",
+        "type": "number",
+        "verified": true
     },
     "168": {
-        "name": "Graphics Rendering Index",
-        "description": "Graphics rendering pipeline, vertex buffer operations and font rendering",
+        "name": "Rando Island Weekly Event Done",
+        "description": "1 once this week's free random event boss has appeared on Rando Island. Set back to 0 at the weekly reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "169": {
         "name": "Unlocked Islands",
-        "description": "Unlocked islands (all islands: 'abcde_')",
-        "type": "string"
+        "description": "Islands you've unlocked, as letters: _ Trash, a Rando, b Crystal, c Seasalt, d Shimmer, e Fractal. Each map is bought with Bottles.",
+        "type": "string",
+        "verified": true
     },
     "170": {
-        "name": "Uncollected Bottles (Docks)",
-        "description": "Uncollected bottles in the docks",
-        "type": "number"
+        "name": "Docks Bottle Days",
+        "description": "Days of bottles piled up at the docks. Goes up each day; picking up a bottle sets it back to 0. Up to 16 bottles show.",
+        "type": "number",
+        "verified": true
     },
     "171": {
-        "name": "Temp Bottle Collection",
-        "description": "Temporary bottle counter with scaling logic",
+        "name": "Crystal Island Crystal Days",
+        "description": "Days of crystals piled up on Crystal Island, up to 14. Visiting the island spawns crystal monsters for them and sets it back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "172": {
-        "name": "Shimmer Island Dummy DPS",
-        "description": "Shimmer Island dummy DPS",
-        "type": "number"
+        "name": "Shimmer Island DPS Record",
+        "description": "Best damage per second on the Shimmer Island DPS dummy. Counts for the Tome and for one talent's all-stat bonus.",
+        "type": "number",
+        "verified": true
     },
     "173": {
-        "name": "Shimmers Currency",
-        "description": "Shimmers currency in Fishing Islands",
-        "type": "number"
+        "name": "Shimmers",
+        "description": "Shimmers held. Earned from Shimmer Island's weekly challenge and spent on Shimmer upgrades.",
+        "type": "number",
+        "verified": true
     },
     "174": {
-        "name": "Shimmer Island - Base STR",
-        "description": "Shimmer Island upgrade (+ Base STR)",
-        "type": "number"
+        "name": "Shimmer Upgrade - Base STR",
+        "description": "Level of the Shimmer Island upgrade \"+Base STR\". Bought with Shimmers.",
+        "type": "number",
+        "verified": true
     },
     "175": {
-        "name": "Shimmer Island - Base AGI",
-        "description": "Shimmer Island upgrade (+ Base AGI)",
-        "type": "number"
+        "name": "Shimmer Upgrade - Base AGI",
+        "description": "Level of the Shimmer Island upgrade \"+Base AGI\". Bought with Shimmers.",
+        "type": "number",
+        "verified": true
     },
     "176": {
-        "name": "Shimmer Island - Base WIS",
-        "description": "Shimmer Island upgrade (+ Base WIS)",
-        "type": "number"
+        "name": "Shimmer Upgrade - Base WIS",
+        "description": "Level of the Shimmer Island upgrade \"+Base WIS\". Bought with Shimmers.",
+        "type": "number",
+        "verified": true
     },
     "177": {
-        "name": "Shimmer Island - Base LUK",
-        "description": "Shimmer Island upgrade (+ Base LUK)",
-        "type": "number"
+        "name": "Shimmer Upgrade - Base LUK",
+        "description": "Level of the Shimmer Island upgrade \"+Base LUK\". Bought with Shimmers.",
+        "type": "number",
+        "verified": true
     },
     "178": {
-        "name": "Shimmer Island - % Total Damage",
-        "description": "Shimmer Island upgrade (+% Total Damage)",
-        "type": "number"
+        "name": "Shimmer Upgrade - % Total DMG",
+        "description": "Level of the Shimmer Island upgrade \"+% Total DMG\". Bought with Shimmers.",
+        "type": "number",
+        "verified": true
     },
     "179": {
-        "name": "Shimmer Island - % Class EXP",
-        "description": "Shimmer Island upgrade (+% Class EXP)",
-        "type": "number"
+        "name": "Shimmer Upgrade - % Class EXP",
+        "description": "Level of the Shimmer Island upgrade \"+% Class EXP\". Bought with Shimmers.",
+        "type": "number",
+        "verified": true
     },
     "180": {
-        "name": "Shimmer Island - % Skill Eff",
-        "description": "Shimmer Island upgrade (+% Skill Eff)",
-        "type": "number"
+        "name": "Shimmer Upgrade - % Skill Eff",
+        "description": "Level of the Shimmer Island upgrade \"+% Skill Eff\". Bought with Shimmers.",
+        "type": "number",
+        "verified": true
     },
     "181": {
-        "name": "Shimmer Island Trial Damage",
-        "description": "Shimmer Island trial damage",
-        "type": "number"
+        "name": "Shimmer Challenge Best Score",
+        "description": "Your best score in this week's Shimmer Island challenge. Claiming gives up to 40 Shimmers based on it. Set back to 0 at the weekly reset.",
+        "type": "number",
+        "verified": true
     },
     "182": {
-        "name": "Shimmer Trial Flag",
-        "description": "Binary flag (0/1) for trial completion",
+        "name": "Shimmer Challenge Claimed",
+        "description": "1 once you've claimed this week's Shimmer Island challenge reward. Set back to 0 at the weekly reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "183": {
-        "name": "Weekly DPS Challenge",
-        "description": "Selector (0-21) for weekly DPS challenge",
+        "name": "Shimmer Island Weekly Challenge",
+        "description": "Which of the 22 weekly challenges Shimmer Island shows this week. Rerolled at the weekly reset to a different one.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "184": {
-        "name": "Fractal Isle AFK Time",
-        "description": "Fractal isle AFK time",
-        "type": "number"
+        "name": "Fractal Isle AFK Hours",
+        "description": "Hours of \"Nothing\" AFK you've claimed. Fractal Isle bonuses unlock at 24, 200, 750, 2,500, 10,000, 20,000, 40,000 and 60,000 hours.",
+        "type": "number",
+        "verified": true
     },
     "185": {
-        "name": "WeeklyBoss Player Turn",
-        "description": "Tracks which player's turn it is in WeeklyBoss",
+        "name": "Weekly Battle Turn",
+        "description": "Which character's turn it is in this week's Weekly Battle (0 is the first character). Once it reaches your character count, every character has had a turn.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "186": {
-        "name": "W2 Town Boss Damage",
-        "description": "Damage done to W2 town boss",
-        "type": "number"
+        "name": "Weekly Battle Damage",
+        "description": "Damage dealt to the current Weekly Battle boss. Each time it reaches the boss's HP the boss is beaten and the extra carries over.",
+        "type": "number",
+        "verified": true
     },
     "187": {
-        "name": "W2 Town Boss Status",
-        "description": "W2 town boss status (5=dead, 0-4=alive)",
-        "type": "number"
+        "name": "Weekly Battle Boss Kills",
+        "description": "How many times you've beaten this week's Weekly Battle boss (0 to 5). The boss gets more HP after each kill; 5 ends the battle.",
+        "type": "number",
+        "verified": true
     },
     "188": {
-        "name": "Trophy Currency",
-        "description": "Trophy currency for W2 town boss",
-        "type": "number"
+        "name": "Trophies",
+        "description": "Trophies held, spent in the Weekly Battle shop. Earned by beating the boss more times than before this week.",
+        "type": "number",
+        "verified": true
     },
     "189": {
-        "name": "Max W2 Town Weekly Boss Skulls",
-        "description": "Max W2 town weekly boss skulls reached (up to 5)",
-        "type": "number"
+        "name": "Weekly Battle Best Kills",
+        "description": "Most Weekly Battle boss kills reached this week (0 to 5). New bests give Trophies, and one talent gives drop rate per kill. Set back to 0 each week.",
+        "type": "number",
+        "verified": true
     },
     "190": {
-        "name": "W2 Town Boss Attempt Reset",
-        "description": "Set to 0 to make reset available",
-        "type": "number"
+        "name": "Weekly Battle Restart Used",
+        "description": "1 once you've restarted this week's Weekly Battle. Set it to 0 to allow another restart; it also goes back to 0 each week.",
+        "type": "number",
+        "verified": true
     },
     "191": {
-        "name": "WeeklyBoss Timer",
-        "description": "Weekly timer tracking for boss rotation",
+        "name": "Weekly Battle Week",
+        "description": "The week number the current Weekly Battle belongs to. When the real week changes, the battle starts fresh with a new boss.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "192": {
-        "name": "Amount of Gold Nuggets dug since last max in Gaming",
-        "description": "Amount of Gold Nugget dug since last max in Gaming",
-        "type": "number"
+        "name": "Metal Detector Nugget Count",
+        "description": "Small nuggets dug since your last biggest nugget in Gaming. With the Equinox upgrade Metal Detector, each one makes nuggets bigger; a new biggest nugget sets it back to 0.",
+        "type": "number",
+        "verified": true
     },
     "193": {
-        "name": "Game Progression Array",
-        "description": "Game progression array for kill tracking and advancement",
+        "name": "Food Lust Stacks",
+        "description": "Random event bosses beaten since your last meal upgrade. With the Equinox upgrade Food Lust, each stack lowers meal upgrade costs (up to its level). Upgrading a meal sets it back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "194": {
-        "name": "Kill Advance Condition",
-        "description": "Condition for advancing after kills",
+        "name": "Spirit Portal Restored",
+        "description": "1 once you've given the Spirit Diamond to the bird in the magma rivertown, which powers the portal to World 6.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "195": {
-        "name": "Gem Drop Counter Limit",
-        "description": "Maximum limit for gem drop counters",
+        "name": "Boss Gem Counter",
+        "description": "Counts boss fights started today. Bosses can drop gems only while it's under 600. Set back to 0 each day.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "196": {
-        "name": "UI Control & Portal Positioning",
-        "description": "UI control foundation + wisdom calculations + portal positioning + game progression tracking with graphics integration",
+        "name": "Blue Tome Pages Used",
+        "description": "1 once you've dropped 2 Blue Tome Pages on the Tome, which adds a new Tome bonus type.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "197": {
-        "name": "Tome UI & Wisdom Card Management",
-        "description": "Tome UI control + hole wisdom card management + dual interface system with N[127] coordination",
+        "name": "Red Tome Pages Used",
+        "description": "1 once you've dropped 7 Red Tome Pages on the Tome, which adds another Tome bonus type.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "198": {
-        "name": "Most Money held in Storage (Tome)",
-        "description": "Money tracking + tome inventory + companions system + card management with vertex buffer operations",
-        "type": "number"
+        "name": "Most Money Held in Storage",
+        "description": "The most money you've ever had in storage. Counts for the Tome.",
+        "type": "number",
+        "verified": true
     },
     "199": {
-        "name": "Jackpots Counter in Arcade (Tome)",
-        "description": "Tracks the number of jackpots collected in Arcade",
-        "type": "number"
+        "name": "Arcade Jackpots Hit",
+        "description": "Jackpots hit in the Arcade. Each one also gives 2,000 gems. Counts for the Tome.",
+        "type": "number",
+        "verified": true
     },
     "200": {
         "name": "Highest Drop rarity Multi (Tome)",
