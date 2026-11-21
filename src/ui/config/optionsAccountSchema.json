@@ -2356,215 +2356,243 @@
     },
     "426": {
         "name": "Coral Kid - Unlocked",
-        "description": "Coral Kid unlocked or not",
-        "type": "number"
+        "description": "1 once Coral Kid becomes a god. Each try costs 20M Divinity Points and works 10% of the time. Opens his upgrades.",
+        "type": "number",
+        "verified": true
     },
     "427": {
-        "name": "Coral Kid - Divinity XP Bonus",
-        "description": "Coral Kid divinity XP bonus level",
-        "type": "number"
+        "name": "Coral Kid - Volcano Link Upgrade",
+        "description": "Level of Coral Kid's first upgrade. Each level gives +10% Divinity EXP to all; level 1 or more lets you click the volcano to link one Divinity to all players.",
+        "type": "number",
+        "verified": true
     },
     "428": {
-        "name": "Coral Kid - max blessing level",
-        "description": "Coral Kid max blessing level",
-        "type": "number"
+        "name": "Coral Kid - Max Blessing Level",
+        "description": "Level of Coral Kid's second upgrade. Each level raises the max level of every Divinity's Blessing upgrade by 2.",
+        "type": "number",
+        "verified": true
     },
     "429": {
-        "name": "Coral Kid - god rank class xp level",
-        "description": "Coral Kid god rank class xp level",
-        "type": "number"
+        "name": "Coral Kid - God Rank Class EXP",
+        "description": "Level of Coral Kid's third upgrade. Each God Rank above 10 gives all players a Class EXP multiplier, up to 1.2x each as the level goes up.",
+        "type": "number",
+        "verified": true
     },
     "430": {
-        "name": "Coral Kid - divinity minor link bonus level",
-        "description": "Coral Kid divinity minor link bonus level",
-        "type": "number"
+        "name": "Coral Kid - Minor Link Boost",
+        "description": "Level of Coral Kid's fourth upgrade. Makes your Divinity skill level boost Minor Link bonuses a bit more.",
+        "type": "number",
+        "verified": true
     },
     "431": {
-        "name": "Coral Kid - divinity pts coral reef bonus level",
-        "description": "Coral Kid divinity pts coral reef bonus level",
-        "type": "number"
+        "name": "Coral Kid - Divinity PTS per Reef Upgrade",
+        "description": "Level of Coral Kid's fifth upgrade. +2% Divinity PTS gain per level for each Coral Reef upgrade level.",
+        "type": "number",
+        "verified": true
     },
     "432": {
-        "name": "Coral Kid - daily coral reef bonus level",
-        "description": "Coral Kid daily coral reef bonus level",
-        "type": "number"
+        "name": "Coral Kid - Daily Coral",
+        "description": "Level of Coral Kid's sixth upgrade. More Daily Coral for the Coral Reef in W7 town, up to +100%.",
+        "type": "number",
+        "verified": true
     },
     "433": {
-        "name": "Coral Kid - NPC Visibility Flag",
-        "description": "Controls visibility of Coral actors/NPCs",
-        "type": "number"
+        "name": "Coral Kid - Fishbowl Given",
+        "description": "1 once you've dropped the Fishbowl on Coral Kid after he became a god. He and his bowl then show up in World 5. Also set by Menagerie unlock 2.",
+        "type": "number",
+        "verified": true
     },
     "434": {
         "name": "Darts Minigame Points",
-        "description": "Darts minigame points",
-        "type": "number"
+        "description": "Darts points held. Earned from your Darts score (+50% with an Event Shop bonus) and spent in the Darts shop.",
+        "type": "number",
+        "verified": true
     },
     "435": {
         "name": "Darts Minigame Shop - Extra Damage Bonus",
-        "description": "Darts minigame shop extra damage bonus",
-        "type": "number"
+        "description": "Level of the Darts shop damage upgrade: +1% damage against monsters per level.",
+        "type": "number",
+        "verified": true
     },
     "436": {
         "name": "Darts Minigame Shop - Page 1 Talent Points bonus",
-        "description": "Darts minigame upgrade level",
-        "type": "number"
+        "description": "Level of the Darts shop talent upgrade: +1 Talent Point for the first talent page per level.",
+        "type": "number",
+        "verified": true
     },
     "437": {
         "name": "Darts Minigame Shop - Cheaper Vault Upgrades bonus",
-        "description": "Darts minigame upgrade level",
-        "type": "number"
+        "description": "Level of the Darts shop vault upgrade: Vault upgrade costs are divided by 1 + level/100.",
+        "type": "number",
+        "verified": true
     },
     "438": {
         "name": "Darts Minigame Shop - Movement Speed bonus",
-        "description": "Darts minigame upgrade level",
-        "type": "number"
+        "description": "Level of the Darts shop speed upgrade: +1% movement speed per level.",
+        "type": "number",
+        "verified": true
     },
     "439": {
-        "name": "Time until Darts Minigame resets, negative number to play",
-        "description": "Decrements over time",
-        "type": "number"
+        "name": "Darts - Wait Timer",
+        "description": "Seconds until you can play Darts again. Set after each game (90 seconds, rising to 900 the more you play that day); counts down every second and with AFK time. Reset to 0 each day.",
+        "type": "number",
+        "verified": true
     },
     "440": {
-        "name": "Number of Darts Minigame played today - makes successive reset timer longer",
-        "description": "Darts minigame upgrade level",
-        "type": "number"
+        "name": "Darts - Games Played Today",
+        "description": "Darts games started today. Each one makes the wait after a game longer. Reset to 0 each day.",
+        "type": "number",
+        "verified": true
     },
     "441": {
-        "name": "Timer System 2",
-        "description": "Related to countdown systems",
+        "name": "Darts - Waiting",
+        "description": "1 while you have to wait before playing Darts again; 0 once the wait timer runs out or the day resets. Darts only opens at 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "442": {
         "name": "Darts Minigame high score",
-        "description": "Darts minigame high score",
-        "type": "number"
+        "description": "Your best Darts score.",
+        "type": "number",
+        "verified": true
     },
     "443": {
         "name": "Lavas Dev Streams watched (Tome)",
-        "description": "Number of streams watched",
-        "type": "number"
+        "description": "Dev streams you claimed the live-stream button for. Counts for the Tome.",
+        "type": "number",
+        "verified": true
     },
     "444": {
-        "name": "Sequential Sprite References System",
-        "description": "Part of coordinated resource allocation block (447-444) + character animation foundation",
+        "name": "Dev Stream Claim Cooldown",
+        "description": "Days before you can claim the next dev-stream button. Claiming sets it to 2; it goes down by 1 each day, and the button can be claimed again at 0 or less.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "445": {
-        "name": "Character Leg Animation Frames",
-        "description": "Character leg animation frames (lines 148934-148937) + part of 8-element sprite array structure (rl2, ll1, ll2)",
-        "type": "number",
-        "AI": true
+        "name": "Best Windwalker Max Damage (Tome)",
+        "description": "Highest Windwalker max damage in Tempest mode, saved when the game shows a higher one in the Windwalker stats. Counts for the Tome.",
+        "type": "string",
+        "verified": true
     },
     "446": {
-        "name": "Multi-Purpose Resource Identifier",
-        "description": "Sound resource ID (lines 238034, 247413) + character limb sprite reference (left hand, line 148931) + portal X-coordinate (line 262888) + mathematical lookup table (blur effects, line 267370)",
-        "type": "number",
-        "AI": true
+        "name": "Best Arcane Cultist Max Damage (Tome)",
+        "description": "Highest Arcane Cultist max damage in Arcanist mode, saved when the game shows a higher one in the Arcane Cultist stats. Counts for the Tome.",
+        "type": "string",
+        "verified": true
     },
     "447": {
-        "name": "Sound Resource ID with Audio Looping",
-        "description": "Audio system integration with looping functionality + channel-based sound management",
+        "name": "Tome Nametags Claimed This Month",
+        "description": "Tome nametags claimed this month (0 to 7). You can claim the next one while your Tome ranking is high enough; goes back to 0 in a new month.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "448": {
-        "name": "Monthly Cycle Tracker",
-        "description": "Tracks monthly cycles (division by 2628000ms)",
+        "name": "Tome Nametag Claim Month",
+        "description": "The month of your last Tome nametag claim (game time divided by about 30.4 days). When it no longer matches, the claim count goes back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "449": {
         "name": "Unused",
-        "description": "unused index",
+        "description": "Nothing reads it. Two old one-time save patches set it to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "450": {
-        "name": "Meritocracy Voting Selection Flag",
-        "description": "Tracks selected meritocracy voting bonus from predefined bonus array",
+        "name": "Meritocracy - Your Vote",
+        "description": "Your Meritocracy vote this week: 0 = not voted yet, 1 to 3 = the option you picked. Cleared when a new voting week starts.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "451": {
-        "name": "Meritocracy Voting Weekly Timestamp",
-        "description": "Tracks weekly timestamp for meritocracy voting",
+        "name": "Meritocracy - Vote Week",
+        "description": "The voting week of your last Meritocracy vote (game time divided by one week). When it no longer matches, your vote is cleared.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "452": {
-        "name": "Quest 107 Counter",
-        "description": "Tracks Quest 107 progress",
+        "name": "Arcane Fragments Turned In",
+        "description": "1 once 1000 Arcane Fragments (item Quest107) have been used. Fragments stop dropping and Arcane Cultists earn 1 Arcane Rock per AFK hour.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "453": {
-        "name": "Meritocracy Bonus Selector",
-        "description": "Selects active meritocracy voting bonus from predefined bonus array",
+        "name": "Meritocracy - Active Bonus",
+        "description": "Which Meritocracy bonus is active this week (its number in the bonus list). Copied from the server each time the game loads, so edits don't last.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "454": {
-        "name": "Clamworks - Current Total",
-        "description": "Clamworks current total",
-        "type": "number"
+        "name": "Clamworks - Pearls",
+        "description": "Pearls held. Picked up from clams and spent on Clamworks upgrades and Worker Class promotions; a promotion sets it back to 0.",
+        "type": "number",
+        "verified": true
     },
     "455": {
-        "name": "Clamworks - Pearl Value",
-        "description": "Clamworks Pearl Value level",
-        "type": "number"
+        "name": "Clamworks - Pearl Value level",
+        "description": "Level of the Pearl Value upgrade: each pearl is worth 1 more per level.",
+        "type": "number",
+        "verified": true
     },
     "456": {
         "name": "Clamworks - Clam Comrades level",
-        "description": "Clamworks Clam Comrades level",
-        "type": "number"
+        "description": "Level of the Clam Comrades upgrade: clams on the map = 2 + level, at most 25.",
+        "type": "number",
+        "verified": true
     },
     "457": {
         "name": "Clamworks - Lucky Day level",
-        "description": "Clamworks Lucky Day level",
-        "type": "number"
+        "description": "Level of the Lucky Day upgrade: +3% chance per level for a pearl to be worth 10x.",
+        "type": "number",
+        "verified": true
     },
     "458": {
         "name": "Clamworks - Multi-Scalping level",
-        "description": "Clamworks Clamworks level",
-        "type": "number"
+        "description": "Level of the Multi-Scalping upgrade: boosts pearl value based on your Multikill.",
+        "type": "number",
+        "verified": true
     },
     "459": {
         "name": "Clamworks - Frugality level",
-        "description": "Clamworks Clamworks level",
-        "type": "number"
+        "description": "Level of the Frugality upgrade: makes all Clamworks upgrades cheaper (12% per level, as a divisor).",
+        "type": "number",
+        "verified": true
     },
     "460": {
         "name": "Clamworks - Pure Pearls level",
-        "description": "Controls pearl drop mechanics in specific game areas (w7a6)",
-        "type": "number"
+        "description": "Level of the Pure Pearls upgrade: level 1 adds Pure Pearls to the clams' drops; each level makes them worth 50x more.",
+        "type": "number",
+        "verified": true
     },
     "461": {
         "name": "Clamworks - Encystation Up level",
-        "description": "_Leaves_Stored - Resource counter in named index mapping system",
-        "type": "number"
+        "description": "Level of the Encystation Up upgrade: +10% pearl drop rate per level.",
+        "type": "number",
+        "verified": true
     },
     "462": {
         "name": "Clamworks - Shinier Pearls level",
-        "description": "Temporary flag that gets reset to zero state",
-        "type": "number"
+        "description": "Level of the Shinier Pearls upgrade: +10% value for all pearls per level.",
+        "type": "number",
+        "verified": true
     },
     "463": {
         "name": "Clamworks - Anti Inflation level",
-        "description": "_Choppin_Game_Hiscore - High score value, tracks choppin game high score",
-        "type": "number"
+        "description": "Level of the Anti Inflation upgrade: makes all Clamworks upgrades cheaper (16% per level, as a divisor).",
+        "type": "number",
+        "verified": true
     },
     "464": {
         "name": "Clamworks - Worker Class level",
-        "description": "Experience multiplier component for LUK5 system",
-        "type": "number"
+        "description": "Your Clamworks Worker Class. A promotion costs 100,000 x 10^class pearls and works with chance 0.5/(2 + class); a success adds 1 and resets pearls, the upgrades and Scurge. Each class gives a bonus and makes clams tougher.",
+        "type": "number",
+        "verified": true
     },
     "465": {
-        "name": "Clam Progression Counter",
-        "description": "Tracks clam upgrade system progression",
+        "name": "Clamworks - Upgrades Unlocked",
+        "description": "Highest Clamworks upgrade slot unlocked (0 to 8). The next slot opens once you hold enough pearls; a promotion sets it back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "466": {
         "name": "Killroy Dialogue State",
