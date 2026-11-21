@@ -1471,7 +1471,7 @@
     "267": {
         "name": "Poppy - Bluefin Fish",
         "description": "Bluefin fish you have to spend on upgrades. Big values like 5e50 are fine.",
-        "type": "number",
+        "type": "string",
         "verified": true
     },
     "268": {

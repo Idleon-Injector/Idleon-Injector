@@ -794,3 +794,29 @@ test("a page's loads go on after one failed in a way the policy didn't catch", a
     }).catch(() => {});
     assert.equal(await run(async () => "read"), "read");
 });
+
+// Bluefin counts run into numbers like 5e50; a field that drops the "e" would save 550.
+test("account options: Poppy's bluefin (267) keeps a big value like 5e50 as typed", async () => {
+    const before = ola[267];
+    const schemaBefore = store.data.accountSchema;
+    // The page reads its slot names and editors from the schema; the fake game doesn't serve it, so hand it over.
+    const { readFileSync } = await import("node:fs");
+    store.data.accountSchema = JSON.parse(
+        readFileSync(new URL("../src/ui/config/optionsAccountSchema.json", import.meta.url), "utf8")
+    );
+    try {
+        const { AccountOptionsTab } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
+        const root = AccountOptionsTab();
+        const optionRow = () => elements(root).find((node) => node.attributes["data-index"] === 267);
+        await until(optionRow, "Account Options to load");
+        const [wrapper] = byClass(optionRow(), "option-input-wrapper");
+        const [field] = elements(wrapper).filter((node) => node.nodeName === "input");
+        field.value = "5e50";
+        field.listeners.input({ target: field });
+        wrapper.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => Number(ola[267]) === 5e50, "5e50 to be saved");
+    } finally {
+        ola[267] = before;
+        store.data.accountSchema = schemaBefore;
+    }
+});
