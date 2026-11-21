@@ -565,3 +565,40 @@ test("star signs: points the game spends while a save runs aren't given back", a
         g.OptionsListAccount[40] = savedPoints;
     }
 });
+
+test("star signs: a sign the game claims during a save isn't counted twice", async () => {
+    const saved = g.StarSignProg.map((entry) => [...entry]);
+    const savedPoints = g.OptionsListAccount[40];
+    // Every sign done and claimed but A-2 (it needs 2 players and gives 2 points); 5 points to spend.
+    g.StarSignProg.forEach((_, i) => (g.StarSignProg[i] = ["_abc".slice(0, 1 + (i % 3)), 1]));
+    g.StarSignProg[1] = ["_", 0];
+    g.OptionsListAccount[40] = 5;
+    const realFetch = globalThis.fetch;
+    try {
+        const root = await openPage(STAR_SIGNS, (node) => byClass(node, "starsign-card").length > 0);
+        // Right after Unlock all reads the signs, the game claims A-2 itself and adds its 2 points.
+        let claimedInGame = false;
+        globalThis.fetch = async (url, options) => {
+            const response = await realFetch(url, options);
+            const path = String(url).includes("/gga/read") ? JSON.parse(options?.body ?? "{}").path : null;
+            // The read asks for "gga.StarSignProg".
+            if (/(^|\.)StarSignProg$/.test(path ?? "") && !claimedInGame) {
+                claimedInGame = true;
+                g.StarSignProg[1] = ["_a", 1];
+                g.OptionsListAccount[40] = 7;
+            }
+            return response;
+        };
+        const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+        const before = writes();
+        const unlock = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Unlock all");
+        await unlock.listeners.click({ preventDefault() {}, currentTarget: unlock });
+        await until(() => claimedInGame && writes() > before, "Unlock all to save");
+        await tick();
+        assert.equal(Number(g.OptionsListAccount[40]), 7, "A-2's points count once");
+    } finally {
+        globalThis.fetch = realFetch;
+        saved.forEach((entry, i) => (g.StarSignProg[i] = entry));
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
