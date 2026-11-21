@@ -526,7 +526,7 @@
     },
     "92": {
         "name": "4-Star Cardifiers",
-        "description": "Cardifiers you own, bought in the gem shop. Using one on a 4-star card raises it one level.",
+        "description": "Cardifiers you own, bought in the gem shop. Each one raises a 3-star card to 4 stars.",
         "type": "number",
         "verified": true
     },
