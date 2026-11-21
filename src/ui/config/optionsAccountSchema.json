@@ -1344,8 +1344,8 @@
         "verified": true
     },
     "244": {
-        "name": "Hoops - Invite Declined Today",
-        "description": "Set to 1 when a level 20+ character turns down the Hoops invite; back to 0 at the daily reset. Nothing in the game reads it.",
+        "name": "Hoops - Invite Declined This Week",
+        "description": "Set to 1 when a level 20+ character turns down the Hoops invite; back to 0 at the weekly reset. Nothing in the game reads it.",
         "type": "number",
         "verified": true
     },
