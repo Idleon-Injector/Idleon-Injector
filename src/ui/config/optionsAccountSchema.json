@@ -1319,148 +1319,164 @@
         "type": "number"
     },
     "240": {
-        "name": "Sneaking Gems 8 counter",
-        "description": "Sneaking Gems counter",
-        "type": "number"
+        "name": "Sneaking - Firefrost Gemstones",
+        "description": "Firefrost gemstones you've added to your Ninja Knowledge collection. More of them raise the gem's Charm level bonus.",
+        "type": "number",
+        "verified": true
     },
     "241": {
-        "name": "Time Tracking System",
-        "description": "Time-based achievement progress tracking",
+        "name": "Last Game Version",
+        "description": "The game version this account last logged in with; set on every login (144 in this build). If it's higher than the game you run, login stops at a popup.",
         "type": "number",
-        "AI": true
+        "warning": "Don't set it above the current game version: login will stop at a popup.",
+        "verified": true
     },
     "242": {
-        "name": "Hoops High Score",
-        "description": "Tracks best score in hoops game",
-        "type": "number"
+        "name": "Hoops - Best Score",
+        "description": "Your best Hoops score. The game shows it as \"Best\" once it reaches 11.",
+        "type": "number",
+        "verified": true
     },
     "243": {
-        "name": "Hoops State Manager",
-        "description": "Manages hoops game availability/cooldown",
+        "name": "Hoops - On Cooldown",
+        "description": "1 after a Hoops game until its cooldown (slot 423) runs out, and 0 again at the daily reset. While 0, the Hoops invite can pop up.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "244": {
-        "name": "Basketball Achievement",
-        "description": "Unlocks basketball activity after level 20",
+        "name": "Hoops - Invite Declined Today",
+        "description": "Set to 1 when a level 20+ character turns down the Hoops invite; back to 0 at the daily reset. Nothing in the game reads it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "245": {
-        "name": "Hoops Party Unlock",
-        "description": "Tracks party-based hoops game unlock",
+        "name": "Party Bar Tip Seen",
+        "description": "1 once the \"!\" next to the party kill bar has shown for 12 seconds. The bar appears when 2 or more party members are on the same map.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "246": {
-        "name": "Tutorial Progress",
-        "description": "Tracks tutorial completion and milestones",
+        "name": "New Player Map Hints Shown",
+        "description": "How far the one-time pointer hints on the first maps have got (1, 2, 14, 16, 19, 24, 26). Each map shows its hint once, then raises this to its step.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "247": {
-        "name": "NPC Interaction Visible",
-        "description": "Controls NPC interaction visibility",
+        "name": "Town - Storage Chest Built",
+        "description": "1 once you've paid 250 coins to build the storage chest in the World 1 town. It's offered when any character reaches level 7; at 0 the chest is hidden.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "248": {
-        "name": "Mr. Pigibank Visible",
-        "description": "Controls Mr. Pigibank NPC appearance",
+        "name": "Town - Stamps Built",
+        "description": "1 once you've paid 1,000 coins to build the stamps spot in the World 1 town (offered at level 14). At 0 Mr. Pigibank is gone and stamps can't be opened there.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "249": {
-        "name": "UI Interaction Visible",
-        "description": "Controls UI element visibility states",
+        "name": "Town - Forge Built",
+        "description": "1 once you've paid 1,500 coins to build the forge in the World 1 town (offered at level 18). At 0 the forge is hidden.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "250": {
-        "name": "Town_Marble Tracking",
-        "description": "Controls Town_Marble NPC and kill tracking",
+        "name": "Town - Statues Built",
+        "description": "1 once you've paid 2,000 coins to build the statues spot in the World 1 town (offered at level 22). At 0 Town Marble is gone and statues can't be opened there.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "251": {
-        "name": "Grasslands_Gary Visible",
-        "description": "Controls Grasslands_Gary NPC appearance",
+        "name": "Town - Task Board Built",
+        "description": "1 once you've paid 5,000 coins to build the task board in the World 1 town (offered at level 28). At 0 Grasslands Gary is gone and tasks can't be opened there.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "252": {
-        "name": "Toggle for steam midweek madness gift bundle",
-        "description": "Toggle for steam midweek madness gift bundle",
-        "type": "number"
+        "name": "Weekly Dealz Gift Claimed",
+        "description": "1 once you've claimed the free gift box (a cape, ring, nametag and a hat you pick) that can pop up in the Steam (desktop) version during the WeeklyDealz event. It never shows again after.",
+        "type": "number",
+        "verified": true
     },
     "253": {
         "name": "Orion - Feathers",
-        "description": "Orion the Great Horned Owl feathers",
-        "type": "number"
+        "description": "Feathers you have to spend on Orion's upgrades. Set back to 5 by Feather Restart and Mega Reset. Big values like 5e50 are fine.",
+        "type": "string",
+        "verified": true
     },
     "254": {
         "name": "Orion - Feather Generation",
-        "description": "Orion upgrade (Feather Generation)",
-        "type": "number"
+        "description": "Upgrade level. +1 feather per second per level; at 0 no feathers come in. Reset by Feather Restart and Mega Reset.",
+        "type": "number",
+        "verified": true
     },
     "255": {
-        "name": "Orion - Bonuses",
-        "description": "Orion upgrade (Bonuses of Orion) - permanent bonus value",
+        "name": "Orion - Bonuses of Orion",
+        "description": "Upgrade level. Each level raises one of six permanent bonuses in turn: Class XP, Base Damage, Total Damage, Skill XP, Drop Rate, All Stats. Never reset.",
         "type": "number",
-        "warning": "Keep reasonable like 70-90"
+        "warning": "Keep reasonable like 70-90",
+        "verified": true
     },
     "256": {
         "name": "Orion - Feather Multiplier",
-        "description": "Orion upgrade (Feather Multiplier)",
-        "type": "number"
+        "description": "Upgrade level. +5% feather generation per level. Reset by Feather Restart and Mega Reset.",
+        "type": "number",
+        "verified": true
     },
     "257": {
         "name": "Orion - Feather Cheapener",
-        "description": "Orion upgrade (Feather Cheapener)",
-        "type": "number"
+        "description": "Upgrade level. Makes all of Orion's upgrades cheaper (10% per level, diminishing). Reset by Feather Restart and Mega Reset.",
+        "type": "number",
+        "verified": true
     },
     "258": {
         "name": "Orion - Feather Restart",
-        "description": "Orion upgrade (Feather Restart)",
+        "description": "Times you've done Feather Restart. Each one multiplies feather generation by 3 (5 after the 7th Megafeather). Reset only by Mega Reset.",
         "type": "number",
-        "warning": "Keep reasonable like 30-40"
+        "warning": "Keep reasonable like 30-40",
+        "verified": true
     },
     "259": {
         "name": "Orion - Super Feather Production",
-        "description": "Orion upgrade (Super Feather Production)",
-        "type": "number"
+        "description": "Upgrade level. +5 feathers per second per level. Reset by Feather Restart and Mega Reset.",
+        "type": "number",
+        "verified": true
     },
     "260": {
         "name": "Orion - Shiny Feathers",
-        "description": "Orion upgrade (Shiny Feathers)",
-        "type": "number"
+        "description": "Upgrade level. Above 0, Shiny Feathers (slot 264) can drop; each one gives +1% feather generation per level of this. Reset by Feather Restart and Mega Reset.",
+        "type": "number",
+        "verified": true
     },
     "261": {
         "name": "Orion - Super Feather Cheapener",
-        "description": "Orion upgrade (Super Feather Cheapener)",
-        "type": "number"
+        "description": "Upgrade level. Makes all of Orion's upgrades cheaper (20% per level, diminishing). Reset by Feather Restart and Mega Reset.",
+        "type": "number",
+        "verified": true
     },
     "262": {
-        "name": "Orion - Great Mega Reset",
-        "description": "Orion upgrade (The Great Mega Reset) - permanent bonus value",
+        "name": "Orion - Megafeathers",
+        "description": "Times you've done The Great Mega Reset. Each of the first 9 Megafeathers unlocks a perk; more raise Orion's bonuses further. Never reset.",
         "type": "number",
-        "warning": "Keep reasonable like 70-90"
+        "warning": "Keep reasonable like 70-90",
+        "verified": true
     },
     "263": {
-        "name": "Orion - Unknown Feathers",
-        "description": "Related to feathers (probably bar fill)",
-        "type": "number"
+        "name": "Orion - Feathers Made This Run",
+        "description": "Feathers made since the last Feather Restart or Mega Reset. Orion's next upgrade unlocks when this reaches its target. Big values like 5e50 are fine.",
+        "type": "string",
+        "verified": true
     },
     "264": {
-        "name": "Orion - Shiny Feathers Amount",
-        "description": "Orion shiny feathers amount",
-        "type": "number"
+        "name": "Orion - Shiny Feathers Found",
+        "description": "Shiny Feathers you have. Each gives +1% feather generation per Shiny Feathers level (slot 260), and each makes the next rarer. Reset only by Mega Reset.",
+        "type": "number",
+        "verified": true
     },
     "265": {
-        "name": "Orion Complete Flag",
-        "description": "Orion system completion flag/Map 42 unlock",
+        "name": "Orion Found",
+        "description": "1 once you've found Orion. Shows Orion's map (42) on the world map.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "266": {
         "name": "Poppy Found",
