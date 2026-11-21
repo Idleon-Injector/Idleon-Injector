@@ -1463,83 +1463,96 @@
         "AI": true
     },
     "266": {
-        "name": "Poppy Complete Flag",
-        "description": "Poppy system completion flag/Map 73 unlock",
+        "name": "Poppy Found",
+        "description": "1 once you've found Poppy. Shows Poppy's button in Orion's menu and her map (73) on the world map.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "267": {
-        "name": "Poppy - Fish Amount",
-        "description": "Poppy the Kangaroo fish amount (can use exponent like '5e+50')",
-        "type": "string"
+        "name": "Poppy - Bluefin Fish",
+        "description": "Bluefin fish you have to spend on upgrades. Big values like 5e50 are fine.",
+        "type": "number",
+        "verified": true
     },
     "268": {
         "name": "Poppy - Tasty Fishbait",
-        "description": "Poppy upgrade (Tasty Fishbait)",
-        "type": "number"
+        "description": "Upgrade level. Each level adds 10 bluefin per catch; fishing starts at level 1.",
+        "type": "number",
+        "verified": true
     },
     "269": {
         "name": "Poppy - Quick Reeling",
-        "description": "Poppy upgrade (Quick Reeling)",
-        "type": "number"
+        "description": "Upgrade level. Bluefin catches come 5% faster per level.",
+        "type": "number",
+        "verified": true
     },
     "270": {
         "name": "Poppy - Shiny Lure",
-        "description": "Poppy upgrade (Shiny Lure)",
-        "type": "number"
+        "description": "Upgrade level. Shiny fishing speed; at 0 no shiny fish are caught.",
+        "type": "number",
+        "verified": true
     },
     "271": {
-        "name": "Poppy - Bonuses",
-        "description": "Poppy upgrade (Bonuses from Poppy) - permanent bonus value",
+        "name": "Poppy - Bonuses from Poppy",
+        "description": "Upgrade level. Gives permanent bonuses in the real game (fishing XP, accuracy, damage, AFK gains, cash and more). Never reset.",
         "type": "number",
-        "warning": "Keep reasonable like 70-90"
+        "warning": "Keep reasonable like 70-90",
+        "verified": true
     },
     "272": {
         "name": "Poppy - Fishy Discount",
-        "description": "Poppy upgrade (Fishy Discount)",
-        "type": "number"
+        "description": "Upgrade level. Bluefin upgrades cost 10% less per level (diminishing).",
+        "type": "number",
+        "verified": true
     },
     "273": {
         "name": "Poppy - Juicy Worm",
-        "description": "Poppy upgrade (Juicy Worm)",
-        "type": "number"
+        "description": "Upgrade level. Each level adds 50 bluefin per catch.",
+        "type": "number",
+        "verified": true
     },
     "274": {
-        "name": "Poppy - Fishero Reset",
-        "description": "Poppy upgrade (Fishero Reset)",
+        "name": "Poppy - Fisheroo Reset",
+        "description": "How many Fisheroo Resets you have done. Each one costs 20x more. Cleared by Greatest Catch.",
         "type": "number",
-        "warning": "Keep reasonable like 30-40"
+        "warning": "Keep reasonable like 30-40",
+        "verified": true
     },
     "275": {
         "name": "Poppy - Fishing Buddy",
-        "description": "Poppy upgrade (Fishing Buddy)",
-        "type": "number"
+        "description": "Upgrade level. More bluefin per catch (up to level 5, more past 5 after the 6th Megafish).",
+        "type": "number",
+        "verified": true
     },
     "276": {
         "name": "Poppy - Lightning Quickness",
-        "description": "Poppy upgrade (Lightning Quickness)",
-        "type": "number"
+        "description": "Upgrade level. Shiny catches come 4% faster per level.",
+        "type": "number",
+        "verified": true
     },
     "277": {
         "name": "Poppy - Fisheroo Investing",
-        "description": "Poppy upgrade (Fisheroo Investing)",
-        "type": "number"
+        "description": "Upgrade level. Each level gives 1 more Reset Point per Fisheroo Reset.",
+        "type": "number",
+        "verified": true
     },
     "278": {
         "name": "Poppy - Multihook Fishing",
-        "description": "Poppy upgrade (Multihook Fishing)",
-        "type": "number"
+        "description": "Upgrade level. Each level adds 200 bluefin per catch.",
+        "type": "number",
+        "verified": true
     },
     "279": {
         "name": "Poppy - Greatest Catch",
-        "description": "Poppy upgrade (Greatest Catch) - needs to be +12, Counts all other 11 fishes in this value",
-        "type": "number"
+        "description": "Megafish caught. Each of the first 12 unlocks a perk (Tar Pit, bigger bonuses); past 12 each one raises Poppy's bonuses again.",
+        "type": "number",
+        "verified": true
     },
     "280": {
-        "name": "Roo Progress Tracker",
-        "description": "Tracks Roo system upgrade progress",
+        "name": "Poppy - Bluefin Caught This Run",
+        "description": "Bluefin caught since the last Fisheroo Reset. Shown in the Poppy menu.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "281": {
         "name": "Poppy - Fish (Yellow)",
@@ -1572,102 +1585,118 @@
         "type": "number"
     },
     "287": {
-        "name": "Roo Mode Flag",
-        "description": "Toggles normal vs Megafish mode",
+        "name": "Poppy - Tar Pit Open",
+        "description": "1 while the Poppy menu shows the Tar Pit, 0 for the bluefin pond. Needs 1 Megafish.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "288": {
-        "name": "Roo Catch Progress",
-        "description": "Tracks progress toward next Roo catch",
+        "name": "Poppy - Bluefin Catch Timer",
+        "description": "Seconds toward the next bluefin catch. Fills while fishing and from AFK time.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "289": {
-        "name": "Roo Silver Catch Progress",
-        "description": "Tracks silver tier Roo catch progress",
+        "name": "Poppy - Shiny Catch Timer",
+        "description": "Progress toward the next shiny fish catch. Fills while fishing and from AFK time.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "290": {
         "name": "Poppy - Reset Points",
-        "description": "Poppy reset points amount",
-        "type": "number"
+        "description": "Unspent Reset Points for the Reset Spirals. Earned by Fisheroo Reset, cleared by Greatest Catch.",
+        "type": "number",
+        "verified": true
     },
     "291": {
-        "name": "Poppy - Reset Points (Blue)",
-        "description": "Poppy reset points upgrades (blue)",
-        "type": "number"
+        "name": "Poppy - Reset Spiral: Bluefin Caught",
+        "description": "Reset Spiral level. Each level: +40% bluefin caught. Cleared by Greatest Catch.",
+        "type": "number",
+        "verified": true
     },
     "292": {
-        "name": "Poppy - Reset Points (Yellow)",
-        "description": "Poppy reset points upgrades (yellow)",
-        "type": "number"
+        "name": "Poppy - Reset Spiral: Shiny Speed and Luck",
+        "description": "Reset Spiral level. Each level: +30% shiny fishing speed and luck. Cleared by Greatest Catch.",
+        "type": "number",
+        "verified": true
     },
     "293": {
-        "name": "Poppy - Reset Points (Green)",
-        "description": "Poppy reset points upgrades (green)",
-        "type": "number"
+        "name": "Poppy - Reset Spiral: Cheaper Upgrades",
+        "description": "Reset Spiral level. Each level: all upgrades 15% cheaper. Cleared by Greatest Catch.",
+        "type": "number",
+        "verified": true
     },
     "294": {
-        "name": "Poppy - Reset Points (Red)",
-        "description": "Poppy reset points upgrades (red)",
-        "type": "number"
+        "name": "Poppy - Reset Spiral: Other Spirals Stronger",
+        "description": "Reset Spiral level. Each level: the other spirals 4% stronger. Cleared by Greatest Catch.",
+        "type": "number",
+        "verified": true
     },
     "295": {
-        "name": "Poppy - Reset Points (Silver)",
-        "description": "Poppy reset points upgrades (silver)",
-        "type": "number"
+        "name": "Poppy - Reset Spiral: Tartar Caught",
+        "description": "Reset Spiral level. Each level: +20% tartar fish caught. Cleared by Greatest Catch.",
+        "type": "number",
+        "verified": true
     },
     "296": {
-        "name": "Poppy - Tartar Amount",
-        "description": "Poppy Tar pit tartar amount",
-        "type": "number"
+        "name": "Poppy - Tartar Fish",
+        "description": "Tartar fish you have to spend on Tar Pit upgrades. Reset by Fisheroo Reset.",
+        "type": "number",
+        "verified": true
     },
     "297": {
         "name": "Poppy - Super Yummy Bait",
-        "description": "Poppy Tar pit upgrade (Super Yummy Bait)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. Each level adds 100 bluefin per catch.",
+        "type": "number",
+        "verified": true
     },
     "298": {
         "name": "Poppy - Bonus Catching",
-        "description": "Poppy Tar pit upgrade (Bonus Catching)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. More shiny fish per shiny catch.",
+        "type": "number",
+        "verified": true
     },
     "299": {
         "name": "Poppy - Bluefin Frenzy",
-        "description": "Poppy Tar pit upgrade (Bluefin Frenzy)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. +8% bluefin caught per level.",
+        "type": "number",
+        "verified": true
     },
     "300": {
         "name": "Poppy - Fishy Reductions",
-        "description": "Poppy Tar pit upgrade (Fishy Reductions)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. Bluefin upgrades cost 15% less per level (diminishing).",
+        "type": "number",
+        "verified": true
     },
     "301": {
         "name": "Poppy - Super Tarbait",
-        "description": "Poppy Tar pit upgrade (Super Tarbait)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. Tartar fish come 5% faster per level.",
+        "type": "number",
+        "verified": true
     },
     "302": {
         "name": "Poppy - Tarrific Resets",
-        "description": "Poppy Tar pit upgrade (Tarrific Resets)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. Each level gives 1 more Reset Point per Fisheroo Reset.",
+        "type": "number",
+        "verified": true
     },
     "303": {
         "name": "Poppy - Mongo Multipliers",
-        "description": "Poppy Tar pit upgrade (Mongo Multipliers)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. Multipliers show up more often in shiny fishing.",
+        "type": "number",
+        "verified": true
     },
     "304": {
         "name": "Poppy - King Worm",
-        "description": "Poppy Tar pit upgrade (King Worm)",
-        "type": "number"
+        "description": "Tar Pit upgrade level. Each level adds 1000 bluefin per catch; after the 11th Megafish all upgrades get 5% cheaper per level.",
+        "type": "number",
+        "verified": true
     },
     "305": {
-        "name": "Poppy - Tartar Progress",
-        "description": "Poppy Tar pit tartar fishing progress bar (0-100)",
-        "type": "number"
+        "name": "Poppy - Tartar Catch Timer",
+        "description": "Seconds toward the next tartar fish. Fills after the first Megafish, also from AFK time.",
+        "type": "number",
+        "verified": true
     },
     "306": {
         "name": "Farming Autofeeder",
