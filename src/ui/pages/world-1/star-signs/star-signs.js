@@ -325,6 +325,26 @@ const StarSignCard = ({ sign, onClick }) => {
 const getClaimedRewardTotal = (list) =>
     list.reduce((total, sign) => total + (toInt(sign.claimed, 0) ? toNum(sign.rewardPoints, 0) : 0), 0);
 
+// OptionsListAccount[40] is the star points balance the game spends on star signs (claiming a sign adds its points,
+// unlocking a star sign takes its cost), so a change moves it by what the signs give or take back, never below zero:
+// points already spent on star signs stay spent.
+// A save reads the balance BEFORE the signs, so both come from one moment: a sign the game claims in between changes
+// the balance after this read, and the write's `expect` refuses it instead of counting its points twice. An account
+// that never had points holds nothing there yet (0).
+const readStarPoints = async () => {
+    const read = await gga("OptionsListAccount[40]");
+    return { read, balance: read === undefined || read === null || read === "" ? 0 : Number(read) };
+};
+
+// The balance write for a change, or null when the claims don't change. A balance that isn't a number is refused, not
+// saved over.
+const starPointsWrite = (points, list, nextSigns) => {
+    const change = getClaimedRewardTotal(nextSigns) - getClaimedRewardTotal(list);
+    if (!change) return null;
+    if (!Number.isFinite(points.balance)) throw new Error("Star points unreadable. Nothing changed.");
+    return { path: "OptionsListAccount[40]", value: Math.max(0, points.balance + change), expect: points.read };
+};
+
 const syncActiveSign = (activeSign, nextSigns) => {
     if (!activeSign.val) return;
     const updated = nextSigns.find((sign) => sign.index === activeSign.val.index);
@@ -386,6 +406,7 @@ const StarSignsTab = () => {
         if (!signs.val) return;
 
         try {
+            const starPoints = await readStarPoints(); // before the signs: one moment for both
             const list = await readSigns();
             const sign = list.find((entry) => entry.index === index);
             if (!sign) return;
@@ -413,11 +434,8 @@ const StarSignsTab = () => {
                 writes.push({ path: `StarSignProg[${sign.index}][1]`, value: claimed });
             }
 
-            const currentTotal = getClaimedRewardTotal(list);
-            const nextTotal = getClaimedRewardTotal(nextSigns);
-            if (nextTotal !== currentTotal) {
-                writes.push({ path: "OptionsListAccount[40]", value: nextTotal });
-            }
+            const points = starPointsWrite(starPoints, list, nextSigns);
+            if (points) writes.push(points);
 
             await writeManyVerified(writes);
 
@@ -480,6 +498,7 @@ const StarSignsTab = () => {
         const runFn = randomize ? runRandom : runUnlock;
         await runFn(async () => {
             try {
+                const starPoints = await readStarPoints(); // before the signs: one moment for both
                 const list = await readSigns();
                 const writes = [];
                 const nextSigns = list.map((sign) => {
@@ -503,11 +522,8 @@ const StarSignsTab = () => {
                     return { ...sign, players, unlocked: true, claimed: 1 };
                 });
 
-                const currentTotal = getClaimedRewardTotal(list);
-                const nextTotal = getClaimedRewardTotal(nextSigns);
-                if (nextTotal !== currentTotal) {
-                    writes.push({ path: "OptionsListAccount[40]", value: nextTotal });
-                }
+                const points = starPointsWrite(starPoints, list, nextSigns);
+                if (points) writes.push(points);
 
                 await writeManyVerified(writes);
 

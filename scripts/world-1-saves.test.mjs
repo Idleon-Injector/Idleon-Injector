@@ -494,3 +494,111 @@ test("star signs: Reset all clears a sign completed in the game since the page o
     assert.equal(g.StarSignProg[2][0], "");
     g.StarSignProg[2] = saved;
 });
+
+// OptionsListAccount[40] is the star points balance the game spends on star signs: a change moves it by the sign's
+// points (A-2 gives 2), so points already spent on star signs stay spent.
+test("star signs: star points move by what a sign gives, so points spent on star signs stay spent", async () => {
+    const saved = [...g.StarSignProg[1]];
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[1] = ["_a", 1]; // A-2 is done (2 players) and claimed: it gave 2 points
+    g.OptionsListAccount[40] = 5; // what's left after spending points on star signs
+    try {
+        const root = await openSign("A-2");
+        const detail = detailOf(root);
+        removeChip(root, 0);
+        await until(() => saveState(detail) === "success", "the save");
+        assert.equal(Number(g.OptionsListAccount[40]), 3, "unclaiming takes back the sign's 2 points, not the total");
+        await byClass(detail, "save-state__undo")[0].listeners.click({});
+        await until(() => g.StarSignProg[1][0] === "_a", "the undo");
+        await until(() => Number(g.OptionsListAccount[40]) === 5, "and claiming again gives them back");
+    } finally {
+        g.StarSignProg[1] = saved;
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
+
+test("star signs: star points that aren't a number are refused, and nothing is written", async () => {
+    const saved = [...g.StarSignProg[1]];
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[1] = ["_a", 1];
+    g.OptionsListAccount[40] = "lots";
+    try {
+        const root = await openSign("A-2");
+        const detail = detailOf(root);
+        const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+        const before = writes();
+        removeChip(root, 0);
+        await until(() => saveState(detail) === "error", "the save to fail");
+        assert.equal(writes(), before, "nothing was written");
+        assert.equal(g.StarSignProg[1][0], "_a");
+        assert.equal(g.OptionsListAccount[40], "lots");
+    } finally {
+        g.StarSignProg[1] = saved;
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
+
+test("star signs: points the game spends while a save runs aren't given back", async () => {
+    const saved = [...g.StarSignProg[1]];
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[1] = ["_a", 1];
+    g.OptionsListAccount[40] = 5;
+    // The game spends 4 points on a star sign right after the page read the balance.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (String(url).includes("/gga/read") && String(options?.body ?? "").includes("OptionsListAccount[40]")) {
+            g.OptionsListAccount[40] = 1;
+        }
+        return response;
+    };
+    try {
+        const root = await openSign("A-2");
+        const detail = detailOf(root);
+        removeChip(root, 0);
+        await until(() => ["success", "error"].includes(saveState(detail)), "the save");
+        assert.equal(saveState(detail), "error", "the save says the game changed it");
+        assert.equal(Number(g.OptionsListAccount[40]), 1, "the spent points stay spent");
+    } finally {
+        globalThis.fetch = realFetch;
+        g.StarSignProg[1] = saved;
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
+
+test("star signs: a sign the game claims during a save isn't counted twice", async () => {
+    const saved = g.StarSignProg.map((entry) => [...entry]);
+    const savedPoints = g.OptionsListAccount[40];
+    // Every sign done and claimed but A-2 (it needs 2 players and gives 2 points); 5 points to spend.
+    g.StarSignProg.forEach((_, i) => (g.StarSignProg[i] = ["_abc".slice(0, 1 + (i % 3)), 1]));
+    g.StarSignProg[1] = ["_", 0];
+    g.OptionsListAccount[40] = 5;
+    const realFetch = globalThis.fetch;
+    try {
+        const root = await openPage(STAR_SIGNS, (node) => byClass(node, "starsign-card").length > 0);
+        // Right after Unlock all reads the signs, the game claims A-2 itself and adds its 2 points.
+        let claimedInGame = false;
+        globalThis.fetch = async (url, options) => {
+            const response = await realFetch(url, options);
+            const path = String(url).includes("/gga/read") ? JSON.parse(options?.body ?? "{}").path : null;
+            // The read asks for "gga.StarSignProg".
+            if (/(^|\.)StarSignProg$/.test(path ?? "") && !claimedInGame) {
+                claimedInGame = true;
+                g.StarSignProg[1] = ["_a", 1];
+                g.OptionsListAccount[40] = 7;
+            }
+            return response;
+        };
+        const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+        const before = writes();
+        const unlock = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Unlock all");
+        await unlock.listeners.click({ preventDefault() {}, currentTarget: unlock });
+        await until(() => claimedInGame && writes() > before, "Unlock all to save");
+        await tick();
+        assert.equal(Number(g.OptionsListAccount[40]), 7, "A-2's points count once");
+    } finally {
+        globalThis.fetch = realFetch;
+        saved.forEach((entry, i) => (g.StarSignProg[i] = entry));
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
