@@ -1537,7 +1537,7 @@
     "253": {
         "name": "Orion - Feathers",
         "description": "Feathers you have to spend on Orion's upgrades. Set back to 5 by Feather Restart and Mega Reset. Big values like 5e50 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "254": {
@@ -1600,7 +1600,7 @@
     "263": {
         "name": "Orion - Feathers Made This Run",
         "description": "Feathers made since the last Feather Restart or Mega Reset. Orion's next upgrade unlocks when this reaches its target. Big values like 5e50 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "264": {
@@ -1624,7 +1624,7 @@
     "267": {
         "name": "Poppy - Bluefin Fish",
         "description": "Bluefin fish you have to spend on upgrades. Big values like 5e50 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "268": {
@@ -2689,13 +2689,13 @@
     "445": {
         "name": "Best Windwalker Max Damage (Tome)",
         "description": "Highest Windwalker max damage in Tempest mode, saved when the game shows a higher one in the Windwalker stats. Counts for the Tome.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "446": {
         "name": "Best Arcane Cultist Max Damage (Tome)",
         "description": "Highest Arcane Cultist max damage in Arcanist mode, saved when the game shows a higher one in the Arcane Cultist stats. Counts for the Tome.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "447": {

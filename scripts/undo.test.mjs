@@ -795,8 +795,8 @@ test("a page's loads go on after one failed in a way the policy didn't catch", a
     assert.equal(await run(async () => "read"), "read");
 });
 
-// Bluefin counts run into numbers like 5e50; a field that drops the "e" would save 550.
-test("account options: Poppy's bluefin (267) keeps a big value like 5e50 as typed", async () => {
+// Bluefin counts run into numbers like 5e50; a field that drops the "e" would save 550 (#161).
+test("account options: Poppy's bluefin (267) saves 5e50 as a number and refuses text", async () => {
     const before = ola[267];
     const schemaBefore = store.data.accountSchema;
     // The page reads its slot names and editors from the schema; the fake game doesn't serve it, so hand it over.
@@ -814,7 +814,15 @@ test("account options: Poppy's bluefin (267) keeps a big value like 5e50 as type
         field.value = "5e50";
         field.listeners.input({ target: field });
         wrapper.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
-        await until(() => Number(ola[267]) === 5e50, "5e50 to be saved");
+        await until(() => ola[267] === 5e50, "5e50 to be saved as a number");
+        const row = optionRow();
+        await until(() => /save-state--success/.test(saveState(row)), "the save's ✓");
+        field.value = "abc";
+        field.listeners.input({ target: field });
+        wrapper.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => /save-state--error/.test(saveState(row)), "the refusal");
+        assert.equal(text(byClass(row, "save-state__label")[0]), "not a number");
+        assert.equal(ola[267], 5e50, "the game keeps 5e50");
     } finally {
         ola[267] = before;
         store.data.accountSchema = schemaBefore;

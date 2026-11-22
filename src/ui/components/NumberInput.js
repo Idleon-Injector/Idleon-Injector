@@ -115,7 +115,8 @@ function parseInput(raw, callerParser = null) {
  *
  * Props:
  *   value       {State}     VanJS state holding the current numeric value as a string.
- *   mode        {string}    "int" (default) | "float" — whether decimals are allowed.
+ *   mode        {string}    "int" (default) | "float" — whether decimals are allowed | "any" — nothing is
+ *                           dropped while typing, so short forms like 5e50 stay; the caller checks the text on save.
  *   formatter   {Function}  (rawString) → displayString. Enables formatted mode.
  *   parser      {Function}  (displayString) → rawString | null. Required with formatter.
  *   onDecrement {Function}  Called when the − button is clicked.
@@ -149,7 +150,7 @@ export const NumberInput = ({
 }) => {
     const { oninput: userOninput, onfocus: userOnfocus, onblur: userOnblur, ...restInputProps } = inputProps;
 
-    const allowDecimal = mode === "float";
+    const allowDecimal = mode === "float" || mode === "any";
 
     const commit = (n) => String(allowDecimal ? n : Math.round(n));
 
@@ -274,12 +275,15 @@ export const NumberInput = ({
         }
 
         // Strip characters that aren't valid for this mode.
-        const cleaned = allowDecimal
-            ? raw
-                  .replace(/[^0-9.-]/g, "")
-                  .replace(/(?!^)-/g, "")
-                  .replace(/(\..*)\./g, "$1")
-            : raw.replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "");
+        const cleaned =
+            mode === "any"
+                ? raw
+                : allowDecimal
+                  ? raw
+                        .replace(/[^0-9.-]/g, "")
+                        .replace(/(?!^)-/g, "")
+                        .replace(/(\..*)\./g, "$1")
+                  : raw.replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "");
 
         if (e.target.value !== cleaned) e.target.value = cleaned;
         value.val = e.target.value;
