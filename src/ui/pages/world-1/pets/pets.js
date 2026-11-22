@@ -316,11 +316,14 @@ const CompanionsTab = () => {
     const setCompanionCheat = (wanted) => executeCheatAction(COMPANION_CHEAT, wanted);
 
     // The change is built after the re-read so a list saved from the Config tab, or a token picked in the game,
-    // isn't overwritten.
-    const writeSelection = (getChange) =>
-        runWrite(
+    // isn't overwritten. `recheck`, when given, is asked again on the tokens read after the save: a token the game
+    // gave after the save's own read refuses the change then, and the tiers are saved again without it.
+    const writeSelection = (getChange, recheck = null) => {
+        // This save's number, taken as it starts: a newer save keeps its own message and tokens if this one fails.
+        let started;
+        return runWrite(
             async () => {
-                selectionWrites++;
+                started = ++selectionWrites;
                 writeError.val = "";
                 if (error.val || !companions.val.length) throw new Error("Refresh pet data before changing tiers");
                 // The tokens first: the saved tiers are read against them (a pet with a token has no tier). The picks
@@ -344,35 +347,50 @@ const CompanionsTab = () => {
                 }
                 let entries;
                 // Chosen pets also turn the cheat on at every start; none takes it off that list.
-                const { result, config } = await saveConfigPart(async (now) => {
-                    // The tokens and the tiers from the config as they are in the save's turn, so a token the game
-                    // gave meanwhile is refused and a list saved meanwhile (the Config tab) isn't overwritten; the
-                    // change asked for again on them.
-                    tokens.val = await readComputed("companions", "petTokens");
-                    showSelection(now);
-                    const { normal, plus } = getChange();
-                    entries = companions.val
-                        .filter(({ id }) => normal.has(id) || plus.has(id))
-                        .map(({ id }) => `${id}:${plus.has(id) ? 1 : 0}`);
-                    return {
-                        // An empty list would mean every pet at Pets+ once the startup cheat runs again.
-                        cheatConfig: { w1: { companion: { companions: entries.join(",") || "none" } } },
-                        startupCheats: startupWith(now.startupCheats, COMPANION_CHEAT, entries.length > 0),
-                    };
-                });
+                const saveTiers = (change) =>
+                    saveConfigPart(async (now) => {
+                        // The tokens and the tiers from the config as they are in the save's turn, so a token the game
+                        // gave meanwhile is refused and a list saved meanwhile (the Config tab) isn't overwritten; the
+                        // change asked for again on them.
+                        tokens.val = await readComputed("companions", "petTokens");
+                        showSelection(now);
+                        const { normal, plus } = change();
+                        entries = companions.val
+                            .filter(({ id }) => normal.has(id) || plus.has(id))
+                            .map(({ id }) => `${id}:${plus.has(id) ? 1 : 0}`);
+                        return {
+                            // An empty list would mean every pet at Pets+ once the startup cheat runs again.
+                            cheatConfig: { w1: { companion: { companions: entries.join(",") || "none" } } },
+                            startupCheats: startupWith(now.startupCheats, COMPANION_CHEAT, entries.length > 0),
+                        };
+                    });
+                let { result, config } = await saveTiers(getChange);
                 if (result.message.includes("kept its old settings")) throw new Error(result.message);
+                let late = null;
+                if (recheck) {
+                    tokens.val = await readComputed("companions", "petTokens");
+                    try {
+                        recheck();
+                    } catch (refused) {
+                        // The tiers as the config holds them, less the pets with a token (showSelection leaves them out).
+                        late = refused;
+                        ({ result, config } = await saveTiers(() => ({ normal: normalIds.val, plus: plusIds.val })));
+                        if (result.message.includes("kept its old settings")) throw new Error(result.message);
+                    }
+                }
                 await setCompanionCheat(entries.length > 0);
                 await readSelection(config);
+                if (late) throw late;
             },
             {
-                // Part of it may have landed: the cards show what is saved now.
+                // Part of it may have landed: the cards show what is saved now. A save started since is newer: it
+                // keeps its own message and tokens, and reads its own tiers.
                 onError: (error) => {
+                    if (started !== selectionWrites) return;
                     writeError.val = error.message;
-                    // A save started since is newer than this read: it keeps its own tokens and reads its own tiers.
-                    const writes = selectionWrites;
                     void readComputed("companions", "petTokens")
                         .then((read) => {
-                            if (writes !== selectionWrites) return;
+                            if (started !== selectionWrites) return;
                             tokens.val = read;
                             return readSelection();
                         })
@@ -380,6 +398,7 @@ const CompanionsTab = () => {
                 },
             }
         );
+    };
 
     const isBusy = () => loading.val || writeStatus.val === "loading";
 
@@ -393,9 +412,13 @@ const CompanionsTab = () => {
         if (isBusy()) return;
         const shown = isToken(companionId);
         if (shown && tier === "normal") return;
-        await writeSelection(() => {
-            // A token the game gave the pet since the press: Pets+ on top shows the wrong bonus, and Off can't take it.
+        // A token the game gave the pet since the press: Pets+ on top shows the wrong bonus, and Off can't take it.
+        // Asked before the save and again after it, for a token given while it saved.
+        const refuseToken = () => {
             if (!shown && isToken(companionId) && tier !== "normal") throw new Error("This pet has a token now.");
+        };
+        await writeSelection(() => {
+            refuseToken();
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
             normal.delete(companionId);
@@ -403,7 +426,7 @@ const CompanionsTab = () => {
             if (tier === "normal") normal.add(companionId);
             if (tier === "plus") plus.add(companionId);
             return { normal, plus, picks: shown ? withoutToken(companionId) : tokens.val.picks };
-        });
+        }, refuseToken);
     };
 
     const handleToken = async (companionId) => {
@@ -576,6 +599,7 @@ const CompanionsTab = () => {
                     ],
                 })),
                 tools,
+                busy: isBusy,
                 toolsLabel: (activeId) => {
                     const section = sectionOf(activeId);
                     const shown = companionsIn(section).filter(inView).length;
