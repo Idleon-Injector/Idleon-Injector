@@ -462,9 +462,10 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
                 if (id === status.runs) status.val = null;
                 return { ok: false, cancelled: true, result };
             }
+            // Done only once onSuccess finished: if it throws, the run failed and is said so, not done as well.
+            if (typeof onSuccess === "function") onSuccess(result);
             end("success");
             status.val = successState;
-            if (typeof onSuccess === "function") onSuccess(result);
             if (successMs > 0) scheduleClear(successMs);
             return { ok: true, result };
         } catch (error) {

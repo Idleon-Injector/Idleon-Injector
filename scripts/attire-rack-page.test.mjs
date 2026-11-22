@@ -50,12 +50,23 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
 let holdWrite = null;
 let failReadAfterWrite = false;
 let failNextStatus = false;
+// `holdStatusAnswer`: a promise the next status read's answer, read from the game at once, waits on before it's sent.
+let holdStatusAnswer = null;
 const computedRead = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
     const { name } = await req.json();
     if (name === "status" && failNextStatus) {
         failNextStatus = false;
         return res.status(500).json({ error: "The game didn't answer" });
+    }
+    if (name === "status" && holdStatusAnswer) {
+        const held = holdStatusAnswer;
+        holdStatusAnswer = null;
+        const read = Object.create(res);
+        read.json = (body) => ((read.answer = body), read);
+        await computedRead(req, read);
+        await held;
+        return res.status(read.statusCode).json(read.answer);
     }
     return computedRead(req, res);
 });
@@ -854,6 +865,12 @@ test("a pick for the character in play writes nothing on the one she switched to
     const [field] = elements(node).filter((entry) => entry.nodeName === "select");
     const live = gga.EquipmentOrder[0][15];
     const next = live === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    // Main's saved copy: its ID, quantity and upgrade map.
+    const savedCopy = () => {
+        const saved = gga.PlayerDATABASE.h.Lumi_Main.h;
+        return JSON.stringify([saved.EquipmentOrder[0][15], saved.EquipmentQuantity[0][15], saved.EquipmentMap[0][15]]);
+    };
+    const savedBefore = savedCopy();
     let release;
     try {
         holdWrite = new Promise((resolve) => (release = resolve));
@@ -864,6 +881,7 @@ test("a pick for the character in play writes nothing on the one she switched to
         await until(() => /save-state--error/.test(saveState(node)), "the refusal in the row");
         assert.match(text(node), /Character changed\. Refresh\./);
         assert.equal(gga.EquipmentOrder[0][15], live, "nothing was written on the character now in play");
+        assert.equal(savedCopy(), savedBefore, "nor on Main's saved copy: the whole batch was refused");
     } finally {
         release?.();
         holdWrite = null;
@@ -927,4 +945,143 @@ test("a card click keeps an outfit choice saved elsewhere between its read and i
     await card(root, names[2]).listeners.click({});
     await until(() => pressed(root, names[2]), "the card to show on");
     assert.equal(await savedOutfits(), "EquipmentGown3,EquipmentGown4,EquipmentGown5");
+});
+
+// #113 (CodeRabbit on #110): two row saves at once; the first one's read of the game answers after the second one's
+// newer read, and put the second row back to the attire it wore before its save.
+test("an older read of the game that answers last doesn't put back what a newer one showed", async () => {
+    const root = await open();
+    const main = row(root, "Lumi_Main");
+    const alt = row(root, "Lumi_Alt");
+    const live = gga.EquipmentOrder[0][15];
+    const mainNext = live === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    const altBefore = gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15];
+    const altNext = altBefore === "EquipmentGown2" ? "EquipmentGown5" : "EquipmentGown2";
+    const mainSaved = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15];
+    let answer;
+    let release;
+    try {
+        holdStatusAnswer = new Promise((resolve) => (answer = resolve));
+        const [mainField] = elements(main).filter((entry) => entry.nodeName === "select");
+        mainField.listeners.change({ target: { value: mainNext } }); // its read waits
+        await until(() => holdStatusAnswer === null, "Main's read to wait");
+        const [altField] = elements(alt).filter((entry) => entry.nodeName === "select");
+        altField.listeners.change({ target: { value: altNext } });
+        await until(() => /save-state--success/.test(saveState(alt)), "Alt's save");
+        const altShown = shown(alt);
+        holdWrite = new Promise((resolve) => (release = resolve)); // Main's write waits after its read lands
+        answer();
+        await until(() => holdWrite === null, "Main's read to land and its write to wait");
+        assert.equal(shown(alt), altShown, "Alt still shows its new attire");
+        assert.equal(gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15], altNext);
+    } finally {
+        answer?.();
+        release?.();
+        holdStatusAnswer = holdWrite = null;
+    }
+    await until(() => /save-state--(success|error)/.test(saveState(main)), "Main's save to end");
+    gga.EquipmentOrder[0][15] = live;
+    gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] = mainSaved;
+    gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15] = altBefore;
+});
+
+// #113 (CodeRabbit on #110): the read after a failed card save and a Refresh after it have the same `choiceSaves`;
+// the recovery read answered last and put back the choice from before the Refresh.
+test("the read after a failed card save doesn't overwrite a newer Refresh", async () => {
+    await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: "all" } } } });
+    const root = await open();
+    await until(() => names.every((name) => pressed(root, name)), "every card on");
+    const onCount = () => names.filter((name) => pressed(root, name)).length;
+    const reloads = holdReloads();
+    const releaseUpdate = holdConfigSave();
+    try {
+        refuseAttire = 1;
+        void card(root, names[0]).listeners.click({});
+        await until(() => requests.at(-1) === "POST /api/config/save", "the card save to wait");
+        reloads.hold(); // the read after the failure waits
+        releaseUpdate();
+        await until(() => reloads.holding() > 0, "the read after the failure");
+        await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: "EquipmentGown4" } } } }); // another tab
+        reloads.passNew();
+        await button(root, "Refresh").listeners.click({});
+        await until(() => onCount() === 1, "Refresh to show the newer choice");
+        await reloads.release();
+        assert.equal(onCount(), 1, "the older read's answer is dropped");
+    } finally {
+        releaseUpdate();
+        await reloads.release();
+        refuseAttire = 0;
+        await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: "all" } } } });
+    }
+});
+
+// #113 (CodeRabbit on #110): an undo's stat update failed after the player switched characters, and its failure line
+// was tagged to the character now in play, so the owing character's update didn't take it away.
+test("an undo's stat failure belongs to the character it ran for, though another is in play when it fails", async () => {
+    const root = await open();
+    const node = row(root, "Lumi_Main");
+    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    field.listeners.change({ target: { value: next } });
+    await until(() => /save-state--success/.test(saveState(node)), "the change");
+    const [action] = (await fetchChanges()).actions;
+    const held = [];
+    holdStats = (release) => held.push(release); // every stat update waits from here
+    let mainLive;
+    try {
+        await undoAction(action.id);
+        await until(() => held.length > 0, "the undo's stat update to wait");
+        mainLive = gga.EquipmentOrder[0][15];
+        gga.UserInfo[0] = "Lumi_Alt"; // she switches characters in the game, and picks attire for Alt
+        const alt = row(root, "Lumi_Alt");
+        const [altField] = elements(alt).filter((entry) => entry.nodeName === "select");
+        const waiting = held.length;
+        altField.listeners.change({
+            target: { value: next === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4" },
+        });
+        await until(() => held.length > waiting, "Alt's pick to read Alt in play and wait on its stat update");
+        holdStats = null;
+        held.splice(0).forEach((release) => release({ ok: false, message: "The game is busy" }));
+        await until(() => /Undone, but the stats weren't worked out again/.test(text(root)), "the undo's failure");
+    } finally {
+        holdStats = null;
+        held.splice(0).forEach((release) => release());
+        gga.UserInfo[0] = "Lumi_Main";
+        if (mainLive !== undefined) gga.EquipmentOrder[0][15] = mainLive; // one live copy in the fake game: Main's again
+    }
+    const ran = commands.length;
+    await button(root, "Refresh").listeners.click({}); // Main in play again: Refresh runs the update it owes
+    await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run Main's owed stat update");
+    await until(() => !/Undone, but the stats/.test(text(root)), "the failure line to go once Main's update ran");
+});
+
+// #113 (CodeRabbit on #110): a stat update that worked takes back a row's failure only when that character owed it.
+// Main's pick landed but couldn't be read back, so no update is owed; Give everyone's update for Main leaves it.
+test("a stat update a character didn't owe leaves its row's failure", async () => {
+    const root = await open();
+    const main = row(root, "Lumi_Main");
+    const [field] = elements(main).filter((entry) => entry.nodeName === "select");
+    const live = gga.EquipmentOrder[0][15];
+    const picked = live === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
+    failReadAfterWrite = true;
+    try {
+        field.listeners.change({ target: { value: picked } });
+        await until(() => /couldn't read the game again/.test(text(main)), "Main's failure in its row");
+    } finally {
+        failReadAfterWrite = false;
+        failNextStatus = false;
+    }
+    const [everyone] = elements(root).filter(
+        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
+    );
+    everyone.listeners.change({ target: { value: "EquipmentGown2" } });
+    const give = button(root, "Give everyone");
+    const ran = commands.length;
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await until(() => commands.slice(ran).includes("wide attirestats"), "Give everyone's stat update for Main");
+    await until(() => gga.EquipmentOrder[0][15] === "EquipmentGown2", "Main to wear it");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.match(text(main), /couldn't read the game again/, "the failure stays");
+    gga.EquipmentOrder[0][15] = live;
 });

@@ -35,6 +35,15 @@ const fieldValue = (root, name) => {
 const levelShown = (root, index) =>
     String(elements(root).filter((node) => node.nodeName === "input")[index]?.attributes.value ?? "");
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
+// Whether text matching `pattern` is on screen: the page keeps its read error in the page, hidden until it's needed.
+const showsText = (root, pattern) => {
+    const node = elements(root)
+        .filter((entry) => pattern.test(text(entry)))
+        .at(-1);
+    for (let at = node; at; at = at.parentNode)
+        if (String(at.attributes?.class ?? "").includes("is-hidden-until-ready")) return false;
+    return Boolean(node);
+};
 const writes = () => requests.filter((entry) => /write/.test(entry)).length;
 
 async function until(check, what) {
@@ -440,6 +449,9 @@ test("salt-lick.js: a Max all the game refused in part shows the levels the game
 // CodeRabbit on #110: Refresh waits for a Max all, and the bulk buttons wait for the read after one the game refused in
 // part, so an older read can't put earlier levels back over a newer write.
 test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait for the read after it", async () => {
+    let write;
+    let reread;
+    let pressed;
     const levels = game.gga.SaltLick;
     const caps = [0, 1].map((index) => Number(game.gga.CustomLists.h.SaltLicks[index][4]));
     levels[0] = caps[0] + 5;
@@ -450,11 +462,11 @@ test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait 
         const named = (label) => buttonsNamed(root, label);
         const max = () => named("Max all").find((node) => !node.attributes.disabled);
         await until(() => max() && levelShown(root, 0) === String(caps[0] + 5), "Salt Lick");
-        const write = holdNext((url) => url.endsWith("/game/gga/write-many"));
-        const pressed = click(max());
+        write = holdNext((url) => url.endsWith("/game/gga/write-many"));
+        pressed = click(max());
         await until(() => write.reached, "the Max all write to be sent");
         await until(() => named("Refresh").every((node) => node.attributes.disabled), "Refresh to wait for Max all");
-        const reread = holdNext((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
+        reread = holdNext((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
         write.release();
         await until(() => reread.reached, "the read after the refused Max all");
         await until(
@@ -465,7 +477,11 @@ test("salt-lick.js: Refresh waits for a Max all, and Max all and Reset all wait 
         await pressed;
         await until(() => max() && levelShown(root, 0) === String(caps[0]), "the row to show what the game holds");
     } finally {
+        // A wait that failed lets the held requests go, and the Max all end, before the levels are put back.
         held = null;
+        write?.release();
+        reread?.release();
+        await Promise.allSettled([pressed]);
         Object.defineProperty(levels, 1, { value: 0, writable: true, configurable: true });
         levels[0] = 0;
     }
@@ -560,6 +576,7 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
             () => bulk().every((node) => !node.attributes.disabled) && levelShown(root, 0) === String(caps[0] + 5),
             "Salt Lick"
         );
+        assert.equal(showsText(root, /SALT LICK READ FAILED/), false, "no read failed yet");
         // Max all reads the levels first to plan its writes; the read after its refusal is the second one.
         let reads = 0;
         const reread = holdNext(
@@ -569,7 +586,7 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
         await until(() => reread.reached, "the read after the refused Max all");
         reread.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));
         await pressed;
-        await until(() => /SALT LICK READ FAILED/.test(text(root)), "the failed read to be said");
+        await until(() => showsText(root, /SALT LICK READ FAILED/), "the failed read to be said, on screen");
         await until(
             () => bulk().every((node) => node.attributes.disabled),
             "the bulk actions to wait after the failed read"
@@ -646,9 +663,12 @@ test("islands: a reload after an undo waits for a Set all still running", async 
         await until(() => slow.reached, "Rando's Set all to be sent");
         const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
         await undoAction(action.id);
+        // The Islands pages earlier tests opened reload at once; this one's reload waits for its Set all.
+        await settle(100);
+        const others = reads.count();
         slow.release();
         await rando;
-        await until(() => reads.count() > 0, "the reload after the undo");
+        await until(() => reads.count() > others, "this page's reload after the undo");
         reads.release();
         await until(() => !named("Refresh")[0].attributes.disabled, "the reload to end");
         assert.equal(fieldValue(root, "% Loot"), "200", "Rando's Set all stays shown");
@@ -729,9 +749,9 @@ test("salt-lick.js: the reload after an undo and the read after a refused Max al
         const reads = holdAnswers((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
         write.release();
         await until(() => reads.count() > 0, "a read after the refused Max all");
-        // A read that didn't wait for the first would be sent within a config read or two.
+        // A read that didn't wait for the first would be sent by now.
         await fetchConfig();
-        await fetchConfig();
+        await settle(200);
         assert.equal(reads.count(), 1, "the second read waits for the first");
         const second = holdAnswers((url, body) => url.endsWith("/game/gga/read") && body.path === "gga.SaltLick");
         reads.release();

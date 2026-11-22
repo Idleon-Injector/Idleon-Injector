@@ -165,6 +165,9 @@ const WardrobePage = () => {
     let undone = reloadPlace.rawVal;
     const load = () =>
         runLoad(async () => {
+            // A load is newer than every preview and recheck before it: an Apply whose recheck read the game before
+            // this load (a reload after an undo) doesn't write that plan, though the load hasn't read anything yet.
+            previewRun++;
             const target = reloadPlace.rawVal;
             if (target && target !== undone) {
                 undone = target;
@@ -234,7 +237,9 @@ const WardrobePage = () => {
                 const plan = await planFor();
                 // A loadout picked meanwhile isn't the one asked about: Apply stops quietly, and its preview stays.
                 if (selected.val !== asked) return { cancelled: true };
-                if (plan.fingerprint !== shown.fingerprint) {
+                // A preview started during the recheck (a reload after an undo, say) is newer than it: the recheck may
+                // have read the game before that change, though its plan matches the one shown.
+                if (run !== previewRun || plan.fingerprint !== shown.fingerprint) {
                     // A newer preview of this loadout (a reload after an undo, say) shows its own plan; one that failed
                     // keeps its reason said.
                     if (run === previewRun) preview.val = plan;
@@ -295,8 +300,6 @@ const WardrobePage = () => {
         if (busy()) return;
         if (!label) return saveSaid.say("refused", "Give the loadout a name first.");
         if (label.length > 80) return saveSaid.say("refused", "A name has 80 characters at most.");
-        if (saved.val.length >= MAX_SAVED && unsaved?.label !== label)
-            return saveSaid.say("refused", `${MAX_SAVED} loadouts are saved; delete one first.`);
         const typed = name.val;
         return saveWrite.run(
             async () => {
