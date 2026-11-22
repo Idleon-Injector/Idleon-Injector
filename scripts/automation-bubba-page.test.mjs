@@ -18,6 +18,8 @@ const meatLine = () => status(page, "Bubba");
 // The fake game has no character in a map, so a running automation says it waits for one (the game's own line; the
 // game-side tests cover "Saving for").
 const WAITING = "Waiting for a character to be in game";
+// Switched on by an upgrade's save, its row says so before the game's own line (#214).
+const BY_UPGRADE = `On, since an upgrade was switched on. ${WAITING}`;
 // A read-only value of a row, by its column ("Level", "Next level").
 const value = (node, column) =>
     text(
@@ -67,14 +69,14 @@ test("small amounts show whole, like the game: a cost rounded up, the meat held 
     }
 });
 
-test("switching an upgrade on saves the list and switches Bubba on, now and at start", async () => {
+test("switching an upgrade on saves the list and switches Bubba on, now and at start, and its row says why", async () => {
     await kit.flip(row("Grand Stone"), true);
     assert.deepEqual(sent("bubba"), [{ id: "0", on: true }]);
     assert.deepEqual(fileSent("bubba"), [{ id: "0", on: true }]);
     assert.equal(kit.running("automation bubba"), true);
     assert.deepEqual(kit.fake.startup, ["automation bubba"]);
     await until(
-        () => meatLine() === WAITING,
+        () => meatLine() === BY_UPGRADE,
         () => `the status to follow: ${meatLine()}`
     );
 });
@@ -87,7 +89,7 @@ test("Save for it saves on the item, and the status line follows after the save"
         { id: "1", on: true, save: true },
     ]);
     assert.equal(kit.saveSwitch(row("Tiny Tide")).attributes.checked, true);
-    assert.equal(meatLine(), WAITING, "the switch row keeps the game's own line");
+    assert.equal(meatLine(), BY_UPGRADE, "the switch row keeps the game's own line");
     await kit.flipSave(row("Tiny Tide"), false);
     assert.deepEqual(sent("bubba")[1], { id: "1", on: true }, "off leaves no save in the list");
     assert.equal(kit.saveSwitch(row("Tiny Tide")).attributes.checked, false);

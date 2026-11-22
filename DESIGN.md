@@ -332,8 +332,8 @@ World 3 uses the World 1 and World 2 pieces; a few of them grew, and are now sha
 Every automation page is `AutomationPage` in `automation.js`: a table at the wider measure, built once for all of them.
 
 - **One "Save for it" switch per upgrade** replaces High / Low / Balanced. Saved-for upgrades are saved for, cheapest
-  first; the rest buy cheapest first with what's left. The saving % is "While saving: Others may cost up to this % of
-  the goal".
+  first; the rest buy cheapest first with what's left. The saving % is "While saving: Keeps the rest of the goal;
+  others buy with what's above it" (#218: it keeps (100 − N)% of the goal's cost).
 - **What the automation holds sits beside the title** (`AutomationStats`: "4.2B feathers · 3.1M per second"), and the
   description is one short line ("Buys switched-on upgrades with feathers.").
 - **One list:** a quiet "Settings" group first (the automation's switch and its saving %), then the column head, named
@@ -347,3 +347,5 @@ Every automation page is `AutomationPage` in `automation.js`: a table at the wid
   "All 7 shop items in W2": the open tab only, Lumi's pick for Shops too); Disable all asks in the tray, Enable all
   runs on one press.
 - **On a phone** an item's own switch stays at the end of its name's line; its other cells fold two to a line.
+- **The automation's switch row says why it is on** when an item's switch turned it on ("On, since an upgrade was
+  switched on"), and an open page follows a running automation every few seconds, without Refresh (#214).

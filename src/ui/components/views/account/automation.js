@@ -62,8 +62,11 @@ const { div, input, label, span } = van.tags;
 /** Every automation, with its status while it runs. A direct read: inside a step it gives the settled answer. */
 export const readAutomations = () => readComputed("automation", "list");
 
-/** How long a step may wait for the game before its caller is told it is still waiting. */
-export const steps = { timeoutMs: 30000 };
+/**
+ * How long a step may wait for the game before its caller is told it is still waiting (`timeoutMs`), and how often an
+ * open page reads a running automation again (`liveMs`, see readWhileRunning).
+ */
+export const steps = { timeoutMs: 30000, liveMs: 3000 };
 
 let queue = Promise.resolve();
 
@@ -99,6 +102,26 @@ const deadline = (onLate) => {
 };
 
 /**
+ * While one of `nodes` is on screen (its page and tab open, the window shown) and `running()`, read the page again every
+ * `steps.liveMs` (#214), so what the automation holds, its goal and the rows follow the game without Refresh. `read` is
+ * a step's direct reads that says its own failure; it is queued like every other step, so it lands after every save
+ * asked for before it, and a field the player is typing in keeps its text (the picks' and settings' show). One at a
+ * time, and none while `busy()` (the page's own read is running).
+ */
+export const readWhileRunning = ({ nodes, running, busy, read }) => {
+    let reading = false;
+    // ponytail: never cleared; a page's pane is kept for the session, and a hidden one skips every tick.
+    setInterval(() => {
+        if (reading || busy() || !running() || document.hidden) return;
+        if (!nodes.some((node) => node.offsetParent)) return;
+        reading = true;
+        void inTurn(read)
+            .catch(() => {})
+            .finally(() => (reading = false));
+    }, steps.liveMs);
+};
+
+/**
  * One place on a page that says when its steps are still waiting for the game: pass `onLate` to each step's queued
  * call. `over(said)` is a said state for Said: the notice while any of those steps is still late, else `said`.
  */
@@ -128,11 +151,12 @@ const changeStartup = async (cheat, on) => {
     });
 };
 
-// An automation's entry state -> what the game last said about it (`accepted`) and the clicks on its switch whose step
-// hasn't ended (`clicks`); the entry shows the newest click over the accepted entry.
+// An automation's entry state -> what the game last said about it (`accepted`), the clicks on its switch whose step
+// hasn't ended (`clicks`), and, when an item's save switched it on, that item's words (`why`: "an upgrade") until the
+// player uses its own switch or a read finds it off; the entry shows the newest click over the accepted entry.
 const switches = new WeakMap();
 const switchesOf = (entry) => {
-    if (!switches.has(entry)) switches.set(entry, { accepted: entry.val, clicks: [] });
+    if (!switches.has(entry)) switches.set(entry, { accepted: entry.val, clicks: [], why: null });
     return switches.get(entry);
 };
 const redraw = (entry) => {
@@ -142,7 +166,9 @@ const redraw = (entry) => {
 
 /** Show a read of an automation's entry; a click on its switch whose step hasn't ended still shows over it. */
 export const showAutomation = (entry, found) => {
-    switchesOf(entry).accepted = found;
+    const known = switchesOf(entry);
+    known.accepted = found;
+    if (!found?.on) known.why = null;
     redraw(entry);
 };
 
@@ -170,10 +196,14 @@ const switchNow = async (cheat, on, entry = null) => {
 const findAutomation = async (cheat) =>
     (await readAutomations()).find((automation) => automation.cheat === cheat) ?? null;
 
-const ensureNow = async (cheat, entry = null) => {
+// `why` names what switched it on ("an upgrade"), for its row's line when this turns it on.
+const ensureNow = async (cheat, entry = null, why = null) => {
     const found = await findAutomation(cheat);
     if (entry) showAutomation(entry, found);
-    if (!found?.on) await toggle(cheat, true, entry);
+    if (!found?.on) {
+        if (entry) switchesOf(entry).why = why;
+        await toggle(cheat, true, entry);
+    }
     await changeStartup(cheat, true);
 };
 
@@ -221,6 +251,7 @@ export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
             said.clear(); // a new try: the last failure goes
             // What the player clicked shows until its step ends; then what the game answered, or a newer click.
             const known = switchesOf(entry);
+            known.why = null; // the player's own choice now
             const click = { on };
             known.clicks.push(click);
             redraw(entry);
@@ -259,7 +290,11 @@ export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
         // Not knowing whether it runs comes first: an older tick error says nothing about that.
         if (on === null) return "Unknown: press Refresh";
         if (error) return `Last error: ${error}`;
-        return on ? (said ?? "On") : "Off";
+        if (!on) return "Off";
+        // Switched on by an item's save, not its own switch: say so, so it isn't a surprise (#214).
+        const { why } = switchesOf(entry);
+        if (why) return said ? `On, since ${why} was switched on. ${said}` : `On, since ${why} was switched on`;
+        return said ?? "On";
     };
     return AccountRow({
         rowClass: column === null ? "automation-row" : "value-row automation-row",
@@ -267,7 +302,8 @@ export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
         info: div(
             { class: "account-row__name-group" },
             span({ class: "account-row__name" }, name),
-            span({ class: "automation-row__status", role: "status" }, line),
+            // Not a live region: it follows the game every few seconds (readWhileRunning). Failures are said in Said.
+            span({ class: "automation-row__status" }, line),
             Said({ said: late.over(said.said), className: "said--line", kinds: ["failed", "waiting"] })
         ),
         // In an automation list the switch sits in the items' "On" column (automationColumns' `on`).
@@ -313,10 +349,13 @@ const readAfter = (afterSave) =>
  * then the file, then reads back what the game holds: a taken edit joins the accepted list, a refused one is dropped,
  * and a read that works replaces the list. With `cheat`, the same step then turns that automation on (now and at
  * start) when the game runs an item the edit switched on, and reads its entry back into `entry` (a state, for its
- * AutomationRow). With `afterSave`, the step ends with that read of the page (see readAfter), saves and bulk saves
- * alike.
+ * AutomationRow; its line then says `item` switched it on). With `afterSave`, the step ends with that read of the page
+ * (see readAfter), saves and bulk saves alike.
  */
-export const createAutomationPicks = (group, { cheat = null, entry = null, afterSave = null } = {}) => {
+export const createAutomationPicks = (
+    group,
+    { cheat = null, entry = null, afterSave = null, item = "an upgrade" } = {}
+) => {
     const items = new Map(); // id -> the states its row shows
     let accepted = new Map(); // id -> { on, stopAt }: what the game holds, as far as the page knows
     const queued = []; // [id, patch] of the edits whose step hasn't ended, oldest first
@@ -429,7 +468,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
             // switch the player clicks after the item still wins. The save's own failure comes first.
             if (cheat && switched.some((id) => accepted.get(id)?.on)) {
                 try {
-                    await ensureNow(cheat, entry);
+                    await ensureNow(cheat, entry, item);
                 } catch (error) {
                     failure ??= error;
                 }
@@ -726,7 +765,7 @@ export const automationColumns = ({ values = [], selects = [], save = false, sto
 };
 
 /** The words under a saving % (SettingRow's detail). */
-export const SAVING_DETAIL = "Others may cost up to this % of the goal";
+export const SAVING_DETAIL = "Keeps the rest of the goal; others buy with what's above it";
 
 /** "Save for it": the engine saves for the cheapest item with it on, and buys the rest with what's left. */
 export const SAVE_FOR_IT = "save";
@@ -962,7 +1001,8 @@ export const usePicksBulk = ({ targets, done, words, waiting, loading = () => fa
  * ("4.2B", "feathers"; an amount of "" for words alone), joined by a dot.
  */
 export const AutomationStats = (parts) =>
-    span({ class: "amount-left automation-stats", "aria-live": "polite" }, () =>
+    // Not a live region: it follows the game every few seconds (readWhileRunning).
+    span({ class: "amount-left automation-stats" }, () =>
         span(
             ...parts().flatMap(([amount, words], i) => [
                 i ? " · " : "",
@@ -1038,9 +1078,11 @@ export const AutomationPage = ({
  * reads, handed the read of cheatConfig.automation (sync its picks and settings there). `load()` queues the read (the
  * tab calls it once, and Refresh calls it); `afterSave` is the same read for createAutomationPicks and
  * createAutomationSetting, so the tab follows every save and bulk save; a read that fails there is said as the tab's
- * read error until a read works. `atStart(cheat)` is whether the last read found it in the startup cheats.
+ * read error until a read works. `atStart(cheat)` is whether the last read found it in the startup cheats. While the
+ * tab is open (its `switches`, or one of `shownIn`, is on screen) and one of its automations runs, it reads again by
+ * itself, as `afterSave` (readWhileRunning).
  */
-export const useAutomationTab = ({ label, cheats, read, switchColumn = null }) => {
+export const useAutomationTab = ({ label, cheats, read, switchColumn = null, shownIn = [] }) => {
     const entries = cheats.map(() => van.state(null));
     const startup = van.state([]);
     const waiting = useStillWaiting();
@@ -1073,6 +1115,16 @@ export const useAutomationTab = ({ label, cheats, read, switchColumn = null }) =
         await read(config.cheatConfig.automation);
         error.val = null; // this read, the newest to run, worked: an older one's failure goes
     };
+    const afterSave = () =>
+        readTab(true).catch((caught) => {
+            error.val = caught.message;
+        });
+    readWhileRunning({
+        nodes: [switches, ...shownIn],
+        running: () => entries.some((entry) => entry.val?.on),
+        busy: () => loading.val,
+        read: afterSave,
+    });
     return {
         entries,
         switches,
@@ -1081,9 +1133,6 @@ export const useAutomationTab = ({ label, cheats, read, switchColumn = null }) =
         error,
         atStart: (cheat) => startup.val.includes(cheat),
         load: () => run(() => inTurn(() => readTab(), waiting.onLate)),
-        afterSave: () =>
-            readTab(true).catch((caught) => {
-                error.val = caught.message;
-            }),
+        afterSave,
     };
 };

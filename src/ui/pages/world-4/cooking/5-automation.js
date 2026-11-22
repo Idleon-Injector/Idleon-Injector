@@ -136,6 +136,7 @@ const CookingAutomationTab = () => {
         label: "Cooking automation",
         cheats: [CHEAT],
         switchColumn: KITCHEN_COLUMNS.on,
+        shownIn: [mealSwitch], // the meals' tab has its own copy of the switch
         read: async (saved) => {
             const data = await readComputed("automation", "cooking");
             picks.kitchens.sync(saved.kitchens);
@@ -191,7 +192,12 @@ const CookingAutomationTab = () => {
     // reads the game again, so the spice lines follow.
     const picks = {
         kitchens: createAutomationPicks("kitchens", { cheat: CHEAT, entry: automation, afterSave: tab.afterSave }),
-        meals: createAutomationPicks("meals", { cheat: CHEAT, entry: automation, afterSave: tab.afterSave }),
+        meals: createAutomationPicks("meals", {
+            cheat: CHEAT,
+            entry: automation,
+            afterSave: tab.afterSave,
+            item: "a meal",
+        }),
     };
     const saving = createAutomationSetting("kitchenSaving", { afterSave: tab.afterSave });
 

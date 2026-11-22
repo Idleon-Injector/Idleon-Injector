@@ -128,7 +128,12 @@ const BubblesAutomationPage = () => {
     const [automation] = tab.entries;
     // Switching a bubble on switches Bubbles on too (now and at start), in the same save; after every save the tab
     // reads the game again.
-    const picks = createAutomationPicks("bubbles", { cheat: CHEAT, entry: automation, afterSave: tab.afterSave });
+    const picks = createAutomationPicks("bubbles", {
+        cheat: CHEAT,
+        entry: automation,
+        afterSave: tab.afterSave,
+        item: "a bubble",
+    });
     const target = createAutomationSetting("bubblesTarget", { afterSave: tab.afterSave });
 
     const bulk = usePicksBulk({
