@@ -10,7 +10,7 @@
 
 import { cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
 
 const BONES = ["femur", "ribcage", "cranium", "bovinae"];
 const NO_MAX = 999999;
@@ -45,7 +45,7 @@ function upgradesFor(bone) {
     return cList.GrimoireUpg.flatMap((row, i) => {
         const entry = settings.get(String(i));
         if (!entry?.on || placeholder(row) || Number(row[3]) !== bone || i >= unlocked) return [];
-        if (gga.Grimoire[i] >= Math.min(Number(row[4]), entry.stopAt ?? Infinity)) return [];
+        if (gga.Grimoire[i] >= Number(row[4]) || !belowStopAt(gga.Grimoire[i], entry.stopAt)) return [];
         return [{ id: i, cost: summoning("GrimoireUpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
     });
 }

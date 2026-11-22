@@ -9,7 +9,7 @@
 
 import { behavior, cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
 
 let bought = 0; // levels bought since the automation turned on
 
@@ -63,7 +63,7 @@ function buyable() {
     return cList.BubbaUpg.flatMap((row, i) => {
         const entry = settings.get(String(i));
         const level = gga.Bubba[1][i];
-        if (!entry?.on || !unlocked(i) || level >= (entry.stopAt ?? Infinity) || level >= maxLevel(row)) return [];
+        if (!entry?.on || !unlocked(i) || !belowStopAt(level, entry.stopAt) || level >= maxLevel(row)) return [];
         return [{ id: i, cost: bubbastuff("UpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
     });
 }

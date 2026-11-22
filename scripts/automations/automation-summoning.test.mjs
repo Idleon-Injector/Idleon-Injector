@@ -151,6 +151,17 @@ test("each colour buys its switched-on upgrades cheapest first with its own esse
     await cheat("automation summoning", false);
 });
 
+test("a stop-at with a fraction (typed into the config file) stops below it", async () => {
+    setBoard();
+    setPicks([{ id: "1", on: true, stopAt: 2.5 }]);
+    gga.Summon[0][5] = 299;
+    await cheat("automation summoning", true);
+    second();
+    second();
+    assert.equal(gga.Summon[0][1], 2, "level 3 would pass 2.5");
+    await cheat("automation summoning", false);
+});
+
 test("the buy keeps the board's books: quest steps and the cached total level", async () => {
     setBoard();
     setPicks([{ id: "1", on: true, stopAt: 2 }]);

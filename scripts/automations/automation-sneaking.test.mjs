@@ -146,6 +146,15 @@ test("a stop-at caps the level, and a reached one buys nothing", async () => {
     await turnOff();
 });
 
+test("a stop-at with a fraction (typed into the config file) stops below it", async () => {
+    setGame({ jade: 1e6, levels: { 13: 1 } });
+    setItems([{ id: "13", on: true, stopAt: 2.5 }]);
+    await turnOn();
+    tick();
+    assert.equal(levels()[13], 2, "level 3 would pass 2.5");
+    await turnOff();
+});
+
 test("locked upgrades wait for their parent, and the later rows for the Coral Reef level", async () => {
     setGame({ jade: 1e7, reef: 1 });
     setItems([

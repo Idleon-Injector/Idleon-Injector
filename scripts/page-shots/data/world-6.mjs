@@ -78,6 +78,7 @@ const computed = {
     },
     _customBlock_MenagerieStuff: { OrganicLabelOwned: 4, OmniJadeDailyLVs: 3 },
     _customBlock_Thingies: { MaxEmperorAttemptStack: 3, DailyEmperorTries: 2 },
+    // Priced from the start levels: each fixture's Summon[0] is its own copy.
     _customBlock_Summoning: {
         UpgCost: (i) => Number(SUMMON_UPG[i][4]) * 1.12 ** SUMMON_LEVELS[i],
         SummUpgBonus: (i) => SUMMON_LEVELS[i] ?? 0,
@@ -119,7 +120,7 @@ export default () => ({
         // [0] summoning upgrades, [1] normal rounds won (enemy ids), [2] essence per colour, [3] shop timers,
         // [4] familiars per tier.
         Summon: [
-            SUMMON_LEVELS,
+            [...SUMMON_LEVELS], // its own copy: a test that levels an upgrade leaves the next fixture's start alone
             list(12, (i) => `enemy${i}`),
             list(8, (i) => (i < 6 ? Math.round(4.2e6 / (i + 1) ** 2) : 0)),
             [0, 0, 0, 0],

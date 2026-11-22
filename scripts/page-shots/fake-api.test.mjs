@@ -80,3 +80,10 @@ test("reads come from the fake game's data, and what it lacks is listed", async 
 test("the fake game's data is the same every time", () => {
     assert.deepEqual(fakeGameData(), fakeGameData());
 });
+
+test("a level a test gives the fake game doesn't carry into the next fixture", () => {
+    const first = fakeGameData();
+    const start = first.gga.Summon[0][0];
+    first.gga.Summon[0][0] = start + 5; // a summoning upgrade levelled in one test
+    assert.equal(fakeGameData().gga.Summon[0][0], start);
+});

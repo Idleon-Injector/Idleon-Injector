@@ -11,7 +11,7 @@
 
 import { behavior, cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
 
 /** Essence colours in Summon[2] order. */
 export const ESSENCES = ["white", "green", "yellow", "blue", "purple", "red", "cyan", "teal"];
@@ -99,7 +99,7 @@ function buyable(colour) {
     return cList.SummonUPG.flatMap((row, i) => {
         const entry = settings.get(String(i));
         if (!entry?.on || Number(row[2]) !== colour || !unlocked(i)) return [];
-        if (level(i) >= Math.min(max(i), entry.stopAt ?? Infinity)) return [];
+        if (level(i) >= max(i) || !belowStopAt(level(i), entry.stopAt)) return [];
         return [{ id: i, cost: summoning("UpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
     });
 }

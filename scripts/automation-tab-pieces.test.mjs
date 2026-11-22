@@ -3,80 +3,19 @@
 // every save, and Enable all / Disable all. Each save sends cheatConfig.automation[key] to the game and the file.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { importRepo, loadUi } from "./known-bugs/index.mjs";
-import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { importRepo } from "./known-bugs/index.mjs";
+import { automationTabKit } from "./automation-tab-kit.mjs";
 
-const setIntervalReal = globalThis.setInterval;
-globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
-const { router } = await createFakeApi();
-const updates = [];
-const saves = [];
-let refuseUpdate = false;
-let dropNextUpdate = false; // the game takes the next update but its answer is lost
-let failConfigReads = 0; // how many of the next config reads fail
-const update = router.routes.POST.get("/api/config/update");
-router.routes.POST.set("/api/config/update", async (req, res) => {
-    const body = await req.json();
-    updates.push(body);
-    if (dropNextUpdate) {
-        dropNextUpdate = false;
-        await update(req, { status: () => ({ json() {} }), json() {} }); // the game takes it...
-        return res.status(500).json({ error: "the connection dropped" }); // ...but the answer is lost
-    }
-    if (refuseUpdate) return res.json({ message: "Config update failed", details: "the game is busy" });
-    return update(req, res);
-});
-let failSave = false; // the config file save fails
-router.routes.POST.set("/api/config/save", async (req, res) => {
-    if (failSave) return res.status(500).json({ error: "the disk is full" });
-    saves.push(await req.json());
-    res.json({ ok: true });
-});
-let serverCopyOnly = false; // config reads answer with the server's copy, as when the game didn't answer
-const readConfig = router.routes.GET.get("/api/config");
-router.routes.GET.set("/api/config", async (req, res) => {
-    if (failConfigReads > 0 && failConfigReads--) return res.status(500).json({ error: "the config didn't load" });
-    let read;
-    await readConfig(req, {
-        status() {
-            return this;
-        },
-        json: (data) => (read = data),
-    });
-    res.json(serverCopyOnly ? { ...read, gameRead: false } : read);
-});
-await loadUi(router);
-globalThis.requestAnimationFrame = () => {};
+const kit = await automationTabKit();
+const { fake, updates, text, byClass, row, field: numberField, saveState, settle, until, selected } = kit;
+const tagged = kit.byTag;
+const lastUpdate = kit.sent;
+const lastSave = kit.fileSent;
 
 const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
 const ui = await importRepo("src/ui/components/views/account/automation.js");
+const { BulkActionBar } = await importRepo("src/ui/components/views/account/BulkActionBar.js");
 const { div } = van.tags;
-
-const text = (node) =>
-    typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
-const elements = (node, out = []) => {
-    if (node?.nodeType !== 1) return out;
-    out.push(node);
-    for (const child of node.childNodes) elements(child, out);
-    return out;
-};
-const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
-const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
-const row = (root, name) =>
-    byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === name);
-const tagged = (node, tag) => elements(node).filter((entry) => entry.nodeName === tag);
-const numberField = (node) => tagged(node, "input").find((entry) => entry.attributes.type !== "checkbox");
-const saveState = (node) => classes(byClass(node, "save-state")[0]);
-const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
-async function until(check, what) {
-    for (let i = 0; i < 300; i++) {
-        if (check()) return;
-        await settle(10);
-    }
-    assert.fail(`timed out waiting for ${what}`);
-}
-const lastUpdate = (key) => updates.findLast((body) => key in body.cheatConfig.automation)?.cheatConfig.automation[key];
-const lastSave = (key) => saves.findLast((body) => key in body.cheatConfig.automation)?.cheatConfig.automation[key];
 
 let reads = 0; // the page's reads after a save
 const afterSave = async () => {
@@ -135,7 +74,7 @@ const type = async (name, value) => {
 test("a pick row shows its lines under the name and its picks beside the stop-at", () => {
     assert.match(text(whisker()), /Costs 5 coins/);
     assert.deepEqual(tagged(select("priority"), "option").map(text), ["High", "Low", "Balanced"], "the engine's order");
-    assert.equal(select("priority").value ?? null, null, "nothing picked yet reads as the default");
+    assert.equal(selected(select("priority")), "Balanced", "nothing picked yet shows the default");
     assert.ok(select("pay with"));
     assert.equal(tagged(row(page, "Royal Pebble"), "select").length, 0, "a row without selects has none");
 });
@@ -167,11 +106,11 @@ test("a read of the list keeps every setting an item carries", async () => {
 });
 
 test("a refused pick goes back to what the game holds and says why at the row", async () => {
-    refuseUpdate = true;
+    fake.refuseUpdates = true;
     try {
         await choose("priority", 1);
     } finally {
-        refuseUpdate = false;
+        fake.refuseUpdates = false;
     }
     await until(() => /save-state--error/.test(saveState(whisker())), "the row to say the save failed");
     assert.equal(picks.field("0:item0", "priority").val, 1, "still High, as the game holds");
@@ -214,11 +153,11 @@ test("a setting by index changes only its own place in the list", async () => {
 });
 
 test("a refused setting goes back to what the game holds and says why", async () => {
-    refuseUpdate = true;
+    fake.refuseUpdates = true;
     try {
         await type("Coins", "30");
     } finally {
-        refuseUpdate = false;
+        fake.refuseUpdates = false;
     }
     assert.equal(saving.get().value.val, 25);
     assert.match(text(row(page, "Coins")), /the game is busy/);
@@ -249,7 +188,18 @@ test("Enable all switches every listed item on in one save; Disable all asks fir
     assert.ok(reads > before, "the page reads after a bulk save too");
     assert.equal(enable.disabled(), true, "nothing left to switch on");
     assert.equal(disable.confirm(), "switch off 2 items.");
-    await disable.onClick();
+    // Through the button the player clicks: the first click only asks.
+    const bar = BulkActionBar({ actions: bulk.actions(() => false) });
+    const button = tagged(bar, "button").find((node) => text(node).trim() === "Disable all");
+    const since = updates.length;
+    await button.listeners.click({ preventDefault() {} });
+    await settle();
+    assert.equal(updates.length, since, "the first Disable all click saves nothing");
+    assert.equal(button.attributes["data-again"], "Click again");
+    await button.listeners.click({ preventDefault() {} });
+    await until(() => updates.length > since, "the second click's save");
+    await ui.inTurn(() => {});
+    await settle();
     assert.deepEqual(
         lastUpdate("shops").map(({ id, on }) => [id, on]),
         [["0:item0", false]],
@@ -289,11 +239,11 @@ test("while a bulk save reached the game but not the file, Enable all and Disabl
         waiting,
     });
     const [enable, disable] = bulk.actions(() => false);
-    failSave = true;
+    fake.failSave = true;
     try {
         await enable.onClick();
     } finally {
-        failSave = false;
+        fake.failSave = false;
     }
     assert.equal(picks.fileBehind(), true);
     assert.equal(enable.disabled(), false, "every item is on, but the file doesn't have it yet");
@@ -317,13 +267,13 @@ test("the tab's read after a refused save doesn't take the server's copy of the 
     await tab.load();
     await tabSaving.set(null, 10); // the game holds 10
     const before = reads.length;
-    refuseUpdate = true;
-    serverCopyOnly = true;
+    fake.refuseUpdates = true;
+    fake.serverCopyOnly = true;
     try {
         await tabSaving.set(null, 55).catch(() => {});
     } finally {
-        refuseUpdate = false;
-        serverCopyOnly = false;
+        fake.refuseUpdates = false;
+        fake.serverCopyOnly = false;
     }
     assert.equal(reads.length, before, "the server's copy isn't read into the tab");
     assert.equal(tabSaving.get().value.val, 10, "the game's value stands");
@@ -360,11 +310,11 @@ test("a tab whose first read only reaches the server's copy reads nothing in and
         },
     });
     const lateSaving = ui.createAutomationSetting("testLateSaving", { afterSave: tab.afterSave });
-    serverCopyOnly = true;
+    fake.serverCopyOnly = true;
     try {
         await tab.load();
     } finally {
-        serverCopyOnly = false;
+        fake.serverCopyOnly = false;
     }
     assert.equal(reads.length, 0, "the server's copy isn't taken as what the game holds");
     assert.match(tab.error.val, /the game didn't answer with its settings: press Refresh/);
@@ -380,8 +330,8 @@ test("after a save the game didn't answer and nothing read back, the next save w
     const unsure = ui.createAutomationSetting("testUnsure");
     await unsure.set(null, 0).catch(() => {}); // not read yet: refused
     unsure.sync([5, 6]);
-    dropNextUpdate = true;
-    failConfigReads = 1;
+    fake.dropNextUpdate = true;
+    fake.failConfigReads = 1;
     await assert.rejects(unsure.set(0, 10), /connection dropped|500|error/i);
     const since = updates.length;
     await assert.rejects(unsure.set(1, 40), /not read from the game yet: press Refresh/);
@@ -394,12 +344,12 @@ test("after a save the game didn't answer and nothing read back, the next save w
 test("after a save the game didn't answer, a read-back of only the server's copy doesn't let the next save through", async () => {
     const unsure = ui.createAutomationSetting("testUnsureServer");
     unsure.sync([5, 6]);
-    dropNextUpdate = true;
-    serverCopyOnly = true;
+    fake.dropNextUpdate = true;
+    fake.serverCopyOnly = true;
     try {
         await assert.rejects(unsure.set(0, 10), /connection dropped|500|error/i);
     } finally {
-        serverCopyOnly = false;
+        fake.serverCopyOnly = false;
     }
     const since = updates.length;
     await assert.rejects(unsure.set(1, 40), /not read from the game yet: press Refresh/);
@@ -410,14 +360,14 @@ test("the picks too: after a save the game didn't answer, the next save waits fo
     for (const reachesServerOnly of [false, true]) {
         const unsure = ui.createAutomationPicks("testUnsurePicks");
         unsure.sync([{ id: "a", on: false, stopAt: 5 }]);
-        dropNextUpdate = true;
-        if (reachesServerOnly) serverCopyOnly = true;
-        else failConfigReads = 1;
+        fake.dropNextUpdate = true;
+        if (reachesServerOnly) fake.serverCopyOnly = true;
+        else fake.failConfigReads = 1;
         try {
             await assert.rejects(unsure.set("a", { stopAt: 10 }), /connection dropped|500|error/i);
         } finally {
-            serverCopyOnly = false;
-            failConfigReads = 0;
+            fake.serverCopyOnly = false;
+            fake.failConfigReads = 0;
         }
         const since = updates.length;
         await assert.rejects(unsure.set("b", { on: true }), /not read from the game yet: press Refresh/);
@@ -433,4 +383,54 @@ test("the picks too: after a save the game didn't answer, the next save waits fo
             { id: "b", on: true },
         ]);
     }
+});
+
+test("a page read that throws at once after a refused save leaves the save's own reason", async () => {
+    const throwing = ui.createAutomationSetting("testThrowingRead", {
+        afterSave: () => {
+            throw new Error("the page's read broke");
+        },
+    });
+    throwing.sync(5);
+    fake.refuseUpdates = true;
+    try {
+        await assert.rejects(throwing.set(null, 7), /the game is busy/);
+    } finally {
+        fake.refuseUpdates = false;
+    }
+});
+
+test("a row switch waiting behind its own stop-at save doesn't undo a Disable all clicked after it", async () => {
+    picks.sync([{ id: "1:item3", on: false }]);
+    const pebble = row(page, "Royal Pebble");
+    const bulk = ui.usePicksBulk({
+        targets: () => [[picks, ["1:item3"]]],
+        done: () => false,
+        noun: (n) => `${n} items`,
+        waiting: ui.useStillWaiting(),
+    });
+    let release;
+    fake.holdUpdates = new Promise((resolve) => (release = resolve));
+    const since = updates.length;
+    try {
+        const input = numberField(pebble);
+        input.listeners.input({ target: { value: "3" } });
+        byClass(pebble, "account-field-metric")[0].listeners.keydown({
+            key: "Enter",
+            target: input,
+            preventDefault() {},
+        });
+        await until(() => updates.length > since, "the stop-at save to reach the game");
+        const box = tagged(pebble, "input").find((node) => node.attributes.type === "checkbox");
+        box.listeners.change({ target: { checked: true } }); // waits behind the stop-at save
+        void bulk.actions(() => false)[1].onClick(); // Disable all, clicked after
+    } finally {
+        fake.holdUpdates = null;
+        release();
+    }
+    await until(() => !bulk.busy(), "Disable all to end");
+    await ui.inTurn(() => {});
+    await ui.inTurn(() => {});
+    await settle();
+    assert.equal(lastUpdate("shops").find(({ id }) => id === "1:item3")?.on ?? false, false, "Disable all wins");
 });

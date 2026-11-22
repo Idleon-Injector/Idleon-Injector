@@ -1,6 +1,7 @@
 // The fake game and DOM helpers a system's automation tab test uses (#92): the toggle, config update and config save
 // routes record what the page sent (and can refuse updates), and the helpers read and drive the page like a player.
 import assert from "node:assert/strict";
+import { after } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
@@ -13,10 +14,24 @@ export async function automationTabKit() {
     const fixture = fakeGameData();
     const { router, game } = await createFakeApi(fixture);
     const { getAutomations, switchAutomation } = await importRepo("src/cheats/core/automations.js");
+    // The automations a test left on stop once the file's tests are done, so none keeps ticking.
+    after(() => getAutomations().forEach(({ id, on }) => on && switchAutomation(id, false)));
     const commands = [];
     const saves = [];
     const updates = [];
-    const fake = { refuseNextUpdates: 0, startup: [] };
+    // What the fake game and server do next: refuse updates (`refuseUpdates`, or a count in `refuseNextUpdates`), take
+    // the next update but lose its answer (`dropNextUpdate`), hold updates until a promise settles (`holdUpdates`),
+    // fail config reads (a count) or the file save, or answer reads with only the server's copy (`serverCopyOnly`).
+    const fake = {
+        refuseNextUpdates: 0,
+        refuseUpdates: false,
+        dropNextUpdate: false,
+        holdUpdates: null,
+        failConfigReads: 0,
+        failSave: false,
+        serverCopyOnly: false,
+        startup: [],
+    };
     router.routes.POST.set("/api/toggle", async (req, res) => {
         const { action, on } = await req.json();
         commands.push([action, on]);
@@ -25,13 +40,20 @@ export async function automationTabKit() {
     const update = router.routes.POST.get("/api/config/update");
     router.routes.POST.set("/api/config/update", async (req, res) => {
         updates.push(await req.json());
-        if (fake.refuseNextUpdates > 0) {
-            fake.refuseNextUpdates--;
+        await fake.holdUpdates;
+        if (fake.dropNextUpdate) {
+            fake.dropNextUpdate = false;
+            await update(req, { status: () => ({ json() {} }), json() {} }); // the game takes it...
+            return res.status(500).json({ error: "the connection dropped" }); // ...but the answer is lost
+        }
+        if (fake.refuseUpdates || fake.refuseNextUpdates > 0) {
+            if (fake.refuseNextUpdates > 0) fake.refuseNextUpdates--;
             return res.json({ message: "Config update failed", details: "the game is busy" });
         }
         return update(req, res);
     });
     router.routes.POST.set("/api/config/save", async (req, res) => {
+        if (fake.failSave) return res.status(500).json({ error: "the disk is full" });
         const body = await req.json();
         saves.push(body);
         fake.startup = body.startupCheats ?? fake.startup; // the server merges a partial save into the file
@@ -39,6 +61,8 @@ export async function automationTabKit() {
     });
     const readConfig = router.routes.GET.get("/api/config");
     router.routes.GET.set("/api/config", async (req, res) => {
+        if (fake.failConfigReads > 0 && fake.failConfigReads--)
+            return res.status(500).json({ error: "the config didn't load" });
         let read;
         await readConfig(req, {
             status() {
@@ -46,7 +70,8 @@ export async function automationTabKit() {
             },
             json: (data) => (read = data),
         });
-        res.json(structuredClone({ ...read, startupCheats: [...fake.startup] }));
+        const copy = { ...read, startupCheats: [...fake.startup] };
+        res.json(structuredClone(fake.serverCopyOnly ? { ...copy, gameRead: false } : copy));
     });
     await loadUi(router);
     globalThis.requestAnimationFrame = () => {};
@@ -98,7 +123,7 @@ export async function automationTabKit() {
         saves.findLast((body) => body.cheatConfig && key in body.cheatConfig.automation)?.cheatConfig.automation[key];
     // The option a select shows; the page binds each option's `selected` (an attribute in this fake DOM).
     const selected = (node) => text(byTag(node, "option").find((o) => o.attributes.selected === true));
-    // Type into a row's number field and press Enter; then every step ends.
+    // Type into a row's number field and press Enter; then every step ends. A value with nothing to save ends there.
     async function type(node, value) {
         const input = field(node);
         input.listeners.input({ target: { value } });
@@ -108,7 +133,14 @@ export async function automationTabKit() {
             target: input,
             preventDefault() {},
         });
-        await until(() => updates.length > since || /save-state--error/.test(saveState(node)), "the field's save");
+        await idle();
+        await until(
+            () =>
+                updates.length > since ||
+                /save-state--error/.test(saveState(node)) ||
+                !/save-state--loading/.test(saveState(node)),
+            "the field's save"
+        );
         await idle();
     }
     // Pick the option at `index` in the row's select titled `title` ("priority", "pay with"); then every step ends.

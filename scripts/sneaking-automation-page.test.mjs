@@ -90,3 +90,28 @@ test("Enable all switches every upgrade on; Disable all asks Click again and kee
     const kept = sent("sneaking").find(({ stopAt }) => stopAt === 60);
     assert.equal(kept.priority, 1, "the stop-at and priority stay");
 });
+
+test("after Sneaking's own switch turns it on, Enable all knows it is in the startup cheats too", async () => {
+    await kit.button(tab, "Enable all").listeners.click({ preventDefault() {} });
+    await kit.idle();
+    // Sneaking goes off, now and at start, outside the tab; the tab reads that.
+    kit.switchAutomation(kit.getAutomations().find(({ cheat }) => cheat === "automation sneaking").id, false);
+    kit.fake.startup = [];
+    await kit.button(tab, "Refresh").listeners.click({ preventDefault() {} });
+    await kit.idle();
+    assert.ok(kit.button(tab, "Enable all"), "Enable all has Sneaking to switch on");
+
+    await kit.flip(row("Sneaking"), true);
+    assert.deepEqual(kit.fake.startup, ["automation sneaking"]);
+    assert.equal(kit.button(tab, "Enable all"), undefined, "nothing is left for Enable all");
+});
+
+test("typing the value a field already holds ends at once and saves nothing", async () => {
+    await kit.type(row("Saving"), "30");
+    assert.equal(sent("sneakingSaving"), 30);
+    const since = kit.updates.length;
+    const started = Date.now();
+    await kit.type(row("Saving"), "30");
+    assert.equal(kit.updates.length, since, "nothing was sent");
+    assert.ok(Date.now() - started < 1000, "the helper didn't wait for a save that never comes");
+});
