@@ -294,3 +294,37 @@ test("a config read while a save updates the game keeps the saved value, in the 
     await config.saveConfiguration({ cheatConfig: {} });
     assert.match(readFileSync(join(dir, "config.custom.js"), "utf8"), /islands: "a"/);
 });
+
+// #112: the same for Apply's session update (/api/config/update), which writes no file.
+test("a config read while a session update reaches the game keeps the applied value", async (t) => {
+    useInstall(t);
+    const { config } = start();
+    let gameIslands = "x";
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let updating;
+    const updateStarted = new Promise((resolve) => (updating = resolve));
+    const game = {
+        callHelper: async () => ({ value: JSON.stringify({ unlock: { islands: gameIslands } }) }),
+        isAttached: async () => true,
+        updateConfig: async (cheatConfig) => {
+            updating();
+            await held;
+            gameIslands = cheatConfig.unlock.islands;
+            return { value: "ok" };
+        },
+    };
+    const live = {
+        cheatConfig: config.getCheatConfig(),
+        startupCheats: config.getStartupCheats(),
+        injectorConfig: config.getInjectorConfig(),
+    };
+    const update = config.updateSessionConfiguration({ cheatConfig: { unlock: { islands: "a" } } }, live, game);
+    await updateStarted;
+    const read = config.pullGameConfig(game, config.getCheatConfig());
+    await new Promise((resolve) => setImmediate(resolve)); // a read not held behind the update merges now
+    assert.equal(config.getCheatConfig().unlock.islands, "a", "while the game takes it, the injector keeps it");
+    release();
+    await Promise.all([update, read]);
+    assert.equal(config.getCheatConfig().unlock.islands, "a", "the injector keeps the applied value");
+});

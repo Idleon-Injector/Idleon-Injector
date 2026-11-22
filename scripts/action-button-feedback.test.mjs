@@ -295,3 +295,36 @@ test("an older run that ends cancelled leaves a newer run's status", async () =>
     await older;
     assert.equal(write.status.val, "error", "the newer failure still shows");
 });
+
+// #113 (CodeRabbit on #110): a save that landed but whose onSuccess threw was recorded as done and as failed, and the
+// press said done.
+test("a run whose onSuccess throws is said as failed, not done", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const { useWriteStatus } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { announce } = await importRepo("src/ui/components/inPlace.js");
+    const write = useWriteStatus({ errorMs: 0 });
+    let outcome;
+    const button = ActionButton({
+        label: "Max all",
+        status: write.status,
+        onClick: async () => {
+            outcome = await write.run(async () => {}, {
+                onSuccess: () => {
+                    throw new Error("the page couldn't show it");
+                },
+            });
+        },
+    });
+    announce("");
+    const region = () => elements(globalThis.document.body).find((node) => node.attributes.role === "status");
+    await click(button);
+    await until(() => region().textContent !== "", "the press to be said");
+    assert.equal(region().textContent, "Max all: failed");
+    assert.deepEqual(
+        write.status.ended.slice(-1).map((run) => run.outcome),
+        ["error"]
+    );
+    assert.equal(write.status.ended.filter((run) => run.outcome === "success").length, 0, "not recorded as done");
+    assert.equal(outcome.ok, false);
+    assert.equal(write.status.val, "error");
+});

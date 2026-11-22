@@ -1,9 +1,11 @@
-.bribes-row .account-row__name {
+/* Bribes: a bonus is a sentence, so it wraps under itself instead of pushing the switch off the row. */
+.viewport .bribes-row .account-row__titles {
     white-space: normal;
 }
 
-.bribes-row__bonus {
+/* The one bribe the game doesn't sell says so where its switch would be, quietly. */
+.bribes-row__note {
+    font-size: 0.8125rem;
+    font-weight: 500;
     color: var(--c-text-muted);
-    font-size: 0.875rem;
-    line-height: 1.4;
 }

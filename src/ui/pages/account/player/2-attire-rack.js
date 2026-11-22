@@ -129,10 +129,15 @@ const AttireRackPage = () => {
                 .filter((id) => ids.includes(id))
         );
     };
+    // Of two reads with no save between them (the read after a failed save, then a Refresh), the newer one wins.
+    let choiceReads = 0;
+    let shownChoice = 0;
     const readChoice = async (read = fetchConfig()) => {
         const saves = choiceSaves;
+        const mine = ++choiceReads;
         const [config, cheatStates] = await Promise.all([read, fetchCheatStates()]);
-        if (saves !== choiceSaves) return;
+        if (saves !== choiceSaves || mine < shownChoice) return;
+        shownChoice = mine;
         enabled.val = Boolean(cheatStates?.data?.wide?.attire);
         allChosen.val = (config?.cheatConfig?.wide?.attire?.outfits ?? "all") === "all";
         chosen.val = chosenIn(config);
@@ -265,10 +270,17 @@ const AttireRackPage = () => {
         reconcileEveryone(JSON.stringify(ids), renderEveryone);
     };
 
+    // Two row saves can read at once: a read that answers after a newer one was shown is older, so it isn't shown.
+    let statusReads = 0;
+    let shownRead = 0;
     const readStatus = async () => {
+        const mine = ++statusReads;
         const status = await readComputed("attire", "status");
         if (!status || !Array.isArray(status.outfits)) throw new Error("The game didn't send its outfits");
-        show(status);
+        if (mine > shownRead) {
+            shownRead = mine;
+            show(status);
+        }
         return status;
     };
 
@@ -473,10 +485,12 @@ const AttireRackPage = () => {
         const target = reloadPlace.val;
         if (!target || target === undone) return;
         undone = target;
-        if (target.view === place.view && target.page === place.page)
-            void updateStats(current.rawVal).catch((caught) =>
-                sayOwed(current.rawVal, new Error(`Undone, but the stats weren't worked out again: ${caught.message}`))
-            );
+        if (target.view !== place.view || target.page !== place.page) return;
+        // The character the update runs for owes it, though another may be in play by the time it fails.
+        const name = current.rawVal;
+        void updateStats(name).catch((caught) =>
+            sayOwed(name, new Error(`Undone, but the stats weren't worked out again: ${caught.message}`))
+        );
     });
 
     // Refresh also runs the stat update the character in play still owes (Refresh is where a player tries again).

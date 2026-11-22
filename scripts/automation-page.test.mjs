@@ -1995,6 +1995,53 @@ test("row queue: a stop-at the field refused still shows after the item's switch
     await ui.switchAutomation("automation shops", false);
 });
 
+// #112 (#118): the switch's own failure is said, even while the field's refused -5 waits.
+test("row queue: the item's switch failing says its own reason over the field's refused stop-at", async () => {
+    const input = field("Velvet Stone");
+    input.listeners.input({ target: { value: "-5" } });
+    metric("Velvet Stone").listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => /whole number/.test(text(pickRow("Velvet Stone"))), "the field to refuse -5");
+    refuseNextUpdates = 1;
+    await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: true } });
+    await until(() => !/save-state--loading/.test(saveState("Velvet Stone")), "the switch's write to end");
+    refuseNextUpdates = 0;
+    assert.match(saveState("Velvet Stone"), /save-state--error/);
+    assert.match(text(pickRow("Velvet Stone")), /busy/, "the switch's own failure is said");
+    metric("Velvet Stone").listeners.keydown({ key: "Escape", target: input, preventDefault() {} });
+    // The refused list is the last one sent: send one without Velvet Stone on.
+    await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: true } });
+    await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: false } });
+    await until(() => !saved().some(({ id, on }) => id === "1:item7" && on), "Velvet Stone off");
+    await ui.switchAutomation("automation shops", false);
+});
+
+// #112 (#118): stop-at 6, Enter on 6 while the switch saves, then 7 typed: the queued Enter doesn't put 6 back.
+test("row queue: a queued Enter on the saved stop-at leaves a newer typed one in the field", async () => {
+    await typeStopAt("Sleepy Fang", "6");
+    const from = updates.length;
+    let release;
+    holdNextUpdate = new Promise((resolve) => (release = resolve));
+    try {
+        void checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: true } });
+        await until(() => updates.length > from, "the switch's save to reach the game and be held");
+        const input = field("Sleepy Fang");
+        metric("Sleepy Fang").listeners.keydown({ key: "Enter", target: input, preventDefault() {} }); // 6, as saved
+        input.listeners.input({ target: { value: "7" } }); // typed after Enter, not committed
+        await handled();
+    } finally {
+        release();
+    }
+    await until(() => !/save-state--loading/.test(saveState("Sleepy Fang")), "the row's writes to end");
+    await queueIdle();
+    assert.equal(fieldText("Sleepy Fang"), "7", "the uncommitted 7 stays in the field");
+    assert.equal(sentFor(from, "1:item4").at(-1).stopAt, 6, "and isn't saved");
+    metric("Sleepy Fang").listeners.keydown({ key: "Escape", target: field("Sleepy Fang"), preventDefault() {} });
+    await checkbox(pickRow("Sleepy Fang")).listeners.change({ target: { checked: false } });
+    await typeStopAt("Sleepy Fang", "");
+    await until(() => !saved().some(({ id }) => id === "1:item4"), "Sleepy Fang cleared");
+    await ui.switchAutomation("automation shops", false);
+});
+
 test("the overview reads again each time it is shown, so a switch made on a system's own tab shows", async () => {
     const { pageShown } = await importRepo("src/ui/menu/menuModel.js");
     const overviewStatus = () => text(byClass(row(overview, "Shops"), "automation-row__status")[0]);

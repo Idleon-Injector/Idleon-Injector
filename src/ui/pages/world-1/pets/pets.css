@@ -1,289 +1,120 @@
-/* ── Pets (W1 Companions) ──────────────────────────────────────────────── */
+/*
+ * Pets: one row per pet in the game's groups (tabs). The bonus leads; then whether the game owns the pet, its tier
+ * while the injector runs (Off | Normal | Pets+), and its token. Bonuses are whole sentences, so the page takes the
+ * wider measure and a long one wraps under itself.
+ */
 
-.companions-scroll {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+.pets-tab {
+    --page-measure: 60rem;
 }
 
-.companions-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-top: 12px;
-}
-
-.companions-section:first-child {
-    padding-top: 0;
-}
-
-.companions-section__title {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--c-text-dim);
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--c-border);
-}
-
-.companions-grid {
+.viewport .pet-cells {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: 7rem 15rem 7.5rem;
+    align-items: center;
     gap: 10px;
 }
 
-.companion-card-wrap {
-    position: relative;
-    display: flex;
+/* A bonus sentence wraps inside its column instead of pushing the controls off the row. */
+.viewport .pet-row .account-row__titles {
+    white-space: normal;
 }
 
-.companion-plus {
-    position: absolute;
-    right: 8px;
-    bottom: 8px;
-    width: 22px;
-    height: 22px;
-    display: grid;
-    place-items: center;
-    font: inherit;
-    font-weight: 700;
-    line-height: 1;
+.viewport .pet-row .account-row__bonus {
+    max-width: 30rem;
+}
+
+.pet-row__state {
+    padding-left: 12px;
+    font-size: 0.8125rem;
+    font-weight: 500;
     color: var(--c-text-muted);
-    background: var(--c-black-40);
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    appearance: none;
 }
 
-.companion-plus:hover {
-    border-color: var(--c-accent);
-    color: var(--c-text-main);
+.viewport .pet-token {
+    justify-self: start;
+    margin-left: 12px;
 }
 
-.companion-plus:focus-visible {
-    outline: 2px solid var(--c-accent);
-    outline-offset: 2px;
+.viewport .tabbed-list .pet-row.is-filtered-out {
+    display: none;
 }
 
-.companion-plus--on {
-    border-color: var(--c-accent);
-    background: var(--c-accent);
-    color: var(--c-panel);
+/* The head: quiet column names, held at the top of the list while it scrolls; a note under each says how long it lasts. */
+.viewport .tabbed-list .pet-head,
+.viewport .tabbed-list .pet-head:hover {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-height: 48px;
+    border-width: 0 0 1px;
+    background: var(--c-void-soft);
 }
 
-.companion-card {
+.pet-head__label {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px;
-    width: 100%;
-    text-align: left;
-    font: inherit;
-    color: inherit;
-    appearance: none;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition:
-        border-color 0.15s,
-        background 0.15s,
-        box-shadow 0.15s;
-    user-select: none;
-}
-
-.companion-card:hover {
-    border-color: var(--c-accent);
-    background: var(--c-panel-hover);
-}
-
-.companion-card:focus-visible {
-    outline: 2px solid var(--c-accent);
-    outline-offset: 2px;
-}
-
-.companion-card:disabled,
-.companion-plus:disabled {
-    cursor: wait;
-    opacity: 0.65;
-}
-
-.companion-card--enabled {
-    border-color: var(--c-success);
-    background: var(--c-success-tint);
-}
-
-.companion-card--plus {
-    border-color: var(--c-accent);
-    background: var(--c-panel-hover);
-}
-
-.companion-card__tier {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: var(--c-text-muted);
-}
-
-.companion-card--plus .companion-card__tier {
-    color: var(--c-accent);
-}
-
-.companion-card__warning {
-    font-size: 0.75rem;
-    line-height: 1.45;
-    color: var(--c-warning);
-    padding-right: 54px;
-}
-
-.companion-card__top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.companion-card__name {
-    min-width: 0;
-    flex: 1;
-    font-size: 0.86rem;
-    font-weight: 700;
-    color: var(--c-text-main);
-    line-height: 1.25;
-}
-
-.companion-card__id {
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: var(--c-text-muted);
-    background: var(--c-black-40);
-    padding: 2px 6px;
-}
-
-.companion-card__effect {
-    padding-right: 54px;
-    min-height: 2.7em;
-    font-size: 0.75rem;
-    color: var(--c-text-dim);
-    line-height: 1.45;
-}
-
-/* Pet tokens: saved in the game, so they get the zenith hue instead of the spoof accents. */
-
-.companion-card--token {
-    border-color: var(--c-tier-zenith);
-}
-
-.companion-card--token .companion-card__tier {
-    color: var(--c-tier-zenith);
-}
-
-.companion-card--owned .companion-card__tier {
-    color: var(--c-text-main);
-}
-
-.companion-card__tier {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.companion-token {
-    right: 36px;
+    gap: 1px;
+    padding-left: 12px;
     font-family: var(--font-display);
-    font-size: 0.8rem;
-}
-
-.companion-token:hover {
-    border-color: var(--c-tier-zenith);
-}
-
-.companion-token.companion-plus--on {
-    border-color: var(--c-tier-zenith);
-    background: var(--c-tier-zenith);
-    color: var(--c-panel);
-}
-
-.companion-token[aria-disabled="true"] {
-    opacity: 0.35;
-    cursor: not-allowed;
-}
-
-.companion-token[aria-disabled="true"]:hover {
-    border-color: var(--c-border);
-    color: var(--c-text-muted);
-}
-
-.pets-token-meter {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 32px;
-    padding: 0 10px;
-    border: 1px solid var(--c-border);
-    color: var(--c-tier-zenith);
-    font-weight: 700;
-    font-size: 0.875rem;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-}
-
-.pets-token-meter__count {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    color: var(--c-text-main);
-}
-
-.pets-token-pips {
-    display: inline-flex;
-    gap: 3px;
-}
-
-.pets-token-pip {
-    width: 8px;
-    height: 8px;
-    border: 1px solid var(--c-tier-zenith);
-    border-radius: 1px;
-}
-
-.pets-token-pip--used {
-    background: var(--c-tier-zenith);
-}
-
-.pets-token-pip--locked {
-    border-style: dashed;
-    border-color: var(--c-text-muted);
-    opacity: 0.6;
-}
-
-.pets-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 18px;
-    margin-top: 6px;
-}
-
-.pets-legend__key {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-}
-
-.pets-legend__key--live {
-    color: var(--c-text-main);
-}
-
-.pets-legend__key--token {
-    color: var(--c-tier-zenith);
-}
-
-.pets-legend__dim {
+    font-size: 0.8125rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
     color: var(--c-text-muted);
+}
+
+.viewport .pet-head .account-row__info .pet-head__label {
+    padding-left: 0;
+}
+
+.pet-head__note {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--c-text-faint, var(--c-text-muted));
+}
+
+.pet-empty {
+    padding: 28px 16px;
+    font-size: 0.9375rem;
+    color: var(--c-text-muted);
+}
+
+.pets-show-unavailable {
+    flex: none;
+}
+
+/* On a phone a pet folds: its bonus and name, then the tier picker, then its token. */
+@media (max-width: 760px) {
+    .viewport .tabbed-list .pet-row {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 10px;
+    }
+
+    .viewport .pet-row .account-row__info,
+    .viewport .pet-row .account-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+
+    .viewport .pet-cells {
+        grid-template-columns: minmax(0, 1fr) auto;
+        width: 100%;
+    }
+
+    .viewport .pet-cells .pet-row__state {
+        grid-column: 1 / -1;
+        padding-left: 0;
+    }
+
+    .viewport .pet-cells .pet-row__state:empty {
+        display: none;
+    }
+
+    .viewport .pet-head .account-row__info,
+    .viewport .pet-head .pet-cells > :first-child {
+        display: none;
+    }
+
+    .viewport .pet-head .pet-cells .pet-head__label {
+        padding-left: 0;
+    }
 }

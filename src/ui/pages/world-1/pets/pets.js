@@ -13,6 +13,7 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import {
     executeCheatAction,
     fetchCheatStates,
@@ -23,31 +24,32 @@ import {
     saveConfigPart,
     startupWith,
 } from "../../../services/api.js";
-import { EmptyState } from "../../../components/EmptyState.js";
-import { SearchBar } from "../../../components/SearchBar.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { clickAgain } from "../../../components/inPlace.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     cleanNameEffect,
+    joinClasses,
     useWriteStatus,
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, button, span, label, input } = van.tags;
+const { div, span, label, input } = van.tags;
 
 const COMPANION_CHEAT = "w1 companion";
 const TOKEN_PATH = "OptionsListAccount[606]";
 
+// Pets whose Pets+ the game breaks. Checked in the game's code 2026-11-21: Spirit Reindeer's bonus only counts at
+// exactly its Normal value, so Pets+ leaves the Gold Ball Shop at 1x. Mr Pig and Rift Hivemind work well enough now.
 const PLUS_WARNINGS = {
-    27: "Pets+ breaks the Gold Ball Shop bonus: it drops to 1x instead of 2x. Keep this pet normal to retain the bonus.",
-    30: "Pets+ breaks remote chest access and infinite teleports unless another pet, such as Ram, provides them. Keep this pet normal to retain these perks.",
-    88: "Pets+ can prevent the Prisma multiplier and extra Prisma Bubble unlock from activating. Keep this pet normal until the game fixes its tier checks.",
+    27: "Pets+ turns this bonus off. Keep it Normal.",
 };
 
 // Empty config means all Pets+. Bare IDs and legacy arrays keep their existing tiers.
@@ -136,119 +138,85 @@ const buildSections = (pets, rawSetsInfo) => {
 
     primaryGroups.forEach((group, index) => {
         const ids = group.length >= 2 ? expandRange(group[0], group[1]) : group;
-        pushSection(`SET ${index + 1}`, ids);
+        pushSection(`Set ${index + 1}`, ids);
     });
 
     toIndexedArray(setsInfo[1]).forEach((group, index) => {
-        pushSection(`SPECIAL ${index + 1}`, parseIdList(unwrapSingleEntry(group)));
+        pushSection(index ? `Special ${index + 1}` : "Special", parseIdList(unwrapSingleEntry(group)));
     });
 
     toIndexedArray(setsInfo[2]).forEach((group, index) => {
-        pushSection(`EXTRA ${index + 1}`, parseIdList(unwrapSingleEntry(group)));
+        pushSection(index ? `Extra ${index + 1}` : "Extra", parseIdList(unwrapSingleEntry(group)));
     });
 
     const leftoverIds = fallbackIds.filter((id) => !seenIds.has(id));
-    if (leftoverIds.length) pushSection(sections.length ? "OTHER" : "ALL PETS", leftoverIds);
+    if (leftoverIds.length) pushSection(sections.length ? "Other" : "All pets", leftoverIds);
 
     return sections;
 };
 
-const tierLabel = ({ id, isNormal, isPlus, isToken, ownedPet }) => {
-    if (isToken(id)) return span({ class: "companion-card__tier" }, "TOKEN · NORMAL");
-    if (isPlus(id)) return span({ class: "companion-card__tier" }, "PETS+");
-    if (isNormal(id)) return span({ class: "companion-card__tier" }, "NORMAL");
-    const owned = ownedPet(id);
-    if (owned) return span({ class: "companion-card__tier" }, owned.plus ? "OWNED · PETS+" : "OWNED");
-    return span({ class: "companion-card__tier" }, "NOT SELECTED");
-};
+// A pet's tier while the injector runs. Token pets show as Normal: a token is the game's own Normal pick.
+const TIERS = [
+    { value: "off", label: "Off", tone: "off" },
+    { value: "normal", label: "Normal" },
+    { value: "plus", label: "Pets+", tone: "accent" },
+];
+const TIER_RANK = { off: 0, normal: 1, plus: 2 };
 
-const CompanionCard = ({
-    companion,
-    normalIds,
-    isPlus,
-    isToken,
-    ownedPet,
-    tokenBlock,
-    isBusy,
-    onToggle,
-    onTogglePlus,
-    onToken,
-}) => {
+/**
+ * One pet: its bonus first (the Pets+ one when that tier applies), its name under it; then whether the game already
+ * owns it, its tier, and its token. The row is the pet's only control, so the same row works for clicks and keys.
+ */
+const PetRow = ({ companion, tierOf, onTier, isToken, tokenBlock, ownedPet, isBusy, onToken, isShown }) => {
     const { id } = companion;
-    const isNormal = (petId) => normalIds.val.has(petId) && !isToken(petId);
-    const isUnselected = () => !isNormal(id) && !isPlus(id) && !isToken(id);
-
-    return div(
-        { class: "companion-card-wrap" },
-        button(
-            {
-                type: "button",
-                class: () =>
-                    [
-                        "companion-card",
-                        isNormal(id) && "companion-card--enabled",
-                        isPlus(id) && "companion-card--plus",
-                        isToken(id) && "companion-card--token",
-                        ownedPet(id) && isUnselected() && "companion-card--owned",
-                    ]
-                        .filter(Boolean)
-                        .join(" "),
-                "aria-pressed": () => isNormal(id) || isToken(id),
-                disabled: () => isBusy(),
-                onclick: () => onToggle(id),
-                title: () =>
-                    isToken(id)
-                        ? "Token pets are always Normal. Click to remove the token."
-                        : "Toggle this pet's normal bonus.",
-            },
+    // Pets+ in the game: picked here, or the game's own Pets+ pet left Off here.
+    const isPlusInGame = () => tierOf(id) === "plus" || (ownedPet(id)?.plus && tierOf(id) === "off");
+    const bonus = () => (isPlusInGame() ? companion.plusEffect : companion.effect);
+    const ownedWord = () => {
+        const owned = ownedPet(id);
+        return owned ? (owned.plus ? "Owned · Pets+" : "Owned") : "";
+    };
+    return AccountRow({
+        rowClass: () => joinClasses("pet-row", !isShown(companion) && "is-filtered-out"),
+        rowProps: { "data-pet-id": String(id) },
+        info: [
+            RowTitles({
+                bonus,
+                name: companion.name,
+                warning: PLUS_WARNINGS[id] ? () => (isPlusInGame() ? PLUS_WARNINGS[id] : null) : null,
+            }),
+        ],
+        controls: [
             div(
-                { class: "companion-card__top" },
-                div({ class: "companion-card__name" }, companion.name),
-                span({ class: "companion-card__id" }, `ID ${id}`)
+                { class: "pet-cells" },
+                span({ class: "pet-row__state" }, ownedWord),
+                StepPicker({
+                    name: `${companion.name} tier`,
+                    steps: TIERS,
+                    picked: () => tierOf(id),
+                    onPick: (tier) => void onTier(id, tier),
+                }),
+                label(
+                    { class: () => joinClasses("toggle-switch pet-token", isToken(id) && "is-on") },
+                    input({
+                        type: "checkbox",
+                        role: "switch",
+                        "aria-label": `Pet token for ${companion.name}`,
+                        checked: () => isToken(id),
+                        // A token the game would refund or wipe can't be picked: an owned pet, a pet the game doesn't
+                        // allow, or no free token (the Token head says how many are in use).
+                        disabled: () => isBusy() || (!isToken(id) && Boolean(tokenBlock(id))),
+                        onchange: async (e) => {
+                            e.target.checked = isToken(id);
+                            await onToken(id);
+                            e.target.checked = isToken(id);
+                        },
+                    }),
+                    span({ class: "slider" })
+                )
             ),
-            () => tierLabel({ id, isNormal, isPlus, isToken, ownedPet }),
-            div({ class: "companion-card__effect" }, () =>
-                isPlus(id) || (ownedPet(id)?.plus && isUnselected()) ? companion.plusEffect : companion.effect
-            ),
-            PLUS_WARNINGS[id] ? div({ class: "companion-card__warning" }, PLUS_WARNINGS[id]) : null
-        ),
-        withTooltip(
-            button(
-                {
-                    type: "button",
-                    class: () =>
-                        ["companion-plus", "companion-token", isToken(id) && "companion-plus--on"]
-                            .filter(Boolean)
-                            .join(" "),
-                    "aria-pressed": () => isToken(id),
-                    "aria-disabled": () => Boolean(tokenBlock(id)),
-                    "aria-label": `Pet token for ${companion.name}`,
-                    disabled: () => isBusy(),
-                    onclick: () => onToken(id),
-                },
-                "T"
-            ),
-            () =>
-                isToken(id)
-                    ? "Remove this pet's token."
-                    : tokenBlock(id) ||
-                      "Spend a pet token on this pet. Token pets are saved in your game, stay without the injector, are always Normal and apply after your next map change."
-        ),
-        withTooltip(
-            button(
-                {
-                    type: "button",
-                    class: () => ["companion-plus", isPlus(id) && "companion-plus--on"].filter(Boolean).join(" "),
-                    "aria-pressed": () => isPlus(id),
-                    "aria-label": `Pets+ tier for ${companion.name}`,
-                    disabled: () => isBusy(),
-                    onclick: () => onTogglePlus(id),
-                },
-                "+"
-            ),
-            () => (isToken(id) ? "Move this pet from its token to Pets+." : "Toggle this pet's Pets+ bonus.")
-        )
-    );
+        ],
+    });
 };
 
 const CompanionsTab = () => {
@@ -261,13 +229,15 @@ const CompanionsTab = () => {
     const plusIds = van.state(new Set());
     const cheatEnabled = van.state(false);
     const writeError = van.state("");
-    const hideUnused = van.state(false);
-    const searchQuery = van.state("");
+    // Pets the game doesn't really have yet stay out of the way until asked for.
+    const showUnavailable = van.state(false);
     const tokens = van.state({ owned: 0, missing: [], picks: [], blacklist: [], ownedPets: [] });
 
     const isPlus = (id) => plusIds.val.has(id);
     const isToken = (id) => tokens.val.picks.includes(id);
+    const isNormal = (id) => normalIds.val.has(id) && !isToken(id);
     const ownedPet = (id) => tokens.val.ownedPets.find((pet) => pet.id === id);
+    const tierOf = (id) => (isPlus(id) ? "plus" : isNormal(id) || isToken(id) ? "normal" : "off");
 
     // The game refunds tokens on owned or blacklisted pets, and wipes every pick once
     // the list outgrows the owned token sources.
@@ -277,11 +247,14 @@ const CompanionsTab = () => {
         if (tokens.val.blacklist.includes(id)) return "The game doesn't allow a token on this pet.";
         if (tokens.val.picks.length >= tokens.val.owned) {
             return tokens.val.missing.length
-                ? "No free token. Use GRANT MISSING TOKEN first."
+                ? "No free token. Use Grant missing token first."
                 : "All tokens are in use. Remove one first.";
         }
         return null;
     };
+
+    // What the list shows: available pets, or all of them with Show unavailable. The top bar's search does the rest.
+    const isShown = (companion) => showUnavailable.val || !companion.isUnused;
 
     // A write started since this read began is newer than what it read: the read drops its answer.
     let selectionWrites = 0;
@@ -307,6 +280,12 @@ const CompanionsTab = () => {
         normalIds.val = new Set(selectedIds.filter((id) => validIdSet.has(id) && !plusIds.val.has(id) && !isToken(id)));
     };
 
+    const panelHost = div({
+        class: "account-list account-list--tabbed pets-list",
+        "aria-busy": () => writeStatus.val === "loading",
+    });
+    let panelKey = "";
+
     const load = () =>
         runLoad(async () => {
             const [rawCompanionDb, rawSetsInfo] = await Promise.all([
@@ -331,6 +310,7 @@ const CompanionsTab = () => {
 
             tokens.val = await readComputed("companions", "petTokens");
             await readSelection();
+            renderPanel();
         });
 
     const setCompanionCheat = (wanted) => executeCheatAction(COMPANION_CHEAT, wanted);
@@ -389,36 +369,18 @@ const CompanionsTab = () => {
     const withoutToken = (companionId) =>
         isToken(companionId) ? tokens.val.picks.filter((id) => id !== companionId) : tokens.val.picks;
 
-    const handleToggle = async (companionId) => {
+    // Off, Normal or Pets+ for one pet. A token pet is already Normal; picking Off or Pets+ takes its token back.
+    const setTier = async (companionId, tier) => {
         if (isBusy()) return;
         const shown = isToken(companionId);
+        if (shown && tier === "normal") return;
         await writeSelection(() => {
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
-            // Token pets already show as Normal, so clicking one deselects it, from both tiers: once its token is
-            // gone, a saved choice of every pet would count it again.
-            if (shown) {
-                normal.delete(companionId);
-                plus.delete(companionId);
-                return { normal, plus, picks: withoutToken(companionId) };
-            }
-            if (normal.has(companionId)) normal.delete(companionId);
-            else normal.add(companionId);
-            plus.delete(companionId);
-            return { normal, plus };
-        });
-    };
-
-    const handleTogglePlus = async (companionId) => {
-        if (isBusy()) return;
-        const shown = isToken(companionId);
-        await writeSelection(() => {
-            const plus = new Set(plusIds.val);
-            // A token pet's + moves it to Pets+, though once its token is gone a choice of every pet counts it there.
-            if (plus.has(companionId) && !shown) plus.delete(companionId);
-            else plus.add(companionId);
-            const normal = new Set(normalIds.val);
             normal.delete(companionId);
+            plus.delete(companionId);
+            if (tier === "normal") normal.add(companionId);
+            if (tier === "plus") plus.add(companionId);
             return { normal, plus, picks: shown ? withoutToken(companionId) : tokens.val.picks };
         });
     };
@@ -456,236 +418,182 @@ const CompanionsTab = () => {
             }
         );
 
-    load();
+    // The pets a tab's tools act on: the ones it shows (and the top bar's search leaves), without token pets (a token
+    // is the game's, and bulk tiers never touch it).
+    const sectionOf = (activeId) => sections.val.find((section) => section.label === activeId.val);
+    const companionsIn = (section) =>
+        (section?.ids ?? []).map((id) => companions.val.find((companion) => companion.id === id)).filter(Boolean);
+    const rowOf = new Map();
+    const inView = (pet) => isShown(pet) && shownBySearch(rowOf.get(pet.id));
+    const petWord = (n) => `pet${n === 1 ? "" : "s"}`;
 
-    const renderSearchResults = () => {
-        const companionMap = new Map(companions.val.map((companion) => [companion.id, companion]));
-        const query = normalizeSearchText(searchQuery.val);
-        const matchesFilters = (companion) => {
-            if (!companion) return false;
-            if (hideUnused.val && companion.isUnused) return false;
-            if (!query) return true;
-            return (
-                normalizeSearchText(companion.name).includes(query) ||
-                normalizeSearchText(companion.effect).includes(query)
-            );
-        };
-        const visibleSections = sections.val
-            .map((section) => ({
-                ...section,
-                companions: section.ids.map((id) => companionMap.get(id)).filter(matchesFilters),
-            }))
-            .filter((section) => section.companions.length > 0);
-
-        if (!visibleSections.length) {
-            return EmptyState({
-                title: "NO MATCHING PETS",
-                subtitle: query
-                    ? "No pets matched your current search."
-                    : "No pets remain after the current filters were applied.",
+    const tools = (activeId, ask) => {
+        const targets = () => companionsIn(sectionOf(activeId)).filter((pet) => inView(pet) && !isToken(pet.id));
+        const allTo = (tier) => {
+            const pets = targets();
+            return writeSelection(() => {
+                const normal = new Set(normalIds.val);
+                const plus = new Set(plusIds.val);
+                pets.filter((pet) => !isToken(pet.id)).forEach(({ id }) => {
+                    normal.delete(id);
+                    plus.delete(id);
+                    if (tier === "normal") normal.add(id);
+                    if (tier === "plus") plus.add(id);
+                });
+                return { normal, plus };
             });
-        }
+        };
+        const tierButtons = TIERS.map((tier) => {
+            const tierButton = ActionButton({
+                label: tier.label,
+                status: writeStatus,
+                disabled: () => isBusy() || targets().every((pet) => tierOf(pet.id) === tier.value),
+                onClick: (e) => {
+                    e.preventDefault();
+                    const lowered = targets().filter((pet) => TIER_RANK[tierOf(pet.id)] > TIER_RANK[tier.value]).length;
+                    if (!lowered) return void allTo(tier.value);
+                    const where = sectionOf(activeId)?.label ?? "this tab";
+                    ask({
+                        question:
+                            tier.value === "off"
+                                ? `Turn off ${lowered} ${petWord(lowered)} in ${where}?`
+                                : `Lower ${lowered} ${petWord(lowered)} in ${where} to ${tier.label}?`,
+                        confirmLabel:
+                            tier.value === "off"
+                                ? `Turn ${lowered === 1 ? "it" : "them"} off`
+                                : `Lower ${lowered === 1 ? "it" : "them"}`,
+                        from: tierButton,
+                        onConfirm: () => allTo(tier.value),
+                    });
+                },
+            });
+            return tierButton;
+        });
+        return [
+            div(
+                { class: "tabbed-list__tool-group" },
+                span({ class: "tabbed-list__tool-label" }, "All to"),
+                ...tierButtons
+            ),
+            div(
+                { class: "tabbed-list__tool-group", hidden: () => !tokens.val.missing.length },
+                ActionButton({
+                    label: "Grant missing token",
+                    status: writeStatus,
+                    disabled: () => isBusy(),
+                    buttonProps: { hidden: () => !tokens.val.missing.length },
+                    onClick: (e) => {
+                        e?.preventDefault();
+                        return grantTokens();
+                    },
+                })
+            ),
+        ];
+    };
 
-        return div(
-            ...visibleSections.map((section) =>
+    // Each tab's column head says once what its columns mean: a tier lasts while the injector runs, a token is saved.
+    const columnHead = () =>
+        div(
+            { class: "account-row account-row--head pet-head" },
+            div({ class: "account-row__info" }, span({ class: "pet-head__label" }, "Pet")),
+            div(
+                { class: "account-row__controls" },
                 div(
-                    { class: "companions-section" },
-                    div({ class: "companions-section__title" }, section.label),
-                    div(
-                        { class: "companions-grid" },
-                        ...section.companions.map((companion) =>
-                            CompanionCard({
-                                companion,
-                                normalIds,
-                                isPlus,
-                                isToken,
-                                ownedPet,
-                                tokenBlock,
-                                isBusy,
-                                onToggle: handleToggle,
-                                onTogglePlus: handleTogglePlus,
-                                onToken: handleToken,
-                            })
-                        )
+                    { class: "pet-cells" },
+                    span(),
+                    span(
+                        { class: "pet-head__label" },
+                        "Tier",
+                        span({ class: "pet-head__note" }, "while the injector runs")
+                    ),
+                    span(
+                        { class: "pet-head__label" },
+                        () => `Token ${tokens.val.picks.length}/${tokens.val.owned}`,
+                        span({ class: "pet-head__note" }, "saved in your game")
                     )
                 )
             )
         );
+
+    // A tab whose pets are all filtered out says so where its rows would be.
+    const emptyNote = (section) =>
+        div(
+            { class: "pet-empty", hidden: () => companionsIn(section).some(isShown) },
+            "Every pet here is unavailable. Turn on Show unavailable to see them."
+        );
+
+    // The tabs come from the game's pet groups, so the panel is built once they're read, and again only when the
+    // groups change (a refresh keeps the rows and the open tab).
+    const renderPanel = () => {
+        const key = sections.val.map((section) => `${section.label}:${section.ids.join(",")}`).join("|");
+        if (key === panelKey) return;
+        panelKey = key;
+        panelHost.replaceChildren(
+            TabbedList({
+                name: "Pets",
+                tabs: sections.val.map((section) => ({
+                    id: section.label,
+                    label: section.label,
+                    content: [
+                        columnHead(),
+                        ...companionsIn(section).map((companion) => {
+                            const row = PetRow({
+                                companion,
+                                tierOf,
+                                onTier: setTier,
+                                isToken,
+                                tokenBlock,
+                                ownedPet,
+                                isBusy,
+                                onToken: handleToken,
+                                isShown,
+                            });
+                            rowOf.set(companion.id, row);
+                            return row;
+                        }),
+                        emptyNote(section),
+                    ],
+                })),
+                tools,
+                toolsLabel: (activeId) => {
+                    const section = sectionOf(activeId);
+                    const shown = companionsIn(section).filter(inView).length;
+                    const pets = `${petWord(shown)} in ${section?.label ?? ""}`;
+                    return isSearching() ? `${shown} matching ${pets}` : `All ${shown} ${pets}`;
+                },
+            })
+        );
     };
 
-    const toolbar = [
-        SearchBar({
-            placeholder: "SEARCH PETS OR BUFFS",
-            onInput: (value) => (searchQuery.val = value),
-        }),
-        withTooltip(
-            label(
-                { class: "toggle-switch account-toggle" },
-                input({
-                    type: "checkbox",
-                    checked: () => hideUnused.val,
-                    onchange: (e) => (hideUnused.val = e.target.checked),
-                }),
-                span({ class: "slider" }),
-                span({ class: "label" }, "HIDE UNUSED")
-            ),
-            "Hide pets that are not part of the official in-game pet groups."
-        ),
-    ];
-    const bulkButtons = [
-        withTooltip(
-            button(
-                {
-                    type: "button",
-                    class: "btn-quiet btn-sm",
-                    disabled: () => isBusy(),
-                    onclick: () =>
-                        writeSelection(() => ({
-                            normal: new Set(
-                                companions.val
-                                    .filter((pet) => !pet.isUnused && !isPlus(pet.id) && !isToken(pet.id))
-                                    .map((pet) => pet.id)
-                            ),
-                            plus: new Set(plusIds.val),
-                        })),
-                },
-                "Unlock all"
-            ),
-            "Select all available pets at their normal tier, keeping existing Pets+ choices. Token pets are left alone."
-        ),
-        withTooltip(
-            button(
-                {
-                    type: "button",
-                    class: "btn-quiet btn-sm",
-                    disabled: () => isBusy(),
-                    onclick: () =>
-                        writeSelection(() => ({
-                            normal: new Set(),
-                            plus: new Set(
-                                companions.val.filter((pet) => !pet.isUnused && !isToken(pet.id)).map((pet) => pet.id)
-                            ),
-                        })),
-                },
-                "Unlock all Pets+"
-            ),
-            "Select all available pets at Pets+, including pets with warnings about broken perks. Token pets stay Normal."
-        ),
-        withTooltip(
-            button(
-                {
-                    type: "button",
-                    class: "btn-danger btn-sm",
-                    disabled: () => isBusy(),
-                    onclick: (e) =>
-                        clickAgain(e.currentTarget, "clear every injector pet selection and turn W1 Companion off.")
-                            ? writeSelection(() => ({ normal: new Set(), plus: new Set() }))
-                            : undefined,
-                },
-                "Clear all"
-            ),
-            "Clear every injector pet choice: no pets now or after a restart. Tokens are not touched."
-        ),
-        withTooltip(
-            button(
-                {
-                    type: "button",
-                    class: "btn-danger btn-sm",
-                    onclick: (e) =>
-                        clickAgain(e.currentTarget, "clear every Pets+ selection.")
-                            ? writeSelection(() => ({ normal: new Set(normalIds.val), plus: new Set() }))
-                            : undefined,
-                    disabled: () => isBusy(),
-                },
-                "Clear Pets+"
-            ),
-            "Clear Pets+ selections, keeping normal selections."
-        ),
-    ];
+    load();
 
     return PersistentAccountListPage({
-        rootClass: "tab-container",
-        title: "PETS",
-        description: [
-            "Click a card for Normal or + for Pets+. T spends a pet token on that pet. Click again to deselect.",
-            span(
-                { class: "pets-legend" },
-                span(
-                    { class: "pets-legend__key pets-legend__key--live" },
-                    "NORMAL · PETS+ ",
-                    span({ class: "pets-legend__dim" }, "only while the injector runs")
-                ),
-                span(
-                    { class: "pets-legend__key pets-legend__key--token" },
-                    "TOKEN ",
-                    span({ class: "pets-legend__dim" }, "saved in your game")
-                )
+        rootClass: "tab-container pets-tab",
+        title: "Pets",
+        description: "Normal and Pets+ last while the injector runs. A token stays in your game.",
+        actions: RefreshButton({
+            onRefresh: load,
+            disabled: isBusy,
+        }),
+        // Always a node: a binding that returns nothing is dropped for good, and a later failure couldn't show.
+        topNotices: () => div(writeError.val ? WarningBanner(span({ role: "alert" }, writeError.val)) : null),
+        toolbar: [
+            label(
+                { class: "toggle-switch account-toggle pets-show-unavailable" },
+                input({
+                    type: "checkbox",
+                    checked: () => showUnavailable.val,
+                    onchange: (e) => (showUnavailable.val = e.target.checked),
+                }),
+                span({ class: "slider" }),
+                span({ class: "label" }, "Show unavailable")
             ),
         ],
-        actions: [
-            withTooltip(
-                button(
-                    {
-                        type: "button",
-                        class: "btn-quiet btn-sm",
-                        hidden: () => !tokens.val.missing.length,
-                        disabled: () => isBusy(),
-                        onclick: grantTokens,
-                    },
-                    "Grant missing token"
-                ),
-                "Adds the pet token sources this account is missing to your save."
-            ),
-            withTooltip(
-                span(
-                    { class: "pets-token-meter" },
-                    "TOKENS",
-                    span({ class: "pets-token-meter__count" }, () => `${tokens.val.picks.length}/${tokens.val.owned}`),
-                    () =>
-                        span(
-                            { class: "pets-token-pips", "aria-hidden": "true" },
-                            ...Array.from({ length: tokens.val.owned + tokens.val.missing.length }, (_, index) =>
-                                span({
-                                    class: [
-                                        "pets-token-pip",
-                                        index < tokens.val.picks.length && "pets-token-pip--used",
-                                        index >= tokens.val.owned && "pets-token-pip--locked",
-                                    ]
-                                        .filter(Boolean)
-                                        .join(" "),
-                                })
-                            )
-                        )
-                ),
-                () =>
-                    `${tokens.val.picks.length} of ${tokens.val.owned} owned pet tokens used. Token pets are saved in your game.`
-            ),
-            ...bulkButtons,
-            RefreshButton({
-                onRefresh: load,
-                disabled: isBusy,
-                tooltip: "Re-read live companion data from the running game.",
-            }),
-        ],
-        topNotices: () =>
-            div(
-                WarningBanner(
-                    "Since the latest game update, pets unlocked here are only available while the injector is running. " +
-                        "Pets you own remain available."
-                ),
-                writeError.val ? WarningBanner(span({ role: "alert" }, writeError.val)) : null,
-                !loading.val && !error.val && !cheatEnabled.val
-                    ? WarningBanner("The W1 Companion cheat is off. Select a pet's normal or Pets+ bonus to enable it.")
-                    : null
-            ),
-        toolbar,
         state: { loading, error },
-        loadingText: "READING PETS",
-        errorTitle: "PET READ FAILED",
-        body: div(
-            { class: "scrollable-panel companions-scroll", "aria-busy": () => writeStatus.val === "loading" },
-            () => renderSearchResults()
-        ),
+        loadingText: "Reading pets",
+        errorTitle: "Pets read failed",
+        initialWrapperClass: "account-list",
+        body: panelHost,
     });
 };
 

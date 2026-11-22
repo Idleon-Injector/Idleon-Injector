@@ -100,8 +100,8 @@ const resetBribes = () => bribes().splice(0, 4, 1, 1, 0, 0);
 test("bribes: a switch flipped while another row saves still saves", async () => {
     try {
         resetBribes();
-        const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping On the Job"));
-        const second = rowNamed(root, "Sleeping On the Job");
+        const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping on the Job"));
+        const second = rowNamed(root, "Sleeping on the Job");
         await flipBothWhileFirstSaves(rowNamed(root, "Mandatory Fire Sale"), second);
         assert.equal(bribes()[2], 1);
         assert.equal(bribes()[3], 1, "the second row's flip waited its turn instead of being dropped");
@@ -123,7 +123,7 @@ test("bribes: flipping one switch on and back off while it saves ends with the l
         release();
         await save;
         assert.equal(bribes()[2], 0, "the newest flip (off) is what the game holds");
-        assert.equal(wordsOf(row), "Not owned");
+        assert.equal(wordsOf(row), "", "an off bribe says nothing");
     } finally {
         release();
         resetBribes();
@@ -315,7 +315,7 @@ test("bribes: Enable all keeps its button's click even when another control is c
         root.listeners.pointerdown({ target: enableAll });
         const done = click(enableAll);
         // While Enable all reads the game, the player clicks another row's switch (without flipping it yet).
-        root.listeners.pointerdown({ target: switchOf(rowNamed(page, "Sleeping On the Job")) });
+        root.listeners.pointerdown({ target: switchOf(rowNamed(page, "Sleeping on the Job")) });
         await done;
         await until(() => changeLog.lastBulkAction.val !== before, "Enable all to log its action");
         const { action } = changeLog.lastBulkAction.val;
@@ -505,7 +505,7 @@ test("bribes: a queued save is logged on the page it was asked for on, after the
     const writes = holdEachWrite();
     try {
         resetBribes();
-        const page = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping On the Job"));
+        const page = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Sleeping on the Job"));
         const { changeLog, store, done } = await startLog(page);
         cleanups.push(done);
         store.openMenu({ view: "PAGES" });
@@ -514,7 +514,7 @@ test("bribes: a queued save is logged on the page it was asked for on, after the
         const logged = changeLog.lastBulkAction.val;
         const first = flip(rowNamed(page, "Mandatory Fire Sale"), true);
         await until(() => writes.held() === 1, "the first save to reach the game");
-        const second = flip(rowNamed(page, "Sleeping On the Job"), true); // waits its turn
+        const second = flip(rowNamed(page, "Sleeping on the Job"), true); // waits its turn
         store.openMenu({ view: "HISTORY" }); // the player moves on before it runs
         assert.notEqual(changeLog.currentPlace().view, askedOn.view);
         writes.all();
@@ -538,7 +538,7 @@ const typeLevel = (row, value) => {
     return field;
 };
 const exalted = () => game.gga.Compass[4].includes("_0");
-// Stamp A1, Not exalted, with its level, its cap and the exalted codes put back afterwards.
+// Sword Stamp, Not exalted, with its level, its cap and the exalted codes put back afterwards.
 const openStampA1 = async () => {
     const levels = game.gga.StampLevel[0];
     const caps = game.gga.StampLevelMAX[0];
@@ -548,9 +548,9 @@ const openStampA1 = async () => {
         caps[0] = before.cap;
         game.gga.Compass[4] = before.exalted;
     });
-    assert.equal(exalted(), false, "Stamp A1 starts Not exalted");
-    const root = await openPage(STAMPS, (root) => pageRead(root) && rowNamed(root, "Stamp A1"));
-    return { root, row: rowNamed(root, "Stamp A1"), levels, before: before.level };
+    assert.equal(exalted(), false, "Sword Stamp starts Not exalted");
+    const root = await openPage(STAMPS, (root) => pageRead(root) && rowNamed(root, "Sword Stamp"));
+    return { root, row: rowNamed(root, "Sword Stamp"), levels, before: before.level };
 };
 // Log the game requests in order ("switch read", "level write", …); the first that `holdIf` picks waits for
 // `release()`, and "held answered" is logged once the game answers it. `levels` lists the stamp levels written.
@@ -640,6 +640,30 @@ test("stamps: a refused level stays said when the switch flipped behind it saves
         assert.equal(saveWordsOf(row), "game kept old value", "the switch's ✓ doesn't hide the unsaved level");
         assert.equal(field.value, String(before + 1), "the typed level is still there to fix");
         assert.equal(switchStatusOf(row), "Saved", "the switch reads out its own save");
+    } finally {
+        await runCleanups();
+    }
+});
+
+// #111: the switch says its own save, so a level fixed while it saves keeps one steady reason until the level saves.
+test("stamps: a level fixed while the switch saves shows its ✓ once it saves, not the old reason", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        let field = typeLevel(row, -5);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => saveWordsOf(row) === "min 0", "the level's reason");
+        const requests = watchRequests((url, body) => url.includes("/write") && body.includes("Compass[4]"));
+        const flipped = requests.track(flip(row, true));
+        await until(requests.held, "the switch's write to reach the game");
+        field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} }); // waits behind the switch
+        const saved = requests.track(
+            until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the fixed level to save")
+        );
+        assert.equal(saveWordsOf(row), "min 0", "the reason stays while the switch saves");
+        requests.release();
+        await Promise.all([flipped, saved]);
+        assert.equal(wordsOf(row), "Exalted");
     } finally {
         await runCleanups();
     }
@@ -945,9 +969,17 @@ test("stamps: Escape drops a commit still waiting; the one already writing ends"
         await until(requests.held, "the first level's write to reach the game");
         const field = commit(before + 2); // joins the running save
         row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        // The row's save is the operation: cleanup waits for it, so no level lands after the stamp is put back.
+        const saved = requests.track(
+            until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the first level's save to end")
+        );
         requests.release();
-        await until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the first level's save to end");
+        await saved;
         assert.deepEqual(requests.levels, [before + 1], "the commit Escape took back isn't saved");
+        await until(() => field.attributes.value === String(before + 1), "the field to show what the game holds");
+        row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: null });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.deepEqual(requests.levels, [before + 1], "leaving the field doesn't save the old level back");
     } finally {
         await runCleanups();
     }
@@ -971,8 +1003,11 @@ test("stamps: a commit that joins a running save is logged on its own page after
         await until(requests.held, "the first level's write to reach the game");
         commit(before + 2); // joins the running save
         store.openMenu({ view: "HISTORY" }); // the player moves on before it runs
+        const saved = requests.track(
+            until(() => levels[0] === before + 2 && saveWordsOf(row) === "saved", "the second level to save")
+        );
         requests.release();
-        await until(() => levels[0] === before + 2, "the second level to save");
+        await saved;
         // The game holds the level before History logs it: wait for the commit's own entry.
         let second;
         for (let i = 0; i < 300 && !second; i++) {
@@ -1193,8 +1228,8 @@ test("bribes: a row flip that Disable all already covered claims no save", async
         const root = await openPage(BRIBES, (root) => pageRead(root) && rowNamed(root, "Insider Trading"));
         const row = rowNamed(root, "Insider Trading");
         const disableAll = buttonNamed(root, "Disable all");
-        await click(disableAll); // asks in place
-        const bulk = click(disableAll); // confirmed
+        await click(disableAll); // asks in the tray
+        const bulk = click(byClass(root, "tabbed-list__yes")[0]); // confirmed
         await until(() => writes.held() === 1, "Disable all to reach the game");
         const rowSave = flip(row, false); // waits behind Disable all, which turns it off
         writes.all();

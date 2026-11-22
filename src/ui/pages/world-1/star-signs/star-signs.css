@@ -1,279 +1,163 @@
-/* ── Star Signs ───────────────────────────────────────────────────────── */
+/*
+ * Star Signs: one row per sign in its world's tab. The task leads and opens the players who completed it, in place
+ * under the row: soft chips in their order (drag to move, × to take off), then a pick to add one.
+ */
 
-.starsigns-scroll-container {
-    overflow-y: auto;
-    min-height: 0;
-}
-
-.starsign-grid {
-    display: grid;
-    flex: 1;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 8px;
-    width: 100%;
-    min-width: 0;
-    padding: 4px 0;
-}
-
-.starsign-card {
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    padding: 10px 12px;
-    cursor: pointer;
-    transition:
-        border-color 0.15s,
-        background 0.15s;
-}
-
-.starsign-card:hover {
-    border-color: var(--c-accent);
-    background: var(--c-panel-hover);
-}
-
-.starsign-card--unlocked {
-    border-color: var(--c-accent);
-}
-
-.starsign-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-}
-
-.starsign-label-badge {
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    padding: 2px 8px;
-    border: 1px solid currentColor;
-}
-
-.starsign-card-desc {
-    font-size: 0.875rem;
-    color: var(--c-text-dim);
-    margin: 0 0 8px;
-    line-height: 1.4;
-}
-
-.starsign-card-bar {
-    height: 4px;
-    background: var(--c-border);
-    overflow: hidden;
-}
-
-.starsign-card-fill {
-    height: 100%;
-    width: var(--starsign-fill-width, 0%);
-    background: var(--c-accent);
-    transition: width 0.3s;
-}
-
-.starsign-status {
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-}
-
-.starsign-status.unlocked {
-    color: var(--c-accent);
-}
-
-.starsign-status.locked {
-    color: var(--c-text-dim);
-}
-
-/* Group colour tints */
-.sign-A .starsign-label-badge,
-.starsign-label-badge.sign-A {
-    color: var(--c-sign-a);
-}
-
-.sign-B .starsign-label-badge,
-.starsign-label-badge.sign-B {
-    color: var(--c-sign-b);
-}
-
-.sign-C .starsign-label-badge,
-.starsign-label-badge.sign-C {
-    color: var(--c-sign-c);
-}
-
-.sign-D .starsign-label-badge,
-.starsign-label-badge.sign-D {
-    color: var(--c-sign-d);
-}
-
-.sign-E .starsign-label-badge,
-.starsign-label-badge.sign-E {
-    color: var(--c-sign-e);
-}
-
-.sign-F .starsign-label-badge,
-.starsign-label-badge.sign-F {
-    color: var(--c-sign-f);
-}
-
-/* Detail view */
-.starsign-detail {
-    padding: 4px 0;
-}
-
-.starsign-detail-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 16px;
+.starsign-row {
     flex-wrap: wrap;
 }
 
-.starsign-detail-label {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin: 0 0 4px;
+/* The task and name are the row's opener: plain text that reads like any row, with the focus ring when keyed to. */
+.starsign-row__open {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
-.starsign-detail-desc {
-    font-size: 0.875rem;
-    color: var(--c-text-dim);
-    margin: 0;
+.starsign-row__open:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 4px;
+    border-radius: 4px;
 }
 
-.starsign-needed-badge {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--c-text-main);
+/* "2 / 4": how many players completed it, the number the row leads with, out of how many it needs. */
+.starsign-row__players {
+    min-width: 3.5rem;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-.starsign-section-label {
-    font-size: 0.875rem;
+.starsign-row__count {
+    font-size: var(--size-value, 1rem);
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--c-text-dim);
-    margin: 12px 0 6px;
+    color: var(--c-text-main);
 }
 
-/* Drag list */
-.starsign-drag-list {
+.starsign-row__need {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+/* The open players span the whole row, under its task and controls. */
+.starsign-row__detail {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+/* On a phone a sign folds: its task on its own line, then the count and the switch. */
+@media (max-width: 760px) {
+    .viewport .tabbed-list .starsign-row {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 6px;
+    }
+
+    .viewport .starsign-row .account-row__info,
+    .viewport .starsign-row .account-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+
+    .viewport .starsign-row .account-row__controls {
+        justify-content: space-between;
+    }
+}
+
+.starsign-row__detail:empty,
+.starsign-row__detail > span:only-child:empty {
+    display: none;
+}
+
+.starsign-detail {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: 12px;
+    gap: 10px;
+    padding: 4px 0 8px;
+}
+
+.starsign-detail__none {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+}
+
+/* The players, in order, as soft chips in the field's colour: no outline, they wrap to the next line. */
+.starsign-drag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .starsign-drag-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--c-panel-dim);
     cursor: grab;
     user-select: none;
+    transition: background-color 150ms var(--ease-soft, ease-out);
 }
 
-.starsign-drag-row:active,
+.starsign-drag-row:hover,
+.starsign-drag-row.drag-over {
+    background: var(--c-well-hover, var(--c-panel-hover));
+}
+
 .starsign-drag-row.dragging {
     cursor: grabbing;
-    border-color: var(--c-accent);
-    background: var(--c-panel-hover);
-}
-
-.starsign-drag-row.drag-over {
-    border-color: var(--c-accent);
-    background: var(--c-panel-hover);
-}
-
-.starsign-drag-handle {
-    color: var(--c-text-dim);
-    font-size: 1rem;
+    opacity: 0.6;
 }
 
 .starsign-player-chip {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex: 1;
+    gap: 6px;
+    height: 30px;
+    padding: 0 2px 0 10px;
 }
 
-.starsign-player-num {
+.starsign-player-order {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--c-text-muted);
+}
+
+.starsign-player-name {
     font-size: 0.875rem;
     font-weight: 600;
-}
-
-.starsign-player-letter {
-    font-size: 0.875rem;
-    font-family: var(--font-mono);
-    background: var(--c-border);
-    padding: 1px 6px;
+    color: var(--c-text-main);
 }
 
 .starsign-remove-btn {
-    margin-left: auto;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 6px;
 }
 
-/* Empty state */
-.starsign-empty-players {
-    font-size: 0.875rem;
-    color: var(--c-text-dim);
-    padding: 12px;
-    border: 1px dashed var(--c-border);
-    text-align: center;
-    margin-bottom: 12px;
-}
-
-/* Add row */
 .starsign-add-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
 }
 
 .starsign-player-select {
-    padding: 0 6px;
+    width: 11.25rem;
     height: 32px;
-    width: 180px;
+    padding: 0 8px;
+    font-family: var(--font-display);
     font-size: 0.875rem;
 }
 
-/* Progress */
-.starsign-progress-bar-wrap {
-    margin-bottom: 16px;
-}
-
-.starsign-progress-label {
-    font-size: 0.875rem;
-    margin-bottom: 6px;
-}
-
-.starsign-unlocked-text {
-    color: var(--c-accent);
-    font-weight: 700;
-}
-
-.starsign-locked-text {
-    color: var(--c-text-dim);
-}
-
-.starsign-progress-bar {
-    height: 6px;
-    background: var(--c-border);
-    overflow: hidden;
-}
-
-.starsign-progress-fill {
-    height: 100%;
-    width: var(--starsign-fill-width, 0%);
-    background: var(--c-accent);
-    transition: width 0.3s;
-}
-
-/* Actions */
-.starsign-detail-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.starsign-detail__hint {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--c-text-muted);
 }

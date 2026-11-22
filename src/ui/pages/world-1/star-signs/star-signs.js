@@ -1,51 +1,62 @@
 /**
- * W1 — Star Signs Tab
+ * W1 - Star Signs
  *
  * Data sources:
- *   cList.StarQuests[i]     — [mapId, x, y, req1, req2, playersNeeded, starPoints, desc, type]
- *   gga.StarSignProg[i][0]  — string of player letters who completed (e.g. "_ab")
- *   gga.StarSignProg[i][1]  — claimed flag (1 = claimed, 0 = not claimed)
+ *   cList.StarQuests[i]     - [mapId, x, y, req1, req2, playersNeeded, starPoints, task, type]
+ *   gga.StarSignProg[i][0]  - the letters of the players who completed it, in order (e.g. "_ab")
+ *   gga.StarSignProg[i][1]  - claimed flag (1 = claimed, 0 = not claimed)
+ *   OptionsListAccount[40]  - star points to spend: claiming a sign adds its points (StarQuests[i][6]), unlocking a
+ *                             star sign in the game spends them (SSignInfoUI[i][4])
  *
  * Player → letter mapping (Number2Letter):
  *   Player 1 → "_", Player 2 → "a", Player 3 → "b", ... Player 10 → "i"
  *
- * Label groups by mapId:
- *   mapId <  50 → A-N
- *   mapId < 100 → B-N
- *   mapId < 150 → C-N
- *   mapId < 200 → D-N
- *   mapId < 250 → E-N
- *   mapId ≥ 250 → F-N
+ * Signs are named and grouped by the world of their map: mapId < 50 → World 1 ("A-1", "A-2"...), < 100 → World 2
+ * ("B-n"), < 150 → World 3, < 200 → World 4, < 250 → World 5, the rest → World 6. Each world is a tab. A row is the
+ * sign's task, its name under it, how many players completed it and an Unlocked switch; clicking it opens the players
+ * who completed it, in order, right in the list.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
-import { toInt, toNum, useWriteStatus, writeManyVerified } from "../../../components/views/account/accountShared.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
+import {
+    joinClasses,
+    toInt,
+    toNum,
+    useWriteStatus,
+    writeManyVerified,
+} from "../../../components/views/account/accountShared.js";
 import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { Icons } from "../../../assets/icons.js";
-import { clickAgain } from "../../../components/inPlace.js";
 
-const { div, button, span, h4, p, select, option } = van.tags;
+const { div, button, span, p, select, option } = van.tags;
 
 const PLAYER_LETTERS = ["_", "a", "b", "c", "d", "e", "f", "g", "h", "i"];
 const PLAYER_NUMBERS = PLAYER_LETTERS.map((_, index) => index + 1);
 const letterToPlayer = (l) => PLAYER_LETTERS.indexOf(l) + 1;
 const playerToLetter = (n) => PLAYER_LETTERS[n - 1] ?? null;
 
+const GROUPS = ["A", "B", "C", "D", "E", "F"];
+const groupOf = (mapId) =>
+    mapId < 50 ? "A" : mapId < 100 ? "B" : mapId < 150 ? "C" : mapId < 200 ? "D" : mapId < 250 ? "E" : "F";
+const worldOf = (group) => `World ${GROUPS.indexOf(group) + 1}`;
+
 function computeLabels(quests) {
-    const counters = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 };
+    const counters = Object.fromEntries(GROUPS.map((group) => [group, 0]));
     return quests.map((q) => {
-        const mapId = parseInt(q[0], 10);
-        const g =
-            mapId < 50 ? "A" : mapId < 100 ? "B" : mapId < 150 ? "C" : mapId < 200 ? "D" : mapId < 250 ? "E" : "F";
-        counters[g]++;
-        return `${g}-${counters[g]}`;
+        const group = groupOf(parseInt(q[0], 10));
+        counters[group]++;
+        return `${group}-${counters[group]}`;
     });
 }
 
@@ -75,12 +86,27 @@ const withProgress = (sign, prog) => {
     };
 };
 
+// A sign with these players, unlocked and claimed when there are enough of them.
+const withPlayers = (sign, players) => {
+    const unlocked = isUnlockedByProgress(players, sign.playersNeeded);
+    return { ...sign, players, unlocked, claimed: unlocked ? 1 : 0 };
+};
+
 // The players added and removed since `base`, put on the list the game holds now, so players who completed the
 // sign in the game since stay (after the page's own order).
 const mergePlayers = (base, next, game) => [
     ...next.filter((num) => game.includes(num) || !base.includes(num)),
     ...game.filter((num) => !base.includes(num) && !next.includes(num)),
 ];
+
+const shuffled = (list) => {
+    const pool = [...list];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool;
+};
 
 const playerName = (num, usernames) => {
     const name = usernames[num - 1];
@@ -96,13 +122,30 @@ const normalizeUsernames = (rawUsernames) => {
     });
 };
 
-const DEFAULT_UNLOCKED_STAR_SIGNS = Object.freeze({
-    The_Buff_Guy: 1,
-    Flexo_Bendo: 1,
-    The_Book_Worm: 1,
-    The_Fuzzy_Dice: 1,
-});
+const getClaimedRewardTotal = (list) =>
+    list.reduce((total, sign) => total + (toInt(sign.claimed, 0) ? toNum(sign.rewardPoints, 0) : 0), 0);
 
+// OptionsListAccount[40] is the star points balance the game spends on star signs (claiming a sign adds its points,
+// unlocking a star sign takes its cost), so a change moves it by what the signs give or take back, never below zero:
+// points already spent on star signs stay spent.
+// A save reads the balance BEFORE the signs, so both come from one moment: a sign the game claims in between changes
+// the balance after this read, and the write's `expect` refuses it instead of counting its points twice. An account
+// that never had points holds nothing there yet (0).
+const readStarPoints = async () => {
+    const read = await gga("OptionsListAccount[40]");
+    return { read, balance: read === undefined || read === null || read === "" ? 0 : Number(read) };
+};
+
+// The balance write for a change, or null when the claims don't change. A balance that isn't a number is refused, not
+// saved over.
+const starPointsWrite = (points, list, nextSigns) => {
+    const change = getClaimedRewardTotal(nextSigns) - getClaimedRewardTotal(list);
+    if (!change) return null;
+    if (!Number.isFinite(points.balance)) throw new Error("Star points unreadable. Nothing changed.");
+    return { path: "OptionsListAccount[40]", value: Math.max(0, points.balance + change), expect: points.read };
+};
+
+/** Players in their completion order, as chips that drag to a new place. */
 const DragList = ({ items, renderItem, onChange }) => {
     let dragIdx = null;
 
@@ -136,15 +179,17 @@ const DragList = ({ items, renderItem, onChange }) => {
                         onChange(next);
                     },
                 },
-                div({ class: "starsign-drag-handle" }, "⠿"),
                 renderItem(item, i)
             )
         )
     );
 };
 
-// `current()`: the sign as the page last read it from the game.
-const StarSignDetail = ({ sign, current, usernames = [], onSave, onBack }) => {
+/**
+ * The players who completed an open sign, in order: drag to reorder, × to take one off (Undo puts them back), a pick to
+ * add one. Every change saves. `current()`: the sign as the page last read it from the game.
+ */
+const StarSignDetail = ({ sign, current, usernames = [], onSave }) => {
     const players = van.state([...sign.players]);
     let saved = encodeProgress(sign.players);
     const showGame = (read) => {
@@ -172,195 +217,123 @@ const StarSignDetail = ({ sign, current, usernames = [], onSave, onBack }) => {
             };
         },
     });
-    // A reload (Refresh, an undo, a bulk action) shows what the game holds, unless a save is running.
+    // A reload (Refresh, an undo, a bulk action, the row's switch) shows what the game holds, unless a save is running.
     van.derive(() => {
         const read = current();
         if (status.rawVal !== "loading") showGame(read);
-    });
-    const progressFill = div({ class: "starsign-progress-fill" });
-
-    van.derive(() => {
-        const pct = Math.min(100, (players.val.length / sign.playersNeeded) * 100);
-        progressFill.style.setProperty("--starsign-fill-width", `${pct}%`);
     });
 
     const setPlayers = (next) => {
         players.val = next;
         void save();
     };
-
     const addPlayer = (num) => {
         if (players.val.includes(num)) return;
         setPlayers([...players.val, num]);
     };
-
     const removePlayer = (num) => setPlayers(players.val.filter((p) => p !== num));
+    const picker = select(
+        { class: "starsign-player-select select-base", "aria-label": "Add a player" },
+        option({ value: "", disabled: true, selected: true }, "Add player…"),
+        ...PLAYER_NUMBERS.map((n) => option({ value: n }, playerName(n, usernames)))
+    );
 
     return div(
         { class: "starsign-detail" },
-        div(
-            { class: "starsign-detail-header" },
-            button({ type: "button", class: "btn-quiet btn-sm", onclick: onBack }, "Back"),
-            div(
-                null,
-                h4({ class: "starsign-detail-label" }, sign.label),
-                p({ class: "starsign-detail-desc" }, sign.desc)
-            ),
-            div(
-                null,
-                span(
-                    { class: "starsign-needed-badge" },
-                    `${sign.playersNeeded} player${sign.playersNeeded > 1 ? "s" : ""} needed`
-                )
-            )
-        ),
-
-        div({ class: "starsign-section-label" }, "Players who completed this sign (drag to reorder)"),
-
-        () => {
+        div({ class: "starsign-detail__players" }, () => {
             const list = players.val;
+            if (!list.length) return p({ class: "starsign-detail__none" }, "Nobody has completed it yet.");
             return DragList({
                 items: list,
-                renderItem: (playerNum) => {
-                    const row = div(
-                        { class: "starsign-player-chip" },
-                        span({ class: "starsign-player-num" }, playerName(playerNum, usernames)),
-                        span({ class: "starsign-player-letter" }, playerToLetter(playerNum) ?? "?"),
+                renderItem: (playerNum, at) =>
+                    div(
+                        { class: "starsign-player-chip", "data-letter": playerToLetter(playerNum) ?? "?" },
+                        span({ class: "starsign-player-order" }, `${at + 1}`),
+                        span({ class: "starsign-player-name" }, playerName(playerNum, usernames)),
+                        // Taking a player off saves at once; Undo puts them back.
                         button(
                             {
                                 type: "button",
-                                class: "btn-danger btn-icon btn-sm starsign-remove-btn",
-                                "aria-label": `Remove ${playerName(playerNum, usernames)}`,
-                                // Taking a player off the sign asks "Click again" first; adding them back is a pick.
-                                onclick: (e) => {
-                                    const name = playerName(playerNum, usernames);
-                                    if (clickAgain(e.currentTarget, `take ${name} off this star sign.`)) {
-                                        removePlayer(playerNum);
-                                    }
-                                },
+                                class: "btn-quiet btn-icon btn-sm starsign-remove-btn",
+                                "aria-label": `Take ${playerName(playerNum, usernames)} off`,
+                                onclick: () => removePlayer(playerNum),
                             },
                             Icons.Close()
                         )
-                    );
-                    return row;
-                },
+                    ),
                 onChange: setPlayers,
             });
-        },
-
+        }),
         div(
             { class: "starsign-add-row" },
-            select(
-                {
-                    id: `add-player-select-${sign.index}`,
-                    class: "starsign-player-select select-base",
-                },
-                option({ value: "", disabled: true, selected: true }, "Add player…"),
-                ...PLAYER_NUMBERS.map((n) => option({ value: n }, playerName(n, usernames)))
-            ),
+            picker,
             button(
                 {
                     type: "button",
                     class: "btn-quiet btn-sm",
                     onclick: () => {
-                        const sel = document.getElementById(`add-player-select-${sign.index}`);
-                        const val = parseInt(sel?.value, 10);
+                        const val = parseInt(picker.value, 10);
                         if (val && !players.val.includes(val)) {
                             addPlayer(val);
-                            sel.value = "";
+                            picker.value = "";
                         }
                     },
                 },
                 "Add"
-            )
-        ),
-
-        div({ class: "starsign-progress-bar-wrap" }, () => {
-            const cur = players.val.length;
-            const need = sign.playersNeeded;
-            return div(
-                null,
-                div(
-                    { class: "starsign-progress-label" },
-                    `${cur} / ${need} players — `,
-                    cur >= need
-                        ? span({ class: "starsign-unlocked-text" }, Icons.Check(), " UNLOCKED")
-                        : span({ class: "starsign-locked-text" }, "LOCKED")
-                ),
-                div({ class: "starsign-progress-bar" }, progressFill)
-            );
-        }),
-
-        div({ class: "starsign-detail-actions" }, SaveState({ status, reason, undo, className: "save-state--inline" }))
+            ),
+            p({ class: "starsign-detail__hint", hidden: () => players.val.length < 2 }, "Drag a player to move them."),
+            SaveState({ status, reason, undo, className: "save-state--inline" })
+        )
     );
 };
 
-const StarSignCard = ({ sign, onClick }) => {
-    const isUnlocked = sign.unlocked;
-    const cur = sign.players.length;
-    const need = sign.playersNeeded;
-    const pct = Math.min(100, (cur / need) * 100);
-    const groupColors = { A: "sign-A", B: "sign-B", C: "sign-C", D: "sign-D", E: "sign-E", F: "sign-F" };
-    const groupClass = groupColors[sign.label[0]] ?? "";
-    const cardFill = div({ class: "starsign-card-fill" });
-    cardFill.style.setProperty("--starsign-fill-width", `${pct}%`);
-
-    return div(
-        {
-            class: `starsign-card ${isUnlocked ? "starsign-card--unlocked" : ""} ${groupClass}`,
-            onclick: () => onClick(sign),
-        },
-        div(
-            { class: "starsign-card-header" },
-            span({ class: `starsign-label-badge ${groupClass}` }, sign.label),
-            isUnlocked
-                ? span({ class: "starsign-status unlocked" }, Icons.Check(), " UNLOCKED")
-                : span({ class: "starsign-status locked" }, `${cur}/${need}`)
+/**
+ * One sign: its task first, its name (A-1) under it; how many players completed it, and an Unlocked switch that fills
+ * it with the players it needs (keeping who has it) or clears it. The task opens the players, in place.
+ */
+const StarSignRow = ({ index, signOf, isOpen, onOpen, onUnlock, detailFor }) => {
+    const first = signOf(index);
+    const row = AccountRow({
+        rowClass: () => joinClasses("starsign-row", isOpen() && "is-open"),
+        rowProps: { "data-sign": first.label },
+        info: button(
+            {
+                type: "button",
+                class: "starsign-row__open",
+                "aria-expanded": () => String(isOpen()),
+                onclick: onOpen,
+            },
+            RowTitles({ bonus: first.desc, name: first.label })
         ),
-        p({ class: "starsign-card-desc" }, sign.desc),
-        div({ class: "starsign-card-bar" }, cardFill)
-    );
-};
-
-const getClaimedRewardTotal = (list) =>
-    list.reduce((total, sign) => total + (toInt(sign.claimed, 0) ? toNum(sign.rewardPoints, 0) : 0), 0);
-
-// OptionsListAccount[40] is the star points balance the game spends on star signs (claiming a sign adds its points,
-// unlocking a star sign takes its cost), so a change moves it by what the signs give or take back, never below zero:
-// points already spent on star signs stay spent.
-// A save reads the balance BEFORE the signs, so both come from one moment: a sign the game claims in between changes
-// the balance after this read, and the write's `expect` refuses it instead of counting its points twice. An account
-// that never had points holds nothing there yet (0).
-const readStarPoints = async () => {
-    const read = await gga("OptionsListAccount[40]");
-    return { read, balance: read === undefined || read === null || read === "" ? 0 : Number(read) };
-};
-
-// The balance write for a change, or null when the claims don't change. A balance that isn't a number is refused, not
-// saved over.
-const starPointsWrite = (points, list, nextSigns) => {
-    const change = getClaimedRewardTotal(nextSigns) - getClaimedRewardTotal(list);
-    if (!change) return null;
-    if (!Number.isFinite(points.balance)) throw new Error("Star points unreadable. Nothing changed.");
-    return { path: "OptionsListAccount[40]", value: Math.max(0, points.balance + change), expect: points.read };
-};
-
-const syncActiveSign = (activeSign, nextSigns) => {
-    if (!activeSign.val) return;
-    const updated = nextSigns.find((sign) => sign.index === activeSign.val.index);
-    if (updated) activeSign.val = { ...updated };
-    else activeSign.val = null;
+        controls: [
+            span(
+                { class: "starsign-row__players" },
+                span({ class: "starsign-row__count" }, () => signOf(index)?.players.length ?? 0),
+                span({ class: "starsign-row__need" }, () => ` / ${signOf(index)?.playersNeeded ?? first.playersNeeded}`)
+            ),
+            StateSwitch({
+                checked: () => Boolean(signOf(index)?.unlocked),
+                words: ["Unlocked", ""],
+                name: `${first.label} unlocked`,
+                ownStatus: true,
+                onFlip: async (on) => {
+                    await onUnlock(index, on);
+                    return { ok: true };
+                },
+            }),
+        ],
+    });
+    row.append(div({ class: "starsign-row__detail" }, () => (isOpen() ? detailFor(index) : span())));
+    return row;
 };
 
 const StarSignsTab = () => {
     const signs = van.state(null);
     const { loading, error, run } = useAccountLoad({ label: "Star Signs" });
-    const activeSign = van.state(null);
-    const { status: unlockStatus, run: runUnlock } = useWriteStatus();
-    const { status: randomStatus, run: runRandom } = useWriteStatus();
-    const { status: resetStatus, run: runReset } = useWriteStatus();
-    const isAnyLoading = () =>
-        unlockStatus.val === "loading" || randomStatus.val === "loading" || resetStatus.val === "loading";
+    const openIndex = van.state(null);
+    const bulk = useWriteStatus();
+
+    const signOf = (index) => signs.val?.find((sign) => sign.index === index);
 
     const load = async () =>
         run(async () => {
@@ -375,12 +348,13 @@ const StarSignsTab = () => {
             const labels = computeLabels(quests);
             const usernames = normalizeUsernames(rawUsernames);
 
-            const nextSigns = quests
+            signs.val = quests
                 .map((q, i) =>
                     withProgress(
                         {
                             index: i,
                             label: labels[i],
+                            world: worldOf(labels[i][0]),
                             desc: cleanDesc(q[7]),
                             playersNeeded: parseInt(q[5], 10) || 1,
                             rewardPoints: toNum(q[6], 0),
@@ -390,9 +364,7 @@ const StarSignsTab = () => {
                     )
                 )
                 .filter((s) => s.desc.length > 0);
-
-            signs.val = nextSigns;
-            syncActiveSign(activeSign, nextSigns);
+            renderPanel();
         });
 
     // Saves read the game's progress first, so what changed in the game since the page read it isn't written over.
@@ -401,48 +373,29 @@ const StarSignsTab = () => {
         return signs.val.map((sign) => withProgress(sign, prog[sign.index]));
     };
 
-    // `base`: the list the detail last saved or read; the change from it to `progress` is the player's.
-    const handleSave = async ({ index, progress, base }) => {
-        if (!signs.val) return;
-
+    // Every change goes through here: `change` gets the signs as the game holds them and gives them as they should be.
+    // Only what differs is written, with the star points to match. A failed save reads the game again.
+    const commit = async (change) => {
         try {
             const starPoints = await readStarPoints(); // before the signs: one moment for both
             const list = await readSigns();
-            const sign = list.find((entry) => entry.index === index);
-            if (!sign) return;
-
-            const players = mergePlayers(parseProgress(base), parseProgress(progress), sign.players);
-            const next = encodeProgress(players);
-            const unlocked = isUnlockedByProgress(players, sign.playersNeeded);
-            const claimed = unlocked ? 1 : 0;
-            const nextSigns = list.map((entry) =>
-                entry.index === index
-                    ? {
-                          ...entry,
-                          players,
-                          unlocked,
-                          claimed,
-                      }
-                    : entry
-            );
-
+            const nextSigns = change(list);
             const writes = [];
-            if (next !== encodeProgress(sign.players)) {
-                writes.push({ path: `StarSignProg[${sign.index}][0]`, value: next });
-            }
-            if (toInt(sign.claimed, 0) !== claimed) {
-                writes.push({ path: `StarSignProg[${sign.index}][1]`, value: claimed });
-            }
-
+            nextSigns.forEach((next, at) => {
+                const was = list[at];
+                const progress = encodeProgress(next.players);
+                if (progress !== encodeProgress(was.players)) {
+                    writes.push({ path: `StarSignProg[${next.index}][0]`, value: progress });
+                }
+                if (toInt(was.claimed, 0) !== toInt(next.claimed, 0)) {
+                    writes.push({ path: `StarSignProg[${next.index}][1]`, value: next.claimed });
+                }
+            });
             const points = starPointsWrite(starPoints, list, nextSigns);
             if (points) writes.push(points);
-
             await writeManyVerified(writes);
-
-            // The open detail shows the list it gets back; the grid behind it and the page's copy of the sign follow.
             signs.val = nextSigns;
-            syncActiveSign(activeSign, nextSigns);
-            return next;
+            return nextSigns;
         } catch (error) {
             try {
                 await load();
@@ -453,166 +406,175 @@ const StarSignsTab = () => {
         }
     };
 
-    load();
-
-    const resetAll = async () => {
-        if (!signs.val) return;
-        await runReset(async () => {
-            try {
-                const list = await readSigns();
-                const nextSigns = list.map((sign) => ({ ...sign, players: [], unlocked: false, claimed: 0 }));
-                const writes = [];
-
-                for (const sign of list) {
-                    if ((sign.players?.length ?? 0) > 0) {
-                        writes.push({ path: `StarSignProg[${sign.index}][0]`, value: "" });
-                    }
-                    if (toInt(sign.claimed, 0) !== 0) {
-                        writes.push({ path: `StarSignProg[${sign.index}][1]`, value: 0 });
-                    }
-                }
-
-                if (getClaimedRewardTotal(list) !== 0) {
-                    writes.push({ path: "OptionsListAccount[40]", value: 0 });
-                }
-
-                writes.push({ path: "StarSignsUnlocked.h", value: { ...DEFAULT_UNLOCKED_STAR_SIGNS } });
-
-                await writeManyVerified(writes);
-
-                signs.val = nextSigns;
-                syncActiveSign(activeSign, nextSigns);
-            } catch (error) {
-                try {
-                    await load();
-                } catch (reloadError) {
-                    console.error("[StarSigns] reload after write failure also failed", reloadError);
-                }
-                throw error;
-            }
-        });
+    // The open sign's list: `base` is what it last saved or read; the change from it to `progress` is the player's.
+    const handleSave = async ({ index, progress, base }) => {
+        if (!signs.val) return undefined;
+        const next = await commit((list) =>
+            list.map((sign) =>
+                sign.index === index
+                    ? withPlayers(sign, mergePlayers(parseProgress(base), parseProgress(progress), sign.players))
+                    : sign
+            )
+        );
+        const sign = next.find((entry) => entry.index === index);
+        return sign ? encodeProgress(sign.players) : undefined;
     };
 
-    const unlockAll = async (randomize) => {
-        if (!signs.val) return;
-        const runFn = randomize ? runRandom : runUnlock;
-        await runFn(async () => {
-            try {
-                const starPoints = await readStarPoints(); // before the signs: one moment for both
-                const list = await readSigns();
-                const writes = [];
-                const nextSigns = list.map((sign) => {
-                    const pool = [...PLAYER_NUMBERS];
-                    if (randomize) {
-                        for (let i = pool.length - 1; i > 0; i--) {
-                            const j = Math.floor(Math.random() * (i + 1));
-                            [pool[i], pool[j]] = [pool[j], pool[i]];
-                        }
-                    }
+    // The row's switch: on keeps who has it and adds the first players it still needs; off clears it.
+    const setUnlocked = (index, on) =>
+        commit((list) =>
+            list.map((sign) => {
+                if (sign.index !== index) return sign;
+                if (!on) return withPlayers(sign, []);
+                const others = PLAYER_NUMBERS.filter((num) => !sign.players.includes(num));
+                return withPlayers(sign, [...sign.players, ...others].slice(0, Math.max(sign.playersNeeded, 1)));
+            })
+        );
 
-                    const players = pool.slice(0, sign.playersNeeded);
-                    const progress = encodeProgress(players);
-                    if (progress !== encodeProgress(sign.players)) {
-                        writes.push({ path: `StarSignProg[${sign.index}][0]`, value: progress });
-                    }
-                    if (toInt(sign.claimed, 0) !== 1) {
-                        writes.push({ path: `StarSignProg[${sign.index}][1]`, value: 1 });
-                    }
+    // The open tab's signs the tools act on: all of them, or the ones the top bar's search shows.
+    const rowOf = new Map();
+    const signsIn = (world) =>
+        (signs.val ?? []).filter((sign) => sign.world === world && shownBySearch(rowOf.get(sign.index)));
+    const signWord = (n) => `star sign${n === 1 ? "" : "s"}`;
 
-                    return { ...sign, players, unlocked: true, claimed: 1 };
+    // Unlock all fills each sign with players 1, 2, 3... in order; Randomize all with players picked at random.
+    const unlockAll = (world, randomize) =>
+        bulk.run(() => {
+            const indices = new Set(signsIn(world).map((sign) => sign.index));
+            return commit((list) =>
+                list.map((sign) =>
+                    indices.has(sign.index)
+                        ? withPlayers(
+                              sign,
+                              (randomize ? shuffled(PLAYER_NUMBERS) : PLAYER_NUMBERS).slice(0, sign.playersNeeded)
+                          )
+                        : sign
+                )
+            );
+        });
+
+    // Reset clears the tab's signs and lowers the star points to match; the star signs already unlocked stay.
+    const resetAll = (world) =>
+        bulk.run(() => {
+            const indices = new Set(signsIn(world).map((sign) => sign.index));
+            return commit((list) => list.map((sign) => (indices.has(sign.index) ? withPlayers(sign, []) : sign)));
+        });
+
+    const tools = (activeId, ask) => {
+        const started = () => signsIn(activeId.val).filter((sign) => sign.players.length || toInt(sign.claimed, 0));
+        const resetButton = ActionButton({
+            label: "Reset all",
+            status: bulk.status,
+            variant: "danger",
+            disabled: () => !started().length,
+            onClick: (e) => {
+                e.preventDefault();
+                const n = started().length;
+                ask({
+                    question: `Reset ${n} ${signWord(n)} in ${activeId.val}?`,
+                    confirmLabel: n === 1 ? "Reset it" : "Reset them",
+                    from: resetButton,
+                    onConfirm: () => resetAll(activeId.val),
                 });
-
-                const points = starPointsWrite(starPoints, list, nextSigns);
-                if (points) writes.push(points);
-
-                await writeManyVerified(writes);
-
-                signs.val = nextSigns;
-                syncActiveSign(activeSign, nextSigns);
-            } catch (error) {
-                try {
-                    await load();
-                } catch (reloadError) {
-                    console.error("[StarSigns] reload after write failure also failed", reloadError);
-                }
-                throw error;
-            }
+            },
         });
-    };
-
-    // The open detail stays the same node while its sign is open (saves, reloads), so its save state stays.
-    let detail = null;
-    const renderBody = () => {
-        const resolved = signs.val;
-        if (!resolved) return null;
-
-        if (activeSign.val) {
-            if (detail?.index !== activeSign.val.index)
-                detail = {
-                    index: activeSign.val.index,
-                    node: div(
-                        { class: "account-list" },
-                        StarSignDetail({
-                            sign: activeSign.val,
-                            current: () => activeSign.val,
-                            usernames: activeSign.val.usernames ?? [],
-                            onSave: handleSave,
-                            onBack: () => (activeSign.val = null),
-                        })
-                    ),
-                };
-            return detail.node;
-        }
-        detail = null;
-
-        return div(
-            { class: "starsign-grid" },
-            ...resolved.map((sign) =>
-                StarSignCard({
-                    sign,
-                    onClick: (selectedSign) => {
-                        activeSign.val = { ...selectedSign };
+        return [
+            div(
+                { class: "tabbed-list__tool-group" },
+                ActionButton({
+                    label: "Unlock all",
+                    status: bulk.status,
+                    disabled: () => signsIn(activeId.val).every((sign) => sign.unlocked),
+                    onClick: (e) => {
+                        e.preventDefault();
+                        void unlockAll(activeId.val, false);
+                    },
+                }),
+                ActionButton({
+                    label: "Randomize all",
+                    status: bulk.status,
+                    disabled: () => !signsIn(activeId.val).length,
+                    onClick: (e) => {
+                        e.preventDefault();
+                        void unlockAll(activeId.val, true);
                     },
                 })
-            )
+            ),
+            div({ class: "tabbed-list__tool-group" }, resetButton),
+        ];
+    };
+
+    // The open sign keeps one node while it's open (saves, reloads), so its save state stays.
+    let detail = null;
+    const detailFor = (index) => {
+        if (detail?.index !== index) {
+            const sign = signOf(index);
+            detail = {
+                index,
+                node: StarSignDetail({
+                    sign,
+                    current: () => signOf(index),
+                    usernames: sign.usernames ?? [],
+                    onSave: handleSave,
+                }),
+            };
+        }
+        return detail.node;
+    };
+
+    // The tabs are the worlds the game has signs in, built once they're read, and again only when the signs change.
+    const panelHost = div({ class: "account-list account-list--tabbed" });
+    let panelKey = null;
+    const renderPanel = () => {
+        const key = signs.val.map((sign) => sign.index).join(",");
+        if (key === panelKey) return;
+        panelKey = key;
+        rowOf.clear();
+        const worlds = [...new Set(signs.val.map((sign) => sign.world))];
+        panelHost.replaceChildren(
+            TabbedList({
+                name: "Star Signs",
+                tabs: worlds.map((world) => ({
+                    id: world,
+                    label: world,
+                    content: signs.val
+                        .filter((sign) => sign.world === world)
+                        .map((sign) => {
+                            const row = StarSignRow({
+                                index: sign.index,
+                                signOf,
+                                isOpen: () => openIndex.val === sign.index,
+                                onOpen: () => (openIndex.val = openIndex.val === sign.index ? null : sign.index),
+                                onUnlock: setUnlocked,
+                                detailFor,
+                            });
+                            rowOf.set(sign.index, row);
+                            return row;
+                        }),
+                })),
+                tools,
+                toolsLabel: (activeId) => {
+                    const n = signsIn(activeId.val).length;
+                    return isSearching()
+                        ? `${n} matching ${signWord(n)} in ${activeId.val}`
+                        : `All ${n} ${signWord(n)} in ${activeId.val}`;
+                },
+            })
         );
     };
 
+    load();
+
     return PersistentAccountListPage({
-        rootClass: "tab-container scroll-container starsigns-scroll-container",
-        title: "STAR SIGNS",
-        description: "Assign players (1-10) and drag to reorder completion order",
-        actions: [
-            ActionButton({
-                label: "Unlock all",
-                status: unlockStatus,
-                disabled: isAnyLoading,
-                tooltip: "Unlock all signs using players in order: _abcdefghi",
-                onClick: () => unlockAll(false),
-            }),
-            ActionButton({
-                label: "Randomize all",
-                status: randomStatus,
-                disabled: isAnyLoading,
-                tooltip: "Unlock all signs with a random player order per sign",
-                onClick: () => unlockAll(true),
-            }),
-            ActionButton({
-                label: "Reset all",
-                status: resetStatus,
-                variant: "danger",
-                disabled: isAnyLoading,
-                tooltip: "Clear all star sign progress and lock everything",
-                confirm: "clear every star sign's players and lock them all.",
-                onClick: resetAll,
-            }),
-            RefreshButton({
-                onRefresh: load,
-                tooltip: "Re-read star sign data from game",
-            }),
-        ],
+        rootClass: "tab-container scroll-container starsigns-tab",
+        title: "Star Signs",
+        description: "Which players completed each star sign, in order.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        body: renderBody,
+        loadingText: "Reading star signs",
+        errorTitle: "Couldn't read star signs",
+        initialWrapperClass: "account-list",
+        body: panelHost,
     });
 };
 

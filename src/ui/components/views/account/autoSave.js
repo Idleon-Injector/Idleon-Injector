@@ -86,6 +86,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
      * them), "toggle" (run(): an on/off switch beside the field with no status of its own: the row says its saving…,
      * ✓ and failure, and a failure of the field stays over its ✓) or "undo" (whose refusal is said here once, not
      * held).
+     * A failure is said in its own words, even over the field's; the field's comes back with the next ✓.
      * A cancelled write leaves a failure alone, except the field's save: its drafts were reset.
      */
     const settle = (next, why = "", by = "save", kind = null) => {
@@ -94,7 +95,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         if (next === "error" && fieldWrite) held = { why, kind, by };
         else if ((next === "success" && fieldWrite) || (next === null && by === "save")) held = null;
         let shown = { next, why, kind };
-        if (next !== "loading" && held) shown = { ...held, next: "error" };
+        if ((next === "success" || next === null) && held) shown = { ...held, next: "error" };
         clearTimeout(clearTimer);
         status.val = shown.next;
         reason.val = shown.why;
