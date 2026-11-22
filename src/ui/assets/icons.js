@@ -279,7 +279,7 @@ const SYSTEM_ICONS = {
     // Account: a pointer and its click.
     Clickers: ["M9 8.5v11l2.8-2.6 2 4.4 2-.9-2-4.4h3.9z", "M9 3.5v2M4.5 8.5h2M5.8 4.8l1.4 1.4M12.2 4.8l-1.4 1.4"],
     Construction: ["M4 20.5V10l5-3v13.5", "M9 20.5V4.5l10 4.5v11.5", "M2.5 20.5h19", "M12.5 11h3M12.5 14h3M12.5 17h3"],
-    Printer: [
+    "3D Printer": [
         "M7 8V3.5h10V8",
         "M7 17H5a1.5 1.5 0 0 1-1.5-1.5v-6A1.5 1.5 0 0 1 5 8h14a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 19 17h-2",
         "M7 13.5h10v7H7z",

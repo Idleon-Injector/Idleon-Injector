@@ -18,8 +18,8 @@
  *   t[7] exp reward
  *   t[8] rare chance
  *
- * Each character is a tab, its traps a table: Qty, EXP and Rare in columns, Finish at the line's end. Finish all sits
- * in the tray and finishes the open tab's traps the top bar's search shows.
+ * The character is picked under the title; its traps are a table: Qty, EXP and Rare in columns, Finish at the line's
+ * end. Finish all sits in the tray and finishes the picked character's traps the top bar's search shows.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -34,7 +34,8 @@ import {
 } from "../../../components/views/account/EditableFieldsRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { TabbedList } from "../../../components/views/account/tabShared.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -43,6 +44,7 @@ import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    joinClasses,
     readCharacterInPlay,
     resolveFormattedIntInput,
     toInt,
@@ -212,8 +214,16 @@ const TrappingTab = () => {
     const finishAllStatus = useWriteStatus();
     const valueStates = new Map();
     const critterNameById = new Map();
-    const playersNode = div({ class: "account-list account-list--tabbed traps-list" });
-    // Each trap's row, so Finish all acts on the open tab's traps the search shows.
+    const playersNode = div();
+    const selected = van.state("");
+    const characterSelector = createCharacterSelector({
+        id: "traps-character",
+        selected,
+        disabled: () => loading.val,
+        onChange: (event) => (selected.val = event.target.value),
+        info: () => (selected.val && selected.val === latestSnapshot.currentPlayer ? "In play" : ""),
+    });
+    // Each trap's row, so Finish all acts on the picked character's traps the search shows.
     const rowOf = new Map();
     let latestSnapshot = { currentPlayer: "", players: [] };
     const reconcilePlayerPanels = createStaticRowReconciler(playersNode);
@@ -237,14 +247,22 @@ const TrappingTab = () => {
         latestSnapshot = snapshot;
         setTrapStatesFromSnapshot(snapshot);
 
+        if (!snapshot.players.some((player) => player.playerName === selected.val))
+            selected.val = snapshot.currentPlayer || snapshot.players[0]?.playerName || "";
+        characterSelector.setCharacters(snapshot.players.map((player) => player.playerName));
         reconcilePlayerPanels(trapShapeSignature(snapshot), () => {
             rowOf.clear();
-            return TabbedList({
-                name: "Traps",
-                tabs: snapshot.players.map((player) => ({
-                    id: player.playerName,
-                    label: player.playerName,
-                    content: player.traps.length
+            // Every character's traps stay mounted (they keep their saves and Undo); the picked one shows.
+            return snapshot.players.map((player) =>
+                div(
+                    {
+                        class: () =>
+                            joinClasses(
+                                "account-page-pane",
+                                selected.val !== player.playerName && "account-page-pane--hidden"
+                            ),
+                    },
+                    player.traps.length
                         ? [
                               ValueTableHead({ name: "Critter", columns: ["Qty", "EXP", "Rare", ""] }),
                               ...player.traps.map((trap) => {
@@ -259,28 +277,9 @@ const TrappingTab = () => {
                                   return row;
                               }),
                           ]
-                        : p({ class: "trap-empty" }, "No traps placed."),
-                })),
-                toolsOn: (playerName) => Boolean(trapsOf(playerName).length),
-                toolsLabel: (activeId) => {
-                    const n = trapsShown(activeId.val).length;
-                    const inPlay = activeId.val === latestSnapshot.currentPlayer ? " · in play" : "";
-                    return `${isSearching() ? `${n} matching ${trapWord(n)}` : `All ${n} ${trapWord(n)}`}${inPlay}`;
-                },
-                tools: (activeId) =>
-                    div(
-                        { class: "tabbed-list__tool-group" },
-                        ActionButton({
-                            label: "Finish all",
-                            status: finishAllStatus.status,
-                            disabled: () => loading.val || !trapsShown(activeId.val).length,
-                            onClick: (e) => {
-                                e.preventDefault();
-                                return finishAllTraps(activeId.val);
-                            },
-                        })
-                    ),
-            });
+                        : p({ class: "trap-empty" }, "No traps placed.")
+                )
+            );
         });
     };
 
@@ -385,11 +384,34 @@ const TrappingTab = () => {
         title: "Traps",
         description: "Each character's placed traps. Rare chance tops out at 100.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
+        toolbar: characterSelector.node,
         state: { loading, error },
         loadingText: "Reading traps",
         errorTitle: "Couldn't read traps",
         initialWrapperClass: "account-list",
-        body: playersNode,
+        body: div(
+            { class: "account-list account-list--tabbed traps-list" },
+            ListPanel({
+                body: playersNode,
+                tools: () =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Finish all",
+                            status: finishAllStatus.status,
+                            disabled: () => loading.val || !trapsShown(selected.val).length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                return finishAllTraps(selected.val);
+                            },
+                        })
+                    ),
+                toolsLabel: () => {
+                    const n = trapsShown(selected.val).length;
+                    return isSearching() ? `${n} matching ${trapWord(n)}` : `All ${n} ${trapWord(n)}`;
+                },
+            })
+        ),
     });
 };
 

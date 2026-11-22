@@ -18,7 +18,7 @@ import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
@@ -27,6 +27,7 @@ import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import {
     cleanName,
     createStaticRowReconciler,
+    normalCase,
     oneAtATime,
     unwrapH,
     useWriteStatus,
@@ -35,7 +36,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const RACK_PATH = "Spelunk[46]";
 const SLAB_HISTORY_PATH = "Cards[1]";
@@ -51,6 +52,17 @@ const isEligibleHat = (raw) => {
     return def?.Type === "PREMIUM_HELMET" && def?.typeGen === "aHelmetMTX";
 };
 
+// What a hat adds on the rack, in the game's words: its stat lines ("%_XP_FROM_MONSTERS" is "XP From Monsters %").
+const statWords = (txt) => {
+    const words = normalCase(String(txt).replace(/^%_?/, "")).replace(/\bXp\b/g, "XP");
+    return String(txt).startsWith("%") ? `${words} %` : words;
+};
+const hatBonus = (def) =>
+    [def?.UQ1txt, def?.UQ2txt]
+        .filter((txt) => txt && String(txt) !== "0")
+        .map(statWords)
+        .join(" · ");
+
 const buildHatRackState = (rawRack, rawItemDefs) => {
     const itemDefs = rawItemDefs && typeof rawItemDefs === "object" ? rawItemDefs : {};
     const rack = normalizeRackIds(rawRack);
@@ -61,13 +73,15 @@ const buildHatRackState = (rawRack, rawItemDefs) => {
             return {
                 itemId,
                 name: cleanName(def?.displayName || itemId, "", { stripMarker: true }),
+                bonus: hatBonus(def),
                 type: def?.Type,
                 typeGen: def?.typeGen,
                 id: def?.ID,
             };
         })
         .filter((x) => x.type === "PREMIUM_HELMET" && x.typeGen === "aHelmetMTX")
-        .sort((a, b) => a.name.localeCompare(b.name));
+        // Hats with one bonus sit together, so the bonus a player looks for reads down the list.
+        .sort((a, b) => a.bonus.localeCompare(b.bonus) || a.name.localeCompare(b.name));
 
     const rackSet = new Set(rack);
     const eligibleIds = new Set(eligible.map((x) => x.itemId));
@@ -97,7 +111,7 @@ const HatRow = ({ hat, isOn, onFlip }) =>
     AccountRow({
         rowClass: "hat-rack-row",
         rowProps: { "data-item": hat.itemId },
-        info: span({ class: "account-row__name" }, hat.name),
+        info: RowTitles({ bonus: hat.bonus, name: hat.name }),
         badge: hat.eligible ? null : "Not a premium hat",
         controls: StateSwitch({
             checked: isOn,
@@ -126,7 +140,12 @@ const HatRackTab = () => {
         // Every premium hat, then any other hat the rack holds.
         const eligibleIds = new Set(result.eligible.map((entry) => entry.itemId));
         const next = [
-            ...result.eligible.map((entry) => ({ itemId: entry.itemId, name: entry.name, eligible: true })),
+            ...result.eligible.map((entry) => ({
+                itemId: entry.itemId,
+                name: entry.name,
+                bonus: entry.bonus,
+                eligible: true,
+            })),
             ...result.rack
                 .filter((entry) => !eligibleIds.has(entry.itemId))
                 .map((entry) => ({ itemId: entry.itemId, name: entry.name || entry.itemId, eligible: false })),

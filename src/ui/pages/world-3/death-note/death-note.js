@@ -14,7 +14,7 @@
  *   gga.Ninja[105]                              - array of kill counts (one per miniboss, account-wide)
  *   gga.MonsterDefinitionsGET.h[mobId].Name     - mob display name
  *
- * The game's pages are tabs: World 1 to World 7, then Minibosses. A world's mob opens its characters' kills in place
+ * The game's pages are tabs: Minibosses, then World 1 to World 7. A world's mob opens its characters' kills in place
  * under its row (one open at a time); minibosses are account-wide kill counts.
  */
 
@@ -50,8 +50,8 @@ const WORLD_LABELS = ["W1", "W2", "W3", "W4", "W5", "W6", "W7"];
 const SENTINEL_PLAYER_NAMES = new Set(["Player", "Current", ""]);
 
 const DN_SUBTABS = [
-    ...WORLD_LABELS.map((worldKey) => ({ id: worldKey.toLowerCase(), label: worldKey, worldKey })),
     { id: "miniboss", label: "Minibosses", worldKey: MINIBOSS_WORLD_KEY },
+    ...WORLD_LABELS.map((worldKey) => ({ id: worldKey.toLowerCase(), label: worldKey, worldKey })),
 ];
 
 const playerDbKillsLeftPath = (playerName, mapIndex) =>

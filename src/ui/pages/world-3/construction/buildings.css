@@ -1,0 +1,10 @@
+/* Buildings: the buildings' list, then the cog board under it; the tab scrolls as one, each part as tall as it is. */
+.construction-buildings {
+    height: 100%;
+}
+
+.construction-buildings > .tab-container {
+    flex: none;
+    height: auto;
+    overflow: visible;
+}

@@ -9,14 +9,14 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import {
     adjustFormattedIntInput,
     cleanName,
-    createStaticRowReconciler,
     largeFormatter,
     largeParser,
     oneAtATime,
     unwrapH,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { getNumberInputLiveRaw, NumberInput, setNumberInputValue } from "../../../components/NumberInput.js";
@@ -26,7 +26,7 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 
-const { div, span, select, option } = van.tags;
+const { div, span } = van.tags;
 
 const slotLocation = (character, kind, slot) =>
     kind === "sample" && slot >= 5
@@ -34,9 +34,9 @@ const slotLocation = (character, kind, slot) =>
         : { array: "Printer", index: (kind === "print" ? 15 : 5) + 14 * character + 2 * slot };
 
 /**
- * Edit stored printer samples and active prints. The character is picked on the line under the title, like Prayers;
- * its prints and samples are one list, each slot a row with its item and amount. Stop and Clear save at once, with
- * Undo in the row.
+ * Edit stored 3D Printer samples and active prints. The character is picked on the line under the title; its prints
+ * and samples are one list. A slot's item is its title (pressing it opens the items in place, with a search), the
+ * amount sits in the number column, and Stop or Clear at the end saves at once, with Undo in the row.
  */
 const PrinterTab = () => {
     // Slot writes queued or running, and a Refresh. An Undo's reload waits for them, so it can't put an older value back.
@@ -343,7 +343,7 @@ const PrinterTab = () => {
     };
 
     const renderSlot = (state, name) => {
-        const slotName = `${state.kind} ${state.slot + 1}`;
+        const slotName = `${state.kind === "print" ? "Print" : "Sample"} ${state.slot + 1}`;
         const lockedCharacter = () => state.character >= (snapshot.val?.unlocked ?? 0);
         const lockedSlot = () => {
             const kindCap = Math.round(
@@ -351,44 +351,49 @@ const PrinterTab = () => {
             );
             return state.slot >= kindCap;
         };
+        const locked = () => lockedCharacter() || lockedSlot();
         // Fields and buttons stay enabled while a save runs (the save checks again), so they keep focus.
         const uneditable = () => loading.val || Boolean(error.val) || !snapshot.val || lockedCharacter();
-        const itemSelect = select({
-            class: "select-base printer-item-select",
-            "aria-label": `${name} ${slotName} item`,
-            disabled: () => uneditable() || lockedSlot(),
-            onchange: (event) => (state.item.val = event.target.value),
-        });
-        const reconcileOptions = createStaticRowReconciler(itemSelect);
-        state.syncOptions = () => {
-            const { catalogue, ids } = snapshot.val;
-            const unknown = [...new Set([state.baseline.item, state.item.val])].filter(
-                (id) => id !== "Blank" && !ids.has(id)
-            );
-            reconcileOptions(unknown.join(","), () => [
-                option({ value: "Blank" }, "Pick an item"),
-                ...unknown.map((id) => option({ value: id }, String(id))),
-                ...catalogue.map(({ id, name: itemName, twin }) =>
-                    option({ value: id }, twin ? `${itemName} (${id})` : itemName)
-                ),
-            ]);
-            itemSelect.value = state.item.val;
+        const itemName = () => {
+            const id = state.item.val;
+            if (!id || id === "Blank") return "Empty";
+            const entry = snapshot.val?.catalogue?.find((item) => item.id === id);
+            return entry ? (entry.twin ? `${entry.name} (${id})` : entry.name) : String(id);
         };
-        state.syncOptions();
-        return div(
-            { "data-printer-slot": `${state.kind}-${state.slot + 1}` },
-            AccountRow({
-                rowClass: () => `printer-row ${saveStateClass(state.write.status.val, state.write.undo)}`,
-                rowProps: state.write.handlers,
-                // The slot, and what it holds by name: the item and amount show once, in the slot's fields.
-                info: span(
-                    { class: "account-row__name" },
-                    `${state.kind === "print" ? "Print" : "Sample"} ${state.slot + 1}`
-                ),
-                badge: () => (lockedCharacter() || lockedSlot() ? "Locked" : ""),
-                controls: [
-                    SaveState(state.write),
-                    itemSelect,
+        // The item is the row's title; pressing it opens the items in place under the row, with a search.
+        const pick = PickInPlace({
+            name: `${name} ${slotName} item`,
+            look: "row",
+            label: itemName,
+            opener: RowTitles({ bonus: itemName, name: slotName }),
+            options: () =>
+                (snapshot.val?.catalogue ?? []).map(({ id, name: label, twin }) => ({
+                    id,
+                    label: twin ? `${label} (${id})` : label,
+                })),
+            picked: () => state.item.val,
+            onPick: (id) => {
+                state.item.val = id;
+                state.dirty.val++;
+                // A pick is a change made: it saves at once, with the amount the field shows.
+                void state.write.save();
+            },
+            search: true,
+            disabled: () => uneditable() || lockedSlot(),
+            panelClass: "row-detail",
+        });
+        // The picks follow the game's catalogue by themselves; nothing to rebuild.
+        state.syncOptions = () => {};
+        const row = AccountRow({
+            rowClass: () => `printer-row ${saveStateClass(state.write.status.val, state.write.undo)}`,
+            rowProps: state.write.handlers,
+            info: pick.opener,
+            controls: [
+                SaveState(state.write),
+                // A slot the game hasn't unlocked says so where its controls would be.
+                span({ class: "printer-row__locked", hidden: () => !locked() }, "Locked"),
+                div(
+                    { class: "printer-row__controls", hidden: locked },
                     NumberInput({
                         value: state.quantity,
                         mode: "int",
@@ -415,16 +420,19 @@ const PrinterTab = () => {
                     ActionButton({
                         label: state.kind === "print" ? "Stop" : "Clear",
                         variant: "danger",
+                        className: "printer-row__clear",
                         disabled: () =>
                             uneditable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),
                         onClick: (e) => {
                             e.preventDefault();
                             return clearSlot(state);
                         },
-                    }),
-                ],
-            })
-        );
+                    })
+                ),
+            ],
+        });
+        row.append(pick.panel);
+        return div({ "data-printer-slot": `${state.kind}-${state.slot + 1}` }, row);
     };
 
     const showCharacter = () => {
@@ -438,6 +446,7 @@ const PrinterTab = () => {
                 "data-printer-character": name,
             },
             ListPanel({
+                className: "field-columns",
                 body: [
                     AccountSection({
                         title: "Prints",
@@ -495,13 +504,13 @@ const PrinterTab = () => {
     load();
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Printer",
+        title: "3D Printer",
         description: "Each character's prints and stored samples, with their items and amounts.",
         actions: RefreshButton({ onRefresh: load, disabled: isBusy }),
         toolbar: characterSelector.node,
         state: { loading, error },
-        loadingText: "Reading the printer",
-        errorTitle: "Couldn't read the printer",
+        loadingText: "Reading the 3D printer",
+        errorTitle: "Couldn't read the 3D printer",
         initialWrapperClass: "account-list",
         body: div({ class: "account-list account-list--tabbed" }, panelsNode),
     });
@@ -510,8 +519,8 @@ const PrinterTab = () => {
 export default definePage({
     id: "w3.printer",
     world: 3,
-    system: "Printer",
+    system: "3D Printer",
     description: "Stored printer samples and active prints.",
-    keywords: ["3D Printer", "Samples"],
+    keywords: ["Printer", "Samples", "Prints"],
     component: PrinterTab,
 });

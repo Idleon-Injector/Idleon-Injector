@@ -28,7 +28,7 @@ import { readComputed, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { CappedValue } from "../../../components/NumberInput.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { TabbedList } from "../../../components/views/account/tabShared.js";
@@ -38,7 +38,7 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import {
     CHARACTER_CHANGED,
     NO_CHARACTER,
-    cleanName,
+    bonusText,
     createStaticRowReconciler,
     getOrCreateState,
     normalCase,
@@ -92,6 +92,7 @@ const getBlockedLibraryTalentIds = (rawBlockedList) => {
 const TalentRow = ({
     talentId,
     talentName,
+    talentBonus,
     maxState,
     maxBookLvState,
     isBookAvailable,
@@ -104,7 +105,7 @@ const TalentRow = ({
         return AccountRow({
             rowClass: "talent-row",
             rowProps: { "data-talent": talentId },
-            info: span({ class: "account-row__name" }, talentName),
+            info: RowTitles({ bonus: talentBonus, name: talentName }),
             badge: () => (maxState.val === -1 ? "Locked" : "Not a book"),
             controls: () => (maxState.val === -1 ? span() : CappedValue({ value: () => maxState.val })),
         });
@@ -121,7 +122,7 @@ const TalentRow = ({
         },
         max: isSpecial ? Infinity : () => maxBookLvState.val,
         integerMode: isSpecial ? "floor" : null,
-        renderInfo: () => span({ class: "account-row__name" }, talentName),
+        renderInfo: () => RowTitles({ bonus: talentBonus, name: talentName }),
         // A max level of -1 is a talent the character hasn't unlocked: the word says so and the field shows empty.
         renderBadge: () => (maxState.val === -1 ? "Locked" : ""),
         unset: -1,
@@ -244,6 +245,7 @@ const LibraryTab = () => {
                                 const row = TalentRow({
                                     talentId: talent.talentId,
                                     talentName: talent.talentName,
+                                    talentBonus: talent.talentBonus,
                                     maxState: getMaxState(loadedCharacter, talent.talentId),
                                     maxBookLvState,
                                     isBookAvailable: talent.isBookAvailable,
@@ -300,12 +302,15 @@ const LibraryTab = () => {
             const skillLevelsMAX = toIndexedArray(rawSkillLevelsMAX ?? []);
             const talentDL2 = toIndexedArray(rawTalentDL2 ?? []);
             const classIds = getLibraryClassPageIds(classId);
-            const activeClassName = cleanName(staticMeta.classNames[classId]) || `Class ${classId}`;
+            const activeClassName = normalCase(staticMeta.classNames[classId] ?? "") || `Class ${classId}`;
+            // What a talent does, in the game's words: the first line of its description, without the number.
+            const getTalentBonus = (talentId) =>
+                bonusText(toIndexedArray(toIndexedArray(staticMeta.talentDescriptions[talentId] ?? [])[0] ?? [])[0]);
             const getTalentName = (talentId) =>
                 normalCase(staticMeta.talentIconNames?.[talentId] ?? "") || `Talent ${talentId}`;
             const groups = classIds
                 .map((cId, groupIndex) => {
-                    const className = cleanName(staticMeta.classNames[cId]) || `Class ${cId}`;
+                    const className = normalCase(staticMeta.classNames[cId] ?? "") || `Class ${cId}`;
                     const talents = [];
                     getAvailablePointsState(String(cId)).val = toNum(talentDL2[groupIndex]);
 
@@ -320,6 +325,7 @@ const LibraryTab = () => {
                         talents.push({
                             talentId,
                             talentName: getTalentName(talentId),
+                            talentBonus: getTalentBonus(talentId),
                             isBookAvailable,
                         });
                     }
@@ -333,7 +339,12 @@ const LibraryTab = () => {
                 .filter((talentId) => staticMeta.talentDescriptions[talentId][0][0] !== "_")
                 .map((talentId) => {
                     getMaxState(character, talentId).val = toNum(skillLevelsMAX[talentId]);
-                    return { talentId, talentName: getTalentName(talentId), isBookAvailable: true };
+                    return {
+                        talentId,
+                        talentName: getTalentName(talentId),
+                        talentBonus: getTalentBonus(talentId),
+                        isBookAvailable: true,
+                    };
                 });
             if (specialTalents.length) {
                 groups.push({

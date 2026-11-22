@@ -16,13 +16,14 @@ import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import {
+    bonusText,
     createStaticRowReconciler,
     oneAtATime,
     unwrapH,
@@ -31,7 +32,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const EQUIP_SETS_PATHS = ["CustomMaps.h.EquipmentSets", "CustomMaps.EquipmentSets"];
 const SET_ORDER_PATHS = ["CustomLists.h.RANDOlist[113]", "CustomLists.RANDOlist[113]"];
@@ -137,9 +138,12 @@ const buildSmithyState = ({ rawEquipSets, rawSetOrder, rawStoredSets, rawEquippe
     const allSets = orderedSetKeys.map((setKey) => {
         const completedNow = isSetCompletedNow(setKey, equipSets, equippedMainSet, equippedExtraSet);
         const stored = storedSetKeys.has(setKey);
+        // The set's bonus in the game's words: [3][3] of its entry ("+{%_Mining_and|Chopping_Efficiency").
+        const meta = toIndexedArray(unwrapH(toIndexedArray(unwrapH(equipSets?.[setKey]) ?? [])[3]) ?? []);
         return {
             setKey,
             displayName: getSetDisplayName(setKey),
+            bonus: bonusText(meta[3] ?? ""),
             completedNow,
             stored,
             unlocked: stored || completedNow,
@@ -197,7 +201,7 @@ const SmithyRow = ({ set, isOn, onFlip }) =>
     AccountRow({
         rowClass: "smithy-row",
         rowProps: { "data-set": set.setKey },
-        info: span({ class: "account-row__name" }, set.displayName),
+        info: RowTitles({ bonus: set.bonus, name: set.displayName }),
         // Worn in full, a set counts in the game even when the Smithy doesn't hold it.
         badge: set.completedNow ? "Equipped" : set.known ? null : "Not in game",
         controls: StateSwitch({

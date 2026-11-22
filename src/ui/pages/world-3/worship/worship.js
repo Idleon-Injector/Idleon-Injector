@@ -175,7 +175,7 @@ const WorshipTab = () => {
             className: "field-columns",
             body: [
                 AccountSection({ title: "Charge", body: chargeRowsNode }),
-                AccountSection({ title: "Best wave", body: waveRowsNode }),
+                AccountSection({ title: "Totems", body: waveRowsNode }),
             ],
         })
     );

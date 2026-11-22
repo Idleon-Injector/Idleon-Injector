@@ -6,8 +6,8 @@
  *   gga.Refinery[3..11][1]                    - level
  *   gga.ItemDefinitionsGET.h.Refinery1..9.h.displayName - salt names
  *
- * One salt per line, its Level and Charge in the table's columns. Salts 7-9 need the "Polymer Refinery" research in
- * the game; the 9th has no effect in the game yet. Each says so in a plain word on its line.
+ * The refinery's three tabs as the game has them (Combustion, Synthesis, Polymerization, three salts each), one salt per
+ * line with its Level and Charge in the table's columns. Polymerization needs the "Polymer Refinery" research.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -18,7 +18,7 @@ import { ValueTableHead, ValueTableRow } from "../../../components/views/account
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -30,8 +30,12 @@ const { div, span } = van.tags;
 
 const REFINERY_COUNT = 9;
 const REFINERY_OFFSET = 3;
-const POLYMER_LOCK_FROM = 6;
-const PLACEHOLDER_INDEX = 8;
+// The game's refinery tabs, three salts (chambers) each.
+const TABS = [
+    { id: "combustion", label: "Combustion" },
+    { id: "synthesis", label: "Synthesis" },
+    { id: "polymerization", label: "Polymerization" },
+];
 
 // A salt's two values as the game holds them.
 const saltValues = (raw, gameIndex) => {
@@ -41,11 +45,9 @@ const saltValues = (raw, gameIndex) => {
 
 const SaltRow = ({ refIndex, name, states }) => {
     const gameIndex = refIndex + REFINERY_OFFSET;
-    const badge = refIndex === PLACEHOLDER_INDEX ? "Not in game" : refIndex >= POLYMER_LOCK_FROM ? "Polymer" : null;
     return ValueTableRow({
         name,
         info: span({ class: "account-row__name" }, name),
-        badge,
         fields: [
             { key: "level", label: "Level", valueState: states.level, paths: [`Refinery[${gameIndex}][1]`] },
             { key: "charge", label: "Charge", valueState: states.charge, paths: [`Refinery[${gameIndex}][0]`] },
@@ -57,8 +59,8 @@ const SaltRow = ({ refIndex, name, states }) => {
 const RefineryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Refinery" });
     const saltStates = Array.from({ length: REFINERY_COUNT }, () => ({ level: van.state(0), charge: van.state(0) }));
-    const listNode = div({ class: "account-page-pane" });
-    const reconcileRows = createStaticRowReconciler(listNode);
+    const listNodes = TABS.map(() => div());
+    const reconcilers = listNodes.map((node) => createStaticRowReconciler(node));
 
     const load = async () =>
         run(async () => {
@@ -75,9 +77,14 @@ const RefineryTab = () => {
                 }),
             });
 
-            reconcileRows(refineries.map((salt) => salt.name).join("|"), () =>
-                refineries.map((salt, refIndex) => SaltRow({ refIndex, name: salt.name, states: saltStates[refIndex] }))
-            );
+            TABS.forEach((_, tab) => {
+                const salts = refineries.slice(tab * 3, tab * 3 + 3);
+                reconcilers[tab](salts.map((salt) => salt.name).join("|"), () =>
+                    salts.map((salt, i) =>
+                        SaltRow({ refIndex: tab * 3 + i, name: salt.name, states: saltStates[tab * 3 + i] })
+                    )
+                );
+            });
             refineries.forEach((salt, i) => {
                 saltStates[i].level.val = salt.level;
                 saltStates[i].charge.val = salt.charge;
@@ -89,17 +96,21 @@ const RefineryTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Refinery",
-        description: "Salt levels and charge. Polymer salts need the Polymer Refinery research.",
+        description: "Salt levels and charge. Polymerization needs the Polymer Refinery research.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
         loadingText: "Reading the refinery",
         errorTitle: "Couldn't read the refinery",
         initialWrapperClass: "account-list",
         body: div(
-            { class: "account-list account-list--tabbed" },
-            ListPanel({
-                className: "refinery-table",
-                body: [ValueTableHead({ name: "Salt", columns: ["Level", "Charge"] }), listNode],
+            { class: "account-list account-list--tabbed refinery-table" },
+            TabbedList({
+                name: "Refinery",
+                tabs: TABS.map((tab, i) => ({
+                    id: tab.id,
+                    label: tab.label,
+                    content: [ValueTableHead({ name: "Salt", columns: ["Level", "Charge"] }), listNodes[i]],
+                })),
             })
         ),
     });
