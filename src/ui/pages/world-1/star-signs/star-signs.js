@@ -38,6 +38,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { Icons } from "../../../assets/icons.js";
+import { announce } from "../../../components/inPlace.js";
 
 const { div, button, span, p, select, option } = van.tags;
 
@@ -450,6 +451,8 @@ const StarSignsTab = () => {
     // Reset clears the tab's signs and lowers the star points to match; the star signs already unlocked stay.
     const resetAll = (world) => changeAll(world, (sign) => withPlayers(sign, []));
 
+    // The tray's Yes runs the change after the press ended, so the press can't say how it went (ActionButton): this does.
+    const said = (name, change) => () => change().then(({ ok }) => announce(`${name}: ${ok ? "done" : "failed"}`));
     const tools = (activeId, ask) => {
         const started = () => signsIn(activeId.val).filter((sign) => sign.players.length || toInt(sign.claimed, 0));
         const resetButton = ActionButton({
@@ -464,7 +467,7 @@ const StarSignsTab = () => {
                     question: `Reset ${n} ${signWord(n)} in ${activeId.val}?`,
                     confirmLabel: n === 1 ? "Reset it" : "Reset them",
                     from: resetButton,
-                    onConfirm: () => resetAll(activeId.val),
+                    onConfirm: said("Reset all", () => resetAll(activeId.val)),
                 });
             },
         });
@@ -479,7 +482,7 @@ const StarSignsTab = () => {
                     question: `Randomize ${n} ${signWord(n)} in ${activeId.val}?`,
                     confirmLabel: n === 1 ? "Randomize it" : "Randomize them",
                     from: randomizeButton,
-                    onConfirm: () => randomizeAll(activeId.val),
+                    onConfirm: said("Randomize all", () => randomizeAll(activeId.val)),
                 });
             },
         });

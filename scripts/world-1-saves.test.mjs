@@ -400,6 +400,8 @@ const openSign = async (label) => {
     return root;
 };
 const detailOf = (root) => byClass(root, "starsign-detail")[0];
+// What a screen reader was last told (announce, in inPlace.js).
+const spoken = () => elements(globalThis.document.body).find((node) => node.attributes.role === "status")?.textContent;
 const chipLetters = (root) =>
     byClass(detailOf(root), "starsign-player-chip").map((chip) => chip.attributes["data-letter"]);
 // Taking a player off is one press; Undo puts them back.
@@ -466,7 +468,7 @@ test("star signs: Undo in the open sign puts the players back and shows them", a
     g.StarSignProg[1] = saved;
 });
 
-test("star signs: Reset all asks in the tray, then clears a sign completed in the game since the page opened", async () => {
+test("star signs: Reset all asks in the tray, then clears a sign completed in the game since the page opened and says so", async () => {
     const saved = [...g.StarSignProg[2]];
     g.StarSignProg[2] = ["", 0];
     const root = await openPage(STAR_SIGNS, signsReady);
@@ -479,6 +481,7 @@ test("star signs: Reset all asks in the tray, then clears a sign completed in th
     assert.equal(writes(), before, "nothing is written before the answer");
     await byClass(root, "tabbed-list__yes")[0].listeners.click({});
     await until(() => g.StarSignProg[2][0] === "", "the reset");
+    await until(() => spoken() === "Reset all: done", "the result to be said");
     g.StarSignProg[2] = saved;
 });
 
@@ -495,6 +498,7 @@ test("star signs: Unlock all fills only the empty places and leaves a full sign 
         await until(() => g.StarSignProg[0][0].length === 4, "A-1 to fill");
         assert.equal(g.StarSignProg[0][0], "c_ab", "who had it stays first");
         assert.equal(g.StarSignProg[3][0], "cde", "the full sign keeps its players");
+        await until(() => spoken() === "Unlock all: done", "the result to be said"); // before the next test speaks
     } finally {
         saved.forEach((entry, i) => (g.StarSignProg[i] = entry));
         g.OptionsListAccount[40] = savedPoints;
@@ -502,7 +506,7 @@ test("star signs: Unlock all fills only the empty places and leaves a full sign 
 });
 
 // #183: Randomize all took players off signs in one click.
-test("star signs: Randomize all asks in the tray before it changes anything", async () => {
+test("star signs: Randomize all asks in the tray before it changes anything, and says how it went", async () => {
     const saved = g.StarSignProg.map((entry) => [...entry]);
     const savedPoints = g.OptionsListAccount[40];
     g.StarSignProg[3] = ["cde", 1];
@@ -520,6 +524,7 @@ test("star signs: Randomize all asks in the tray before it changes anything", as
         assert.ok(asked.startsWith("Randomize "), `the tray asks (${asked})`);
         await byClass(root, "tabbed-list__yes")[0].listeners.click({});
         await until(() => writes() > before, "the randomize");
+        await until(() => spoken() === "Randomize all: done", "the result to be said");
     } finally {
         saved.forEach((entry, i) => (g.StarSignProg[i] = entry));
         g.OptionsListAccount[40] = savedPoints;
