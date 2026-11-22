@@ -62,6 +62,14 @@
     display: none;
 }
 
+/* A tab's own tools (toolsPerTab): laid out as if the tray held them directly; another tab's stay out of sight. */
+.tabbed-list__tab-tools {
+    display: contents;
+}
+.tabbed-list__tab-tools[hidden] {
+    display: none;
+}
+
 /* The block is drawn once and glides to the open tab (placed from the tab's box by TabbedList). Its feet curve out into
    the tray, so the tab and the tray read as one shape. */
 .tabbed-list__pill {

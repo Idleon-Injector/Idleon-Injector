@@ -359,8 +359,11 @@ World 5 uses the same pieces; two shared pages moved onto them:
 - **The Slab and the Greenstack** (`ItemRegistrationTab`) are one list with a switch each, searched from the top bar.
   "Missing only" (off at the start) is their filter on the line under the title; Register all runs on one press,
   Unregister all asks in the tray.
-- **The menu follows the game's screens:** Sailing is Boats, Captains, Islands, Artifacts, Loot Pile; Gaming is Garden,
-  Imports, Rat King, Superbits, Palette. The Hole is two pages, like the game's village on top and caverns below:
+- **The menu follows the game's screens:** Sailing and Gaming are one page each, the game's screens as tabs (Sailing:
+  Boats, Captains, Islands, Artifacts, Loot Pile; Gaming: Garden, Imports, Rat King, Superbits, Palette), not entries in
+  the sidebar (Lumi: "gaming needs subtabs instead of the submenus"). A tab keeps what its page had, its tools show on
+  it only, and search finds each tab by its old name and words (`tabs` in `definePage`) and opens the page on it. A
+  tab's own parts (Superbits' boards) are groups in its list. The Hole is two pages, like the game's village on top and caverns below:
   Villagers (tabs Villagers, Opals, Engineer, Conjuror, Measurer, Librarian) and Caverns (a tab per cavern, in the
   game's order). A cavern with parts of its own (Fountain) shows them as groups in its list, never tabs in a tab.
 - **Many tabs wrap** (`TabbedList`'s `wrap`, Caverns' 18): the rows of tabs fill the panel's width. The open tab runs

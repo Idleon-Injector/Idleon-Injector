@@ -285,6 +285,7 @@ const VillagersTab = () => {
             { class: "account-list account-list--tabbed" },
             TabbedList({
                 name: "Villagers",
+                page: "w5.hole.villagers",
                 // Six tabs: on a phone they take two rows instead of running off the side.
                 wrap: true,
                 busy: () => bulk.status.val === "loading",
@@ -309,6 +310,7 @@ export default definePage({
     world: 5,
     system: "Hole",
     tab: "Villagers",
+    tabs: TABS.map(({ id, label }) => ({ id, label })),
     description: "Villager levels, opals, schematics, Majiks, measurements and studies.",
     keywords: [
         "Explorer",

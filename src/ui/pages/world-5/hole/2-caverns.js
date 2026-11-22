@@ -520,6 +520,7 @@ const CavernsTab = () => {
             { class: "account-list account-list--tabbed" },
             TabbedList({
                 name: "Caverns",
+                page: "w5.hole.caverns",
                 wrap: true,
                 tabs: CAVERNS.map((cavern, i) => ({
                     id: cavern.id,
@@ -536,10 +537,10 @@ export default definePage({
     world: 5,
     system: "Hole",
     tab: "Caverns",
+    tabs: CAVERNS.map(({ id, label }) => ({ id, label })),
     description:
         "Every Hole cavern: the Well, Motherlode, the Den, the monuments, the Bell, Harp, Lamp, Jars and more.",
     keywords: [
-        ...CAVERNS.map((cavern) => cavern.label),
         "Dawg Den",
         "Skill",
         "Monument",

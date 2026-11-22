@@ -55,8 +55,12 @@ const holdWrites = () => {
 
 test("superbits: two superbits flipped on while the first saves both stay unlocked (they share one string)", async () => {
     const before = String(gga.Gaming[12] ?? "");
-    const root = await open("src/ui/pages/world-5/gaming/4-superbits.js");
-    const locked = () => byClass(root, "account-row").filter((row) => switchOf(row) && wordsOf(row) === "");
+    const root = await open("src/ui/pages/world-5/gaming/gaming.js");
+    const tab = elements(root).find((node) => node.attributes.role === "tab" && text(node).trim() === "Superbits");
+    tab.listeners.click({});
+    // The Superbits tab's own rows (the Rat King's crowns have switches too).
+    const pane = elements(root).find((node) => node.attributes.id === tab.attributes["aria-controls"]);
+    const locked = () => byClass(pane, "account-row").filter((row) => switchOf(row) && wordsOf(row) === "");
     await until(() => locked().length >= 2, "two locked superbits");
     const [first, second] = locked();
     const release = holdWrites();

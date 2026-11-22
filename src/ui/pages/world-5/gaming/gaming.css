@@ -5,8 +5,8 @@
     white-space: nowrap;
 }
 
-/* Gaming › Palette: a colour's level, then its Black Stars, so the wider measure. */
-.gaming-palette-tab {
+/* Gaming: its Palette tab holds a colour's level and its Black Stars on one line, so the page takes the wider measure. */
+.gaming-tab {
     --page-measure: 60rem;
 }
 .palette-stars {

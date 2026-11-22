@@ -81,6 +81,10 @@ test("definePage refuses declarations the menu can't place", () => {
     assert.throws(() => definePage({ ...ok, description: " " }), /description/);
     assert.throws(() => definePage({ ...ok, component: "ButtonTab" }), /component/);
     assert.throws(() => definePage({ ...ok, keywords: "Button" }), /keywords/);
+    assert.throws(() => definePage({ ...ok, tabs: "Press" }), /tabs must be/);
+    assert.throws(() => definePage({ ...ok, tabs: [{ id: "press", label: " " }] }), /tabs must be/);
+    assert.throws(() => definePage({ ...ok, tabs: [{ id: "press", label: "Press", keywords: "x" }] }), /tabs must be/);
+    assert.equal(definePage({ ...ok, tabs: [{ id: "press", label: "Press" }] }).tabs[0].label, "Press");
     assert.equal(definePage({ ...ok, id: "account.player", world: "account", system: "Player" }).world, "account");
 });
 
@@ -110,6 +114,20 @@ test("the menu tree keeps every world in order and only systems that have pages,
     );
     assert.equal(tree.find((world) => world.id === 1).systems.length, 0);
     assert.throws(() => buildMenuTree([page("w7.button", 7, "The Button"), page("w7.button", 7, "The Button")]));
+});
+
+test("a page's own tabs are found by name and words, and open the page on that tab", () => {
+    const page = definePage({
+        id: "w7.button",
+        world: 7,
+        system: "The Button",
+        description: "x",
+        component: noop,
+        tabs: [{ id: "press", label: "Press", keywords: ["Smash"] }],
+    });
+    const hit = searchMenu(searchEntries(buildMenuTree([page])), "smash")[0];
+    assert.equal(hit.label, "Press");
+    assert.deepEqual(hit.target, { world: 7, page: "w7.button", tab: "press" });
 });
 
 test("search finds systems, tabs, extra words and areas by their old names", () => {

@@ -3,6 +3,7 @@ import { joinClasses, toNodes } from "./accountShared.js";
 import { replay } from "../../inPlace.js";
 import { labelOf, withAction } from "../../../services/changeLog.js";
 import { searchHits } from "../../../menu/pageSearch.js";
+import { tabRequest } from "../../../menu/pageRegistry.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -96,12 +97,25 @@ let listCount = 0;
  *   shows no tray, and its open tab runs down into its rows like a list without tools
  * @param {(tabId: string) => void} [opts.onTab] called with the tab the player opens (a pane closes what it had open)
  * @param {() => boolean} [opts.busy] true while the page saves: a question's Yes waits, so it can't start a second save
+ * @param {string} [opts.page] the page id whose `tabs` (definePage) these are: a search hit on one opens it
  * @param {boolean} [opts.wrap] more tabs than a row holds (a Hole cavern each; six on a phone): the tabs wrap onto rows
  *   instead of scrolling sideways
  * @param {{val: string}} [opts.activeId] the open tab's id, when the page shows something of it outside the list (the
  *   stats beside its title)
  * @returns {HTMLElement}
  */
+/**
+ * TabbedList's `tools` when each tab has its own (a page whose tabs were pages: Sailing's Islands, Artifacts): `byTab`
+ * maps a tab's id to its tools. Every tab's tools stay in the tray, the open tab's shown, so their buttons keep following
+ * the game while another tab is open.
+ *
+ * @param {Record<string, (ask: Function) => *>} byTab
+ */
+export const toolsPerTab = (byTab) => (activeId, ask) =>
+    Object.entries(byTab).map(([id, tools]) =>
+        div({ class: "tabbed-list__tab-tools", hidden: () => activeId.val !== id }, tools(ask))
+    );
+
 export const TabbedList = ({
     name,
     tabs,
@@ -112,9 +126,16 @@ export const TabbedList = ({
     busy = null,
     activeId: sharedId = null,
     wrap = false,
+    page = null,
 }) => {
     const activeId = sharedId ?? van.state(tabs[0].id);
     activeId.val = pickedTabs.get(name) ?? activeId.val;
+    // A search hit on one of the page's tabs (definePage's `tabs`) opens it, now or when the page first shows.
+    if (page)
+        van.derive(() => {
+            const asked = tabRequest.val;
+            if (asked?.page === page && tabs.some((tab) => tab.id === asked.tab)) activeId.val = asked.tab;
+        });
     const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
     const key = `tabbed-list-${++listCount}`;

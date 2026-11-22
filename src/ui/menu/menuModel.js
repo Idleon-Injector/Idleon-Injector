@@ -172,6 +172,8 @@ export const pageFolder = (page) => `${findWorld(page.world).folder}/${slugify(p
  * @param {string} [page.tab] - tab name, required when a system has several pages
  * @param {string} page.description - one plain sentence for players
  * @param {string[]} [page.keywords] - extra search words, including the injector's old names
+ * @param {{id: string, label: string, keywords?: string[]}[]} [page.tabs] - the page's own tabs (Gaming's Garden,
+ *   Imports, ...): search finds each by its name and words and opens the page on it
  * @param {Function} page.component - VanJS component that renders the page
  */
 export const definePage = (page) => {
@@ -192,6 +194,21 @@ export const definePage = (page) => {
         !(Array.isArray(page.keywords) && page.keywords.every((k) => typeof k === "string"))
     )
         throw new Error(`${where}: keywords must be a list of words`);
+    if (
+        page.tabs !== undefined &&
+        !(
+            Array.isArray(page.tabs) &&
+            page.tabs.every(
+                (tab) =>
+                    typeof tab?.id === "string" &&
+                    typeof tab.label === "string" &&
+                    tab.label.trim() &&
+                    (tab.keywords === undefined ||
+                        (Array.isArray(tab.keywords) && tab.keywords.every((k) => typeof k === "string")))
+            )
+        )
+    )
+        throw new Error(`${where}: tabs must be a list of { id, label, keywords }`);
     return Object.freeze({ keywords: [], ...page });
 };
 
@@ -246,6 +263,15 @@ export const searchEntries = (tree) => {
             const systemWords = system.pages.length === 1 ? system.pages[0].keywords : [];
             const description = system.pages.length === 1 ? system.pages[0].description : "";
             out.push({ label: system.name, where: world.label, words: systemWords, description, target: first });
+            // A page's own tabs: each found by its name and words, and opened on.
+            for (const page of system.pages)
+                for (const tab of page.tabs ?? [])
+                    out.push({
+                        label: tab.label,
+                        where: `${world.label} › ${pageTitle(page, system)}`,
+                        words: tab.keywords ?? [],
+                        target: { world: world.id, page: page.id, tab: tab.id },
+                    });
             if (system.pages.length < 2) continue;
             for (const page of system.pages) {
                 out.push({

@@ -8,6 +8,9 @@ import { COSMO_UPGRADES, FOUNTAIN_UPGRADES, RANDO_LISTO_2 } from "./page-shots/d
 
 const VILLAGERS = "src/ui/pages/world-5/hole/1-villagers.js";
 const CAVERNS = "src/ui/pages/world-5/hole/2-caverns.js";
+const SAILING = "src/ui/pages/world-5/sailing/sailing.js";
+const GAMING = "src/ui/pages/world-5/gaming/gaming.js";
+const DIVINITY = "src/ui/pages/world-5/divinity/god.js";
 
 const { router, game } = await createFakeApi(fakeGameData());
 await loadUi(router);
@@ -73,7 +76,7 @@ const typeAndEnter = (row, input, value) => {
 };
 
 test("Boats: saving a boat's Loot Value keeps a Speed level bought in game since the page read it", async () => {
-    const root = await openPage("src/ui/pages/world-5/sailing/1-boats.js");
+    const { root } = await openPane(SAILING, "Boats");
     const row = rowNamed(root, "Boat 1");
     const [loot] = byTag(row, "input");
     gga.Boats[0][5] += 4;
@@ -86,7 +89,7 @@ test("Boats: saving a boat's Loot Value keeps a Speed level bought in game since
 });
 
 test("Boats: Davey Jones Training saves its buys and refuses more than the shop's 8", async () => {
-    const root = await openPage("src/ui/pages/world-5/sailing/1-boats.js");
+    const { root } = await openPane(SAILING, "Boats");
     const row = rowNamed(root, "Davey Jones Training");
     assert.equal(
         text(byClass(row, "account-row__bonus")[0]),
@@ -101,7 +104,7 @@ test("Boats: Davey Jones Training saves its buys and refuses more than the shop'
 });
 
 test("Captains: a captain's name opens its bonus kinds, and a pick saves that kind", async () => {
-    const root = await openPage("src/ui/pages/world-5/sailing/2-captains.js");
+    const { root } = await openPane(SAILING, "Captains");
     const row = rowNamed(root, "Captain 1");
     const opener = byClass(row, "row-opener")[0];
     const detail = byClass(row, "row-detail")[0];
@@ -117,7 +120,7 @@ test("Captains: a captain's name opens its bonus kinds, and a pick saves that ki
 
 // Review of #123: a captain's save handed back the EXP read before it, so the row showed old EXP over a newer read.
 test("Captains: saving a captain's level keeps the EXP a voyage gave since the page read it", async () => {
-    const root = await openPage("src/ui/pages/world-5/sailing/2-captains.js");
+    const { root } = await openPane(SAILING, "Captains");
     const row = rowNamed(root, "Captain 2");
     const [, level, exp] = byTag(row, "input");
     const bonus = gga.Captains[1][5];
@@ -135,7 +138,7 @@ test("Captains: saving a captain's level keeps the EXP a voyage gave since the p
 test("Islands: a switch unlocks one island; Lock all asks first", async (t) => {
     const before = [...gga.Sailing[0]];
     t.after(() => (gga.Sailing[0] = before));
-    const root = await openPage("src/ui/pages/world-5/sailing/3-islands.js");
+    const { root } = await openPane(SAILING, "Islands");
     flip(rowNamed(root, "Cloudy Quay"), true);
     await until(() => gga.Sailing[0][9] === -1, "Cloudy Quay to unlock");
     click(buttonNamed(root, "Lock all"));
@@ -149,7 +152,7 @@ test("Artifacts: Max all brings every tier to Verisimilitude, one above it too; 
     const before = [...gga.Sailing[3]];
     t.after(() => (gga.Sailing[3] = before));
     gga.Sailing[3][0] = 9;
-    const root = await openPage("src/ui/pages/world-5/sailing/4-artifacts.js");
+    const { root } = await openPane(SAILING, "Artifacts");
     assert.equal(trayLine(root), `All ${before.length} artifacts`);
     click(buttonNamed(root, "Max all"));
     await until(() => gga.Sailing[3].every((tier) => tier === 7), "every artifact at 7");
@@ -161,7 +164,7 @@ test("Artifacts: Max all brings every tier to Verisimilitude, one above it too; 
 });
 
 test("Garden: a plant's Log Book count saves its letter and keeps a plant found in game since", async () => {
-    const root = await openPage("src/ui/pages/world-5/gaming/1-garden.js");
+    const { root } = await openPane(GAMING, "Garden");
     const row = rowNamed(root, "Plant 7");
     gga.Gaming[11] = "ajjhhe";
     typeAndEnter(row, byTag(row, "input")[0], 4);
@@ -173,8 +176,9 @@ test("Garden: a plant's Log Book count saves its letter and keeps a plant found 
 test("Rat King: a crown's switch keeps a crown reclaimed in game since; Clear all asks first", async (t) => {
     const before = [...gga.Research[11]];
     t.after(() => (gga.Research[11] = before));
-    const root = await openPage("src/ui/pages/world-5/gaming/3-rat-king.js");
-    const plant = rowNamed(root, "Plant 5");
+    const { root, pane } = await openPane(GAMING, "Rat King");
+    // The Garden's Log Book has a "Plant 5" too: this one is the Rat King's.
+    const plant = rowNamed(pane, "Plant 5");
     click(byClass(plant, "row-opener")[0]);
     gga.Research[11] = [...gga.Research[11], "9i"];
     flip(rowNamed(plant, "Base form"), true);
@@ -187,28 +191,25 @@ test("Rat King: a crown's switch keeps a crown reclaimed in game since; Clear al
     await until(() => gga.Research[11].length === 0, "no crowns left");
 });
 
-test("Superbits: a flip keeps a superbit unlocked in game since; Lock all asks and acts on the open tab", async (t) => {
+test("Superbits: a flip keeps a superbit unlocked in game since; Lock all asks, then locks every board", async (t) => {
     const before = gga.Gaming[12];
     t.after(() => (gga.Gaming[12] = before));
-    const root = await openPage("src/ui/pages/world-5/gaming/4-superbits.js");
+    const { root, pane } = await openPane(GAMING, "Superbits");
+    assert.deepEqual(byClass(pane, "account-section__title").map(text), ["Superbits", "Duperbits", "Zuperbits"]);
     // Superbit 4, the game's "d": locked on the fake game.
-    const row = byClass(root, "account-row")[4];
+    const row = byClass(pane, "account-row")[4];
     gga.Gaming[12] += "Z";
     flip(row, true);
     await until(() => gga.Gaming[12].includes("d"), "the superbit to unlock");
     assert.ok(gga.Gaming[12].includes("Z"), "the one unlocked in game stays");
-    openTab(root, "Duperbits");
-    await until(() => trayLine(root) === "All 24 duperbits", "the Duperbits tab");
     click(buttonNamed(root, "Lock all"));
-    await until(() => /^Lock \d+ duperbits?\?$/.test(trayLine(root)), "the question");
+    await until(() => /^Lock \d+ superbits\?$/.test(trayLine(root)), "the question");
     yes(root);
-    // Duperbits are superbits 24 to 47: the game's "x" to "U".
-    await until(() => !/[xyzA-U]/.test(gga.Gaming[12]), "the duperbits locked");
-    assert.ok(gga.Gaming[12].includes("d") && gga.Gaming[12].includes("Z"), "the other boards stay");
+    await until(() => gga.Gaming[12] === "", "every superbit locked");
 });
 
 test("Palette: a Black Stars pick saves at once", async () => {
-    const root = await openPage("src/ui/pages/world-5/gaming/5-palette.js");
+    const { root } = await openPane(GAMING, "Palette");
     const row = rowNamed(root, "Olive Green");
     gga.Spelunk[49][0] = 0;
     click(radio(row, "★★"));
@@ -315,17 +316,17 @@ test("Slab: Missing only shows what isn't in, Register all adds them; Unregister
     await until(() => (gga.Cards[1] ?? []).length === 0, "the Slab empty");
 });
 
-for (const [file, name, read, value] of [
-    ["src/ui/pages/world-5/sailing/5-loot-pile.js", "Gold Bar", () => gga.Sailing[1][0], 60000],
-    ["src/ui/pages/world-5/divinity/god.js", "Arctis", () => gga.Divinity[29], 44],
-    ["src/ui/pages/world-5/divinity/god.js", "Gods unlocked", () => gga.Divinity[25], 10],
-    ["src/ui/pages/world-5/gaming/1-garden.js", "Bits", () => gga.Gaming[0], 123456],
-    ["src/ui/pages/world-5/gaming/2-imports.js", "Little Sprinkler", () => gga.GamingSprout[25][0], 12],
-    ["src/ui/pages/world-5/gaming/2-imports.js", "Acorns", () => gga.Gaming[9], 4000],
-    ["src/ui/pages/world-5/gaming/3-rat-king.js", "King Tokens", () => gga.Gaming[14], 9000],
+for (const [file, tab, name, read, value] of [
+    [SAILING, "Loot Pile", "Gold Bar", () => gga.Sailing[1][0], 60000],
+    [DIVINITY, null, "Arctis", () => gga.Divinity[29], 44],
+    [DIVINITY, null, "Gods unlocked", () => gga.Divinity[25], 10],
+    [GAMING, "Garden", "Bits", () => gga.Gaming[0], 123456],
+    [GAMING, "Imports", "Little Sprinkler", () => gga.GamingSprout[25][0], 12],
+    [GAMING, "Imports", "Acorns", () => gga.Gaming[9], 4000],
+    [GAMING, "Rat King", "King Tokens", () => gga.Gaming[14], 9000],
 ]) {
     test(`${name} saves on Enter`, async () => {
-        const root = await openPage(file);
+        const root = tab ? (await openPane(file, tab)).root : await openPage(file);
         const row = rowNamed(root, name);
         typeAndEnter(row, byTag(row, "input")[0], value);
         await settled(row);
@@ -384,7 +385,36 @@ test("Rupie Slugs say what they do, and search finds them by the gem shop's word
     const { pane } = await openPane(CAVERNS, "The Jars");
     assert.equal(text(byClass(rowNamed(pane, "Rupie Slugs"), "account-row__bonus")[0]), "1.5x Jar Rupie value each");
     for (const word of ["Rupie Slugs", "Limited", "Gem shop", "Fomo"]) assert.ok(caverns.keywords.includes(word));
-    const { default: boats } = await importRepo("src/ui/pages/world-5/sailing/1-boats.js");
+    const { default: sailing } = await importRepo(SAILING);
+    const boats = sailing.tabs.find((tab) => tab.id === "boats");
     for (const word of ["Davey Jones Training", "Limited", "Gem shop", "Fomo"])
         assert.ok(boats.keywords.includes(word));
+});
+
+test("search finds Sailing's and Gaming's tabs by name and old words, and a hit opens the page on that tab", async () => {
+    const { buildMenuTree, searchEntries, searchMenu } = await importRepo("src/ui/menu/menuModel.js");
+    const pages = await Promise.all([SAILING, GAMING, CAVERNS].map(async (file) => (await importRepo(file)).default));
+    const entries = searchEntries(buildMenuTree(pages));
+    for (const [query, label, page, tab] of [
+        ["boats", "Boats", "w5.sailing", "boats"],
+        ["davey jones", "Boats", "w5.sailing", "boats"],
+        ["loot pile", "Loot Pile", "w5.sailing", "lootpile"],
+        ["rat king", "Rat King", "w5.gaming", "ratking"],
+        ["duperbits", "Superbits", "w5.gaming", "superbits"],
+        ["the jars", "The Jars", "w5.hole.caverns", "jars"],
+    ]) {
+        const hit = searchMenu(entries, query)[0];
+        assert.equal(hit.label, label, `"${query}" finds ${label}`);
+        assert.deepEqual(hit.target, { world: 5, page, tab }, `"${query}" opens ${label}`);
+    }
+    const { default: store } = await importRepo("src/ui/state/store.js");
+    const { root } = await openPane(SAILING, "Boats");
+    const selected = () =>
+        text(elements(root).find((node) => node.attributes.role === "tab" && attr(node, "aria-selected") === "true"));
+    store.openMenu({ world: 5, page: "w5.sailing", tab: "captains" });
+    await until(() => selected().trim() === "Captains", "the Captains tab to open");
+    // A sidebar click leaves the open tab where the player put it.
+    store.openMenu({ world: 5, page: "w5.sailing" });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(selected().trim(), "Captains");
 });
