@@ -266,6 +266,22 @@ test("bribes: Disable all asks in the tray, then runs on the answer", async () =
     await until(() => writes() > before, "the answer to write");
 });
 
+// Owning Set 1's expansion unlocks Set 2, the same as flipping the expansion's own switch.
+test("bribes: Enable all on a set unlocks the next set when it owns the expansion", async () => {
+    const status = game.gga.BribeStatus;
+    const before = [...status];
+    status[5] = 0; // Set 1's expansion, The Art of the Deal
+    for (let index = 6; index < 13; index++) status[index] = -1; // Set 2, locked
+    try {
+        const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
+        await click(enable);
+        await until(() => status[5] === 1, "the expansion to be owned");
+        await until(() => status.slice(6, 13).every((value) => value === 0), "Set 2 to unlock");
+    } finally {
+        before.forEach((value, index) => (status[index] = value));
+    }
+});
+
 for (const [file, label] of [
     ["src/ui/pages/world-1/bribes/bribes.js", "Enable all"],
     ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Enable all"],

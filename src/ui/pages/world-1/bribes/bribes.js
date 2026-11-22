@@ -128,18 +128,25 @@ const BribesTab = () => {
                     enabled ? values[entry.index] !== 1 : values[entry.index] === 1
                 );
                 if (!targets.length) return;
+                const writes = targets.map(({ index }) => ({
+                    index,
+                    path: `${STATUS_PATH}[${index}]`,
+                    value: enabled ? 1 : 0,
+                }));
+                // Owning a set's expansion unlocks the next set's locked bribes, as its own switch does.
+                if (enabled) {
+                    for (const entry of targets) {
+                        for (let index = entry.start; index < entry.start + entry.count; index++) {
+                            if (values[index] === -1 && !writes.some((write) => write.index === index)) {
+                                writes.push({ index, path: `${STATUS_PATH}[${index}]`, value: 0 });
+                            }
+                        }
+                    }
+                }
                 await inGesture(() =>
-                    bulk.run(
-                        () =>
-                            applyWrites(
-                                targets.map(({ index }) => ({
-                                    index,
-                                    path: `${STATUS_PATH}[${index}]`,
-                                    value: enabled ? 1 : 0,
-                                }))
-                            ),
-                        { onError: (caughtError) => (message.val = caughtError.message) }
-                    )
+                    bulk.run(() => applyWrites(writes), {
+                        onError: (caughtError) => (message.val = caughtError.message),
+                    })
                 );
             } catch (caughtError) {
                 message.val = caughtError.message;
