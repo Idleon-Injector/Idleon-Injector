@@ -175,4 +175,11 @@ test("Home's active cheat rows have no fill, like the sidebar's", () => {
     const rule = css.match(/^\.menu-home-cheats \.active-cheat-item \{([^}]*)\}/m)?.[1];
     assert.ok(rule, "menu.css styles Home's active cheat rows");
     assert.match(rule, /^\s*background: transparent;$/m);
+    // The menu look's rule in sidebar.css wins over menu.css, so it must be plain too: no fill and no pill.
+    const sidebar = readFileSync(new URL("../src/ui/styles/sidebar.css", import.meta.url), "utf8");
+    const look = sidebar.match(/^\.viewport \.menu-home-cheats \.active-cheat-item \{([^}]*)\}/m)?.[1];
+    assert.ok(look, "sidebar.css styles Home's active cheat rows");
+    assert.match(look, /^\s*background: transparent;$/m);
+    assert.match(look, /^\s*border: 0;$/m);
+    assert.doesNotMatch(look, /border-radius: 999px/);
 });
