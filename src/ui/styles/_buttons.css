@@ -1,5 +1,5 @@
 /**
- * Buttons (DESIGN.md): three kinds, all pills in Rajdhani 600, in normal case.
+ * Buttons (DESIGN.md): three kinds, all pills in Fira Sans 600 (--font-display), in normal case.
  *
  *   .btn-main    the one blue button an area has (Save settings, Enable Auto Play, First scan)
  *   .btn-quiet   plain words at rest, a soft light fill on hover (Max, Max all, Register, Refresh, Undo)

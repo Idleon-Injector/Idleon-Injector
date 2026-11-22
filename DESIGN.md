@@ -13,7 +13,7 @@ shouting text. Lumify's buttons are the nearest reference, made quieter.
 
 ## Buttons
 
-There are three kinds of button, all pills (`border-radius: 999px`) set in Rajdhani 600.
+There are three kinds of button, all pills (`border-radius: 999px`) set in Fira Sans 600 (`--font-display`).
 
 | Kind   | At rest                           | On hover                                 |
 | ------ | --------------------------------- | ---------------------------------------- |
