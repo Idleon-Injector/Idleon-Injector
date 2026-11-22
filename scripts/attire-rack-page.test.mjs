@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi, saveToSession } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
+import { PLAYERS } from "./page-shots/data/shared.mjs";
 
 const fixture = fakeGameData();
 const { router, game } = await createFakeApi(fixture);
@@ -312,7 +313,10 @@ test("give everyone asks Click again, then gives every character the outfit as o
     const since = requests.length;
     await give.listeners.click({ currentTarget: give, preventDefault() {} });
     assert.equal(give.attributes["data-again"], "Click again");
-    assert.match(give.attributes["aria-label"], /^Click again to give 3 characters .*not moved to storage\.$/);
+    assert.match(
+        give.attributes["aria-label"],
+        new RegExp(`^Click again to give ${PLAYERS.length} characters .*not moved to storage\\.$`)
+    );
     assert.deepEqual(after(since, "write"), [], "the first click writes nothing");
 
     await give.listeners.click({ currentTarget: give, preventDefault() {} });
@@ -322,14 +326,14 @@ test("give everyone asks Click again, then gives every character the outfit as o
     assert.deepEqual(after(since, "write"), ["POST /api/game/gga/write-many"]);
     assert.equal(commands.at(-1), "wide attirestats", "the character in play's stats are worked out again");
     const [action] = (await fetchChanges()).actions;
-    assert.equal(action.entries.length, 12, "both copies of the one in play, the saved copy of the other two");
+    // Both copies of the one in play and the saved copy of every other, three entries each.
+    assert.equal(action.entries.length, 3 * (PLAYERS.length + 1), "every copy of every character");
 });
 
 test("give everyone says so when everyone already wears it", async () => {
     // Everyone wears EquipmentGown7, and it is the outfit picked for everyone (the test before does this).
     gga.EquipmentOrder[0][15] = "EquipmentGown7";
-    for (const name of ["Lumi_Main", "Lumi_Alt", "Lumi_Third"])
-        gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] = "EquipmentGown7";
+    for (const name of PLAYERS) gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] = "EquipmentGown7";
     const [everyone] = elements(page).filter(
         (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
     );
@@ -725,7 +729,7 @@ test("give everyone writes a saved copy that still lacks the outfit the live cop
     const item = "EquipmentGown6";
     gga.EquipmentOrder[0][15] = item;
     gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] = "EquipmentGown2";
-    for (const name of ["Lumi_Alt", "Lumi_Third"]) gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] = item;
+    for (const name of PLAYERS.slice(1)) gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] = item;
     const [everyone] = elements(root).filter(
         (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
     );

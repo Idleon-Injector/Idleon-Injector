@@ -2,7 +2,23 @@
 import { fakeName, h, list } from "./helpers.mjs";
 import { CLASS_NAMES, CRITTER_NAMES, PREMIUM_HATS } from "./world-3-game.mjs";
 
-export const PLAYERS = ["Lumi_Main", "Lumi_Alt", "Lumi_Third"];
+/** Eleven characters, the game's most, each with a real class (ClassNames index in CLASSES). */
+export const PLAYERS = [
+    "Lumi_Main",
+    "Lumi_Alt",
+    "Lumi_Third",
+    "Lumi_Knight",
+    "Lumi_Reaper",
+    "Lumi_Windy",
+    "Lumi_Cultist",
+    "Lumi_Berserk",
+    "Lumi_Guard",
+    "Lumi_Plague",
+    "Lumi_Beasty",
+];
+// Warrior, Elemental Sorcerer, Rage Basics, Divine Knight, Death Bringer, Wind Walker, Arcane Cultist,
+// Blood Berserker, Royal Guardian, Bubonic Conjuror, Beast Master.
+const CLASSES = [7, 34, 6, 12, 14, 29, 40, 10, 16, 36, 25];
 export const MONSTERS = list(30, (i) => `mob${i}`);
 /** Map ids run 50 per world; the first six of each world are real maps here. */
 export const MAPS = list(350, (i) => i).filter((i) => i % 50 < 6);
@@ -65,7 +81,7 @@ const player = (seed) =>
         Exp0: list(25, (i) => (i * 7 + seed) % 90),
         ExpReq0: list(25, (i) => 100 + i * 10),
         Money: 1234567 * (seed + 1),
-        CharacterClass: [7, 34, 6][seed],
+        CharacterClass: CLASSES[seed],
         Prayers: list(12, (slot) => (slot < 2 ? slot * 2 + seed : -1)),
         // Kills still needed on each map, never more than the map's portal needs (MapDetails).
         KillsLeft2Advance: list(350, (map) => [Math.max(0, 10 + (map % 50) * 5 - ((map * 7 + seed * 3) % 12)), 0]),
@@ -77,7 +93,7 @@ const player = (seed) =>
                       trap + 1,
                       300 + trap * 50,
                       1800 * (trap + 1),
-                      `Critter${trap + seed + 1}`,
+                      `Critter${((trap + seed) % 6) + 1}`,
                       3 + trap,
                       trap,
                       7200,

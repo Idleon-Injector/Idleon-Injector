@@ -3,7 +3,7 @@
  * worship, prayers, death note, library, equinox. Traps live on the characters (shared.mjs).
  */
 import { h, level, list } from "./helpers.mjs";
-import { ITEMS, MONSTERS } from "./shared.mjs";
+import { ITEMS, MONSTERS, PLAYERS } from "./shared.mjs";
 import {
     ATOMS,
     DREAM_CHALLENGES,
@@ -88,8 +88,8 @@ export default () => ({
         CogOrder: list(COG_SLOTS, cog),
         CogMap: list(COG_SLOTS, cogStats),
         // Per character: samples from [5 + 14c] and prints from [15 + 14c], as item, amount pairs.
-        Printer: list(5 + 14 * 3, (i) => (i < 5 ? 0 : i % 2 ? ITEM_IDS[i % ITEM_IDS.length] : 1000 * i)),
-        PrinterXtra: list(30, (i) => (i % 2 ? 500 * i : ITEM_IDS[(i + 3) % ITEM_IDS.length])),
+        Printer: list(5 + 14 * PLAYERS.length, (i) => (i < 5 ? 0 : i % 2 ? ITEM_IDS[i % ITEM_IDS.length] : 1000 * i)),
+        PrinterXtra: list(10 * PLAYERS.length, (i) => (i % 2 ? 500 * i : ITEM_IDS[(i + 3) % ITEM_IDS.length])),
         GemItemsPurchased: list(200, (i) => (i === 114 ? 2 : i % 4)),
         // [3..11]: refineries as [salt stored, level].
         Refinery: list(12, (i) => (i < 3 ? [0, 0] : [i * 1500, level(i, 60)])),

@@ -87,7 +87,9 @@ export default () => ({
             StonePremSTR: stone("Premium_Stone", "Main_Stat,3"),
         }),
         PlayerDATABASE: h(
-            Object.fromEntries(PLAYERS.map((name, i) => [name, h({ ...attireSlot(WORN[i]), ...wardrobePlayer() })]))
+            Object.fromEntries(
+                PLAYERS.map((name, i) => [name, h({ ...attireSlot(WORN[i] ?? "Blank"), ...wardrobePlayer() })])
+            )
         ),
         // The live copy of the character in play (world-3.mjs sets its EquipmentOrder).
         EquipmentQuantity: [...attireSlot(WORN[0]).EquipmentQuantity.slice(0, 2), [25000, 800, ...list(14, () => 0)]],
