@@ -97,8 +97,16 @@ function loadConfiguration() {
     }
 }
 
-/** Merge Session updates in place, then attempt game synchronization without writing to disk. */
-async function updateSessionConfiguration(
+/**
+ * Merge Session updates in place, then attempt game synchronization without writing to disk. It waits its turn with
+ * the saves and the game reads (see pullGameConfig), so a read can't merge the game's old value over it.
+ */
+function updateSessionConfiguration(receivedFullConfig, live, gameBridge) {
+    const update = () => applySessionConfiguration(receivedFullConfig, live, gameBridge);
+    return (saving = saving.then(update, update));
+}
+
+async function applySessionConfiguration(
     receivedFullConfig,
     { cheatConfig, startupCheats, injectorConfig },
     gameBridge

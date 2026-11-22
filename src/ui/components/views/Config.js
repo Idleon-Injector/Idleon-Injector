@@ -123,6 +123,7 @@ export const Config = () => {
                 const merged = await syncDraft();
                 const toSave = toPlain(merged);
                 delete toSave.defaultConfig;
+                delete toSave.gameRead; // the read's answer, not a setting
 
                 const message = await store.saveConfig(toSave, isPersistent);
                 baseline = merged;
