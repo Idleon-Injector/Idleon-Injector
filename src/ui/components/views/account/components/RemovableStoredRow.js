@@ -23,9 +23,8 @@ export const RemovableStoredRow = ({
     const { status, run } = useWriteStatus();
 
     const removeRow = async () => {
-        await run(async () => {
-            await onRemove(index);
-        });
+        // `onRemove` resolves to { cancelled: true } when there was nothing to remove.
+        await run(() => onRemove(index));
     };
 
     return AccountRow({

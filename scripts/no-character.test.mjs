@@ -78,6 +78,29 @@ const inPlay = () => {
     gga.UserInfo[0] = "Lumi_Main";
 };
 
+// Review of #154: Buy all checks once before it starts; each buy command asks the game again.
+test("a bundle buy is refused at character select and sent in play", async () => {
+    const { firebase } = await importRepo("src/cheats/core/globals.js");
+    await importRepo("src/cheats/cheats/standalone.js");
+    const { cheats } = await importRepo("src/cheats/core/registration.js");
+    const buy = (code) => cheats.buy.fn([code]);
+    const sent = [];
+    firebase.addToMessageQueue = (...args) => sent.push(args);
+    try {
+        for (const userInfo of Object.values(AT_SELECT)) {
+            atSelect(userInfo);
+            assert.throws(() => buy("bun_a"), { message: NO_CHARACTER });
+        }
+        assert.deepEqual(sent, [], "nothing was queued at character select");
+        inPlay();
+        buy("bun_a");
+        assert.deepEqual(sent, [["SERVER_CODE", "SERVER_ITEM_BUNDLE", "bun_a"]]);
+    } finally {
+        inPlay();
+        delete firebase.addToMessageQueue;
+    }
+});
+
 const ANVIL = "src/ui/pages/world-1/anvil/anvil.js";
 // The points left the page shows: worked out from every stat with the game's formula (talent 281 gives 2 in the fake
 // game), so they follow an edit an earlier test made.
@@ -229,6 +252,15 @@ const PAGES = {
     "src/ui/pages/account/player/2-attire-rack.js": "ATTIRE",
     "src/ui/pages/account/player/3-wardrobe.js": "WARDROBE",
 };
+// A load worked: the page's body shows (it stays hidden until one does), and no load failure shows.
+const hidden = (node) => classes(node).split(" ").includes("is-hidden-until-ready");
+const loadedInPlay = (root) => {
+    const bodies = byClass(root, "account-page-shell__body");
+    const failures = elements(root).filter((node) =>
+        node.childNodes.some((child) => child.nodeType === 1 && classes(child).includes("empty-state--failed"))
+    );
+    return bodies.length > 0 && !bodies.some(hidden) && failures.every(hidden);
+};
 for (const [file, title] of Object.entries(PAGES)) {
     test(`${file.split("/").pop()}: says ${NO_CHARACTER} at character select and loads after a Refresh in play`, async () => {
         atSelect("Lumi_Main");
@@ -244,7 +276,8 @@ for (const [file, title] of Object.entries(PAGES)) {
         assert.equal(gameWrites(), writesBefore, "opening it wrote nothing");
         await quietly(async () => {
             click(buttonIn(root, "Refresh"));
-            await until(() => !text(root).includes(NO_CHARACTER), `${file} to read the game in play`);
+            await until(() => loadedInPlay(root), `${file} to read the game in play`);
+            assert.ok(!text(root).includes(NO_CHARACTER));
         });
     });
 }

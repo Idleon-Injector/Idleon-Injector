@@ -170,6 +170,65 @@ test("Hat Rack: a half-done Add all shows the hats that landed, and the next Rem
     for (const itemId of landed) assert.ok(gga.Spelunk[46].includes(itemId), `${itemId} stays on the rack`);
 });
 
+test("Hat Rack: a hat an add placed but couldn't put in the Slab goes there with the next add", async () => {
+    setRack([hat(1)], [hat(1)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 1);
+    const add = buttonIn(root, "Add");
+
+    const restore = failWrites(/"gga\.Cards\[1\]"/);
+    try {
+        await quietly(async () => {
+            click(add);
+            await until(() => settledButton(add), "the first Add to finish");
+        });
+    } finally {
+        restore();
+    }
+    assert.match(classes(add), /account-btn--error/);
+    const [placed] = gga.Spelunk[46].slice(1);
+    assert.ok(placed, "the hat landed on the rack");
+    assert.ok(!gga.Cards[1].includes(placed), "the Slab refused it");
+
+    await until(
+        () => rackRows(root).length === 2 && !classes(add).includes("account-btn--error"),
+        "the page to settle"
+    );
+    click(add);
+    await until(() => gga.Spelunk[46].length === 3 && gga.Cards[1].length === 3, "the next Add to finish");
+    assert.ok(gga.Cards[1].includes(placed), "the earlier hat is in the Slab now");
+});
+
+test("Hat Rack: loot the game adds to the Slab while an add writes it is kept", async () => {
+    setRack([hat(1)], [hat(1)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 1);
+    const add = buttonIn(root, "Add");
+    const realFetch = globalThis.fetch;
+    let added = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && /"gga\.Cards\[1\]"/.test(options.body) && !added) {
+            added = true;
+            gga.Cards[1].push("NewLoot"); // the game found loot after the page read the Slab
+        }
+        return realFetch(url, options);
+    };
+    try {
+        await quietly(async () => {
+            click(add);
+            await until(() => settledButton(add), "the Add to finish");
+        });
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.ok(gga.Cards[1].includes("NewLoot"), "the loot stays in the Slab");
+    assert.match(classes(add), /account-btn--error/, "the Slab write was refused");
+
+    await until(() => !classes(add).includes("account-btn--error"), "the red to clear");
+    click(add);
+    const placed = gga.Spelunk[46][1];
+    await until(() => gga.Cards[1].includes(placed), "the next Add to put the earlier hat in the Slab");
+    assert.ok(gga.Cards[1].includes("NewLoot"), "the loot is still there");
+});
+
 test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pressed again", async () => {
     setRack([hat(1), hat(2)], [hat(1)]);
     const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
@@ -818,4 +877,40 @@ test("Cogs: reopening a slot while its tiny cog saves shows the tier being saved
     again.listeners.focusout?.({ target: tier, currentTarget: again, relatedTarget: null });
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(gga.CogOrder[228], "CogSma1", "leaving the field keeps tier 2");
+});
+
+test("Atom Collider: Max all and Reset all wait while the levels are read again, and after that read fails", async () => {
+    const root = await openPage("src/ui/pages/world-3/atom-collider/atom-collider.js", (r) =>
+        Boolean(buttonIn(r, "Max all"))
+    );
+    const [maxAll, resetAll] = [buttonIn(root, "Max all"), buttonIn(root, "Reset all")];
+    const enabled = (node) => node.attributes.disabled !== true && node.attributes.disabled !== "";
+    assert.ok(enabled(maxAll) && enabled(resetAll), "both are usable once the levels are read");
+
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/gga/read") || !/"gga\.Atoms"/.test(options.body)) return realFetch(url, options);
+        await gate;
+        return new Response(JSON.stringify({ error: "the game is busy" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    try {
+        await quietly(async () => {
+            click(buttonIn(root, "Refresh"));
+            await until(() => !enabled(maxAll), "Max all to wait for the read");
+            assert.ok(!enabled(resetAll), "Reset all waits too");
+            release();
+            await until(() => text(root).includes("the game is busy"), "the failed read to say why");
+        });
+        assert.ok(!enabled(maxAll) && !enabled(resetAll), "both wait for a read that works");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    click(buttonIn(root, "Refresh"));
+    await until(() => enabled(maxAll) && enabled(resetAll), "a read that works to free them");
 });

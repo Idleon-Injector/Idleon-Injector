@@ -55,6 +55,38 @@ async function saveRow(row, value) {
     await until(() => /save-state--(success|error)/.test(saveState(row)), "the save to finish");
 }
 
+// Holds the first write until released, and counts how many writes were in flight at once.
+const holdFirstWrite = () => {
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const realFetch = globalThis.fetch;
+    let held = false;
+    let inFlight = 0;
+    let most = 0;
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("write")) return realFetch(url, options);
+        most = Math.max(most, ++inFlight);
+        try {
+            if (!held) {
+                held = true;
+                await gate;
+            }
+            return await realFetch(url, options);
+        } finally {
+            inFlight--;
+        }
+    };
+    return {
+        held: () => held,
+        release: () => release(),
+        mostAtOnce: () => most,
+        restore: () => {
+            globalThis.fetch = realFetch;
+            release();
+        },
+    };
+};
+
 const VAULT = "src/ui/pages/account/upgrade-vault/upgrade-vault.js";
 
 test("upgrade vault: a refused undo says why on the row the player clicked, through the reload", async () => {
@@ -257,30 +289,20 @@ test("card search: a Set all pressed in a second region while the first saves wa
     const root = await openPage(CARDS);
     const [first, second] = regionSelects(root);
     const before = cardWrites();
-    let release;
-    const gate = new Promise((resolve) => (release = resolve));
-    const realFetch = globalThis.fetch;
-    let held = false;
-    globalThis.fetch = async (url, options) => {
-        if (String(url).includes("write") && !held) {
-            held = true;
-            await gate;
-        }
-        return realFetch(url, options);
-    };
-    let presses;
+    const writes = holdFirstWrite();
     try {
         pick(first, 5); // the top tier only raises, so neither asks
         pick(second, 5);
         const firstPress = press(setAllOf(first));
-        await until(() => held, "the first region's write to start");
-        presses = Promise.all([firstPress, press(setAllOf(second))]);
+        await until(writes.held, "the first region's write to start");
+        const presses = Promise.all([firstPress, press(setAllOf(second))]);
+        writes.release();
+        await presses;
     } finally {
-        globalThis.fetch = realFetch;
-        release();
+        writes.restore();
     }
-    await presses;
     assert.equal(cardWrites() - before, 2, "both regions were written");
+    assert.equal(writes.mostAtOnce(), 1, "the second region's write started after the first answered");
 });
 
 const BUNDLES = "src/ui/pages/account/bundles/bundles.js";
@@ -306,6 +328,242 @@ test("bundles: a refused Unbuy says why on its row, and the next try clears it",
     await button(row, "Unbuy").listeners.click({});
     assert.equal(rowReason(row), "", "the retry cleared it");
     received[ownedFlag(row)] = 1;
+});
+
+const failCatalogOnce = () => {
+    const realFetch = globalThis.fetch;
+    let failed = false;
+    globalThis.fetch = async (url, options) => {
+        if (!failed && String(url).includes("/game/bundles")) {
+            failed = true;
+            return new Response(JSON.stringify({ error: "the game is busy" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        }
+        return realFetch(url, options);
+    };
+    return () => (globalThis.fetch = realFetch);
+};
+
+test("bundles: a Buy whose first ownership read fails reads the game again, so the row shows it owned", async () => {
+    const root = await openPage(BUNDLES);
+    const row = rowWith(root, "Buy");
+    const code = ownedFlag(row);
+    const received = gga.BundlesReceived.h;
+    const before = received[code];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/toggle")) return realFetch(url, options);
+        received[code] = 1; // the game took the purchase
+        return new Response(JSON.stringify({ ok: true, message: "bought" }), {
+            headers: { "content-type": "application/json" },
+        });
+    };
+    const restore = failCatalogOnce();
+    try {
+        await button(row, "Buy").listeners.click({});
+        assert.equal(rowReason(row), "the game is busy");
+        await until(() => button(row, "Unbuy"), "the row to show the bundle owned");
+    } finally {
+        restore();
+        globalThis.fetch = realFetch;
+        received[code] = before;
+    }
+});
+
+test("bundles: a failed Unbuy reads the game again, so the row shows what the game holds", async () => {
+    const root = await openPage(BUNDLES);
+    const row = rowWith(root, "Unbuy");
+    const code = ownedFlag(row);
+    const received = gga.BundlesReceived.h;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/write")) return realFetch(url, options);
+        received[code] = 0; // it landed, but the answer was lost
+        return new Response(JSON.stringify({ error: "the connection dropped" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    try {
+        await button(row, "Unbuy").listeners.click({});
+        await until(() => button(row, "Buy"), "the row to show the bundle not owned");
+    } finally {
+        globalThis.fetch = realFetch;
+        received[code] = 1;
+    }
+});
+
+test("bundles: the read after a failed Unbuy that answers after a newer Refresh doesn't put old ownership back", async () => {
+    const root = await openPage(BUNDLES);
+    const row = rowWith(root, "Unbuy");
+    const code = ownedFlag(row);
+    const received = gga.BundlesReceived.h;
+    const realFetch = globalThis.fetch;
+    let release;
+    const answer = new Promise((resolve) => (release = resolve));
+    let held = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write"))
+            return new Response(JSON.stringify({ error: "the game refused" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        const response = await realFetch(url, options);
+        if (String(url).includes("/game/bundles") && !held) {
+            held = true; // the read after the failure: the game still holds the bundle then
+            await answer;
+        }
+        return response;
+    };
+    try {
+        await button(row, "Unbuy").listeners.click({});
+        await until(() => held, "the read after the failure");
+        received[code] = 0; // the player gives it back in game
+        await button(root, "Refresh").listeners.click({});
+        await until(() => button(row, "Buy"), "the Refresh to show it not owned");
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.ok(button(row, "Buy"), "the older read didn't put Unbuy back");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        received[code] = 1;
+    }
+});
+
+test("bundles: an Unbuy that fails while the read after another failure runs gets a read of its own", async () => {
+    const root = await openPage(BUNDLES);
+    const received = gga.BundlesReceived.h;
+    const first = rowWith(root, "Unbuy");
+    const second = rowWith(root, "Buy");
+    const code = ownedFlag(second);
+    received[code] = 1; // a second owned bundle
+    await button(root, "Refresh").listeners.click({});
+    await until(() => button(second, "Unbuy"), "the second bundle to show owned");
+    const realFetch = globalThis.fetch;
+    let release;
+    const answer = new Promise((resolve) => (release = resolve));
+    let held = false;
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) {
+            if (++writes === 2) received[code] = 0; // the second Unbuy lands, but its answer is lost
+            return new Response(JSON.stringify({ error: "the connection dropped" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        }
+        const response = await realFetch(url, options);
+        if (String(url).includes("/game/bundles") && !held) {
+            held = true; // the read after the first failure: the second bundle is still owned then
+            await answer;
+        }
+        return response;
+    };
+    try {
+        await button(first, "Unbuy").listeners.click({});
+        await until(() => held, "the read after the first failure");
+        await button(second, "Unbuy").listeners.click({});
+        release();
+        await until(() => button(second, "Buy"), "the second bundle to show not owned");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        received[code] = 0;
+        received[ownedFlag(first)] = 1;
+    }
+});
+
+test("bundles: the read after a failure that answers after another bundle's Unbuy landed doesn't show it owned again", async () => {
+    const root = await openPage(BUNDLES);
+    const received = gga.BundlesReceived.h;
+    const first = rowWith(root, "Unbuy");
+    const second = rowWith(root, "Buy");
+    const code = ownedFlag(second);
+    received[code] = 1; // a second owned bundle
+    await button(root, "Refresh").listeners.click({});
+    await until(() => button(second, "Unbuy"), "the second bundle to show owned");
+    const realFetch = globalThis.fetch;
+    let release;
+    const answer = new Promise((resolve) => (release = resolve));
+    let held = false;
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && ++writes === 1)
+            return new Response(JSON.stringify({ error: "the game refused" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        const response = await realFetch(url, options);
+        if (String(url).includes("/game/bundles") && !held) {
+            held = true; // the read after the first failure: the second bundle is still owned then
+            await answer;
+        }
+        return response;
+    };
+    try {
+        await button(first, "Unbuy").listeners.click({});
+        await until(() => held, "the read after the failure");
+        await button(second, "Unbuy").listeners.click({}); // lands
+        assert.ok(button(second, "Buy"));
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.ok(button(second, "Buy"), "the older read didn't put Unbuy back");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        received[code] = 0;
+        received[ownedFlag(first)] = 1;
+    }
+});
+
+test("bundles: Buy all ends when its ownership poll fails after another read showed a bundle owned", async () => {
+    const root = await openPage(BUNDLES);
+    const buyAll = elements(root).find(
+        (node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim())
+    );
+    const count = Number(/\((\d+)\)/.exec(text(buyAll))[1]);
+    const received = gga.BundlesReceived.h;
+    const before = { ...received };
+    const realFetch = globalThis.fetch;
+    let toggles = 0;
+    let catalogReads = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/toggle")) {
+            const code = JSON.parse(options.body).action.split(" ")[1];
+            // The last buy fails (its failure reads the catalog, which shows the others owned); the rest land.
+            if (++toggles === count)
+                return new Response(JSON.stringify({ error: "the cheat didn't run" }), {
+                    status: 500,
+                    headers: { "content-type": "application/json" },
+                });
+            received[code] = 1;
+            return new Response(JSON.stringify({ ok: true, message: "bought" }), {
+                headers: { "content-type": "application/json" },
+            });
+        }
+        // The ownership poll's read (the second catalog read after the press) fails.
+        if (String(url).includes("/game/bundles") && toggles > 0 && ++catalogReads === 2)
+            return new Response(JSON.stringify({ error: "the game is busy" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        return realFetch(url, options);
+    };
+    try {
+        const click = () => buyAll.listeners.click({ currentTarget: buyAll });
+        await click(); // asks first
+        void click();
+        await until(
+            () => /One or more bundle purchases/.test(text(byClass(root, "said--buy-all")[0])),
+            "Buy all to end and say why"
+        );
+    } finally {
+        globalThis.fetch = realFetch;
+        Object.assign(received, before);
+    }
 });
 
 test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why beside it", async () => {
@@ -334,6 +592,29 @@ test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why
         assert.equal(rowReason(row), "the cheat didn't run");
     } finally {
         globalThis.fetch = realFetch;
+    }
+});
+
+// #197: 33 packs need free inventory slots. Without them the game drops the pack: no items, and never received.
+test("bundles: a buy is refused without the free inventory slots the game needs", async () => {
+    const { firebase } = await importRepo("src/cheats/core/globals.js");
+    await importRepo("src/cheats/cheats/standalone.js");
+    const { cheats } = await importRepo("src/cheats/core/registration.js");
+    const sent = [];
+    firebase.addToMessageQueue = (...args) => sent.push(args);
+    const keys = ["InventorySlotsOwned", "InventoryOrder", "ItemQuantity"];
+    const saved = keys.map((key) => [key, gga[key]]);
+    gga.InventorySlotsOwned = 4;
+    gga.InventoryOrder = ["Copper", "Blank", "Blank", "Blank", "Blank"]; // the fifth slot isn't owned
+    gga.ItemQuantity = [5, 0, 0, 0, 0];
+    try {
+        assert.throws(() => cheats.buy.fn(["bun_d"]), { message: "Needs 4 free inventory slots." });
+        assert.deepEqual(sent, [], "nothing was sent");
+        cheats.buy.fn(["bun_e"]); // needs 3
+        assert.deepEqual(sent, [["SERVER_CODE", "SERVER_ITEM_BUNDLE", "bun_e"]]);
+    } finally {
+        for (const [key, value] of saved) value === undefined ? delete gga[key] : (gga[key] = value);
+        delete firebase.addToMessageQueue;
     }
 });
 
@@ -405,36 +686,27 @@ test("levels: fields stay enabled while a save runs, and a second field's save w
         byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
     const money = row("Money");
     const mining = row("Mining level");
-    let release;
-    const gate = new Promise((resolve) => (release = resolve));
-    const realFetch = globalThis.fetch;
-    let held = false;
-    globalThis.fetch = async (url, options) => {
-        if (String(url).includes("write") && !held) {
-            held = true;
-            await gate;
-        }
-        return realFetch(url, options);
-    };
+    const writes = holdFirstWrite();
     const level = gga.Lv0[2] + 3;
     try {
         const moneyInput = field(money);
         moneyInput.value = "1234";
         moneyInput.listeners.input({ target: moneyInput });
         money.listeners.keydown({ key: "Enter", target: moneyInput, preventDefault() {} });
-        await until(() => held, "the Money write to start");
+        await until(writes.held, "the Money write to start");
         assert.notEqual(moneyInput.attributes.disabled, true, "the field being saved stays enabled");
         assert.notEqual(field(mining).attributes.disabled, true, "the next field stays enabled");
         const miningInput = field(mining);
         miningInput.value = String(level);
         miningInput.listeners.input({ target: miningInput });
         mining.listeners.keydown({ key: "Enter", target: miningInput, preventDefault() {} });
+        writes.release();
+        await until(() => /save-state--(success|error)/.test(saveState(money)), "Money to save");
+        await until(() => /save-state--(success|error)/.test(saveState(mining)), "Mining to save");
     } finally {
-        globalThis.fetch = realFetch;
-        release();
+        writes.restore();
     }
-    await until(() => /save-state--(success|error)/.test(saveState(money)), "Money to save");
-    await until(() => /save-state--(success|error)/.test(saveState(mining)), "Mining to save");
+    assert.equal(writes.mostAtOnce(), 1, "Mining's write started after Money's answered");
     assert.match(saveState(money), /save-state--success/);
     assert.match(saveState(mining), /save-state--success/);
     assert.equal(gga.Money, 1234);

@@ -173,7 +173,8 @@ const LibraryTab = () => {
         }
     };
 
-    const getMaxState = (talentId) => getOrCreateState(maxStates, talentId);
+    // Each character has its own: a save that lands for one after a Refresh to another stays on its own rows.
+    const getMaxState = (character, talentId) => getOrCreateState(maxStates, `${character}:${talentId}`);
     const getAvailablePointsState = (classId) => getOrCreateState(availablePointsStates, classId);
 
     const rowReconciler = createStaticRowReconciler(listNode);
@@ -196,7 +197,7 @@ const LibraryTab = () => {
                 character,
                 entries: currentAvailableTalentIds,
                 getTargetValue: () => cap,
-                getValueState: (talentId) => getMaxState(talentId),
+                getValueState: (talentId) => getMaxState(character, talentId),
                 getPath: (talentId) => `SkillLevelsMAX[${talentId}]`,
                 shouldWrite: ({ currentValue, targetValue }) => toNum(currentValue) !== targetValue,
             });
@@ -243,7 +244,7 @@ const LibraryTab = () => {
                                 TalentRow({
                                     talentId: talent.talentId,
                                     talentName: talent.talentName,
-                                    maxState: getMaxState(talent.talentId),
+                                    maxState: getMaxState(loadedCharacter, talent.talentId),
                                     maxBookLvState,
                                     isBookAvailable: talent.isBookAvailable,
                                     isSpecial: group.isSpecial,
@@ -270,6 +271,7 @@ const LibraryTab = () => {
                 gga("DNSM.h.TalentDL2"),
             ]);
 
+            const character = String(rawUserInfo);
             const classId = toNum(rawCharClass);
             if (!classId) throw new Error(NO_CHARACTER);
 
@@ -292,7 +294,7 @@ const LibraryTab = () => {
 
                         const talentId = Number(rawTalentId);
                         const isBookAvailable = !staticMeta.blockedLibraryTalentIds.has(talentId);
-                        getMaxState(talentId).val = toNum(skillLevelsMAX[talentId]);
+                        getMaxState(character, talentId).val = toNum(skillLevelsMAX[talentId]);
                         if (isBookAvailable) availableTalentIds.push(talentId);
 
                         talents.push({
@@ -310,7 +312,7 @@ const LibraryTab = () => {
                 .slice(SPECIAL_TALENT_ORDER_START)
                 .filter((talentId) => staticMeta.talentDescriptions[talentId][0][0] !== "_")
                 .map((talentId) => {
-                    getMaxState(talentId).val = toNum(skillLevelsMAX[talentId]);
+                    getMaxState(character, talentId).val = toNum(skillLevelsMAX[talentId]);
                     return { talentId, talentName: getTalentName(talentId), isBookAvailable: true };
                 });
             if (specialTalents.length) {
@@ -323,7 +325,7 @@ const LibraryTab = () => {
             }
 
             // Only now do the rows show this character; a Refresh that failed leaves them, and saves, with the last.
-            loadedCharacter = String(rawUserInfo);
+            loadedCharacter = character;
             reconcileRows({ activeClassName, maxBookLv, groups, availableTalentIds });
         });
 

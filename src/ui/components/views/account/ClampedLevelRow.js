@@ -63,13 +63,17 @@ export const ClampedLevelRow = ({
               }
             : maxAction;
 
+    // The value − last put in the field above the max: only that one saves above the max, once; a typed one is refused.
+    let stepped = null;
+
     return EditableNumberRow({
         valueState,
         normalize: (rawValue) => {
             // A level the game holds above the max may come down step by step (−); Max all brings it to the max.
             const raw = Number(rawValue);
-            if (Number.isInteger(raw) && raw > toBound(resolveValue(max), Infinity) && raw < toNum(valueState.val, 0))
-                return raw;
+            const fromStep = raw === stepped;
+            stepped = null; // used by this save, or the field was typed in since
+            if (fromStep && raw > toBound(resolveValue(max), Infinity) && raw < toNum(valueState.val, 0)) return raw;
             const nextValue = clamp(rawValue, invalidFallback, { strict: true });
             return Number.isNaN(nextValue) ? null : nextValue;
         },
@@ -94,7 +98,7 @@ export const ClampedLevelRow = ({
             const value = toNum(rawValue, toNum(currentValue, 0));
             // Above the max (the game counts it): + leaves it, − takes one off. Max all is what lowers it to the max.
             if (value >= toBound(resolveValue(max), Infinity))
-                return delta > 0 ? value : Math.max(toBound(resolveValue(min), 0), value + delta);
+                return (stepped = delta > 0 ? value : Math.max(toBound(resolveValue(min), 0), value + delta));
             return clamp(value + delta, toNum(currentValue, 0));
         },
         maxAction: resolvedMaxAction,

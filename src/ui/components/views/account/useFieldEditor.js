@@ -62,12 +62,18 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     const getDrafts = () => Object.fromEntries(fields.map((field) => [field.key, getDraftValue(field.key)]));
     const isDisabled = () => Boolean(resolveValue(disabled));
 
+    // The drafts of the newest commit (Enter, leaving the row).
+    let committed = null;
+
     // Show the stored value again in each field still holding what was submitted, or what the page last showed it
     // (an earlier save's read-back); a draft typed since (while the save waited or ran) is the next save, so it stays.
+    // A field holding what was submitted though a newer commit sent something else was typed again since: it stays.
     const resetSubmitted = (submitted) =>
         fields.forEach((field) => {
             const draft = getDraftValue(field.key);
-            if (draft === submitted[field.key] || (!edited.has(field.key) && draft === shownByKey.get(field.key)))
+            if (draft === submitted[field.key] && committed && committed[field.key] !== submitted[field.key])
+                edited.add(field.key);
+            else if (draft === submitted[field.key] || (!edited.has(field.key) && draft === shownByKey.get(field.key)))
                 resetDraft(field.key);
         });
 
@@ -83,6 +89,7 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
         // a read-back changed it.
         capture: () => {
             const drafts = getDrafts();
+            committed = drafts;
             fields.forEach((field) => {
                 if (draftText(drafts, field.key) !== String(shownByKey.get(field.key)).trim()) edited.add(field.key);
             });

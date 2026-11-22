@@ -8,8 +8,9 @@ also writes the setting descriptions the Config editor shows. The first-run setu
 ## Applying and saving
 
 Apply changes the cheat configuration for the current session only. Save writes `config.custom.js`, so later runs
-get it, and also sends the cheat settings to the running game. There is no way to save a setting for later runs
-without the current game getting it too.
+get it, and then tries to send the cheat settings to the running game. If the game refuses them or can't be reached,
+the file stays saved, and the game gets the settings when the injector attaches to it again. There is no way to save
+a setting for later runs without the current game being sent it too.
 Restart after changing injector settings. Settings a cheat changes in the game, like a `nomore` list, show up in
 the Config view and are saved with the next save.
 

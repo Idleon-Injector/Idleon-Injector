@@ -195,9 +195,24 @@ const BundlesTab = () => {
         );
     };
 
+    // An older read answering after a newer one would put back what the game held before it, and so would a read
+    // that started before an Unbuy landed: that one reads again.
+    let catalogReads = 0;
+    let catalogShown = 0;
+    let unbuysLanded = 0;
     const refreshCatalog = async () => {
-        applyCatalog(await fetchBundleCatalog());
-        return catalogCache;
+        // ponytail: at most three reads; Unbuys landing nonstop would show the third read.
+        for (let tries = 1; ; tries++) {
+            const read = ++catalogReads;
+            const landed = unbuysLanded;
+            const catalog = await fetchBundleCatalog();
+            if (landed !== unbuysLanded && tries < 3) continue;
+            if (read > catalogShown) {
+                catalogShown = read;
+                applyCatalog(catalog);
+            }
+            return catalogCache;
+        }
     };
 
     const pollForOwnership = async (code, state) => {
@@ -226,9 +241,26 @@ const BundlesTab = () => {
         return pendingEntries;
     };
 
+    // After a failed Buy or Unbuy the game may hold either state, so the rows read it again (once for a Buy all). A
+    // failure while that read runs reads once more after it, since the running read may predate its write.
+    let failureRead = null;
+    let readAgain = false;
+    const readAfterFailure = () => {
+        if (failureRead) return void (readAgain = true);
+        failureRead = refreshCatalog()
+            .catch(() => {}) // ponytail: the rows stay as they were; Refresh reads them again
+            .finally(() => {
+                failureRead = null;
+                if (readAgain) {
+                    readAgain = false;
+                    readAfterFailure();
+                }
+            });
+    };
     const failed = (state, what, caughtError) => {
         console.error(`[bundles] ${what}:`, caughtError);
         state.said.say("failed", saveFailureReason(caughtError));
+        readAfterFailure();
     };
 
     async function buyBundle(bundle, state) {
@@ -310,8 +342,10 @@ const BundlesTab = () => {
                     }
                 } catch (caughtError) {
                     console.error("[bundles] Ownership poll failed after Buy All:", caughtError);
+                    // One a newer read showed owned is bought; every other waits for nothing more.
                     for (const entry of queued) {
-                        if (!isOwned(entry.state.owned.val)) entry.confirmation.reject(caughtError);
+                        if (isOwned(entry.state.owned.val)) entry.confirmation.resolve();
+                        else entry.confirmation.reject(caughtError);
                     }
                 }
             }
@@ -329,6 +363,7 @@ const BundlesTab = () => {
                 // Unbuy is deliberately the only direct ownership write, and it can
                 // only write 0. writeVerified reads the flag back before this updates.
                 await writeVerified(bundlePath(bundle.code), 0);
+                unbuysLanded++;
                 state.owned.val = 0;
                 state.pending.val = false;
             },
