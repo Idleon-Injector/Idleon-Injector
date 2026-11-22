@@ -46,7 +46,8 @@ export function choosePurchase(items, money, saving) {
     const goal = nextGoal(items);
     if (goal && goal.cost <= money) return goal;
 
-    const keep = goal ? (goal.cost * (100 - saving)) / 100 : 0;
+    // A saving % above 100 (typed into the config file) keeps nothing back rather than spending past the money.
+    const keep = goal ? Math.max(0, (goal.cost * (100 - saving)) / 100) : 0;
     const limit = money - keep;
     return cheapest(items.filter((item) => !item.save && item.cost <= limit));
 }

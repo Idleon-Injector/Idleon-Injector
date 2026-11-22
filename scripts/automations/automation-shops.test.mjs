@@ -40,6 +40,9 @@ test("while saving, at least (100 − saving)% of the goal stays, and only the r
     assert.equal(pick(items, 1000, 10), "goal", "the goal buys once affordable");
     assert.equal(pick([item("goal", 1000, true), item("small", 1)], 999, 0), null, "0% keeps everything for the goal");
     assert.equal(pick([item("goal", 1000, true), item("big", 150)], 500, 100), "big", "100% keeps nothing back");
+    // A saving % above 100, typed into the config file, still never buys past the money held.
+    assert.equal(pick([item("goal", 1000, true), item("big", 600)], 500, 200), null, "600 is more than the 500 held");
+    assert.equal(pick([item("goal", 1000, true), item("big", 150)], 500, 200), "big");
 });
 
 test("the saving % caps what the other items spend in all, not each buy", () => {
