@@ -29,7 +29,12 @@ const RECORDS = [
 const bestRound = (raw, name) => {
     if (raw === undefined || raw === null || raw === "") return 0;
     const value = Number(raw);
-    if (!Number.isFinite(value) || String(raw).trim() === "" || value < 0) {
+    if (
+        !["number", "string"].includes(typeof raw) ||
+        !Number.isFinite(value) ||
+        String(raw).trim() === "" ||
+        value < 0
+    ) {
         throw new Error(`Couldn't read the ${name.toLowerCase()}. Refresh to try again.`);
     }
     return Math.trunc(value);

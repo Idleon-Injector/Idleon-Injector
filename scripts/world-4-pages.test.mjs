@@ -573,27 +573,73 @@ test("a cape added whose vine can't be read again shows on and says to refresh",
     }
 });
 
-test("a chip slot keeps its Undo when the character picker moves away and back", async () => {
-    const root = await openPage("src/ui/pages/world-4/laboratory/chips.js");
-    const slotRow = () =>
-        byClass(root, "chip-slot-row").find(
-            (node) => node.parentNode && text(byClass(node, "account-row__name")[0]).startsWith("Slot 3")
-        );
-    const row = slotRow();
+// The shown character's row for a chip slot ("Slot 3"); another character's rows are kept, hidden.
+const slotRow = (root, slot) =>
+    byClass(root, "chip-slot-row").find(
+        (node) =>
+            node.parentNode && !node.parentNode.hidden && text(byClass(node, "account-row__name")[0]).startsWith(slot)
+    );
+const pickCharacter = (root, index) => {
+    click(byClass(root, "character-picker__opener")[0]);
+    click(byClass(byClass(root, "character-picker__list")[0], "pick-in-place__option")[index]);
+};
+// The fake DOM says every node is in the page, but VanJS stops updating a node that isn't: `node` and everything in it
+// say truly whether they are in `root`, the way a browser does.
+const trackConnection = (node, root) => {
+    if (typeof node !== "object") return; // plain text the fake keeps as a string
+    Object.defineProperty(node, "isConnected", {
+        get() {
+            for (let at = this; at !== root; at = at.parentNode)
+                if (!at.parentNode?.childNodes.includes(at)) return false;
+            return true;
+        },
+    });
+    for (const child of node.childNodes ?? []) trackConnection(child, root);
+};
+const pickWoodChip = (row) => {
     click(byClass(row, "row-opener")[0]);
     click(byClass(row, "pick-in-place__option").find((node) => text(node).startsWith("Wood Chip")));
+};
+
+test("a chip slot keeps its Undo when the character picker moves away and back", async () => {
+    const root = await openPage("src/ui/pages/world-4/laboratory/chips.js");
+    const row = slotRow(root, "Slot 3");
+    pickWoodChip(row);
     await until(() => gga.Lab[1][2] === 14 && stateOf(row) === "success", "the pick to save");
-    const pickCharacter = (index) => {
-        click(byClass(root, "character-picker__opener")[0]);
-        click(byClass(byClass(root, "character-picker__list")[0], "pick-in-place__option")[index]);
-    };
-    pickCharacter(1);
-    await until(() => slotRow() !== row, "the second character's slots");
-    pickCharacter(0);
-    await until(() => slotRow() === row, "the first character's own row back");
+    pickCharacter(root, 1);
+    await until(() => slotRow(root, "Slot 3") !== row, "the second character's slots");
+    pickCharacter(root, 0);
+    await until(() => slotRow(root, "Slot 3") === row, "the first character's own row back");
     assert.ok(
         byTag(row, "button").some((node) => /Undo/.test(text(node))),
         "its Undo is still offered"
+    );
+});
+
+test("a chip slot whose save ends while another character shows says so when it shows again", async (t) => {
+    const before = gga.Lab[1][3];
+    t.after(() => (gga.Lab[1][3] = before));
+    const root = await openPage("src/ui/pages/world-4/laboratory/chips.js");
+    const row = slotRow(root, "Slot 4");
+    trackConnection(row, root);
+    const release = holdWrites((body) => body.includes("Lab[1][3]"));
+    try {
+        pickWoodChip(row);
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        pickCharacter(root, 1);
+        await until(() => slotRow(root, "Slot 4") !== row, "the second character's slots");
+    } finally {
+        release();
+    }
+    await until(() => gga.Lab[1][3] === 14, "the held save to reach the game");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    pickCharacter(root, 0);
+    await until(() => slotRow(root, "Slot 4") === row, "the first character's own row back");
+    assert.equal(stateOf(row), "success", "its save says it saved");
+    assert.match(text(byClass(row, "account-row__name")[0]), /Wood Chip/, "its title names the new chip");
+    assert.ok(
+        byTag(row, "button").some((node) => /Undo/.test(text(node))),
+        "its Undo is offered"
     );
 });
 

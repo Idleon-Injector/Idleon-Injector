@@ -61,8 +61,8 @@ const ChipsTab = () => {
     };
     const slotNode = div();
     const ownedNode = div();
-    // Each character's seven rows, made the first time that character shows and kept: a row switched away from while it
-    // saves (or offers Undo) still has its save when it shows again.
+    // Each character's seven rows in one box, made the first time that character shows and kept: a row switched away
+    // from while it saves (or offers Undo) still has its save when it shows again.
     const slotRows = new Map();
     const reconcileOwned = createStaticRowReconciler(ownedNode);
     const uneditable = () => loading.val || Boolean(error.val);
@@ -123,13 +123,13 @@ const ChipsTab = () => {
         const character = selected.val;
         const key = `${character}:${characters.val[character] ?? ""}`;
         if (!slotRows.has(key)) {
-            slotRows.set(
-                key,
-                Array.from({ length: SLOT_COUNT }, (_, slot) => SlotRow(character, slot))
-            );
+            const rows = div(...Array.from({ length: SLOT_COUNT }, (_, slot) => SlotRow(character, slot)));
+            slotRows.set(key, rows);
+            slotNode.append(rows);
         }
-        const rows = slotRows.get(key);
-        if (rows.some((row, i) => slotNode.childNodes[i] !== row)) slotNode.replaceChildren(...rows);
+        // Every character's rows stay in the page, hidden while another shows: VanJS stops updating a row taken out of
+        // the page, and a slot's save can end after the player picked someone else.
+        for (const [shown, rows] of slotRows) rows.hidden = shown !== key;
     };
 
     const characterSelector = createCharacterSelector({

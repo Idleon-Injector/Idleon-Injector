@@ -31,7 +31,12 @@ const TERRITORY_COUNT = 26;
 const optionCount = (raw, what, min = 0) => {
     if (raw === undefined || raw === null || raw === "") return 0;
     const value = Number(raw);
-    if (!Number.isFinite(value) || String(raw).trim() === "" || value < min) {
+    if (
+        !["number", "string"].includes(typeof raw) ||
+        !Number.isFinite(value) ||
+        String(raw).trim() === "" ||
+        value < min
+    ) {
         throw new Error(`Couldn't read ${what}. Refresh to try again.`);
     }
     return Math.trunc(value);
