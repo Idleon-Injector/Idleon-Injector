@@ -2,15 +2,25 @@
  * World 3: construction (buildings, cogs), printer, refinery, salt lick, atom collider, hat rack, armor smithy,
  * worship, prayers, death note, library, equinox. Traps live on the characters (shared.mjs).
  */
-import { fakeName, h, level, list, upgradeDefs, upgradeLevels } from "./helpers.mjs";
+import { fakeName, h, level, list } from "./helpers.mjs";
 import { ITEMS, MONSTERS } from "./shared.mjs";
+import {
+    ATOMS,
+    DREAM_CHALLENGES,
+    DREAM_UPGRADES,
+    NOT_LIBRARY_BOOKS,
+    PRAYERS,
+    SALT_LICKS,
+    TALENT_HIDDEN,
+    TALENT_NAMES,
+    TALENT_ORDER,
+} from "./world-3-game.mjs";
 
 const BUILDINGS = 27;
 const COG_SLOTS = 252;
-const PRAYERS = 20;
-const TALENTS = 640;
-const DREAM_UPGRADES = 12;
+const TALENTS = TALENT_NAMES.length;
 const CLOUDS = 10;
+const atomMax = (i) => 20 + (i % 3) * 10;
 const ITEM_IDS = Object.keys(ITEMS).filter((id) => id.startsWith("item"));
 const HATS = Object.keys(ITEMS).filter((id) => id.startsWith("EquipmentHatsPrem"));
 const SETS = ["COPPER_SET", "IRON_SET", "GOLD_SET", "MOSSY_SET"];
@@ -41,11 +51,11 @@ const computed = {
     // The 8th build slot feeds the Menagerie jelly.
     _customBlock_MenagerieStuff: { SideJellyUnlocked: 1 },
     _customBlock_SkillStats: { WorshipChargeMax: 520 },
-    _customBlock_AtomCollider: { AtomMaxLv: (i) => 20 + (i % 3) * 10 },
+    _customBlock_AtomCollider: { AtomMaxLv: atomMax },
     _customBlock_Dreamstuff: {
         BarFillReq: 10000,
         BarFillRate: 35,
-        UpgUnlocked: DREAM_UPGRADES - 2,
+        UpgUnlocked: DREAM_UPGRADES.length - 2,
         UpgMaxLV: (i) => [5, 10, 25, 50, 100][(i + 3) % 5],
     },
 };
@@ -78,8 +88,8 @@ export default () => ({
         GemItemsPurchased: list(200, (i) => (i === 114 ? 2 : i % 4)),
         // [3..11]: refineries as [salt stored, level].
         Refinery: list(12, (i) => (i < 3 ? [0, 0] : [i * 1500, level(i, 60)])),
-        SaltLick: upgradeLevels(10, 1),
-        Atoms: upgradeLevels(14, 2),
+        SaltLick: SALT_LICKS.map((lick, i) => level(i, Number(lick[4]))),
+        Atoms: ATOMS.map((_, i) => level(i, atomMax(i))),
         Spelunk: { 46: HATS.slice(0, 5) },
         Cards: { 1: HATS.slice(5, 8) },
         // Slot 15 is the attire slot (account.mjs, Attire Rack).
@@ -90,13 +100,18 @@ export default () => ({
             ["FoodG2", "FoodHealth1", ...list(14, () => "Blank")],
         ],
         TotemInfo: [[42, 30, 18, 0, 55, 12, 0, 8]],
-        PrayersUnlocked: list(PRAYERS, (i) => (i % 6 === 5 ? 0 : 1 + (i % 15))),
+        PrayersUnlocked: PRAYERS.map((prayer, i) => (i % 6 === 5 ? 0 : Math.min(Number(prayer[9]), 1 + (i % 15)))),
         Ninja: { 105: list(6, (i) => i * 12) },
         SkillLevels: list(TALENTS, talentLevel),
         SkillLevelsMAX: list(TALENTS, (id) => (id % 13 === 0 ? -1 : 100 + (id % 3) * 50)),
-        // [0] bar fill, [2..] upgrade levels (the first also sets how many clouds show).
-        Dream: [4200, 0, ...upgradeLevels(DREAM_UPGRADES, 1)],
-        WeeklyBoss: { h: Object.fromEntries(list(CLOUDS, (i) => [`d_${i}`, i < 6 ? i * 40 : -1])) },
+        // [0] bar fill, [2..] upgrade levels (the first also sets how many clouds show: three).
+        Dream: [4200, 0, 3, ...DREAM_UPGRADES.slice(1).map((_, i) => level(i + 1, 5))],
+        // Cloud progress, part of the way to what each needs; -1 is a cloud not active.
+        WeeklyBoss: {
+            h: Object.fromEntries(
+                list(CLOUDS, (i) => [`d_${i}`, i < 6 ? Math.floor((Number(DREAM_CHALLENGES[i][1]) * i) / 5) : -1])
+            ),
+        },
         // [34] the game's busy flag, clear.
         OptionsListAccount: { 34: 0, 379: "0,COPPER_SET,GOLD_SET" },
         PixelHelperActor: { 8: { behaviors: { getBehavior: constructionMenu } } },
@@ -142,47 +157,26 @@ export default () => ({
                 ]),
                 FlagReqs: list(96, (i) => String(100 + i * 20)),
                 NonAFKmonsters: [MONSTERS[29]],
-                // [?, name, ?, ?, max level]
-                SaltLicks: list(10, (i) => [
-                    "Salt",
-                    `+{%_${fakeName(i + 2)}`,
-                    "1",
-                    "1",
-                    String([5, 10, 25, 50, 100][(i + 1) % 5]),
-                ]),
-                AtomInfo: upgradeDefs(14, 2),
+                // [salt, bonus, ?, ?, max level]
+                SaltLicks: SALT_LICKS,
+                AtomInfo: ATOMS,
                 // [name, bonus text, curse text, bonus per level, curse per level, ?, ?, wave, trial, max level]
-                PrayerInfo: list(PRAYERS, (i) =>
-                    i === PRAYERS - 1
-                        ? ["Some_Prayer_Name0", "", "", "0", "0", "0", "0", "0", "0", "0"]
-                        : [
-                              `${fakeName(i)}_Prayer`,
-                              `+{%_${fakeName(i + 1)}`,
-                              `-{%_${fakeName(i + 2)}`,
-                              String(5 + i),
-                              String(2 + i),
-                              "0",
-                              "0",
-                              String(10 + i * 5),
-                              String(i % 8),
-                              String(15),
-                          ]
-                ),
+                PrayerInfo: PRAYERS,
                 // [x, y, trial monster]
                 WorshipBASEinfos: list(8, (i) => ["0", "0", MONSTERS[i * 3]]),
                 NinjaInfo: { 30: MONSTERS.slice(10, 16) },
                 RANDOlist: {
                     9: ["1", "20", "40", "60", "80", "100", "125", "150"],
-                    16: ["615", "617"],
+                    16: NOT_LIBRARY_BOOKS,
                     113: [...SETS],
                 },
                 // 15 talent slots per class page, then the special talents.
-                TalentOrder: list(TALENTS - 5, (i) => i),
-                TalentIconNames: list(TALENTS, (i) => `${fakeName(i)}_Talent`),
-                TalentDescriptions: list(TALENTS, (i) => [i % 11 === 0 ? "_hidden" : `Does_a_thing_${i}`, "0"]),
-                DreamUpg: upgradeDefs(DREAM_UPGRADES, 3),
-                // [name, progress needed]
-                DreamChallenge: list(CLOUDS, (i) => [`${fakeName(i + 5)}_Cloud`, String(100 * (i + 1))]),
+                TalentOrder: TALENT_ORDER,
+                TalentIconNames: TALENT_NAMES,
+                TalentDescriptions: TALENT_HIDDEN.map((hidden) => [hidden, "0"]),
+                DreamUpg: DREAM_UPGRADES,
+                // [challenge, progress needed, reward]
+                DreamChallenge: DREAM_CHALLENGES,
             },
         },
     },

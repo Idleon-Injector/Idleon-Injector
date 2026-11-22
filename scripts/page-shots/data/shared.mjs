@@ -27,7 +27,18 @@ export const ITEMS = {
         list(9, (i) => [
             `Refinery${i + 1}`,
             {
-                displayName: `${["Redox", "Explosive", "Spontaneity", "Dioxide", "Red", "Pink", "Cobalt", "Void", "Hollow"][i]}_Salts`,
+                // The game's own salt names.
+                displayName: [
+                    "Redox_Salts",
+                    "Explosive_Salts",
+                    "Spontaneity_Salts",
+                    "Dioxide_Synthesis",
+                    "Purple_Salt",
+                    "Nullo_Salt",
+                    "Crosslink_Salt",
+                    "Propagated_Salt",
+                    "Anionic_Salt",
+                ][i],
                 Type: "MATERIAL",
                 typeGen: "dRefine",
             },
@@ -57,7 +68,8 @@ const player = (seed) =>
         Money: 1234567 * (seed + 1),
         CharacterClass: [7, 34, 6][seed],
         Prayers: list(12, (slot) => (slot < 2 ? slot * 2 + seed : -1)),
-        KillsLeft2Advance: list(350, (map) => [Math.max(0, (map % 50) * 40 - seed * 90), 0]),
+        // Kills still needed on each map, never more than the map's portal needs (MapDetails).
+        KillsLeft2Advance: list(350, (map) => [Math.max(0, 10 + (map % 50) * 5 - ((map * 7 + seed * 3) % 12)), 0]),
         // [map, x, progress, critter, qty, trap type, time to finish, exp, rare chance]; map -1 = empty.
         PldTraps: list(4, (trap) =>
             trap === 3

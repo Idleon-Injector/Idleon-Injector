@@ -6,7 +6,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-const { requests } = await loadUi(router);
+await loadUi(router);
 globalThis.requestAnimationFrame = () => {};
 const gga = game.gga;
 
@@ -163,13 +163,12 @@ test("Printer keeps each slot's Undo when a second slot's Enter lands while the 
     assert.ok(undoOffered(second), "Sample 4 offers Undo");
 });
 
-test("Printer keeps each slot's Undo when Clear is confirmed while another slot's save reads", async (t) => {
+test("Printer keeps each slot's Undo when Clear is pressed while another slot's save reads", async (t) => {
     const before = gga.Printer.slice();
     t.after(() => gga.Printer.splice(0, before.length, ...before));
     const root = await openPrinter();
     const [draftRow, clearRow] = [findRow(root, "Sample 3"), findRow(root, "Sample 4")];
     const clear = button(clearRow, "Clear");
-    clear.listeners.click({ currentTarget: clear, preventDefault() {} });
     const hold = holdWrites({ reads: true });
     t.after(hold.release);
 
@@ -184,24 +183,24 @@ test("Printer keeps each slot's Undo when Clear is confirmed while another slot'
     assert.ok(undoOffered(clearRow), "Sample 4 offers Undo");
 });
 
-test("Printer's Clear asks Click again when the press also saves another slot's draft", async (t) => {
+// Clear takes one thing out of a slot, so it saves at once with Undo in its row, like a × on a star sign's player.
+test("Printer's Clear saves at once, and the press also saves another slot's draft", async (t) => {
     const before = gga.Printer.slice();
     t.after(() => gga.Printer.splice(0, before.length, ...before));
     const root = await openPrinter();
     const [draftRow, clearRow] = [findRow(root, "Sample 3"), findRow(root, "Sample 4")];
     const clear = button(clearRow, "Clear");
     assert.ok(clear, "Sample 4 holds something to clear");
-    const writes = requests.length;
 
     type(inputs(draftRow)[0], 3030);
     // The mousedown on Clear moves focus out of Sample 3's row (its save starts), then the click lands.
     draftRow.listeners.focusout({ target: inputs(draftRow)[0], relatedTarget: clear, currentTarget: draftRow });
     clear.listeners.click({ currentTarget: clear, preventDefault() {} });
-    assert.equal(clear.attributes["data-again"], "Click again");
+    assert.equal(clear.attributes["data-again"], undefined, "it doesn't ask");
 
-    await until(() => gga.Printer[printerSlot(3) + 1] === 3030, "Sample 3's save");
-    assert.notEqual(gga.Printer[printerSlot(4)], "Blank", "one press clears nothing");
-    assert.ok(requests.length > writes);
+    await until(() => saved(draftRow) && saved(clearRow), "both saves to end");
+    assert.deepEqual([gga.Printer[printerSlot(3) + 1], gga.Printer[printerSlot(4)]], [3030, "Blank"]);
+    await until(() => undoOffered(clearRow), "Sample 4 to offer Undo");
 });
 
 // Review of #131: while an Undo's reload waited for another slot's write, an item picked on the undone row saved with

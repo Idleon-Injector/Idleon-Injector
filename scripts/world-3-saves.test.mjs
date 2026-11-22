@@ -53,6 +53,13 @@ const type = (input, value) => {
 };
 const enter = (row, input) => row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
 const saved = (row) => /save-state--(success|error)/.test(saveState(row));
+// Reset all takes levels away, so it asks in the tray first; the answer there resets them.
+const resetAll = (root) => {
+    const reset = button(root, "Reset all");
+    reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+    const yes = byClass(root, "tabbed-list__yes")[0];
+    yes.listeners.click({ currentTarget: yes, preventDefault() {} });
+};
 
 // Record each write-many's paths; with `fail`, the game answers it with an error.
 function watchWrites({ fail = false } = {}) {
@@ -132,10 +139,7 @@ for (const { page, levels, label } of [
         const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
         gga[levels][0] = 3; // bought in the game
 
-        const reset = button(root, "Reset all");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
-        assert.equal(reset.attributes["data-again"], "Click again");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        resetAll(root);
         await until(() => gga[levels][0] === 0, "the reset to reach the bought level");
         assert.ok(gga[levels].slice(0, before.length).every((level) => Number(level) === 0));
     });
@@ -149,9 +153,7 @@ for (const { page, levels, label } of [
         const writes = watchWrites();
         t.after(writes.restore);
 
-        const reset = button(root, "Reset all");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        resetAll(root);
         await until(() => gga[levels][1] === 0, "the reset");
         assert.deepEqual(writes.paths, [`gga.${levels}[1]`]);
     });
@@ -166,9 +168,7 @@ for (const { page, levels, label } of [
         const writes = watchWrites({ fail: true });
         t.after(writes.restore);
 
-        const reset = button(root, "Reset all");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        resetAll(root);
         await until(
             () => writes.paths.length > 0 && String(field.attributes.value) === "3",
             "the field to show the game's level again"

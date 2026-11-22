@@ -6,7 +6,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-const { requests } = await loadUi(router);
+await loadUi(router);
 const gga = game.gga;
 globalThis.requestAnimationFrame ??= (fn) => setTimeout(fn, 0);
 
@@ -67,63 +67,38 @@ const quietly = async (task) => {
     }
 };
 const settledButton = (node) => /account-btn--(success|error)/.test(classes(node));
-const writeCount = () => requests.filter((entry) => entry.includes("/write")).length;
 
-// A row's Remove takes the item off the list, so it asks "Click again" first; the second press removes it.
-const removeTwice = (node) => {
-    click(node);
-    return click(node);
-};
-// The first press only asks and writes nothing. The ask runs out after a few seconds like every "Click again",
-// and the press after that asks again.
-const removeAsksFirst = (t, remove, question) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-    try {
-        const before = writeCount();
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the first press asks");
-        assert.equal(remove.attributes["aria-label"], `Click again to ${question}`);
-        t.mock.timers.tick(4000);
-        assert.equal(remove.attributes["data-again"], undefined, "the ask runs out");
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the press after that asks again");
-        assert.equal(writeCount(), before, "nothing was written");
-    } finally {
-        t.mock.timers.reset();
-    }
-};
+// A hat or a set is one row with a switch: flipping it saves at once, and a refused save says why on the switch.
+const switchOf = (row) => elements(row).find((node) => node.nodeName === "input" && node.attributes.role === "switch");
+const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on } });
+const switchFailed = (row) => classes(byClass(row, "state-switch")[0]).includes("is-failed");
 
 const HAT_RACK = "src/ui/pages/world-3/hat-rack/hat-rack.js";
 const hat = (n) => `EquipmentHatsPrem${n}`;
 const rackRows = (root) => byClass(root, "hat-rack-row");
-const rackRowFor = (root, itemId) =>
-    rackRows(root).find((row) => text(byClass(row, "account-row__sub-label")[0]) === itemId);
+const rackRowFor = (root, itemId) => rackRows(root).find((row) => row.attributes["data-item"] === itemId);
 const setRack = (rack, slab) => {
     gga.Spelunk[46] = rack;
     gga.Cards[1] = slab;
 };
 
-test("Hat Rack: Remove asks Click again first, and the second press takes the hat off the rack", async (t) => {
+test("Hat Rack: every premium hat is a row, and its switch takes it off the rack and the Slab at once", async () => {
     setRack([hat(1), hat(2)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
-    const row = rackRowFor(root, hat(1));
-    const remove = buttonIn(row, "Remove");
-
-    removeAsksFirst(t, remove, `remove ${text(byClass(row, "account-row__name")[0])}.`);
-    const other = buttonIn(rackRowFor(root, hat(2)), "Remove");
-    click(other);
-    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own hat");
-    assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2)], "both hats are still on the rack");
-
-    click(remove);
-    await until(() => settledButton(remove), "the second press to finish");
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    flip(rackRowFor(root, hat(1)), false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the hat to come off");
     assert.deepEqual([...gga.Spelunk[46]], [hat(2)]);
     assert.deepEqual([...gga.Cards[1]], []);
+
+    flip(rackRowFor(root, hat(5)), true);
+    await until(() => gga.Spelunk[46].includes(hat(5)), "the hat to go on");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(2), hat(5)]);
+    assert.deepEqual([...gga.Cards[1]], [hat(5)]);
 });
 
-test("Hat Rack: Add all and Remove keep what the game added after the page read it", async () => {
+test("Hat Rack: Add all and a switch keep what the game added after the page read it", async () => {
     setRack([hat(1), hat(2)], [hat(6), hat(7)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
 
     // The player keeps playing: the game adds loot to the Slab and a hat to the rack.
     gga.Cards[1].push("NewLoot");
@@ -135,20 +110,20 @@ test("Hat Rack: Add all and Remove keep what the game added after the page read 
     assert.match(classes(addAll), /account-btn--success/);
     assert.ok(gga.Cards[1].includes("NewLoot"), "the loot the game added stays in the Slab");
     assert.equal(gga.Spelunk[46][2], hat(3), "the hat the game added stays on the rack");
+    assert.equal(gga.Spelunk[46].length, 12, "every premium hat is on the rack");
 
     gga.Cards[1].push("LaterLoot");
     gga.Spelunk[46].push("InGameHat");
-    await until(() => rackRowFor(root, hat(1)), "the rack to show");
-    const before = rackRows(root).length;
-    removeTwice(buttonIn(rackRowFor(root, hat(1)), "Remove"));
-    await until(() => !gga.Spelunk[46].includes(hat(1)) && rackRows(root).length === before, "Remove to finish");
+    flip(rackRowFor(root, hat(1)), false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the hat to come off");
     assert.ok(gga.Spelunk[46].includes("InGameHat"), "the hat the game added stays on the rack");
     assert.ok(gga.Cards[1].includes("LaterLoot"), "the loot the game added stays in the Slab");
+    await until(() => rackRowFor(root, "InGameHat"), "the page to show the other hat the rack holds");
 });
 
-test("Hat Rack: a half-done Add all shows the hats that landed, and the next Remove keeps them", async () => {
+test("Hat Rack: a half-done Add all shows the hats that landed, and the next switch keeps them", async () => {
     setRack([hat(1), hat(2)], []);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
 
     const restore = failWrites(/"gga\.Spelunk\[46\]\[4\]"/); // the third hat of Add all
     const addAll = buttonIn(root, "Add all");
@@ -163,107 +138,70 @@ test("Hat Rack: a half-done Add all shows the hats that landed, and the next Rem
     assert.match(classes(addAll), /account-btn--error/);
     const landed = gga.Spelunk[46].slice(2);
     assert.equal(landed.length, 2, "two hats landed before the refusal");
-    await until(() => rackRows(root).length === 4, "the page to show what landed");
 
-    removeTwice(buttonIn(rackRowFor(root, hat(1)), "Remove"));
-    await until(() => !gga.Spelunk[46].includes(hat(1)), "Remove to finish");
+    flip(rackRowFor(root, hat(1)), false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the hat to come off");
     for (const itemId of landed) assert.ok(gga.Spelunk[46].includes(itemId), `${itemId} stays on the rack`);
 });
 
-test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pressed again", async () => {
+test("Hat Rack: a removal the Slab refuses says why on its switch, and the next flip takes it off", async () => {
     setRack([hat(1), hat(2)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    gga.Spelunk[46].push(hat(3)); // the game changed the rack meanwhile
 
     const restore = failWrites(/"gga\.Cards\[1\]"/);
     const row = rackRowFor(root, hat(1));
-    const remove = buttonIn(row, "Remove");
     try {
         await quietly(async () => {
-            removeTwice(remove);
-            await until(() => settledButton(remove), "Remove to finish");
+            flip(row, false);
+            await until(() => switchFailed(row), "the switch to say why");
         });
     } finally {
         restore();
     }
-    assert.match(classes(remove), /account-btn--error/);
-    assert.ok(rackRows(root).includes(row), "the row that asked is still on the page");
-    assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2)], "the hat is still on the rack");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2), hat(3)], "the hats are still on the rack");
 
-    await until(() => !classes(remove).includes("account-btn--error"), "the red to clear");
-    removeTwice(remove);
-    await until(() => !gga.Spelunk[46].includes(hat(1)), "the second press to remove it");
+    flip(row, false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the next flip to take it off");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(2), hat(3)]);
     assert.deepEqual([...gga.Cards[1]], []);
-});
-
-test("Hat Rack: a refused removal stays red on its row when the game changed the rack meanwhile", async () => {
-    setRack([hat(1), hat(2)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
-    gga.Spelunk[46].push(hat(3));
-
-    const restore = failWrites(/"gga\.Cards\[1\]"/);
-    const row = rackRowFor(root, hat(1));
-    const remove = buttonIn(row, "Remove");
-    try {
-        await quietly(async () => {
-            removeTwice(remove);
-            await until(() => settledButton(remove), "Remove to finish");
-        });
-    } finally {
-        restore();
-    }
-    assert.match(classes(remove), /account-btn--error/);
-    assert.equal(rackRows(root).length, 3, "the page shows the hat the game added");
-    assert.ok(rackRows(root).includes(row), "the row that asked is still on the page");
-    assert.ok(gga.Spelunk[46].includes(hat(1)), "the hat is still on the rack");
+    await until(() => !switchFailed(row), "the reason to go");
 });
 
 const SMITHY = "src/ui/pages/world-3/armor-smithy/armor-smithy.js";
 const smithyRows = (root) => byClass(root, "smithy-row");
+const smithyRowFor = (root, setKey) => smithyRows(root).find((row) => row.attributes["data-set"] === setKey);
 
-test("Smithy: Remove asks Click again first, and the second press removes the set", async (t) => {
+test("Smithy: every set is a row, and its Unlocked switch takes it out of the Smithy at once", async () => {
     gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
-    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
-    const row = smithyRows(root).find((node) => text(node).includes("GOLD_SET"));
-    const remove = buttonIn(row, "Remove");
-
-    removeAsksFirst(t, remove, `remove ${text(byClass(row, "account-row__name")[0])}.`);
-    const other = buttonIn(
-        smithyRows(root).find((node) => text(node).includes("COPPER_SET")),
-        "Remove"
-    );
-    click(other);
-    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own set");
-    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,GOLD_SET", "both sets are still stored");
-
-    click(remove);
-    await until(() => settledButton(remove), "the second press to finish");
-    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET");
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 4);
+    flip(smithyRowFor(root, "GOLD_SET"), false);
+    await until(() => gga.OptionsListAccount[379] === "0,COPPER_SET", "the set to come out");
+    flip(smithyRowFor(root, "IRON_SET"), true);
+    await until(() => gga.OptionsListAccount[379] === "0,COPPER_SET,IRON_SET", "the set to go in");
 });
 
-test("Smithy: Remove and Add keep a set the game stored after the page read the list", async () => {
+test("Smithy: a switch and Unlock all keep a set the game stored after the page read the list", async () => {
     gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
-    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 4);
 
     // In game, the player completes a set and the game stores it.
     gga.OptionsListAccount[379] += ",IRON_SET";
-    const gold = smithyRows(root).find((row) => text(row).includes("GOLD_SET"));
-    const remove = buttonIn(gold, "Remove");
-    removeTwice(remove);
-    await until(() => settledButton(remove), "Remove to finish");
-    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,IRON_SET");
+    flip(smithyRowFor(root, "GOLD_SET"), false);
+    await until(() => gga.OptionsListAccount[379] === "0,COPPER_SET,IRON_SET", "the set to come out");
 
     gga.OptionsListAccount[379] += ",PLATINUM_SET";
-    const addAll = buttonIn(root, "Add all");
-    click(addAll);
-    await until(() => settledButton(addAll), "Add all to finish");
-    for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET"]) {
-        assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} stays stored`);
+    const unlockAll = buttonIn(root, "Unlock all");
+    click(unlockAll);
+    await until(() => settledButton(unlockAll), "Unlock all to finish");
+    for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET", "GOLD_SET", "MOSSY_SET"]) {
+        assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} is stored`);
     }
 });
 
-test("Smithy: a Remove that can't read the stored sets stays red on its row", async () => {
+test("Smithy: a switch that can't read the stored sets says why on its row, and nothing changes", async () => {
     gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
-    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 4);
 
     const realFetch = globalThis.fetch;
     let failed = 0;
@@ -276,18 +214,15 @@ test("Smithy: a Remove that can't read the stored sets stays red on its row", as
         }
         return realFetch(url, options);
     };
-    const row = smithyRows(root).find((node) => text(node).includes("GOLD_SET"));
-    const remove = buttonIn(row, "Remove");
+    const row = smithyRowFor(root, "GOLD_SET");
     try {
         await quietly(async () => {
-            removeTwice(remove);
-            await until(() => settledButton(remove), "Remove to finish");
+            flip(row, false);
+            await until(() => switchFailed(row), "the switch to say why");
         });
     } finally {
         globalThis.fetch = realFetch;
     }
-    assert.match(classes(remove), /account-btn--error/);
-    assert.ok(smithyRows(root).includes(row), "the row that asked is still on the page");
     assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,GOLD_SET");
 });
 
@@ -317,7 +252,7 @@ test("Death Note: a kill count saves to the character on its row, whoever is in 
     db.Lumi_Main.h.KillsLeft2Advance[0][0] = required - 2;
     db.Lumi_Alt.h.KillsLeft2Advance[0][0] = required - 5;
     const root = await openPage("src/ui/pages/world-3/death-note/death-note.js", (r) =>
-        byClass(r, "dn-player-row").some((row) => text(row).includes("(selected)"))
+        byClass(r, "dn-player-row").some((row) => text(row).includes("In play"))
     );
     const firstRowOf = (name) =>
         byClass(root, "dn-player-row").find((row) => text(byClass(row, "account-row__name")[0]) === name);
@@ -336,13 +271,24 @@ test("Death Note: a kill count saves to the character on its row, whoever is in 
     switchCharacter("Lumi_Main");
 });
 
+// A talent is named once in the game's list, so its name finds its id; a book row is one with a field.
+const { normalCase } = await importRepo("src/ui/components/views/account/accountShared.js");
+const talentNames = gga.CustomLists.h.TalentIconNames.map(normalCase);
+const talentIdOf = (row) => talentNames.indexOf(text(byClass(row, "account-row__name")[0]));
+const bookRow = (root) =>
+    byClass(root, "talent-row").find(
+        (r) =>
+            elements(r).some((node) => node.nodeName === "input") &&
+            talentNames.filter((name) => name === text(byClass(r, "account-row__name")[0])).length === 1
+    );
+
 test("Library: after a character switch, saves and Max books refuse instead of changing the new character", async () => {
     gga.UserInfo[0] = "Lumi_Main";
     const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
         byClass(r, "talent-row").some((row) => elements(row).some((node) => node.nodeName === "input"))
     );
-    const row = byClass(root, "talent-row").find((r) => elements(r).some((node) => node.nodeName === "input"));
-    const id = Number(text(byClass(row, "account-row__index")[0]).replace("#", ""));
+    const row = bookRow(root);
+    const id = talentIdOf(row);
     const mainBooks = structuredClone(gga.SkillLevelsMAX);
 
     // In game, the player switches to another character of the same class: its own books are live now.
@@ -362,7 +308,7 @@ test("Library: after a character switch, saves and Max books refuse instead of c
     assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
 
     // The page read the game again and drew the rows for the character in play, so the next save goes to it.
-    const altRow = byClass(root, "talent-row").find((r) => text(byClass(r, "account-row__index")[0]) === `#${id}`);
+    const altRow = byClass(root, "talent-row").find((r) => talentIdOf(r) === id);
     assert.notEqual(altRow, row, "the rows are the new character's");
     await typeAndEnter(altRow, 5);
     await until(() => classes(byClass(altRow, "save-state")[0]).includes("save-state--success"), "the save to land");
@@ -381,7 +327,7 @@ test("Death Note: a switch while the live kills save leaves the new character's 
     db.Lumi_Main.h.KillsLeft2Advance[0][0] = required - 2;
     db.Lumi_Alt.h.KillsLeft2Advance[0][0] = required - 5;
     const root = await openPage("src/ui/pages/world-3/death-note/death-note.js", (r) =>
-        byClass(r, "dn-player-row").some((row) => text(row).includes("(selected)"))
+        byClass(r, "dn-player-row").some((row) => text(row).includes("In play"))
     );
     const mainRow = byClass(root, "dn-player-row").find(
         (row) => text(byClass(row, "account-row__name")[0]) === "Lumi_Main"
@@ -404,8 +350,8 @@ const openLibrary = async () => {
     const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
         byClass(r, "talent-row").some((row) => elements(row).some((node) => node.nodeName === "input"))
     );
-    const row = byClass(root, "talent-row").find((r) => elements(r).some((node) => node.nodeName === "input"));
-    return { root, row, id: Number(text(byClass(row, "account-row__index")[0]).replace("#", "")) };
+    const row = bookRow(root);
+    return { root, row, id: talentIdOf(row) };
 };
 
 // Review of #116: a Refresh that failed after reading the new character still took it as the one the rows show.
@@ -529,10 +475,12 @@ test("Library: a switch while Max books writes leaves the new character's books 
 test("Buildings: a level save the game doesn't take leaves the level and its pending copy as they were", async () => {
     gga.TowerInfo[0] = 3;
     gga.TowerInfo[27] = 3;
+    const first = gga.CustomLists.h.TowerInfo[0][0].replace(/_/g, " ");
+    const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
     const root = await openPage("src/ui/pages/world-3/construction/1-buildings.js", (r) =>
-        byClass(r, "account-row").some((row) => text(row).includes("#1"))
+        byClass(r, "account-row").some((row) => nameOf(row) === first)
     );
-    const row = byClass(root, "account-row").find((r) => text(byClass(r, "account-row__index")[0]) === "#1");
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === first);
 
     const restore = failWrites(/"gga\.TowerInfo\[27\]"/);
     try {
