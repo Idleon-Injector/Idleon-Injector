@@ -15,7 +15,7 @@ import van from "../vendor/van-1.6.0.js";
 
 // The rows the search leaves on the open page, or null while it isn't searching. Set only when it changes, so a tray
 // line that redraws (and wakes the search) doesn't set it again.
-const searchHits = van.state(null);
+export const searchHits = van.state(null);
 
 /** Whether the top bar is searching the open page. */
 export const isSearching = () => searchHits.val !== null;
@@ -65,9 +65,17 @@ const filterPane = (pane, query) => {
     const words = normalize(query);
     if (!words) return null;
 
-    // Every read before any write, so the page is laid out once. A row the page itself hides (a filter, an unused
-    // entry) is neither searched nor counted.
-    const shown = [...pane.querySelectorAll(ROW)].filter((row) => getComputedStyle(row).display !== "none");
+    // Every read before any write, so the page is laid out once. A row the page itself hides, or a box around it hides
+    // (a filter, an unused entry), is neither searched nor counted; a tab not open still is, so its tab can say how many
+    // of its rows match.
+    const rendered = (row) => {
+        for (let node = row; node && node !== pane; node = node.parentElement) {
+            if (!node.classList.contains("account-page-pane") && getComputedStyle(node).display === "none")
+                return false;
+        }
+        return true;
+    };
+    const shown = [...pane.querySelectorAll(ROW)].filter(rendered);
     const hits = new Set(shown.filter((row) => rowText(row).includes(words)));
     const hitIn = (box) => shown.some((row) => hits.has(row) && box.contains(row));
     const sections = [...pane.querySelectorAll(".account-section")].filter(

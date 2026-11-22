@@ -2,6 +2,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { joinClasses, toNodes } from "./accountShared.js";
 import { replay } from "../../inPlace.js";
 import { labelOf, withAction } from "../../../services/changeLog.js";
+import { searchHits } from "../../../menu/pageSearch.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -95,9 +96,18 @@ let listCount = 0;
  */
 export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null }) => {
     const activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
+    // Each tab names the pane it opens and each pane its tab, for assistive technology.
+    const key = `tabbed-list-${++listCount}`;
+    const tabId = (tab) => `${key}-tab-${tabs.indexOf(tab)}`;
+    const paneId = (tab) => `${key}-pane-${tabs.indexOf(tab)}`;
     const body = div(
         { class: "tabbed-list__body" },
-        ...renderPersistentPagePanes({ tabs, activeId, renderContent: (tab) => tab.content })
+        ...renderPersistentPagePanes({
+            tabs,
+            activeId,
+            renderContent: (tab) => tab.content,
+            getPaneProps: (tab) => ({ id: paneId(tab), role: "tabpanel", "aria-labelledby": tabId(tab) }),
+        })
     );
     const { nav, buttons } = buildTabNav({
         tabs,
@@ -105,6 +115,7 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null }) => {
         navClass: "tabbed-list__tabs",
         buttonClass: "tabbed-list__tab",
         label: name,
+        getButtonProps: (tab) => ({ id: tabId(tab), "aria-controls": paneId(tab) }),
     });
 
     // The pill under the open tab (the tabs sit above it): placed from the tab's own box, so it fits any label and
@@ -152,7 +163,8 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null }) => {
 /**
  * The tray of tools under a list's head (TabbedList, ListPanel), and the question a tool can ask in it before a risky
  * change (lowering, taking away). The question takes the tray's place, in its words and shapes, and waits for an
- * answer: no popup and no timer. Cancel or Escape drop it unanswered; `drop` does too (another tab).
+ * answer: no popup and no timer. Cancel or Escape drop it unanswered; `drop` does too (another tab), and so does a
+ * change in the page search, since the question counted the rows the search showed when it was asked.
  */
 const ToolsTray = ({ tools, toolsLabel, activeId }) => {
     const asking = van.state(null);
@@ -188,11 +200,9 @@ const ToolsTray = ({ tools, toolsLabel, activeId }) => {
         asking.val = { question, confirmLabel, from, onConfirm, byKeyboard };
         if (byKeyboard) requestAnimationFrame(() => yesButton.focus({ preventScroll: true }));
     };
-    // Escape drops the question wherever focus is (a click on a tool left it outside the tray).
-    document.addEventListener("keydown", (e) => {
-        if (e.key !== "Escape" || !asking.val || e.defaultPrevented) return;
-        e.preventDefault();
-        answer(false);
+    van.derive(() => {
+        searchHits.val;
+        asking.val = null;
     });
     const node = div(
         { class: "tabbed-list__tools" },
@@ -206,6 +216,13 @@ const ToolsTray = ({ tools, toolsLabel, activeId }) => {
         ),
         div({ class: "tabbed-list__tools-row tabbed-list__answer", hidden: () => !asking.val }, yesButton, noButton)
     );
+    // Escape drops the question wherever focus is (a click on a tool left it outside the tray), but only on the page
+    // showing: a page left open in the background keeps its question, and leaves Escape to the one on screen.
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape" || !asking.val || e.defaultPrevented || !node.getClientRects().length) return;
+        e.preventDefault();
+        answer(false);
+    });
     return { node, drop: () => (asking.val = null) };
 };
 
@@ -265,10 +282,12 @@ export const renderPersistentPagePanes = ({
     hiddenClass = "account-page-pane--hidden",
     dataAttr = "data-tab",
     renderContent = null,
+    getPaneProps = null,
 }) =>
     tabs.map((tab, index) =>
         div(
             {
+                ...(typeof getPaneProps === "function" ? getPaneProps(tab) : {}),
                 class: () => joinClasses(paneClass, activeId.val !== tab.id && hiddenClass),
                 [dataAttr]: tab.id,
             },
