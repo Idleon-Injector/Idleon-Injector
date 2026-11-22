@@ -160,6 +160,17 @@ test("stamps: after a flip saves, the page reads the exalts again", async () => 
     assert.equal(wordsOf(rowNamed(root, "Battleaxe Stamp")), "Exalted", "the exalt the game added after the write");
 });
 
+// Review of #208: the game can hold the list as a numeric-key object, which the read route gives as an array; the
+// write's `expect` holds for an unchanged list in either shape.
+test("stamps: a flip saves when the game holds the exalts as a numeric-key object", async () => {
+    g.Compass[4] = { 0: "_1", 1: "a0", 2: "b4" };
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Shield Stamp"));
+    const row = rowNamed(root, "Shield Stamp");
+    await flip(row, true);
+    assert.deepEqual([...g.Compass[4]], ["_1", "_5", "a0", "b4"]);
+    assert.equal(wordsOf(row), "Exalted");
+});
+
 const STATUES = "src/ui/pages/world-1/statues/statues.js";
 const statueRow = (root, index) => byClass(root, "statue-row")[index];
 // The tier shows once, in its step picker: the step that is picked.
@@ -338,6 +349,9 @@ const flipToken = (root, id) => {
     );
     return box.listeners.change({ target: box });
 };
+const tokenShown = (root, id) =>
+    elements(petRow(root, id)).find((node) => String(node.attributes["aria-label"]).startsWith("Pet token for"))
+        .attributes.checked;
 const alertText = (root) => text(elements(root).find((node) => node.attributes.role === "alert"));
 // The game's trade-screen token button: adds the pet when a token is free (the fake game owns 2).
 const tokenInGame = (id) => (g.OptionsListAccount[606] = `${g.OptionsListAccount[606]},${id}`);
@@ -425,6 +439,65 @@ for (const tier of ["Pets+", "Off"]) {
         }
     });
 }
+
+// Review of #208: a token the game gives while the save reads the config is checked in the save's own turn.
+test("pets: Pets+ on a pet the game gives a token during the save is refused, and says why", async () => {
+    const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+    await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "12:0" } } } }); // pet 12 at Normal
+    g.OptionsListAccount[606] = "2";
+    try {
+        const root = await openPage(PETS, (root) => petRow(root, 12) && tierShown(root, 12) === "Normal");
+        // After the click read the tokens, before the save's turn.
+        const restore = onRequest(/\/cheat-states$/, () => tokenInGame(12));
+        try {
+            pickTier(root, 12, "Pets+"); // the pick saves in the background
+            await until(() => alertText(root) === "This pet has a token now.", "the reason");
+        } finally {
+            restore();
+        }
+        assert.equal(g.OptionsListAccount[606], "2,12");
+        assert.equal((await fetchConfig()).cheatConfig.w1.companion.companions, "12:0", "the tiers are unchanged");
+    } finally {
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+        g.OptionsListAccount[606] = "2,5";
+    }
+});
+
+// Review of #208: the tokens a failed save reads again don't replace the ones a newer save read.
+test("pets: a failed save's token read that answers after a newer save doesn't bring old tokens back", async () => {
+    g.OptionsListAccount[606] = "2";
+    const root = await openPage(PETS, (root) => petRow(root, 2));
+    const realFetch = globalThis.fetch;
+    let step = "first save";
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    globalThis.fetch = async (url, options) => {
+        if (step === "first save" && /\/config$/.test(String(url))) {
+            tokenInGame(9); // the first save's token write is refused
+            step = "failed";
+        } else if (step === "failed" && String(options?.body).includes("petTokens")) {
+            step = "held"; // the failed save reads the tokens again; its answer arrives last
+            const response = await realFetch(url, options);
+            await held;
+            return response;
+        }
+        return realFetch(url, options);
+    };
+    try {
+        await flipToken(root, 2);
+        await until(() => step === "held", "the failed save to read the tokens again");
+        await flipToken(root, 2); // the newer save takes pet 2's token off
+        assert.equal(g.OptionsListAccount[606], "9");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    for (let i = 0; i < 5; i++) await tick();
+    assert.equal(tokenShown(root, 2), false, "pet 2 shows no token");
+    assert.equal(tierShown(root, 2), "Off");
+    g.OptionsListAccount[606] = "2,5";
+});
 
 // Review of #122: the click read the saved tiers against the tokens the page had before, and dropped pet 2's Pets+.
 test("pets: a pick keeps a Pets+ pick saved for a pet whose token the game dropped since", async () => {
