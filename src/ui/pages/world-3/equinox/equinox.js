@@ -122,7 +122,7 @@ const CloudRow = ({ entry }) => {
 };
 
 // The penguins from a past limited gem shop sale. The game sets no max, so neither does the row.
-const PenguinRow = ({ valueState, onAfterSet }) =>
+const PenguinRow = ({ valueState, onAfterSet, rateError }) =>
     ClampedLevelRow({
         valueState,
         integerMode: "floor",
@@ -131,7 +131,13 @@ const PenguinRow = ({ valueState, onAfterSet }) =>
             await onAfterSet();
             return verified;
         },
-        renderInfo: () => RowTitles({ bonus: "Bar fills 10% faster each", name: "Pingy penguins" }),
+        renderInfo: () =>
+            RowTitles({
+                bonus: "Bar fills 10% faster each",
+                name: "Pingy penguins",
+                // A count that saved but whose new fill rate couldn't be read: the next read that works clears it.
+                warning: () => (rateError.val ? "Couldn't read the new fill rate. Refresh to try again." : null),
+            }),
     });
 
 const UpgradeRow = ({ entry, onAfterSet }) =>
@@ -166,6 +172,7 @@ const EquinoxTab = () => {
     const barFillRateState = van.state(0);
     const cloudCountState = van.state(0);
     const penguinState = van.state(0);
+    const rateError = van.state(false);
 
     const cloudProgressStates = new Map();
     const cloudRequiredStates = new Map();
@@ -267,11 +274,14 @@ const EquinoxTab = () => {
     };
 
     // The penguins change how fast the bar fills: read the rate again.
+    // The count is saved either way; a failed read says so on the penguins' row.
     const refreshFillRate = async () => {
         try {
             barFillRateState.val = toInt(await readComputed("dream", "BarFillRate", [0]), { mode: "floor" });
+            rateError.val = false;
         } catch (err) {
             console.warn("[EquinoxTab] refreshFillRate failed", err);
+            rateError.val = true;
         }
     };
 
@@ -328,9 +338,12 @@ const EquinoxTab = () => {
             barFillState.val = toInt(dreamArr[0], { mode: "floor" });
             barFillReqState.val = toInt(barFillReq, { mode: "floor" });
             barFillRateState.val = toInt(barFillRate, { mode: "floor" });
-            // An account that never bought one holds 0 or nothing.
-            const penguins = Number(rawPenguins ?? 0);
-            penguinState.val = Number.isFinite(penguins) ? penguins : 0;
+            // An account that never bought one holds 0 or nothing; anything but a whole count is a broken read.
+            const penguins = rawPenguins ?? 0;
+            if (!Number.isInteger(penguins) || penguins < 0)
+                throw new Error(`Unexpected Pingy penguin count: ${JSON.stringify(rawPenguins)}`);
+            penguinState.val = penguins;
+            rateError.val = false;
             updateUpgradeRows(upgrades);
             updateCloudRows(visibleIndexes, weeklyBossMap, staticMeta.dreamChallengeArr);
         });
@@ -344,7 +357,7 @@ const EquinoxTab = () => {
             className: "field-columns",
             body: [
                 BarRow({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }),
-                PenguinRow({ valueState: penguinState, onAfterSet: refreshFillRate }),
+                PenguinRow({ valueState: penguinState, onAfterSet: refreshFillRate, rateError }),
                 AccountSection({
                     title: "Clouds",
                     body: [
