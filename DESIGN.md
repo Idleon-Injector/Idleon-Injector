@@ -142,13 +142,25 @@ Rejected, so the design pass doesn't drift back:
   fields 9 px, so the pill buttons don't sit in sharp boxes.
 - **Mint saved tick:** not taken. Colours come later, in their own pass.
 
+## The menu
+
+Decided on World 2 (2026-11-22), from two clickable concepts: IdleonToolbox's grouping or the game's. Lumi picked the
+game's.
+
+- **Names and grouping follow the game's own menus:** Alchemy with its tabs (Bubbles, Cauldrons, Vials, Sigils,
+  Automation), Poppy, Orion.
+- **Clickers live in one Account entry** with tabs Orion, Poppy, Bubba and a shared Automation page, which has a small
+  inner tab per clicker.
+- **A first tab never repeats its entry's name.**
+- **Search keeps the old names** (Owl, Kangaroo, Liquid, Pay 2 Win), as extra words on the page that holds them now.
+
 ## Page layout
 
 Every page has the same parts in the same places (#26). The maintainer chose them from a live concept with four A/B
 switches, picking the first option each time.
 
 - **The top:** the title and its description on the left, the page's buttons on the right of the same row. When the
-  buttons don't fit beside 26rem of description, they move to the line under it, still on the right, so the description
+  buttons don't fit beside 26rem of description (12rem on a phone), they move to the line under it, still on the right, so the description
   never becomes a thin column. Search and filters go on the line under the title (`toolbar` on the page wrapper);
   inner tabs stay above the title. One thin rule runs under the whole top.
 - **Values show once.** A number lives in its field, and so does its cap: the field reads `2 / 15`, with `/ 15` muted
@@ -184,7 +196,8 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
   lists only the page.
 - **The open tab** is a block with 10 px top corners in the colour of what it opens, running straight down into it with
   curved feet: no pill, no bubble, no coloured line. Its word is lavender (where you are); the other tabs are plain
-  muted words, 16 px. The first tab stands flush on the tray's left edge.
+  muted words, 16 px. The first tab stands flush on the tray's left edge. On a phone the tabs share the row in a step
+  smaller type (14 px), so five short names fit without scrolling sideways.
 - **Switching** glides the block to the new tab and lets the new list fade in with a small rise; both are off when the
   player asks for less motion. A page comes back on the tab it was left on; a newly opened tab starts at its top. Left,
   Right, Home and End move between the tabs, and Tab goes from the open tab into its list.
@@ -287,8 +300,8 @@ pieces, and new pages start from them.
   "Click again" and no popup.
 - **A switch's word names the state that matters:** "Owned" when on, "Locked" while it can't be had yet, nothing
   when simply off. A row that can't change says so in its place, quietly ("Can't be bought").
-- **A page's title is its sidebar name** (Owl, not Orion), so it gets its system's icon; the description names the
-  thing ("Orion the owl's feathers and upgrades."). Titles, loading and failure lines are normal case ("Reading the
+- **A page's title is its sidebar name** (Orion, its tab under Clickers), so it gets its system's icon; the description
+  names the thing ("Orion the owl's feathers and upgrades."). Titles, loading and failure lines are normal case ("Reading the
   forge", "Couldn't read the forge").
 - **Numbers in a list end in one column**, capped or not (`field-columns`: a field without a cap keeps the cap's
   room). An amount left beside the title turns red with a real minus when overspent ("−18 points left").

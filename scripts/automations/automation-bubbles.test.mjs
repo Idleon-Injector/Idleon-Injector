@@ -1,4 +1,4 @@
-// Automation (#92), World 2 › Bubbles: "automation bubbles" raises the switched-on alchemy bubbles every second with
+// Automation (#92), World 2 › Alchemy: "automation bubbles" raises the switched-on alchemy bubbles every second with
 // the alchemy menu's own upgrade (BubbleHoldDown), paying what the game charges. Decided with Lumi on 2026-11-17: the
 // bubble with the lowest % of its max goes first, up to one page-wide target %; bubbles without a max need a stop-at,
 // which caps any bubble; no priority and no saving; a Particles row waits until the particle buy is open; buying pauses

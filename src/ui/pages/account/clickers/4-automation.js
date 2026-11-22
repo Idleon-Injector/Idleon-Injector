@@ -1,6 +1,11 @@
 /**
- * World 7 › Bubba › Automation: which Bubba upgrades the Bubba automation buys with meat, by the shared rule
- * (High / Low / Balanced, saving %), each up to its stop-at.
+ * Account › Clickers › Automation: one page for the three clickers, with an inner tab each.
+ *
+ * Orion and Poppy use ClickerAutomationTab: which Orion upgrades "automation orion" buys with feathers, and which
+ * Poppy and Tar Pit upgrades "automation poppy" and "automation tarpit" buy.
+ *
+ * Bubba: which Bubba upgrades the Bubba automation buys with meat, by the shared rule (High / Low / Balanced,
+ * saving %), each up to its stop-at.
  *
  * Reads readComputed("automation", "bubba") (meat, the goal, every upgrade) and saves cheatConfig.automation.bubba,
  * one { id, on, stopAt, priority } per upgrade, and cheatConfig.automation.bubbaSaving.
@@ -29,6 +34,8 @@ import {
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ClickerAutomationTab } from "../../../components/views/account/ClickerAutomationTab.js";
+import { renderPersistentPagePanes, renderTabNav } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
@@ -38,7 +45,7 @@ const heldText = (value) => formatNumber(value < 1000 ? Math.floor(value) : valu
 
 const CHEAT = "automation bubba";
 
-const BubbaAutomationTab = () => {
+export const BubbaAutomationTab = () => {
     const data = van.state(null); // the game's read: { waiting, meat, goal, upgrades }
     const ids = van.state([]);
     const upgrades = new Map(); // id -> state of the upgrade's read
@@ -143,12 +150,87 @@ const BubbaAutomationTab = () => {
     });
 };
 
+export const OrionAutomationTab = () =>
+    ClickerAutomationTab({
+        title: "AUTOMATION",
+        description:
+            "Switched-on upgrades are bought with feathers, and switching one on turns Orion's automation on. It saves for the cheapest High or Low upgrade (an affordable High one goes first) while Balanced ones are bought cheapest first. Buying stops at the stop-at level; leave it empty for no limit.",
+        groups: [
+            {
+                key: "orion",
+                currency: "feathers",
+                upgradesTitle: "UPGRADES",
+                lockedText: ({ unlockAt }) => `Unlocks at ${formatNumber(unlockAt)} feathers produced`,
+            },
+        ],
+    });
+
+export const PoppyAutomationTab = () =>
+    ClickerAutomationTab({
+        title: "AUTOMATION",
+        description:
+            "Switched-on upgrades are bought while Poppy's menu is open, because her fish only land then; switching one on turns its automation on. Each saves for its cheapest High or Low upgrade (an affordable High one goes first) while Balanced ones are bought cheapest first, up to the stop-at level. The reset spiral and shiny catching stay manual.",
+        groups: [
+            {
+                key: "poppy",
+                currency: "fish",
+                upgradesTitle: "UPGRADES",
+                lockedText: ({ unlockAt }) => `Unlocks at ${formatNumber(unlockAt)} fish caught`,
+            },
+            {
+                key: "tarpit",
+                currency: "tartar fish",
+                upgradesTitle: "TAR PIT",
+                lockedText: () => "Needs more megafish",
+            },
+        ],
+    });
+
+// Automation › Shops' pattern: small inner tabs above the title, each opening one clicker's whole panel. Every
+// panel stays mounted, so its saves and Undo stay.
+const CLICKERS = [
+    { id: "orion", label: "Orion", panel: OrionAutomationTab },
+    { id: "poppy", label: "Poppy", panel: PoppyAutomationTab },
+    { id: "bubba", label: "Bubba", panel: BubbaAutomationTab },
+];
+
+const ClickersAutomation = () => {
+    const activeClicker = van.state(CLICKERS[0].id);
+    return div(
+        { class: "clickers-automation" },
+        renderTabNav({
+            tabs: CLICKERS,
+            activeId: activeClicker,
+            navClass: "account-page-nav",
+            buttonClass: "account-page-btn",
+        }),
+        ...renderPersistentPagePanes({ tabs: CLICKERS, activeId: activeClicker, renderContent: (tab) => tab.panel() })
+    );
+};
+
 export default definePage({
-    id: "w7.bubba.automation",
-    world: 7,
-    system: "Bubba",
+    id: "account.clickers.automation",
+    world: "account",
+    system: "Clickers",
     tab: "Automation",
-    description: "Bubba upgrades bought with meat by the automation, each up to its stop-at, High, Low or Balanced.",
-    keywords: ["Autobuy", "Auto buy", "Clicker", "Stop at", "Priority"],
-    component: BubbaAutomationTab,
+    description:
+        "What the Orion, Poppy and Bubba automations buy, each upgrade up to its stop-at, High, Low or Balanced.",
+    keywords: [
+        "Autoclicker",
+        "Auto clicker",
+        "Clicker",
+        "Owl",
+        "Orion",
+        "Kangaroo",
+        "Poppy",
+        "Tar Pit",
+        "Bubba",
+        "Autobuy",
+        "Auto buy",
+        "Feather Restart",
+        "Mega Reset",
+        "Stop at",
+        "Priority",
+    ],
+    component: ClickersAutomation,
 });

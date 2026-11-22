@@ -1,0 +1,16 @@
+/* A brewing cauldron's name keeps its colour: it names the thing (the liquids' are in liquid.css). */
+.viewport .liquid-name--brew-power {
+    color: var(--c-p2w-brew-power);
+}
+
+.viewport .liquid-name--brew-quicc {
+    color: var(--c-p2w-brew-quicc);
+}
+
+.viewport .liquid-name--brew-high-iq {
+    color: var(--c-p2w-brew-high-iq);
+}
+
+.viewport .liquid-name--brew-kazam {
+    color: var(--c-p2w-brew-kazam);
+}

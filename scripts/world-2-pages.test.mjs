@@ -1,5 +1,6 @@
-// World 2 pages (sweep 2026-11-20): a Set all that lowers asks "Click again" and an empty one writes nothing; values
-// that share one string save one at a time; a save made while another runs keeps its value, on screen and in the game.
+// World 2 pages (sweep 2026-11-20, on the shared panels 2026-11-22): a Set all that lowers asks in the tray and an
+// empty one writes nothing; values that share one string save one at a time; a save made while another runs keeps its
+// value, on screen and in the game.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
@@ -29,7 +30,19 @@ const inputs = (root) => elements(root).filter((node) => node.nodeName === "inpu
 const buttonNamed = (root, label) =>
     elements(root).find((node) => node.nodeName === "button" && text(node).trim() === label);
 const writes = () => requests.filter((entry) => /write/.test(entry)).length;
-const asks = (button) => button.attributes["data-again"] === "Click again";
+// The tray's question and its answer: a tool that takes away asks there, and its change runs on the answer.
+const trayLabel = (root) => text(byClass(root, "tabbed-list__tools-label")[0]);
+const asks = (root) => /^(Lower|Lock|Reset|Unprisma) /.test(trayLabel(root));
+const yes = (root) => click(byClass(root, "tabbed-list__yes")[0]);
+// An attribute as the page shows it now (VanJS binds a function for one that changes).
+const attr = (node, name) =>
+    typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
+// A tab's rows, and opening a tab.
+const paneOf = (root, id) => elements(root).find((node) => node.attributes["data-tab"] === id);
+const openTab = (root, label) =>
+    elements(root)
+        .find((node) => node.attributes.role === "tab" && text(node).trim().startsWith(label))
+        .listeners.click({});
 
 async function until(check, what) {
     for (let i = 0; i < 1000; i++) {
@@ -101,37 +114,40 @@ const holdWrites = (match = "/write") => {
 // A Set all field and the button beside it.
 const setAllOf = (root) => {
     const row = byClass(root, "account-setall-row")[0];
+    const button = buttonNamed(row, "Set all");
+    row.querySelector = () => button; // the fake DOM has no selectors; the page asks for its button
     return {
         field: byClass(row, "number-input-wrapper")[0],
         input: inputs(row)[0],
-        button: buttonNamed(row, "Set all"),
+        button,
     };
 };
 const notBusy = (button) => !button.attributes.disabled;
 
-test("sigils: Set all asks before it lowers any sigil, and raising runs on one press", async () => {
+test("sigils: a tier for all asks before it lowers any sigil, and raising runs on one press", async () => {
     const tiers = game.gga.CauldronP2W[4];
     for (let i = 0; i < 24; i++) tiers[2 * i + 1] = 3;
+    const picked = (root, label) =>
+        elements(root).filter(
+            (node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true" && text(node) === label
+        );
     const root = await openPage(
-        "src/ui/pages/world-2/sigils/sigils.js",
-        (root) => byClass(root, "sigil-tier-badge--ethereal").length === 24
+        "src/ui/pages/world-2/alchemy/4-sigils.js",
+        (root) => picked(root, "Ethereal").length === 24
     );
     const all = (tier) => Array.from({ length: 24 }, (_, i) => tiers[2 * i + 1]).every((value) => value === tier);
-    const picker = byClass(root, "account-setall-row__select")[0];
-    const setAll = buttonNamed(root, "Set all");
+    const tray = byClass(root, "tabbed-list__tools")[0];
 
-    picker.listeners.change({ target: { value: "-1" } });
     const before = writes();
-    await click(setAll);
-    assert.ok(asks(setAll), "the first press asks");
+    await click(buttonNamed(tray, "Locked"));
+    assert.equal(trayLabel(root), "Lock 24 sigils?", "locking asks");
     assert.equal(writes(), before, "nothing was written");
     assert.ok(all(3));
-    await click(setAll);
-    await until(() => all(-1) && notBusy(setAll), "the second press to lock them");
+    await yes(root);
+    await until(() => all(-1) && notBusy(buttonNamed(tray, "Unlocked")), "the answer to lock them");
 
-    picker.listeners.change({ target: { value: "4" } });
-    await click(setAll);
-    assert.ok(!asks(setAll), "raising didn't ask");
+    await click(buttonNamed(tray, "Eclectic"));
+    assert.ok(!asks(root), "raising didn't ask");
     await until(() => all(4), "the raise to land");
 });
 
@@ -157,25 +173,6 @@ test("weekly bosses: a skin picked while the last pick saves is the one saved", 
     hold.release();
     await until(() => String(weekly.set0) === second, "the newer pick to save");
     weekly.set0 = 2;
-});
-
-test("sigils: a second tier picked while the first saves is the one saved", async () => {
-    const tiers = game.gga.CauldronP2W[4];
-    tiers[1] = 0;
-    const root = await openPage("src/ui/pages/world-2/sigils/sigils.js", (root) =>
-        byClass(root, "sigil-tier-badge--unlocked").some((badge) => text(badge) === "UNLOCKED")
-    );
-    const picker = byClass(root, "tier-card__select")[0];
-    const hold = holdWrites();
-    try {
-        picker.listeners.change({ target: { value: "2" } });
-        await until(() => hold.held() > 0, "the first pick's save to reach the game");
-        picker.listeners.change({ target: { value: "3" } });
-        hold.release();
-        await until(() => tiers[1] === 3, "the second pick to save");
-    } finally {
-        hold.release();
-    }
 });
 
 const weeklyPicker = async () => {
@@ -329,12 +326,36 @@ test("weekly bosses: a skin unlocked while the trophies save is kept", async () 
     [ola[188], weekly[key]] = [trophiesBefore, unlockedBefore];
 });
 
-test("weekly bosses: the character skins note doesn't send the player to a Save button", async () => {
+test("weekly bosses: the characters' note doesn't send the player to a Save button", async () => {
     const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
-        text(root).includes("Character skins")
+        text(root).includes("Characters")
     );
-    assert.ok(text(root).includes("it saves when you pick it"));
-    assert.ok(!/then Save/.test(text(root)));
+    assert.ok(text(root).includes("Change maps in game to see a new skin."));
+    assert.ok(!/Save/.test(text(root)));
+});
+
+test("weekly bosses: Lock all asks in the tray, and locks only on the answer", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    const keys = Object.keys(weekly).filter((name) => name.startsWith("UI_"));
+    const saved = keys.map((key) => weekly[key]);
+    keys.forEach((key) => (weekly[key] = 1));
+    try {
+        const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
+            byClass(root, "account-row").some((row) => text(row).includes("Galaxy UI"))
+        );
+        await click(buttonNamed(root, "Refresh"));
+        const lockAll = buttonNamed(root, "Lock all");
+        await until(() => notBusy(lockAll), "Lock all to be ready");
+        const before = writes();
+        click(lockAll);
+        await until(() => asks(root), "the question");
+        assert.equal(trayLabel(root), `Lock ${keys.length} skins?`);
+        assert.equal(writes(), before, "nothing was written");
+        await yes(root);
+        await until(() => keys.every((key) => Number(weekly[key]) === 0), "the answer to lock them");
+    } finally {
+        keys.forEach((key, i) => (weekly[key] = saved[i]));
+    }
 });
 
 test("islands: two islands unlocked close together both stay unlocked (they share one string)", async () => {
@@ -357,8 +378,9 @@ test("islands: Set all asks before it lowers an upgrade, and an empty field writ
     ola[164] = 500;
     const root = await openPage(
         "src/ui/pages/world-2/islands/islands.js",
-        (root) => rowNamed(root, "% Bottles") && String(inputs(rowNamed(root, "% Bottles"))[0].value) === "500"
+        (root) => rowNamed(root, "Bottles %") && String(inputs(rowNamed(root, "Bottles %"))[0].value) === "500"
     );
+    openTab(root, "Trash");
     const { input, field, button } = setAllOf(root);
     const before = writes();
     typeInto(input, "");
@@ -368,21 +390,20 @@ test("islands: Set all asks before it lowers an upgrade, and an empty field writ
 
     typeInto(input, "200");
     await click(button);
-    assert.ok(asks(button), "lowering asks");
+    assert.equal(trayLabel(root), "Lower 2 trash upgrades to 200?", "lowering asks");
     assert.equal(writes(), before);
-    await click(button);
-    await until(() => ola[163] === 200 && ola[164] === 200, "the second press to lower them");
+    await yes(root);
+    await until(() => ola[163] === 200 && ola[164] === 200, "the answer to lower them");
+    openTab(root, "Islands");
 });
+
+const BUBBLES = "src/ui/pages/world-2/alchemy/1-bubbles.js";
+const orangeRows = (root) => byClass(paneOf(root, "orange"), "account-row");
 
 test("bubbles: two Prisma switches flipped close together both stay Prisma (they share one string)", async () => {
     ola[384] = "0";
-    const root = await openPage(
-        "src/ui/pages/world-2/bubbles/1-bubbles.js",
-        (root) => byClass(root, "brewing-row").length > 4
-    );
-    const [first, second] = inputs(byClass(root, "brewing-section--orange")[0]).filter(
-        (node) => node.attributes.role === "switch"
-    );
+    const root = await openPage(BUBBLES, (root) => orangeRows(root).length > 4);
+    const [first, second] = inputs(paneOf(root, "orange")).filter((node) => node.attributes.role === "switch");
     const hold = holdWrites();
     const saves = [flip(first, true)];
     await until(() => hold.held() > 0, "the first save to reach the game");
@@ -396,15 +417,13 @@ test("bubbles: two Prisma switches flipped close together both stay Prisma (they
 test("bubbles: Set all with an empty field writes nothing, lowering asks first, raising runs on one press", async () => {
     const levels = game.gga.CauldronInfo[0];
     for (let i = 0; i < levels.length; i++) levels[i] = 120;
-    const root = await openPage(
-        "src/ui/pages/world-2/bubbles/1-bubbles.js",
-        (root) => byClass(root, "brewing-row").length > 4
-    );
-    const orange = byClass(root, "brewing-section--orange")[0];
-    const shownRows = () => byClass(orange, "brewing-row").length;
+    const root = await openPage(BUBBLES, (root) => orangeRows(root).length > 4);
+    await click(buttonNamed(root, "Refresh"));
+    openTab(root, "Orange");
+    const shownRows = () => orangeRows(root).length;
     const all = (level) => levels.slice(0, shownRows()).every((value) => value === level);
-    const { input, field } = setAllOf(root);
-    const button = buttonNamed(orange, "Set all");
+    const { input, field, button } = setAllOf(root);
+    await until(() => shown(inputs(orangeRows(root)[0])[0]) === "120", "the levels to show");
 
     const before = writes();
     typeInto(input, "");
@@ -415,14 +434,14 @@ test("bubbles: Set all with an empty field writes nothing, lowering asks first, 
 
     typeInto(input, "5");
     await click(button);
-    assert.ok(asks(button), "lowering asks");
+    assert.equal(trayLabel(root), `Lower ${shownRows()} orange bubbles to level 5?`, "lowering asks");
     assert.equal(writes(), before);
-    await click(button);
-    await until(() => all(5) && notBusy(button), "the second press to lower them");
+    await yes(root);
+    await until(() => all(5) && notBusy(button), "the answer to lower them");
 
     typeInto(input, "50");
     await click(button);
-    assert.ok(!asks(button), "raising didn't ask");
+    assert.ok(!asks(root), "raising didn't ask");
     await until(() => all(50), "the raise to land");
 });
 
@@ -430,16 +449,16 @@ test("bubbles: a bubble saved while its cauldron's Set all runs keeps the level 
     const levels = game.gga.CauldronInfo[0];
     for (let i = 0; i < levels.length; i++) levels[i] = 10;
     levels[0] = 50000; // already at the Set all level, so Set all leaves it out
-    const root = await openPage(
-        "src/ui/pages/world-2/bubbles/1-bubbles.js",
-        (root) => byClass(root, "brewing-row").length > 4
-    );
-    const orange = byClass(root, "brewing-section--orange")[0];
-    const [row, other] = byClass(orange, "brewing-row");
-    typeInto(setAllOf(root).input, "50000");
+    const root = await openPage(BUBBLES, (root) => orangeRows(root).length > 4);
+    await click(buttonNamed(root, "Refresh"));
+    openTab(root, "Orange");
+    const [row, other] = orangeRows(root);
+    await until(() => shown(inputs(other)[0]) === "10", "the levels to show");
+    const { input: setAllInput, button } = setAllOf(root);
+    typeInto(setAllInput, "50000");
 
     const hold = holdWrites("/write-many");
-    const setAll = click(buttonNamed(orange, "Set all"));
+    const setAll = click(button);
     await until(() => hold.held() > 0, "Set all to reach the game");
     const input = enter(row, 7);
     await until(() => stateOf(row) === "success", "the row's save");
@@ -451,11 +470,35 @@ test("bubbles: a bubble saved while its cauldron's Set all runs keeps the level 
     assert.equal(shown(input), "7", "the row shows what the game holds");
 });
 
+test("bubbles: Prisma all runs on one press, and Unprisma all asks in the tray", async () => {
+    ola[384] = "0";
+    const root = await openPage(BUBBLES, (root) => orangeRows(root).length > 4);
+    await click(buttonNamed(root, "Refresh"));
+    openTab(root, "Orange");
+    await until(() => notBusy(buttonNamed(root, "Prisma all")), "Prisma all to be ready");
+    const codes = () =>
+        String(ola[384])
+            .split(",")
+            .filter((code) => code.startsWith("_"));
+    await click(buttonNamed(root, "Prisma all"));
+    await until(() => codes().length > 4, "the open cauldron's bubbles to be prisma");
+    assert.ok(!String(ola[384]).includes("a"), "only the open cauldron's");
+    const prisma = codes().length;
+
+    const before = writes();
+    await click(buttonNamed(root, "Unprisma all"));
+    assert.equal(trayLabel(root), `Unprisma ${prisma} orange bubbles?`);
+    assert.equal(writes(), before, "nothing was written");
+    await yes(root);
+    await until(() => codes().length === 0, "the answer to take them out");
+    ola[384] = "0";
+});
+
 test("vials: Set all with an empty field writes nothing, lowering asks first, raising runs on one press", async () => {
     const levels = game.gga.CauldronInfo[4];
     for (let i = 0; i < levels.length; i++) levels[i] = 13;
     const root = await openPage(
-        "src/ui/pages/world-2/vials/vials.js",
+        "src/ui/pages/world-2/alchemy/3-vials.js",
         (root) => byClass(root, "account-row").length > 4
     );
     const shownRows = byClass(root, "account-row").length;
@@ -470,14 +513,14 @@ test("vials: Set all with an empty field writes nothing, lowering asks first, ra
 
     typeInto(input, "5");
     await click(button);
-    assert.ok(asks(button), "lowering asks");
+    assert.equal(trayLabel(root), `Lower ${shownRows} vials to level 5?`, "lowering asks");
     assert.equal(writes(), before);
-    await click(button);
-    await until(() => all(5) && notBusy(button), "the second press to lower them");
+    await yes(root);
+    await until(() => all(5) && notBusy(button), "the answer to lower them");
 
     typeInto(input, "13");
     await click(button);
-    assert.ok(!asks(button), "raising didn't ask");
+    assert.ok(!asks(root), "raising didn't ask");
     await until(() => all(13), "the raise to land");
 });
 
@@ -486,7 +529,7 @@ test("vials: a vial saved while Set all runs keeps the level it saved (Set all l
     for (let i = 0; i < levels.length; i++) levels[i] = 2;
     levels[0] = 13;
     const root = await openPage(
-        "src/ui/pages/world-2/vials/vials.js",
+        "src/ui/pages/world-2/alchemy/3-vials.js",
         (root) => byClass(root, "account-row").length > 4
     );
     const [row, other] = byClass(root, "account-row");
@@ -508,8 +551,10 @@ test("vials: a vial saved while Set all runs keeps the level it saved (Set all l
 
 test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the game shows as it is", async () => {
     ola[123] = 2;
-    const root = await openPage("src/ui/pages/world-2/cauldrons/pay-2-win.js", (root) => rowNamed(root, "COUNT"));
-    const row = rowNamed(root, "COUNT");
+    const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+        rowNamed(root, "Draconic cauldrons")
+    );
+    const row = rowNamed(root, "Draconic cauldrons");
     const input = enter(row, 9);
     await until(() => stateOf(row) === "error", "the save to be refused");
     assert.equal(ola[123], 2, "nothing was written");
@@ -525,10 +570,10 @@ test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the g
 test("pay 2 win: Raise on a count past 4 leaves it, and Lower takes one off and saves it", async () => {
     ola[123] = 9;
     const root = await openPage(
-        "src/ui/pages/world-2/cauldrons/pay-2-win.js",
-        (root) => rowNamed(root, "COUNT") && shown(inputs(rowNamed(root, "COUNT"))[0]) === "9"
+        "src/ui/pages/world-2/alchemy/2-cauldrons.js",
+        (root) => rowNamed(root, "Draconic cauldrons") && shown(inputs(rowNamed(root, "Draconic cauldrons"))[0]) === "9"
     );
-    const row = rowNamed(root, "COUNT");
+    const row = rowNamed(root, "Draconic cauldrons");
     const [input] = inputs(row);
     const stepper = (label) =>
         elements(row).find((node) => node.nodeName === "button" && node.attributes["aria-label"] === label);
@@ -546,38 +591,61 @@ test("pay 2 win: Raise on a count past 4 leaves it, and Lower takes one off and 
     ola[123] = 2;
 });
 
-test("post office: the points summary follows a box or bonus boxes save as soon as it's saved", async () => {
-    const root = await openPage(
-        "src/ui/pages/world-2/post-office/post-office.js",
-        (root) => byClass(root, "po-box-row__name").length
+test("post office: the points left follow a box or bonus boxes save as soon as it's saved", async () => {
+    const root = await openPage("src/ui/pages/world-2/post-office/post-office.js", (root) =>
+        rowNamed(root, "Civil War Memory Box")
     );
-    const summary = (label) =>
+    const pointsLeft = () =>
         Number(
-            text(byClass(root, "po-points-summary__row").find((node) => text(node).includes(label)))
-                .replace(label, "")
+            text(byClass(root, "amount-left__value")[0])
+                .replace("−", "-")
                 .replace(/[^0-9-]/g, "")
         );
-    const spent = summary("SPENT ON UPGRADES");
-    const earned = summary("TOTAL EARNED");
-    const box = byClass(root, "account-row").find((row) => byClass(row, "po-box-row__name").length);
+    await until(() => Number.isFinite(pointsLeft()) && pointsLeft() !== 0, "the points left to show");
+    const left = pointsLeft();
+    const box = rowNamed(root, "Civil War Memory Box");
     const boxValue = Number(game.gga.PostOfficeInfo[3][0][0]);
     enter(box, boxValue - 3);
     await until(() => stateOf(box) === "success", "the box save");
-    await until(() => summary("SPENT ON UPGRADES") === spent + 3, "SPENT to drop by 3"); // shown as -spent
+    await until(() => pointsLeft() === left + 3, "points left to rise by 3");
 
-    const bonusBoxes = byClass(root, "account-row").find((row) => text(row).includes("BONUS BOXES"));
+    const bonusBoxes = rowNamed(root, "Bonus boxes");
     enter(bonusBoxes, Number(ola[131] ?? 0) + 100);
     await until(() => stateOf(bonusBoxes) === "success", "the bonus boxes save");
-    await until(() => summary("TOTAL EARNED") === earned + 100, "TOTAL EARNED to rise by 100");
+    await until(() => pointsLeft() === left + 103, "points left to rise by 100");
+});
+
+test("post office: Max all runs on one press, and Reset all asks in the tray", async () => {
+    const boxes = game.gga.PostOfficeInfo[3];
+    const saved = boxes.map((box) => box[0]);
+    boxes.forEach((box) => (box[0] = 1));
+    try {
+        const root = await openPage("src/ui/pages/world-2/post-office/post-office.js", (root) =>
+            rowNamed(root, "Civil War Memory Box")
+        );
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => notBusy(buttonNamed(root, "Max all")), "Max all to be ready");
+        const before = writes();
+        await click(buttonNamed(root, "Reset all"));
+        assert.equal(trayLabel(root), `Reset ${boxes.length} boxes to 0?`);
+        assert.equal(writes(), before, "nothing was written");
+        await yes(root);
+        await until(() => boxes.every((box) => box[0] === 0), "the answer to reset them");
+
+        await click(buttonNamed(root, "Max all"));
+        assert.ok(!asks(root), "raising didn't ask");
+        await until(() => boxes.every((box) => box[0] > 0), "every box to be maxed");
+    } finally {
+        boxes.forEach((box, i) => (box[0] = saved[i]));
+    }
 });
 
 test("liquid: a connection lost while CAP UPGRADE saves writes neither of its two copies", async () => {
     const info = game.gga.CauldronInfo;
-    const root = await openPage(
-        "src/ui/pages/world-2/cauldrons/liquid.js",
-        (root) => byClass(root, "liquid-row").length >= 12
+    const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+        rowNamed(root, "Water Droplets")
     );
-    const row = byClass(root, "liquid-row")[1]; // Water Droplets CAP UPGRADE
+    const row = rowNamed(root, "Water Droplets"); // its Cap upgrade is the line's second field
     const cap = info[8][4][2][1];
     const copy = ola[371];
     const realFetch = globalThis.fetch;
@@ -588,11 +656,185 @@ test("liquid: a connection lost while CAP UPGRADE saves writes neither of its tw
         return realFetch(url, options);
     };
     try {
-        enter(row, cap + 5);
+        const input = inputs(row)[1];
+        input.listeners.focus?.({ target: input });
+        typeInto(input, cap + 5);
+        row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
         await until(() => stateOf(row) === "error", "the save to fail");
     } finally {
         globalThis.fetch = realFetch;
     }
     assert.equal(info[8][4][2][1], cap, "the first copy wasn't written alone");
     assert.equal(ola[371], copy);
+});
+
+// CodeRabbit on #196, round 1.
+const rowAt = (root, index) =>
+    byClass(root, "account-row").find((row) => text(byClass(row, "account-row__index")[0]).trim() === `#${index}`);
+
+test("vials and sigils: a bonus shows the sentence that holds its number, not the joke before it", async () => {
+    const { bonusText } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { VIALS, SIGILS } = await import("./page-shots/data/world-2-game.mjs");
+    const description = (rows, name, at) => rows.find((row) => row[0] === name)[at];
+    assert.match(bonusText(description(VIALS, "FLY_IN_MY_DRINK", 9)), /base Accuracy$/);
+    assert.match(bonusText(description(SIGILS, "METAL_EXTERIOR", 6)), /Class EXP$/);
+    assert.equal(bonusText("+{%_Mining_EXP_gain._A_joke."), "Mining EXP gain %", "a first-sentence bonus stays");
+});
+
+test("liquid: a save the game read back stays saved when the read after it fails", async () => {
+    const info = game.gga.CauldronInfo;
+    const amount = Number(info[6][0]);
+    const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+        rowNamed(root, "Water Droplets")
+    );
+    const row = rowNamed(root, "Water Droplets");
+    const realFetch = globalThis.fetch;
+    let written = false;
+    globalThis.fetch = async (url, options) => {
+        if (written && String(url).includes("/read") && String(options?.body).includes("CauldronInfo"))
+            throw new TypeError("Failed to fetch");
+        const response = await realFetch(url, options);
+        if (String(url).includes("/write")) written = true;
+        return response;
+    };
+    try {
+        const input = enter(row, amount + 11);
+        await until(() => stateOf(row) === "success" || stateOf(row) === "error", "the save to end");
+        assert.equal(stateOf(row), "success", "the save isn't shown as failed");
+        assert.equal(Number(info[6][0]), amount + 11);
+        assert.equal(shown(input), String(amount + 11));
+    } finally {
+        globalThis.fetch = realFetch;
+        info[6][0] = amount;
+    }
+});
+
+const sigilRow = async () => {
+    const root = await openPage("src/ui/pages/world-2/alchemy/4-sigils.js", (root) => rowAt(root, 0));
+    const row = rowAt(root, 0);
+    const radio = (label) => elements(row).find((node) => node.attributes.role === "radio" && text(node) === label);
+    await click(buttonNamed(root, "Refresh"));
+    await until(() => attr(radio("Ethereal"), "aria-checked") === "true", "the row to show Ethereal");
+    return { row, radio };
+};
+
+test("sigils: a tier picked while the last pick saves is the one saved", async () => {
+    const tiers = game.gga.CauldronP2W[4];
+    tiers[1] = 3;
+    const { row, radio } = await sigilRow();
+    const hold = holdWrites();
+    click(radio("Boosted"));
+    await until(() => hold.held() > 0, "the first pick's save to reach the game");
+    click(radio("Ionized"));
+    hold.release();
+    await until(() => tiers[1] === 2 && stateOf(row) === "success", "the newer pick to save");
+    assert.equal(attr(radio("Ionized"), "aria-checked"), "true");
+    tiers[1] = 3;
+});
+
+test("sigils: after a failed save the picker shows the game's tier, and the same pick can be tried again", async () => {
+    const tiers = game.gga.CauldronP2W[4];
+    tiers[1] = 3;
+    const { row, radio } = await sigilRow();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && String(options?.body).includes("CauldronP2W[4][1]"))
+            throw new TypeError("Failed to fetch");
+        return realFetch(url, options);
+    };
+    try {
+        click(radio("Boosted"));
+        await until(() => stateOf(row) === "error", "the save to fail");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(tiers[1], 3);
+    assert.equal(attr(radio("Ethereal"), "aria-checked"), "true", "the picker shows the game's tier");
+    click(radio("Boosted"));
+    await until(() => tiers[1] === 1 && stateOf(row) === "success", "the retry to save");
+    tiers[1] = 3;
+});
+
+test("arcade: a level saved while All to asks changes what gets lowered, so it asks again", async () => {
+    const levels = game.gga.ArcadeUpg;
+    const saved = [...levels];
+    levels.forEach((_, i) => (levels[i] = 50));
+    levels[0] = 101;
+    levels[1] = 80;
+    try {
+        const root = await openPage("src/ui/pages/world-2/arcade-shop/arcade-shop.js", (root) => rowAt(root, 1));
+        const tray = byClass(root, "tabbed-list__tools")[0];
+        await click(buttonNamed(tray, "100"));
+        assert.equal(trayLabel(root), "Lower 1 upgrade to level 100?");
+        const row = rowAt(root, 1);
+        enter(row, 102);
+        await until(() => stateOf(row) === "success", "the row's save");
+        const before = writes();
+        await yes(root);
+        assert.equal(trayLabel(root), "Lower 2 upgrades to level 100?", "it asks again");
+        assert.equal(writes(), before, "nothing was written");
+        assert.equal(levels[1], 102);
+        await yes(root);
+        await until(() => levels[0] === 100 && levels[1] === 100, "the answer to lower both");
+    } finally {
+        saved.forEach((value, i) => (levels[i] = value));
+    }
+});
+
+test("islands: a row saved while Set all asks changes what gets lowered, so it asks again", async () => {
+    ola[163] = 7;
+    ola[164] = 2;
+    const root = await openPage(
+        "src/ui/pages/world-2/islands/islands.js",
+        (root) => rowNamed(root, "Bottles %") && String(inputs(rowNamed(root, "Bottles %"))[0].value) === "2"
+    );
+    openTab(root, "Trash");
+    const { input, button } = setAllOf(root);
+    typeInto(input, "5");
+    await until(() => notBusy(button), "Set all to be ready");
+    await click(button);
+    assert.equal(trayLabel(root), "Lower 1 trash upgrade to 5?");
+    const bottles = rowNamed(root, "Bottles %");
+    enter(bottles, 9);
+    await until(() => stateOf(bottles) === "success", "the row's save");
+    const before = writes();
+    await yes(root);
+    assert.equal(trayLabel(root), "Lower 2 trash upgrades to 5?", "it asks again");
+    assert.equal(writes(), before, "nothing was written");
+    assert.equal(ola[164], 9);
+    await yes(root);
+    await until(() => ola[163] === 5 && ola[164] === 5, "the answer to lower both");
+    openTab(root, "Islands");
+});
+
+test("post office: Reset all asked about one character resets nothing once the page has read another", async () => {
+    const boxes = game.gga.PostOfficeInfo[3];
+    const saved = boxes.map((box) => box[0]);
+    const { PLAYERS } = await import("./page-shots/data/shared.mjs");
+    const playing = game.gga.UserInfo[0];
+    boxes.forEach((box) => (box[0] = 1));
+    try {
+        const root = await openPage("src/ui/pages/world-2/post-office/post-office.js", (root) =>
+            rowNamed(root, "Civil War Memory Box")
+        );
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => notBusy(buttonNamed(root, "Reset all")), "Reset all to be ready");
+        await click(buttonNamed(root, "Reset all"));
+        assert.ok(asks(root));
+        game.gga.UserInfo[0] = PLAYERS[1];
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => notBusy(buttonNamed(root, "Refresh")), "the other character's read");
+        assert.ok(asks(root), "the question is still open");
+        const before = writes();
+        await yes(root);
+        await until(() => writes() > before, "the answer to reach the game");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.ok(
+            boxes.every((box) => box[0] === 1),
+            "the game refused it: another character is in play"
+        );
+    } finally {
+        game.gga.UserInfo[0] = playing;
+        boxes.forEach((box, i) => (box[0] = saved[i]));
+    }
 });

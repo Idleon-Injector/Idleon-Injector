@@ -243,7 +243,7 @@ test("the Anvil says the character changed when another one comes into play whil
 const PAGES = {
     "src/ui/pages/account/player/1-levels.js": "LEVELS & MONEY",
     "src/ui/pages/world-1/statues/statues.js": "Statues",
-    "src/ui/pages/world-2/post-office/post-office.js": "POINT SOURCES",
+    "src/ui/pages/world-2/post-office/post-office.js": "Delivery complete",
     "src/ui/pages/world-3/library/library.js": "Library",
     "src/ui/pages/world-3/prayers/prayers.js": "PRAYERS",
     "src/ui/pages/world-3/traps/traps.js": "TRAPPING",

@@ -1,0 +1,16 @@
+/* A liquid's name keeps its colour: it names the thing (Pay 2 Win's liquid lines use it too). */
+.viewport .liquid-name--water-droplets {
+    color: var(--c-liquid-water);
+}
+
+.viewport .liquid-name--liquid-nitrogen {
+    color: var(--c-liquid-nitrogen);
+}
+
+.viewport .liquid-name--trench-seawater {
+    color: var(--c-liquid-seawater);
+}
+
+.viewport .liquid-name--toxic-mercury {
+    color: var(--c-liquid-mercury);
+}

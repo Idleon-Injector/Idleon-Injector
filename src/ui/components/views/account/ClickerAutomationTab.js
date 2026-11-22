@@ -1,5 +1,5 @@
 /**
- * A clicker's Automation tab (World 1 › Owl, World 2 › Kangaroo): each clicker's switch, its currency with the saving
+ * A clicker's Automation tab (Account › Clickers › Automation: Orion, Poppy): each clicker's switch, its currency with the saving
  * %, and its upgrades, each with High / Low / Balanced, a stop-at level and a switch. Locked upgrades say what unlocks
  * them and can be switched on ahead.
  *

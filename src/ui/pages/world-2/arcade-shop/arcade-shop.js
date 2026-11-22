@@ -9,32 +9,33 @@
  *   [626] -> lifetime Omega ball drops
  *
  * Upgrade sources:
- *   cList.ArcadeShopInfo[i][0] -> upgrade name (BLANK rows skipped)
- *   ArcadeUpg[i]                        -> current upgrade level
+ *   cList.ArcadeShopInfo[i][0] -> the upgrade's bonus, which names it (BLANK rows skipped)
+ *   ArcadeUpg[i]               -> current upgrade level
  *
  * Level rules:
  *   Allowed range is 0-102.
  *   Level 101 is COSMIC; level 102 is OMEGA.
  *
- * Bulk actions:
- *   MAX ALL        -> set every ArcadeUpg[i] to 100
- *   MAX ALL COSMIC -> set every ArcadeUpg[i] to 101
- *   MAX ALL OMEGA  -> set every ArcadeUpg[i] to 102
- *   RESET ALL      -> set every ArcadeUpg[i] to 0
+ * One list: the balls, then the upgrades in the game's order. The tray's "All to" (0, 100, Cosmic, Omega) sets the
+ * upgrades the top bar's search shows; lowering asks first.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { readGgaEntries } from "../../../services/api.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     adjustFormattedIntInput,
-    cleanNameEffect,
+    bonusText,
+    createStaticRowReconciler,
     largeFormatter,
     largeParser,
     readLevelDefinitions,
@@ -47,20 +48,22 @@ import {
 const { div, span } = van.tags;
 const ARCADE_LEVEL_MAX = 102;
 const BALL_FIELDS = [
-    { id: "normal", label: "Normal Balls", optionIndex: 74 },
-    { id: "golden", label: "Golden Balls", optionIndex: 75 },
-    { id: "cosmic", label: "Cosmic Balls", optionIndex: 324 },
-    { id: "omega", label: "Omega Balls", optionIndex: 625 },
-    { id: "omegaDropped", label: "Omega Balls Total Dropped", optionIndex: 626 },
+    { id: "normal", label: "Normal balls", optionIndex: 74 },
+    { id: "golden", label: "Golden balls", optionIndex: 75 },
+    { id: "cosmic", label: "Cosmic balls", optionIndex: 324 },
+    { id: "omega", label: "Omega balls", optionIndex: 625 },
+    { id: "omegaDropped", label: "Omega balls dropped", optionIndex: 626 },
+];
+// The levels "All to" sets: 0, the top normal level, then cosmic and omega.
+const ALL_TO = [
+    { level: 0, label: "0", aim: "0" },
+    { level: 100, label: "100", aim: "level 100" },
+    { level: 101, label: "Cosmic", aim: "Cosmic" },
+    { level: 102, label: "Omega", aim: "Omega" },
 ];
 
-const ArcadeRow = ({ entry }) => {
-    const levelStatus = van.derive(() => {
-        const level = Number(entry.levelState.val ?? 0);
-        return level >= 102 ? "omega" : level >= 101 ? "cosmic" : "normal";
-    });
-
-    return ClampedLevelRow({
+const ArcadeRow = ({ entry }) =>
+    ClampedLevelRow({
         valueState: entry.levelState,
         writePath: `ArcadeUpg[${entry.index}]`,
         max: ARCADE_LEVEL_MAX,
@@ -68,11 +71,12 @@ const ArcadeRow = ({ entry }) => {
             span({ class: "account-row__index" }, `#${entry.index}`),
             span({ class: "account-row__name" }, entry.name),
         ],
-        // Level 101 is cosmic and 102 omega: the plain state word before the field; the row's tint tells them apart.
-        renderBadge: () => ({ cosmic: "Cosmic", omega: "Omega" })[levelStatus.val] ?? "",
-        rowClass: () => (levelStatus.val === "normal" ? "arcade-row" : `arcade-row arcade-row--${levelStatus.val}`),
+        // Level 101 is cosmic and 102 omega: the plain state word before the field.
+        renderBadge: () => {
+            const level = Number(entry.levelState.val ?? 0);
+            return level >= 102 ? "Omega" : level >= 101 ? "Cosmic" : "";
+        },
     });
-};
 
 const ArcadeBallRow = ({ field, valueState }) =>
     EditableNumberRow({
@@ -86,7 +90,6 @@ const ArcadeBallRow = ({ field, valueState }) =>
         renderInfo: () => span({ class: "account-row__name" }, field.label),
         adjustInput: (rawValue, delta, currentValue) =>
             adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min: 0 }),
-        controlsClass: "account-row__controls--xl",
         inputProps: {
             formatter: largeFormatter,
             parser: largeParser,
@@ -95,11 +98,13 @@ const ArcadeBallRow = ({ field, valueState }) =>
 
 const ArcadeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Arcade" });
-    const { status: bulkStatus, run: runBulkSetAll } = useWriteStatus();
+    const bulk = useWriteStatus();
 
     const ballStates = new Map(BALL_FIELDS.map((field) => [field.id, van.state(0)]));
 
     const upgradeEntries = van.state([]);
+    const upgradeList = div({ class: "account-page-pane" });
+    const reconcileUpgrades = createStaticRowReconciler(upgradeList);
 
     const load = async () =>
         run(async () => {
@@ -114,11 +119,7 @@ const ArcadeTab = () => {
                     mapEntry: ({ definition, rawLevel, index }) => {
                         const rawName = String(definition[0] ?? "").trim();
                         if (!rawName || rawName.toUpperCase() === "BLANK") return null;
-                        return {
-                            index,
-                            name: cleanNameEffect(rawName),
-                            level: Number(rawLevel ?? 0),
-                        };
+                        return { index, name: bonusText(rawName), level: Number(rawLevel ?? 0) };
                     },
                 }),
             ]);
@@ -131,99 +132,107 @@ const ArcadeTab = () => {
             const sameShape =
                 existing.length === parsed.length &&
                 existing.every((entry, i) => entry.index === parsed[i].index && entry.name === parsed[i].name);
-
-            if (!sameShape) {
-                upgradeEntries.val = parsed.map((item) => ({
-                    index: item.index,
-                    name: item.name,
-                    levelState: van.state(item.level),
-                }));
+            if (sameShape) {
+                parsed.forEach((item, i) => (existing[i].levelState.val = item.level));
                 return;
             }
-
-            parsed.forEach((item, i) => {
-                existing[i].levelState.val = item.level;
-            });
+            const entries = parsed.map((item) => ({
+                index: item.index,
+                name: item.name,
+                levelState: van.state(item.level),
+            }));
+            reconcileUpgrades(entries.map((entry) => `${entry.index}:${entry.name}`).join("|"), () =>
+                entries.map((entry) => (entry.row = ArcadeRow({ entry })))
+            );
+            upgradeEntries.val = entries;
         });
 
-    const doSetAll = async (targetLevel) => {
-        const entries = upgradeEntries.val;
-        if (!entries.length) return;
+    // The upgrades the tools act on: every one, or the ones the top bar's search shows.
+    const shown = () => upgradeEntries.val.filter((entry) => shownBySearch(entry.row));
+    const upgradeWord = (n) => `upgrade${n === 1 ? "" : "s"}`;
 
-        const lvl = Math.max(0, Number(targetLevel));
-        if (isNaN(lvl)) return;
-
-        await runBulkSetAll(async () => {
-            await runBulkSet({
-                entries,
-                getTargetValue: () => lvl,
-                getValueState: (entry) => entry.levelState,
-                getPath: (entry) => `ArcadeUpg[${entry.index}]`,
-            });
-        });
-    };
+    // "All to" a level: one press when it only raises; lowering (cosmic or omega back to 100, or to 0) asks first.
+    const tools = (_activeId, ask) =>
+        div(
+            { class: "tabbed-list__tool-group" },
+            span({ class: "tabbed-list__tool-label" }, "All to"),
+            ...ALL_TO.map(({ level, label, aim }) => {
+                const writeAll = (entries) =>
+                    bulk.run(() =>
+                        runBulkSet({
+                            entries,
+                            getTargetValue: () => level,
+                            getValueState: (entry) => entry.levelState,
+                            getPath: (entry) => `ArcadeUpg[${entry.index}]`,
+                        })
+                    );
+                const loweredOf = (entries) => entries.filter((entry) => Number(entry.levelState.val) > level);
+                const askOrWrite = (entries) => {
+                    const lowered = loweredOf(entries);
+                    if (!lowered.length) return void writeAll(entries);
+                    const verb = level === 0 ? "Reset" : "Lower";
+                    const n = lowered.length;
+                    ask({
+                        question: `${verb} ${n} ${upgradeWord(n)} to ${aim}?`,
+                        confirmLabel: `${verb} ${n === 1 ? "it" : "them"}`,
+                        from: levelButton,
+                        // A level saved while the question was open can change what gets lowered: then it asks again.
+                        onConfirm: () => {
+                            const now = loweredOf(entries);
+                            const same = now.length === n && now.every((entry, i) => entry === lowered[i]);
+                            return same ? writeAll(entries) : askOrWrite(entries);
+                        },
+                    });
+                    return undefined;
+                };
+                const levelButton = ActionButton({
+                    label,
+                    status: bulk.status,
+                    variant: level === 0 ? "danger" : "quiet",
+                    disabled: () => {
+                        const entries = shown();
+                        return !entries.length || entries.every((entry) => Number(entry.levelState.val) === level);
+                    },
+                    onClick: (e) => {
+                        e.preventDefault();
+                        return askOrWrite(shown());
+                    },
+                });
+                return levelButton;
+            })
+        );
 
     load();
 
-    const content = div(
-        { class: "arcade-content scrollable-panel content-stack" },
-        AccountSection({
-            title: "BALL COUNTS",
-            note: "Normal, golden, cosmic, and Omega arcade balls, plus lifetime Omega drops",
-            body: div(
-                { class: "account-list" },
-                ...BALL_FIELDS.map((field) => ArcadeBallRow({ field, valueState: ballStates.get(field.id) }))
-            ),
-        }),
-        AccountSection({
-            title: "BONUS UPGRADES",
-            note: "Level 101 grants the cosmic bonus. Level 102 grants Omega status with a 6x bonus, or 12x with Companion 27.",
-            body: () => {
-                return div({ class: "account-list" }, ...upgradeEntries.val.map((entry) => ArcadeRow({ entry })));
-            },
-        })
-    );
-
     return PersistentAccountListPage({
-        rootClass: "arcade-tab tab-container",
-        title: "ARCADE UPGRADES",
-        description: "Manage Arcade balls and upgrade levels.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            actions: [
-                {
-                    label: "Max all",
-                    status: bulkStatus,
-                    tooltip: "Set every Arcade upgrade to 100",
-                    onClick: () => doSetAll(100),
-                },
-                {
-                    label: "Max all cosmic",
-                    status: bulkStatus,
-                    tooltip: "Set every Arcade upgrade to 101",
-                    onClick: () => doSetAll(101),
-                },
-                {
-                    label: "Max all omega",
-                    status: bulkStatus,
-                    tooltip: "Set every Arcade upgrade to 102",
-                    onClick: () => doSetAll(102),
-                },
-                {
-                    label: "Reset all",
-                    variant: "danger",
-                    status: bulkStatus,
-                    tooltip: "Reset every Arcade upgrade to 0",
-                    confirm: "reset every Arcade upgrade to 0.",
-                    onClick: () => doSetAll(0),
-                },
-            ],
-            refresh: {
-                onClick: load,
-            },
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Arcade Shop",
+        description: "Arcade balls and upgrade levels. Level 101 is cosmic, 102 omega.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        body: content,
+        loadingText: "Reading the arcade",
+        errorTitle: "Couldn't read the arcade",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                body: [
+                    AccountSection({
+                        title: "Balls",
+                        body: BALL_FIELDS.map((field) =>
+                            ArcadeBallRow({ field, valueState: ballStates.get(field.id) })
+                        ),
+                    }),
+                    AccountSection({ title: "Upgrades", body: upgradeList }),
+                ],
+                tools,
+                toolsLabel: () => {
+                    const n = shown().length;
+                    return isSearching() ? `${n} matching ${upgradeWord(n)}` : `All ${n} ${upgradeWord(n)}`;
+                },
+            })
+        ),
     });
 };
 
@@ -232,6 +241,6 @@ export default definePage({
     world: 2,
     system: "Arcade Shop",
     description: "Arcade balls and Arcade Shop upgrade levels.",
-    keywords: ["Arcade", "Balls"],
+    keywords: ["Arcade", "Balls", "Cosmic", "Omega"],
     component: ArcadeTab,
 });

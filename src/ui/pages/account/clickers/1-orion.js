@@ -84,7 +84,7 @@ const OrionTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Owl",
+        title: "Orion",
         description: "Orion the owl's feathers and upgrades.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
@@ -96,11 +96,11 @@ const OrionTab = () => {
 };
 
 export default definePage({
-    id: "w1.owl",
-    world: 1,
-    system: "Owl",
+    id: "account.orion",
+    world: "account",
+    system: "Clickers",
     tab: "Orion",
     description: "Orion the owl's feathers and upgrades.",
-    keywords: ["Orion", "Great Horned Owl", "Feathers"],
+    keywords: ["Owl", "Orion", "Great Horned Owl", "Feathers", "Clicker"],
     component: OrionTab,
 });

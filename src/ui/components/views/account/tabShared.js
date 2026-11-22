@@ -92,10 +92,13 @@ let listCount = 0;
  * @param {(activeId: {val: string}, ask: (q: {question: string, confirmLabel: string, from: HTMLElement,
  *   onConfirm: () => *}) => void) => *} [opts.tools]
  * @param {(activeId: {val: string}) => string} [opts.toolsLabel]
+ * @param {(tabId: string) => boolean} [opts.toolsOn] which tabs have tools (all, when not given): a tab without them
+ *   shows no tray, and its open tab runs down into its rows like a list without tools
  * @returns {HTMLElement}
  */
-export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null }) => {
+export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsOn = null }) => {
     const activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
+    const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
     const key = `tabbed-list-${++listCount}`;
     const tabId = (tab) => `${key}-tab-${tabs.indexOf(tab)}`;
@@ -137,6 +140,7 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null }) => {
     [nav, ...buttons].forEach((node) => resized.observe(node));
 
     const tray = tools ? ToolsTray({ tools, toolsLabel, activeId }) : null;
+    if (tray) van.derive(() => (tray.node.hidden = !showsTools()));
 
     let first = true;
     van.derive(() => {
@@ -149,10 +153,18 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null }) => {
     });
 
     return div(
-        { class: joinClasses("tabbed-list", tools && "has-tools") },
+        { class: () => joinClasses("tabbed-list", showsTools() && "has-tools") },
         div(
-            // The first tab open stands on the tray's left edge (its corner there goes square).
-            { class: () => joinClasses("tabbed-list__head", activeId.val === tabs[0].id && "first-open") },
+            // The first tab open stands on the tray's left edge (its corner there goes square); on a phone the tabs fill
+            // the row, so the last one open stands on its right edge.
+            {
+                class: () =>
+                    joinClasses(
+                        "tabbed-list__head",
+                        activeId.val === tabs[0].id && "first-open",
+                        activeId.val === tabs[tabs.length - 1].id && "last-open"
+                    ),
+            },
             nav,
             tray?.node
         ),

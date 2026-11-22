@@ -1,13 +1,10 @@
 /** World 2: alchemy (bubbles, liquids, pay 2 win, vials, sigils), arcade, post office, killroy, weekly bosses, kangaroo. */
 import { fakeName, h, level, list } from "./helpers.mjs";
 import { MONSTERS } from "./shared.mjs";
+import { ARCADE, POST_OFFICE_BOXES, SIGILS, VIALS, WEEKLY_SKINS } from "./world-2-game.mjs";
 
+// Bubbles stay invented: the Bubbles › Automation tab's tests are written against these (that tab gets its own pass).
 const BUBBLES = 30;
-const VIALS = 40;
-const SIGILS = 24;
-const ARCADE = 40;
-const BOXES = 30;
-const SKINS = 8;
 // Poppy's 12 upgrade levels and the Tar Pit's 8 (the Kangaroo page and its Automation tab).
 const POPPY_LEVELS = [22, 15, 8, 4, 11, 6, 2, 3, 0, 0, 0, 0];
 const TAR_PIT_LEVELS = [5, 3, 1, 0, 0, 0, 0, 0];
@@ -44,7 +41,7 @@ export default () => ({
         // [0-3] bubble levels per cauldron, [4] vial levels, [6] liquid amounts, [8][4+i][2|3][1] liquid upgrades.
         CauldronInfo: [
             ...list(4, (c) => list(BUBBLES, (i) => level(i + c, 200))),
-            list(VIALS, (i) => level(i, 13)),
+            VIALS.map((_, i) => level(i, 13)),
             [],
             [1200, 850, 300, 0],
             [],
@@ -57,18 +54,18 @@ export default () => ({
             list(8, (i) => (i * 7) % 80),
             [3, 0, 5],
             [2, 4],
-            list(SIGILS, (i) => [i * 100, (i % 6) - 1]).flat(),
+            SIGILS.map((_, i) => [i * 100, (i % 6) - 1]).flat(),
         ],
-        ArcadeUpg: list(ARCADE, (i) => (i % 9 === 0 ? 101 : level(i, 100))),
-        PostOfficeInfo: [[], [], [], list(BOXES, (i) => [level(i, 400), 0, 0])],
-        CurrenciesOwned: h({ DeliveryBoxComplete: 640, DeliveryBoxStreak: 120 }),
+        ArcadeUpg: ARCADE.map((_, i) => (i % 9 === 0 ? 101 : i % 23 === 5 ? 102 : level(i, 100))),
+        PostOfficeInfo: [[], [], [], POST_OFFICE_BOXES.map((_, i) => [level(i, 400), 0, 0])],
+        CurrenciesOwned: h({ DeliveryBoxComplete: 5200, DeliveryBoxStreak: 120 }),
         DNSM: h({ AlchVials: h({ BoxPoints: 25 }), AlchBubbles: h({ Y6: 0 }) }),
         // [5] the alchemy menu's actor: its owned-items count (Bubbles › Automation).
         PixelHelperActor: { 5: { behaviors: { getBehavior: alchemyBehavior } } },
         KRbest: h(Object.fromEntries(MONSTERS.slice(0, 12).map((id, i) => [id, i * 250]))),
         // "UI_<letter>": skin unlocked; "set<character>": the skin that character wears.
         WeeklyBoss: h({
-            ...Object.fromEntries(list(SKINS, (i) => [`UI_${"abcdefgh"[i]}`, i % 3 === 0 ? 0 : 1])),
+            ...Object.fromEntries(WEEKLY_SKINS.map((_, i) => [`UI_${"abcdefghijkl"[i]}`, i % 3 === 0 ? 0 : 1])),
             set0: "2",
             set1: "0",
         }),
@@ -84,7 +81,9 @@ export default () => ({
             123: 3,
             131: 12,
             188: 14,
-            189: 3200,
+            189: 3,
+            // Islands: Trash, Rando and Shimmer unlocked.
+            169: "ad_",
             324: 8,
             347: 30,
             384: "_0,_3,a1,",
@@ -99,7 +98,7 @@ export default () => ({
         CustomLists: {
             h: {
                 // Bubbles per cauldron ([0] name, [2] x2, [3] formula, [5-8] cost items, [9] description, [10] 1 = big
-                // bubble), then [4] the vials.
+                // bubble), then [4] the vials, as the web game defines them (world-2-game.mjs, like the rest below).
                 AlchemyDescription: [
                     ...list(4, (c) =>
                         list(BUBBLES, (i) => [
@@ -116,21 +115,12 @@ export default () => ({
                             i % 10 === 4 ? "1" : "0",
                         ])
                     ),
-                    list(VIALS, (i) => [fakeName(i + 5).toUpperCase(), "1", "2", "3"]),
+                    VIALS,
                 ],
-                SigilDesc: list(SIGILS, (i) => [fakeName(i + 2), "10", "20", "desc", "1"]),
-                ArcadeShopInfo: list(ARCADE, (i) => [i === 7 ? "BLANK" : `+{%_${fakeName(i)}_bonus`, "1", "2"]),
-                // [0] name, ..., [15] max points.
-                PostOffUpgradeInfo: list(BOXES, (i) => [fakeName(i) + "_Box", ...list(14, () => "0"), String(400)]),
-                // [0]: skins as [name, cost, ?, description].
-                WeeklySHOP: [
-                    list(SKINS, (i) => [
-                        `${fakeName(i)}_Skin`,
-                        String(10 * (i + 1)),
-                        "0",
-                        i % 2 ? "filler" : "A_fancy_bar_skin",
-                    ]),
-                ],
+                SigilDesc: SIGILS,
+                ArcadeShopInfo: ARCADE,
+                PostOffUpgradeInfo: POST_OFFICE_BOXES,
+                WeeklySHOP: [WEEKLY_SKINS],
             },
         },
     },

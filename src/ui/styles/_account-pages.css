@@ -1854,8 +1854,11 @@
         height: 22px;
     }
 
+    /* The words keep 12rem: buttons that don't fit beside that move to the next line, so the title and description
+       never turn into a one-word column. */
     .viewport .account-tab-header__main {
         flex: 1 1 0;
+        min-width: 12rem;
     }
 
     .viewport .account-tab-header > .account-header__actions,

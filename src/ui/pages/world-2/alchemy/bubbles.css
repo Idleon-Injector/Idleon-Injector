@@ -1,0 +1,22 @@
+/* A big bubble can't be prisma: it says so, muted, where the switch would be, as wide as the switch with its word
+   (5.5em of 14px words, the 12px gap and the 38px switch), so the levels stay in one column. */
+.bubbles-row__note {
+    min-width: calc(5.5 * 0.875rem + 50px);
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+    text-align: right;
+}
+
+@media (max-width: 760px) {
+    .bubbles-row__note {
+        min-width: 0;
+    }
+}
+
+/* Automation tab: a bubble's bonus and next cost wrap instead of being cut off. */
+.bubbles-automation .automation-pick__detail {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

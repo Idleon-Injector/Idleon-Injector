@@ -212,7 +212,7 @@ test("a save that never reached the game doesn't read the page again", async () 
 test("a reload shows the new value in a field that has focus but no edit, and + steps from it", async () => {
     const ola = game.gga.OptionsListAccount;
     ola[254] = 3;
-    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", "Feather Generation");
+    const root = await openPage("src/ui/pages/account/clickers/1-orion.js", "Feather Generation");
     const row = findRow(root, "Feather Generation");
     const [input] = inputs(row);
     focus(input);
@@ -230,23 +230,23 @@ test("a reload shows the new value in a field that has focus but no edit, and + 
 test("a focused choice shows the tier Set all gave it", async () => {
     const tiers = game.gga.CauldronP2W[4];
     tiers[1] = 0;
-    const root = (await importRepo("src/ui/pages/world-2/sigils/sigils.js")).default.component();
-    const card = () => byClass(root, "tier-card").find((node) => text(byClass(node, "tier-card__index")[0]) === "#0");
-    await until(() => card() && text(byClass(card(), "tier-card__badge")[0]) === "UNLOCKED", "the sigils to load");
-    const choice = elements(card()).find((node) => node.nodeName === "select");
-    const chosen = () => {
-        const picked = elements(choice).find((node) => {
-            const selected = node.attributes.selected;
-            return node.nodeName === "option" && (typeof selected === "function" ? selected() : selected);
-        });
-        return picked ? text(picked) : null;
-    };
-    focus(choice);
-    byClass(root, "account-setall-row__select")[0].listeners.change({ target: { value: "4" } });
-    const setAll = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Set all");
-    await setAll.listeners.click({ target: setAll, preventDefault() {} });
-    await until(() => tiers[1] === 4, "Set all to save");
-    await until(() => chosen() === "ECLECTIC", "the focused choice to show ECLECTIC");
+    const root = (await importRepo("src/ui/pages/world-2/alchemy/4-sigils.js")).default.component();
+    const attr = (node, name) =>
+        typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
+    const row = () =>
+        byClass(root, "account-row").find((node) => text(byClass(node, "account-row__index")[0]) === "#0");
+    const chosen = () =>
+        text(
+            elements(row()).find((node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true") ??
+                ""
+        );
+    await until(() => row() && chosen() === "Unlocked", "the sigils to load");
+    focus(elements(row()).find((node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true"));
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const eclectic = elements(tray).find((node) => node.nodeName === "button" && text(node).trim() === "Eclectic");
+    await eclectic.listeners.click({ target: eclectic, preventDefault() {} });
+    await until(() => tiers[1] === 4, "the tier for all to save");
+    await until(() => chosen() === "Eclectic", "the focused choice to show Eclectic");
 });
 
 // A field that shows a rounded value ("1.23M") keeps the exact value behind it when you leave it unedited, also when
@@ -254,7 +254,7 @@ test("a focused choice shows the tier Set all gave it", async () => {
 test("leaving a rounded field the reload changed while it had focus saves nothing", async () => {
     const ola = game.gga.OptionsListAccount;
     ola[253] = 1234567;
-    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", "Feathers");
+    const root = await openPage("src/ui/pages/account/clickers/1-orion.js", "Feathers");
     const row = findRow(root, "Feathers");
     const [input] = inputs(row);
     await until(() => input.value === "1.23M", "the page to show the value");

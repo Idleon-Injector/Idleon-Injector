@@ -31,13 +31,14 @@ import { gga, readGgaEntries, readCList } from "../../../services/api.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
+    normalCase,
     resolveValue,
     toNum,
     useWriteStatus,
@@ -47,38 +48,46 @@ import { toIndexedArray } from "../../../utils/index.js";
 
 const { div, span } = van.tags;
 
-const CURRENCY_FIELDS = [{ index: 105, label: "KILLROY SKULLS" }];
+const CURRENCY_FIELDS = [{ index: 105, label: "Killroy skulls" }];
 
 const SHOP_FIELDS = [
-    { index: 106, label: "TIMER LEVEL" },
-    { index: 107, label: "TALENT DROPS LEVEL" },
-    { index: 108, label: "BONUS SKULLS LEVEL" },
-    { index: 109, label: "RESPAWN LEVEL" },
-    { index: 110, label: "DUNGEON DROPS LEVEL" },
-    { index: 111, label: "PEARL DROPS LEVEL" },
+    { index: 106, label: "Timer level" },
+    { index: 107, label: "Talent drops level" },
+    { index: 108, label: "Bonus skulls level" },
+    { index: 109, label: "Respawn level" },
+    { index: 110, label: "Dungeon drops level" },
+    { index: 111, label: "Pearl drops level" },
 ];
 
-const META_FIELDS = [
-    { index: 227, label: "3RD WEEKLY FIGHT UNLOCK FLAG" },
-    { index: 228, label: "ARTIFACT FIND TIMES BOUGHT" },
-    { index: 229, label: "CROP EVOLUTION TIMES BOUGHT" },
-    { index: 230, label: "JADE GAIN TIMES BOUGHT" },
-    { index: 467, label: "GALLERY ITEMS GOT" },
-    { index: 468, label: "MASTERCLASS TIMES BOUGHT" },
-    { index: 469, label: "W7 SKILL XP TIMES BOUGHT" },
-    { index: 470, label: "W7 DAILY CORAL TIMES BOUGHT" },
+// The Skull Shop: how many times each boost and item was bought. [227] is a flag, so it's a switch.
+const THIRD_FIGHT_INDEX = 227;
+const SKULL_SHOP_FIELDS = [
+    { index: 228, label: "Artifact find times bought" },
+    { index: 229, label: "Crop evolution times bought" },
+    { index: 230, label: "Jade gain times bought" },
+    { index: 467, label: "Gallery items got" },
+    { index: 468, label: "Masterclass times bought" },
+    { index: 469, label: "W7 skill EXP times bought" },
+    { index: 470, label: "W7 daily coral times bought" },
 ];
 
-const RECORD_FIELDS = [{ index: 112, label: "TOTAL FINISHED RUNS" }];
+const RECORD_FIELDS = [{ index: 112, label: "Finished runs" }];
 
 const PB_TOME_FIELDS = [
-    { key: "melee", label: "HIGHEST KILLROY SCORE ON A WARRIOR", scoreIndex: 204, tomeIndex: 27 },
-    { key: "ranged", label: "HIGHEST KILLROY SCORE ON AN ARCHER", scoreIndex: 205, tomeIndex: 28 },
-    { key: "magic", label: "HIGHEST KILLROY SCORE ON A MAGE", scoreIndex: 206, tomeIndex: 29 },
+    { key: "melee", label: "Highest Killroy score on a warrior", scoreIndex: 204, tomeIndex: 27 },
+    { key: "ranged", label: "Highest Killroy score on an archer", scoreIndex: 205, tomeIndex: 28 },
+    { key: "magic", label: "Highest Killroy score on a mage", scoreIndex: 206, tomeIndex: 29 },
 ];
 
 const AIRHORN_INDEX = 115;
-const ALL_FIELD_DEFS = [...CURRENCY_FIELDS, ...SHOP_FIELDS, ...META_FIELDS, ...RECORD_FIELDS, { index: AIRHORN_INDEX }];
+const ALL_FIELD_DEFS = [
+    ...CURRENCY_FIELDS,
+    ...SHOP_FIELDS,
+    { index: THIRD_FIGHT_INDEX },
+    ...SKULL_SHOP_FIELDS,
+    ...RECORD_FIELDS,
+    { index: AIRHORN_INDEX },
+];
 const FIELD_INDEXES = Array.from(new Set(ALL_FIELD_DEFS.map((f) => f.index)));
 
 const KillroyNumRow = ({ field, valueState, writePath }) => {
@@ -101,30 +110,29 @@ const KillroyNumRow = ({ field, valueState, writePath }) => {
             const next = toNum(rawValue, toNum(currentValue, 0)) + delta;
             return field.allowNegative ? next : Math.max(0, next);
         },
-        rowClass: "killroy-row",
     });
 };
 
-const KillroyAirhornRow = ({ valueState }) => {
+// An on/off value of OptionsListAccount (the airhorn reset, the 3rd weekly fight): one switch that saves on flip.
+const KillroySwitchRow = ({ index, label, words, valueState }) => {
     const { status, run } = useWriteStatus();
 
     const doToggle = async (on) => {
         const next = on ? 1 : 0;
         return run(async () => {
-            const path = `OptionsListAccount[${AIRHORN_INDEX}]`;
+            const path = `OptionsListAccount[${index}]`;
             await writeVerified(path, next);
             valueState.val = next;
         });
     };
 
     return AccountRow({
-        rowClass: "killroy-row",
         status,
-        info: span({ class: "account-row__name" }, "AIRHORN RESET"),
+        info: span({ class: "account-row__name" }, label),
         controls: StateSwitch({
             checked: () => toNum(valueState.val, 0) !== 0,
-            words: ["On", "Off"],
-            name: "Airhorn reset",
+            words,
+            name: label,
             status, // nothing else on the row reads out saving and saved
             onFlip: doToggle,
         }),
@@ -133,7 +141,7 @@ const KillroyAirhornRow = ({ valueState }) => {
 
 const KillroyTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Killroy" });
-    const bestMobRowsNode = div({ class: "killroy-rows" });
+    const bestMobRowsNode = div({ class: "account-page-pane" });
 
     const valueStates = new Map(FIELD_INDEXES.map((idx) => [idx, van.state(0)]));
     const pbScoreStates = new Map(PB_TOME_FIELDS.map((f) => [f.key, van.state(0)]));
@@ -173,7 +181,7 @@ const KillroyTab = () => {
                     const arr = Array.isArray(row) ? row : Object.values(row ?? {});
                     const labelRaw = arr.find((x) => typeof x === "string" && x.trim().length > 0);
                     const label =
-                        typeof labelRaw === "string" && labelRaw.trim().length > 0 ? cleanName(labelRaw) : f.label;
+                        typeof labelRaw === "string" && labelRaw.trim().length > 0 ? normalCase(labelRaw) : f.label;
                     return [f.key, label];
                 })
             );
@@ -226,7 +234,7 @@ const KillroyTab = () => {
             reconcileBestMobRows(nextAllowedMobs.map((mob) => `${mob.mobId}:${mob.mobName}`).join("|"), () => {
                 return nextAllowedMobs.map((mob) =>
                     KillroyNumRow({
-                        field: { label: `${mob.mobName} (${mob.mobId})` },
+                        field: { label: mob.mobName },
                         valueState: getBestMobState(mob.mobId),
                         writePath: `KRbest.h[${mob.mobId}]`,
                     })
@@ -235,67 +243,47 @@ const KillroyTab = () => {
         });
 
     load();
-    const scrollPane = div(
-        { class: "scrollable-panel content-stack" },
-
-        AccountSection({
-            title: "CURRENCY / AVAILABILITY",
-            note: "Most-used Killroy currencies and weekly reset flag",
-            body: div(
-                { class: "killroy-rows" },
-                ...CURRENCY_FIELDS.map((field) =>
-                    KillroyNumRow({
-                        field,
-                        valueState: getState(field.index),
-                        writePath: `OptionsListAccount[${field.index}]`,
-                    })
-                ),
-                KillroyAirhornRow({ valueState: getState(AIRHORN_INDEX) })
+    const numRows = (fields) =>
+        fields.map((field) =>
+            KillroyNumRow({ field, valueState: getState(field.index), writePath: `OptionsListAccount[${field.index}]` })
+        );
+    // The game's parts are tabs: the shop and its skulls, the Skull Shop, the records, and the best kills by mob.
+    const tabs = [
+        {
+            id: "shop",
+            label: "Shop",
+            content: div(
+                { class: "account-page-pane" },
+                ...numRows(CURRENCY_FIELDS),
+                KillroySwitchRow({
+                    index: AIRHORN_INDEX,
+                    label: "Airhorn reset",
+                    words: ["On", ""],
+                    valueState: getState(AIRHORN_INDEX),
+                }),
+                ...numRows(SHOP_FIELDS)
             ),
-        }),
-
-        AccountSection({
-            title: "SHOP UPGRADES",
-            note: "Classic Killroy shop level tracks",
-            body: div(
-                { class: "killroy-rows" },
-                ...SHOP_FIELDS.map((field) =>
-                    KillroyNumRow({
-                        field,
-                        valueState: getState(field.index),
-                        writePath: `OptionsListAccount[${field.index}]`,
-                    })
-                )
+        },
+        {
+            id: "skull-shop",
+            label: "Skull Shop",
+            content: div(
+                { class: "account-page-pane" },
+                KillroySwitchRow({
+                    index: THIRD_FIGHT_INDEX,
+                    label: "3rd weekly fight",
+                    words: ["Unlocked", ""],
+                    valueState: getState(THIRD_FIGHT_INDEX),
+                }),
+                ...numRows(SKULL_SHOP_FIELDS)
             ),
-        }),
-
-        AccountSection({
-            title: "META BONUSES",
-            note: "Account-wide Killroy bonus values",
-            body: div(
-                { class: "killroy-rows" },
-                ...META_FIELDS.map((field) =>
-                    KillroyNumRow({
-                        field,
-                        valueState: getState(field.index),
-                        writePath: `OptionsListAccount[${field.index}]`,
-                    })
-                )
-            ),
-        }),
-
-        AccountSection({
-            title: "RECORDS / TOME",
-            note: "Finished runs and class-specific personal best summaries",
-            body: div(
-                { class: "killroy-rows" },
-                ...RECORD_FIELDS.map((field) =>
-                    KillroyNumRow({
-                        field,
-                        valueState: getState(field.index),
-                        writePath: `OptionsListAccount[${field.index}]`,
-                    })
-                ),
+        },
+        {
+            id: "records",
+            label: "Records",
+            content: div(
+                { class: "account-page-pane" },
+                ...numRows(RECORD_FIELDS),
                 ...PB_TOME_FIELDS.map((field) =>
                     KillroyNumRow({
                         field: { ...field, label: getPbLabelState(field.key) },
@@ -304,20 +292,20 @@ const KillroyTab = () => {
                     })
                 )
             ),
-        }),
+        },
+        { id: "best-kills", label: "Best kills", content: bestMobRowsNode },
+    ];
 
-        AccountSection({
-            title: "BEST KILLS BY MOB",
-            note: "Editable KRbest.h entries for all allowed Killroy mobs",
-            body: bestMobRowsNode,
-        })
-    );
     return PersistentAccountListPage({
-        title: "KILLROY STATE LIBRARY",
-        description: "Currencies, upgrades, meta bonuses, and records for W2 Killroy.",
-        actions: RefreshButton({ onRefresh: load }),
+        rootClass: "tab-container scroll-container",
+        title: "Killroy",
+        description: "Killroy's skulls, shop, records and best kills.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        body: scrollPane,
+        loadingText: "Reading Killroy",
+        errorTitle: "Couldn't read Killroy",
+        initialWrapperClass: "account-list",
+        body: div({ class: "account-list account-list--tabbed" }, TabbedList({ name: "Killroy", tabs })),
     });
 };
 
@@ -326,6 +314,6 @@ export default definePage({
     world: 2,
     system: "Killroy",
     description: "Killroy skulls, shop upgrades, best scores and bonuses.",
-    keywords: ["Skulls"],
+    keywords: ["Skulls", "Skull Shop", "Best kills", "Airhorn"],
     component: KillroyTab,
 });

@@ -79,7 +79,7 @@ const switchCharacter = (name) => {
     gga.UserInfo[0] = name;
 };
 
-const OWL = "src/ui/pages/world-1/owl/1-orion.js";
+const OWL = "src/ui/pages/account/clickers/1-orion.js";
 const FEATHERS = "Feather Generation";
 
 test("a saved value offers Undo beside its ✓, and Undo puts the old value back", async () => {
@@ -117,7 +117,7 @@ test("a bulk action is one action, and Undo all puts every value back", async ()
     cauldron.forEach((_, i) => (cauldron[i] = i % 7));
     const before = [...cauldron];
     const root = await openPage(
-        "src/ui/pages/world-2/vials/vials.js",
+        "src/ui/pages/world-2/alchemy/3-vials.js",
         (node) => byClass(node, "account-row").length > 3
     );
     const setAll = byClass(root, "account-setall-row")[0];

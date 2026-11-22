@@ -22,6 +22,8 @@ export const WORLDS = [
             "Card Search",
             "Bundles",
             "Task Board",
+            // IdleonToolbox's Clickers group: Orion, Poppy, Bubba and their Automation as its tabs.
+            "Clickers",
             "Event Shop",
             "Quests",
             "Automation",
@@ -33,7 +35,7 @@ export const WORLDS = [
         label: "World 1",
         name: "Blunder Hills",
         folder: "world-1",
-        systems: ["Stamps", "Anvil", "Forge", "Statues", "Star Signs", "Pets", "Bribes", "Owl"],
+        systems: ["Stamps", "Anvil", "Forge", "Statues", "Star Signs", "Pets", "Bribes"],
     },
     {
         id: 2,
@@ -41,18 +43,7 @@ export const WORLDS = [
         label: "World 2",
         name: "Yum-Yum Desert",
         folder: "world-2",
-        systems: [
-            "Bubbles",
-            "Cauldrons",
-            "Vials",
-            "Sigils",
-            "Arcade Shop",
-            "Post Office",
-            "Killroy",
-            "Islands",
-            "Weekly Bosses",
-            "Kangaroo",
-        ],
+        systems: ["Alchemy", "Arcade Shop", "Post Office", "Killroy", "Islands", "Weekly Bosses"],
     },
     {
         id: 3,
@@ -121,7 +112,6 @@ export const WORLDS = [
             "Glimbo",
             "The Button",
             "Sushi Station",
-            "Bubba",
         ],
     },
     {
