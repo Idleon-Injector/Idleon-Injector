@@ -10,10 +10,17 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { deleteGga, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
-import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
@@ -24,24 +31,41 @@ import {
     largeFormatter,
     readCharacterInPlay,
     resolveFormattedIntInput,
+    resolveNumberInput,
+    runBulkSet,
     toInt,
     useWriteStatus,
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span, select, option, button } = van.tags;
+const { div, span } = van.tags;
 
+// A tier names a thing, so the picked one shows in its own colour (`tone`).
 const TIERS = [
-    { value: 0, label: "Stone" },
-    { value: 1, label: "Gold" },
-    { value: 2, label: "Onyx" },
-    { value: 3, label: "Zenith" },
+    { value: 0, label: "Stone", tone: "stone" },
+    { value: 1, label: "Gold", tone: "gold" },
+    { value: 2, label: "Onyx", tone: "onyx" },
+    { value: 3, label: "Zenith", tone: "zenith" },
 ];
-
-const TIER_ROW_CLASSES = ["", "tier--gold", "tier--onyx", "tier--zenith"];
 const FLAIR_MAX_LEVEL = 4;
 const FLAIR_UNLOCK_PATH = "RoyalG[2][78]";
+
+// The game writes statue names and bonuses in capitals (THICC_SKIN, %@MOVE_SPEED); the page shows them in normal case
+// ("Thicc Skin"), keeping EXP in capitals as the game writes it everywhere else.
+const normalCase = (text) =>
+    text
+        .toLowerCase()
+        .replace(/(^|\s)\S/g, (start) => start.toUpperCase())
+        .replace(/\bExp\b/g, "EXP");
+const statueName = (raw) => normalCase(cleanName(raw));
+
+// A statue's bonus in the game's words: "%@MOVE_SPEED" -> "Move Speed %", "@BASE_DAMAGE" -> "Base Damage". The number
+// is the game's (levels, tiers and more), so only the words show.
+const statueBonus = (pattern = "") => {
+    const words = normalCase(pattern.replace(/[%@]/g, "").replace(/_/g, " ").trim());
+    return words && pattern.startsWith("%") ? `${words} %` : words;
+};
 
 const statueValues = (levels, tier, flair) => ({
     level: toInt(levels?.[0]),
@@ -50,24 +74,22 @@ const statueValues = (levels, tier, flair) => ({
     flair: toInt(flair, { min: 0 }),
 });
 
-const StatueRow = ({ index, nameState, levelState, depositedState, tierState, flairState, getCharacter }) =>
-    EditableFieldsRow({
+// One statue per line: the name, then Level, Deposited, Tier and Flair in the list's columns. The column head says each
+// name once, so the fields carry their names for screen readers only (and show them on a phone, where there's no head).
+const StatueRow = ({ index, nameState, bonus, levelState, depositedState, tierState, flairState, getCharacter }) => {
+    const name = nameState.val;
+    const cell = (key, label, extra = {}) => ({
+        key,
+        label,
+        rootClass: "statue-cell",
+        labelClass: "statue-cell__label",
+        ...extra,
+        inputProps: { "aria-label": `${name} ${label.toLowerCase()}`, ...(extra.inputProps ?? {}) },
+    });
+    return EditableFieldsRow({
         fields: [
-            {
-                key: "level",
-                label: "Level",
-                valueState: levelState,
-                rootClass: "statue-control-row",
-                labelClass: "statue-control-label",
-            },
-            {
-                key: "deposited",
-                label: "Deposited",
-                valueState: depositedState,
-                formatted: true,
-                rootClass: "statue-control-row",
-                labelClass: "statue-control-label",
-            },
+            { key: "level", valueState: levelState },
+            { key: "deposited", valueState: depositedState, formatted: true },
             { key: "tier", valueState: tierState, toDraft: (value) => toInt(value, { min: 0 }) },
             { key: "flair", valueState: flairState },
         ],
@@ -124,66 +146,45 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
             }
             return read();
         },
-        rowClass: () => `account-row--wide-controls statue-row ${TIER_ROW_CLASSES[tierState.val] ?? ""}`,
-        // The tier shows once, in its dropdown; the row's border colour tells the tiers apart.
-        info: [span({ class: "account-row__name" }, () => nameState.val)],
-        renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
+        rowClass: "statue-row",
+        info: [RowTitles({ bonus, name: () => nameState.val })],
+        renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused, applyValue }) =>
             div(
-                { class: "account-row__controls--stack" },
+                { class: "statue-cells" },
                 StackedNumberField({
-                    field: {
-                        key: "level",
-                        label: "Level",
-                        rootClass: "statue-control-row",
-                        labelClass: "statue-control-label",
-                    },
+                    field: cell("level", "Level"),
                     draftStates,
                     getDraftValue,
                     setFieldFocused,
                     resetDraft,
                 }),
                 StackedNumberField({
-                    field: {
-                        key: "deposited",
-                        label: "Deposited",
+                    field: cell("deposited", "Deposited", {
                         formatted: true,
-                        rootClass: "statue-control-row",
-                        labelClass: "statue-control-label",
-                    },
+                        rootClass: "statue-cell statue-cell--quiet",
+                    }),
                     draftStates,
                     getDraftValue,
                     setFieldFocused,
                     resetDraft,
                 }),
+                // A tier saves on the press, like − / +.
                 div(
-                    { class: "statue-control-row" },
-                    span({ class: "statue-control-label" }, "Tier"),
-                    select(
-                        {
-                            class: "statue-tier-select select-base",
-                            onchange: (e) => (draftStates.tier.val = Number(e.target.value)),
-                        },
-                        ...TIERS.map((tier) =>
-                            option(
-                                {
-                                    value: tier.value,
-                                    selected: () => draftStates.tier.val === tier.value,
-                                },
-                                tier.label
-                            )
-                        )
-                    )
+                    { class: "statue-cell" },
+                    span({ class: "statue-cell__label" }, "Tier"),
+                    StepPicker({
+                        name: `${name} tier`,
+                        steps: TIERS,
+                        picked: () => toInt(draftStates.tier.val, { min: 0 }),
+                        onPick: (tier) => void applyValue({ tier }),
+                    })
                 ),
                 StackedNumberField({
-                    field: {
-                        key: "flair",
-                        label: "Flair",
+                    field: cell("flair", "Flair", {
                         min: 0,
                         max: FLAIR_MAX_LEVEL,
-                        rootClass: "statue-control-row",
-                        labelClass: "statue-control-label",
-                        inputProps: { "aria-label": `Statue #${index} flair level`, cap: FLAIR_MAX_LEVEL },
-                    },
+                        inputProps: { cap: FLAIR_MAX_LEVEL },
+                    }),
                     draftStates,
                     getDraftValue,
                     setFieldFocused,
@@ -191,6 +192,7 @@ const StatueRow = ({ index, nameState, levelState, depositedState, tierState, fl
                 })
             ),
     });
+};
 
 const StatuesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Statues" });
@@ -207,29 +209,36 @@ const StatuesTab = () => {
     const tierStates = new Map();
     const flairStates = new Map();
     const flairUnlocked = van.state(false);
-    const flairToggleError = van.state("");
-    const { status: flairToggleStatus, run: runFlairToggle } = useWriteStatus();
+    // The statues the game lists, by index, and each one's row. The tray's tools act on the ones the top bar's search
+    // shows (all of them without a search).
+    const statueIndices = van.state([]);
+    const rowOf = new Map();
+    const shownIndices = () => statueIndices.val.filter((index) => shownBySearch(rowOf.get(index)));
 
-    const listNode = div({ class: "account-list" });
-    const reconcileStatueRows = createStaticRowReconciler(listNode);
+    const rowsNode = div({ class: "statue-rows" });
+    const reconcileStatueRows = createStaticRowReconciler(rowsNode);
 
     const reconcileRows = (info) => {
         const statues = (info ?? [])
-            .map((entry, index) => ({ index, name: entry?.[0] }))
+            .map((entry, index) => ({ index, name: entry?.[0], bonus: statueBonus(entry?.[1]) }))
             .filter((statue) => statue.name && statue.name.trim().length > 0);
+        statueIndices.val = statues.map((statue) => statue.index);
 
         reconcileStatueRows(statues.map((statue) => statue.index).join(","), () => {
-            return statues.map((statue) =>
-                StatueRow({
+            return statues.map((statue) => {
+                const row = StatueRow({
                     index: statue.index,
-                    nameState: getOrCreateState(nameStates, statue.index, cleanName(statue.name)),
+                    bonus: statue.bonus,
+                    nameState: getOrCreateState(nameStates, statue.index, statueName(statue.name)),
                     levelState: getOrCreateState(levelStates, statue.index),
                     depositedState: getOrCreateState(depositedStates, statue.index),
                     tierState: getOrCreateState(tierStates, statue.index),
                     flairState: getOrCreateState(flairStates, statue.index),
                     getCharacter,
-                })
-            );
+                });
+                rowOf.set(statue.index, row);
+                return row;
+            });
         });
     };
 
@@ -256,7 +265,7 @@ const StatuesTab = () => {
                 if (!entry?.[0] || !entry[0].trim()) return;
 
                 const values = statueValues(levels?.[i], tiers?.[i], flair[i]);
-                getOrCreateState(nameStates, i).val = cleanName(entry[0]);
+                getOrCreateState(nameStates, i).val = statueName(entry[0]);
                 getOrCreateState(levelStates, i).val = values.level;
                 getOrCreateState(depositedStates, i).val = values.deposited;
                 getOrCreateState(tierStates, i).val = values.tier;
@@ -266,67 +275,151 @@ const StatuesTab = () => {
             reconcileRows(info);
         });
 
+    // Statue Flair is unlocked in the game by one value; off keeps the saved Flair levels and their bonuses.
+    const flairSwitch = StateSwitch({
+        checked: flairUnlocked,
+        words: ["", ""],
+        name: "Statue Flair unlocked",
+        ownStatus: true,
+        disabled: () => loading.val,
+        onFlip: async (on) => {
+            await writeVerified(FLAIR_UNLOCK_PATH, on ? 1 : 0);
+            flairUnlocked.val = on;
+            await deleteGga("DNSM.h.rArmoryTotLV");
+            return { ok: true };
+        },
+    });
+
+    // The column head stays at the top of the list while it scrolls; the Flair switch sits in its column.
+    const columnHead = div(
+        { class: "account-row account-row--head statue-head" },
+        div({ class: "account-row__info" }, span({ class: "statue-head__label" }, "Statue")),
+        div(
+            { class: "account-row__controls" },
+            div(
+                { class: "statue-cells" },
+                span({ class: "statue-head__label" }, "Level"),
+                span({ class: "statue-head__label" }, "Deposited"),
+                span({ class: "statue-head__label" }, "Tier"),
+                div({ class: "statue-head__label statue-head__flair" }, span("Flair"), flairSwitch)
+            )
+        )
+    );
+
+    // The tray's tools act on the statues shown. They share one status, so a bulk write runs alone; lowering asks first.
+    const bulk = useWriteStatus();
+    const setAllInput = van.state("");
+    const statueWord = (n) => `statue${n === 1 ? "" : "s"}`;
+    const writeAll = (pathOf, states, target) =>
+        bulk.run(() =>
+            runBulkSet({
+                // StatueLevels is the character in play's own, as in a row's save.
+                character: getCharacter(),
+                entries: shownIndices(),
+                getTargetValue: () => target,
+                getValueState: (index) => states.get(index),
+                getPath: (index) => pathOf(index),
+            })
+        );
+    const countAbove = (states, target) => shownIndices().filter((index) => states.get(index).val > target).length;
+    const allAt = (states, target) => shownIndices().every((index) => states.get(index).val === target);
+
+    const tools = (_activeId, ask) => {
+        const askOrRun = ({ lowered, question, from, change }) => {
+            if (!lowered) return void change();
+            ask({ question, confirmLabel: lowered === 1 ? "Lower it" : "Lower them", from, onConfirm: change });
+        };
+
+        const levelControl = SetAllNumberControl({
+            label: "",
+            placeholder: "Level",
+            value: setAllInput,
+            status: bulk.status,
+            onApply: () => {
+                const level = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
+                if (level === null) return refuseSetAll(setAllInput);
+                const lowered = countAbove(levelStates, level);
+                return askOrRun({
+                    lowered,
+                    question: `Lower ${lowered} ${statueWord(lowered)} to level ${level}?`,
+                    from: levelControl.querySelector(".account-btn"),
+                    change: () => writeAll((index) => `StatueLevels[${index}][0]`, levelStates, level),
+                });
+            },
+        });
+
+        const tierButtons = TIERS.map((tier) => {
+            const tierButton = ActionButton({
+                label: tier.label,
+                status: bulk.status,
+                className: `statue-tier-all--${tier.tone}`,
+                disabled: () => !shownIndices().length || allAt(tierStates, tier.value),
+                onClick: (e) => {
+                    e.preventDefault();
+                    const lowered = countAbove(tierStates, tier.value);
+                    askOrRun({
+                        lowered,
+                        question: `Lower ${lowered} ${statueWord(lowered)} to ${tier.label}?`,
+                        from: tierButton,
+                        change: () => writeAll((index) => `StatueG[${index}]`, tierStates, tier.value),
+                    });
+                },
+            });
+            return tierButton;
+        });
+
+        return [
+            levelControl,
+            div(
+                { class: "tabbed-list__tool-group" },
+                span(
+                    { class: "tabbed-list__tool-label" },
+                    "Tier",
+                    span({ class: "tabbed-list__tool-label-more" }, " for all")
+                ),
+                ...tierButtons
+            ),
+            div(
+                { class: "tabbed-list__tool-group" },
+                ActionButton({
+                    label: "Max Flair",
+                    status: bulk.status,
+                    disabled: () => !shownIndices().length || allAt(flairStates, FLAIR_MAX_LEVEL),
+                    onClick: (e) => {
+                        e.preventDefault();
+                        void writeAll((index) => `RoyalG[22][${index}]`, flairStates, FLAIR_MAX_LEVEL);
+                    },
+                })
+            ),
+        ];
+    };
+
     load();
 
     return PersistentAccountListPage({
-        rootClass: "tab-container scroll-container statues-tab",
-        title: "STATUES",
-        description: "Set statue levels, deposited amounts, tiers, and Statue Flair levels.",
-        actions: [
-            button(
-                {
-                    type: "button",
-                    class: "btn-quiet btn-sm",
-                    "aria-label": "Toggle Statue Flair unlock",
-                    "aria-pressed": () => String(flairUnlocked.val),
-                    disabled: () => loading.val || flairToggleStatus.val === "loading",
-                    onclick: () => {
-                        if (flairToggleStatus.val === "loading") return;
-                        const nextLevel = flairUnlocked.val ? 0 : 1;
-                        flairToggleError.val = "";
-                        void runFlairToggle(
-                            async () => {
-                                await writeVerified(FLAIR_UNLOCK_PATH, nextLevel);
-                                flairUnlocked.val = nextLevel === 1;
-                                await deleteGga("DNSM.h.rArmoryTotLV");
-                            },
-                            { onError: (error) => (flairToggleError.val = error.message) }
-                        );
-                    },
-                },
-                () => `Flair: ${flairUnlocked.val ? "on" : "off"}`
-            ),
-            RefreshButton({
-                onRefresh: load,
-                tooltip: "Re-read statue data from game memory",
-                disabled: () => loading.val || flairToggleStatus.val === "loading",
-            }),
-        ],
-        topNotices: WarningBanner(
-            div(
-                div(
-                    " Tier upgrades require specific tools: ",
-                    span({ class: "warning-highlight-accent" }, "Guilding Tools"),
-                    " for Gold, ",
-                    span({ class: "warning-highlight-onyx" }, "Onyx Tools"),
-                    " for Onyx, ",
-                    span({ class: "warning-highlight-zenith" }, "Zenith Tools"),
-                    " for Zenith. Note that this is only visual to the StatueMan in W1; when set to any rarity it will give their full bonus"
-                ),
-                div(() =>
-                    flairUnlocked.val
-                        ? `Statue Flair is unlocked. Flair levels range from 0 to ${FLAIR_MAX_LEVEL}.`
-                        : "Statue Flair is locked. Use the Flair toggle to unlock the in-game menu."
-                ),
-                div("Turning Flair off keeps saved Flair levels and their bonuses."),
-                div({ role: "alert" }, () => flairToggleError.val)
-            )
-        ),
+        rootClass: "tab-container scroll-container statues-tab page--wide",
+        title: "Statues",
+        description: "Levels, deposits, tiers and Flair. A tier set here gives its full bonus, no tools needed.",
+        actions: RefreshButton({
+            onRefresh: load,
+            disabled: () => loading.val,
+        }),
         state: { loading, error },
-        loadingText: "READING STATUES",
-        errorTitle: "STATUES READ FAILED",
+        loadingText: "Reading statues",
+        errorTitle: "Statues read failed",
         initialWrapperClass: "account-list",
-        body: listNode,
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "statue-table",
+                body: [columnHead, rowsNode],
+                tools,
+                toolsLabel: () => {
+                    const n = shownIndices().length;
+                    return isSearching() ? `${n} matching ${statueWord(n)}` : `All ${n} ${statueWord(n)}`;
+                },
+            })
+        ),
     });
 };
 

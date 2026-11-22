@@ -149,13 +149,10 @@ const removals = [
     ["src/ui/pages/world-3/atom-collider/atom-collider.js", "Reset all"],
     ["src/ui/pages/world-3/salt-lick/salt-lick.js", "Reset all"],
     ["src/ui/pages/world-2/post-office/post-office.js", "Reset"],
-    ["src/ui/pages/world-1/star-signs/star-signs.js", "Reset all"],
     ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
     ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
     ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
-    ["src/ui/pages/world-1/pets/pets.js", "Clear all"],
-    ["src/ui/pages/world-1/pets/pets.js", "Clear Pets+"],
     ["src/ui/pages/account/event-shop/event-shop.js", "Disable all"],
 ];
 
@@ -249,21 +246,64 @@ test("value search: clearing the saved list asks in place first", async () => {
     assert.equal(cleared, 1, "the second click clears it");
 });
 
-test("bribes: Disable all, which asks in its own handler, still runs on the second click", async () => {
+// Disabling takes away, so it asks in the tools tray first; the answer runs it.
+test("bribes: Disable all asks in the tray, then runs on the answer", async () => {
     const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
     let before = writes();
     await click(enable);
     await until(() => writes() > before, "Enable all to write");
     await settle(100);
-    const root = enable.parentNode;
+    let root = enable;
+    while (root.parentNode) root = root.parentNode;
+    const inTray = (name) => elements(root).find((node) => String(node.attributes.class).split(" ").includes(name));
     const disable = buttonsNamed(root, "Disable all").find((node) => !node.attributes.disabled);
     before = writes();
     await click(disable);
     await settle(100);
-    assert.equal(disable.attributes["data-again"], "Click again", "the first click asks");
+    assert.match(text(inTray("tabbed-list__tools-label")), /^Disable \d+ bribes? in Set 1\?$/, "the first click asks");
     assert.equal(writes(), before);
-    await click(disable);
-    await until(() => writes() > before, "the second click to write");
+    await click(inTray("tabbed-list__yes"));
+    await until(() => writes() > before, "the answer to write");
+});
+
+// Owning Set 1's expansion unlocks Set 2, the same as flipping the expansion's own switch.
+test("bribes: Enable all on a set unlocks the next set when it owns the expansion", async () => {
+    const status = game.gga.BribeStatus;
+    const before = [...status];
+    status[5] = 0; // Set 1's expansion, The Art of the Deal
+    for (let index = 6; index < 13; index++) status[index] = -1; // Set 2, locked
+    try {
+        const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
+        await click(enable);
+        await until(() => status[5] === 1, "the expansion to be owned");
+        await until(() => status.slice(6, 13).every((value) => value === 0), "Set 2 to unlock");
+    } finally {
+        before.forEach((value, index) => (status[index] = value));
+    }
+});
+
+// The tools act on the bribes the search showed at the press; a search typed while the game is read doesn't change that.
+test("bribes: Enable all changes the bribes shown at the press, even if the search changes during the read", async () => {
+    const { searchHits } = await importRepo("src/ui/menu/pageSearch.js");
+    const status = game.gga.BribeStatus;
+    const before = [...status];
+    for (let index = 0; index < 5; index++) status[index] = 0; // Set 1's bribes before its expansion, not owned
+    try {
+        const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
+        const read = holdNext((url, body) => /read/.test(url) && JSON.stringify(body).includes("BribeStatus"));
+        const pressed = click(enable);
+        await until(() => read.reached, "the read");
+        searchHits.val = new Set(); // a search that shows none of them
+        read.release();
+        await pressed;
+        await until(
+            () => status.slice(0, 5).every((value) => value === 1),
+            "the bribes shown at the press to be owned"
+        );
+    } finally {
+        searchHits.val = null;
+        before.forEach((value, index) => (status[index] = value));
+    }
 });
 
 for (const [file, label] of [

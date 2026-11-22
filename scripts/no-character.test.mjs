@@ -79,9 +79,14 @@ const inPlay = () => {
 };
 
 const ANVIL = "src/ui/pages/world-1/anvil/anvil.js";
+// The points left the page shows: worked out from every stat with the game's formula (talent 281 gives 2 in the fake
+// game), so they follow an edit an earlier test made.
+const { anvilPointsLeft } = await importRepo(ANVIL);
+const pointsLeft = () =>
+    `${anvilPointsLeft({ smithingLevel: gga.Lv0[2], talentLevel: gga.SkillLevels[281], talentNumber: 2, stats: gga.AnvilPAstats })} points left`;
 const openAnvil = async () => {
     const root = (await importRepo(ANVIL)).default.component();
-    await until(() => text(root).includes(`${gga.AnvilPAstats[0]} pts`), "the Anvil to load");
+    await until(() => text(root).includes(pointsLeft()), "the Anvil to load");
     return root;
 };
 
@@ -110,7 +115,7 @@ for (const [moment, userInfo] of Object.entries(AT_SELECT)) {
         try {
             const root = (await importRepo(ANVIL)).default.component();
             await quietly(() => until(() => text(root).includes(NO_CHARACTER), "the Anvil to say no character"));
-            assert.ok(!text(root).includes(`${gga.AnvilPAstats[0]} pts`), "the placeholder points aren't shown");
+            assert.ok(!text(root).includes(pointsLeft()), "the placeholder points aren't shown");
         } finally {
             inPlay();
         }
@@ -188,7 +193,7 @@ test("a page opened at character select shows the real values after a Refresh on
         () => !text(root).includes(NO_CHARACTER) && rowNamed(root, "Bonus Exp"),
         "the Refresh to read the game"
     );
-    assert.match(text(root), new RegExp(`${gga.AnvilPAstats[0]} pts`), "the points the character has");
+    assert.ok(text(root).includes(pointsLeft()), "the points the character has");
 });
 
 // Review of #154: the Anvil read who is in play, then its values; a switch in between showed the new character's
@@ -214,7 +219,7 @@ test("the Anvil says the character changed when another one comes into play whil
 // Every page that reads the character in play's own values says the one line at character select, then reads them in play.
 const PAGES = {
     "src/ui/pages/account/player/1-levels.js": "LEVELS & MONEY",
-    "src/ui/pages/world-1/statues/statues.js": "STATUES",
+    "src/ui/pages/world-1/statues/statues.js": "Statues",
     "src/ui/pages/world-2/post-office/post-office.js": "POINT SOURCES",
     "src/ui/pages/world-3/library/library.js": "Library",
     "src/ui/pages/world-3/prayers/prayers.js": "PRAYERS",

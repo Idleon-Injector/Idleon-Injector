@@ -40,14 +40,22 @@ async function until(check, what) {
 }
 
 const page = (await importRepo("src/ui/pages/world-1/pets/pets.js")).default.component();
-// Plain pets: a token pet's click removes its token instead, and an owned one shows OWNED.
+// A pet is a row: its tier a step picker (Off | Normal | Pets+), its token a switch.
+const rows = () => byClass(page, "pet-row");
+const stepsOf = (row) => byClass(row, "step-picker__step");
+const tierOf = (row) => text(stepsOf(row).find((step) => step.attributes["aria-checked"] === "true"));
+const hasToken = (row) =>
+    elements(row).find((node) => String(node.attributes["aria-label"]).startsWith("Pet token for"))?.checked;
+// Pets left off, without a token: picking Normal on one chooses it.
 const plainPets = () =>
-    byClass(page, "companion-card-wrap")
-        .filter((card) => /NOT SELECTED/.test(text(card)))
-        .map((card) => card.childNodes.find((node) => node.nodeName === "button"));
-await until(() => byClass(page, "companion-card-wrap").length > 3, "the pets to load");
-const clearAll = elements(page).find((node) => node.nodeName === "button" && text(node) === "Clear all");
-// Clear all asks in place first (#25): the first press arms it, the second clears.
+    rows()
+        .filter((row) => tierOf(row) === "Off" && !hasToken(row))
+        .map((row) => stepsOf(row).find((step) => text(step) === "Normal"));
+await until(() => rows().length > 3, "the pets to load");
+// The row a tier step belongs to, and its pet's id.
+const rowOf = (step) => rows().find((row) => stepsOf(row).includes(step));
+const idOf = (step) => Number(rowOf(step).attributes["data-pet-id"]);
+const buttonNamed = (name) => elements(page).find((node) => node.nodeName === "button" && text(node) === name);
 const press = (button) => button.listeners.click({ preventDefault() {}, stopPropagation() {}, currentTarget: button });
 const saved = async (click) => {
     const count = saves.length;
@@ -57,43 +65,45 @@ const saved = async (click) => {
     return saves.at(-1).startupCheats;
 };
 
-test("clearing every pet takes w1 companion off the startup cheats", async () => {
-    await updateSessionConfig({ startupCheats: ["godlike reach", "w1 companion"] });
-    assert.deepEqual(
-        await saved(async () => {
-            await press(clearAll);
-            await press(clearAll);
-        }),
-        ["godlike reach"]
-    );
+test("turning every chosen pet off asks in the tray, then takes w1 companion off the startup cheats", async () => {
+    // Only pets of the open tab (Set 1) chosen, so turning that tab off leaves none.
+    await updateSessionConfig({
+        startupCheats: ["godlike reach", "w1 companion"],
+        cheatConfig: { w1: { companion: { companions: "0:0,1:1" } } },
+    });
+    const count = saves.length;
+    await press(buttonNamed("Off")); // the tray's All to Off
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.match(text(byClass(page, "tabbed-list__tools-label")[0]), /^Turn off \d+ pets? in Set 1\?$/, "it asks");
+    assert.equal(saves.length, count, "nothing is saved before the answer");
+    assert.deepEqual(await saved(() => press(byClass(page, "tabbed-list__yes")[0])), ["godlike reach"]);
     // Only what it changed: a whole config read before another page's change would put that change back.
     assert.deepEqual(saves.at(-1).cheatConfig, { w1: { companion: { companions: "none" } } });
     assert.equal(saves.at(-1).injectorConfig, undefined);
 });
 
-// Unselected once the first test cleared them.
+// Off once the first test turned them off.
 let first, second, third;
 
 test("choosing a pet adds w1 companion to the startup cheats, once", async () => {
     await until(() => plainPets().length >= 3, "unselected pets");
     [first, second, third] = plainPets();
     await updateSessionConfig({ startupCheats: ["godlike reach"] });
-    assert.deepEqual(await saved(() => first.listeners.click({})), ["godlike reach", "w1 companion"]);
+    assert.deepEqual(await saved(() => press(first)), ["godlike reach", "w1 companion"]);
     await updateSessionConfig({ startupCheats: ["godlike reach", "w1 companion"] });
-    assert.deepEqual(await saved(() => second.listeners.click({})), ["godlike reach", "w1 companion"]);
+    assert.deepEqual(await saved(() => press(second)), ["godlike reach", "w1 companion"]);
 });
 
 test("with every W1 cheat on at start, choosing a pet adds nothing that would toggle it back off", async () => {
     await updateSessionConfig({ startupCheats: ["w1"] });
-    assert.deepEqual(await saved(() => third.listeners.click({})), ["w1"]);
+    assert.deepEqual(await saved(() => press(third)), ["w1"]);
 });
 
-// The file and the session took the choice and the game didn't: the reason is said on the page, and the card shows the
+// The file and the session took the choice and the game didn't: the reason is said on the page, and the row shows the
 // read after it, what the file holds.
-test("a pet choice the game didn't take is said on the page, and its card shows what was saved", async () => {
+test("a pet choice the game didn't take is said on the page, and its row shows what was saved", async () => {
     await until(() => plainPets().length >= 1, "an unselected pet");
     const [pet] = plainPets();
-    const wrap = byClass(page, "companion-card-wrap").find((card) => card.childNodes.includes(pet));
     const routes = router.routes.POST;
     const save = routes.get("/api/config/save");
     routes.set("/api/config/save", async (req, res) => {
@@ -105,9 +115,9 @@ test("a pet choice the game didn't take is said on the page, and its card shows 
     });
     const count = saves.length;
     try {
-        await pet.listeners.click({});
+        await press(pet);
         await until(() => /The game is busy/.test(text(page)), "the reason on the page");
-        await until(() => !/NOT SELECTED/.test(text(wrap)), "the card to show the saved choice");
+        await until(() => tierOf(rowOf(pet)) === "Normal", "the row to show the saved choice");
         assert.equal(saves.length, count + 1, "the file took it first");
     } finally {
         routes.set("/api/config/save", save);
@@ -118,7 +128,6 @@ test("a pet choice the game didn't take is said on the page, and its card shows 
 test("the read after a failed pet save can't put back what a newer save changed", async () => {
     await until(() => plainPets().length >= 2, "two unselected pets");
     const [failing, chosen] = plainPets();
-    const wrapOf = (pet) => byClass(page, "companion-card-wrap").find((card) => card.childNodes.includes(pet));
     const { POST, GET } = router.routes;
     const save = POST.get("/api/config/save");
     const config = GET.get("/api/config");
@@ -140,14 +149,14 @@ test("the read after a failed pet save can't put back what a newer save changed"
         return res.json(answer);
     });
     try {
-        failing.listeners.click({});
+        press(failing);
         await until(() => /The disk is full/.test(text(page)), "the failed save's reason");
         POST.set("/api/config/save", save);
-        await saved(() => chosen.listeners.click({}));
-        await until(() => !/NOT SELECTED/.test(text(wrapOf(chosen))), "the newer save's card to show it");
+        await saved(() => press(chosen));
+        await until(() => tierOf(rowOf(chosen)) === "Normal", "the newer save's row to show it");
         release();
         await new Promise((resolve) => setTimeout(resolve, 50));
-        assert.doesNotMatch(text(wrapOf(chosen)), /NOT SELECTED/, "the older read is dropped");
+        assert.equal(tierOf(rowOf(chosen)), "Normal", "the older read is dropped");
     } finally {
         release();
         POST.set("/api/config/save", save);
@@ -160,7 +169,6 @@ test("the read after a failed pet save can't put back what a newer save changed"
 test("a pet click keeps a pet the Config tab saved between its read and its save", async (t) => {
     await until(() => plainPets().length >= 2, "two unselected pets");
     const [clicked, other] = plainPets();
-    const idOf = (pet) => Number(/\d+/.exec(text(byClass(pet, "companion-card__id")[0]))[0]);
     const config = router.routes.GET.get("/api/config");
     let reads = 0;
     router.routes.GET.set("/api/config", async (req, res) => {
@@ -178,7 +186,7 @@ test("a pet click keeps a pet the Config tab saved between its read and its save
     t.after(() => router.routes.GET.set("/api/config", config));
 
     const count = saves.length;
-    clicked.listeners.click({});
+    press(clicked);
     await until(() => saves.length > count, "the config save");
     const saved = saves.at(-1).cheatConfig.w1.companion.companions.split(",");
     assert.ok(saved.includes(`${idOf(clicked)}:0`), "the clicked pet");

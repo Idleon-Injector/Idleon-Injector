@@ -133,10 +133,17 @@ test("1-orion.js: a value the game keeps raising still shows failed when the gam
 });
 
 // Pets: the token list in OptionsListAccount[606] and the missing token sources.
-const petCard = (root, id) => byClass(root, "companion-card-wrap").find((card) => text(card).includes(`ID ${id}`));
-const petsLoaded = (root) => Boolean(petCard(root, 2));
+const petRow = (root, id) =>
+    byClass(root, "pet-row").find((row) => String(row.attributes["data-pet-id"]) === String(id));
+const petsLoaded = (root) => Boolean(petRow(root, 2));
 const alertText = (root) => text(elements(root).find((node) => node.attributes.role === "alert") ?? "");
-const clickToken = (root, id) => byClass(petCard(root, id), "companion-token")[0].listeners.click();
+// A pet's token is the switch on its row.
+const clickToken = (root, id) => {
+    const box = elements(petRow(root, id)).find((node) =>
+        String(node.attributes["aria-label"]).startsWith("Pet token for")
+    );
+    return box.listeners.change({ target: box });
+};
 
 test("pets.js: removing a pet token saves the list without it", async () => {
     ola[606] = "2,5";
@@ -173,7 +180,8 @@ const grantFixture = () => {
         'function(t){return"PetBonusTokensOwned"==t?n.asNumber(a("OptionsListAccount")[605])+n.asNumber(a("OptionsListAccount")[615]):"Other"==t?0:0}';
     getGameContext()["scripts.ActorEvents_579"] = { _customBlock_Stuff2: stuff2 };
 };
-const grantButton = (root) => elements(root).find((node) => text(node) === "Grant missing token");
+const grantButton = (root) =>
+    elements(root).find((node) => node.nodeName === "button" && text(node) === "Grant missing token");
 
 test("pets.js: granting the missing tokens writes every source in one batch", async () => {
     grantFixture();
