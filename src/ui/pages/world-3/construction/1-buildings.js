@@ -44,7 +44,7 @@
  */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { definePage } from "../../../menu/menuModel.js";
+import { definePage, whenLeft } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
@@ -59,6 +59,7 @@ import {
     bonusText,
     cleanName,
     createStaticRowReconciler,
+    oneAtATime,
     readLevelDefinitions,
     runBulkSet,
     toNum,
@@ -572,6 +573,101 @@ const CogsTab = () => {
         )
     );
 
+    // What the editor is built from: the slot, whether it's unlocked, whether its cog can be edited and which stats it
+    // has. A read that changes only the values keeps the editor, and each stat field follows the game on its own.
+    const editorShape = van.derive(() => {
+        const index = getActiveIndex();
+        const stats = cogMapStats[index].val ?? {};
+        // rawVal: saving a tiny cog changes this id, and building the editor again would drop its focus.
+        const cogId = String(cogOrders[index].rawVal ?? "Blank");
+        const keys = COG_MAP_FIELD_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(stats, key));
+        return [index, getSlotState(slotValues[index].val), isReadOnlyCog(cogId), keys.join("")].join("|");
+    });
+
+    const renderStatRow = (index, key, readOnly) => {
+        const initial = cogMapStats[index].rawVal[key];
+        const text = (value) => (value !== null && value !== undefined ? formatNumber(value) : "");
+        // What the game holds, as text: the last read or save. The shown text is rounded ("1.2M"), so only text that
+        // differs from it saves.
+        let saved = text(initial);
+        const shown = van.state(saved);
+        let typing = false;
+        const inputEl = input({
+            type: "text",
+            class: "cogs-cog-stat-input",
+            value: shown,
+            disabled: readOnly,
+            oninput: () => (typing = true),
+        });
+        const hasDraft = () => typing && inputEl.value !== saved;
+        // Each read updates what the game holds; the field shows it only while it has no draft.
+        van.derive(() => {
+            const next = text(cogMapStats[index].val?.[key]);
+            const draft = hasDraft();
+            saved = next;
+            // The field too: typed text the state never saw stays in it when the state already holds `next`.
+            if (!draft) {
+                shown.val = inputEl.value = next;
+                typing = false;
+            }
+        });
+        const save = useAutoSave({
+            prepare: () => {
+                if (readOnly || !hasDraft()) return { unchanged: true };
+                const typed = inputEl.value.trim();
+                if (typed === "") throw new Error("enter a value");
+                // The shape pattern (h) is text in the game; every other stat is a number.
+                const writeVal = typeof initial === "string" ? typed : parseNumber(typed);
+                if (!Number.isFinite(writeVal) && typeof writeVal !== "string") {
+                    throw new Error("not a number");
+                }
+                return {
+                    write: async () => {
+                        await writeVerified(`CogMap[${getCogOrderIndex(index)}].h.${key}`, writeVal);
+                        // In place: a new stats object would tell every field of the slot to follow it.
+                        cogMapStats[index].rawVal[key] = writeVal;
+                        saved = text(writeVal);
+                        // Text typed since stays, for its own Enter, even the old value typed back.
+                        if (inputEl.value === typed) {
+                            shown.val = inputEl.value = saved;
+                            typing = false;
+                        }
+                    },
+                };
+            },
+            // Escape shows what the game holds now, a read made while typing included.
+            revert: () => {
+                saved = text(cogMapStats[index].rawVal?.[key]);
+                shown.val = inputEl.value = saved;
+                typing = false;
+            },
+        });
+        return CogsEditorRow({
+            code: key,
+            name: COG_MAP_FIELD_META[key]?.keyName ?? key,
+            meaning: COG_MAP_FIELD_META[key]?.meaning ?? "Unknown field",
+            inputNode: inputEl,
+            save,
+        });
+    };
+
+    // Reads rawVal only: editorShape says when to build it again.
+    const renderEditor = (index) => {
+        if (getSlotState(slotValues[index].rawVal) !== "unlocked") return span({ hidden: true });
+        if (!isMainSlot(index)) return renderTinyEditor();
+        const stats = cogMapStats[index].rawVal ?? {};
+        const readOnly = isReadOnlyCog(String(cogOrders[index].rawVal ?? "Blank"));
+        const presentKeys = COG_MAP_FIELD_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(stats, key));
+        return div(
+            { class: "cogs-modal-details" },
+            div(
+                { class: "cogs-cog-stats" },
+                div({ class: "cogs-cog-stats__warning" }, "Base values. In the game, the cogs around it change them."),
+                div({ class: "cogs-cog-stats__list" }, ...presentKeys.map((key) => renderStatRow(index, key, readOnly)))
+            )
+        );
+    };
+
     const popupCard = div(
         {
             class: "cogs-popup",
@@ -602,100 +698,37 @@ const CogsTab = () => {
                 () => stateLabel(getSlotState(slotValues[getActiveIndex()].val))
             )
         ),
-        div({ class: "cogs-modal-body" }, () => {
-            const index = getActiveIndex();
-            const slotState = getSlotState(slotValues[index].val);
-            const showMainMode = isMainSlot(index);
-            const isUnlocked = slotState === "unlocked";
-            const stats = cogMapStats[index].val ?? {};
-            // rawVal: saving a tiny cog changes this id, and redrawing would drop the editor's focus.
-            const cogId = String(cogOrders[index].rawVal ?? "Blank");
-            const readOnly = isReadOnlyCog(cogId);
-            const presentKeys = COG_MAP_FIELD_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(stats, key));
-
-            const statsNode = div(
-                { class: "cogs-cog-stats__list" },
-                ...presentKeys.map((key) => {
-                    const rawVal = stats[key];
-                    const displayVal = rawVal !== null && rawVal !== undefined ? formatNumber(rawVal) : "";
-                    const inputEl = input({
-                        type: "text",
-                        class: "cogs-cog-stat-input",
-                        value: displayVal,
-                        disabled: readOnly,
-                    });
-                    // The shown text is rounded ("1.2M"): only text the player changed saves.
-                    let shown = displayVal;
-                    const save = useAutoSave({
-                        prepare: () => {
-                            if (readOnly || inputEl.value === shown) return { unchanged: true };
-                            const typed = inputEl.value.trim();
-                            if (typed === "") throw new Error("enter a value");
-                            // The shape pattern (h) is text in the game; every other stat is a number.
-                            const writeVal = typeof rawVal === "string" ? typed : parseNumber(typed);
-                            if (!Number.isFinite(writeVal) && typeof writeVal !== "string") {
-                                throw new Error("not a number");
-                            }
-                            return {
-                                write: async () => {
-                                    await writeVerified(`CogMap[${getCogOrderIndex(index)}].h.${key}`, writeVal);
-                                    // In place: a new stats object would redraw the editor and drop focus.
-                                    cogMapStats[index].rawVal[key] = writeVal;
-                                    if (inputEl.value === typed) inputEl.value = shown = formatNumber(writeVal);
-                                },
-                            };
-                        },
-                        revert: () => (inputEl.value = shown),
-                    });
-                    return CogsEditorRow({
-                        code: key,
-                        name: COG_MAP_FIELD_META[key]?.keyName ?? key,
-                        meaning: COG_MAP_FIELD_META[key]?.meaning ?? "Unknown field",
-                        inputNode: inputEl,
-                        save,
-                    });
-                })
-            );
-
-            return div(
-                {},
-                !isUnlocked
-                    ? div(
-                          { class: "cogs-selection-charge" },
-                          span({ class: "cogs-selection-charge__label" }, "Charge"),
-                          span(
-                              { class: "cogs-selection-charge__value" },
-                              showMainMode
-                                  ? formatMainCharge(slotValues[index].val, slotCaps[index].val)
-                                  : formatSideCharge(slotValues[index].val, index)
-                          )
-                      )
-                    : null,
-                flaggedSlots.val.has(index)
+        div(
+            { class: "cogs-modal-body" },
+            // The charge and the flag follow each read on their own lines; the editor below is built again only when
+            // the slot, its lock or its cog's kind of stats change, so a field being typed in stays.
+            () => {
+                const index = getActiveIndex();
+                if (getSlotState(slotValues[index].val) === "unlocked") return span({ hidden: true });
+                return div(
+                    { class: "cogs-selection-charge" },
+                    span({ class: "cogs-selection-charge__label" }, "Charge"),
+                    span(
+                        { class: "cogs-selection-charge__value" },
+                        isMainSlot(index)
+                            ? formatMainCharge(slotValues[index].val, slotCaps[index].val)
+                            : formatSideCharge(slotValues[index].val, index)
+                    )
+                );
+            },
+            () =>
+                flaggedSlots.val.has(getActiveIndex())
                     ? div(
                           { class: "cogs-flag-indicator" },
                           Cogs.FlagIcon({ class: "cogs-flag-indicator__icon", width: "14", height: "14" }),
                           span("Flag placed")
                       )
-                    : null,
-                !showMainMode && isUnlocked ? renderTinyEditor() : null,
-                showMainMode && isUnlocked
-                    ? div(
-                          {
-                              class: "cogs-modal-details",
-                          },
-                          div(
-                              { class: "cogs-cog-stats" },
-                              div(
-                                  { class: "cogs-cog-stats__warning" },
-                                  "Base values. In the game, the cogs around it change them."
-                              ),
-                              statsNode
-                          )
-                      )
-                    : null
-            );
-        }),
+                    : span({ hidden: true }),
+            () => {
+                editorShape.val;
+                return renderEditor(activeSlot.rawVal ?? 0);
+            }
+        ),
         div(
             { class: "cogs-modal-footer" },
             div(
@@ -787,20 +820,23 @@ const buildingBonus = (index, description) => {
     return (first.charAt(0).toUpperCase() + first.slice(1)).replace(/[.!]$/, "");
 };
 
-const BuildingRow = ({ index, name, bonus, maxLevel, levelState }) =>
+const BuildingRow = ({ index, name, bonus, maxLevel, levelState, inTurn }) =>
     ClampedLevelRow({
         valueState: levelState,
         max: maxLevel,
-        write: async (nextLevel) => {
-            // Both in one call to the game, so a dropped connection can't leave the level and its pending copy apart.
-            // The game still writes them one by one: if it refuses one, the other stays written (History lists it,
-            // and the row says why). ponytail: an all-or-nothing write needs the game's writePaths to put it back.
-            await writeManyVerified([
-                { path: `TowerInfo[${index}]`, value: nextLevel },
-                { path: `TowerInfo[${index + BUILDING_COUNT}]`, value: nextLevel },
-            ]);
-            return nextLevel;
-        },
+        // In turn with Max all, so neither writes one copy over the other's.
+        write: (nextLevel) =>
+            inTurn(async () => {
+                // Both in one call to the game, so a dropped connection can't leave the level and its pending copy
+                // apart. The game still writes them one by one: if it refuses one, the other stays written (History
+                // lists it, and the row says why). ponytail: an all-or-nothing write needs the game's writePaths to
+                // put it back.
+                await writeManyVerified([
+                    { path: `TowerInfo[${index}]`, value: nextLevel },
+                    { path: `TowerInfo[${index + BUILDING_COUNT}]`, value: nextLevel },
+                ]);
+                return nextLevel;
+            }),
         renderInfo: () => RowTitles({ bonus, name }),
         maxAction: true,
     });
@@ -808,6 +844,9 @@ const BuildingRow = ({ index, name, bonus, maxLevel, levelState }) =>
 const ConstructionBuildingsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Construction Buildings" });
     const { status: bulkStatus, run: runMaxAll } = useWriteStatus();
+    // Row saves and Max all write one at a time: a row saved while Max all runs saves after it, and Max all waits for
+    // a row save that started before it.
+    const inTurn = oneAtATime();
     const levelStates = Array.from({ length: BUILDING_COUNT }, () => van.state(0));
     const rowList = div({ class: "account-page-pane" });
     const buildings = van.state([]);
@@ -856,6 +895,7 @@ const ConstructionBuildingsTab = () => {
                                     bonus: building.bonus,
                                     maxLevel: building.maxLevel,
                                     levelState: levelStates[building.index],
+                                    inTurn,
                                 });
                                 rowOf.set(building.index, row);
                                 return row;
@@ -874,30 +914,30 @@ const ConstructionBuildingsTab = () => {
     const shown = () => buildings.val.filter((building) => shownBySearch(rowOf.get(building.index)));
     const buildingWord = (n) => `building${n === 1 ? "" : "s"}`;
 
-    // Max only raises, so it runs on one press.
+    // Max all runs on one press; a level above the max comes down to it.
     const doMaxAll = async () => {
-        await runMaxAll(async () => {
-            // The buildings whose level Max all writes; one at its max gets only its pending copy, and its row keeps
-            // what it shows (a save made meanwhile too).
-            const levelWritten = new Set();
-            await runBulkSet({
-                entries: shown(),
-                getTargetValue: (building) => building.maxLevel,
-                getValueState: (building) => levelStates[building.index],
-                getWrites: ({ entry, currentValue, targetValue }) => {
-                    if (toNum(currentValue) !== targetValue) levelWritten.add(entry.index);
-                    return [
-                        levelWritten.has(entry.index)
-                            ? { path: `TowerInfo[${entry.index}]`, value: targetValue }
-                            : null,
-                        { path: `TowerInfo[${entry.index + BUILDING_COUNT}]`, value: targetValue },
-                    ];
-                },
-                applyLocal: (building, _, targetValue) => {
-                    if (levelWritten.has(building.index)) levelStates[building.index].val = targetValue;
-                },
-            });
-        });
+        const entries = shown();
+        const result = await runMaxAll(() =>
+            inTurn(async () => {
+                // Planned from the game at its turn, so a row saved before it is in what it plans from.
+                const fresh = toIndexedArray(await gga("TowerInfo"));
+                await runBulkSet({
+                    entries,
+                    getTargetValue: (building) => building.maxLevel,
+                    getValueState: (building) => levelStates[building.index],
+                    // Each copy only where the game holds another value; a building already there shows it.
+                    getWrites: ({ entry, targetValue, valueState }) => {
+                        const writes = [entry.index, entry.index + BUILDING_COUNT]
+                            .filter((at) => toNum(fresh[at]) !== targetValue)
+                            .map((at) => ({ path: `TowerInfo[${at}]`, value: targetValue }));
+                        if (!writes.length) valueState.val = targetValue;
+                        return writes;
+                    },
+                });
+            })
+        );
+        // Some of it may have landed: the rows show what the game holds.
+        if (!result.ok && !result.cancelled) await load();
     };
 
     load();
@@ -930,9 +970,13 @@ const ConstructionBuildingsTab = () => {
 
 // The Workbench, as the game calls it: the buildings and the cog board as tabs on one page. The board is still as it
 // was; its own pass comes later.
+const PAGE_ID = "w3.construction.buildings";
+
 const WorkbenchTab = () => {
     const buildings = ConstructionBuildingsTab();
     const cogs = CogsTab();
+    // The cog editor sits on the page's body, not in its pane: leaving the page closes it.
+    whenLeft(PAGE_ID, cogs.close);
     const loading = van.derive(() => buildings.loading.val || cogs.loading.val);
     // The page fails only when both reads do; one that fails says so in its own tab, and the other tab still works.
     const error = van.derive(() => (buildings.error.val && cogs.error.val) || "");
@@ -973,7 +1017,7 @@ const WorkbenchTab = () => {
 };
 
 export default definePage({
-    id: "w3.construction.buildings",
+    id: PAGE_ID,
     world: 3,
     system: "Construction",
     tab: "Workbench",

@@ -212,6 +212,21 @@ export const whenShown = (id, fn) => {
 /** The menu shows page `id` now. */
 export const pageShown = (id) => shownListeners.get(id)?.forEach((fn) => fn());
 
+// Page id -> what runs each time the menu leaves that page (see whenLeft).
+const leftListeners = new Map();
+
+/**
+ * Run `fn` each time the menu leaves the page `id` for another page or view. Its pane is kept, hidden, so a page that
+ * shows something outside its pane (an editor on the page's body) puts it away here. The menu calls pageLeft.
+ */
+export const whenLeft = (id, fn) => {
+    if (!leftListeners.has(id)) leftListeners.set(id, new Set());
+    leftListeners.get(id).add(fn);
+};
+
+/** The menu no longer shows page `id`. */
+export const pageLeft = (id) => leftListeners.get(id)?.forEach((fn) => fn());
+
 export const pageTitle = (page, system) => (system.pages.length > 1 && page.tab ? page.tab : page.system);
 
 /**

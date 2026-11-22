@@ -366,3 +366,58 @@ test("Printer's reload after an Undo waits for a slot write still running", asyn
     assert.equal(gga.Printer[printerSlot(2) + 1], 2222);
     assert.equal(input.value, "2.22K", "the row shows the quantity saved, not the reload's older answer");
 });
+
+// #217: a quantity typed back to the old one while the save ran (10, save 20, type 10, no Escape) was taken for an
+// Escape and replaced by the saved one.
+test("Printer keeps the old quantity typed back while the slot saves, until its own Enter", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 1");
+    const input = inputs(row)[0];
+    const old = gga.Printer[printerSlot(1) + 1];
+    const hold = holdWrites();
+    t.after(hold.release);
+
+    type(input, 5000);
+    enter(row, input);
+    await until(() => hold.held() === 1, "the save to reach the game");
+    type(input, old);
+    hold.release();
+    await until(() => /save-state--success/.test(saveState(row)), "the save's ✓");
+    assert.equal(gga.Printer[printerSlot(1) + 1], 5000);
+    assert.equal(input.value, String(old), "the quantity typed back stays");
+    enter(row, input);
+    await until(() => gga.Printer[printerSlot(1) + 1] === old, "the typed quantity to be saved");
+});
+
+// CodeRabbit on #225: the save's own read of the game, before it writes, replaced the old quantity typed back while it
+// waited with the game's newer one. A row nobody typed in still takes that read.
+test("Printer keeps the old quantity typed back while the save reads the game, and an untouched row takes the read", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const [row, other] = [findRow(root, "Sample 1"), findRow(root, "Sample 2")];
+    const input = inputs(row)[0];
+    const old = gga.Printer[printerSlot(1) + 1];
+    const hold = holdWrites({ reads: true });
+    t.after(hold.release);
+
+    type(input, 5000);
+    enter(row, input);
+    await until(() => hold.held() > 0, "the save to read the game");
+    type(input, old);
+    gga.Printer[printerSlot(1) + 1] = old + 20; // the game moves on before the save reads it
+    gga.Printer[printerSlot(2) + 1] += 30;
+    hold.release();
+    await until(() => /save-state--success/.test(saveState(row)), "the save's ✓");
+    assert.equal(gga.Printer[printerSlot(1) + 1], 5000);
+    assert.equal(input.value, String(old), "the quantity typed back stays");
+    assert.equal(
+        Number(inputs(other)[0].value.replace(/K$/, "e3")),
+        gga.Printer[printerSlot(2) + 1],
+        "the untouched row shows the read"
+    );
+    enter(row, input);
+    await until(() => gga.Printer[printerSlot(1) + 1] === old, "the typed quantity to be saved");
+});
