@@ -482,6 +482,50 @@ test("star signs: Reset all asks in the tray, then clears a sign completed in th
     g.StarSignProg[2] = saved;
 });
 
+// #183: Unlock all wrote every sign again, so a full sign lost its players.
+test("star signs: Unlock all fills only the empty places and leaves a full sign alone", async () => {
+    const saved = g.StarSignProg.map((entry) => [...entry]);
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[0] = ["c", 0]; // A-1 needs 4; character c has it
+    g.StarSignProg[3] = ["cde", 1]; // A-4 needs 3 and is full
+    try {
+        const root = await openPage(STAR_SIGNS, signsReady);
+        const unlock = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Unlock all");
+        await unlock.listeners.click({ preventDefault() {}, currentTarget: unlock });
+        await until(() => g.StarSignProg[0][0].length === 4, "A-1 to fill");
+        assert.equal(g.StarSignProg[0][0], "c_ab", "who had it stays first");
+        assert.equal(g.StarSignProg[3][0], "cde", "the full sign keeps its players");
+    } finally {
+        saved.forEach((entry, i) => (g.StarSignProg[i] = entry));
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
+
+// #183: Randomize all took players off signs in one click.
+test("star signs: Randomize all asks in the tray before it changes anything", async () => {
+    const saved = g.StarSignProg.map((entry) => [...entry]);
+    const savedPoints = g.OptionsListAccount[40];
+    g.StarSignProg[3] = ["cde", 1];
+    try {
+        const root = await openPage(STAR_SIGNS, signsReady);
+        const randomize = elements(root).find(
+            (node) => node.nodeName === "button" && text(node).trim() === "Randomize all"
+        );
+        const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+        const before = writes();
+        randomize.listeners.click({ preventDefault() {} });
+        await tick();
+        assert.equal(writes(), before, "nothing is written before the answer");
+        const asked = text(byClass(root, "tabbed-list__tools-label")[0]);
+        assert.ok(asked.startsWith("Randomize "), `the tray asks (${asked})`);
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await until(() => writes() > before, "the randomize");
+    } finally {
+        saved.forEach((entry, i) => (g.StarSignProg[i] = entry));
+        g.OptionsListAccount[40] = savedPoints;
+    }
+});
+
 // OptionsListAccount[40] is the star points balance the game spends on star signs: a change moves it by the sign's
 // points (A-4 needs 3 players and gives 4), so points already spent on star signs stay spent.
 test("star signs: star points move by what a sign gives, so points spent on star signs stay spent", async () => {
