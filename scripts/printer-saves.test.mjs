@@ -21,6 +21,7 @@ const elements = (node, out = []) => {
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
 const inputs = (row) => elements(row).filter((node) => node.nodeName === "input");
+const click = (node) => node.listeners.click({ preventDefault() {}, currentTarget: node, target: node });
 const button = (root, label) =>
     elements(root).find((node) => node.nodeName === "button" && text(node).trim() === label);
 const findRow = (root, label) =>
@@ -77,7 +78,7 @@ function holdWrites({ reads = false } = {}) {
 }
 
 const openPrinter = () =>
-    openPage("src/ui/pages/world-3/printer/printer.js", (r) => byClass(r, "printer-item-select").length > 0);
+    openPage("src/ui/pages/world-3/3d-printer/printer.js", (r) => byClass(r, "printer-row").length > 0);
 const printerSlot = (sample) => 5 + 2 * (sample - 1); // the selected character's sample, as Printer[item, qty]
 
 test("Printer keeps a quantity typed while that slot saves, and the next Enter saves it", async (t) => {
@@ -211,10 +212,14 @@ test("Printer saves nothing while an Undo's reload waits, then keeps the picked 
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
     const root = await openPrinter();
     const [undone, other] = [findRow(root, "Sample 1"), findRow(root, "Sample 3")];
-    const select = byClass(undone, "printer-item-select")[0];
-    const picked = elements(select).find(
-        (node) => node.nodeName === "option" && !["Blank", gga.Printer[printerSlot(1)]].includes(node.attributes.value)
-    ).attributes.value;
+    // The slot's title opens its items in place; an item there is picked by its name.
+    const opener = byClass(undone, "row-opener")[0];
+    const nameOf = (id) => String(gga.ItemDefinitionsGET.h[id]?.h?.displayName ?? "").replace(/_/g, " ");
+    click(opener);
+    const option = byClass(undone, "pick-in-place__option").find(
+        (node) => text(node).trim() !== nameOf(gga.Printer[printerSlot(1)])
+    );
+    const picked = Object.keys(gga.ItemDefinitionsGET.h).find((id) => nameOf(id) === text(option).trim());
     const hold = holdWrites();
     t.after(hold.release);
 
@@ -224,13 +229,13 @@ test("Printer saves nothing while an Undo's reload waits, then keeps the picked 
     gga.Printer[printerSlot(1) + 1] = 123; // an Undo put Sample 1's old quantity back
     reloadPlace.val = { view: "", page: "" };
     await new Promise((resolve) => setTimeout(resolve)); // VanJS runs the page's reload watch on the next turn
-    select.listeners.change({ target: { value: picked } });
+    click(option);
     enter(undone, inputs(undone)[0]);
     hold.release();
     // A save let through would run before the reload, which would then show its quantity instead.
     await until(() => inputs(undone)[0].value === "123", "the reload to show the quantity the Undo put back");
     assert.equal(gga.Printer[printerSlot(1) + 1], 123, "nothing saved over the Undo");
-    assert.equal(select.value, picked, "the picked item stays a draft");
+    assert.match(text(opener), new RegExp(`^${text(option).trim()}`), "the picked item stays a draft");
     enter(undone, inputs(undone)[0]);
     await until(() => gga.Printer[printerSlot(1)] === picked, "the picked item to be saved");
     assert.equal(gga.Printer[printerSlot(1) + 1], 123, "with the quantity the game holds");

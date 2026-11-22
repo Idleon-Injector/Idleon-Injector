@@ -1,5 +1,6 @@
 /** What many pages read: the characters, monsters, maps and items. */
 import { fakeName, h, list } from "./helpers.mjs";
+import { CLASS_NAMES, CRITTER_NAMES, PREMIUM_HATS } from "./world-3-game.mjs";
 
 export const PLAYERS = ["Lumi_Main", "Lumi_Alt", "Lumi_Third"];
 export const MONSTERS = list(30, (i) => `mob${i}`);
@@ -18,10 +19,7 @@ export const ITEMS = {
         list(30, (i) => [`item${i}`, { displayName: fakeName(i + 40), Type: "MATERIAL", typeGen: "dQuest" }])
     ),
     ...Object.fromEntries(
-        list(6, (i) => [
-            `Critter${i + 1}`,
-            { displayName: `${fakeName(i + 9)}_Critter`, Type: "CRITTER", typeGen: "dCritters" },
-        ])
+        list(6, (i) => [`Critter${i + 1}`, { displayName: CRITTER_NAMES[i], Type: "CRITTER", typeGen: "dCritters" }])
     ),
     ...Object.fromEntries(
         list(9, (i) => [
@@ -45,9 +43,10 @@ export const ITEMS = {
         ])
     ),
     ...Object.fromEntries(
-        list(12, (i) => [
-            `EquipmentHatsPrem${i + 1}`,
-            { displayName: `${fakeName(i + 20)}_Hat`, Type: "PREMIUM_HELMET", typeGen: "aHelmetMTX" },
+        // Real premium hats, with the bonus each adds to the Hat Rack (UQ1txt, UQ2txt).
+        PREMIUM_HATS.map(([id, displayName, UQ1txt, UQ1val, UQ2txt, UQ2val]) => [
+            id,
+            { displayName, Type: "PREMIUM_HELMET", typeGen: "aHelmetMTX", UQ1txt, UQ1val, UQ2txt, UQ2val },
         ])
     ),
     ...Object.fromEntries(
@@ -108,7 +107,7 @@ export default () => ({
             )
         ),
         CustomLists: h({
-            ClassNames: list(42, (i) => (i === 0 ? "Blank" : fakeName(i + 60))),
+            ClassNames: CLASS_NAMES,
             SkillNames: ["Blank", "Mining", "Smithing", "Chopping", "Fishing", "Alchemy", "Catching"],
             MapDispName: list(350, (i) =>
                 isMap(i) ? `${MAP_WORDS[0][Math.floor(i / 50)]}_${MAP_WORDS[1][i % 50]}` : "Filler"

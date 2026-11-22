@@ -2,28 +2,33 @@
  * World 3: construction (buildings, cogs), printer, refinery, salt lick, atom collider, hat rack, armor smithy,
  * worship, prayers, death note, library, equinox. Traps live on the characters (shared.mjs).
  */
-import { fakeName, h, level, list } from "./helpers.mjs";
+import { h, level, list } from "./helpers.mjs";
 import { ITEMS, MONSTERS } from "./shared.mjs";
 import {
     ATOMS,
     DREAM_CHALLENGES,
     DREAM_UPGRADES,
     NOT_LIBRARY_BOOKS,
+    PREMIUM_HATS,
     PRAYERS,
     SALT_LICKS,
-    TALENT_HIDDEN,
+    SET_BONUSES,
+    SET_KEYS,
+    TALENT_TEXTS,
+    TOWERS,
     TALENT_NAMES,
     TALENT_ORDER,
 } from "./world-3-game.mjs";
 
-const BUILDINGS = 27;
+const BUILDINGS = TOWERS.length;
 const COG_SLOTS = 252;
 const TALENTS = TALENT_NAMES.length;
 const CLOUDS = 10;
 const atomMax = (i) => 20 + (i % 3) * 10;
 const ITEM_IDS = Object.keys(ITEMS).filter((id) => id.startsWith("item"));
-const HATS = Object.keys(ITEMS).filter((id) => id.startsWith("EquipmentHatsPrem"));
-const SETS = ["COPPER_SET", "IRON_SET", "GOLD_SET", "MOSSY_SET"];
+const HATS = PREMIUM_HATS.map(([id]) => id);
+const SETS = SET_KEYS;
+const towerMax = (i) => Number(TOWERS[i][8]);
 
 /** A cog name: tiny cogs are "CogSm<type><tier>", the rest "Cog<tier><type>". */
 const cog = (slot) => {
@@ -68,8 +73,8 @@ export default () => ({
         // [i] building level, [i + 27] the level it builds toward (one ahead: built, waiting for salt), [54..61] the
         // build slots, [62..65] cog crafting, [66 + i] build progress.
         TowerInfo: [
-            ...list(BUILDINGS, (i) => (i === 0 ? 3 : level(i, 50))),
-            ...list(BUILDINGS, (i) => (i === 0 ? 3 : level(i, 50)) + (i === 6 || i === 12 ? 1 : 0)),
+            ...list(BUILDINGS, (i) => (i === 0 ? 3 : level(i, towerMax(i)))),
+            ...list(BUILDINGS, (i) => (i === 0 ? 3 : level(i, towerMax(i))) + (i === 6 || i === 12 ? 1 : 0)),
             ...[1, 8, 20, 11, 16, -1, -1, -1],
             0,
             0,
@@ -134,7 +139,12 @@ export default () => ({
                     Object.fromEntries(
                         SETS.map((key, i) => [
                             key,
-                            [list(3, (p) => `SetPiece${i * 3 + p}`), [`SetPiece${(i + 4) % 12}`], [], [i % 2, 0]],
+                            [
+                                list(3, (p) => `SetPiece${i * 3 + p}`),
+                                [`SetPiece${(i + 4) % 12}`],
+                                [],
+                                [String(i % 2), "0", ...SET_BONUSES[key].slice(2)],
+                            ],
                         ])
                     )
                 ),
@@ -144,17 +154,7 @@ export default () => ({
         CustomLists: {
             h: {
                 // [0] name, [1] description, [2] bonus per level, [4] salt, [5] second material, ..., [8] base max level.
-                TowerInfo: list(BUILDINGS, (i) => [
-                    `${fakeName(i)}_Tower`,
-                    `+{%_${fakeName(i + 3)}_gain@Current_Bonuses:_+{%_${fakeName(i + 3)}_gain`,
-                    String(1 + (i % 4)),
-                    "0",
-                    `Refinery${1 + (i % 6)}`,
-                    "Blank",
-                    "0",
-                    "0",
-                    String(50),
-                ]),
+                TowerInfo: TOWERS,
                 FlagReqs: list(96, (i) => String(100 + i * 20)),
                 NonAFKmonsters: [MONSTERS[29]],
                 // [salt, bonus, ?, ?, max level]
@@ -173,7 +173,7 @@ export default () => ({
                 // 15 talent slots per class page, then the special talents.
                 TalentOrder: TALENT_ORDER,
                 TalentIconNames: TALENT_NAMES,
-                TalentDescriptions: TALENT_HIDDEN.map((hidden) => [hidden, "0"]),
+                TalentDescriptions: TALENT_TEXTS.map((first) => [[first], ["0"]]),
                 DreamUpg: DREAM_UPGRADES,
                 // [challenge, progress needed, reward]
                 DreamChallenge: DREAM_CHALLENGES,

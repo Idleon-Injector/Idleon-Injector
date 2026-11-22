@@ -74,7 +74,8 @@ const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on
 const switchFailed = (row) => classes(byClass(row, "state-switch")[0]).includes("is-failed");
 
 const HAT_RACK = "src/ui/pages/world-3/hat-rack/hat-rack.js";
-const hat = (n) => `EquipmentHatsPrem${n}`;
+const { PREMIUM_HATS } = await import("./page-shots/data/world-3-game.mjs");
+const hat = (n) => PREMIUM_HATS[n - 1][0];
 const rackRows = (root) => byClass(root, "hat-rack-row");
 const rackRowFor = (root, itemId) => rackRows(root).find((row) => row.attributes["data-item"] === itemId);
 const setRack = (rack, slab) => {
@@ -245,7 +246,7 @@ test("Smithy: a switch and Unlock all keep a set the game stored after the page 
     const unlockAll = buttonIn(root, "Unlock all");
     click(unlockAll);
     await until(() => settledButton(unlockAll), "Unlock all to finish");
-    for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET", "GOLD_SET", "MOSSY_SET"]) {
+    for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET", "GOLD_SET", "AMAROK_SET"]) {
         assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} is stored`);
     }
 });
@@ -547,7 +548,7 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
 
-const COGS = "src/ui/pages/world-3/construction/2-cogs.js";
+const COGS = "src/ui/pages/world-3/construction/1-buildings.js";
 globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
 const openCogs = async () => {
     const root = await openPage(COGS, (r) => byClass(r, "cogs-slot").length > 0);
