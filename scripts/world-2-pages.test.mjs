@@ -1044,3 +1044,53 @@ test("liquid: a load from an earlier opening that ends after a newer one doesn't
         info[6][0] = amount;
     }
 });
+
+// #215: a save that lands while an older opening reads the liquids makes that read run again. The retry kept a new
+// load number, so when it failed it threw away the newer opening's read and the page showed old values.
+test("liquid: an older opening's read tried again after a save doesn't hide a newer opening's read", async () => {
+    const info = game.gga.CauldronInfo;
+    const amount = Number(info[6][0]);
+    const realFetch = globalThis.fetch;
+    const gates = [];
+    // "hold": each liquid read waits after the game answered; "fail": liquid reads fail.
+    let mode = "pass";
+    const liquidRead = (options) => String(options?.body).includes('"gga.CauldronInfo"');
+    globalThis.fetch = async (url, options) => {
+        if (mode === "fail" && liquidRead(options)) throw new TypeError("Failed to fetch");
+        const response = await realFetch(url, options);
+        if (mode === "hold" && liquidRead(options)) await new Promise((resolve) => gates.push(resolve));
+        return response;
+    };
+    try {
+        const first = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        mode = "hold";
+        click(buttonNamed(first, "Refresh"));
+        await until(() => gates.length === 1, "the first opening's read");
+        mode = "pass";
+        const second = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        const row = rowNamed(second, "Water Droplets");
+        const input = enter(row, amount + 8);
+        await until(() => stateOf(row) === "success", "the save");
+        leave(row, input);
+        info[6][0] = amount + 9; // the game moves on
+        mode = "hold";
+        click(buttonNamed(second, "Refresh"));
+        await until(() => gates.length === 2, "the newer opening's read");
+        // The first opening's read ends after the save, so it reads again, and that read fails.
+        mode = "fail";
+        gates[0]();
+        await until(() => notBusy(buttonNamed(first, "Refresh")), "the first opening's read to end");
+        mode = "pass";
+        gates[1]();
+        await until(() => notBusy(buttonNamed(second, "Refresh")), "the newer opening's read to end");
+        assert.equal(shown(input), String(amount + 9), "the newer read shows");
+    } finally {
+        gates.forEach((release) => release());
+        globalThis.fetch = realFetch;
+        info[6][0] = amount;
+    }
+});
