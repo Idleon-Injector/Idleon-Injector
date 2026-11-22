@@ -302,9 +302,9 @@ test("Undo from History clears the Bubba and Jelly cached totals with neither pa
 });
 
 // #126 (from #124): the values are back and marked undone before the cached totals are cleared, so a clean-up that
-// fails can't be tried again as an undo. It is tried once more by itself; when that fails too it is a warning: the undo
-// shows it landed and says the totals may be off, and the row (or History, or Undo all) stays usable.
-const TOTALS = "Undone. Totals may be off.";
+// fails can't be tried again as an undo. It isn't tried again: it is a warning, the undo shows it landed and says
+// the totals may be off, and the row (or History, or Undo all) stays usable.
+const TOTALS = "Undone. Totals may be off. Refresh.";
 
 // The game refuses the first `failing` cache clean-ups (gga/delete); returns how many were asked for, and a restore.
 const failDeletes = (failing) => {
@@ -323,37 +323,34 @@ const bubbaRow = async () => {
     return findRow(page, name);
 };
 
-test("an Undo whose cache clean-up fails once tries it again, and says nothing more when that works", async (t) => {
+test("an Undo whose cache clean-up works says nothing more beside the ✓", async () => {
     const row = await bubbaRow();
     const before = gga.Bubba[1][1];
     await saveRow(row, before + 1);
     gga.DNSM.h.Bubba_LVzAll = 999;
-    const { deletes, restore } = failDeletes(1);
-    t.after(restore);
 
     await byClass(row, "save-state__undo")[0].listeners.click({});
     await until(() => ["success", "error"].includes(stateOf(row)), "the undo to end");
     assert.equal(stateOf(row), "success");
     assert.equal(gga.Bubba[1][1], before, "the old level is back");
-    assert.equal(deletes.count, 2, "the clean-up was tried twice");
-    assert.equal("Bubba_LVzAll" in gga.DNSM.h, false, "the second try cleared the total");
+    assert.equal("Bubba_LVzAll" in gga.DNSM.h, false, "the clean-up cleared the total");
     assert.equal(text(byClass(row, "save-state__label")[0]), "saved", "no words beside the ✓");
     assert.doesNotMatch(classes(row), /is-undo-warned/);
 });
 
-test("an Undo whose cache clean-up fails twice shows the values undone with a warning, and the row still saves", async (t) => {
+test("an Undo whose cache clean-up fails shows the values undone with a warning, tries nothing again, and the row still saves", async (t) => {
     const row = await bubbaRow();
     const before = gga.Bubba[1][1];
     await saveRow(row, before + 1);
     assert.equal(stateOf(row), "success");
     gga.DNSM.h.Bubba_LVzAll = 999; // the game's total, built from the saved level
-    const { deletes, restore } = failDeletes(2);
+    const { deletes, restore } = failDeletes(1);
     t.after(restore);
 
     await byClass(row, "save-state__undo")[0].listeners.click({});
     await until(() => ["success", "error"].includes(stateOf(row)), "the undo to end");
     assert.equal(gga.Bubba[1][1], before, "the old level is back");
-    assert.equal(deletes.count, 2, "the clean-up was tried twice");
+    assert.equal(deletes.count, 1, "the clean-up was tried once");
     assert.equal(stateOf(row), "success", "the undo landed");
     assert.equal(text(byClass(row, "save-state__label")[0]), TOTALS);
     assert.match(classes(row), /is-undo-warned/, "the badge steps aside for the words");
@@ -378,7 +375,7 @@ test("an Undo whose cache clean-up fails twice shows the values undone with a wa
     assert.doesNotMatch(classes(row), /is-undo-warned/);
 });
 
-test("History's Undo says the totals may be off when the clean-up fails twice, beside its entry", async (t) => {
+test("History's Undo says the totals may be off when the clean-up fails, beside its entry", async (t) => {
     const { History } = await importRepo("src/ui/components/views/History.js");
     const { fetchChanges } = await importRepo("src/ui/services/api.js");
     const { withAction } = await importRepo("src/ui/services/changeLog.js");
@@ -391,17 +388,17 @@ test("History's Undo says the totals may be off when the clean-up fails twice, b
     const { actions } = await fetchChanges();
     await until(() => byClass(root, "change-group").length === actions.length, "History to list the log");
     const group = byClass(root, "change-group")[0];
-    const { deletes, restore } = failDeletes(2);
+    const { deletes, restore } = failDeletes(1);
     t.after(restore);
 
     await byClass(group, "change-group__button")[0].listeners.click({});
     await until(() => text(byClass(group, "change-group__reason")[0]) === TOTALS, "the warning beside the entry");
     assert.equal(gga.Bubba[1][1], before, "undone");
-    assert.equal(deletes.count, 2);
+    assert.equal(deletes.count, 1, "the clean-up was tried once");
     assert.doesNotMatch(classes(group), /is-refused/, "a warning, not a refusal");
 });
 
-test("Undo all says the totals may be off when the clean-up fails twice, where its reason shows", async (t) => {
+test("Undo all says the totals may be off when the clean-up fails, where its reason shows", async (t) => {
     await importRepo("src/ui/components/views/account/UndoAllOffer.js"); // offers beside the bulk control
     const { withAction } = await importRepo("src/ui/services/changeLog.js");
     const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
@@ -420,13 +417,13 @@ test("Undo all says the totals may be off when the clean-up fails twice, where i
     gga.DNSM.h.Bubba_LVzAll = 999;
     await until(() => parent.childNodes.some((node) => node !== anchor), "Undo all to be offered");
     const offer = parent.childNodes.find((node) => node !== anchor);
-    const { deletes, restore } = failDeletes(2);
+    const { deletes, restore } = failDeletes(1);
     t.after(restore);
 
     byClass(offer, "undo-all__button")[0].listeners.click({});
     await until(() => text(byClass(offer, "undo-all__status")[0]) === TOTALS, "the warning where the reason shows");
     assert.equal(gga.Bubba[1][1], before, "undone");
-    assert.equal(deletes.count, 2);
+    assert.equal(deletes.count, 1, "the clean-up was tried once");
     assert.match(classes(offer), /undo-all--done/);
     assert.match(classes(offer), /undo-all--said/, "the words show, not only to screen readers");
 });
