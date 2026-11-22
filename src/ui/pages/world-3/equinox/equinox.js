@@ -9,6 +9,8 @@
  *   cList.DreamChallenge[i][0] - cloud name (underscore-separated)
  *   cList.DreamChallenge[i][1] - cloud required progress (string int)
  *   gga.WeeklyBoss.h.d_i                   - current cloud progress (-1 = not active)
+ *   gga.OptionsListAccount[320]            - Pingy penguins, a past limited gem shop buy: the bar fills 10% faster
+ *                                            per penguin, and that many walk around one map
  *
  * Computed via events(579)._customBlock_Dreamstuff:
  *   readComputed("dream", "BarFillReq", [0])   - bar fill requirement
@@ -119,6 +121,19 @@ const CloudRow = ({ entry }) => {
     });
 };
 
+// The penguins from a past limited gem shop sale. The game sets no max, so neither does the row.
+const PenguinRow = ({ valueState, onAfterSet }) =>
+    ClampedLevelRow({
+        valueState,
+        integerMode: "floor",
+        write: async (count) => {
+            const verified = await writeVerified("OptionsListAccount[320]", count);
+            await onAfterSet();
+            return verified;
+        },
+        renderInfo: () => RowTitles({ bonus: "Bar fills 10% faster each", name: "Pingy penguins" }),
+    });
+
 const UpgradeRow = ({ entry, onAfterSet }) =>
     ClampedLevelRow({
         valueState: entry.levelState,
@@ -150,6 +165,7 @@ const EquinoxTab = () => {
     const barFillReqState = van.state(0);
     const barFillRateState = van.state(0);
     const cloudCountState = van.state(0);
+    const penguinState = van.state(0);
 
     const cloudProgressStates = new Map();
     const cloudRequiredStates = new Map();
@@ -250,6 +266,15 @@ const EquinoxTab = () => {
         }
     };
 
+    // The penguins change how fast the bar fills: read the rate again.
+    const refreshFillRate = async () => {
+        try {
+            barFillRateState.val = toInt(await readComputed("dream", "BarFillRate", [0]), { mode: "floor" });
+        } catch (err) {
+            console.warn("[EquinoxTab] refreshFillRate failed", err);
+        }
+    };
+
     const doFillBar = () =>
         fillBarRun(async () => {
             const req = barFillReqState.val;
@@ -263,12 +288,13 @@ const EquinoxTab = () => {
         run(async () => {
             if (!staticMeta) staticMeta = await buildStaticMeta();
 
-            const [rawDream, rawWeeklyBoss, barFillReq, barFillRate, upgUnlocked] = await Promise.all([
+            const [rawDream, rawWeeklyBoss, barFillReq, barFillRate, upgUnlocked, rawPenguins] = await Promise.all([
                 gga("Dream"),
                 gga("WeeklyBoss.h"),
                 readComputed("dream", "BarFillReq", [0]),
                 readComputed("dream", "BarFillRate", [0]),
                 readComputed("dream", "UpgUnlocked", [0]),
+                gga("OptionsListAccount[320]"),
             ]);
 
             const dreamArr = toIndexedArray(rawDream ?? []);
@@ -302,6 +328,9 @@ const EquinoxTab = () => {
             barFillState.val = toInt(dreamArr[0], { mode: "floor" });
             barFillReqState.val = toInt(barFillReq, { mode: "floor" });
             barFillRateState.val = toInt(barFillRate, { mode: "floor" });
+            // An account that never bought one holds 0 or nothing.
+            const penguins = Number(rawPenguins ?? 0);
+            penguinState.val = Number.isFinite(penguins) ? penguins : 0;
             updateUpgradeRows(upgrades);
             updateCloudRows(visibleIndexes, weeklyBossMap, staticMeta.dreamChallengeArr);
         });
@@ -315,6 +344,7 @@ const EquinoxTab = () => {
             className: "field-columns",
             body: [
                 BarRow({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }),
+                PenguinRow({ valueState: penguinState, onAfterSet: refreshFillRate }),
                 AccountSection({
                     title: "Clouds",
                     body: [
@@ -347,7 +377,8 @@ export default definePage({
     id: "w3.equinox",
     world: 3,
     system: "Equinox",
-    description: "Equinox bar, upgrade levels and cloud challenges.",
-    keywords: ["Dream", "Clouds"],
+    description: "Equinox bar, Pingy penguins, upgrade levels and cloud challenges.",
+    // The penguins were a limited gem shop item, so search finds them by the shop's words too.
+    keywords: ["Dream", "Clouds", "Pingy", "Pengy", "Penguin", "Penguins", "Limited", "Gem shop", "FOMO"],
     component: EquinoxTab,
 });

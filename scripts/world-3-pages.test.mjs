@@ -561,6 +561,23 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
 
+// #216: the penguins from a past limited gem shop sale have their row on Equinox.
+test("Equinox: the Pingy penguins row saves the count the game reads", async (t) => {
+    const before = gga.OptionsListAccount[320];
+    t.after(() => (gga.OptionsListAccount[320] = before));
+    gga.OptionsListAccount[320] = 2;
+    const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
+    const root = await openPage("src/ui/pages/world-3/equinox/equinox.js", (r) =>
+        byClass(r, "account-row").some((row) => nameOf(row) === "Pingy penguins")
+    );
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === "Pingy penguins");
+    const shown = elements(row).find((node) => node.nodeName === "input").attributes.value;
+    assert.equal(String(typeof shown === "function" ? shown() : shown), "2");
+    await typeAndEnter(row, 7);
+    assert.match(classes(byClass(row, "save-state")[0]), /save-state--success/);
+    assert.equal(gga.OptionsListAccount[320], 7);
+});
+
 const COGS = "src/ui/pages/world-3/construction/1-buildings.js";
 globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
 const openCogs = async () => {
