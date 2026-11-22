@@ -3775,243 +3775,243 @@
     },
     "626": {
         "name": "Arcade - Omega Balls Total Dropped",
-        "description": "Lifetime count of Omega Arcade Balls dropped; scales diminishing drop chance formula",
+        "description": "How many Omega Arcade Balls monsters have dropped. Each one makes the next one much rarer.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "627": {
-        "name": "Pet Arena - Territory Battle Mode Toggle",
-        "description": "Toggles Pet Arena UI between Standard Arena (0) and Territory Battle Mode (1)",
+        "name": "Breeding Arena - Crucible Mode",
+        "description": "1 = the Breeding Arena fights in Crucible Mode, 0 = the normal arena. Switched with the mode button in the arena once the Menagerie unlocks Crucible Mode.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "628": {
-        "name": "Pet Arena - Territory Battle Best Round Defeated",
-        "description": "Highest round cleared in Territory Battle mode; unlocks territory lab bonuses and arena crucible tiers",
+        "name": "Breeding Arena - Crucible Best Round",
+        "description": "Highest round beaten in the Breeding Arena's Crucible Mode. Reaching set rounds unlocks the Crucible arena bonuses (16 tiers).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "629": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Halloween Boo Treats Claimed",
+        "description": "1 once you've said \"boo\" in chat during the Halloween event on a crowded map (more than 8 players), which drops a pile of Halloween Treats. Works once.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "630": {
         "name": "Cglunko - Opal Find Level",
-        "description": "Grants an Opal to invest in Villagers",
+        "description": "Each level bought gave one Opal to invest into Villagers. Raising the level here gives no Opal.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "631": {
         "name": "Cglunko - Slop Drop Level",
         "description": "Increases Drop Rate in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "632": {
         "name": "Cglunko - Reslime Level",
         "description": "Increases Crystal Glunko respawn rate",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "633": {
         "name": "Cglunko - Droplier Level",
         "description": "Multiplies Drop Rate in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "634": {
         "name": "Cglunko - Killionaire Level",
         "description": "Increases Cglunko Cove Drop Rate per power of 10 Glunko kills",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "635": {
         "name": "Cglunko - Insta-Ribbon Level",
-        "description": "Grants a rank 15 Cooking Ribbon",
+        "description": "Each level bought put a rank 15 Cooking Ribbon in your first empty ribbon slot. Raising the level here gives no ribbon.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "636": {
         "name": "Cglunko - Big Hit Multkill Level",
         "description": "Increases Multikill Per Damage Tier in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "637": {
         "name": "Cglunko - Active Drops Level",
         "description": "Reduces the cost of Cglunko Cove upgrades",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "638": {
         "name": "Cglunko - Sleepy Drops Level",
         "description": "Increases AFK Gains in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "639": {
         "name": "Cglunko - One Big Blue Level",
         "description": "Multiplies drop value for the selected blue shape and unlocks blue focus selection",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "640": {
         "name": "Cglunko - Blue Collector Level",
         "description": "Increases Cglunko Cove Drop Rate per digit of blue shapes owned",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "641": {
         "name": "Cglunko - Researchy Level",
         "description": "Multiplies Research EXP gained outside Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "642": {
         "name": "Cglunko - Droplier+ Level",
         "description": "Multiplies Drop Rate in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "643": {
         "name": "Cglunko - Sleepy Drops+ Level",
         "description": "Increases AFK Gains in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "644": {
         "name": "Cglunko - Cavernicus Level",
         "description": "Multiplies resources earned from all caverns",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "645": {
         "name": "Cglunko - Multikill Level",
         "description": "Increases base Multikill in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "646": {
         "name": "Cglunko - One Big Purp Level",
         "description": "Multiplies drop value for the selected purple shape and unlocks purple focus selection",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "647": {
         "name": "Cglunko - Slop Drop+ Level",
         "description": "Increases Drop Rate in Cglunko Cove",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "648": {
         "name": "Cglunko - Rich Get Rich Level",
         "description": "Increases Drop Rate per power of 10 normal Drop Rate",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "649": {
         "name": "Cglunko - DeEmGe Level",
         "description": "Multiplies Total Damage for all characters",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "650": {
         "name": "Cglunko - Grandioso Level",
         "description": "Multiplies Grand Discovery Chance in Spelunking",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "651": {
         "name": "Cglunko - Slop Drop++ Level",
         "description": "Increases Drop Rate in Cavern 18",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "652": {
         "name": "Cglunko - Purp Collector Level",
         "description": "Increases Cglunko Cove Drop Rate per digit of Quartz shapes owned",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "653": {
         "name": "Cglunko - IDK Broh Level",
-        "description": "Reserved Cglunko upgrade for a future World 7 skill",
+        "description": "Placeholder. The game's text is \"World 7 Skill 3 my man, not yet.\" Nothing uses its level.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "654": {
         "name": "Cglunko Gooey Triangle",
-        "description": "Gooey Triangle shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Gooey Triangle shapes (blue) you have to spend on the Cglunko upgrades Opal Find and Slop Drop. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "655": {
         "name": "Cglunko Gooey Square",
-        "description": "Gooey Square shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Gooey Square shapes (blue) you have to spend on the Cglunko upgrades Reslime and Droplier. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "656": {
         "name": "Cglunko Gooey Pentagon",
-        "description": "Gooey Pentagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Gooey Pentagon shapes (blue) you have to spend on the Cglunko upgrades Killionaire and Insta-Ribbon. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "657": {
         "name": "Cglunko Gooey Hexagon",
-        "description": "Gooey Hexagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Gooey Hexagon shapes (blue) you have to spend on the Cglunko upgrades Big Hit Multkill and Active Drops. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "658": {
         "name": "Cglunko Gooey Heptagon",
-        "description": "Gooey Heptagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Gooey Heptagon shapes (blue) you have to spend on the Cglunko upgrades Sleepy Drops and One Big Blue. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "659": {
         "name": "Cglunko Gooey Nonagon",
-        "description": "Gooey Nonagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Gooey Nonagon shapes (blue) you have to spend on the Cglunko upgrades Blue Collector and Researchy. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "660": {
         "name": "Cglunko Quartz Prismagon",
-        "description": "Quartz Prismagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Quartz Prismagon shapes (purple) you have to spend on the Cglunko upgrades Droplier+ and Sleepy Drops+. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "661": {
         "name": "Cglunko Quartz Cubigon",
-        "description": "Quartz Cubigon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Quartz Cubigon shapes (purple) you have to spend on the Cglunko upgrades Cavernicus and Multikill. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "662": {
         "name": "Cglunko Quartz Pointagon",
-        "description": "Quartz Pointagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Quartz Pointagon shapes (purple) you have to spend on the Cglunko upgrades One Big Purp and Slop Drop+. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "663": {
         "name": "Cglunko Quartz Octergon",
-        "description": "Quartz Octergon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Quartz Octergon shapes (purple) you have to spend on the Cglunko upgrades Rich Get Rich and DeEmGe. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "664": {
         "name": "Cglunko Quartz Nullagon",
-        "description": "Quartz Nullagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Quartz Nullagon shapes (purple) you have to spend on the Cglunko upgrades Grandioso and Slop Drop++. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "665": {
         "name": "Cglunko Quartz Brillagon",
-        "description": "Quartz Brillagon shapes owned in Cglunko Cove",
-        "type": "number",
-        "AI": true
+        "description": "Quartz Brillagon shapes (purple) you have to spend on the Cglunko upgrades Purp Collector and IDK Broh. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "type": "string",
+        "verified": true
     },
     "666": {
         "name": "Cglunko Gooey Shape Focus",
