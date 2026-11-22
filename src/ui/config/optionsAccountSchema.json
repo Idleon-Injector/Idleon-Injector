@@ -2813,227 +2813,245 @@
         "verified": true
     },
     "466": {
-        "name": "Killroy Dialogue State",
-        "description": "Tracks Killroy dialogue sequence (1-4)",
+        "name": "Billroy Talk Progress",
+        "description": "How far the Billroy and Killroy talks have gone, 0 to 4. At 3 or more (and Rift 50 reached), Killroy's Skull Shop gets its 5 extra items.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "467": {
         "name": "Killroy Gallery Bonus",
-        "description": "Killroy gallery bonus",
-        "type": "number"
+        "description": "Times you got the Skull Shop's World 7 Gallery item. Below 2, each buy is a 5% roll that adds 1; from 2 on, every buy adds 1. Boosts the Gallery multiplier.",
+        "type": "number",
+        "verified": true
     },
     "468": {
         "name": "Killroy Masterclass Bonus",
-        "description": "Killroy masterclass bonus",
-        "type": "number"
+        "description": "Times you bought the Skull Shop item that boosts Masterclass drops. Each buy raises the bonus a bit less than the last.",
+        "type": "number",
+        "verified": true
     },
     "469": {
-        "name": "Killroy w7 skill xp bonus",
-        "description": "Tracks Killroy shop purchases/rewards",
-        "type": "number"
+        "name": "Killroy W7 Skill EXP Bonus",
+        "description": "Times you bought the Skull Shop item that boosts EXP for all World 7 skills. Each buy raises the bonus a bit less than the last.",
+        "type": "number",
+        "verified": true
     },
     "470": {
-        "name": "Killroy w7 daily coral bonus",
-        "description": "Tracks Killroy shop purchases/rewards",
-        "type": "number"
+        "name": "Killroy W7 Daily Coral Bonus",
+        "description": "Times you bought the Skull Shop item that boosts daily coral. Each buy raises the bonus a bit less than the last.",
+        "type": "number",
+        "verified": true
     },
     "471": {
-        "name": "Killroy 'boost something' bonus",
-        "description": "Tracks Killroy shop purchases/rewards",
-        "type": "number"
+        "name": "Killroy \"Boosts Something\" Bonus",
+        "description": "Times you bought the Skull Shop item \"Permanently boosts something...\". The shop shows a bonus for it, but nothing in the game uses that bonus yet.",
+        "type": "number",
+        "verified": true
     },
     "472": {
-        "name": "Voting Eligibility",
-        "description": "Determines meritocracy voting eligibility",
+        "name": "Meritocracy Voting Unlocked",
+        "description": "1 once Meritocracy Meiser has seen your Demonflesh and lets you vote. Until then the Meritocracy bonus runs at 25%.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "473": {
-        "name": "Reliquarium Power Divisor",
-        "description": "Divisor in Reliquarium power calculations",
+        "name": "Reliquarium Deliveries",
+        "description": "Unstable Reliquarium deliveries made to the Coralcave Prince. While you carry a Reliquarium your damage is cut, and more deliveries cut it harder.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "474": {
-        "name": "Current Food Grade",
-        "description": "Tracks current food grade level",
+        "name": "Urie Golden Food Shown",
+        "description": "Set when you finish Urie Wants to be a Millionaire: the number of the Golden Food stack of 1 million you brought (1 if none found). Urie's scene shows piles of that Golden Food.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "475": {
-        "name": "Quest106/Emporium Unlock",
-        "description": "Quest106 completion unlock that enables Emporium dialogue and golden food upgrade tier 3",
+        "name": "Urie's Rock Delivered",
+        "description": "1 once you dropped Urie's Special Childhood Rock at the Emporium. After that, dropping a stack of exactly 1 million of a Golden Food at the beanstalk upgrades it one more tier.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "476": {
         "name": "Friend Bonuses - Active",
         "description": "Active friend bonuses, Format: 'x,yyyy,name;x,yyyy,name' where x=bonus index, yyyy=account level, name=player name",
-        "type": "string"
+        "type": "string",
+        "verified": true
     },
     "477": {
         "name": "Friend Bonuses - Incoming",
         "description": "Incoming friend bonuses, Format: 'x,yyyy,name;x,yyyy,name' where x=bonus index, yyyy=account level, name=player name",
-        "type": "string"
+        "type": "string",
+        "verified": true
     },
     "478": {
-        "name": "Spelunking Progress",
-        "description": "Tracks progression in spelunking system",
+        "name": "Spelunking Tutorial Step",
+        "description": "Which step of the Spelunking tutorial you are on, 0 to 15. At 15 the tutorial is done, which unlocks auto delving and normal rock power.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "479": {
         "name": "Yet Another Printer Multi Days",
         "description": "Days since last sample for legend talent (Brown 4) - cap 20",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "480": {
-        "name": "Progression Counter for Upgrades",
-        "description": "Progression counter for major upgrades (Grimoire, Compass, Legend Points) with complex calculation formulas",
+        "name": "Masterclass Upgrades Bought Today",
+        "description": "Grimoire, Compass, Tachyon and Royal Guard upgrades bought today. The first few each day (from the Daily Shopping Spree legend talent) cost 80% less. Goes back to 0 at the daily reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "481": {
-        "name": "Weekly Time Tracking System",
-        "description": "Weekly time tracking system for shop and divinity resets (week number calculations)",
+        "name": "Exotic Market Reset Week",
+        "description": "The week number of the last Exotic Market weekly reset. Checked while you are on map 250; when the week changes, the weekly purchase count (slot 416) goes back to 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "482": {
-        "name": "Spelunking Tutorial Completion Flag",
-        "description": "Tutorial completion flag for Spelunking tutorial system with progress tracking",
+        "name": "Spelunking Tutorial Done Popup",
+        "description": "1 once the game has shown the popup for finishing the Spelunking tutorial (slot 478 at 15).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "483": {
-        "name": "New Player Bundle System Flag",
-        "description": "Bundle system flag for new player rewards and premium content access",
+        "name": "Unused",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "484": {
-        "name": "Event Counter with Math Formulas",
-        "description": "Event counter with mathematical formulas for reward calculations and progression tracking",
+        "name": "Event Playtime Rewards",
+        "description": "How many times the event playtime timer has run out. The first 14 each give you 1 play at the event game; the wait grows each time.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "485": {
-        "name": "Event Management Timer System",
-        "description": "Timer system for event management and talent calculations with time-sensitive mechanics",
+        "name": "Event Playtime Seconds",
+        "description": "Seconds the game has been open while an event is on. When it passes the next threshold, slot 484 goes up and you get an event play.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "486": {
         "name": "Zenith clusters for Zenith market",
         "description": "Zenith market currency system - tracks Zenith currency for purchasing in the Zenith Market",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "487": {
         "name": "Zenith cluster farming toggle",
         "description": "Cluster farming system toggle - 0=OFF, 1=ON. Controls conversion of 1M Statues to Zenith Clusters",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "488": {
-        "name": "Cluster Farming Activation Flag",
-        "description": "Cluster farming activation system - set to 1 when cluster farming is enabled and active",
-        "type": "number"
+        "name": "Cluster Farming Tried",
+        "description": "1 once you have turned on Zenith Cluster Farming at least once. Stops Zenelith's hints and the blinking mark on the button. Stays 1 after you turn it off.",
+        "type": "number",
+        "verified": true
     },
     "489": {
         "name": "last opened clicker index",
         "description": "last opened clicker index (0-orion owl, 1-poppy kangaroo, 2-bubba seal)",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "490": {
-        "name": "Days in a row used Glimmerwick candle",
-        "description": "Days in a row used Glimmerwick candle, pity counter",
-        "type": "number"
+        "name": "Glimmerwick Candle Failed Wishes",
+        "description": "How many times the Glimmerwick Candle wish has failed. Each failure raises it by 1; once it reaches the pity limit, the next wish is guaranteed.",
+        "type": "number",
+        "verified": true
     },
     "491": {
         "name": "Received the reward from the Glimmerwick candle",
         "description": "Received the reward from the Glimmerwick candle, 0=not received, 1=received",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "492": {
         "name": "Daily lock for Glimmerwick candle",
         "description": "Is Glimmerwick usable today, 0=usable, 1=locked",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "493": {
-        "name": "Tournament Match Day Lock",
-        "description": "Last Played/Claimed Player Match Day lock for Pet Tournaments",
+        "name": "Tournament Match Day Seen",
+        "description": "The match day of the last tournament match results you watched. When a newer match day exists, opening the tournament plays your match results.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "494": {
-        "name": "Tournament UI Selected Player Index",
-        "description": "Currently Selected Player Index for Companion/Tournament UI",
+        "name": "Tournament Name Shown",
+        "description": "Which of your characters' names is shown for you in Pet Tournaments and Raids, by list position (0 = first character).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "495": {
-        "name": "Tournament League Badge",
-        "description": "Player's Tournament League / Ranked Bracket badge",
+        "name": "Tournament Division",
+        "description": "Your current Pet Tournament division: 0 Bronze, 1 Silver, 2 Gold, 3 Diamond, 4 Master. Updated when you open the tournament, and shown on the quick-ref icon.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "496": {
-        "name": "Tournament Match Fetch Tracker",
-        "description": "Last Fetched Tournament Day Tracker",
+        "name": "Tournament Day Fetched",
+        "description": "The tournament day the game last fetched everyone's matches for. When the tournament day changes, the game fetches the new matches.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "497": {
-        "name": "Gaming Minigame High Score",
-        "description": "Highest Round Reached High Score in the Log Game Minigame",
-        "type": "number"
+        "name": "Gaming Log Game Best Round",
+        "description": "Best round reached in the Log game in Gaming. Gives a multiplier of 1.2 per round past the first.",
+        "type": "number",
+        "verified": true
     },
     "498": {
         "name": "Tournament Lifetime Participation Counter",
         "description": "Lifetime counter for Pet Tournaments Participated In",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "499": {
-        "name": "Summoning Grimoire Cost Reduction (%)",
-        "description": "Cumulative Grimoire First 3 Mana Colors Upgrade Cost Reduction percentage",
+        "name": "Masterclass Research Cost Cut (%)",
+        "description": "Total from the Masterclass Research grid square, growing every day. Makes Grimoire, Compass and Tachyon upgrades cheaper: cost is divided by 1 + this/100.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "500": {
-        "name": "Cumulative Spelunking/Sneaking Bonus (%)",
-        "description": "Cumulative Spelunking / Sneaking Bonus percentage from Grid Bonus 151",
+        "name": "Spelunking Research POW (%)",
+        "description": "Total from the Spelunking Research grid square, growing every day. Multiplies Spelunking POW by 1 + this/100.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "501": {
-        "name": "Daily MSA Bonus Claimed Flag",
-        "description": "Daily Miniature Soul Apparatus (MSA) Bonus Claimed Boolean flag",
+        "name": "All Quick All Done Used Today",
+        "description": "1 after today's first All Quick at the MSA in World 3 got the All Quick All Done bonus. Goes back to 0 at the daily reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "502": {
-        "name": "Tournament Unread Notification Flag",
-        "description": "Unread Tournament Notification UI marker ('NEW' bubble flag)",
+        "name": "Tournament Finals Match Hint Seen",
+        "description": "1 once you have clicked a match in a tournament finals bracket. Until then a hint mark shows at the top of the bracket.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "503": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament Finals Seen Day - Bronze",
+        "description": "The tournament day you last clicked the box at the right end of the Bronze finals bracket. On a later day, once that bracket's finals are done, a marker shows there until you click it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "504": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament Finals Seen Day - Silver",
+        "description": "The tournament day you last clicked the box at the right end of the Silver finals bracket. On a later day, once that bracket's finals are done, a marker shows there until you click it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "505": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament Finals Seen Day - Gold",
+        "description": "The tournament day you last clicked the box at the right end of the Gold finals bracket. On a later day, once that bracket's finals are done, a marker shows there until you click it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "506": {
         "name": "Unused",
