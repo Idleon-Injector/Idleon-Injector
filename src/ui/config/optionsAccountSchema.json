@@ -3054,244 +3054,251 @@
         "verified": true
     },
     "506": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament - Diamond Finals Seen Day",
+        "description": "Tournament day you last clicked the lower-right box of the Diamond bracket. While it's older than today and that bracket's finals are in, the box shows an extra marker.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "507": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament - Master Finals Seen Day",
+        "description": "Tournament day you last clicked the lower-right box of the Master bracket. While it's older than today and that bracket's finals are in, the box shows an extra marker.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "508": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament - 6th Finals Seen Day",
+        "description": "Same as slots 503 to 507, for a 6th division the game doesn't have yet. Only used if the server adds that division.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "509": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament - 7th Finals Seen Day",
+        "description": "Same as slots 503 to 507, for a 7th division the game doesn't have yet. Only used if the server adds that division.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "510": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Tournament - 8th Finals Seen Day",
+        "description": "Same as slots 503 to 507, for a 8th division the game doesn't have yet. Only used if the server adds that division.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "511": {
-        "name": "Tournament Registration Day Lock",
-        "description": "Most recent tournament day used for pet tournament registration gating",
+        "name": "Tournament - Last Registered Day",
+        "description": "Tournament day after the last one you registered for. Registering counts toward your tournament total (slot 498) only once per tournament.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "512": {
-        "name": "Toobus/Goobus 4 Quest Stage",
-        "description": "Current completion stage for the multi-step Toobus/Goobus 4 quest chain",
+        "name": "Research - First Steps",
+        "description": "Research tutorial progress, 0 to 3: found an Observation, studied it, spent a Grid Point. Fills the steps of Toobus Goobus's 4th quest, and the Research screen shows hints until it reaches 3.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "513": {
-        "name": "Companion Alert Seen Flag",
-        "description": "One-time flag marking the companion warning/tooltip animation as seen",
+        "name": "Tournament - Dog Guide Read",
+        "description": "1 once you reach the last page of Dog's tournament guide. Until then, if you have companions, a bouncing marker shows next to Dog's button.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "514": {
-        "name": "Observation Min Roll Streak",
-        "description": "Temporary observation progress counter that boosts the Grid MinRoll bonus before reset",
+        "name": "Research - Smart Eye Failed Rolls",
+        "description": "Failed Observation rolls in a row. With the Smart Eye grid bonus, each one raises your minimum roll. Goes back to 0 on a successful roll.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "515": {
         "name": "Unused",
-        "description": "No observable behavior in current build",
+        "description": "Nothing in the game reads or writes this slot.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "516": {
-        "name": "Pet Mart Gem Reward Day Lock",
-        "description": "Last shop day the Pet Mart gem reward was claimed",
+        "name": "Pet Mart - Daily Gems Claimed Day",
+        "description": "Shop day you last claimed the free gems at the Pet Mart. The claim button shows again when a new shop day starts.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "517": {
-        "name": "Workbench Selected Tab",
-        "description": "Saved workbench/crafting selection index restored when reopening the UI",
+        "name": "Construction - Cog Stat View",
+        "description": "Which number the cog board shows on each cog: 0 none, 1 Build, 2 Flaggy, 3 EXP. Remembered between visits.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "518": {
-        "name": "Companion 88 Cauldron Bonus Claimed",
-        "description": "One-time claim flag for the companion 88 Cauldron bonus reward",
+        "name": "Rift Hivemind Companion - Prisma Bubbles Given",
+        "description": "How much of the Rift Hivemind companion's Prisma Bubble gift you've received: 1 after the first (+50 to slot 383), 2 after its level 2 gift (+20 more). Checked when you open the Alchemy cauldrons.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "519": {
-        "name": "Tournament Best Division This Season",
-        "description": "Highest pet tournament division reached during the current season",
+        "name": "Tournament - Best Division This Season",
+        "description": "Best tournament division reached this season: -1 none yet, 0 Bronze up to 4 Master. Season-end rewards go by it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "520": {
-        "name": "Steam Promo UI State",
-        "description": "Finite-state flag for the Play-on-Steam / kill-dialogue promo UI",
+        "name": "Play on Steam Prompt State",
+        "description": "For accounts moved from Android: 1 shows a Play on Steam sign in an early map that opens the Steam store; 2 once you have logged in on Steam. 3 is the normal value for other accounts.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "521": {
-        "name": "Vault Upgrade Scroll Position",
-        "description": "Saved Vault upgrade screen scroll/offset position",
+        "name": "Vault - Upgrade List Scroll",
+        "description": "First Vault upgrade shown in the list (how far you scrolled). Remembered between visits.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "522": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Sushi - Show Tiers",
+        "description": "1 shows each sushi's tier number in the Sushi station. Switched by the button at the top once View Tiers is unlocked.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "523": {
-        "name": "Supporter Pack Popup Suppression Flag",
-        "description": "High-spender/supporter flag tied to Pack Popup suppression messaging",
+        "name": "Disable Daily Pack Popups (Advanced Option)",
+        "description": "Advanced Options toggle 1. Can only be switched after buying 4,000 gems. The game stops daily pack popups for those players anyway, so this switch changes nothing.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "524": {
-        "name": "Guild GP Auto-Contribution Gate",
-        "description": "Feature gate controlling automatic Guild GP task contribution flow",
+        "name": "Automatic GP Claiming (Advanced Option)",
+        "description": "Advanced Options toggle 2. Claims GP for finished Guild Tasks by itself.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "525": {
-        "name": "Timed Event Popup Suppression Flag",
-        "description": "One-time flag gating Happy Hour and related timed event popups",
+        "name": "Hide H.H. & R.E. Popups (Advanced Option)",
+        "description": "Advanced Options toggle 3. Hides the dungeon Happy Hour and Random Event popups.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "526": {
-        "name": "GiveAllEZaccessFR Action Toggle",
-        "description": "Feature flag that triggers the GiveAllEZaccessFR action block during Emperor cleanup",
+        "name": "Auto Claim EZ Access (Advanced Option)",
+        "description": "Advanced Options toggle 4. Claims the Boss Keys and Colosseum Tickets from the NPCs at the start of each day.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "527": {
-        "name": "Auto-Claim Flag",
-        "description": "Feature flag that marks the surrounding reward flow as auto-claimed",
+        "name": "Auto Claim AFK Gains (Advanced Option)",
+        "description": "Advanced Options toggle 5. AFK gains go straight to storage and the AFK Gains popup no longer shows.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "528": {
-        "name": "Farming Bulk Toggle Mode",
-        "description": "Enables the farming UI bulk toggle action for all farm plots",
+        "name": "Show Lock-All Farming Button (Advanced Option)",
+        "description": "Advanced Options toggle 6. Shows the Lock All Crops button in Farming while the Lock Crop tool is picked.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "529": {
-        "name": "Sailing Autopilot Intensity",
-        "description": "Controls queued sailing callbacks and save suppression for automated sailing flows",
+        "name": "Fast Sailing Chest Claiming (Advanced Option)",
+        "description": "Advanced Options toggle 7. Holding down on Sailing chests opens them 5x as fast.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "530": {
-        "name": "Cog Trash-All Toggle",
-        "description": "Enables the one-click Trash All action in the CogCraft UI",
+        "name": "Show Trash-All Cogs Button (Advanced Option)",
+        "description": "Advanced Options toggle 8. Shows the Trash All Cogs button in Construction while Trash Cogs mode is on. It only trashes the inventory page you're viewing.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "531": {
-        "name": "AutoUseAllEggies Action Toggle",
-        "description": "Feature flag that triggers the AutoUseAllEggies action block",
+        "name": "Auto Use & Trash Eggs (Advanced Option)",
+        "description": "Advanced Options toggle 9. At the start of each day, uses then trashes all Breeding eggs.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "532": {
-        "name": "Unused",
-        "description": "No observable behavior in current build",
+        "name": "Burger (Advanced Option)",
+        "description": "Advanced Options toggle 10. A placeholder row named Burger. Nothing reads it, so the switch does nothing.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "533": {
-        "name": "Random Event Bookmark Mode",
-        "description": "Enables per-slot marking/highlighting in the random event UI",
+        "name": "Enable Harvest-All Toggle (Advanced Option)",
+        "description": "Advanced Options toggle 11. In Gaming's Mutation tab you can click sprout types to add or remove them from auto-harvest (slots 583 and up).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "534": {
-        "name": "W5 Gaming Saved Selection",
-        "description": "Saved selection/state value restored when launching the W5 gaming event",
+        "name": "Fast-Mode for Log Game (Advanced Option)",
+        "description": "Advanced Options toggle 12. The What's Under The Log? game in Gaming plays much faster.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "535": {
-        "name": "Ninja Super-Trash Toggle",
-        "description": "Enables the automatic Ninja super-trash cleanup routine",
+        "name": "Full Sneaking Auto Trash (Advanced Option)",
+        "description": "Advanced Options toggle 13. Sneaking's Auto Trash Bad Items also trashes anything worse than your best copy of that item, and all new hats.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "536": {
-        "name": "Ninja Gem Click Mode",
-        "description": "Enables the extra Lucky Ninja Gem click interaction in the Ninja UI",
+        "name": "Insta Use Sneaking Items (Advanced Option)",
+        "description": "Advanced Options toggle 14. Hovering over Gemstones and Symbols in the Ninja inventory uses them, no holding needed.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "537": {
-        "name": "Global Ninja Refresh Toggle",
-        "description": "Allows Ninja updates and refreshes to apply across all player slots",
+        "name": "Move-All-Ninjas Sneaking Mode (Advanced Option)",
+        "description": "Advanced Options toggle 15. Moving your first Ninja Twin to another floor moves all the other twins there too.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "538": {
-        "name": "Auto Full-Clear Necessary Flag",
-        "description": "Toggles whether the AutoFullClearNECESSARY helper reports that an auto full clear is required",
+        "name": "Full Clear Spelunking Mode (Advanced Option)",
+        "description": "Advanced Options toggle 16. Spelunking Auto Mode only goes to the next depth after clearing everything on the current one.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "539": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Hide Item Pickup Status (Advanced Option)",
+        "description": "Advanced Options toggle 17. Hides the item, coin and EXP pickup text in the bottom left of the screen. Helps performance.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "540": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Nothing in the game reads or writes this slot.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "541": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Nothing in the game reads or writes this slot.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "542": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Nothing in the game reads or writes this slot.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "543": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Nothing in the game reads or writes this slot.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "544": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Nothing in the game reads or writes this slot.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "545": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Nothing in the game reads or writes this slot.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "546": {
         "name": "Unused",
