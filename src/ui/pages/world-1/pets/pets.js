@@ -18,6 +18,7 @@ import {
     executeCheatAction,
     fetchCheatStates,
     fetchConfig,
+    gga,
     readCList,
     readComputed,
     readGgaEntries,
@@ -38,7 +39,6 @@ import {
     joinClasses,
     useWriteStatus,
     writeManyVerified,
-    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span, label, input } = van.tags;
@@ -323,21 +323,32 @@ const CompanionsTab = () => {
                 selectionWrites++;
                 writeError.val = "";
                 if (error.val || !companions.val.length) throw new Error("Refresh pet data before changing tiers");
-                // The tokens first: the saved tiers are read against them (a pet with a token has no tier).
-                tokens.val = await readComputed("companions", "petTokens");
+                // The tokens first: the saved tiers are read against them (a pet with a token has no tier). The picks
+                // come from the list itself, which the token write expects to find, so a token the game adds while
+                // this reads the config refuses the write instead of being written over.
+                const [read, tokenList] = await Promise.all([readComputed("companions", "petTokens"), gga(TOKEN_PATH)]);
+                tokens.val = { ...read, picks: tokenList ? String(tokenList).split(",").map(Number) : [] };
                 await readSelection();
                 const { picks = tokens.val.picks } = getChange();
                 if (picks !== tokens.val.picks) {
-                    await writeVerified(TOKEN_PATH, picks.join(",")).catch(() => {
-                        throw new Error("Could not save pet token picks");
-                    });
+                    await writeManyVerified([{ path: TOKEN_PATH, value: picks.join(","), expect: tokenList }]).catch(
+                        (error) => {
+                            throw new Error(
+                                error.message === "changed since"
+                                    ? "Tokens changed in the game. Try again."
+                                    : "Could not save pet token picks"
+                            );
+                        }
+                    );
                     tokens.val = { ...tokens.val, picks };
                 }
                 let entries;
                 // Chosen pets also turn the cheat on at every start; none takes it off that list.
-                const { result, config } = await saveConfigPart((now) => {
-                    // The tiers from the config as it is in the save's turn, so a list saved meanwhile (the Config
-                    // tab) isn't overwritten; the change asked for again on them.
+                const { result, config } = await saveConfigPart(async (now) => {
+                    // The tokens and the tiers from the config as they are in the save's turn, so a token the game
+                    // gave meanwhile is refused and a list saved meanwhile (the Config tab) isn't overwritten; the
+                    // change asked for again on them.
+                    tokens.val = await readComputed("companions", "petTokens");
                     showSelection(now);
                     const { normal, plus } = getChange();
                     entries = companions.val
@@ -357,7 +368,15 @@ const CompanionsTab = () => {
                 // Part of it may have landed: the cards show what is saved now.
                 onError: (error) => {
                     writeError.val = error.message;
-                    void readSelection().catch(() => {});
+                    // A save started since is newer than this read: it keeps its own tokens and reads its own tiers.
+                    const writes = selectionWrites;
+                    void readComputed("companions", "petTokens")
+                        .then((read) => {
+                            if (writes !== selectionWrites) return;
+                            tokens.val = read;
+                            return readSelection();
+                        })
+                        .catch(() => {});
                 },
             }
         );
@@ -375,6 +394,8 @@ const CompanionsTab = () => {
         const shown = isToken(companionId);
         if (shown && tier === "normal") return;
         await writeSelection(() => {
+            // A token the game gave the pet since the press: Pets+ on top shows the wrong bonus, and Off can't take it.
+            if (!shown && isToken(companionId) && tier !== "normal") throw new Error("This pet has a token now.");
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
             normal.delete(companionId);

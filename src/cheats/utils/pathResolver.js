@@ -265,6 +265,13 @@ export function writePaths(writes = []) {
     }
 
     const hasExpect = (entry) => Object.prototype.hasOwnProperty.call(entry ?? {}, "expect");
+    // `expect` is a value the read routes gave, and they give a numeric-key object as an array (normalizeReadValue in
+    // routes/game.js): the game's value is read the same way first, so an unchanged one in either shape holds.
+    const holds = (value, expect) => {
+        const keys = value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+        const read = keys.length > 0 && keys.every((key) => /^\d+$/.test(key)) ? Object.assign([], value) : value;
+        return JSON.stringify(read) === JSON.stringify(expect);
+    };
     // An entry without `expect` was planned from the same read as the batch's guarded ones (Star Signs: the claims
     // and their points balance, #158), so it is written only when every guard holds, checked before any write.
     // A guarded entry still stands alone, so an undo puts back the values that didn't move.
@@ -272,7 +279,7 @@ export function writePaths(writes = []) {
         if (!hasExpect(entry)) return true;
         try {
             const resolved = resolveValuePath(entry.path);
-            return !resolved.error && JSON.stringify(resolved.target[resolved.prop]) === JSON.stringify(entry.expect);
+            return !resolved.error && holds(resolved.target[resolved.prop], entry.expect);
         } catch {
             return false;
         }
@@ -295,9 +302,8 @@ export function writePaths(writes = []) {
             const { target, prop } = resolved;
             // `expect` (an undo's write): the value checked before; refused if the game changed it since, in this
             // same evaluation, so nothing can land between the check and the write.
-            // ponytail: compares JSON, so a numeric-key object (the server reads it back as an array) always refuses.
             if (hasExpect(entry)) {
-                if (JSON.stringify(target[prop]) !== JSON.stringify(entry.expect)) {
+                if (!holds(target[prop], entry.expect)) {
                     return { path, ok: false, error: "changed since" };
                 }
             }
