@@ -642,6 +642,30 @@ test("stamps: a refused level stays said when the switch flipped behind it saves
     }
 });
 
+// #111: the switch says its own save, so a level fixed while it saves keeps one steady reason until the level saves.
+test("stamps: a level fixed while the switch saves shows its ✓ once it saves, not the old reason", async () => {
+    try {
+        const { row, levels, before } = await openStampA1();
+        let field = typeLevel(row, -5);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => saveWordsOf(row) === "min 0", "the level's reason");
+        const requests = watchRequests((url, body) => url.includes("/write") && body.includes("Compass[4]"));
+        const flipped = requests.track(flip(row, true));
+        await until(requests.held, "the switch's write to reach the game");
+        field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} }); // waits behind the switch
+        const saved = requests.track(
+            until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the fixed level to save")
+        );
+        assert.equal(saveWordsOf(row), "min 0", "the reason stays while the switch saves");
+        requests.release();
+        await Promise.all([flipped, saved]);
+        assert.equal(wordsOf(row), "Exalted");
+    } finally {
+        await runCleanups();
+    }
+});
+
 test("stamps: a switch's save is read out once, by the switch", async () => {
     try {
         const { row } = await openStampA1();
@@ -942,9 +966,17 @@ test("stamps: Escape drops a commit still waiting; the one already writing ends"
         await until(requests.held, "the first level's write to reach the game");
         const field = commit(before + 2); // joins the running save
         row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        // The row's save is the operation: cleanup waits for it, so no level lands after the stamp is put back.
+        const saved = requests.track(
+            until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the first level's save to end")
+        );
         requests.release();
-        await until(() => levels[0] === before + 1 && saveWordsOf(row) === "saved", "the first level's save to end");
+        await saved;
         assert.deepEqual(requests.levels, [before + 1], "the commit Escape took back isn't saved");
+        await until(() => field.attributes.value === String(before + 1), "the field to show what the game holds");
+        row.listeners.focusout({ currentTarget: row, target: field, relatedTarget: null });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.deepEqual(requests.levels, [before + 1], "leaving the field doesn't save the old level back");
     } finally {
         await runCleanups();
     }
@@ -968,8 +1000,11 @@ test("stamps: a commit that joins a running save is logged on its own page after
         await until(requests.held, "the first level's write to reach the game");
         commit(before + 2); // joins the running save
         store.openMenu({ view: "HISTORY" }); // the player moves on before it runs
+        const saved = requests.track(
+            until(() => levels[0] === before + 2 && saveWordsOf(row) === "saved", "the second level to save")
+        );
         requests.release();
-        await until(() => levels[0] === before + 2, "the second level to save");
+        await saved;
         const { actions } = await fetchChanges();
         const second = actions.find((action) =>
             action.entries.some((entry) => entry.path === "StampLevel[0][0]" && entry.after === before + 2)
