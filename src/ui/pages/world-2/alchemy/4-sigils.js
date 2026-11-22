@@ -13,6 +13,7 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
+import { gga } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -49,14 +50,23 @@ const tierLabel = (value) => (SIGIL_TIERS.find((tier) => tier.value === Number(v
 
 const SigilRow = ({ index, tierState, nameState, bonusState }) => {
     const pickedTier = van.state(tierState.val);
-    // Picking a tier saves it.
+    const path = `CauldronP2W[4][${2 * index + 1}]`;
+    // Picking a tier saves it. The pick is taken when it's made: the derive below shows the game's tier once an earlier
+    // pick lands.
     const { status, reason, save, handlers, undo } = useAutoSave({
-        prepare: () => {
-            const tier = pickedTier.val;
+        capture: () => pickedTier.val,
+        prepare: (tier = pickedTier.val) => {
             if (tier === Number(tierState.val)) return { unchanged: true };
             return {
                 write: async () => {
-                    await writeVerified(`CauldronP2W[4][${2 * index + 1}]`, tier);
+                    try {
+                        await writeVerified(path, tier);
+                    } catch (error) {
+                        // The picker shows the tier the game holds, so the same pick can be tried again.
+                        tierState.val = toNum(await gga(path).catch(() => tierState.val), -1);
+                        if (pickedTier.val === tier) pickedTier.val = Number(tierState.val);
+                        throw error;
+                    }
                     tierState.val = tier;
                 },
             };

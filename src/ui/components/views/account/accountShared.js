@@ -184,14 +184,16 @@ const BONUS_NUMBER = /[+-]?\{%?\}?%?/g;
 
 /**
  * A bonus in the game's own words, from its description ("+{%_Mining_EXP_gain.", "Boosts_base_STR_by_+{"): the
- * number's place goes, since the game works the number out with many multipliers, and only the first sentence shows
- * (the rest is the game's jokes). A short bonus whose number leads or ends it as a percent ends in "%":
- * "Mining EXP gain %", "Boosts base STR".
+ * number's place goes, since the game works the number out with many multipliers, and only the sentence holding it
+ * shows (the others are the game's jokes, before it or after it). A short bonus whose number leads or ends it as a
+ * percent ends in "%": "Mining EXP gain %", "Boosts base STR".
  */
 export const bonusText = (template = "") => {
-    const raw = String(template ?? "")
+    const sentences = String(template ?? "")
         .replace(/_/g, " ")
-        .trim();
+        .trim()
+        .split(/(?<=[.!?:])\s+/);
+    const raw = sentences.find((sentence) => /[{}]/.test(sentence)) ?? sentences[0];
     // A multiplier ("}x_Sushi_Bucks") leads with the number's closing mark.
     const lead = /^(?:[+-]?\{%?\}?%?|\}x)/;
     const tail = /(?:\s+by)?\s*[+-]?\{%?\}?%?\s*$/i;

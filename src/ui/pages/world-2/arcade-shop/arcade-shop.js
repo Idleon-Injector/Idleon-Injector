@@ -166,6 +166,25 @@ const ArcadeTab = () => {
                             getPath: (entry) => `ArcadeUpg[${entry.index}]`,
                         })
                     );
+                const loweredOf = (entries) => entries.filter((entry) => Number(entry.levelState.val) > level);
+                const askOrWrite = (entries) => {
+                    const lowered = loweredOf(entries);
+                    if (!lowered.length) return void writeAll(entries);
+                    const verb = level === 0 ? "Reset" : "Lower";
+                    const n = lowered.length;
+                    ask({
+                        question: `${verb} ${n} ${upgradeWord(n)} to ${aim}?`,
+                        confirmLabel: `${verb} ${n === 1 ? "it" : "them"}`,
+                        from: levelButton,
+                        // A level saved while the question was open can change what gets lowered: then it asks again.
+                        onConfirm: () => {
+                            const now = loweredOf(entries);
+                            const same = now.length === n && now.every((entry, i) => entry === lowered[i]);
+                            return same ? writeAll(entries) : askOrWrite(entries);
+                        },
+                    });
+                    return undefined;
+                };
                 const levelButton = ActionButton({
                     label,
                     status: bulk.status,
@@ -176,16 +195,7 @@ const ArcadeTab = () => {
                     },
                     onClick: (e) => {
                         e.preventDefault();
-                        const entries = shown();
-                        const lowered = entries.filter((entry) => Number(entry.levelState.val) > level).length;
-                        if (!lowered) return void writeAll(entries);
-                        const verb = level === 0 ? "Reset" : "Lower";
-                        ask({
-                            question: `${verb} ${lowered} ${upgradeWord(lowered)} to ${aim}?`,
-                            confirmLabel: `${verb} ${lowered === 1 ? "it" : "them"}`,
-                            from: levelButton,
-                            onConfirm: () => writeAll(entries),
-                        });
+                        return askOrWrite(shown());
                     },
                 });
                 return levelButton;
