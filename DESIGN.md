@@ -321,6 +321,8 @@ World 3 uses the World 1 and World 2 pieces; a few of them grew, and are now sha
   the list is long. Up, Down, Enter and Escape work in it. A 3D Printer slot's item is picked this way, under its row,
   and saves at once.
 - **One character picker** (`createCharacterSelector`, built on it) sits on the line under the title wherever a page
-  shows one character's things: Prayers, 3D Printer, Traps. Never tabs per character.
+  shows one character's things: Prayers, 3D Printer, Traps. Never tabs per character. Its list opens over the page
+  (nothing below moves), across the page's width in columns (4 on desktop, 2 on a phone), each name with its class
+  under it (Lumi's pick of two concepts, 2026-11-22).
 - **Bonus first everywhere the game has one**: hats (their Hat Rack stat), armor sets (their set bonus), talents
   (their first line), buildings (a town building's current bonus, a tower's or shrine's first line).
