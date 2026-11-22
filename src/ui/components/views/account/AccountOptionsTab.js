@@ -32,7 +32,7 @@ const normalizeForWrite = (type, rawValue) => {
     if (type === "number") {
         const nextValue = Number(rawValue);
         if (String(rawValue).trim() === "") throw new Error("enter a number");
-        if (Number.isNaN(nextValue)) throw new Error("not a number");
+        if (!Number.isFinite(nextValue)) throw new Error("not a number");
         return nextValue;
     }
     if (type === "boolean") return rawValue === true;
@@ -110,6 +110,8 @@ const createOptionRow = (index, rawValue, schema) => {
         if (type === "number") {
             return NumberInput({
                 class: "option-input",
+                // Big values come in short forms like 5e50; the save checks the typed text.
+                mode: "any",
                 value: currentValue,
                 oninput: (e) => (currentValue.val = e.target.value),
                 onDecrement: () => (currentValue.val = Number(currentValue.val) - 1),
