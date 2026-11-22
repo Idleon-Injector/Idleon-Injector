@@ -58,8 +58,8 @@ const readUpgrades = async () => {
             return {
                 index,
                 name: upgradeName(def[0], index),
-                // Its bonus marks the number with "}" ("+}_Egg_Max"), where most lists use "{".
-                bonus: bonusText(def[10] === "_" ? "" : String(def[10] ?? "").replace(/}/g, "{")),
+                // Its bonus marks the number with "}" ("+}_Egg_Max"), where most lists use "{" ("}x" stays: a multiplier).
+                bonus: bonusText(def[10] === "_" ? "" : String(def[10] ?? "").replace(/}(?!x)/g, "{")),
                 level: toInt(levels[index], { min: 0 }),
             };
         })
@@ -96,6 +96,10 @@ const GeneralTab = () => {
     const reconcileUpgrades = createStaticRowReconciler(upgradeNode);
     // After a read that failed, the levels shown may be old: the tools wait for one that works.
     const readPending = () => loading.val || Boolean(error.val);
+
+    const numberRow = (name, path, valueState, extra = {}) =>
+        SimpleNumberRow({ entry: { name, path, formatted: false, showIndex: false, ...extra }, valueState });
+    const deadCellsRow = numberRow("Dead cells", DEAD_CELLS_PATH, deadCellsState, { formatted: true });
 
     const load = async () =>
         run(async () => {
@@ -142,10 +146,13 @@ const GeneralTab = () => {
             reconcileEggs(String(eggs.length), () => eggs.map((egg) => row(egg)));
             reconcileUpgrades(
                 upgradeEntries.map((upgrade) => `${upgrade.index}:${upgrade.name}:${upgrade.max}`).join("|"),
-                () =>
-                    upgradeEntries.map((upgrade) =>
+                // Dead cells first, in the same list, so the rows read as one group.
+                () => [
+                    deadCellsRow,
+                    ...upgradeEntries.map((upgrade) =>
                         row(upgrade, () => RowTitles({ bonus: upgrade.bonus, name: upgrade.name }))
-                    )
+                    ),
+                ]
             );
             // The level the game holds, above the max too (the game counts it all): Max all lowers it.
             [...eggs, ...upgradeEntries].forEach((entry) => (entry.state.val = entry.level));
@@ -218,9 +225,6 @@ const GeneralTab = () => {
 
     load();
 
-    const numberRow = (name, path, valueState, extra = {}) =>
-        SimpleNumberRow({ entry: { name, path, formatted: false, showIndex: false, ...extra }, valueState });
-
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "General",
@@ -238,10 +242,7 @@ const GeneralTab = () => {
                     AccountSection({ title: "Eggs", body: eggNode }),
                     AccountSection({
                         title: "Upgrades",
-                        body: [
-                            numberRow("Dead cells", DEAD_CELLS_PATH, deadCellsState, { formatted: true }),
-                            upgradeNode,
-                        ],
+                        body: [upgradeNode],
                     }),
                     AccountSection({
                         title: "Pet Arena",
