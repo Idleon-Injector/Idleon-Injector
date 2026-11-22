@@ -1,0 +1,13 @@
+/* Tome: a record only the game counts shows its value as plain text, ending where the fields' values end: the field's
+   width, less the cap's room and the − / + pair's (54px, measured in the list). */
+.viewport .tome-row__value {
+    width: var(--field-columns-width);
+    padding-right: calc(var(--field-columns-cap) + 2px + 54px);
+    box-sizing: border-box;
+    font-family: var(--font-display);
+    font-size: var(--size-value);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--c-text-muted);
+}

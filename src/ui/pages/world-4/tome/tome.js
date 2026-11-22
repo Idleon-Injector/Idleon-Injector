@@ -1,3 +1,15 @@
+/**
+ * W4 - Tome
+ *
+ * Data sources:
+ *   gga.DNSM.h.TomeQTY[n]   - record n's value as the Tome counts it
+ *   cList.Tome[n][0]        - the record's name
+ *   cList.NinjaInfo[32]     - the game's order of the records
+ *
+ * One list in the game's order. A record the injector can change has a field, written to where the game keeps the
+ * value (TOME_EDITORS); the others show their value as plain text, since the Tome only counts them.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
@@ -6,8 +18,8 @@ import { EditableNumberRow } from "../../../components/views/account/EditableNum
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -139,7 +151,8 @@ const buildTomeEntries = (rawValues, rawTomeRows, rawOrder) => {
         return {
             index,
             key: `tome:${index}:${rawName}`,
-            name: cleanName(rawName.replace(/膛/g, ""), `Tome ${index + 1}`),
+            // "Unique_Quests_Completed_膛" and "(Tap_for_more_info)": the game's marks for a record with a longer note.
+            name: cleanName(rawName.replace(/膛/g, "").replace(/_?\(Tap_for_more_info\)/, ""), `Tome ${index + 1}`),
             value: values[index] ?? 0,
             editor: TOME_EDITORS.get(index) ?? null,
         };
@@ -171,43 +184,25 @@ const TomeEditableRow = ({ entry, valueState }) =>
         valueState,
         normalize: (rawValue) => normalizeEditableValue(rawValue, entry.editor),
         write: (nextValue) => writeEditableValue(entry.editor, nextValue),
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
+        renderInfo: () => span({ class: "account-row__name" }, entry.name),
         adjustInput: (rawValue, delta, currentValue) => adjustFormattedIntInput(rawValue, delta, currentValue ?? 0),
-        controlsClass: "account-row__controls--xl",
         inputMode: "float",
         inputProps: { formatter: largeFormatter, parser: largeParser },
     });
 
-const TomeRow = ({ entry }) =>
+// A record only the game counts: its value as plain text where a field would be.
+const TomeRow = ({ entry, valueState }) =>
     AccountRow({
-        info: [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        // No field shows this value, so the badge does.
-        badge: () => largeFormatter(entry.value ?? 0),
+        rowClass: "tome-row",
+        info: span({ class: "account-row__name" }, entry.name),
+        controls: span({ class: "tome-row__value" }, () => largeFormatter(valueState.val ?? 0)),
     });
 
 const TomeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Tome" });
-    const entries = van.state([]);
     const valueStates = new Map();
-    const tomeRows = div({ class: "account-item-stack account-item-stack--dense" });
-    const reconcileTomeRows = createStaticRowReconciler(tomeRows);
-
-    const reconcileRows = () =>
-        reconcileTomeRows(
-            entries.val.map((entry) => (entry.editor ? entry.key : `${entry.key}:${entry.value}`)).join("|"),
-            () =>
-                entries.val.map((entry) =>
-                    entry.editor
-                        ? TomeEditableRow({ entry, valueState: getOrCreateState(valueStates, entry.index) })
-                        : TomeRow({ entry })
-                )
-        );
+    const listNode = div();
+    const reconcileRows = createStaticRowReconciler(listNode);
 
     const load = async () =>
         run(async () => {
@@ -216,39 +211,31 @@ const TomeTab = () => {
                 readCList("Tome"),
                 readCList("NinjaInfo[32]"),
             ]);
-
-            entries.val = buildTomeEntries(rawValues, rawTomeRows, rawOrder);
-            reconcileRows();
-
-            for (const entry of entries.val) {
-                if (entry.editor) getOrCreateState(valueStates, entry.index).val = entry.value;
-            }
+            const entries = buildTomeEntries(rawValues, rawTomeRows, rawOrder);
+            reconcileRows(entries.map((entry) => entry.key).join("|"), () =>
+                entries.map((entry) => {
+                    const valueState = getOrCreateState(valueStates, entry.index);
+                    return entry.editor ? TomeEditableRow({ entry, valueState }) : TomeRow({ entry, valueState });
+                })
+            );
+            for (const entry of entries) getOrCreateState(valueStates, entry.index).val = entry.value;
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "TOME",
-            note: () =>
-                `${entries.val.filter((entry) => entry.editor).length} EDITABLE / ${entries.val.length} VALUES FROM ${TOME_VALUES_PATH}`,
-            body: tomeRows,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "TOME",
-        description: "View W4 Tome values from DNSM. Editable rows write to their real backing paths.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Tome",
+        description: "Tome records. The ones with a field change where the game keeps them.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING TOME",
-        errorTitle: "TOME READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the tome",
+        errorTitle: "Couldn't read the tome",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({ className: "field-columns tome-list", body: listNode })
+        ),
     });
 };
 
@@ -256,6 +243,6 @@ export default definePage({
     id: "w4.tome",
     world: 4,
     system: "Tome",
-    description: "Tome values, with the editable ones written to where the game keeps them.",
+    description: "Tome records, with the editable ones written to where the game keeps them.",
     component: TomeTab,
 });

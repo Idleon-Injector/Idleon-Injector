@@ -1,3 +1,12 @@
+/**
+ * W4 - Cooking › Spices
+ *
+ * Data source:
+ *   gga.Meals[3][n] - how much of spice n the account holds, one per breeding territory
+ *
+ * One list in the game's order, each spice with its amount.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
@@ -5,9 +14,9 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { createStaticRowReconciler, getOrCreateState } from "../../../components/views/account/accountShared.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { createIndexedStateGetter } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -41,68 +50,35 @@ export const SPICE_NAMES = [
     "Murky Trenches Spice",
 ];
 
-const buildSpiceEntries = (rawSpiceAmounts) => {
-    const spiceAmounts = toIndexedArray(rawSpiceAmounts ?? []);
-    return SPICE_NAMES.map((name, index) => ({
-        index,
-        key: `spice:${index}`,
-        name,
-        path: `${SPICE_AMOUNTS_PATH}[${index}]`,
-        value: spiceAmounts[index] ?? 0,
-        float: true,
-    }));
-};
-
 const SpicesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking spices" });
-    const spiceEntries = van.state([]);
-    const spiceAmountStates = new Map();
-    const spiceRows = div({ class: "account-item-stack account-item-stack--dense" });
-    const reconcileSpiceRows = createStaticRowReconciler(spiceRows);
-
-    const reconcileRows = () =>
-        reconcileSpiceRows(spiceEntries.val.map((entry) => entry.key).join("|"), () =>
-            spiceEntries.val.map((entry) =>
-                SimpleNumberRow({
-                    entry,
-                    valueState: getOrCreateState(spiceAmountStates, entry.index),
-                })
-            )
-        );
+    const getAmountState = createIndexedStateGetter(0);
+    // The spices never change, so their rows are made once; a read only sets their amounts.
+    const rows = SPICE_NAMES.map((name, index) =>
+        SimpleNumberRow({
+            entry: { name, path: `${SPICE_AMOUNTS_PATH}[${index}]`, float: true, showIndex: false },
+            valueState: getAmountState(index),
+        })
+    );
 
     const load = async () =>
         run(async () => {
-            spiceEntries.val = buildSpiceEntries(await gga(SPICE_AMOUNTS_PATH));
-            reconcileRows();
-
-            for (const entry of spiceEntries.val) {
-                getOrCreateState(spiceAmountStates, entry.index).val = entry.value;
-            }
+            const amounts = toIndexedArray((await gga(SPICE_AMOUNTS_PATH)) ?? []);
+            SPICE_NAMES.forEach((_, index) => (getAmountState(index).val = Number(amounts[index] ?? 0)));
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "SPICES",
-            note: () => `${spiceEntries.val.length} SPICES FROM ${SPICE_AMOUNTS_PATH}`,
-            body: spiceRows,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "COOKING SPICES",
-        description: "Edit W4 Cooking spice amounts.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Spices",
+        description: "Spices in the kitchen, one from each breeding territory.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING COOKING SPICES",
-        errorTitle: "COOKING SPICE READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the spices",
+        errorTitle: "Couldn't read the spices",
+        initialWrapperClass: "account-list",
+        body: div({ class: "account-list account-list--tabbed" }, ListPanel({ body: rows })),
     });
 };
 

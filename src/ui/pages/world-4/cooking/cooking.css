@@ -1,0 +1,14 @@
+/* Cooking: Tables and Meals are tables (a kitchen's Speed, Fire and Luck; a meal's Level, Amount and Ribbon), so they
+   take the wider measure. */
+.kitchen-tables-tab,
+.meals-tab {
+    --page-measure: 60rem;
+}
+
+/* Meals: Level, Amount, Ribbon and Mastery, four full-width columns; a closer gap keeps them inside the table. */
+.meals-table {
+    --value-columns: repeat(4, 9.5rem);
+}
+.viewport .meals-table .value-cells {
+    gap: 6px;
+}

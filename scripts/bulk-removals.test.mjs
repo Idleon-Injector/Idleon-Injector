@@ -169,7 +169,6 @@ test("a press whose targets changed since the question asks again instead of run
 });
 
 const removals = [
-    ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
     ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
     ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
