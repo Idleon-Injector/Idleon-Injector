@@ -308,7 +308,7 @@ pieces, and new pages start from them.
 
 ### World 3 on the same pieces (draft, 2026-11-22)
 
-World 3 uses the World 1 and World 2 pieces; three of them grew a little, and are now shared:
+World 3 uses the World 1 and World 2 pieces; a few of them grew, and are now shared:
 
 - **A row that holds a list opens in place** with the shared `row-opener` (its name, a small chevron, `aria-expanded`)
   and `row-detail` (the rows it holds, a step in, on the page's ground). Death Note's mobs open their characters' kills.
@@ -316,5 +316,11 @@ World 3 uses the World 1 and World 2 pieces; three of them grew a little, and ar
 - **A table line can carry a state word** before its values (`ValueTableRow`'s `badge`): Refinery's "Polymer".
 - **Something a page either has or hasn't** (a hat on the rack, a set in the Smithy) is one list of all of them, each
   with a switch, instead of an add pick and Remove buttons. Adding all runs on one press.
-- **A character pick** sits on the line under the title, like a filter (Prayers, Printer); where each character's things
-  are the page's whole content, the characters are tabs instead (Traps).
+- **A pick out of a list opens in place** (`PickInPlace`): no dropdown and no popup. Its opener is a soft filled shape
+  (or a row's own title), the list opens under it on the page's ground, the picked one in lavender, with a search when
+  the list is long. Up, Down, Enter and Escape work in it. A 3D Printer slot's item is picked this way, under its row,
+  and saves at once.
+- **One character picker** (`createCharacterSelector`, built on it) sits on the line under the title wherever a page
+  shows one character's things: Prayers, 3D Printer, Traps. Never tabs per character.
+- **Bonus first everywhere the game has one**: hats (their Hat Rack stat), armor sets (their set bonus), talents
+  (their first line), buildings (a town building's current bonus, a tower's or shrine's first line).

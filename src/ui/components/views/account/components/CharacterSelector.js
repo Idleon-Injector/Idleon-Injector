@@ -1,34 +1,41 @@
 import van from "../../../../vendor/van-1.6.0.js";
-import { createStaticRowReconciler } from "../accountShared.js";
+import { PickInPlace } from "./PickInPlace.js";
 
-const { div, label, select, option } = van.tags;
+const { div, span } = van.tags;
 
-/** Keep the character control stable while its roster and selected value refresh. */
+/**
+ * The character a page shows (Prayers, 3D Printer, Traps), picked on the line under the title: "Character", the name
+ * in the page's own shape, and a line about that character. The names open in place under the line, like any pick in
+ * place; picking one calls `onChange` with `{ target: { value } }`, the value `getValue` gives that name.
+ */
 export const createCharacterSelector = ({ id, selected, disabled, onChange, info, getValue = (name) => name }) => {
-    const control = select({
-        id,
-        class: "select-base",
-        value: selected,
+    const names = van.state([]);
+    const valueOf = (name) => String(getValue(name, names.val.indexOf(name)));
+    const shownName = () => names.val.find((name) => valueOf(name) === String(selected.val)) ?? "";
+    const pick = PickInPlace({
+        name: "Character",
+        opener: shownName,
+        options: () => names.val.map((name) => ({ id: valueOf(name), label: name })),
+        picked: () => String(selected.val),
+        onPick: (value) => onChange({ target: { value } }),
         disabled,
-        onchange: onChange,
+        openerClass: "character-picker__opener",
     });
-    const reconcileOptions = createStaticRowReconciler(control);
+    pick.opener.id = id;
 
     return {
         node: div(
-            { class: "content-stack account-character-selector" },
+            { class: "character-picker" },
             div(
-                { class: "account-setall-row" },
-                label({ for: id, class: "account-setall-row__label" }, "Character"),
-                control
+                { class: "character-picker__line" },
+                span({ class: "character-picker__label" }, "Character"),
+                pick.opener,
+                info ? span({ class: "character-picker__info" }, info) : null
             ),
-            div({ class: "account-character-selector__info" }, info)
+            pick.panel
         ),
-        setCharacters: (names) => {
-            reconcileOptions(JSON.stringify(names), () =>
-                names.map((name, index) => option({ value: getValue(name, index) }, name))
-            );
-            control.value = String(selected.val);
+        setCharacters: (next) => {
+            if (JSON.stringify(next) !== JSON.stringify(names.val)) names.val = [...next];
         },
     };
 };

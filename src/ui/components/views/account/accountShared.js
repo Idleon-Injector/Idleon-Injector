@@ -202,7 +202,8 @@ export const bonusText = (template = "") => {
         .replace(lead, "")
         .replace(tail, "")
         .replace(BONUS_NUMBER, "")
-        .replace(/[|@$^]/g, " ")
+        // A second number's mark ("up to } monsters") goes the same way.
+        .replace(/[|@$^{}]/g, " ")
         .replace(/\s+/g, " ")
         .trim()
         .split(/(?<=[.!?:])\s/)[0]
