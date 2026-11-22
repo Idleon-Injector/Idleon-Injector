@@ -95,9 +95,26 @@ test("Traps refuses a save or Finish once another character is in play, and writ
     const finish = button(finishRow, "Finish");
     finish.listeners.click({ preventDefault() {}, currentTarget: finish });
     await until(() => classes(finish).includes("account-btn--error"), "Finish to be refused");
+    // The reason stays beside the button, not just "failed".
+    const saidIn = (node) => byClass(node, "said__text").map(text).join(" | ");
+    await until(() => saidIn(finishRow) === "Character changed. Refresh.", "Finish to say why it was refused");
+
+    const finishAll = button(root, "Finish all");
+    finishAll.listeners.click({ preventDefault() {}, currentTarget: finishAll });
+    await until(
+        () => /Character changed\. Refresh\./.test(saidIn(root).replace(saidIn(finishRow), "")),
+        "Finish all to say why"
+    );
 
     assert.deepEqual(gga.PlacedTraps, liveBefore, `${other}'s traps in play are untouched`);
     assert.deepEqual(db[first].h.PldTraps, storedBefore, `${first}'s stored traps are untouched`);
+
+    // Back on the character the page read: the next Finish and Finish all work and clear their reasons.
+    switchTo(first);
+    finish.listeners.click({ preventDefault() {}, currentTarget: finish });
+    await until(() => saidIn(finishRow) === "", "a Finish that worked to clear its reason");
+    finishAll.listeners.click({ preventDefault() {}, currentTarget: finishAll });
+    await until(() => saidIn(root) === "", "a Finish all that worked to clear its reason");
 });
 
 test("Worship refuses a charge save once another character is in play, and writes nothing", async (t) => {

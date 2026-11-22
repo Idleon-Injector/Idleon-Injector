@@ -30,6 +30,8 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { AccountExpandableGroup } from "../../../components/views/account/components/AccountExpandableGroup.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
+import { Said, useSaid } from "../../../components/inPlace.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -109,6 +111,8 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
     const elapsedValue = getValueState(playerName, trap.trapIndex, "elapsed", toInt(trap.elapsed));
     const completionValue = getValueState(playerName, trap.trapIndex, "completion", toInt(trap.completionTime));
     const finishStatus = useWriteStatus();
+    // Why a Finish failed (another character in play, say) stays beside it until the next Finish works.
+    const finishSaid = useSaid();
 
     return EditableFieldsRow({
         fields: [
@@ -183,7 +187,8 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
                 resetDraft,
             }),
         ],
-        renderExtraActions: () =>
+        renderExtraActions: () => [
+            Said({ said: finishSaid.said, kinds: ["failed"] }),
             ActionButton({
                 label: "Finish",
                 status: finishStatus.status,
@@ -192,12 +197,16 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
                 onClick: async (e) => {
                     e.preventDefault();
                     const finishAt = toInt(completionValue.val, toInt(trap.completionTime));
-                    const { ok, result } = await finishStatus.run(async () =>
+                    const { ok, result, error } = await finishStatus.run(async () =>
                         onWriteField(playerName, trap.trapIndex, 2, finishAt)
                     );
-                    if (ok) elapsedValue.val = result;
+                    if (ok) {
+                        elapsedValue.val = result;
+                        finishSaid.clear();
+                    } else if (error) finishSaid.say("failed", saveFailureReason(error));
                 },
             }),
+        ],
     });
 };
 
@@ -224,6 +233,7 @@ const PlayerTrapPanel = ({ player, currentPlayer, getExpandedState, getValueStat
 const TrappingTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Trapping" });
     const finishAllStatus = useWriteStatus();
+    const finishAllSaid = useSaid();
     const trapCountState = van.state(0);
     const valueStates = new Map();
     const expandedStates = new Map();
@@ -281,22 +291,26 @@ const TrappingTab = () => {
     const finishAllTraps = async () => {
         if (!trapCountState.val) return;
 
-        await finishAllStatus.run(async () => {
-            for (const player of latestSnapshot.players) {
-                for (const trap of player.traps) {
-                    const completionState = getValueState(player.playerName, trap.trapIndex, "completion", 0);
-                    const finishAt = toInt(completionState.val, toInt(trap.completionTime));
-                    try {
-                        const verifiedElapsed = await onWriteField(player.playerName, trap.trapIndex, 2, finishAt);
-                        getValueState(player.playerName, trap.trapIndex, "elapsed", 0).val = verifiedElapsed;
-                    } catch (error) {
-                        throw new Error(
-                            `Finish all failed for ${player.playerName} trap ${trap.trapIndex}: ${error?.message ?? String(error)}`
-                        );
+        await finishAllStatus.run(
+            async () => {
+                for (const player of latestSnapshot.players) {
+                    for (const trap of player.traps) {
+                        const completionState = getValueState(player.playerName, trap.trapIndex, "completion", 0);
+                        const finishAt = toInt(completionState.val, toInt(trap.completionTime));
+                        try {
+                            const verifiedElapsed = await onWriteField(player.playerName, trap.trapIndex, 2, finishAt);
+                            getValueState(player.playerName, trap.trapIndex, "elapsed", 0).val = verifiedElapsed;
+                        } catch (error) {
+                            throw new Error(`${player.playerName} #${trap.trapIndex + 1}: ${saveFailureReason(error)}`);
+                        }
                     }
                 }
+            },
+            {
+                onSuccess: () => finishAllSaid.clear(),
+                onError: (error) => finishAllSaid.say("failed", error.message),
             }
-        });
+        );
     };
 
     const loadCritterNames = async (critterIds) => {
@@ -358,6 +372,7 @@ const TrappingTab = () => {
         description:
             "Edit trap quantity, EXP, and rare chance for each player. Finish individual traps or all traps per player.",
         actions: [
+            Said({ said: finishAllSaid.said, kinds: ["failed"] }),
             ActionButton({
                 label: "Finish all",
                 status: finishAllStatus.status,
