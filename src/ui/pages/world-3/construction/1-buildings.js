@@ -48,7 +48,7 @@ import { definePage } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
-import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -752,15 +752,8 @@ const CogsTab = () => {
     popupHost.replaceChildren();
     van.add(popupHost, popup);
 
-    return PersistentAccountListPage({
-        title: "Cogs",
-        description: "The cog board. Pick a slot to see its cog and change its stats.",
-        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
-        state: { loading, error },
-        loadingText: "Reading the cog board",
-        errorTitle: "Couldn't read the cog board",
-        body: boardPane,
-    });
+    // The board as the Cogs tab's content; the Workbench page reads it with the buildings.
+    return { node: boardPane, load, loading, error };
 };
 
 const BUILDING_COUNT = 27;
@@ -888,51 +881,71 @@ const ConstructionBuildingsTab = () => {
 
     load();
 
+    // The buildings as the Buildings tab's rows and tray; the Workbench page reads them with the cog board.
+    return {
+        node: rowList,
+        load,
+        loading,
+        error,
+        tools: () =>
+            div(
+                { class: "tabbed-list__tool-group" },
+                ActionButton({
+                    label: "Max all",
+                    status: bulkStatus,
+                    disabled: () => loading.val || !shown().length,
+                    onClick: (e) => {
+                        e.preventDefault();
+                        return doMaxAll();
+                    },
+                })
+            ),
+        toolsLabel: () => {
+            const n = shown().length;
+            return isSearching() ? `${n} matching ${buildingWord(n)}` : `All ${n} ${buildingWord(n)}`;
+        },
+    };
+};
+
+// The Workbench, as the game calls it: the buildings and the cog board as tabs on one page. The board is still as it
+// was; its own pass comes later.
+const WorkbenchTab = () => {
+    const buildings = ConstructionBuildingsTab();
+    const cogs = CogsTab();
+    const loading = van.derive(() => buildings.loading.val || cogs.loading.val);
+    const error = van.derive(() => buildings.error.val || cogs.error.val);
+    const load = () => Promise.all([buildings.load(), cogs.load()]);
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Buildings",
-        description: "Building levels, each up to its max with the Workbench's extra levels.",
+        title: "Workbench",
+        description: "Building levels, each up to its max with the Workbench's extra levels, and the cog board.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "Reading buildings",
-        errorTitle: "Couldn't read buildings",
+        loadingText: "Reading the workbench",
+        errorTitle: "Couldn't read the workbench",
         initialWrapperClass: "account-list",
         body: div(
             { class: "account-list account-list--tabbed" },
-            ListPanel({
-                body: rowList,
-                tools: () =>
-                    div(
-                        { class: "tabbed-list__tool-group" },
-                        ActionButton({
-                            label: "Max all",
-                            status: bulkStatus,
-                            disabled: () => loading.val || !shown().length,
-                            onClick: (e) => {
-                                e.preventDefault();
-                                return doMaxAll();
-                            },
-                        })
-                    ),
-                toolsLabel: () => {
-                    const n = shown().length;
-                    return isSearching() ? `${n} matching ${buildingWord(n)}` : `All ${n} ${buildingWord(n)}`;
-                },
+            TabbedList({
+                name: "Workbench",
+                tabs: [
+                    { id: "buildings", label: "Buildings", content: buildings.node },
+                    { id: "cogs", label: "Cogs", content: cogs.node },
+                ],
+                tools: buildings.tools,
+                toolsLabel: buildings.toolsLabel,
+                toolsOn: (tabId) => tabId === "buildings",
             })
         ),
     });
 };
 
-// The page: the buildings, then the cog board under them (its own pass comes later).
-const ConstructionTab = () =>
-    div({ class: "construction-buildings scroll-container" }, ConstructionBuildingsTab(), CogsTab());
-
 export default definePage({
     id: "w3.construction.buildings",
     world: 3,
     system: "Construction",
-    tab: "Buildings",
-    description: "Building levels in their three kinds, then the cog board.",
-    keywords: ["Construction", "Towers", "Shrines", "Cogs", "Flags", "Cog board"],
-    component: ConstructionTab,
+    tab: "Workbench",
+    description: "Building levels and the cog board.",
+    keywords: ["Construction", "Buildings", "Towers", "Shrines", "Cogs", "Flags", "Cog board"],
+    component: WorkbenchTab,
 });
