@@ -288,6 +288,34 @@ test("bribes: Disable all asks in the tray, then runs on the answer", async () =
     await until(() => writes() > before, "the answer to write");
 });
 
+// CodeRabbit on #212: the answer reads the game again, and a bribe the game enabled meanwhile wasn't in the question.
+test("bribes: Disable all asks again when the game enabled a bribe the question didn't name", async () => {
+    const status = game.gga.BribeStatus;
+    const before = [...status];
+    for (let index = 0; index < 6; index++) status[index] = 0;
+    status[0] = 1;
+    try {
+        const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
+        let root = enable;
+        while (root.parentNode) root = root.parentNode;
+        const inTray = (name) => elements(root).find((node) => String(node.attributes.class).split(" ").includes(name));
+        const label = () => text(inTray("tabbed-list__tools-label"));
+        await click(buttonsNamed(root, "Disable all").find((node) => !node.attributes.disabled));
+        await settle(100);
+        assert.equal(label(), "Disable 1 bribe in Set 1?");
+        status[1] = 1; // enabled in the game; its row still shows it off
+        const written = writes();
+        await click(inTray("tabbed-list__yes"));
+        await until(() => label() === "Disable 2 bribes in Set 1?", "it to ask again");
+        assert.equal(writes(), written, "nothing was written");
+        assert.deepEqual([status[0], status[1]], [1, 1]);
+        await click(inTray("tabbed-list__yes"));
+        await until(() => status[0] === 0 && status[1] === 0, "the answer to disable both");
+    } finally {
+        before.forEach((value, index) => (status[index] = value));
+    }
+});
+
 // Owning Set 1's expansion unlocks Set 2, the same as flipping the expansion's own switch.
 test("bribes: Enable all on a set unlocks the next set when it owns the expansion", async () => {
     const status = game.gga.BribeStatus;
