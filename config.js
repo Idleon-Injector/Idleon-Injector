@@ -25,25 +25,25 @@ exports.cheatConfig = {
             { id: "8", on: false, save: true },
             { id: "4", on: false, save: true },
         ], // Automation: Orion upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
-        orionSaving: 10, // Automation: while Orion saves for an upgrade, it keeps the rest of its cost and the others may spend this % of it in all.
+        orionSaving: 10, // Automation: while Orion saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
         poppy: [], // Automation: Poppy upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
-        poppySaving: 10, // Automation: while Poppy saves for an upgrade, it keeps the rest of its cost and the others may spend this % of it in all.
+        poppySaving: 10, // Automation: while Poppy saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
         tarpit: [], // Automation: Tar Pit upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
-        tarpitSaving: 10, // Automation: while the Tar Pit saves for an upgrade, it keeps the rest of its cost and the others may spend this % of it in all.
+        tarpitSaving: 10, // Automation: while the Tar Pit saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
         bubbles: [], // Automation: alchemy bubbles to raise, { id: "cauldron:bubble", on, stopAt, pay }; stopAt is a level, pay is "particles" or left out for materials.
         bubblesTarget: 90, // Automation: bubbles that have a max are raised to this % of it (0 to 99.9).
         construction: [], // Automation: W3 buildings to build, { id, on, stopAt, save }; id is the building (0-8 buildings, 9-17 towers, 18-26 shrines), save true is "Save for it". Empty slots take saved-for buildings first, then the rest, the closest to done first, up to stopAt; the 8th slot stays free once it feeds the Menagerie jelly.
         kitchens: [], // Automation: kitchen upgrades to level, { id: 3 * kitchen + slot (0 Speed, 1 Fire, 2 Luck), on, stopAt, save }; save true is "Save for it".
-        kitchenSaving: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10], // Automation: per spice, the % of what it saves for that the other kitchen upgrades may spend in all meanwhile; the rest is kept.
+        kitchenSaving: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10], // Automation: per spice, while the kitchens save for an upgrade, they keep (100 − this)% of its cost, and only what is above that buys the other kitchen upgrades.
         meals: [], // Automation: meals to level with their own quantity, { id: meal index, on, stopAt }.
         sneaking: [], // Automation: Ninja Knowledge upgrades to buy with jade, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
-        sneakingSaving: 10, // Automation: while Sneaking saves for an upgrade, it keeps the rest of its cost and the others may spend this % of it in all.
+        sneakingSaving: 10, // Automation: while Sneaking saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
         summoning: [], // Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, save }; stopAt is a level, save true is "Save for it".
-        summoningSaving: [10, 10, 10, 10, 10, 10, 10, 10], // Automation: per essence colour, the % of what it saves for that the other summoning upgrades may spend in all meanwhile; the rest is kept.
+        summoningSaving: [10, 10, 10, 10, 10, 10, 10, 10], // Automation: per essence colour, while summoning saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other summoning upgrades.
         bubba: [], // Automation: Bubba upgrades to buy with meat, { id, on, stopAt, save }; stopAt is a level, save true is "Save for it".
-        bubbaSaving: 10, // Automation: while Bubba saves for an upgrade, it keeps the rest of its cost and the others may spend this % of it in all.
+        bubbaSaving: 10, // Automation: while Bubba saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
         grimoire: [], // Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
-        grimoireSaving: 10, // Automation: while a bone type saves for an upgrade, it keeps the rest of its cost and the other upgrades may spend this % of it in all.
+        grimoireSaving: 10, // Automation: while a bone type saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)

@@ -38,9 +38,9 @@ export const nextGoal = (items) => cheapest(items.filter((item) => item.save));
 
 /**
  * The cheapest saved-for item is the goal, bought once affordable. While saving for it, at least (100 − `saving`)% of
- * its cost stays put, and only the money above that buys the other items, cheapest first: `saving` caps what they
- * spend in all, not each buy (#214: per buy, Orion spent 1.73T feathers down to 131B before saving started). Without
- * a goal it is plain cheapest-first.
+ * its cost stays put, and only the money above that buys the other items, cheapest first. It is a floor on what is
+ * held, not a running total: income above the floor keeps buying them (#214: with a % per buy instead, Orion spent
+ * 1.73T feathers down to 131B before saving started). Without a goal it is plain cheapest-first.
  */
 export function choosePurchase(items, money, saving) {
     const goal = nextGoal(items);
