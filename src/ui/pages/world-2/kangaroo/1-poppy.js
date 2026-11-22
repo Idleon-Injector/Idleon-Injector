@@ -1,11 +1,9 @@
 /**
  * W2 - Poppy Tab
  *
- * Reads/writes selected OptionsListAccount indices for Poppy and Tar Pit.
- *
- * Notes:
- * - Built in the same style as Orion (per-row write status + persistent list).
- * - Tar Pit and Spiral Upgrades are explicitly separated with section dividers.
+ * Reads/writes OptionsListAccount indices 267-304 for Poppy and the Tar Pit, in the game's order. Like the Owl: no
+ * value is set apart or highlighted, and nothing tells the player which values to keep. The game's two places are
+ * tabs: Poppy (her fish, upgrades, counters and Spiral upgrades) and the Tar Pit.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -14,61 +12,55 @@ import { readGgaEntries } from "../../../services/api.js";
 import { writeVerified } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
-const PINNED_FIELDS = [
-    { index: 271, label: "Poppy Permanent Bonus Level" },
-    { index: 274, label: "Fisheroo Reset Level" },
-    { index: 279, label: "Greatest Catch / Megafish Progression" },
-];
-
-const CORE_FIELDS = [
-    { index: 267, label: "Bluefin Fish Owned", live: true, formatted: true },
-    { index: 268, label: "Tasty Fishbait Level" },
-    { index: 269, label: "Quick Reeling Level" },
-    { index: 270, label: "Shiny Lure Level" },
-    { index: 272, label: "Fishy Discount Level" },
-    { index: 273, label: "Juicy Worm Level" },
-    { index: 275, label: "Fishing Buddy Level" },
-    { index: 276, label: "Lightning Quickness Level" },
-    { index: 277, label: "Fisheroo Investing Level" },
-    { index: 278, label: "Multihook Fishing Level" },
+const POPPY_FIELDS = [
+    { index: 267, label: "Bluefin Fish", live: true, formatted: true },
+    { index: 268, label: "Tasty Fishbait" },
+    { index: 269, label: "Quick Reeling" },
+    { index: 270, label: "Shiny Lure" },
+    { index: 271, label: "Poppy Permanent Bonus" },
+    { index: 272, label: "Fishy Discount" },
+    { index: 273, label: "Juicy Worm" },
+    { index: 274, label: "Fisheroo Reset" },
+    { index: 275, label: "Fishing Buddy" },
+    { index: 276, label: "Lightning Quickness" },
+    { index: 277, label: "Fisheroo Investing" },
+    { index: 278, label: "Multihook Fishing" },
+    { index: 279, label: "Greatest Catch" },
     { index: 280, label: "Lifetime Bluefin Caught", live: true, formatted: true },
-    { index: 281, label: "Shiny/Fish Counter 1", formatted: true },
-    { index: 282, label: "Shiny/Fish Counter 2", formatted: true },
-    { index: 283, label: "Shiny/Fish Counter 3", formatted: true },
-    { index: 284, label: "Shiny/Fish Counter 4", formatted: true },
-    { index: 285, label: "Shiny/Fish Counter 5", formatted: true },
-    { index: 286, label: "Shiny/Fish Counter 6", formatted: true },
+    { index: 281, label: "Shiny Fish Counter 1", formatted: true },
+    { index: 282, label: "Shiny Fish Counter 2", formatted: true },
+    { index: 283, label: "Shiny Fish Counter 3", formatted: true },
+    { index: 284, label: "Shiny Fish Counter 4", formatted: true },
+    { index: 285, label: "Shiny Fish Counter 5", formatted: true },
+    { index: 286, label: "Shiny Fish Counter 6", formatted: true },
     { index: 289, label: "Shiny Progress Bar", float: true },
-];
-
-const SPIRAL_FIELDS = [
     { index: 290, label: "Reset Points", formatted: true },
-    { index: 291, label: "Reset Spiral Upgrade 1" },
-    { index: 292, label: "Reset Spiral Upgrade 2" },
-    { index: 293, label: "Reset Spiral Upgrade 3" },
-    { index: 294, label: "Reset Spiral Upgrade 4" },
-    { index: 295, label: "Reset Spiral Upgrade 5" },
+    { index: 291, label: "Spiral Upgrade 1" },
+    { index: 292, label: "Spiral Upgrade 2" },
+    { index: 293, label: "Spiral Upgrade 3" },
+    { index: 294, label: "Spiral Upgrade 4" },
+    { index: 295, label: "Spiral Upgrade 5" },
 ];
 
 const TAR_PIT_FIELDS = [
-    { index: 296, label: "Tartar Fish Owned", live: true, formatted: true },
-    { index: 297, label: "Tar Pit Upgrade 1: Super Yummy Bait" },
-    { index: 298, label: "Tar Pit Upgrade 2: Bonus Catching" },
-    { index: 299, label: "Tar Pit Upgrade 3: Bluefin Frenzy" },
-    { index: 300, label: "Tar Pit Upgrade 4: Fishy Reductions" },
-    { index: 301, label: "Tar Pit Upgrade 5: Super Tarbait" },
-    { index: 302, label: "Tar Pit Upgrade 6: Tarrific Resets" },
-    { index: 303, label: "Tar Pit Upgrade 7: Mongo Multipliers" },
-    { index: 304, label: "Tar Pit Upgrade 8: King Worm" },
+    { index: 296, label: "Tartar Fish", live: true, formatted: true },
+    { index: 297, label: "Super Yummy Bait" },
+    { index: 298, label: "Bonus Catching" },
+    { index: 299, label: "Bluefin Frenzy" },
+    { index: 300, label: "Fishy Reductions" },
+    { index: 301, label: "Super Tarbait" },
+    { index: 302, label: "Tarrific Resets" },
+    { index: 303, label: "Mongo Multipliers" },
+    { index: 304, label: "King Worm" },
 ];
 
-const ALL_FIELDS = [...PINNED_FIELDS, ...CORE_FIELDS, ...SPIRAL_FIELDS, ...TAR_PIT_FIELDS];
+const ALL_FIELDS = [...POPPY_FIELDS, ...TAR_PIT_FIELDS];
 
 const PoppyRow = ({ field, fieldState, onWrite }) =>
     ClickerRow({
@@ -96,52 +88,33 @@ const PoppyTab = () => {
         return true;
     };
 
-    const rowList = div(
-        { class: "account-list poppy-list" },
-        AccountSection({
-            title: "PERMANENT / SENSITIVE",
-            note: "Edit with care",
-            body: PINNED_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
-        }),
-        AccountSection({
-            title: "MAIN POPPY PROGRESS",
-            body: CORE_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
-        }),
-        AccountSection({
-            title: "SPIRAL UPGRADES",
-            rootClass: "poppy-section poppy-section--spiral",
-            body: SPIRAL_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
-        }),
-        AccountSection({
-            title: "TAR PIT",
-            rootClass: "poppy-section poppy-section--tar",
-            body: TAR_PIT_FIELDS.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite })),
-        })
-    );
+    const rows = (fields) =>
+        div(
+            { class: "account-page-pane" },
+            ...fields.map((f) => PoppyRow({ field: f, fieldState: fieldStates.get(f.index), onWrite }))
+        );
 
     load();
 
     return PersistentAccountListPage({
-        rootClass: "poppy-tab tab-container",
-        title: "POPPY",
-        description: "Poppy clicker values and Tar Pit progression controls",
-        actions: RefreshButton({
-            onRefresh: load,
-            tooltip: "Re-read Poppy data from game",
-        }),
-        topNotices: WarningBanner(
-            " ",
-            span({ class: "warning-highlight-accent" }, "Poppy Permanent Bonus"),
-            " should stay around 70-90, and ",
-            span({ class: "warning-highlight-accent" }, "Fisheroo Reset"),
-            " should stay around 30-40. ",
-            span({ class: "warning-highlight-accent" }, "Greatest Catch / Megafish"),
-            " is also permanent progression."
-        ),
+        rootClass: "tab-container scroll-container",
+        title: "Kangaroo",
+        description: "Poppy the kangaroo's fish, upgrades and Tar Pit.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING POPPY",
-        errorTitle: "POPPY READ FAILED",
-        body: rowList,
+        loadingText: "Reading Poppy",
+        errorTitle: "Couldn't read Poppy",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Kangaroo",
+                tabs: [
+                    { id: "poppy", label: "Poppy", content: rows(POPPY_FIELDS) },
+                    { id: "tar-pit", label: "Tar Pit", content: rows(TAR_PIT_FIELDS) },
+                ],
+            })
+        ),
     });
 };
 
@@ -151,6 +124,6 @@ export default definePage({
     system: "Kangaroo",
     tab: "Poppy",
     description: "Poppy the kangaroo's fishing upgrades, Tar Pit and Spiral Upgrades.",
-    keywords: ["Poppy", "Clicker", "Tar Pit"],
+    keywords: ["Poppy", "Clicker", "Tar Pit", "Spiral", "Bluefin", "Megafish"],
     component: PoppyTab,
 });

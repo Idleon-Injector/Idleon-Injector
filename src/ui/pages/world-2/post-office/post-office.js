@@ -2,20 +2,29 @@
  * W2 - Post Office Tab
  *
  * Box upgrades:
- *   PostOfficeInfo[3][i][0] -> points spent in upgrade i
+ *   PostOfficeInfo[3][i][0] -> points spent in upgrade i (the character in play's own)
+ *
+ * Points, the way the game adds them up while the Post Office is open: Delivery complete + Delivery streak + Bonus
+ * points (OLA 347) + Bonus boxes (OLA 131) + the vials' box points (DNSM AlchVials BoxPoints), less what the boxes hold.
+ * The page works the points left out itself and shows them beside the title, like the Anvil.
+ *
+ * One list like the Anvil's: the points, then the boxes. Max all and Reset all in the tray act on the boxes the top
+ * bar's search shows; Reset asks first.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AmountLeft, RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     NO_CHARACTER,
     cleanName,
@@ -28,20 +37,8 @@ import {
 
 const { div, span } = van.tags;
 
-const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false }) => {
-    if (readOnly) {
-        return div(
-            { class: "po-currency-row feature-card po-currency-row--readonly" },
-            div(
-                { class: "po-currency-row__info" },
-                span({ class: "po-currency-row__label" }, label),
-                note ? span({ class: "po-currency-row__note" }, note) : null
-            ),
-            span({ class: "po-currency-row__value" }, () => String(valueState.val))
-        );
-    }
-
-    return EditableNumberRow({
+const PointsRow = ({ label, valueState, writePath }) =>
+    EditableNumberRow({
         valueState,
         normalize: (rawValue) => {
             const nextValue = Math.max(0, Math.round(Number(rawValue)));
@@ -51,24 +48,17 @@ const CurrencyRow = ({ label, note, valueState, writePath, readOnly = false }) =
             await writeVerified(writePath, nextValue);
             return nextValue;
         },
-        renderInfo: () => [
-            span({ class: "po-currency-row__label" }, label),
-            note ? span({ class: "po-currency-row__note" }, note) : null,
-        ],
+        renderInfo: () => span({ class: "account-row__name" }, label),
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             return Math.max(0, next + delta);
         },
-        rowClass: "feature-card",
-        badgeClass: "po-currency-row__value",
-        controlsClass: "po-currency-row__controls account-row__controls--xl",
         inputMode: "int",
     });
-};
 
-const POBoxRow = ({ box, getCharacter }) => {
-    return ClampedLevelRow({
+const BoxRow = ({ box, getCharacter }) =>
+    ClampedLevelRow({
         valueState: box.current,
         max: () => box.cap.val,
         integerMode: "round",
@@ -78,12 +68,8 @@ const POBoxRow = ({ box, getCharacter }) => {
             await writeVerified(path, nextValue, { character: getCharacter() });
             return nextValue;
         },
-        renderInfo: () => span({ class: "po-box-row__name" }, () => box.name.val),
-        rowClass: "feature-card",
-        badgeClass: "po-box-row__level",
-        controlsClass: "po-box-row__controls account-row__controls--xl",
+        renderInfo: () => span({ class: "account-row__name" }, () => box.name.val),
     });
-};
 
 const PostOfficeTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Post Office" });
@@ -110,22 +96,21 @@ const PostOfficeTab = () => {
                 name: van.state(""),
                 cap: van.state(0),
                 current: van.state(0),
+                row: null,
             });
         }
     };
 
-    // The summary follows the rows' values as they save (a row's value is set once its save is read back).
-    const spentPoints = van.derive(() => {
+    // Points left follows the rows' values as they save (a row's value is set once its save is read back).
+    const spentPoints = () => {
         let spent = 0;
         for (let index = 0; index < boxCount.val; index++) spent += Number(boxStates[index]?.current.val ?? 0);
         return toInt(spent, { min: 0 });
-    });
-    const boxMisc = van.derive(() => toInt(Number(boxPoints.val ?? 0) + Number(opt131.val ?? 0), { min: 0 }));
-
-    const totalEarned = van.derive(() => toInt(boxComplete.val + boxStreak.val + opt347.val + boxMisc.val, { min: 0 }));
-    const availablePoints = van.derive(() => toInt(totalEarned.val - spentPoints.val));
-    const { status: boxBulkStatus, run: runBoxBulkWrite } = useWriteStatus();
-    const boxesListNode = div({ class: "po-boxes-list" });
+    };
+    const pointsLeft = () =>
+        toInt(boxComplete.val + boxStreak.val + opt347.val + opt131.val + boxPoints.val, { min: 0 }) - spentPoints();
+    const bulk = useWriteStatus();
+    const boxesListNode = div({ class: "account-page-pane" });
 
     const load = async ({ forceDefinitions = false } = {}) =>
         run(async () => {
@@ -156,7 +141,7 @@ const PostOfficeTab = () => {
                     const cap = Math.floor(Number(defRow[15]));
                     const box = boxStates[index];
 
-                    box.name.val = cleanName(defRow[0], `BOX ${index + 1}`);
+                    box.name.val = cleanName(defRow[0], `Box ${index + 1}`);
                     box.cap.val = Number.isFinite(cap) ? Math.max(0, cap) : 0;
                 }
 
@@ -164,14 +149,9 @@ const PostOfficeTab = () => {
             }
 
             if (boxRowCount !== boxCount.val) {
-                if (boxCount.val <= 0) {
-                    boxesListNode.replaceChildren();
-                } else {
-                    const rows = Array.from({ length: boxCount.val }, (_, index) =>
-                        POBoxRow({ box: boxStates[index], getCharacter })
-                    );
-                    boxesListNode.replaceChildren(div({ class: "po-boxes-grid" }, ...rows));
-                }
+                boxesListNode.replaceChildren(
+                    ...boxStates.slice(0, boxCount.val).map((box) => (box.row = BoxRow({ box, getCharacter })))
+                );
                 boxRowCount = boxCount.val;
             }
 
@@ -189,120 +169,108 @@ const PostOfficeTab = () => {
             boxPoints.val = toInt(rawBoxPts ?? 0, { min: 0 });
         });
 
-    const runBulkBoxWrite = async (getNextValue) => {
-        if (boxCount.val <= 0) return;
+    // The boxes the tools act on: every one, or the ones the top bar's search shows.
+    const shownBoxes = () => boxStates.slice(0, boxCount.val).filter((box) => shownBySearch(box.row));
+    const boxWord = (n) => `box${n === 1 ? "" : "es"}`;
 
-        await runBoxBulkWrite(async () => {
-            await runBulkSet({
+    const writeBoxes = (boxes, getNextValue) =>
+        bulk.run(() =>
+            runBulkSet({
                 character: getCharacter(),
-                entries: boxStates.slice(0, boxCount.val),
+                entries: boxes,
                 getTargetValue: getNextValue,
                 getValueState: (box) => box.current,
-                getPath: (_, index) => `PostOfficeInfo[3][${index}][0]`,
-            });
+                getPath: (box) => `PostOfficeInfo[3][${box.index}][0]`,
+            })
+        );
+
+    // Max all only raises, so it runs on one press; Reset takes points out of boxes, so it asks first.
+    const tools = (_activeId, ask) => {
+        const resetAll = ActionButton({
+            label: "Reset all",
+            status: bulk.status,
+            variant: "danger",
+            disabled: () => shownBoxes().every((box) => Number(box.current.val) === 0),
+            onClick: (e) => {
+                e.preventDefault();
+                const boxes = shownBoxes().filter((box) => Number(box.current.val) > 0);
+                ask({
+                    question: `Reset ${boxes.length} ${boxWord(boxes.length)} to 0?`,
+                    confirmLabel: boxes.length === 1 ? "Reset it" : "Reset them",
+                    from: resetAll,
+                    onConfirm: () => writeBoxes(boxes, () => 0),
+                });
+            },
         });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Max all",
+                status: bulk.status,
+                disabled: () => shownBoxes().every((box) => Number(box.current.val) === box.cap.val),
+                onClick: (e) => {
+                    e.preventDefault();
+                    void writeBoxes(shownBoxes(), (box) => box.cap.val);
+                },
+            }),
+            resetAll
+        );
     };
-
-    const doMaxAllBoxes = async () => runBulkBoxWrite((box) => box.cap.val);
-
-    const doResetBoxes = async () => runBulkBoxWrite(() => 0);
 
     load();
 
-    const pointsSection = AccountSection({
-        title: "POINT SOURCES & CURRENCY",
-        note: "Values that contribute to your available upgrade points",
-        body: [
-            div(
-                { class: "po-section__rows" },
-                CurrencyRow({
-                    label: "DELIVERY COMPLETE",
-                    valueState: boxComplete,
-                    writePath: "CurrenciesOwned.h.DeliveryBoxComplete",
-                }),
-                CurrencyRow({
-                    label: "DELIVERY STREAK",
-                    valueState: boxStreak,
-                    writePath: "CurrenciesOwned.h.DeliveryBoxStreak",
-                }),
-                CurrencyRow({
-                    label: "BONUS POINTS",
-                    valueState: opt347,
-                    writePath: "OptionsListAccount[347]",
-                }),
-                div({ class: "po-section__divider" }, "MISC SOURCES (contribute to DeliveryBoxMisc)"),
-                CurrencyRow({
-                    label: "BONUS BOXES",
-                    valueState: opt131,
-                    writePath: "OptionsListAccount[131]",
-                }),
-                CurrencyRow({
-                    label: "VIAL BOX POINTS",
-                    valueState: boxPoints,
-                    readOnly: true,
-                }),
-                CurrencyRow({
-                    label: "DELIVERY MISC",
-                    valueState: boxMisc,
-                    readOnly: true,
-                })
-            ),
-            div(
-                { class: "po-points-summary" },
-                div(
-                    { class: "po-points-summary__row" },
-                    span({ class: "po-points-summary__label" }, "TOTAL EARNED"),
-                    span({ class: "po-points-summary__value" }, () => String(totalEarned.val))
-                ),
-                div(
-                    { class: "po-points-summary__row" },
-                    span({ class: "po-points-summary__label" }, "SPENT ON UPGRADES"),
-                    span({ class: "po-points-summary__value" }, () => `-${spentPoints.val}`)
-                ),
-                div(
-                    { class: "po-points-summary__row po-points-summary__row--highlight" },
-                    span({ class: "po-points-summary__label" }, "AVAILABLE POINTS"),
-                    span({ class: "po-points-summary__value po-points-summary__value--available" }, () =>
-                        String(availablePoints.val)
-                    )
-                )
-            ),
-        ],
-    });
-
-    const boxesSection = AccountSection({
-        title: "BOX UPGRADES",
-        note: "Spend available delivery points on Post Office box bonuses",
-        meta: div(
-            { class: "po-bulk-bar" },
-            ActionButton({
-                label: "Max all",
-                status: boxBulkStatus,
-                variant: "quiet",
-                onClick: doMaxAllBoxes,
-            }),
-            ActionButton({
-                label: "Reset",
-                status: boxBulkStatus,
-                variant: "danger",
-                confirm: "set every box upgrade to 0.",
-                onClick: doResetBoxes,
+    return PersistentAccountListPage({
+        rootClass: "tab-container scroll-container",
+        title: "Post Office",
+        description: "Delivery points and box upgrades. Points count only with the Post Office open.",
+        total: AmountLeft({ value: pointsLeft }),
+        actions: RefreshButton({
+            onRefresh: () => load({ forceDefinitions: true }),
+            disabled: () => loading.val,
+        }),
+        state: { loading, error },
+        loadingText: "Reading the post office",
+        errorTitle: "Couldn't read the post office",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                body: [
+                    AccountSection({
+                        title: "Points",
+                        body: [
+                            PointsRow({
+                                label: "Delivery complete",
+                                valueState: boxComplete,
+                                writePath: "CurrenciesOwned.h.DeliveryBoxComplete",
+                            }),
+                            PointsRow({
+                                label: "Delivery streak",
+                                valueState: boxStreak,
+                                writePath: "CurrenciesOwned.h.DeliveryBoxStreak",
+                            }),
+                            PointsRow({
+                                label: "Bonus points",
+                                valueState: opt347,
+                                writePath: "OptionsListAccount[347]",
+                            }),
+                            PointsRow({
+                                label: "Bonus boxes",
+                                valueState: opt131,
+                                writePath: "OptionsListAccount[131]",
+                            }),
+                        ],
+                    }),
+                    AccountSection({ title: "Boxes", body: boxesListNode }),
+                ],
+                tools,
+                toolsLabel: () => {
+                    const n = shownBoxes().length;
+                    return isSearching() ? `${n} matching ${boxWord(n)}` : `All ${n} ${boxWord(n)}`;
+                },
             })
         ),
-        body: boxesListNode,
-    });
-
-    return PersistentAccountListPage({
-        title: "POST OFFICE",
-        description: "Manage delivery point currencies and Post Office box upgrades.",
-        actions: RefreshButton({ onRefresh: () => load({ forceDefinitions: true }) }),
-        topNotices: WarningBanner(
-            " ",
-            span({ class: "warning-highlight-accent" }, "Warning: "),
-            " Points will only calculate well with Post Office tab open in-game."
-        ),
-        state: { loading, error },
-        body: div({ class: "po-scroll scrollable-panel" }, pointsSection, boxesSection),
     });
 };
 
@@ -311,6 +279,6 @@ export default definePage({
     world: 2,
     system: "Post Office",
     description: "Post Office box upgrades and the delivery points that pay for them.",
-    keywords: ["Delivery boxes"],
+    keywords: ["Delivery boxes", "Points"],
     component: PostOfficeTab,
 });

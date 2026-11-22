@@ -1,9 +1,9 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { CappedValue } from "../../../components/NumberInput.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
@@ -19,14 +19,19 @@ import {
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { clickAgain } from "../../../components/inPlace.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { captureGesture } from "../../../services/changeLog.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span, select, option } = van.tags;
 
-/** Edit Weekly Boss trophies, cosmetic unlocks and each character's main-bar skin. */
+/**
+ * Edit Weekly Boss trophies, cosmetic unlocks and each character's main-bar skin. One list: the trophies, the skins,
+ * then the characters. Unlock all and Lock all (asks) in the tray act on the skins the top bar's search shows.
+ */
 const WeeklyBossTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Weekly Boss" });
     const busy = van.state(false);
@@ -37,12 +42,14 @@ const WeeklyBossTab = () => {
     const bulk = useWriteStatus();
     const skinStates = new Map();
     const playerStates = new Map();
-    const skinList = div({ class: "account-item-stack" });
-    const playerList = div({ class: "account-item-stack" });
+    const skinList = div({ class: "account-page-pane" });
+    const playerList = div({ class: "account-page-pane" });
     const reconcileSkins = createStaticRowReconciler(skinList);
     const reconcilePlayers = createStaticRowReconciler(playerList);
     let cachedCatalog = null;
+    // The skins, kept as a state too, so the tray's line and tools follow a load.
     let entries = [];
+    const entriesRead = van.state(0);
     let players = [];
     let signature = null;
 
@@ -270,48 +277,31 @@ const WeeklyBossTab = () => {
             }
         });
 
-    // `button`: the bulk button clicked, which asks in place (#77).
-    const setAll = (enabled, button) =>
+    // The skins the tools act on: every one, or the ones the top bar's search shows.
+    const skinRows = new Map();
+    const shownSkins = () => (entriesRead.val, entries.filter(({ key }) => shownBySearch(skinRows.get(key))));
+
+    // Writes the skins asked about, once the game still holds what it held when they were picked.
+    const writeSkins = (enabled, targets, inGesture) =>
         inTurn(async () => {
             if (cannotEdit()) return;
-            // The bulk action starts after a read: keep the button's click, so it's named after and offers Undo all
-            // beside the button even if something else was clicked meanwhile.
-            const inGesture = captureGesture();
             busy.val = true;
             message.val = "";
             try {
-                const snapshot = await readFresh();
-                const targets = entries.filter(({ key }) => (Number(snapshot.weekly[key]) === 1) !== enabled);
-                if (!targets.length) {
-                    message.val = "No skin unlocks need changing.";
-                    return;
-                }
-                const countLabel = `${targets.length} cosmetic UI skin${targets.length === 1 ? "" : "s"}`;
-                // Enabling adds, so it runs on one click; disabling removes, so it asks in place first (#25).
-                if (
-                    !enabled &&
-                    !clickAgain(
-                        button,
-                        `${enabled ? "enable" : "disable"} ${countLabel}. ` +
-                            "Trophies and character selections will stay unchanged.",
-                        { targets: targets.map(({ key }) => key) }
-                    )
-                )
-                    return;
                 await inGesture(() =>
                     bulk.run(
                         async () => {
                             const fresh = await readFresh();
                             const currentTargets = entries.filter(
-                                ({ key }) => (Number(fresh.weekly[key]) === 1) !== enabled
+                                ({ key }) =>
+                                    targets.some((target) => target.key === key) &&
+                                    (Number(fresh.weekly[key]) === 1) !== enabled
                             );
                             if (
                                 currentTargets.length !== targets.length ||
                                 currentTargets.some(({ key }, index) => key !== targets[index].key)
                             ) {
-                                throw new Error(
-                                    "Skin ownership changed while confirmation was open. Review the rows and try again."
-                                );
+                                throw new Error("Skins changed in the game. Look them over and try again.");
                             }
                             await submitWrites(
                                 currentTargets.map(({ key }) => ({
@@ -329,6 +319,38 @@ const WeeklyBossTab = () => {
             } finally {
                 busy.val = false;
             }
+        });
+
+    // `button`: the tool pressed. Unlocking adds, so it runs on one press; locking takes away, so it asks in the tray.
+    const setAll = (enabled, button, ask) =>
+        inTurn(async () => {
+            if (cannotEdit()) return;
+            // The bulk action starts after a read: keep the button's press, so it's named after and offers Undo all
+            // beside the button even if something else was clicked meanwhile.
+            const inGesture = captureGesture();
+            busy.val = true;
+            message.val = "";
+            let targets;
+            try {
+                const snapshot = await readFresh();
+                targets = shownSkins().filter(({ key }) => (Number(snapshot.weekly[key]) === 1) !== enabled);
+            } catch (caughtError) {
+                message.val = caughtError.message;
+                return;
+            } finally {
+                busy.val = false;
+            }
+            if (!targets.length) return;
+            // Not awaited: it takes its turn after this one.
+            if (enabled) return void writeSkins(true, targets, inGesture);
+            const n = targets.length;
+            ask({
+                question: `Lock ${n} skin${n === 1 ? "" : "s"}?`,
+                confirmLabel: n === 1 ? "Lock it" : "Lock them",
+                from: button,
+                // The tray names the change after the button that asked.
+                onConfirm: () => writeSkins(false, targets, (task) => task()),
+            });
         });
 
     // Returns { cancelled: true } when the game already has the pick; throws when it can't save.
@@ -365,19 +387,19 @@ const WeeklyBossTab = () => {
         const state = skinStates.get(entry.key);
         return AccountRow({
             status: state.write.status,
-            info: div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, entry.name),
-                span({ class: "account-row__sub-label" }, `${entry.cost} trophies`),
-                entry.description ? span({ class: "account-row__sub-label" }, entry.description) : null
+            // The skin, and its price in the shop under it (the switch unlocks it without spending trophies).
+            info: span(
+                { class: "account-row__titles" },
+                span({ class: "account-row__bonus" }, entry.name),
+                span({ class: "account-row__name" }, `${entry.cost} trophies`),
+                entry.description ? span({ class: "account-row__name" }, entry.description) : null
             ),
             controls: StateSwitch({
                 checked: () => state.unlocked.val,
-                words: ["Unlocked", "Locked"],
+                // Only an unlocked skin says so; the switch already shows the rest are locked.
+                words: ["Unlocked", ""],
                 name: entry.name,
                 disabled: () => loading.val || Boolean(error.val) || signature === null,
-                title: () =>
-                    state.unlocked.val ? `Lock ${entry.name}` : `Unlock ${entry.name} without spending trophies`,
                 status: state.write.status, // nothing else on the row reads out saving and saved
                 onFlip: (unlocked) => setSkin(entry, unlocked),
             }),
@@ -454,10 +476,17 @@ const WeeklyBossTab = () => {
         return runLoad(async () => {
             const snapshot = await readSnapshot({ reloadCatalog: true });
             entries = snapshot.entries;
+            entriesRead.val++;
             players = snapshot.players;
             signature = snapshot.signature;
             syncSnapshot(snapshot, { resetDrafts: true });
-            reconcileSkins(JSON.stringify(entries), () => entries.map(renderSkin));
+            reconcileSkins(JSON.stringify(entries), () =>
+                entries.map((entry) => {
+                    const row = renderSkin(entry);
+                    skinRows.set(entry.key, row);
+                    return row;
+                })
+            );
             reconcilePlayers(JSON.stringify([entries, players]), () =>
                 players.length
                     ? players.map(renderPlayer)
@@ -498,69 +527,78 @@ const WeeklyBossTab = () => {
         inputProps: { "aria-label": "Weekly Boss trophy balance" },
     });
 
+    const skinWord = (n) => `skin${n === 1 ? "" : "s"}`;
+    const lockedShown = () => shownSkins().filter(({ key }) => !skinStates.get(key)?.unlocked.val).length;
+    const tools = (_activeId, ask) => {
+        const lockAll = ActionButton({
+            label: "Lock all",
+            variant: "danger",
+            status: bulk.status,
+            disabled: () => cannotWrite() || lockedShown() === shownSkins().length,
+            onClick: (e) => {
+                e.preventDefault();
+                void setAll(false, lockAll, ask);
+            },
+        });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Unlock all",
+                status: bulk.status,
+                disabled: () => cannotWrite() || lockedShown() === 0,
+                onClick: (e) => {
+                    e.preventDefault();
+                    void setAll(true, e.currentTarget, ask);
+                },
+            }),
+            lockAll
+        );
+    };
+
     load();
     return PersistentAccountListPage({
-        title: "WEEKLY BOSS",
-        description:
-            "Edit trophies and cosmetic main-bar skins. Each skin's switch unlocks or locks it without spending trophies.",
-        actions: BulkActionBar({ refresh: { onClick: load, disabled: isBusy } }),
-        wrapActions: false,
+        rootClass: "tab-container scroll-container",
+        title: "Weekly Bosses",
+        description: "Trophies, main-bar skins and the skin each character wears.",
+        actions: RefreshButton({ onRefresh: load, disabled: isBusy }),
         state: { loading, error },
-        loadingText: "READING WEEKLY BOSS",
-        errorTitle: "WEEKLY BOSS READ FAILED",
+        loadingText: "Reading weekly bosses",
+        errorTitle: "Couldn't read weekly bosses",
+        initialWrapperClass: "account-list",
         body: div(
-            { class: "scrollable-panel content-stack" },
-            div(
-                {
-                    class: () => `write-status write-status--error${message.val ? "" : " hidden"}`,
-                    role: "alert",
-                },
-                () => message.val
-            ),
-            AccountSection({
-                title: "Progress",
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
                 body: [
-                    trophyRow,
-                    AccountRow({
-                        info: div(
-                            { class: "account-row__name-group" },
-                            span({ class: "account-row__name" }, "Best stage this week"),
-                            span(
-                                { class: "account-section__note" },
-                                "Resets weekly. Gates stage rewards and contributes to the Weekly Boss damage bonus."
-                            )
-                        ),
-                        badge: () => CappedValue({ value: best.val, cap: 5 }),
-                        controls: span({ class: "write-status" }, "READ ONLY"),
+                    div(
+                        {
+                            class: () => `write-status write-status--error${message.val ? "" : " hidden"}`,
+                            role: "alert",
+                        },
+                        () => message.val
+                    ),
+                    AccountSection({
+                        title: "Progress",
+                        body: [
+                            trophyRow,
+                            AccountRow({
+                                info: span({ class: "account-row__name" }, "Best stage this week"),
+                                controls: CappedValue({ value: () => best.val, cap: 5 }),
+                            }),
+                        ],
+                    }),
+                    AccountSection({ title: "Skins", body: skinList }),
+                    AccountSection({
+                        title: "Characters",
+                        note: "Change maps in game to see a new skin.",
+                        body: playerList,
                     }),
                 ],
-            }),
-            AccountSection({
-                title: "UI skins",
-                note: "Shop prices are shown for reference. Default is free. Locking an equipped skin keeps its selection.",
-                meta: BulkActionBar({
-                    actions: [
-                        {
-                            label: "Enable all",
-                            status: bulk.status,
-                            disabled: cannotWrite,
-                            onClick: (e) => setAll(true, e.currentTarget),
-                        },
-                        {
-                            label: "Disable all",
-                            variant: "danger",
-                            status: bulk.status,
-                            disabled: cannotWrite,
-                            onClick: (e) => setAll(false, e.currentTarget),
-                        },
-                    ],
-                }),
-                body: skinList,
-            }),
-            AccountSection({
-                title: "Character skins",
-                note: "Choose Default or an unlocked skin; it saves when you pick it. Change maps in game to apply the main-bar skin.",
-                body: playerList,
+                tools,
+                toolsLabel: () => {
+                    const n = shownSkins().length;
+                    return isSearching() ? `${n} matching ${skinWord(n)}` : `All ${n} ${skinWord(n)}`;
+                },
             })
         ),
     });
