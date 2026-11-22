@@ -12,7 +12,7 @@ const { button, div, input, p, span } = van.tags;
  *
  * @param {object} opts
  * @param {*} opts.opener what the opener shows (text, nodes or a function of them)
- * @param {() => {id: string, label: string}[]} opts.options
+ * @param {() => {id: string, label: string, note?: string}[]} opts.options `note`: a quiet second line ("Death Bringer")
  * @param {() => string} [opts.picked] the id picked now, marked in the list
  * @param {(id: string) => *} opts.onPick
  * @param {string} opts.name what is picked, read out by assistive technology ("Character")
@@ -87,7 +87,13 @@ export const PickInPlace = ({
                         "aria-selected": () => String(picked() === option.id),
                         onclick: () => pick(option.id),
                     },
-                    option.label
+                    option.note
+                        ? span(
+                              { class: "pick-in-place__option-text" },
+                              span({ class: "pick-in-place__option-label" }, option.label),
+                              span({ class: "pick-in-place__option-note" }, option.note)
+                          )
+                        : option.label
                 )
             ),
             shown().length ? null : p({ class: "pick-in-place__none" }, "Nothing matches.")

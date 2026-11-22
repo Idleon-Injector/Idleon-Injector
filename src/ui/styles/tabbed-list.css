@@ -820,25 +820,92 @@
 
 /* The character a page shows, on the line under the title: its name, the pick, and a short line about it. */
 .character-picker {
+    position: relative;
+    flex: 1 1 100%;
+    max-width: var(--page-measure);
     display: flex;
     flex-direction: column;
 }
-/* An account holds at most 11 characters: the names fit in two columns, with no scrolling, on a group's surface. */
+/*
+ * The names open over the page, the way the top bar's results drop over it, so nothing below moves: the panel's
+ * colour with its hairline and the menu's shadow. An account holds at most 11 characters; they run in up to four
+ * columns (two on a phone), each with its class under it, with no scrolling.
+ */
 .character-picker .pick-in-place {
-    max-width: 24rem;
-    background: var(--c-void-soft);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    margin-top: 0;
+    padding: 8px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-group);
+    background: var(--c-panel);
+    box-shadow: 0 14px 28px var(--c-black-50);
+    outline: none;
+    animation: character-picker-in 180ms var(--ease-soft);
+}
+/* On the line under the title the list spans the page's own box, its names starting under "Character". */
+.account-page-toolbar > .character-picker {
+    max-width: calc(var(--page-measure) - 36px);
+}
+.account-page-toolbar > .character-picker .pick-in-place {
+    left: -18px;
+    right: -18px;
+}
+@keyframes character-picker-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .character-picker .pick-in-place {
+        animation: none;
+    }
 }
 .character-picker .pick-in-place__options {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2px 6px;
+    /* Never more than four across, so a name and its class keep their room. */
+    grid-template-columns: repeat(auto-fill, minmax(max(8.5rem, calc(25% - 2px)), 1fr));
+    gap: 2px;
     max-height: none;
     overflow: visible;
 }
 .character-picker .pick-in-place__option {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 50px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.pick-in-place__option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+.pick-in-place__option-label,
+.pick-in-place__option-note {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+.pick-in-place__option-label {
+    color: var(--c-text-main);
+    font-weight: 600;
+}
+.pick-in-place__option-note {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.pick-in-place__option.is-picked .pick-in-place__option-label {
+    color: var(--c-accent);
 }
 .character-picker__line {
     display: flex;
