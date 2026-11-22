@@ -6,20 +6,26 @@
  *   gga.CustomLists(.h).RANDOlist[113]    - smithy display/order list
  *   gga.EquipmentOrder[0/1]               - currently equipped parts
  *   gga.OptionsListAccount[379]           - permanently stored/unlocked set keys (comma list)
+ *
+ * One list of every set in the game's order, each with an Unlocked switch. Unlock all sits in the tray and unlocks the
+ * sets the top bar's search shows.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
-import { Icons } from "../../../assets/icons.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { AddFromListSection } from "../../../components/views/account/components/AddFromListSection.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import {
-    createKeptRows,
+    bonusText,
+    createStaticRowReconciler,
+    oneAtATime,
     unwrapH,
     useWriteStatus,
     writeVerified,
@@ -132,9 +138,12 @@ const buildSmithyState = ({ rawEquipSets, rawSetOrder, rawStoredSets, rawEquippe
     const allSets = orderedSetKeys.map((setKey) => {
         const completedNow = isSetCompletedNow(setKey, equipSets, equippedMainSet, equippedExtraSet);
         const stored = storedSetKeys.has(setKey);
+        // The set's bonus in the game's words: [3][3] of its entry ("+{%_Mining_and|Chopping_Efficiency").
+        const meta = toIndexedArray(unwrapH(toIndexedArray(unwrapH(equipSets?.[setKey]) ?? [])[3]) ?? []);
         return {
             setKey,
             displayName: getSetDisplayName(setKey),
+            bonus: bonusText(meta[3] ?? ""),
             completedNow,
             stored,
             unlocked: stored || completedNow,
@@ -187,54 +196,62 @@ const readWithFallback = async (paths) => {
     throw lastError ?? new Error("Failed to read required game data");
 };
 
-const SmithyRow = ({ row, onRemove }) => {
-    return RemovableStoredRow({
-        index: row.index,
-        primaryLabel: row.displayName,
-        fallbackLabel: row.setKey,
-        secondaryLabel: row.setKey,
-        badge: () => (row.completedNow ? "Equipped" : row.known ? "Stored" : "Legacy"),
+// One set: its name, what it is now in plain words, and an Unlocked switch that stores it in the Smithy or takes it out.
+const SmithyRow = ({ set, isOn, onFlip }) =>
+    AccountRow({
         rowClass: "smithy-row",
-        nameGroupClass: "smithy-row__name-group",
-        onRemove,
-        isBusy: onRemove.isBusy,
+        rowProps: { "data-set": set.setKey },
+        info: RowTitles({ bonus: set.bonus, name: set.displayName }),
+        // Worn in full, a set counts in the game even when the Smithy doesn't hold it.
+        badge: set.completedNow ? "Equipped" : set.known ? null : "Not in game",
+        controls: StateSwitch({
+            checked: isOn,
+            words: ["Unlocked", ""],
+            name: `${set.displayName} unlocked`,
+            ownStatus: true,
+            onFlip,
+        }),
     });
-};
 
 const SmithyTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Smithy" });
     const currentStoredSetKeys = van.state([]);
-    const smithyRows = van.state([]);
-    const addOptions = van.state([]);
-    const selectedAddSetKey = van.state("");
-    const totalSetCount = van.state(0);
-    const unlockedCount = van.state(0);
-    const lockedCount = van.state(0);
-    const storedCount = van.state(0);
-    const addableCount = van.state(0);
-    const writeWarning = van.state(null);
-    const mutating = van.state(false);
-
-    const { status: addStatus, run: runAdd } = useWriteStatus();
-    let scrollEl = null;
+    const sets = van.state([]);
+    const bulk = useWriteStatus();
+    // Changes run one at a time, each from the sets the game holds when its turn comes.
+    const inTurn = oneAtATime();
+    const listNode = div({ class: "account-page-pane" });
+    const reconcileRows = createStaticRowReconciler(listNode);
+    const rowOf = new Map();
 
     const applySmithyState = (rawLoadedData) => {
         const result = buildSmithyState(rawLoadedData);
-
         currentStoredSetKeys.val = [...result.storedSetKeys];
-        smithyRows.val = result.storedRows;
-        addOptions.val = result.addableSets;
-        totalSetCount.val = result.totalSetCount;
-        unlockedCount.val = result.unlockedCount;
-        lockedCount.val = result.lockedCount;
-        storedCount.val = result.storedRows.length;
-        addableCount.val = result.addableSets.length;
-
-        if (!result.addableSets.some((entry) => entry.setKey === selectedAddSetKey.val)) {
-            selectedAddSetKey.val = result.addableSets[0]?.setKey ?? "";
-        }
-
-        writeWarning.val = null;
+        // Every set in the game's order, then any set the Smithy holds that the game no longer lists.
+        const known = new Set(result.allSets.map((entry) => entry.setKey));
+        const next = [
+            ...result.allSets.map((entry) => ({ ...entry, known: true })),
+            ...result.storedRows.filter((entry) => !known.has(entry.setKey)),
+        ];
+        reconcileRows(next.map((entry) => `${entry.setKey}:${entry.completedNow ? 1 : 0}`).join("|"), () =>
+            next.map((entry) => {
+                const row = SmithyRow({
+                    set: entry,
+                    isOn: () => currentStoredSetKeys.val.includes(entry.setKey),
+                    onFlip: (on) =>
+                        change((stored) =>
+                            on
+                                ? stored.includes(entry.setKey)
+                                    ? stored
+                                    : [...stored, entry.setKey]
+                                : stored.filter((key) => key !== entry.setKey)
+                        ),
+                });
+                rowOf.set(entry.setKey, row);
+                return row;
+            })
+        );
+        sets.val = next;
     };
 
     const load = async () => {
@@ -257,111 +274,65 @@ const SmithyTab = () => {
         });
     };
 
-    const writeStoredSets = async (setKeys) => {
-        writeWarning.val = null;
-        const expectedSetKeys = normalizeStoredSetKeys(setKeys);
-        try {
-            await writeVerified(STORED_SETS_PATH, encodeStoredSets(expectedSetKeys));
-        } catch (e) {
-            const msg = "Failed writing smithy sets. Smithy may be inconsistent. Press REFRESH to resync.";
-            writeWarning.val = msg;
-            throw new Error(e?.message ? `${msg} (${e.message})` : msg);
-        }
-    };
-
-    const refreshAfterWrite = async () => {
-        const prevTop = scrollEl?.scrollTop ?? 0;
-        await load();
-        requestAnimationFrame(() => {
-            if (scrollEl) scrollEl.scrollTop = prevTop;
-        });
-    };
-
     // Every change starts from the sets the game holds now, so a set the game stored since the page read them is
-    // kept. After any outcome the page reads the game again; a failed write keeps its warning.
-    const change = async (build) => {
-        mutating.val = true;
-        try {
-            const stored = normalizeStoredSetKeys(await gga(STORED_SETS_PATH));
-            const next = build(stored);
-            if (next.length === stored.length) return { cancelled: true };
-            await writeStoredSets(next);
-        } finally {
-            const warning = writeWarning.val;
-            await refreshAfterWrite();
-            writeWarning.val = warning;
-            mutating.val = false;
-        }
-    };
+    // kept. After any outcome the page reads the game again.
+    const change = (build) =>
+        inTurn(async () => {
+            try {
+                const stored = normalizeStoredSetKeys(await gga(STORED_SETS_PATH));
+                const next = build(stored);
+                if (next.length === stored.length) return { cancelled: true };
+                await writeVerified(STORED_SETS_PATH, encodeStoredSets(next));
+                return { ok: true };
+            } finally {
+                await load();
+            }
+        });
 
-    const removeAtIndex = async (index) => {
-        if (mutating.val) return;
-        const setKey = currentStoredSetKeys.val[index];
-        if (setKey === undefined) return;
-        await change((stored) => stored.filter((key) => key !== setKey));
-    };
-    removeAtIndex.isBusy = () => mutating.val;
-    const keptRows = createKeptRows((row) => SmithyRow({ row, onRemove: removeAtIndex }));
-
-    const addSelected = async () => {
-        const setKey = selectedAddSetKey.val;
-        if (!setKey || mutating.val) return;
-        await runAdd(() => change((stored) => (stored.includes(setKey) ? stored : [...stored, setKey])));
-    };
-
-    const addAllAvailable = async () => {
-        if (mutating.val || addOptions.val.length === 0) return;
-        const toAdd = addOptions.val.map((entry) => entry.setKey);
-        await runAdd(() => change((stored) => [...stored, ...toAdd.filter((setKey) => !stored.includes(setKey))]));
-    };
+    // The sets the tools act on: every one, or the ones the top bar's search shows.
+    const shown = () => sets.val.filter((entry) => shownBySearch(rowOf.get(entry.setKey)));
+    const locked = () => shown().filter((entry) => entry.known && !currentStoredSetKeys.val.includes(entry.setKey));
+    const setWord = (n) => `set${n === 1 ? "" : "s"}`;
 
     load();
 
-    const body = div(
-        {
-            class: "scrollable-panel content-stack",
-        },
-        () => (writeWarning.val ? div({ class: "warning-banner" }, Icons.Warning(), " ", writeWarning.val) : null),
-
-        AddFromListSection({
-            title: "ADD EQUIPMENT SET",
-            note: () => `${addableCount.val} AVAILABLE`,
-            selectLabel: "SELECT SET",
-            selectedValue: selectedAddSetKey,
-            options: addOptions,
-            emptyOptionLabel: "No equipment sets left to add",
-            getOptionValue: (entry) => entry.setKey,
-            getOptionLabel: (entry) => `${entry.displayName} (${entry.setKey})`,
-            addStatus,
-            addDisabled: () => mutating.val || !selectedAddSetKey.val || addOptions.val.length === 0,
-            addAllDisabled: () => mutating.val || addOptions.val.length === 0,
-            onAdd: addSelected,
-            onAddAll: addAllAvailable,
-        }),
-
-        AccountSection({
-            title: "ON SMITHY",
-            note: () => `${unlockedCount.val}/${totalSetCount.val} TOTAL`,
-            body: () => div({ class: "smithy-rows" }, ...keptRows(smithyRows.val)),
-        })
-    );
-    scrollEl = body;
-
     return PersistentAccountListPage({
-        title: "SMITHY",
-        description: "Manage Armor Set Smithy equipment sets. Remove stored sets, or add sets from the game list.",
-        actions: RefreshButton({
-            onRefresh: () => {
-                if (mutating.val) return;
-                load();
-            },
-            disabled: () => loading.val || mutating.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Armor Smithy",
+        description: "Armor sets unlocked in the Smithy. A set worn in full counts too.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING SMITHY",
-        errorTitle: "SMITHY READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the smithy",
+        errorTitle: "Couldn't read the smithy",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: listNode,
+                // Unlocking only adds, so it runs on one press.
+                tools: () =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Unlock all",
+                            status: bulk.status,
+                            disabled: () => loading.val || !locked().length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                const keys = locked().map((entry) => entry.setKey);
+                                return bulk.run(() =>
+                                    change((stored) => [...stored, ...keys.filter((key) => !stored.includes(key))])
+                                );
+                            },
+                        })
+                    ),
+                toolsLabel: () => {
+                    const n = shown().length;
+                    const on = shown().filter((entry) => currentStoredSetKeys.val.includes(entry.setKey)).length;
+                    return `${isSearching() ? `${n} matching ${setWord(n)}` : `All ${n} ${setWord(n)}`} · ${on} unlocked`;
+                },
+            })
+        ),
     });
 };
 

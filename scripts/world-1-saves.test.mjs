@@ -333,6 +333,43 @@ test("statues: names show the game's underscores as spaces, in normal case", asy
     assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "Thicc Skin");
 });
 
+// CodeRabbit on #212: a Set all question asked for one character, answered after Refresh read another whose same
+// statues would come down, asks again for that one instead of lowering its statues unasked.
+test("statues: a Set all question asks again once Refresh has read another character", async () => {
+    const saved = [g.StatueLevels.map((entry) => [...entry]), g.UserInfo[0]];
+    g.StatueLevels.forEach((entry) => (entry[0] = 3));
+    g.StatueLevels[0][0] = 10;
+    try {
+        const root = await openPage(STATUES, (root) => statueRow(root, 0));
+        const label = () => text(byClass(root, "tabbed-list__tools-label")[0]);
+        const control = byClass(root, "account-setall-row")[0];
+        const apply = elements(control).find((node) => node.nodeName === "button" && text(node).trim() === "Set all");
+        control.querySelector = () => apply; // the fake DOM has no selectors; the page asks for its button
+        elements(control)
+            .find((node) => node.nodeName === "input")
+            .listeners.input({ target: { value: "5" } });
+        await tick();
+        await apply.listeners.click({ preventDefault() {} });
+        await until(() => label() === "Lower 1 statue to level 5?", "the question");
+        g.UserInfo[0] = "Lumi_Alt"; // another character, whose first statue is above 5 too
+        const refresh = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Refresh");
+        await refresh.listeners.click({ preventDefault() {}, currentTarget: refresh });
+        await until(() => !refresh.attributes.disabled, "the other character's read");
+        const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+        const before = writes();
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await tick();
+        assert.equal(label(), "Lower 1 statue to level 5?", "it asks again");
+        assert.equal(writes(), before, "nothing was written");
+        assert.equal(g.StatueLevels[0][0], 10);
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await until(() => g.StatueLevels[0][0] === 5, "the answer for the character now in play");
+    } finally {
+        g.StatueLevels.forEach((entry, i) => (entry[0] = saved[0][i][0]));
+        g.UserInfo[0] = saved[1];
+    }
+});
+
 const PETS = "src/ui/pages/world-1/pets/pets.js";
 // A pet is a row: its tier is a step picker (Off | Normal | Pets+), its token a switch.
 const petRow = (root, id) =>
@@ -875,6 +912,144 @@ test("stamps: a Set all question is dropped when the page search changes", async
     }
 });
 
+// #126 (CodeRabbit on #208): a token the game gives after the save's own read is checked again once the save lands.
+test("pets: Pets+ on a pet the game gives a token after the save read the tokens is taken back, and says why", async () => {
+    const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+    await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "12:0" } } } }); // pet 12 at Normal
+    g.OptionsListAccount[606] = "2";
+    try {
+        const root = await openPage(PETS, (root) => petRow(root, 12) && tierShown(root, 12) === "Normal");
+        // As the tiers are saved, after the save read the tokens in its turn.
+        const restore = onRequest(/\/config\/save$/, () => tokenInGame(12));
+        try {
+            pickTier(root, 12, "Pets+"); // the pick saves in the background
+            await until(() => alertText(root) === "This pet has a token now.", "the reason");
+        } finally {
+            restore();
+        }
+        assert.equal(g.OptionsListAccount[606], "2,12");
+        const saved = String((await fetchConfig()).cheatConfig.w1.companion.companions).split(",");
+        assert.ok(!saved.includes("12:1"), `pet 12 isn't left at Pets+ (saved: ${saved})`);
+    } finally {
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+        g.OptionsListAccount[606] = "2,5";
+    }
+});
+
+// CodeRabbit on #213: the save takes a pet's token back for Pets+; the game giving it back while the tiers save is late
+// too, though the pet had a token at the press.
+test("pets: Pets+ on a token pet the game gives its token back during the save is taken back, and says why", async () => {
+    const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+    await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "5:0" } } } });
+    g.OptionsListAccount[606] = "2";
+    try {
+        const root = await openPage(PETS, (root) => petRow(root, 2) && tokenShown(root, 2));
+        // The token write took pet 2's token back; the game gives it again as the tiers are saved.
+        const restore = onRequest(/\/config\/save$/, () => tokenInGame(2));
+        try {
+            pickTier(root, 2, "Pets+"); // the pick saves in the background
+            await until(() => alertText(root) === "This pet has a token now.", "the reason");
+        } finally {
+            restore();
+        }
+        const saved = String((await fetchConfig()).cheatConfig.w1.companion.companions).split(",");
+        assert.ok(!saved.includes("2:1"), `pet 2 isn't left at Pets+ (saved: ${saved})`);
+    } finally {
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+        g.OptionsListAccount[606] = "2,5";
+    }
+});
+
+// #126 (CodeRabbit on #208): a tray answer could start a second save while one ran, and the first one's failure then
+// put its message over the newer save's.
+const attr = (node, name) =>
+    typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
+const petsAskingWhileASaveRuns = async () => {
+    const { updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "12:1" } } } }); // pet 12 at Pets+
+    g.OptionsListAccount[606] = "2";
+    const root = await openPage(PETS, (root) => petRow(root, 12) && tierShown(root, 12) === "Pets+");
+    const pane = elements(root).find(
+        (node) => node.attributes["data-tab"] && elements(node).includes(petRow(root, 12))
+    );
+    elements(root)
+        .find((node) => node.attributes.role === "tab" && text(node).trim().startsWith(pane.attributes["data-tab"]))
+        .listeners.click({});
+    for (let i = 0; i < 5; i++) await tick(); // the switch drops any question on its next update, so it comes first
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const normalAll = elements(tray).find((node) => node.nodeName === "button" && text(node).trim() === "Normal");
+    await normalAll.listeners.click({ preventDefault() {}, currentTarget: normalAll });
+    await until(() => trayLabel(root).startsWith("Lower 1 pet"), "the question");
+    // Pet 2's token comes off; its token write waits, and the game picks a token meanwhile, so it fails.
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = false;
+    globalThis.fetch = async (url, options) => {
+        if (!held && String(url).includes("/write")) {
+            held = true;
+            tokenInGame(9);
+            await gate;
+        }
+        return realFetch(url, options);
+    };
+    const tokenSave = flipToken(root, 2);
+    await until(() => held, "pet 2's token write to wait");
+    const yes = byClass(root, "tabbed-list__yes")[0];
+    const done = async () => {
+        release();
+        globalThis.fetch = realFetch;
+        await tokenSave;
+    };
+    return { root, yes, done };
+};
+
+test("pets: the tray's Yes waits while a save runs", async () => {
+    const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+    let done = async () => {};
+    try {
+        let yes;
+        ({ yes, done } = await petsAskingWhileASaveRuns());
+        assert.equal(Boolean(attr(yes, "disabled")), true, "Yes is off while pet 2 saves");
+        await done();
+        assert.equal(Boolean(attr(yes, "disabled")), false, "Yes is back once it ended");
+    } finally {
+        await done();
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+        g.OptionsListAccount[606] = "2,5";
+    }
+});
+
+test("pets: a save that fails after a newer one started leaves the newer one's message", async () => {
+    const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+    let done = async () => {};
+    try {
+        let root;
+        let yes;
+        ({ root, yes, done } = await petsAskingWhileASaveRuns());
+        await yes.listeners.click({}); // a press that got through: the newer save
+        // All to Normal: pet 12 comes down from Pets+, and the tab's other pets come up from Off.
+        let saved = [];
+        for (let i = 0; i < 100 && !saved.includes("12:0"); i++) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            saved = String((await fetchConfig()).cheatConfig.w1.companion.companions).split(",");
+        }
+        assert.ok(saved.includes("12:0"), `the newer save landed (saved: ${saved})`);
+        for (let i = 0; i < 10; i++) await tick();
+        await done(); // the older save fails now
+        for (let i = 0; i < 10; i++) await tick();
+        assert.equal(alertText(root), "", "the older failure says nothing over the newer save");
+    } finally {
+        await done();
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+        g.OptionsListAccount[606] = "2,5";
+    }
+});
+
 test("star signs: a Reset all question is dropped when the page search changes", async () => {
     const saved = [...g.StarSignProg[2]];
     g.StarSignProg[2] = ["_", 0];
@@ -892,4 +1067,22 @@ test("star signs: a Reset all question is dropped when the page search changes",
         searchHits.val = null;
         g.StarSignProg[2] = saved;
     }
+});
+
+// #204: a tray question checks again, when answered, what it takes away.
+test("stamps: a stamp exalted while Unexalt all asks is one more to take away, so it asks again", async () => {
+    g.Compass[4] = ["_1", "a0", "b4"];
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Mana Stamp"));
+    const unexalt = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Unexalt all");
+    unexalt.listeners.click({ preventDefault() {} });
+    await until(() => /^Unexalt 1 /.test(trayLabel(root)), "the question");
+    await flip(rowNamed(root, "Mana Stamp"), true);
+    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+    const before = writes();
+    await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+    await tick();
+    assert.match(trayLabel(root), /^Unexalt 2 /, "it asks again");
+    assert.equal(writes(), before, "nothing was written");
+    await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+    await until(() => !g.Compass[4].some((code) => code.startsWith("_")), "the answer to unexalt both");
 });

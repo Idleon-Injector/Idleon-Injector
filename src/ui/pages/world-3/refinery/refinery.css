@@ -1,20 +1,4 @@
-.refinery-grid {
-    align-items: start;
-}
-
-.refinery-col {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-}
-
-/* A block, so the heading keeps its height and the polymer columns line up with the rest. */
-.refinery-section__state {
-    display: block;
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.2;
-    white-space: nowrap;
+/* Refinery: one salt per line, its Level and Charge in two columns. */
+.refinery-table {
+    --value-columns: repeat(2, 9.5rem);
 }

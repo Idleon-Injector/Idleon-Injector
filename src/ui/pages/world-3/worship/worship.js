@@ -24,6 +24,7 @@ import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelR
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     createStaticRowReconciler,
     getOrCreateState,
@@ -45,7 +46,7 @@ const WORSHIP_TOTEM_NAMES = [
     "Pufferblob Brawl",
 ];
 
-const WorshipChargeRow = ({ index, playerName, chargeState, activeCharacterNameRef, writeCharge }) => {
+const WorshipChargeRow = ({ playerName, chargeState, activeCharacterNameRef, writeCharge }) => {
     const isActiveCharacter = () =>
         typeof activeCharacterNameRef.val === "string" &&
         activeCharacterNameRef.val.length > 0 &&
@@ -57,11 +58,9 @@ const WorshipChargeRow = ({ index, playerName, chargeState, activeCharacterNameR
         integerMode: "round",
         invalidFallback: 0,
         write: async (nextCharge) => writeCharge(playerName, nextCharge),
-        indexLabel: `#${index + 1}`,
         name: playerName,
         // Max charge isn't a limit here (charge saves above it), so it gets no slash; the row only says which is active.
         renderBadge: () => (isActiveCharacter() ? "Active" : ""),
-        controlsClass: "account-row__controls--xl",
     });
 };
 
@@ -72,7 +71,6 @@ const WorshipWaveRow = ({ index, name, waveState, writeWave }) =>
         integerMode: "round",
         invalidFallback: 0,
         write: async (nextWave) => writeWave(index, nextWave),
-        indexLabel: `#${index + 1}`,
         name,
     });
 
@@ -101,14 +99,13 @@ const WorshipTab = () => {
         return writeVerified(writePath, nextWave);
     };
 
-    const chargeRowsNode = div({ class: "content-stack" });
+    const chargeRowsNode = div();
     const reconcilePlayerRows = createStaticRowReconciler(chargeRowsNode);
 
     const reconcileChargeRows = (players) =>
         reconcilePlayerRows(players.map((player) => player.playerName).join("|"), () =>
-            players.map((player, index) =>
+            players.map((player) =>
                 WorshipChargeRow({
-                    index,
                     playerName: player.playerName,
                     chargeState: getChargeState(player.playerName),
                     activeCharacterNameRef,
@@ -118,7 +115,6 @@ const WorshipTab = () => {
         );
 
     const waveRowsNode = div(
-        { class: "content-stack" },
         ...WORSHIP_TOTEM_NAMES.map((name, index) =>
             WorshipWaveRow({
                 index,
@@ -172,27 +168,27 @@ const WorshipTab = () => {
 
     load();
 
+    // Two kinds of rows in one list, like the Anvil's: each character's charge, then each totem's best wave.
     const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "WORSHIP CHARGE",
-            body: chargeRowsNode,
-        }),
-        AccountSection({
-            title: "TOWER DEFENSE",
-            body: waveRowsNode,
+        { class: "account-list account-list--tabbed" },
+        ListPanel({
+            className: "field-columns",
+            body: [
+                AccountSection({ title: "Charge", body: chargeRowsNode }),
+                AccountSection({ title: "Totems", body: waveRowsNode }),
+            ],
         })
     );
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "W3 - WORSHIP",
-        description: "Edit worship charge and best worship waves.",
-        actions: RefreshButton({ onRefresh: load }),
+        title: "Worship",
+        description: "Each character's worship charge and each totem's best wave.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING WORSHIP",
-        errorTitle: "WORSHIP READ FAILED",
-        initialWrapperClass: "scrollable-panel",
+        loadingText: "Reading worship",
+        errorTitle: "Couldn't read worship",
+        initialWrapperClass: "account-list",
         body,
     });
 };

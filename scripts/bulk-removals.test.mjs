@@ -169,8 +169,6 @@ test("a press whose targets changed since the question asks again instead of run
 });
 
 const removals = [
-    ["src/ui/pages/world-3/atom-collider/atom-collider.js", "Reset all"],
-    ["src/ui/pages/world-3/salt-lick/salt-lick.js", "Reset all"],
     ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
     ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
@@ -286,6 +284,54 @@ test("bribes: Disable all asks in the tray, then runs on the answer", async () =
     assert.equal(writes(), before);
     await click(inTray("tabbed-list__yes"));
     await until(() => writes() > before, "the answer to write");
+});
+
+// Resetting takes levels away, so it asks in the tools tray first; the answer runs it.
+for (const file of [
+    "src/ui/pages/world-3/atom-collider/atom-collider.js",
+    "src/ui/pages/world-3/salt-lick/salt-lick.js",
+]) {
+    test(`${file.split("/").pop()}: Reset all asks in the tray, then runs on the answer`, async () => {
+        const reset = await openPage(file, "Reset all");
+        let root = reset;
+        while (root.parentNode) root = root.parentNode;
+        const inTray = (name) => elements(root).find((node) => String(node.attributes.class).split(" ").includes(name));
+        const before = writes();
+        await click(reset);
+        await settle(100);
+        assert.match(text(inTray("tabbed-list__tools-label")), /^Reset \d+ .+ to 0\?$/, "the first click asks");
+        assert.equal(writes(), before, "nothing was written");
+        await click(inTray("tabbed-list__yes"));
+        await until(() => writes() > before, "the answer to write");
+    });
+}
+
+// CodeRabbit on #212: the answer reads the game again, and a bribe the game enabled meanwhile wasn't in the question.
+test("bribes: Disable all asks again when the game enabled a bribe the question didn't name", async () => {
+    const status = game.gga.BribeStatus;
+    const before = [...status];
+    for (let index = 0; index < 6; index++) status[index] = 0;
+    status[0] = 1;
+    try {
+        const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
+        let root = enable;
+        while (root.parentNode) root = root.parentNode;
+        const inTray = (name) => elements(root).find((node) => String(node.attributes.class).split(" ").includes(name));
+        const label = () => text(inTray("tabbed-list__tools-label"));
+        await click(buttonsNamed(root, "Disable all").find((node) => !node.attributes.disabled));
+        await settle(100);
+        assert.equal(label(), "Disable 1 bribe in Set 1?");
+        status[1] = 1; // enabled in the game; its row still shows it off
+        const written = writes();
+        await click(inTray("tabbed-list__yes"));
+        await until(() => label() === "Disable 2 bribes in Set 1?", "it to ask again");
+        assert.equal(writes(), written, "nothing was written");
+        assert.deepEqual([status[0], status[1]], [1, 1]);
+        await click(inTray("tabbed-list__yes"));
+        await until(() => status[0] === 0 && status[1] === 0, "the answer to disable both");
+    } finally {
+        before.forEach((value, index) => (status[index] = value));
+    }
 });
 
 // Owning Set 1's expansion unlocks Set 2, the same as flipping the expansion's own switch.
@@ -628,7 +674,7 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
             () => bulk().every((node) => !node.attributes.disabled) && levelShown(root, 0) === String(caps[0] + 5),
             "Salt Lick"
         );
-        assert.equal(showsText(root, /SALT LICK READ FAILED/), false, "no read failed yet");
+        assert.equal(showsText(root, /Couldn't read the salt lick/), false, "no read failed yet");
         // Max all reads the levels first to plan its writes; the read after its refusal is the second one.
         let reads = 0;
         const reread = holdNext(
@@ -638,7 +684,7 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
         await until(() => reread.reached, "the read after the refused Max all");
         reread.release(new Response(JSON.stringify({ error: "The game didn't answer" }), { status: 500 }));
         await pressed;
-        await until(() => showsText(root, /SALT LICK READ FAILED/), "the failed read to be said, on screen");
+        await until(() => showsText(root, /Couldn't read the salt lick/), "the failed read to be said, on screen");
         await until(
             () => bulk().every((node) => node.attributes.disabled),
             "the bulk actions to wait after the failed read"

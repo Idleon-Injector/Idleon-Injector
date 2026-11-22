@@ -1,40 +1,37 @@
-/* Prayer effects need wrapping below their names; shared controls already stack. */
-.prayer-row__effect {
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-    overflow-wrap: anywhere;
+/* A prayer's bonus, its name, then the curse it brings: the curse small and muted, like the name. */
+.prayer-row__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
 }
 
-.prayer-row .account-row__name {
+.viewport .prayer-row__curse {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--c-text-muted);
+}
+
+.prayer-row .account-row__name,
+.prayer-row .account-row__bonus {
     white-space: normal;
 }
 
+/* Equip and Unequip keep one width, so the buttons line up down the list. */
 .prayer-row__equip-btn {
-    width: 96px;
-    min-width: 96px;
+    min-width: 5.5rem;
     text-align: center;
 }
 
-/* In the narrow overlay the field, Max and Equip share one line: Equip takes its label's width, not the fixed width
- * that lines the buttons up on wide rows. */
+/* In the narrow overlay the field, Max and Equip share one line. */
 @media (max-width: 600px) {
     .prayer-row .account-row__controls {
         justify-content: flex-start;
         gap: 4px;
     }
 
-    /* A prayer's level is two digits at most, so its field needs no more room than that. */
-    .prayer-row .number-input-wrapper--capped {
-        min-width: 0;
-    }
-
-    .prayer-row .number-input-wrapper--capped input {
-        min-width: calc(2ch + 2px);
-        padding-left: 0;
-    }
-
     .prayer-row__equip-btn {
-        width: auto;
         min-width: 0;
     }
 }

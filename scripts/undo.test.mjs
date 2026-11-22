@@ -496,21 +496,40 @@ test("the research grid's Undo goes when another tile is picked", async () => {
     await until(() => !undoOffered(card()), "the other tile's card without that Undo");
 });
 
+// A 3D Printer slot: its title opens the items in place, and an item there is picked by its name (it saves at once).
+const PRINTER = "src/ui/pages/world-3/3d-printer/printer.js";
+const printerRows = (root) => byClass(root, "printer-row");
+const itemName = (id) => String(gga.ItemDefinitionsGET.h[id]?.h?.displayName ?? "").replace(/_/g, " ");
+const itemIds = (row) =>
+    byClass(row, "pick-in-place__option").map((node) =>
+        Object.keys(gga.ItemDefinitionsGET.h).find((id) => itemName(id) === text(node).trim())
+    );
+const pickItem = (row, id) => {
+    const opener = byClass(row, "row-opener")[0];
+    opener.listeners.click({ preventDefault() {}, currentTarget: opener, target: opener });
+    const option = byClass(row, "pick-in-place__option").find((node) => text(node).trim() === itemName(id));
+    option.listeners.click({ preventDefault() {}, currentTarget: option, target: option });
+};
+const printSlot = (row) => {
+    let panel = row;
+    while (!panel.attributes["data-printer-character"]) panel = panel.parentNode;
+    return 15 + 14 * gga.GetPlayersUsernames.indexOf(panel.attributes["data-printer-character"]); // print 1
+};
+
 test("Printer's reload after an undo elsewhere keeps an unsaved draft", async () => {
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
-    const selects = (root) => elements(root).filter((node) => classes(node).includes("printer-item-select"));
-    const root = await openPage("src/ui/pages/world-3/printer/printer.js", (node) => selects(node).length > 0);
-    const [select] = selects(root);
-    const draft = elements(select).find((node) => node.nodeName === "option" && node.attributes.value !== select.value)
-        .attributes.value;
-    select.value = draft;
-    select.listeners.change({ target: select });
+    const root = await openPage(PRINTER, (node) => printerRows(node).length > 0);
+    const [row] = printerRows(root);
+    const field = elements(row).find((node) => node.nodeName === "input");
+    field.value = "777";
+    field.listeners.input({ target: field });
 
     const asked = requests.length;
     reloadPlace.val = { view: "", page: "" }; // an undo made in History
     await until(() => requests.length > asked, "the reload to read the game");
     await new Promise((resolve) => setTimeout(resolve, 50));
-    assert.equal(select.value, draft, "the draft is still there");
+    assert.equal(field.value, "777", "the draft is still there");
+    row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
 });
 
 test("History's Undo stays in place, marked busy, while it runs", async () => {
@@ -669,55 +688,33 @@ test("a finished Undo all goes on its own, even after the pointer passed over it
     }
 });
 
-test("Printer compares a kept draft with the value the reload read", async () => {
+test("Printer saves a picked item over the one an undo put back", async () => {
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
-    const selects = (root) => elements(root).filter((node) => classes(node).includes("printer-item-select"));
-    const root = await openPage("src/ui/pages/world-3/printer/printer.js", (node) => selects(node).length > 0);
-    const [select] = selects(root);
-    let panel = select;
-    while (!panel.attributes["data-printer-character"]) panel = panel.parentNode;
-    const index = 15 + 14 * gga.GetPlayersUsernames.indexOf(panel.attributes["data-printer-character"]); // print 1
-    let row = select;
-    while (!row.listeners.keydown) row = row.parentNode;
-    const ids = elements(select)
-        .filter((node) => node.nodeName === "option" && node.attributes.value !== "Blank")
-        .map((node) => node.attributes.value);
+    const root = await openPage(PRINTER, (node) => printerRows(node).length > 0);
+    const [row] = printerRows(root);
+    const index = printSlot(row);
     const was = gga.Printer[index];
-    const [draft, undone] = ids.filter((id) => id !== was);
-    const pick = (id) => {
-        select.value = id;
-        select.listeners.change({ target: select });
-    };
+    const [undone] = itemIds(row).filter((id) => id && id !== was);
 
-    pick(draft);
     gga.Printer[index] = undone; // an undo in History put another item back
     const asked = requests.length;
     reloadPlace.val = { view: "", page: "" };
     await until(() => requests.length > asked, "the reload to read the game");
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    pick(was); // what the row showed before the reload, no longer what the game holds
-    row.listeners.keydown({ key: "Enter", target: select, preventDefault() {} });
+    pickItem(row, was); // what the row showed before the reload, no longer what the game holds
     await until(() => gga.Printer[index] === was, "the pick to save");
 });
 
 test("Printer saves the exact quantity a rounded draft stood for, even after a save in between", async () => {
     const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
-    const selects = (root) => elements(root).filter((node) => classes(node).includes("printer-item-select"));
-    const root = await openPage("src/ui/pages/world-3/printer/printer.js", (node) => selects(node).length > 0);
-    const [select] = selects(root);
-    let panel = select;
-    while (!panel.attributes["data-printer-character"]) panel = panel.parentNode;
-    const index = 15 + 14 * gga.GetPlayersUsernames.indexOf(panel.attributes["data-printer-character"]); // print 1
-    let row = select;
-    while (!row.listeners.keydown) row = row.parentNode;
+    const root = await openPage(PRINTER, (node) => printerRows(node).length > 0);
+    const [row] = printerRows(root);
+    const index = printSlot(row);
     const field = elements(row).find((node) => node.nodeName === "input");
     const before = { item: gga.Printer[index], qty: gga.Printer[index + 1] };
-    const other = elements(select)
-        .filter((node) => node.nodeName === "option")
-        .map((node) => node.attributes.value)
-        .find((id) => id !== "Blank" && id !== before.item);
+    const other = itemIds(row).find((id) => id && id !== before.item);
     const realFetch = globalThis.fetch;
     let release;
     const gate = new Promise((resolve) => (release = resolve));
@@ -743,8 +740,7 @@ test("Printer saves the exact quantity a rounded draft stood for, even after a s
         await until(() => field.value === largeFormatter(16234), "the slot to show 16.2K");
         commit(20000);
         await until(() => held, "the first save to reach the game");
-        select.value = other;
-        select.listeners.change({ target: select });
+        pickItem(row, other);
         commit(largeFormatter(16234)); // back to what the field showed before
         release();
         await answered;

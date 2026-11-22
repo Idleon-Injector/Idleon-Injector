@@ -1,83 +1,24 @@
-/* Equinox Tab */
-
-.equinox-content {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 14px;
-}
-
-/* Overview section wrapping the bar and stats */
-.equinox-overview {
-    padding: 10px 14px 12px;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-}
-
-.equinox-overview__row {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-.equinox-overview__label {
-    font-size: 0.875rem;
-    font-family: var(--font-display);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--c-text-muted);
-    flex-shrink: 0;
-}
-
-.equinox-overview__value {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--c-text-main);
-}
-
-.equinox-overview__rate {
-    font-size: 0.875rem;
-    color: var(--c-text-muted);
-    margin-left: auto;
-    flex-shrink: 0;
-}
-
-/* Progress bar */
-.equinox-bar {
-    height: 10px;
-    background: var(--c-bg);
-    border: 1px solid var(--c-border);
-    overflow: hidden;
-    position: relative;
-}
-
-.equinox-bar__fill {
-    height: 100%;
-    width: var(--equinox-fill-width, 0%);
-    background: var(--c-accent);
-    transition: width 0.3s ease;
-    min-width: 0;
-}
-
-.equinox-bar__fill--full {
-    background: var(--c-success);
-}
-
-.equinox-section-count {
-    font-size: 0.875rem;
-    color: var(--c-text-main);
-    letter-spacing: 0.04em;
-}
-
-.equinox-section-count--empty {
+/* Clouds with none showing: why, where their rows would be. */
+.equinox-empty {
+    margin: 0;
+    padding: 20px 16px;
+    font-size: 0.9375rem;
     color: var(--c-text-muted);
 }
 
-/* Nightmare clouds (display index #36+, internal index >= 35): their number says it, the row stays plain. */
-.account-row.cloud-row--nightmare .account-row__index {
-    color: var(--c-warning);
+/* The bar and a cloud: a value with no field, then its button. On a phone they share the line under the name. */
+@media (max-width: 760px) {
+    .viewport .tabbed-list .equinox-action-row {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 8px;
+    }
+    .viewport .equinox-action-row .account-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+    .viewport .field-columns .equinox-action-row .account-row__controls > .capped-value {
+        width: auto;
+        padding-right: 0;
+        margin-right: auto;
+    }
 }

@@ -90,17 +90,28 @@ let listCount = 0;
  * @param {string} opts.name what the tabs choose between ("Stamps"), read out by assistive technology
  * @param {{id: string, label: string, content: *}[]} opts.tabs
  * @param {(activeId: {val: string}, ask: (q: {question: string, confirmLabel: string, from: HTMLElement,
- *   onConfirm: () => *}) => void) => *} [opts.tools]
+ *   onConfirm: () => *, lowers?: () => Array, again?: () => *}) => void) => *} [opts.tools]
  * @param {(activeId: {val: string}) => string} [opts.toolsLabel]
  * @param {(tabId: string) => boolean} [opts.toolsOn] which tabs have tools (all, when not given): a tab without them
  *   shows no tray, and its open tab runs down into its rows like a list without tools
+ * @param {(tabId: string) => void} [opts.onTab] called with the tab the player opens (a pane closes what it had open)
+ * @param {() => boolean} [opts.busy] true while the page saves: a question's Yes waits, so it can't start a second save
  * @param {{val: string}} [opts.activeId] the open tab's id, when the page shows something of it outside the list (the
  *   stats beside its title)
  * @returns {HTMLElement}
  */
-export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsOn = null, activeId = null }) => {
-    if (activeId) activeId.val = pickedTabs.get(name) ?? activeId.val;
-    else activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
+export const TabbedList = ({
+    name,
+    tabs,
+    tools = null,
+    toolsLabel = null,
+    toolsOn = null,
+    onTab = null,
+    busy = null,
+    activeId: sharedId = null,
+}) => {
+    const activeId = sharedId ?? van.state(tabs[0].id);
+    activeId.val = pickedTabs.get(name) ?? activeId.val;
     const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
     const key = `tabbed-list-${++listCount}`;
@@ -142,7 +153,7 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsO
     const resized = new ResizeObserver(placePill);
     [nav, ...buttons].forEach((node) => resized.observe(node));
 
-    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId }) : null;
+    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId, busy }) : null;
     if (tray) van.derive(() => (tray.node.hidden = !showsTools()));
 
     let first = true;
@@ -151,6 +162,7 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsO
         requestAnimationFrame(placePill);
         if (first) return (first = false);
         tray?.drop(); // a question is about the tab it was asked on
+        onTab?.(activeId.val);
         body.scrollTop = 0;
         replay(body, "switched");
     });
@@ -181,7 +193,7 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsO
  * answer: no popup and no timer. Cancel or Escape drop it unanswered; `drop` does too (another tab), and so does a
  * change in the page search, since the question counted the rows the search showed when it was asked.
  */
-const ToolsTray = ({ tools, toolsLabel, activeId }) => {
+const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
     const asking = van.state(null);
     const questionId = `tabbed-list-question-${++listCount}`;
     const answer = (yes) => {
@@ -190,14 +202,22 @@ const ToolsTray = ({ tools, toolsLabel, activeId }) => {
         asking.val = null;
         // A keyboard player goes back to the button that asked, once it shows again (the next frame).
         if (question.byKeyboard) requestAnimationFrame(() => question.from?.focus({ preventScroll: true }));
+        if (!yes) return;
+        // A row saved while the question was open can change what the answer takes away: then the tool asks again.
+        const now = question.lowers?.();
+        const changed =
+            now && (now.length !== question.lowered.length || now.some((item, i) => item !== question.lowered[i]));
         // The change is the asking button's: its Undo all comes up beside it.
-        if (yes) withAction({ label: labelOf(question.from), anchor: question.from }, () => question.onConfirm());
+        withAction({ label: labelOf(question.from), anchor: question.from }, () =>
+            changed ? question.again() : question.onConfirm()
+        );
     };
     const yesButton = button(
         {
             type: "button",
             class: "account-btn btn-danger btn-sm tabbed-list__yes",
             "aria-describedby": questionId,
+            disabled: () => Boolean(busy?.()),
             onclick: () => answer(true),
         },
         () => asking.val?.confirmLabel ?? ""
@@ -207,12 +227,13 @@ const ToolsTray = ({ tools, toolsLabel, activeId }) => {
         "Cancel"
     );
     /** Ask before `onConfirm` runs: `question` ("Lower 30 combat stamps to level 47?"), `confirmLabel` ("Lower
-     *  them"), and `from`, the button that asked. */
-    const ask = ({ question, confirmLabel, from, onConfirm }) => {
+     *  them"), and `from`, the button that asked. `lowers`, when given, lists what the answer takes away (ids or
+     *  rows); if that list is different when Yes is pressed, `again` runs instead of `onConfirm`, to ask again. */
+    const ask = ({ question, confirmLabel, from, onConfirm, lowers = null, again = null }) => {
         // Pressed from the keyboard, the asking button holds focus: the answer takes it. A click leaves focus alone,
         // so nothing is ringed that the pointer didn't touch.
         const byKeyboard = document.activeElement === from;
-        asking.val = { question, confirmLabel, from, onConfirm, byKeyboard };
+        asking.val = { question, confirmLabel, from, onConfirm, lowers, again, lowered: lowers?.(), byKeyboard };
         if (byKeyboard) requestAnimationFrame(() => yesButton.focus({ preventScroll: true }));
     };
     van.derive(() => {

@@ -6,7 +6,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-const { requests } = await loadUi(router);
+await loadUi(router);
 const gga = game.gga;
 globalThis.requestAnimationFrame ??= (fn) => setTimeout(fn, 0);
 
@@ -67,63 +67,40 @@ const quietly = async (task) => {
     }
 };
 const settledButton = (node) => /account-btn--(success|error)/.test(classes(node));
-const writeCount = () => requests.filter((entry) => entry.includes("/write")).length;
 
-// A row's Remove takes the item off the list, so it asks "Click again" first; the second press removes it.
-const removeTwice = (node) => {
-    click(node);
-    return click(node);
-};
-// The first press only asks and writes nothing. The ask runs out after a few seconds like every "Click again",
-// and the press after that asks again.
-const removeAsksFirst = (t, remove, question) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-    try {
-        const before = writeCount();
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the first press asks");
-        assert.equal(remove.attributes["aria-label"], `Click again to ${question}`);
-        t.mock.timers.tick(4000);
-        assert.equal(remove.attributes["data-again"], undefined, "the ask runs out");
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the press after that asks again");
-        assert.equal(writeCount(), before, "nothing was written");
-    } finally {
-        t.mock.timers.reset();
-    }
-};
+// A hat or a set is one row with a switch: flipping it saves at once, and a refused save says why on the switch.
+const switchOf = (row) => elements(row).find((node) => node.nodeName === "input" && node.attributes.role === "switch");
+const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on } });
+const switchFailed = (row) => classes(byClass(row, "state-switch")[0]).includes("is-failed");
 
 const HAT_RACK = "src/ui/pages/world-3/hat-rack/hat-rack.js";
-const hat = (n) => `EquipmentHatsPrem${n}`;
+const { PREMIUM_HATS } = await import("./page-shots/data/world-3-game.mjs");
+const hat = (n) => PREMIUM_HATS[n - 1][0];
 const rackRows = (root) => byClass(root, "hat-rack-row");
-const rackRowFor = (root, itemId) =>
-    rackRows(root).find((row) => text(byClass(row, "account-row__sub-label")[0]) === itemId);
+const rackRowFor = (root, itemId) => rackRows(root).find((row) => row.attributes["data-item"] === itemId);
 const setRack = (rack, slab) => {
     gga.Spelunk[46] = rack;
     gga.Cards[1] = slab;
 };
 
-test("Hat Rack: Remove asks Click again first, and the second press takes the hat off the rack", async (t) => {
+test("Hat Rack: every premium hat is a row, and its switch takes it off the rack and the Slab at once", async () => {
     setRack([hat(1), hat(2)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
-    const row = rackRowFor(root, hat(1));
-    const remove = buttonIn(row, "Remove");
-
-    removeAsksFirst(t, remove, `remove ${text(byClass(row, "account-row__name")[0])}.`);
-    const other = buttonIn(rackRowFor(root, hat(2)), "Remove");
-    click(other);
-    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own hat");
-    assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2)], "both hats are still on the rack");
-
-    click(remove);
-    await until(() => settledButton(remove), "the second press to finish");
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    flip(rackRowFor(root, hat(1)), false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the hat to come off");
     assert.deepEqual([...gga.Spelunk[46]], [hat(2)]);
     assert.deepEqual([...gga.Cards[1]], []);
+
+    flip(rackRowFor(root, hat(5)), true);
+    await until(() => gga.Spelunk[46].includes(hat(5)), "the hat to go on");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(2), hat(5)]);
+    // Every premium hat on the rack goes in the Slab with an add, the one already there too.
+    assert.deepEqual([...gga.Cards[1]], [hat(2), hat(5)]);
 });
 
-test("Hat Rack: Add all and Remove keep what the game added after the page read it", async () => {
+test("Hat Rack: Add all and a switch keep what the game added after the page read it", async () => {
     setRack([hat(1), hat(2)], [hat(6), hat(7)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
 
     // The player keeps playing: the game adds loot to the Slab and a hat to the rack.
     gga.Cards[1].push("NewLoot");
@@ -135,20 +112,33 @@ test("Hat Rack: Add all and Remove keep what the game added after the page read 
     assert.match(classes(addAll), /account-btn--success/);
     assert.ok(gga.Cards[1].includes("NewLoot"), "the loot the game added stays in the Slab");
     assert.equal(gga.Spelunk[46][2], hat(3), "the hat the game added stays on the rack");
+    assert.equal(gga.Spelunk[46].length, 12, "every premium hat is on the rack");
 
     gga.Cards[1].push("LaterLoot");
     gga.Spelunk[46].push("InGameHat");
-    await until(() => rackRowFor(root, hat(1)), "the rack to show");
-    const before = rackRows(root).length;
-    removeTwice(buttonIn(rackRowFor(root, hat(1)), "Remove"));
-    await until(() => !gga.Spelunk[46].includes(hat(1)) && rackRows(root).length === before, "Remove to finish");
+    flip(rackRowFor(root, hat(1)), false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the hat to come off");
     assert.ok(gga.Spelunk[46].includes("InGameHat"), "the hat the game added stays on the rack");
     assert.ok(gga.Cards[1].includes("LaterLoot"), "the loot the game added stays in the Slab");
+    await until(() => rackRowFor(root, "InGameHat"), "the page to show the other hat the rack holds");
 });
 
-test("Hat Rack: a half-done Add all shows the hats that landed, and the next Remove keeps them", async () => {
+// Review of #207: a hat the game added rebuilt every row, so a switch lost its focus and its save's state.
+test("Hat Rack: a hat the game adds gets its own row and the other rows stay as they are", async () => {
+    setRack([hat(1), hat(2)], [hat(1), hat(2)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    const before = rackRowFor(root, hat(1));
+
+    gga.Spelunk[46].push("InGameHat");
+    click(buttonIn(root, "Refresh"));
+    await until(() => rackRowFor(root, "InGameHat"), "the page to show the hat the game added");
+    assert.equal(rackRowFor(root, hat(1)), before, "the first hat keeps its row");
+    assert.equal(rackRows(root).at(-1), rackRowFor(root, "InGameHat"), "the new hat comes last");
+});
+
+test("Hat Rack: a half-done Add all shows the hats that landed, and the next switch keeps them", async () => {
     setRack([hat(1), hat(2)], []);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
 
     const restore = failWrites(/"gga\.Spelunk\[46\]\[4\]"/); // the third hat of Add all
     const addAll = buttonIn(root, "Add all");
@@ -163,45 +153,38 @@ test("Hat Rack: a half-done Add all shows the hats that landed, and the next Rem
     assert.match(classes(addAll), /account-btn--error/);
     const landed = gga.Spelunk[46].slice(2);
     assert.equal(landed.length, 2, "two hats landed before the refusal");
-    await until(() => rackRows(root).length === 4, "the page to show what landed");
 
-    removeTwice(buttonIn(rackRowFor(root, hat(1)), "Remove"));
-    await until(() => !gga.Spelunk[46].includes(hat(1)), "Remove to finish");
+    flip(rackRowFor(root, hat(1)), false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the hat to come off");
     for (const itemId of landed) assert.ok(gga.Spelunk[46].includes(itemId), `${itemId} stays on the rack`);
 });
 
-test("Hat Rack: a hat an add placed but couldn't put in the Slab goes there with the next add", async () => {
+test("Hat Rack: a hat a flip put on the rack but couldn't put in the Slab goes there with the next add", async () => {
     setRack([hat(1)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 1);
-    const add = buttonIn(root, "Add");
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    const row = rackRowFor(root, hat(2));
 
     const restore = failWrites(/"gga\.Cards\[1\]"/);
     try {
         await quietly(async () => {
-            click(add);
-            await until(() => settledButton(add), "the first Add to finish");
+            flip(row, true);
+            await until(() => switchFailed(row), "the switch to say why");
         });
     } finally {
         restore();
     }
-    assert.match(classes(add), /account-btn--error/);
-    const [placed] = gga.Spelunk[46].slice(1);
-    assert.ok(placed, "the hat landed on the rack");
-    assert.ok(!gga.Cards[1].includes(placed), "the Slab refused it");
+    assert.ok(gga.Spelunk[46].includes(hat(2)), "the hat landed on the rack");
+    assert.ok(!gga.Cards[1].includes(hat(2)), "the Slab refused it");
 
-    await until(
-        () => rackRows(root).length === 2 && !classes(add).includes("account-btn--error"),
-        "the page to settle"
-    );
-    click(add);
-    await until(() => gga.Spelunk[46].length === 3 && gga.Cards[1].length === 3, "the next Add to finish");
-    assert.ok(gga.Cards[1].includes(placed), "the earlier hat is in the Slab now");
+    flip(rackRowFor(root, hat(3)), true);
+    await until(() => gga.Cards[1].includes(hat(3)), "the next add to finish");
+    assert.ok(gga.Cards[1].includes(hat(2)), "the earlier hat is in the Slab now");
 });
 
-test("Hat Rack: loot the game adds to the Slab while an add writes it is kept", async () => {
+test("Hat Rack: loot the game adds to the Slab while a flip writes it is kept", async () => {
     setRack([hat(1)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 1);
-    const add = buttonIn(root, "Add");
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    const row = rackRowFor(root, hat(2));
     const realFetch = globalThis.fetch;
     let added = false;
     globalThis.fetch = async (url, options) => {
@@ -213,116 +196,77 @@ test("Hat Rack: loot the game adds to the Slab while an add writes it is kept", 
     };
     try {
         await quietly(async () => {
-            click(add);
-            await until(() => settledButton(add), "the Add to finish");
+            flip(row, true);
+            await until(() => switchFailed(row), "the Slab write to be refused");
         });
     } finally {
         globalThis.fetch = realFetch;
     }
     assert.ok(gga.Cards[1].includes("NewLoot"), "the loot stays in the Slab");
-    assert.match(classes(add), /account-btn--error/, "the Slab write was refused");
 
-    await until(() => !classes(add).includes("account-btn--error"), "the red to clear");
-    click(add);
-    const placed = gga.Spelunk[46][1];
-    await until(() => gga.Cards[1].includes(placed), "the next Add to put the earlier hat in the Slab");
+    flip(rackRowFor(root, hat(3)), true);
+    await until(() => gga.Cards[1].includes(hat(2)), "the next add to put the earlier hat in the Slab");
     assert.ok(gga.Cards[1].includes("NewLoot"), "the loot is still there");
 });
 
-test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pressed again", async () => {
+test("Hat Rack: a removal the Slab refuses says why on its switch, and the next flip takes it off", async () => {
     setRack([hat(1), hat(2)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    gga.Spelunk[46].push(hat(3)); // the game changed the rack meanwhile
 
     const restore = failWrites(/"gga\.Cards\[1\]"/);
     const row = rackRowFor(root, hat(1));
-    const remove = buttonIn(row, "Remove");
     try {
         await quietly(async () => {
-            removeTwice(remove);
-            await until(() => settledButton(remove), "Remove to finish");
+            flip(row, false);
+            await until(() => switchFailed(row), "the switch to say why");
         });
     } finally {
         restore();
     }
-    assert.match(classes(remove), /account-btn--error/);
-    assert.ok(rackRows(root).includes(row), "the row that asked is still on the page");
-    assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2)], "the hat is still on the rack");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(1), hat(2), hat(3)], "the hats are still on the rack");
 
-    await until(() => !classes(remove).includes("account-btn--error"), "the red to clear");
-    removeTwice(remove);
-    await until(() => !gga.Spelunk[46].includes(hat(1)), "the second press to remove it");
+    flip(row, false);
+    await until(() => !gga.Spelunk[46].includes(hat(1)), "the next flip to take it off");
+    assert.deepEqual([...gga.Spelunk[46]], [hat(2), hat(3)]);
     assert.deepEqual([...gga.Cards[1]], []);
-});
-
-test("Hat Rack: a refused removal stays red on its row when the game changed the rack meanwhile", async () => {
-    setRack([hat(1), hat(2)], [hat(1)]);
-    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
-    gga.Spelunk[46].push(hat(3));
-
-    const restore = failWrites(/"gga\.Cards\[1\]"/);
-    const row = rackRowFor(root, hat(1));
-    const remove = buttonIn(row, "Remove");
-    try {
-        await quietly(async () => {
-            removeTwice(remove);
-            await until(() => settledButton(remove), "Remove to finish");
-        });
-    } finally {
-        restore();
-    }
-    assert.match(classes(remove), /account-btn--error/);
-    assert.equal(rackRows(root).length, 3, "the page shows the hat the game added");
-    assert.ok(rackRows(root).includes(row), "the row that asked is still on the page");
-    assert.ok(gga.Spelunk[46].includes(hat(1)), "the hat is still on the rack");
+    await until(() => !switchFailed(row), "the reason to go");
 });
 
 const SMITHY = "src/ui/pages/world-3/armor-smithy/armor-smithy.js";
 const smithyRows = (root) => byClass(root, "smithy-row");
+const smithyRowFor = (root, setKey) => smithyRows(root).find((row) => row.attributes["data-set"] === setKey);
 
-test("Smithy: Remove asks Click again first, and the second press removes the set", async (t) => {
+test("Smithy: every set is a row, and its Unlocked switch takes it out of the Smithy at once", async () => {
     gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
-    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
-    const row = smithyRows(root).find((node) => text(node).includes("GOLD_SET"));
-    const remove = buttonIn(row, "Remove");
-
-    removeAsksFirst(t, remove, `remove ${text(byClass(row, "account-row__name")[0])}.`);
-    const other = buttonIn(
-        smithyRows(root).find((node) => text(node).includes("COPPER_SET")),
-        "Remove"
-    );
-    click(other);
-    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own set");
-    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,GOLD_SET", "both sets are still stored");
-
-    click(remove);
-    await until(() => settledButton(remove), "the second press to finish");
-    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET");
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 4);
+    flip(smithyRowFor(root, "GOLD_SET"), false);
+    await until(() => gga.OptionsListAccount[379] === "0,COPPER_SET", "the set to come out");
+    flip(smithyRowFor(root, "IRON_SET"), true);
+    await until(() => gga.OptionsListAccount[379] === "0,COPPER_SET,IRON_SET", "the set to go in");
 });
 
-test("Smithy: Remove and Add keep a set the game stored after the page read the list", async () => {
+test("Smithy: a switch and Unlock all keep a set the game stored after the page read the list", async () => {
     gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
-    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 4);
 
     // In game, the player completes a set and the game stores it.
     gga.OptionsListAccount[379] += ",IRON_SET";
-    const gold = smithyRows(root).find((row) => text(row).includes("GOLD_SET"));
-    const remove = buttonIn(gold, "Remove");
-    removeTwice(remove);
-    await until(() => settledButton(remove), "Remove to finish");
-    assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,IRON_SET");
+    flip(smithyRowFor(root, "GOLD_SET"), false);
+    await until(() => gga.OptionsListAccount[379] === "0,COPPER_SET,IRON_SET", "the set to come out");
 
     gga.OptionsListAccount[379] += ",PLATINUM_SET";
-    const addAll = buttonIn(root, "Add all");
-    click(addAll);
-    await until(() => settledButton(addAll), "Add all to finish");
-    for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET"]) {
-        assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} stays stored`);
+    const unlockAll = buttonIn(root, "Unlock all");
+    click(unlockAll);
+    await until(() => settledButton(unlockAll), "Unlock all to finish");
+    for (const setKey of ["COPPER_SET", "IRON_SET", "PLATINUM_SET", "GOLD_SET", "AMAROK_SET"]) {
+        assert.ok(gga.OptionsListAccount[379].split(",").includes(setKey), `${setKey} is stored`);
     }
 });
 
-test("Smithy: a Remove that can't read the stored sets stays red on its row", async () => {
+test("Smithy: a switch that can't read the stored sets says why on its row, and nothing changes", async () => {
     gga.OptionsListAccount[379] = "0,COPPER_SET,GOLD_SET";
-    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 2);
+    const root = await openPage(SMITHY, (r) => smithyRows(r).length === 4);
 
     const realFetch = globalThis.fetch;
     let failed = 0;
@@ -335,18 +279,15 @@ test("Smithy: a Remove that can't read the stored sets stays red on its row", as
         }
         return realFetch(url, options);
     };
-    const row = smithyRows(root).find((node) => text(node).includes("GOLD_SET"));
-    const remove = buttonIn(row, "Remove");
+    const row = smithyRowFor(root, "GOLD_SET");
     try {
         await quietly(async () => {
-            removeTwice(remove);
-            await until(() => settledButton(remove), "Remove to finish");
+            flip(row, false);
+            await until(() => switchFailed(row), "the switch to say why");
         });
     } finally {
         globalThis.fetch = realFetch;
     }
-    assert.match(classes(remove), /account-btn--error/);
-    assert.ok(smithyRows(root).includes(row), "the row that asked is still on the page");
     assert.equal(gga.OptionsListAccount[379], "0,COPPER_SET,GOLD_SET");
 });
 
@@ -376,7 +317,7 @@ test("Death Note: a kill count saves to the character on its row, whoever is in 
     db.Lumi_Main.h.KillsLeft2Advance[0][0] = required - 2;
     db.Lumi_Alt.h.KillsLeft2Advance[0][0] = required - 5;
     const root = await openPage("src/ui/pages/world-3/death-note/death-note.js", (r) =>
-        byClass(r, "dn-player-row").some((row) => text(row).includes("(selected)"))
+        byClass(r, "dn-player-row").some((row) => text(row).includes("In play"))
     );
     const firstRowOf = (name) =>
         byClass(root, "dn-player-row").find((row) => text(byClass(row, "account-row__name")[0]) === name);
@@ -395,13 +336,24 @@ test("Death Note: a kill count saves to the character on its row, whoever is in 
     switchCharacter("Lumi_Main");
 });
 
+// A talent is named once in the game's list, so its name finds its id; a book row is one with a field.
+const { normalCase } = await importRepo("src/ui/components/views/account/accountShared.js");
+const talentNames = gga.CustomLists.h.TalentIconNames.map(normalCase);
+const talentIdOf = (row) => talentNames.indexOf(text(byClass(row, "account-row__name")[0]));
+const bookRow = (root) =>
+    byClass(root, "talent-row").find(
+        (r) =>
+            elements(r).some((node) => node.nodeName === "input") &&
+            talentNames.filter((name) => name === text(byClass(r, "account-row__name")[0])).length === 1
+    );
+
 test("Library: after a character switch, saves and Max books refuse instead of changing the new character", async () => {
     gga.UserInfo[0] = "Lumi_Main";
     const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
         byClass(r, "talent-row").some((row) => elements(row).some((node) => node.nodeName === "input"))
     );
-    const row = byClass(root, "talent-row").find((r) => elements(r).some((node) => node.nodeName === "input"));
-    const id = Number(text(byClass(row, "account-row__index")[0]).replace("#", ""));
+    const row = bookRow(root);
+    const id = talentIdOf(row);
     const mainBooks = structuredClone(gga.SkillLevelsMAX);
 
     // In game, the player switches to another character of the same class: its own books are live now.
@@ -421,7 +373,7 @@ test("Library: after a character switch, saves and Max books refuse instead of c
     assert.deepEqual(gga.SkillLevelsMAX, altBooks, "the character in play keeps its books");
 
     // The page read the game again and drew the rows for the character in play, so the next save goes to it.
-    const altRow = byClass(root, "talent-row").find((r) => text(byClass(r, "account-row__index")[0]) === `#${id}`);
+    const altRow = byClass(root, "talent-row").find((r) => talentIdOf(r) === id);
     assert.notEqual(altRow, row, "the rows are the new character's");
     await typeAndEnter(altRow, 5);
     await until(() => classes(byClass(altRow, "save-state")[0]).includes("save-state--success"), "the save to land");
@@ -440,7 +392,7 @@ test("Death Note: a switch while the live kills save leaves the new character's 
     db.Lumi_Main.h.KillsLeft2Advance[0][0] = required - 2;
     db.Lumi_Alt.h.KillsLeft2Advance[0][0] = required - 5;
     const root = await openPage("src/ui/pages/world-3/death-note/death-note.js", (r) =>
-        byClass(r, "dn-player-row").some((row) => text(row).includes("(selected)"))
+        byClass(r, "dn-player-row").some((row) => text(row).includes("In play"))
     );
     const mainRow = byClass(root, "dn-player-row").find(
         (row) => text(byClass(row, "account-row__name")[0]) === "Lumi_Main"
@@ -463,8 +415,8 @@ const openLibrary = async () => {
     const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
         byClass(r, "talent-row").some((row) => elements(row).some((node) => node.nodeName === "input"))
     );
-    const row = byClass(root, "talent-row").find((r) => elements(r).some((node) => node.nodeName === "input"));
-    return { root, row, id: Number(text(byClass(row, "account-row__index")[0]).replace("#", "")) };
+    const row = bookRow(root);
+    return { root, row, id: talentIdOf(row) };
 };
 
 // Review of #116: a Refresh that failed after reading the new character still took it as the one the rows show.
@@ -588,10 +540,12 @@ test("Library: a switch while Max books writes leaves the new character's books 
 test("Buildings: a level save the game doesn't take leaves the level and its pending copy as they were", async () => {
     gga.TowerInfo[0] = 3;
     gga.TowerInfo[27] = 3;
+    const first = gga.CustomLists.h.TowerInfo[0][0].replace(/_/g, " ");
+    const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
     const root = await openPage("src/ui/pages/world-3/construction/1-buildings.js", (r) =>
-        byClass(r, "account-row").some((row) => text(row).includes("#1"))
+        byClass(r, "account-row").some((row) => nameOf(row) === first)
     );
-    const row = byClass(root, "account-row").find((r) => text(byClass(r, "account-row__index")[0]) === "#1");
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === first);
 
     const restore = failWrites(/"gga\.TowerInfo\[27\]"/);
     try {
@@ -607,7 +561,7 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
 
-const COGS = "src/ui/pages/world-3/construction/2-cogs.js";
+const COGS = "src/ui/pages/world-3/construction/1-buildings.js";
 globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
 const openCogs = async () => {
     const root = await openPage(COGS, (r) => byClass(r, "cogs-slot").length > 0);
@@ -650,6 +604,40 @@ test("Cogs: a stat that is a number refuses text that isn't one; the shape patte
     await enterStat(shape, "ring");
     assert.match(classes(byClass(shape, "save-state")[0]), /save-state--success/);
     assert.equal(gga.CogMap[1].h.h, "ring");
+});
+
+// Review of #207: one tab's failed read hid the whole Workbench, the other tab's rows with it.
+for (const { failing, works, said } of [
+    { failing: "CogOrder", works: "account-row", said: "Couldn't read the cog board" },
+    { failing: "TowerInfo", works: "cogs-slot", said: "Couldn't read the buildings" },
+]) {
+    test(`Workbench: when the ${failing} read fails, its tab says so and the other tab still shows`, async () => {
+        const realFetch = globalThis.fetch;
+        globalThis.fetch = async (url, options) =>
+            String(url).includes("/read") && String(options?.body).includes(failing)
+                ? new Response(JSON.stringify({ error: "the game refused" }), {
+                      status: 500,
+                      headers: { "content-type": "application/json" },
+                  })
+                : realFetch(url, options);
+        try {
+            const root = await quietly(() => openPage(COGS, (r) => byClass(r, works).length > 0));
+            assert.ok(text(root).includes(said), "the failed tab says it failed");
+        } finally {
+            globalThis.fetch = realFetch;
+        }
+    });
+}
+
+test("Workbench: leaving the Cogs tab closes the cog editor", async () => {
+    const { root, open } = await openCogs();
+    const overlay = byClass(globalThis.document.body, "cogs-popup-overlay").at(-1);
+    const shut = () => classes(overlay).includes("cogs-popup-overlay--hidden");
+    click(buttonIn(root, "Cogs"));
+    open(1);
+    await until(() => !shut(), "the editor to open");
+    click(buttonIn(root, "Buildings"));
+    await until(shut, "the editor to close");
 });
 
 // Hold the game's writes until released, to act while one runs; `fail` answers them with a failure.
@@ -716,6 +704,155 @@ test("Cogs: a Lock's result shows on the slot it was for, not on the slot opened
     open(8);
     await until(() => !/account-btn--error/.test(classes(lock)), "slot 8 to show nothing of slot 3's Lock");
     assert.ok(!isDisabled(lock), "slot 8 can be locked now");
+});
+
+// Review of #207: after a failed first read every slot read as locked with no flags, so Unlock on a slot with a flag
+// left the flag behind.
+test("Cogs: Lock and Unlock wait for a read of the board that works", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/read") && String(options?.body).includes("CogOrder")
+            ? new Response(JSON.stringify({ error: "the game refused" }), {
+                  status: 500,
+                  headers: { "content-type": "application/json" },
+              })
+            : realFetch(url, options);
+    let root;
+    try {
+        root = await quietly(() => openPage(COGS, (r) => byClass(r, "account-row").length > 0));
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    const popup = byClass(globalThis.document.body, "cogs-popup").at(-1);
+    const lock = buttonIn(popup, "Lock");
+    const unlock = buttonIn(popup, "Unlock");
+    click(buttonIn(root, "Cogs"));
+    const flagged = gga.FlagsPlaced[0];
+    byClass(root, "cogs-slot")
+        .find((node) => {
+            const title = node.attributes.title;
+            return String(typeof title === "function" ? title() : title).endsWith(`(Index ${flagged})`);
+        })
+        .listeners.click({ clientX: 10, clientY: 10 });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.ok(isDisabled(lock) && isDisabled(unlock), "no Lock or Unlock on a board that wasn't read");
+
+    click(buttonIn(root, "Refresh"));
+    await until(() => !isDisabled(unlock), "a read that works to free Unlock");
+    assert.ok(!text(root).includes("Couldn't read the cog board"), "the board's failure clears");
+});
+
+// Review of #207: the status line was left out until the first Lock or Unlock, and then never came back.
+test("Cogs: the editor's status line says the Lock is saved", async () => {
+    const before = gga.FlagUnlock[5];
+    gga.FlagUnlock[5] = -11;
+    gga.CogOrder[5] = "Blank";
+    try {
+        const { popup, open } = await openCogs();
+        const status = byClass(popup, "write-status")[0];
+        assert.ok(status, "the status line is there before any Lock");
+        assert.equal(status.attributes.role, "status");
+        open(5);
+        const lock = buttonIn(popup, "Lock");
+        await until(() => !isDisabled(lock), "slot 5's Lock");
+        click(lock);
+        await until(() => text(status) === "Saved", "the status line to say Saved");
+        assert.equal(gga.FlagUnlock[5], 0);
+    } finally {
+        gga.FlagUnlock[5] = before;
+    }
+});
+
+// Review of #207: Unlock wrote the slot before its flag, so a flag the game didn't take stayed on an unlocked slot, and
+// Unlock couldn't be pressed again.
+test("Cogs: Unlock takes the flag off first, and either half failing leaves Unlock to try again", async () => {
+    const flagged = gga.FlagsPlaced[0];
+    const [flagsBefore, slotBefore, cogBefore] = [[...gga.FlagsPlaced], gga.FlagUnlock[flagged], gga.CogOrder[flagged]];
+    gga.FlagUnlock[flagged] = 2000;
+    gga.CogOrder[flagged] = "Blank";
+    try {
+        const { popup, open } = await openCogs();
+        open(flagged);
+        const unlock = buttonIn(popup, "Unlock");
+        await until(() => !isDisabled(unlock), "the flagged slot's Unlock");
+        const pressFailing = async (pattern) => {
+            // A failure shows for a moment; the next press waits for it to clear, so its own result is the one seen.
+            await until(() => !/account-btn--error/.test(classes(unlock)), "the last failure to clear");
+            const restore = failWrites(pattern);
+            try {
+                await quietly(async () => {
+                    click(unlock);
+                    await until(() => settledButton(unlock), "the Unlock to finish");
+                });
+            } finally {
+                restore();
+            }
+            assert.match(classes(unlock), /account-btn--error/);
+        };
+
+        await pressFailing(/FlagsPlaced/);
+        assert.deepEqual([gga.FlagsPlaced[0], gga.FlagUnlock[flagged]], [flagged, 2000], "nothing changed");
+        assert.ok(!isDisabled(unlock), "Unlock can be pressed again");
+
+        await pressFailing(/FlagUnlock/);
+        assert.deepEqual([gga.FlagsPlaced[0], gga.FlagUnlock[flagged]], [-1, 2000], "the flag is off, the slot not");
+        await until(() => !isDisabled(unlock), "Unlock to be free again");
+
+        click(unlock);
+        await until(() => gga.FlagUnlock[flagged] === -11, "the retried Unlock");
+        assert.equal(gga.FlagsPlaced[0], -1);
+    } finally {
+        gga.FlagsPlaced.splice(0, flagsBefore.length, ...flagsBefore);
+        gga.FlagUnlock[flagged] = slotBefore;
+        gga.CogOrder[flagged] = cogBefore;
+    }
+});
+
+// Review of #207: a building already at its max got only its pending copy from Max all, but its row still took the
+// max afterwards, over a level the player saved meanwhile.
+test("Buildings: Max all keeps a level saved meanwhile on a building it only wrote the pending copy of", async () => {
+    const levels = gga.TowerInfo.slice(0, 54);
+    const first = gga.CustomLists.h.TowerInfo[0][0].replace(/_/g, " ");
+    const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
+    const root = await openPage(COGS, (r) => byClass(r, "account-row").some((row) => nameOf(row) === first));
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === first);
+    click(buttonIn(root, "Buildings"));
+    const maxAll = buttonIn(root, "Max all");
+    const realFetch = globalThis.fetch;
+    let release = () => {};
+    try {
+        click(maxAll);
+        await until(() => settledButton(maxAll), "the first Max all");
+        const max = gga.TowerInfo[0];
+        // The next Max all's write waits; the row's own save goes through meanwhile.
+        const gate = new Promise((resolve) => (release = resolve));
+        let held = false;
+        globalThis.fetch = async (url, options) => {
+            if (held || !String(url).includes("/write")) return realFetch(url, options);
+            held = true;
+            await gate;
+            return realFetch(url, options);
+        };
+        click(maxAll);
+        await until(() => held, "Max all to reach the game");
+        await typeAndEnter(row, 5);
+        assert.equal(gga.TowerInfo[0], 5);
+        release();
+        await until(() => !/account-btn--loading/.test(classes(maxAll)), "Max all to finish");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const field = elements(row).find((node) => node.nodeName === "input");
+        assert.notEqual(max, 5);
+        const shown = field.attributes.value;
+        assert.equal(
+            String(typeof shown === "function" ? shown() : shown),
+            "5",
+            "the row shows the level the game holds"
+        );
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        gga.TowerInfo.splice(0, levels.length, ...levels);
+    }
 });
 
 test("Cogs: a Lock that fails while another slot is open shows when its slot is opened again", async () => {
@@ -913,4 +1050,50 @@ test("Atom Collider: Max all and Reset all wait while the levels are read again,
     }
     click(buttonIn(root, "Refresh"));
     await until(() => enabled(maxAll) && enabled(resetAll), "a read that works to free them");
+});
+
+// Review of #207: the panel's own Up and Down ran too, so Down from the first name went to the sixth, not the fifth.
+test("Character picker: Down moves one line down the columns, once", async (t) => {
+    const { createCharacterSelector } = await importRepo(
+        "src/ui/components/views/account/components/CharacterSelector.js"
+    );
+    // What the browser does here: a focus, the columns the list is laid out in, and a key going up from the name.
+    const proto = Object.getPrototypeOf(globalThis.document.createElement("div"));
+    proto.querySelectorAll = function (selector) {
+        return elements(this).filter((node) => node !== this && classes(node).split(" ").includes(selector.slice(1)));
+    };
+    proto.querySelector = function (selector) {
+        return this.querySelectorAll(selector)[0] ?? null;
+    };
+    proto.focus = function () {
+        globalThis.document.activeElement = this;
+    };
+    globalThis.getComputedStyle = () => ({ gridTemplateColumns: "1fr 1fr 1fr 1fr" });
+    t.after(() => {
+        delete proto.querySelectorAll;
+        delete proto.querySelector;
+        delete proto.focus;
+        delete globalThis.getComputedStyle;
+        delete globalThis.document.activeElement;
+    });
+    const press = (from, key) => {
+        let stopped = false;
+        const event = { key, target: from, preventDefault() {}, stopPropagation: () => (stopped = true) };
+        for (let node = from; node && !stopped; node = node.parentNode) {
+            (node.handlers?.keydown ?? []).forEach((handler) => handler(event));
+        }
+    };
+
+    const picker = createCharacterSelector({
+        id: "test-character",
+        selected: { val: "" },
+        onChange() {},
+        info: null,
+    });
+    picker.setCharacters(gga.GetPlayersUsernames);
+    await until(() => byClass(picker.node, "pick-in-place__option").length > 5, "the names to show");
+    const options = byClass(picker.node, "pick-in-place__option");
+    options[0].focus();
+    press(options[0], "ArrowDown");
+    assert.equal(globalThis.document.activeElement, options[4], "the name one line down");
 });

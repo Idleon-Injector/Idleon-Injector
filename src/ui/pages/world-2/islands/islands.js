@@ -217,19 +217,15 @@ const IslandsTab = () => {
         };
         const askOrSet = (fields, target, noun) => {
             const loweredOf = () => fields.filter((field) => Number(getValueState(field.index).val) > target);
-            const lowered = loweredOf();
-            const n = lowered.length;
+            const n = loweredOf().length;
             if (!n) return setUpgrades(fields, target);
             ask({
                 question: `Lower ${n} ${plural(noun, n)} to ${target}?`,
                 confirmLabel: n === 1 ? "Lower it" : "Lower them",
                 from: setAllControl.querySelector(".account-btn"),
-                // A row saved while the question was open can change what gets lowered: then it asks again.
-                onConfirm: () => {
-                    const now = loweredOf();
-                    const same = now.length === n && now.every((field, i) => field === lowered[i]);
-                    return same ? setUpgrades(fields, target) : askOrSet(fields, target, noun);
-                },
+                lowers: loweredOf,
+                again: () => askOrSet(fields, target, noun),
+                onConfirm: () => setUpgrades(fields, target),
             });
             return undefined;
         };

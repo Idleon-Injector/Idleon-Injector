@@ -23,13 +23,15 @@ import { definePage } from "../../../menu/menuModel.js";
 import { readComputed, readComputedMany, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
@@ -39,9 +41,16 @@ import {
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div, p } = van.tags;
 
 const fmtInt = (value) => String(toInt(value, { mode: "floor" }));
+
+// An upgrade's description up to its first full stop: what it does, in the game's words, with the game's own numbers
+// ("Defeating a Random Event boss lowers Meal upgrade cost by -20%"); the rest is detail and jokes.
+const firstSentence = (raw) =>
+    cleanName(String(raw ?? "").split(/(?<=[.!?])_/)[0])
+        .replace(/\s*@.*$/, "")
+        .replace(/\.$/, "");
 
 const getVisibleCloudIndexes = (firstUpgLevel, dreamChallengeArr, weeklyBossMap) => {
     const visibleCount = Math.max(0, Math.min(5, toInt(firstUpgLevel, { mode: "floor" })));
@@ -54,51 +63,27 @@ const getVisibleCloudIndexes = (firstUpgLevel, dreamChallengeArr, weeklyBossMap)
     return out;
 };
 
-const EquinoxBar = ({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }) => {
-    const barFill = div({
-        class: () => {
-            const full = barFillReqState.val > 0 && barFillState.val >= barFillReqState.val;
-            return `equinox-bar__fill${full ? " equinox-bar__fill--full" : ""}`;
-        },
-    });
-
-    van.derive(() => {
-        const pct = barFillReqState.val > 0 ? Math.min(100, (barFillState.val / barFillReqState.val) * 100) : 100;
-        barFill.style.setProperty("--equinox-fill-width", `${pct}%`);
-    });
-
-    return div(
-        { class: "equinox-overview" },
-        div(
-            { class: "equinox-overview__row" },
-            span({ class: "equinox-overview__label" }, "DREAM BAR"),
-            span(
-                { class: "equinox-overview__value" },
-                () => `${fmtInt(barFillState.val)} / ${fmtInt(barFillReqState.val)}`
-            ),
-            span({ class: "equinox-overview__rate" }, () => `+${fmtInt(barFillRateState.val)} / hr`),
+// The bar as one row: how full it is and how fast it fills, with Fill bar.
+const BarRow = ({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }) =>
+    AccountRow({
+        rowClass: "equinox-action-row",
+        // How fast it fills supports the bar's value, so it sits under the name, small and muted.
+        info: RowTitles({ bonus: "Dream bar", name: () => `Fills ${fmtInt(barFillRateState.val)} an hour` }),
+        controls: [
+            CappedValue({ value: () => barFillState.val, cap: () => barFillReqState.val, formatter: fmtInt }),
             ActionButton({
-                label: () => (fillBarStatus.val === "success" ? "Filled" : "Fill bar"),
+                label: "Fill bar",
                 status: fillBarStatus,
-                tooltip: "Fill the Dream Bar to the current requirement",
+                disabled: () => !barFillReqState.val || barFillState.val >= barFillReqState.val,
                 onClick: (e) => {
                     e.preventDefault();
                     doFillBar();
                 },
-            })
-        ),
-        div({ class: "equinox-bar" }, barFill)
-    );
-};
+            }),
+        ],
+    });
 
-const SectionCount = ({ countState, activeSuffix, emptySuffix }) =>
-    span(
-        {
-            class: () => `equinox-section-count${countState.val > 0 ? "" : " equinox-section-count--empty"}`,
-        },
-        () => (countState.val > 0 ? `${countState.val} ${activeSuffix}` : emptySuffix)
-    );
-
+// A cloud: its challenge first (the first sentence; the rest is the game's jokes), its reward under it, small.
 const CloudRow = ({ entry }) => {
     const { status, run } = useWriteStatus();
 
@@ -112,22 +97,25 @@ const CloudRow = ({ entry }) => {
     };
 
     return AccountRow({
-        rowClass: entry.cloudIndex >= 35 ? "cloud-row--nightmare" : "",
-        info: [
-            span({ class: "account-row__index" }, `#${entry.cloudIndex + 1}`),
-            span({ class: "account-row__name" }, entry.name),
+        rowClass: "equinox-action-row",
+        info: RowTitles({ bonus: entry.challenge, name: entry.reward }),
+        controls: [
+            // Complete fills progress up to what the cloud requires: a capped value with no field.
+            CappedValue({
+                value: () => entry.progressState.val,
+                cap: () => entry.requiredState.val,
+                formatter: fmtInt,
+            }),
+            ActionButton({
+                label: "Complete",
+                status,
+                disabled: () => entry.progressState.val >= entry.requiredState.val,
+                onClick: (e) => {
+                    e.preventDefault();
+                    doComplete();
+                },
+            }),
         ],
-        // Complete fills progress up to what the cloud requires: a capped value with no field.
-        badge: () => CappedValue({ value: entry.progressState.val, cap: entry.requiredState.val, formatter: fmtInt }),
-        controls: ActionButton({
-            label: "Complete",
-            status,
-            tooltip: "Set cloud progress to required value",
-            onClick: (e) => {
-                e.preventDefault();
-                doComplete();
-            },
-        }),
     });
 };
 
@@ -142,8 +130,7 @@ const UpgradeRow = ({ entry, onAfterSet }) =>
             await onAfterSet();
             return verified;
         },
-        indexLabel: `#${entry.index + 1}`,
-        name: entry.name,
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
     });
 
 const buildStaticMeta = async () => {
@@ -163,15 +150,14 @@ const EquinoxTab = () => {
     const barFillReqState = van.state(0);
     const barFillRateState = van.state(0);
     const cloudCountState = van.state(0);
-    const upgradeCountState = van.state(0);
 
     const cloudProgressStates = new Map();
     const cloudRequiredStates = new Map();
     const upgradeLevelStates = new Map();
     const upgradeMaxLevelStates = new Map();
 
-    const cloudRowsNode = div({ class: "content-stack" });
-    const upgradeRowsNode = div({ class: "content-stack" });
+    const cloudRowsNode = div();
+    const upgradeRowsNode = div();
 
     let staticMeta = null;
 
@@ -188,7 +174,8 @@ const EquinoxTab = () => {
             const row = toIndexedArray(dreamChallengeArr[index] ?? []);
             return {
                 cloudIndex: index,
-                name: cleanName(row[0], "Unknown"),
+                challenge: bonusText(row[0]) || `Cloud ${index + 1}`,
+                reward: cleanName(row[2]),
                 required: toInt(row[1], { mode: "floor" }),
                 progress: toInt(weeklyBossMap[`d_${index}`] ?? 0, { mode: "floor" }),
             };
@@ -201,12 +188,13 @@ const EquinoxTab = () => {
             getCloudRequiredState(cloud.cloudIndex).val = cloud.required;
         }
 
-        reconcileCloudRows(clouds.map((cloud) => `${cloud.cloudIndex}:${cloud.name}`).join("|"), () =>
+        reconcileCloudRows(clouds.map((cloud) => `${cloud.cloudIndex}:${cloud.challenge}`).join("|"), () =>
             clouds.map((cloud) =>
                 CloudRow({
                     entry: {
                         cloudIndex: cloud.cloudIndex,
-                        name: cloud.name,
+                        challenge: cloud.challenge,
+                        reward: cloud.reward,
                         progressState: getCloudProgressState(cloud.cloudIndex),
                         requiredState: getCloudRequiredState(cloud.cloudIndex),
                     },
@@ -216,25 +204,26 @@ const EquinoxTab = () => {
     };
 
     const updateUpgradeRows = (upgrades) => {
-        upgradeCountState.val = upgrades.length;
-
         for (const upgrade of upgrades) {
             getUpgradeLevelState(upgrade.index).val = upgrade.level;
             getUpgradeMaxLevelState(upgrade.index).val = upgrade.maxLevel;
         }
 
-        reconcileUpgradeRows(upgrades.map((upgrade) => `${upgrade.index}:${upgrade.name}`).join("|"), () =>
-            upgrades.map((upgrade) =>
-                UpgradeRow({
-                    entry: {
-                        index: upgrade.index,
-                        name: upgrade.name,
-                        levelState: getUpgradeLevelState(upgrade.index),
-                        maxLevelState: getUpgradeMaxLevelState(upgrade.index),
-                    },
-                    onAfterSet: refreshAfterUpgrade,
-                })
-            )
+        reconcileUpgradeRows(
+            upgrades.map((upgrade) => `${upgrade.index}:${upgrade.name}:${upgrade.bonus}`).join("|"),
+            () =>
+                upgrades.map((upgrade) =>
+                    UpgradeRow({
+                        entry: {
+                            index: upgrade.index,
+                            name: upgrade.name,
+                            bonus: upgrade.bonus,
+                            levelState: getUpgradeLevelState(upgrade.index),
+                            maxLevelState: getUpgradeMaxLevelState(upgrade.index),
+                        },
+                        onAfterSet: refreshAfterUpgrade,
+                    })
+                )
         );
     };
 
@@ -295,9 +284,11 @@ const EquinoxTab = () => {
                 const item = computedResults[index];
                 if (!item?.ok) throw new Error(`UpgMaxLV failed for upgrade ${index}`);
 
+                const definition = toIndexedArray(staticMeta.dreamUpgArr[index] ?? []);
                 return {
                     index,
-                    name: cleanName(toIndexedArray(staticMeta.dreamUpgArr[index] ?? [])[0], `Upgrade ${index + 1}`),
+                    name: cleanName(definition[0], `Upgrade ${index + 1}`),
+                    bonus: firstSentence(definition[1]),
                     maxLevel: toInt(item.value, { mode: "floor" }),
                     level: toInt(dreamArr[index + 2], { mode: "floor" }),
                 };
@@ -317,47 +308,37 @@ const EquinoxTab = () => {
 
     load();
 
+    // One list, like the Anvil's: the bar, then the clouds showing now and the upgrades, each under its name.
     const content = div(
-        { class: "equinox-content" },
-        EquinoxBar({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }),
-        AccountSection({
-            title: "CLOUDS",
-            note: "You will have to claim rewards in-game. You can only set progress here.",
-            meta: SectionCount({
-                countState: cloudCountState,
-                activeSuffix: "ACTIVE",
-                emptySuffix: "NONE VISIBLE",
-            }),
+        { class: "account-list account-list--tabbed" },
+        ListPanel({
+            className: "field-columns",
             body: [
-                WarningBanner(
-                    "Setting progress only edits the tracker value. It does not perform the actual in-game action."
-                ),
-                cloudRowsNode,
+                BarRow({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }),
+                AccountSection({
+                    title: "Clouds",
+                    body: [
+                        cloudRowsNode,
+                        p(
+                            { class: "equinox-empty", hidden: () => cloudCountState.val > 0 },
+                            "No clouds showing. Equinox Dreams opens more."
+                        ),
+                    ],
+                }),
+                AccountSection({ title: "Upgrades", body: upgradeRowsNode }),
             ],
-        }),
-        AccountSection({
-            title: "UPGRADES",
-            meta: SectionCount({
-                countState: upgradeCountState,
-                activeSuffix: "UNLOCKED",
-                emptySuffix: "NONE UNLOCKED",
-            }),
-            body: upgradeRowsNode,
         })
     );
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "EQUINOX",
-        description: "Dream bar fill, active clouds, and upgrade levels.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-            tooltip: "Re-read Equinox values from game memory",
-        }),
+        title: "Equinox",
+        description: "The dream bar, the clouds showing now and upgrade levels. Claim a cloud's reward in the game.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING EQUINOX",
-        errorTitle: "EQUINOX READ FAILED",
+        loadingText: "Reading the equinox",
+        errorTitle: "Couldn't read the equinox",
+        initialWrapperClass: "account-list",
         body: content,
     });
 };

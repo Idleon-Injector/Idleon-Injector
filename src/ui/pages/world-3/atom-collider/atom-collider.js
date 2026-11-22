@@ -2,26 +2,30 @@
  * W3 - Atom Collider Tab
  *
  * Data sources:
- *   gga.Atoms[b]                     - current level of atom b
- *   cList.AtomInfo[b][0] - atom name (underscores -> spaces)
+ *   gga.Atoms[b]          - current level of atom b
+ *   cList.AtomInfo[b][0]  - "Hydrogen_-_Stamp_Decreaser": the atom, then its bonus
  *
  * Max level is computed via:
  *   readComputedMany("atomCollider", "AtomMaxLv", [[b, 0], ...])
  *
- * Array length is taken from cList.AtomInfo (authoritative source).
- * All per-atom max level requests are batch-fetched during load.
+ * One list in the game's order, the bonus first. Max all and Reset all sit in the tray and act on the atoms the top
+ * bar's search shows; Reset asks there first.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readComputedMany } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
-    cleanNameEffect,
+    cleanName,
     createIndexedStateGetter,
     createStaticRowReconciler,
     readLevelDefinitions,
@@ -32,41 +36,33 @@ import {
 
 const { div } = van.tags;
 
-const AtomRow = ({ index, name, maxLevel, levelState }) =>
+// "Hydrogen_-_Stamp_Decreaser": the atom's name, then what it does.
+const atomTitles = (raw, index) => {
+    const [name, bonus] = cleanName(raw, `Atom ${index + 1}`).split(/\s+-\s+/);
+    return { name, bonus: bonus ?? "" };
+};
+
+const AtomRow = ({ index, atom, levelState }) =>
     ClampedLevelRow({
         valueState: levelState,
         writePath: `Atoms[${index}]`,
-        max: maxLevel,
-        indexLabel: `#${index + 1}`,
-        name,
+        max: atom.maxLevel,
+        renderInfo: () => RowTitles({ bonus: atom.bonus, name: atom.name }),
     });
 
 const AtomColliderTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Atom Collider" });
-    const { status: bulkStatus, run: runBulk } = useWriteStatus();
+    const bulk = useWriteStatus();
+    const { loading, error, run } = useAccountLoad({
+        label: "Atom Collider",
+        busy: () => bulk.status.val === "loading",
+    });
     const getLevelState = createIndexedStateGetter();
-    const rowList = div({ class: "account-list" });
-    let atomsMeta = [];
+    const rowList = div({ class: "account-page-pane" });
+    const atoms = van.state([]);
+    const rowOf = new Map();
     const reconcileRows = createStaticRowReconciler(rowList);
-    // While the levels are read again (after a failed bulk set too), or that read failed, the levels shown may be
-    // old: the bulk actions wait for a read that works.
+    // After a read that failed, the levels shown may be old: the tools wait for one that works.
     const readPending = () => loading.val || Boolean(error.val);
-
-    const doSetAll = async (targetLevel) => {
-        if (!atomsMeta.length) return;
-        const result = await runBulk(async () => {
-            const fresh = toIndexedArray(await gga("Atoms"));
-            await runBulkSet({
-                entries: atomsMeta,
-                getTargetValue: (atom) => (targetLevel === null ? atom.maxLevel : targetLevel),
-                getValueState: (_, index) => getLevelState(index),
-                getPath: (_, index) => `Atoms[${index}]`,
-                // Planned from the game, not the fields: a level bought there since the page read it is reset too.
-                shouldWrite: ({ index, targetValue }) => Number(fresh[index] ?? 0) !== targetValue,
-            });
-        });
-        if (!result.ok) await load();
-    };
 
     const load = async () =>
         run(async () => {
@@ -74,7 +70,7 @@ const AtomColliderTab = () => {
                 levelsPath: "Atoms",
                 definitionsPath: "AtomInfo",
                 mapEntry: ({ definition, rawLevel, index }) => ({
-                    name: cleanNameEffect(definition[0], `Atom ${index + 1}`),
+                    ...atomTitles(definition[0], index),
                     level: toNum(rawLevel),
                 }),
             });
@@ -84,66 +80,109 @@ const AtomColliderTab = () => {
                 atomRows.map((_, i) => [i, 0])
             );
 
-            const atoms = atomRows.map((atom, i) => {
+            const next = atomRows.map((atom, i) => {
                 const item = computedResults?.[i];
                 if (!item?.ok) {
                     throw new Error(item?.error || `Failed to read AtomMaxLv for atom index ${i}`);
                 }
-                return { name: atom.name, level: atom.level, maxLevel: toNum(item.value) };
+                return { ...atom, index: i, maxLevel: toNum(item.value) };
             });
 
-            reconcileRows(atoms.map((atom) => `${atom.name}:${atom.maxLevel}`).join("|"), () =>
-                atoms.map((atom, index) =>
-                    AtomRow({
-                        index,
-                        name: atom.name,
-                        maxLevel: atom.maxLevel,
-                        levelState: getLevelState(index),
-                    })
-                )
+            reconcileRows(next.map((atom) => `${atom.name}:${atom.bonus}:${atom.maxLevel}`).join("|"), () =>
+                next.map((atom) => {
+                    const row = AtomRow({ index: atom.index, atom, levelState: getLevelState(atom.index) });
+                    rowOf.set(atom.index, row);
+                    return row;
+                })
             );
-
-            atoms.forEach((atom, i) => {
-                getLevelState(i).val = atom.level;
-            });
-
-            atomsMeta = atoms;
+            next.forEach((atom) => (getLevelState(atom.index).val = atom.level));
+            atoms.val = next;
         });
+
+    // The atoms the tools act on: every one, or the ones the top bar's search shows.
+    const shown = () => atoms.val.filter((atom) => shownBySearch(rowOf.get(atom.index)));
+    const atomWord = (n) => `atom${n === 1 ? "" : "s"}`;
+
+    const setLevels = async (entries, targetOf) => {
+        const result = await bulk.run(async () => {
+            // What each row shows before the read: a row saved while it runs keeps its save.
+            const shownBefore = entries.map(({ index }) => getLevelState(index).val);
+            const fresh = toIndexedArray(await gga("Atoms"));
+            await runBulkSet({
+                entries,
+                getTargetValue: targetOf,
+                getValueState: (atom) => getLevelState(atom.index),
+                getPath: (atom) => `Atoms[${atom.index}]`,
+                // Planned from the game, not the fields: a level bought there since the page read it is reset too,
+                // and a row the game already holds at the target shows it.
+                shouldWrite: ({ entry, index, targetValue, valueState }) => {
+                    if (valueState.val !== shownBefore[index]) return false;
+                    if (Number(fresh[entry.index] ?? 0) !== targetValue) return true;
+                    valueState.val = targetValue;
+                    return false;
+                },
+            });
+        });
+        // Some of it may have landed: the rows show what the game holds.
+        if (!result.ok && !result.cancelled) await load();
+    };
+
+    // Max all only raises, so it runs on one press; Reset takes levels away, so it asks first.
+    const tools = (_activeId, ask) => {
+        const resetAll = ActionButton({
+            label: "Reset all",
+            status: bulk.status,
+            variant: "danger",
+            disabled: () => readPending() || !shown().length,
+            onClick: (e) => {
+                e.preventDefault();
+                const entries = shown();
+                const n = entries.length;
+                ask({
+                    question: `Reset ${n} ${atomWord(n)} to 0?`,
+                    confirmLabel: n === 1 ? "Reset it" : "Reset them",
+                    from: resetAll,
+                    onConfirm: () => setLevels(entries, () => 0),
+                });
+            },
+        });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Max all",
+                status: bulk.status,
+                disabled: () => readPending() || !shown().length,
+                onClick: (e) => {
+                    e.preventDefault();
+                    return setLevels(shown(), (atom) => atom.maxLevel);
+                },
+            }),
+            resetAll
+        );
+    };
 
     load();
 
     return PersistentAccountListPage({
-        title: "ATOM COLLIDER",
-        description: "Set Atom Collider upgrade levels. Max levels are computed from game data.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            actions: [
-                {
-                    label: "Max all",
-                    status: bulkStatus,
-                    disabled: readPending,
-                    tooltip: "Set every atom to its computed max level",
-                    onClick: () => doSetAll(null),
-                },
-                {
-                    label: "Reset all",
-                    variant: "danger",
-                    status: bulkStatus,
-                    disabled: readPending,
-                    tooltip: "Reset every atom to 0",
-                    confirm: "reset every atom to 0.",
-                    onClick: () => doSetAll(0),
-                },
-            ],
-            refresh: {
-                onClick: load,
-            },
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Atom Collider",
+        description: "Atom levels, each up to its max.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || bulk.status.val === "loading" }),
         state: { loading, error },
-        loadingText: "READING ATOM COLLIDER",
-        errorTitle: "ATOM COLLIDER READ FAILED",
+        loadingText: "Reading the atom collider",
+        errorTitle: "Couldn't read the atom collider",
         initialWrapperClass: "account-list",
-        body: rowList,
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: rowList,
+                tools,
+                toolsLabel: () => {
+                    const n = shown().length;
+                    return isSearching() ? `${n} matching ${atomWord(n)}` : `All ${n} ${atomWord(n)}`;
+                },
+            })
+        ),
     });
 };
 

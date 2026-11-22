@@ -53,7 +53,7 @@ export const WORLDS = [
         folder: "world-3",
         systems: [
             "Construction",
-            "Printer",
+            "3D Printer",
             "Refinery",
             "Salt Lick",
             "Atom Collider",

@@ -6,7 +6,7 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
 const { router, game } = await createFakeApi();
-const { requests } = await loadUi(router);
+await loadUi(router);
 globalThis.requestAnimationFrame = () => {};
 const gga = game.gga;
 
@@ -21,6 +21,7 @@ const elements = (node, out = []) => {
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
 const inputs = (row) => elements(row).filter((node) => node.nodeName === "input");
+const click = (node) => node.listeners.click({ preventDefault() {}, currentTarget: node, target: node });
 const button = (root, label) =>
     elements(root).find((node) => node.nodeName === "button" && text(node).trim() === label);
 const findRow = (root, label) =>
@@ -77,7 +78,7 @@ function holdWrites({ reads = false } = {}) {
 }
 
 const openPrinter = () =>
-    openPage("src/ui/pages/world-3/printer/printer.js", (r) => byClass(r, "printer-item-select").length > 0);
+    openPage("src/ui/pages/world-3/3d-printer/printer.js", (r) => byClass(r, "printer-row").length > 0);
 const printerSlot = (sample) => 5 + 2 * (sample - 1); // the selected character's sample, as Printer[item, qty]
 
 test("Printer keeps a quantity typed while that slot saves, and the next Enter saves it", async (t) => {
@@ -163,13 +164,12 @@ test("Printer keeps each slot's Undo when a second slot's Enter lands while the 
     assert.ok(undoOffered(second), "Sample 4 offers Undo");
 });
 
-test("Printer keeps each slot's Undo when Clear is confirmed while another slot's save reads", async (t) => {
+test("Printer keeps each slot's Undo when Clear is pressed while another slot's save reads", async (t) => {
     const before = gga.Printer.slice();
     t.after(() => gga.Printer.splice(0, before.length, ...before));
     const root = await openPrinter();
     const [draftRow, clearRow] = [findRow(root, "Sample 3"), findRow(root, "Sample 4")];
     const clear = button(clearRow, "Clear");
-    clear.listeners.click({ currentTarget: clear, preventDefault() {} });
     const hold = holdWrites({ reads: true });
     t.after(hold.release);
 
@@ -184,24 +184,98 @@ test("Printer keeps each slot's Undo when Clear is confirmed while another slot'
     assert.ok(undoOffered(clearRow), "Sample 4 offers Undo");
 });
 
-test("Printer's Clear asks Click again when the press also saves another slot's draft", async (t) => {
+// Clear takes one thing out of a slot, so it saves at once with Undo in its row, like a × on a star sign's player.
+test("Printer's Clear saves at once, and the press also saves another slot's draft", async (t) => {
     const before = gga.Printer.slice();
     t.after(() => gga.Printer.splice(0, before.length, ...before));
     const root = await openPrinter();
     const [draftRow, clearRow] = [findRow(root, "Sample 3"), findRow(root, "Sample 4")];
     const clear = button(clearRow, "Clear");
     assert.ok(clear, "Sample 4 holds something to clear");
-    const writes = requests.length;
 
     type(inputs(draftRow)[0], 3030);
     // The mousedown on Clear moves focus out of Sample 3's row (its save starts), then the click lands.
     draftRow.listeners.focusout({ target: inputs(draftRow)[0], relatedTarget: clear, currentTarget: draftRow });
     clear.listeners.click({ currentTarget: clear, preventDefault() {} });
-    assert.equal(clear.attributes["data-again"], "Click again");
+    assert.equal(clear.attributes["data-again"], undefined, "it doesn't ask");
 
-    await until(() => gga.Printer[printerSlot(3) + 1] === 3030, "Sample 3's save");
-    assert.notEqual(gga.Printer[printerSlot(4)], "Blank", "one press clears nothing");
-    assert.ok(requests.length > writes);
+    await until(() => saved(draftRow) && saved(clearRow), "both saves to end");
+    assert.deepEqual([gga.Printer[printerSlot(3) + 1], gga.Printer[printerSlot(4)]], [3030, "Blank"]);
+    await until(() => undoOffered(clearRow), "Sample 4 to offer Undo");
+});
+
+// Review of #207: Clear's end emptied the row's draft, so an item picked while Clear read the game was saved but the
+// row went on showing Empty.
+test("Printer keeps an item picked while Clear runs, and shows it once saved", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 4");
+    const quantity = gga.Printer[printerSlot(4) + 1];
+    const opener = byClass(row, "row-opener")[0];
+    const nameOf = (id) => String(gga.ItemDefinitionsGET.h[id]?.h?.displayName ?? "").replace(/_/g, " ");
+    click(opener);
+    const option = byClass(row, "pick-in-place__option").find(
+        (node) => text(node).trim() !== nameOf(gga.Printer[printerSlot(4)])
+    );
+    const picked = Object.keys(gga.ItemDefinitionsGET.h).find((id) => nameOf(id) === text(option).trim());
+    click(opener);
+    const hold = holdWrites({ reads: true });
+    t.after(hold.release);
+
+    click(button(row, "Clear"));
+    await until(() => hold.held() > 0, "Clear to read the game");
+    click(opener);
+    click(option);
+    hold.release();
+    await until(() => gga.Printer[printerSlot(4)] === picked && saved(row), "the picked item to be saved");
+    assert.equal(gga.Printer[printerSlot(4) + 1], quantity);
+    await until(() => text(opener).startsWith(text(option).trim()), "the row to show the picked item");
+    assert.notEqual(inputs(row)[0].value, "0", "with the quantity saved with it");
+});
+
+// Review of #207: Clear's own read moved the clean row to the game's newer quantity, which then counted as an edit
+// typed while Clear ran: the row went on showing it beside the cleared slot, and leaving the row saved it back.
+test("Printer's Clear leaves the row cleared when the game's quantity changed before it", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 4");
+    const opener = byClass(row, "row-opener")[0];
+    assert.notEqual(gga.Printer[printerSlot(4)], "Blank");
+    gga.Printer[printerSlot(4) + 1] += 10; // the game's newer quantity; the row still shows the old one
+
+    click(button(row, "Clear"));
+    await until(() => saved(row), "Clear to end");
+    assert.deepEqual(gga.Printer.slice(printerSlot(4), printerSlot(4) + 2), ["Blank", 0]);
+    assert.ok(text(opener).startsWith("Empty"), "the row shows the slot empty");
+    assert.equal(inputs(row)[0].value, "0");
+    row.listeners.focusout({ target: inputs(row)[0], relatedTarget: null, currentTarget: row });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual(gga.Printer.slice(printerSlot(4), printerSlot(4) + 2), ["Blank", 0], "leaving saves nothing");
+});
+
+// Review of #207: a quantity typed while Clear wrote, then taken back with Escape, still counted as a newer draft, so
+// the row went on showing the item and quantity Clear had just taken out.
+test("Printer's Clear shows the slot empty when an edit made while it wrote was taken back with Escape", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 4");
+    const input = inputs(row)[0];
+    assert.notEqual(gga.Printer[printerSlot(4)], "Blank");
+    const hold = holdWrites();
+    t.after(hold.release);
+
+    click(button(row, "Clear"));
+    await until(() => hold.held() === 1, "Clear's write to reach the game");
+    type(input, 77);
+    row.listeners.keydown({ key: "Escape", target: input, preventDefault() {} });
+    hold.release();
+    await until(() => saved(row), "Clear to end");
+    assert.deepEqual(gga.Printer.slice(printerSlot(4), printerSlot(4) + 2), ["Blank", 0]);
+    assert.ok(text(byClass(row, "row-opener")[0]).startsWith("Empty"), "the row shows the slot empty");
+    assert.equal(inputs(row)[0].value, "0");
 });
 
 // Review of #131: while an Undo's reload waited for another slot's write, an item picked on the undone row saved with
@@ -212,10 +286,14 @@ test("Printer saves nothing while an Undo's reload waits, then keeps the picked 
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
     const root = await openPrinter();
     const [undone, other] = [findRow(root, "Sample 1"), findRow(root, "Sample 3")];
-    const select = byClass(undone, "printer-item-select")[0];
-    const picked = elements(select).find(
-        (node) => node.nodeName === "option" && !["Blank", gga.Printer[printerSlot(1)]].includes(node.attributes.value)
-    ).attributes.value;
+    // The slot's title opens its items in place; an item there is picked by its name.
+    const opener = byClass(undone, "row-opener")[0];
+    const nameOf = (id) => String(gga.ItemDefinitionsGET.h[id]?.h?.displayName ?? "").replace(/_/g, " ");
+    click(opener);
+    const option = byClass(undone, "pick-in-place__option").find(
+        (node) => text(node).trim() !== nameOf(gga.Printer[printerSlot(1)])
+    );
+    const picked = Object.keys(gga.ItemDefinitionsGET.h).find((id) => nameOf(id) === text(option).trim());
     const hold = holdWrites();
     t.after(hold.release);
 
@@ -225,13 +303,13 @@ test("Printer saves nothing while an Undo's reload waits, then keeps the picked 
     gga.Printer[printerSlot(1) + 1] = 123; // an Undo put Sample 1's old quantity back
     reloadPlace.val = { view: "", page: "" };
     await new Promise((resolve) => setTimeout(resolve)); // VanJS runs the page's reload watch on the next turn
-    select.listeners.change({ target: { value: picked } });
+    click(option);
     enter(undone, inputs(undone)[0]);
     hold.release();
     // A save let through would run before the reload, which would then show its quantity instead.
     await until(() => inputs(undone)[0].value === "123", "the reload to show the quantity the Undo put back");
     assert.equal(gga.Printer[printerSlot(1) + 1], 123, "nothing saved over the Undo");
-    assert.equal(select.value, picked, "the picked item stays a draft");
+    assert.match(text(opener), new RegExp(`^${text(option).trim()}`), "the picked item stays a draft");
     enter(undone, inputs(undone)[0]);
     await until(() => gga.Printer[printerSlot(1)] === picked, "the picked item to be saved");
     assert.equal(gga.Printer[printerSlot(1) + 1], 123, "with the quantity the game holds");

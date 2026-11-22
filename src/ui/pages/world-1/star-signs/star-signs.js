@@ -455,6 +455,19 @@ const StarSignsTab = () => {
     const said = (name, change) => () => change().then(({ ok }) => announce(`${name}: ${ok ? "done" : "failed"}`));
     const tools = (activeId, ask) => {
         const started = () => signsIn(activeId.val).filter((sign) => sign.players.length || toInt(sign.claimed, 0));
+        // A sign started while it asks is one more to reset, so it asks again; with none left it does nothing.
+        const askReset = () => {
+            const n = started().length;
+            if (!n) return;
+            ask({
+                question: `Reset ${n} ${signWord(n)} in ${activeId.val}?`,
+                confirmLabel: n === 1 ? "Reset it" : "Reset them",
+                from: resetButton,
+                lowers: () => started().map((sign) => sign.index),
+                again: askReset,
+                onConfirm: said("Reset all", () => resetAll(activeId.val)),
+            });
+        };
         const resetButton = ActionButton({
             label: "Reset all",
             status: bulk.status,
@@ -462,13 +475,7 @@ const StarSignsTab = () => {
             disabled: () => !started().length,
             onClick: (e) => {
                 e.preventDefault();
-                const n = started().length;
-                ask({
-                    question: `Reset ${n} ${signWord(n)} in ${activeId.val}?`,
-                    confirmLabel: n === 1 ? "Reset it" : "Reset them",
-                    from: resetButton,
-                    onConfirm: said("Reset all", () => resetAll(activeId.val)),
-                });
+                askReset();
             },
         });
         const randomizeButton = ActionButton({

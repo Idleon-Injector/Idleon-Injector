@@ -76,8 +76,9 @@ export default () => ({
             return [];
         }),
         Rift: [23, 0],
-        // [11]: Equinox Food Lust's level, which caps the meal discount stacks (OptionsListAccount[193]).
-        Dream: list(20, (i) => (i === 11 ? 2 : 0)),
+        // [11]: Equinox Food Lust's level, which caps the meal discount stacks (OptionsListAccount[193]); world-3.mjs
+        // holds the rest of the equinox.
+        Dream: { 11: 2 },
         Spelunk: { 54: CAPES.slice(0, 5) },
         ItemDefinitionsGET: { h: Object.fromEntries(CAPES.map((id, i) => [id, capeItem(i)])) },
         BundlesReceived: { h: { ban_o: 1 } },

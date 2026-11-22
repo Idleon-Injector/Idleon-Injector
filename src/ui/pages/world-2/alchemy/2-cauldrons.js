@@ -39,7 +39,7 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { gga, readComputedMany } from "../../../services/api.js";
+import { gga, readComputedMany, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -58,20 +58,38 @@ const LIQUIDS = [
     { id: "toxic-mercury", label: "Toxic Mercury", index: 3, upgradeIndex: 7 },
 ];
 
-// A liquid's three values as the game holds them.
-const liquidValues = (raw, liquid) => {
+// Each liquid's Cap and Rate upgrades again, kept by the game in OptionsListAccount.
+const capCopy = (liquid) => String(371 + 2 * liquid.index);
+const rateCopy = (liquid) => String(372 + 2 * liquid.index);
+const COPIES = LIQUIDS.flatMap((liquid) => [capCopy(liquid), rateCopy(liquid)]);
+
+// The game's CauldronInfo and the second copies of the upgrades.
+const readLiquids = async () => {
+    const [raw, copies] = await Promise.all([gga("CauldronInfo"), readGgaEntries("OptionsListAccount", COPIES)]);
+    return { raw, copies };
+};
+
+// A liquid's three values as the game holds them. An upgrade whose two copies differ (the game took one and refused
+// the other) keeps the copy the line showed, the one the save didn't change, so saving the new value again writes
+// both; a line that showed neither shows CauldronInfo's.
+const liquidValues = ({ raw, copies }, liquid, states) => {
     const upgrades = toIndexedArray(toIndexedArray(raw?.[8] ?? [])[liquid.upgradeIndex] ?? []);
+    const upgrade = (at, copy, state) => {
+        const value = Number(toIndexedArray(upgrades[at] ?? [])[1] ?? 0);
+        const other = Number(copies?.[copy] ?? value);
+        return other !== value && Number(state.val) === other ? other : value;
+    };
     return {
         amount: Math.max(0, Math.round(Number(toIndexedArray(raw?.[6] ?? [])[liquid.index] ?? 0))),
-        cap: Number(toIndexedArray(upgrades[2] ?? [])[1] ?? 0),
-        rate: Number(toIndexedArray(upgrades[3] ?? [])[1] ?? 0),
+        cap: upgrade(2, capCopy(liquid), states.cap),
+        rate: upgrade(3, rateCopy(liquid), states.rate),
     };
 };
 
 // One liquid per line: Amount, Cap upgrade and Rate upgrade in the list's columns. Both copies of an upgrade go in one
 // request, so a dropped connection can't leave them split. The game still writes them one by one: if it refuses one,
-// the other stays written (History lists it, and the row says why). ponytail: an all-or-nothing write needs the
-// game's writePaths to put the first back.
+// the other stays written (History lists it, and the row says why), and the line keeps the old value so the same
+// save can be tried again. ponytail: an all-or-nothing write needs the game's writePaths to put the first back.
 const LiquidRow = ({ liquid, states }) =>
     ValueTableRow({
         name: liquid.label,
@@ -97,23 +115,31 @@ const LiquidRow = ({ liquid, states }) =>
                 ],
             },
         ],
-        read: async () => liquidValues(await gga("CauldronInfo"), liquid),
+        read: async () => liquidValues(await readLiquids(), liquid, states),
     });
+
+// Kept while the menu runs, not per opening: a line whose save split an upgrade's copies still shows the copy the save
+// didn't change when the page opens again, so saving the new value writes both.
+// ponytail: lost when the injector restarts; a split found then shows CauldronInfo's copy.
+const liquidStates = LIQUIDS.map(() => ({
+    amount: van.state(0),
+    cap: van.state(0),
+    rate: van.state(0),
+}));
+// Each opening loads in its own turn, so a load from an earlier opening can end after a newer one: only the newest
+// load shows its values.
+let liquidLoads = 0;
 
 const LiquidTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Liquid" });
 
-    const liquidStates = LIQUIDS.map(() => ({
-        amount: van.state(0),
-        cap: van.state(0),
-        rate: van.state(0),
-    }));
-
     const load = async () =>
         run(async () => {
-            const raw = await gga("CauldronInfo");
+            const id = ++liquidLoads;
+            const read = await readLiquids();
+            if (id !== liquidLoads) return;
             LIQUIDS.forEach((liquid, i) => {
-                const values = liquidValues(raw, liquid);
+                const values = liquidValues(read, liquid, liquidStates[i]);
                 Object.keys(values).forEach((key) => (liquidStates[i][key].val = values[key]));
             });
         });

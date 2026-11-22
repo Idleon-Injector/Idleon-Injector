@@ -1,0 +1,49 @@
+/*
+ * 3D Printer: a slot's item is its title, its amount in the number column, Stop or Clear at the end. The two buttons
+ * keep one width, so the amounts of prints and samples end in one column.
+ */
+.printer-row__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.printer-row__controls .number-input-wrapper {
+    width: var(--field-columns-width, 9.5rem);
+}
+.printer-row__controls[hidden] {
+    display: none;
+}
+.printer-row__clear {
+    min-width: 4.5rem;
+    justify-content: center;
+}
+.viewport .printer-row__locked {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.printer-row__locked[hidden] {
+    display: none;
+}
+
+/* On a phone the amount and the button go on the line under the slot's title; the save mark sits at its end. */
+@media (max-width: 760px) {
+    .viewport .tabbed-list .printer-row {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 8px;
+    }
+    .viewport .printer-row .account-row__controls,
+    .printer-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+    .printer-row__controls .number-input-wrapper {
+        flex: 1 1 auto;
+    }
+    .viewport .printer-row .save-state {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+    }
+}

@@ -1,7 +1,24 @@
 /** What many pages read: the characters, monsters, maps and items. */
 import { fakeName, h, list } from "./helpers.mjs";
+import { CLASS_NAMES, CRITTER_NAMES, PREMIUM_HATS } from "./world-3-game.mjs";
 
-export const PLAYERS = ["Lumi_Main", "Lumi_Alt", "Lumi_Third"];
+/** Eleven characters, the game's most, each with a real class (ClassNames index in CLASSES). */
+export const PLAYERS = [
+    "Lumi_Main",
+    "Lumi_Alt",
+    "Lumi_Third",
+    "Lumi_Knight",
+    "Lumi_Reaper",
+    "Lumi_Windy",
+    "Lumi_Cultist",
+    "Lumi_Berserk",
+    "Lumi_Guard",
+    "Lumi_Plague",
+    "Lumi_Beasty",
+];
+// Warrior, Elemental Sorcerer, Rage Basics, Divine Knight, Death Bringer, Wind Walker, Arcane Cultist,
+// Blood Berserker, Royal Guardian, Bubonic Conjuror, Beast Master.
+const CLASSES = [7, 34, 6, 12, 14, 29, 40, 10, 16, 36, 25];
 export const MONSTERS = list(30, (i) => `mob${i}`);
 /** Map ids run 50 per world; the first six of each world are real maps here. */
 export const MAPS = list(350, (i) => i).filter((i) => i % 50 < 6);
@@ -18,25 +35,34 @@ export const ITEMS = {
         list(30, (i) => [`item${i}`, { displayName: fakeName(i + 40), Type: "MATERIAL", typeGen: "dQuest" }])
     ),
     ...Object.fromEntries(
-        list(6, (i) => [
-            `Critter${i + 1}`,
-            { displayName: `${fakeName(i + 9)}_Critter`, Type: "CRITTER", typeGen: "dCritters" },
-        ])
+        list(6, (i) => [`Critter${i + 1}`, { displayName: CRITTER_NAMES[i], Type: "CRITTER", typeGen: "dCritters" }])
     ),
     ...Object.fromEntries(
         list(9, (i) => [
             `Refinery${i + 1}`,
             {
-                displayName: `${["Redox", "Explosive", "Spontaneity", "Dioxide", "Red", "Pink", "Cobalt", "Void", "Hollow"][i]}_Salts`,
+                // The game's own salt names.
+                displayName: [
+                    "Redox_Salts",
+                    "Explosive_Salts",
+                    "Spontaneity_Salts",
+                    "Dioxide_Synthesis",
+                    "Purple_Salt",
+                    "Nullo_Salt",
+                    "Crosslink_Salt",
+                    "Propagated_Salt",
+                    "Anionic_Salt",
+                ][i],
                 Type: "MATERIAL",
                 typeGen: "dRefine",
             },
         ])
     ),
     ...Object.fromEntries(
-        list(12, (i) => [
-            `EquipmentHatsPrem${i + 1}`,
-            { displayName: `${fakeName(i + 20)}_Hat`, Type: "PREMIUM_HELMET", typeGen: "aHelmetMTX" },
+        // Real premium hats, with the bonus each adds to the Hat Rack (UQ1txt, UQ2txt).
+        PREMIUM_HATS.map(([id, displayName, UQ1txt, UQ1val, UQ2txt, UQ2val]) => [
+            id,
+            { displayName, Type: "PREMIUM_HELMET", typeGen: "aHelmetMTX", UQ1txt, UQ1val, UQ2txt, UQ2val },
         ])
     ),
     ...Object.fromEntries(
@@ -55,9 +81,10 @@ const player = (seed) =>
         Exp0: list(25, (i) => (i * 7 + seed) % 90),
         ExpReq0: list(25, (i) => 100 + i * 10),
         Money: 1234567 * (seed + 1),
-        CharacterClass: [7, 34, 6][seed],
+        CharacterClass: CLASSES[seed],
         Prayers: list(12, (slot) => (slot < 2 ? slot * 2 + seed : -1)),
-        KillsLeft2Advance: list(350, (map) => [Math.max(0, (map % 50) * 40 - seed * 90), 0]),
+        // Kills still needed on each map, never more than the map's portal needs (MapDetails).
+        KillsLeft2Advance: list(350, (map) => [Math.max(0, 10 + (map % 50) * 5 - ((map * 7 + seed * 3) % 12)), 0]),
         // [map, x, progress, critter, qty, trap type, time to finish, exp, rare chance]; map -1 = empty.
         PldTraps: list(4, (trap) =>
             trap === 3
@@ -66,7 +93,7 @@ const player = (seed) =>
                       trap + 1,
                       300 + trap * 50,
                       1800 * (trap + 1),
-                      `Critter${trap + seed + 1}`,
+                      `Critter${((trap + seed) % 6) + 1}`,
                       3 + trap,
                       trap,
                       7200,
@@ -96,7 +123,7 @@ export default () => ({
             )
         ),
         CustomLists: h({
-            ClassNames: list(42, (i) => (i === 0 ? "Blank" : fakeName(i + 60))),
+            ClassNames: CLASS_NAMES,
             SkillNames: ["Blank", "Mining", "Smithing", "Chopping", "Fishing", "Alchemy", "Catching"],
             MapDispName: list(350, (i) =>
                 isMap(i) ? `${MAP_WORDS[0][Math.floor(i / 50)]}_${MAP_WORDS[1][i % 50]}` : "Filler"
