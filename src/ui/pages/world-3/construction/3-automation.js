@@ -129,7 +129,12 @@ const ConstructionAutomationTab = () => {
     const [automation] = tab.entries;
     // Switching a building on switches Construction on too (now and at start), in the same save; after every save the
     // tab reads the game again, so the queue and build lines follow.
-    const picks = createAutomationPicks("construction", { cheat: CHEAT, entry: automation, afterSave: tab.afterSave });
+    const picks = createAutomationPicks("construction", {
+        cheat: CHEAT,
+        entry: automation,
+        afterSave: tab.afterSave,
+        item: "a building",
+    });
 
     const bulk = usePicksBulk({
         targets: () => [[picks, ids.val]],

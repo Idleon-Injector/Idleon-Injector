@@ -18,6 +18,7 @@ import {
     getOrCreateState,
 } from "../../../components/views/account/accountShared.js";
 import {
+    GAME_NOT_READ,
     AutomationPage,
     AutomationRow,
     PickRow,
@@ -25,6 +26,7 @@ import {
     createAutomationPicks,
     inTurn,
     readAutomations,
+    readWhileRunning,
     showAutomation,
     usePicksBulk,
     useStillWaiting,
@@ -52,7 +54,7 @@ const ShopsPage = () => {
         }, waiting.onLate);
     // Switching an item on switches Shops on too (now and at start), in the item's own save step, so buying starts
     // at once; that step reads the tab's own switch back.
-    const picks = createAutomationPicks("shops", { cheat: CHEAT, entry: automation });
+    const picks = createAutomationPicks("shops", { cheat: CHEAT, entry: automation, item: "an item" });
     const ids = van.state([]); // every item on the page, all worlds
     const worldOf = new Map(); // "shop:item" -> its world
     const atStart = van.state(false); // Shops is in the startup cheats, as the last read found
@@ -65,55 +67,51 @@ const ShopsPage = () => {
     const worldLists = WORLDS.map(() => div());
     const reconcilers = worldLists.map(createStaticRowReconciler);
 
-    // A step: it reads after every save and switch asked for before it.
-    const load = () =>
-        run(() =>
-            inTurn(async () => {
-                const [shops, config, found] = await Promise.all([
-                    readComputed("automation", "shops"),
-                    fetchConfig(),
-                    findShops(),
-                ]);
-                showAutomation(automation, found);
-                picks.sync(config.cheatConfig.automation.shops); // edits queued after this read still show
-                atStart.val = (config.startupCheats ?? []).includes(CHEAT);
-                if (!switchNodes[0].firstChild && automation.val)
-                    for (const node of switchNodes)
-                        node.append(AutomationRow({ entry: automation, onSwitched: readSwitch, column: COLUMNS.on }));
+    // The page's read, as a step: it reads after every save and switch asked for before it.
+    const read = async () => {
+        const [shops, config, found] = await Promise.all([
+            readComputed("automation", "shops"),
+            fetchConfig(),
+            findShops(),
+        ]);
+        showAutomation(automation, found);
+        atStart.val = (config.startupCheats ?? []).includes(CHEAT);
+        // Only the game's own answer is taken: the server's copy may hold an edit the game refused (see useAutomationTab).
+        if (!config.gameRead) throw new Error(GAME_NOT_READ);
+        picks.sync(config.cheatConfig.automation.shops); // edits queued after this read still show
+        if (!switchNodes[0].firstChild && automation.val)
+            for (const node of switchNodes)
+                node.append(AutomationRow({ entry: automation, onSwitched: readSwitch, column: COLUMNS.on }));
 
-                WORLDS.forEach(({ id: world }, i) => {
-                    const worldShops = shops.filter((shop) => shop.world === world);
-                    reconcilers[i](
-                        worldShops.map((shop) => `${shop.shop}:${shop.items.map(({ item }) => item)}`).join("|"),
-                        () =>
-                            worldShops.map((shop) =>
-                                AccountSection({
-                                    title: cleanName(shop.town),
-                                    body: shop.items.map(({ item, name }) => {
-                                        const id = `${shop.shop}:${item}`;
-                                        const left = getOrCreateState(stock, id);
-                                        return PickRow({
-                                            picks,
-                                            id,
-                                            name: cleanName(name),
-                                            values: [
-                                                { name: "In stock", quiet: true, text: () => formatNumber(left.val) },
-                                            ],
-                                        });
-                                    }),
-                                })
-                            )
-                    );
-                });
-                for (const shop of shops)
-                    for (const { item, stock: left } of shop.items)
-                        getOrCreateState(stock, `${shop.shop}:${item}`).val = left;
-                for (const shop of shops)
-                    for (const { item } of shop.items) worldOf.set(`${shop.shop}:${item}`, shop.world);
-                ids.val = shops.flatMap((shop) => shop.items.map(({ item }) => `${shop.shop}:${item}`));
-                error.val = null; // this read, the newest to run, worked: an older one's failure goes
-            }, waiting.onLate)
-        );
+        WORLDS.forEach(({ id: world }, i) => {
+            const worldShops = shops.filter((shop) => shop.world === world);
+            reconcilers[i](
+                worldShops.map((shop) => `${shop.shop}:${shop.items.map(({ item }) => item)}`).join("|"),
+                () =>
+                    worldShops.map((shop) =>
+                        AccountSection({
+                            title: cleanName(shop.town),
+                            body: shop.items.map(({ item, name }) => {
+                                const id = `${shop.shop}:${item}`;
+                                const left = getOrCreateState(stock, id);
+                                return PickRow({
+                                    picks,
+                                    id,
+                                    name: cleanName(name),
+                                    values: [{ name: "In stock", quiet: true, text: () => formatNumber(left.val) }],
+                                });
+                            }),
+                        })
+                    )
+            );
+        });
+        for (const shop of shops)
+            for (const { item, stock: left } of shop.items) getOrCreateState(stock, `${shop.shop}:${item}`).val = left;
+        for (const shop of shops) for (const { item } of shop.items) worldOf.set(`${shop.shop}:${item}`, shop.world);
+        ids.val = shops.flatMap((shop) => shop.items.map(({ item }) => `${shop.shop}:${item}`));
+        error.val = null; // this read, the newest to run, worked: an older one's failure goes
+    };
+    const load = () => run(() => inTurn(read, waiting.onLate));
 
     // Enable all and Disable all cover the open world's items, as the tray's line says (Lumi's pick, like every other
     // page's tools); Disable all asks in the tray first.
@@ -130,6 +128,14 @@ const ShopsPage = () => {
     const busy = () => loading.val || bulk.busy();
 
     load();
+    // While Shops runs and a world's tab is open, its stock and status follow the game; a failed read is said as the
+    // page's read error until one works.
+    readWhileRunning({
+        nodes: switchNodes,
+        running: () => Boolean(automation.val?.on),
+        busy: () => loading.val,
+        read: () => read().catch((caught) => (error.val = caught.message)),
+    });
 
     return AutomationPage({
         title: "Shops",

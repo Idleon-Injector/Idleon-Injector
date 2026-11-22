@@ -16,6 +16,7 @@ import {
     AutomationRow,
     inTurn,
     readAutomations,
+    readWhileRunning,
     showAutomation,
     useStillWaiting,
     switchAll,
@@ -38,27 +39,25 @@ const OverviewPage = () => {
     const rowsNode = div({ class: "account-item-stack" });
     const reconcile = createStaticRowReconciler(rowsNode);
 
-    // A step: it reads after every switch asked for before it.
-    const load = () =>
-        run(() =>
-            inTurn(async () => {
-                const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
-                for (const automation of automations) {
-                    if (!entries.has(automation.cheat)) entries.set(automation.cheat, van.state(automation));
-                    else showAutomation(entries.get(automation.cheat), automation);
-                }
-                list.val = automations.map((automation) => ({
-                    ...automation,
-                    atStart: startupCheats.includes(automation.cheat),
-                }));
-                reconcile(automations.map(({ cheat }) => cheat).join("|"), () =>
-                    automations.length
-                        ? automations.map(({ cheat }) => AutomationRow({ entry: entries.get(cheat), onSwitched: load }))
-                        : [EmptyState({ title: "No automations yet" })]
-                );
-                error.val = null; // this read, the newest to run, worked: an older one's failure goes
-            }, waiting.onLate)
+    // The page's read, as a step: it reads after every switch asked for before it.
+    const read = async () => {
+        const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
+        for (const automation of automations) {
+            if (!entries.has(automation.cheat)) entries.set(automation.cheat, van.state(automation));
+            else showAutomation(entries.get(automation.cheat), automation);
+        }
+        list.val = automations.map((automation) => ({
+            ...automation,
+            atStart: startupCheats.includes(automation.cheat),
+        }));
+        reconcile(automations.map(({ cheat }) => cheat).join("|"), () =>
+            automations.length
+                ? automations.map(({ cheat }) => AutomationRow({ entry: entries.get(cheat), onSwitched: load }))
+                : [EmptyState({ title: "No automations yet" })]
         );
+        error.val = null; // this read, the newest to run, worked: an older one's failure goes
+    };
+    const load = () => run(() => inTurn(read, waiting.onLate));
 
     // For the buttons: off now or at start (a startup save that failed, say) still needs the switch.
     const behind = (on) => list.val.filter((automation) => automation.on !== on || automation.atStart !== on);
@@ -82,6 +81,13 @@ const OverviewPage = () => {
     load();
     // Shown again (back from a system's own tab, which may have switched its automation since): read again.
     whenShown(PAGE_ID, load);
+    // While one runs, the statuses follow the game; a failed read is said as the page's read error until one works.
+    readWhileRunning({
+        nodes: [rowsNode],
+        running: () => list.val.some(({ on }) => on),
+        busy,
+        read: () => read().catch((caught) => (error.val = caught.message)),
+    });
 
     return PersistentAccountListPage({
         title: "AUTOMATION",
