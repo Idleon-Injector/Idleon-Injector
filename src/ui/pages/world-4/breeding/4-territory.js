@@ -18,7 +18,6 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
-import { toInt } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -26,6 +25,17 @@ const TERRITORY_UNLOCK_PATH = "OptionsListAccount[85]";
 const SPICE_CLAIMS_PATH = "OptionsListAccount[100]";
 // Grasslands to Murky Trenches.
 const TERRITORY_COUNT = 26;
+
+// An account option as a count. Untouched options read as undefined, null or "" (nothing yet: 0); anything else that
+// isn't a whole number at or above `min` is refused, so a bad value never shows as an editable 0.
+const optionCount = (raw, what, min = 0) => {
+    if (raw === undefined || raw === null || raw === "") return 0;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || String(raw).trim() === "" || value < min) {
+        throw new Error(`Couldn't read ${what}. Refresh to try again.`);
+    }
+    return Math.trunc(value);
+};
 
 const TerritoryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Breeding territory" });
@@ -35,13 +45,12 @@ const TerritoryTab = () => {
     const load = async () =>
         run(async () => {
             const options = await readGgaEntries("OptionsListAccount", ["85", "100"]);
-            // Empty means none claimed yet; anything else that isn't a number is refused, not shown as 0.
-            const spiceClaims = options["100"] ?? 0;
-            if (!Number.isFinite(Number(spiceClaims)) || String(spiceClaims).trim() === "") {
-                throw new Error("Couldn't read the spice claims. Refresh to try again.");
-            }
-            unlockedState.val = toInt(options["85"], { min: 0 });
-            spiceClaimsState.val = toInt(spiceClaims);
+            // Both are read before either shows, so a refused one leaves the page on its error, not half updated.
+            const unlocked = optionCount(options["85"], "the territories unlocked");
+            // The daily reset takes 25 off per Trasher pet, so the claims can be below 0.
+            const spiceClaims = optionCount(options["100"], "the spice claims", -Infinity);
+            unlockedState.val = unlocked;
+            spiceClaimsState.val = spiceClaims;
         });
 
     load();

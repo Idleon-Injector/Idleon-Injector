@@ -88,21 +88,24 @@ const CapeVineTab = () => {
     const onVine = (itemId) => vineIndex.val.has(itemId);
 
     // After any change the page shows the vine the game holds.
-    const showGame = async () => {
-        try {
-            vineIds.val = await readVine();
-        } catch {
-            // ponytail: the picture stays as it was; the next change reads the game again before it writes.
-        }
-    };
+    // Each change starts from the vine the game holds, and the page shows the vine after it: what the write put there
+    // at once, then what a read finds. A read that fails after a write that landed says so at the switch.
     const change = (task) =>
         inTurn(async () => {
+            let outcome;
+            let failed = null;
             try {
-                const outcome = await task(await readVine());
-                return outcome ?? { ok: true };
-            } finally {
-                await showGame();
+                outcome = await task(await readVine());
+            } catch (caught) {
+                failed = caught;
             }
+            try {
+                vineIds.val = await readVine();
+            } catch {
+                if (!failed) throw new Error("Saved, but couldn't read the vine again. Refresh.");
+            }
+            if (failed) throw failed;
+            return outcome ?? { ok: true };
         });
 
     const addCapes = (itemIds) =>
@@ -112,17 +115,22 @@ const CapeVineTab = () => {
             if (toAdd.some((itemId) => !rowOf.has(itemId)))
                 throw new Error("Refusing to add a cape that isn't eligible.");
             // The whole list in one write, so its change log holds the old list for Undo.
-            await writeVerified(VINE_PATH, [...vine, ...toAdd]);
+            const nextVine = [...vine, ...toAdd];
+            await writeVerified(VINE_PATH, nextVine);
+            vineIds.val = nextVine;
         });
 
+    // The Slab first: the game puts a cape from the Slab back on the vine when Cathie's menu opens. If the vine write
+    // then fails, the cape still shows on the vine and flipping it off again finishes the job.
     const removeCape = (itemId) =>
         change(async (vine) => {
-            const nextVine = vine.filter((entry) => entry !== itemId);
-            if (nextVine.length !== vine.length) await writeVerified(VINE_PATH, nextVine);
-            // The game puts a cape from the Slab back on the vine when Cathie's menu opens.
             const slab = await readIdList(SLAB_HISTORY_PATH, "Slab");
             const nextSlab = slab.filter((entry) => entry !== itemId);
             if (nextSlab.length !== slab.length) await writeVerified(SLAB_HISTORY_PATH, nextSlab);
+            const nextVine = vine.filter((entry) => entry !== itemId);
+            if (nextVine.length === vine.length) return;
+            await writeVerified(VINE_PATH, nextVine);
+            vineIds.val = nextVine;
         });
 
     const CapeRow = (cape) =>

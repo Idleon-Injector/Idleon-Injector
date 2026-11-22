@@ -61,7 +61,9 @@ const ChipsTab = () => {
     };
     const slotNode = div();
     const ownedNode = div();
-    const reconcileSlots = createStaticRowReconciler(slotNode);
+    // Each character's seven rows, made the first time that character shows and kept: a row switched away from while it
+    // saves (or offers Undo) still has its save when it shows again.
+    const slotRows = new Map();
     const reconcileOwned = createStaticRowReconciler(ownedNode);
     const uneditable = () => loading.val || Boolean(error.val);
 
@@ -119,9 +121,15 @@ const ChipsTab = () => {
 
     const showCharacter = () => {
         const character = selected.val;
-        reconcileSlots(`${character}:${characters.val[character] ?? ""}`, () =>
-            Array.from({ length: SLOT_COUNT }, (_, slot) => SlotRow(character, slot))
-        );
+        const key = `${character}:${characters.val[character] ?? ""}`;
+        if (!slotRows.has(key)) {
+            slotRows.set(
+                key,
+                Array.from({ length: SLOT_COUNT }, (_, slot) => SlotRow(character, slot))
+            );
+        }
+        const rows = slotRows.get(key);
+        if (rows.some((row, i) => slotNode.childNodes[i] !== row)) slotNode.replaceChildren(...rows);
     };
 
     const characterSelector = createCharacterSelector({

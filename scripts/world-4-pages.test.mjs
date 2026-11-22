@@ -373,7 +373,16 @@ test("a cape switched on goes on the vine, and Undo takes it back off", async ()
     const row = byClass(root, "cape-vine-row").find((node) => !before.includes(node.attributes["data-item"]));
     flip(row, true);
     await until(() => gga.Spelunk[54].length === before.length + 1, "the cape to be on the vine");
-    await undoAction((await fetchChanges()).actions[0].id);
+    // The vine's own write, not whichever action the log lists first.
+    let added;
+    for (let i = 0; i < 300 && !added; i++) {
+        added = (await fetchChanges()).actions.find((action) =>
+            action.entries.some((entry) => entry.path === "Spelunk[54]")
+        );
+        if (!added) await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.ok(added, "the change log lists the vine's write");
+    await undoAction(added.id);
     assert.deepEqual([...gga.Spelunk[54]], before);
 });
 
@@ -470,4 +479,144 @@ test("Territories unlocked refuses a count over the game's 26", async () => {
     await settled(row);
     assert.equal(stateOf(row), "error");
     assert.equal(gga.OptionsListAccount[85], before);
+});
+
+// Review of #221: a write held at the server until `release`, for the paths `match` picks.
+const holdWrites = (match) => {
+    const realFetch = globalThis.fetch;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && match(String(options?.body ?? ""))) await held;
+        return realFetch(url, options);
+    };
+    return () => {
+        release();
+        globalThis.fetch = realFetch;
+    };
+};
+// Requests whose body `match` picks fail, the way a dropped connection does.
+const failRequests = (match) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (match(String(url), String(options?.body ?? ""))) throw new Error("the connection dropped");
+        return realFetch(url, options);
+    };
+    return () => (globalThis.fetch = realFetch);
+};
+
+for (const [file, path, what] of [
+    ["src/ui/pages/world-4/breeding/4-territory.js", 85, "the territories unlocked"],
+    ["src/ui/pages/world-4/breeding/5-arena.js", 89, "the best round"],
+    ["src/ui/pages/world-4/breeding/5-arena.js", 628, "the best crucible round"],
+]) {
+    test(`a value for ${what} that isn't a count is refused, not shown as an editable 0`, async (t) => {
+        const before = gga.OptionsListAccount[path];
+        t.after(() => (gga.OptionsListAccount[path] = before));
+        gga.OptionsListAccount[path] = "invalid";
+        const root = (await importRepo(file)).default.component();
+        await until(
+            () => text(root).includes(`Couldn't read ${what}. Refresh to try again.`),
+            "the read to be refused"
+        );
+        gga.OptionsListAccount[path] = undefined;
+        const fresh = await openPage(file);
+        assert.ok(byTag(fresh, "input").length > 0, "an untouched option reads as 0");
+    });
+}
+
+test("a cape whose Slab cleanup fails stays on the vine, and flipping it off again finishes", async () => {
+    const root = await openPage("src/ui/pages/world-4/cape-vine/cape-vine.js");
+    const capeId = gga.Spelunk[54][0];
+    gga.Cards[1] = [...(gga.Cards[1] ?? []), capeId];
+    const row = byClass(root, "cape-vine-row").find((node) => node.attributes["data-item"] === capeId);
+    const restore = failRequests((url, body) => url.includes("/write") && body.includes("Cards[1]"));
+    try {
+        flip(row, false);
+        await until(() => /connection dropped|Couldn't|failed/i.test(text(row)), "the switch to say the save failed");
+        assert.ok(gga.Spelunk[54].includes(capeId), "the cape is still on the vine");
+        assert.ok(gga.Cards[1].includes(capeId), "and on the Slab");
+    } finally {
+        restore();
+    }
+    flip(row, false);
+    await until(() => !gga.Spelunk[54].includes(capeId) && !gga.Cards[1].includes(capeId), "the retry to finish");
+});
+
+test("a cape added whose vine can't be read again shows on and says to refresh", async () => {
+    const root = await openPage("src/ui/pages/world-4/cape-vine/cape-vine.js");
+    const before = [...gga.Spelunk[54]];
+    const row = byClass(root, "cape-vine-row").find((node) => !before.includes(node.attributes["data-item"]));
+    let written = false;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        const body = String(options?.body ?? "");
+        if (String(url).includes("/write") && body.includes("Spelunk[54]")) {
+            const answer = await realFetch(url, options);
+            written = true;
+            return answer;
+        }
+        if (written && String(url).includes("/read") && body.includes("Spelunk[54]")) throw new Error("dropped");
+        return realFetch(url, options);
+    };
+    try {
+        flip(row, true);
+        await until(
+            () => text(row).includes("Saved, but couldn't read the vine again. Refresh."),
+            "the switch to say so"
+        );
+        assert.equal(gga.Spelunk[54].length, before.length + 1, "the cape is on the vine");
+        assert.equal(switchOf(row).checked, true, "the switch shows it on");
+    } finally {
+        globalThis.fetch = realFetch;
+        gga.Spelunk[54] = before;
+    }
+});
+
+test("a chip slot keeps its Undo when the character picker moves away and back", async () => {
+    const root = await openPage("src/ui/pages/world-4/laboratory/chips.js");
+    const slotRow = () =>
+        byClass(root, "chip-slot-row").find(
+            (node) => node.parentNode && text(byClass(node, "account-row__name")[0]).startsWith("Slot 3")
+        );
+    const row = slotRow();
+    click(byClass(row, "row-opener")[0]);
+    click(byClass(row, "pick-in-place__option").find((node) => text(node).startsWith("Wood Chip")));
+    await until(() => gga.Lab[1][2] === 14 && stateOf(row) === "success", "the pick to save");
+    const pickCharacter = (index) => {
+        click(byClass(root, "character-picker__opener")[0]);
+        click(byClass(byClass(root, "character-picker__list")[0], "pick-in-place__option")[index]);
+    };
+    pickCharacter(1);
+    await until(() => slotRow() !== row, "the second character's slots");
+    pickCharacter(0);
+    await until(() => slotRow() === row, "the first character's own row back");
+    assert.ok(
+        byTag(row, "button").some((node) => /Undo/.test(text(node))),
+        "its Undo is still offered"
+    );
+});
+
+test("Unlock all waits for a jewel switched off just before, and unlocks it too", async (t) => {
+    const before = [...gga.Lab[14]];
+    t.after(() => (gga.Lab[14] = before));
+    // Every jewel unlocked but one, so Unlock all has work to do.
+    gga.Lab[14] = gga.Lab[14].map((_, i) => (i === 1 ? 0 : 1));
+    const root = await openPage("src/ui/pages/world-4/laboratory/jewels.js");
+    const release = holdWrites((body) => body.includes("Lab[14][0]"));
+    try {
+        flip(rowNamed(root, "Amethyst Rhinestone"), false);
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        click(buttonNamed(root, "Unlock all"));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+    } finally {
+        release();
+    }
+    // Both saves have ended by now (the fake game answers at once): the switch's, then Unlock all's after it.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    assert.deepEqual(
+        gga.Lab[14].map((jewel, i) => [i, jewel]).filter(([, jewel]) => jewel !== 1),
+        [],
+        "every jewel unlocked, the one switched off too"
+    );
 });

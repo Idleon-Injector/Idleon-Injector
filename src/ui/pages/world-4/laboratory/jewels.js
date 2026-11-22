@@ -59,6 +59,17 @@ const JewelsTab = () => {
     const rowOf = new Map();
     const listNode = div({ class: "account-page-pane" });
     const reconcileRows = createStaticRowReconciler(listNode);
+    // Switch saves still running, which Unlock all and Lock all wait for.
+    const pending = new Set();
+    const track = (task) => {
+        const running = task();
+        pending.add(running);
+        running.then(
+            () => pending.delete(running),
+            () => pending.delete(running)
+        );
+        return running;
+    };
     // After a read that failed, the switches shown may be old: the tools wait for one that works.
     const readPending = () => loading.val || Boolean(error.val);
 
@@ -73,10 +84,11 @@ const JewelsTab = () => {
                         words: ["Unlocked", ""],
                         name: `${jewel.name} unlocked`,
                         checked: () => unlockedState.val > 0,
-                        write: async (on) => {
-                            await writeVerified(`${JEWEL_UNLOCKS_PATH}[${jewel.index}]`, on ? 1 : 0);
-                            unlockedState.val = on ? 1 : 0;
-                        },
+                        write: (on) =>
+                            track(async () => {
+                                await writeVerified(`${JEWEL_UNLOCKS_PATH}[${jewel.index}]`, on ? 1 : 0);
+                                unlockedState.val = on ? 1 : 0;
+                            }),
                     });
                     rowOf.set(jewel.index, row);
                     return row;
@@ -92,6 +104,8 @@ const JewelsTab = () => {
 
     const setAll = async (entries, value) => {
         const result = await bulk.run(async () => {
+            // A switch flipped just before still saving: wait for it, so the tool sees what it saved.
+            await Promise.allSettled([...pending]);
             const writes = entries
                 .filter((jewel) => getUnlockedState(jewel.index).val !== value)
                 .map((jewel) => ({ path: `${JEWEL_UNLOCKS_PATH}[${jewel.index}]`, value }));

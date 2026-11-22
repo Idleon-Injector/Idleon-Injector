@@ -16,7 +16,6 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
-import { toInt } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -24,6 +23,17 @@ const RECORDS = [
     { key: "89", name: "Best round" },
     { key: "628", name: "Best Crucible round" },
 ];
+
+// A best round. Untouched options read as undefined, null or "" (no round yet: 0); anything else that isn't a whole
+// number from 0 up is refused, so a bad value never shows as an editable 0.
+const bestRound = (raw, name) => {
+    if (raw === undefined || raw === null || raw === "") return 0;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || String(raw).trim() === "" || value < 0) {
+        throw new Error(`Couldn't read the ${name.toLowerCase()}. Refresh to try again.`);
+    }
+    return Math.trunc(value);
+};
 
 const ArenaTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Pet Arena" });
@@ -35,7 +45,8 @@ const ArenaTab = () => {
                 "OptionsListAccount",
                 RECORDS.map((record) => record.key)
             );
-            RECORDS.forEach((record, i) => (states[i].val = toInt(options[record.key], { min: 0 })));
+            const rounds = RECORDS.map((record) => bestRound(options[record.key], record.name));
+            rounds.forEach((round, i) => (states[i].val = round));
         });
 
     load();
