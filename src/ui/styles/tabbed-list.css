@@ -654,3 +654,55 @@
     width: var(--field-columns-width);
     padding-right: 54px; /* where a field's − / + sit (two 24px buttons and their 6px) */
 }
+
+/*
+ * A row that holds a list (a Death Note mob's characters, a trap set's traps): its name is the opener, plain text that
+ * reads like any row, with the focus ring when keyed to. What it opens spans the row, under it; the rows in it sit a
+ * step in, on the page's own ground, with no lines of their own.
+ */
+.row-opener {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.row-opener::after {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin-left: 2px;
+    border-right: 1.5px solid var(--c-text-muted);
+    border-bottom: 1.5px solid var(--c-text-muted);
+    transform: translateY(-2px) rotate(45deg);
+}
+.row-opener[aria-expanded="true"]::after {
+    transform: translateY(1px) rotate(-135deg);
+}
+.row-opener:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+.viewport .tabbed-list .account-row > .row-detail {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin: 2px 0 -6px;
+    border-radius: 10px;
+    background: var(--c-void);
+}
+.viewport .tabbed-list .row-detail > .account-row {
+    border-width: 0;
+    background: transparent;
+}
+.viewport .tabbed-list .row-detail > .account-row + .account-row {
+    border-top: 1px solid var(--c-hairline);
+}

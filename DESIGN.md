@@ -305,3 +305,16 @@ pieces, and new pages start from them.
   forge", "Couldn't read the forge").
 - **Numbers in a list end in one column**, capped or not (`field-columns`: a field without a cap keeps the cap's
   room). An amount left beside the title turns red with a real minus when overspent ("−18 points left").
+
+### World 3 on the same pieces (draft, 2026-11-22)
+
+World 3 uses the World 1 and World 2 pieces; three of them grew a little, and are now shared:
+
+- **A row that holds a list opens in place** with the shared `row-opener` (its name, a small chevron, `aria-expanded`)
+  and `row-detail` (the rows it holds, a step in, on the page's ground). Death Note's mobs open their characters' kills.
+  The top bar's search counts only the outer rows; the rows inside go with the row that holds them.
+- **A table line can carry a state word** before its values (`ValueTableRow`'s `badge`): Refinery's "Polymer".
+- **Something a page either has or hasn't** (a hat on the rack, a set in the Smithy) is one list of all of them, each
+  with a switch, instead of an add pick and Remove buttons. Adding all runs on one press.
+- **A character pick** sits on the line under the title, like a filter (Prayers, Printer); where each character's things
+  are the page's whole content, the characters are tabs instead (Traps).

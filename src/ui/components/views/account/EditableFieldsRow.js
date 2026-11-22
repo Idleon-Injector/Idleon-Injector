@@ -125,8 +125,9 @@ export const ValueTableHead = ({ name, columns }) =>
  * @param {{key: string, label: string, valueState: {val: number}, paths: string[], max?: number|Function}[]} opts.fields
  * @param {() => Promise<Record<string, number>>} opts.read every field's value as the game holds it now
  * @param {object} [opts.writeOptions] passed to writeManyVerified ({ character })
+ * @param {*} [opts.badge] the line's state in a plain word ("Polymer"), before its values
  */
-export const ValueTableRow = ({ name, info, fields, read, writeOptions = {} }) => {
+export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, badge = null }) => {
     const maxOf = (field) => {
         const max = Number(resolveValue(field.max));
         return max > 0 ? max : Infinity;
@@ -166,6 +167,7 @@ export const ValueTableRow = ({ name, info, fields, read, writeOptions = {} }) =
         },
         rowClass: "value-row",
         info,
+        badge,
         renderControls: ({ draftStates, getDraftValue, setFieldFocused }) =>
             div(
                 { class: "value-cells" },

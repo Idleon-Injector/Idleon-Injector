@@ -75,7 +75,8 @@ const filterPane = (pane, query) => {
         }
         return true;
     };
-    const shown = [...pane.querySelectorAll(ROW)].filter(rendered);
+    // A row inside another (a mob's characters) goes with the row that holds it.
+    const shown = [...pane.querySelectorAll(ROW)].filter((row) => rendered(row) && !row.parentElement.closest(ROW));
     const hits = new Set(shown.filter((row) => rowText(row).includes(words)));
     const hitIn = (box) => shown.some((row) => hits.has(row) && box.contains(row));
     const sections = [...pane.querySelectorAll(".account-section")].filter(

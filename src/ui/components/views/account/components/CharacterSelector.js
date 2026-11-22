@@ -19,7 +19,7 @@ export const createCharacterSelector = ({ id, selected, disabled, onChange, info
             { class: "content-stack account-character-selector" },
             div(
                 { class: "account-setall-row" },
-                label({ for: id, class: "account-setall-row__label" }, "CHARACTER"),
+                label({ for: id, class: "account-setall-row__label" }, "Character"),
                 control
             ),
             div({ class: "account-character-selector__info" }, info)
