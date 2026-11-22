@@ -618,6 +618,32 @@ test("bundles: a buy is refused without the free inventory slots the game needs"
     }
 });
 
+test("bundles: a pack the game didn't give says the free slots it needs, not a time-out", async () => {
+    const received = gga.BundlesReceived.h;
+    const before = received.bun_b;
+    received.bun_b = 0; // an earlier test's Buy all bought it
+    const root = await openPage(BUNDLES);
+    const row = byClass(root, "account-row").find((node) => ownedFlag(node) === "bun_b");
+    const realFetch = globalThis.fetch;
+    const realTimeout = globalThis.setTimeout;
+    // The game takes the buy but drops the pack, so it is never received.
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/toggle")
+            ? new Response(JSON.stringify({ ok: true, message: "bun_b has been sent!" }), {
+                  headers: { "content-type": "application/json" },
+              })
+            : realFetch(url, options);
+    globalThis.setTimeout = (fn, ms, ...args) => realTimeout(fn, ms >= 1000 ? 0 : ms, ...args); // the poll's waits
+    try {
+        await button(row, "Buy").listeners.click({});
+        assert.equal(rowReason(row), "Not received. Needs 3 free inventory slots.");
+    } finally {
+        globalThis.fetch = realFetch;
+        globalThis.setTimeout = realTimeout;
+        received.bun_b = before;
+    }
+});
+
 // #28: the count and Buy all covered every bundle, whatever the search showed.
 test("bundles: the count and Buy all follow the search, and a search changed before the second press asks again", async () => {
     const root = await openPage(BUNDLES);
