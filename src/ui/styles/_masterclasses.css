@@ -296,8 +296,7 @@
 .outpost-select-field__select:focus,
 .outpost-slot-select:focus,
 .outpost-unit-config__input:focus {
-    outline: 1px solid var(--c-accent);
-    outline-offset: 0;
+    border-color: var(--c-border-strong);
 }
 
 .outpost-select-field__select.is-success,

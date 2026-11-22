@@ -1286,7 +1286,7 @@
 
 .select-base:focus {
     outline: none;
-    border-color: var(--c-accent);
+    border-color: var(--c-border-strong);
 }
 
 .account-header__actions {

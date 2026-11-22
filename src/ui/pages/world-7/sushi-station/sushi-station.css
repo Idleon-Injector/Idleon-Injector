@@ -78,7 +78,7 @@
 }
 
 .sushi-station-tile__input:focus {
-    box-shadow: inset 0 0 0 1px var(--c-accent);
+    box-shadow: inset 0 0 0 1px var(--c-border-strong);
 }
 
 .sushi-station-tile__input:disabled {

@@ -38,6 +38,12 @@ body {
     background: var(--c-accent);
 }
 
+/* Lumi (2026-11-22): a mouse click never leaves an outline; keyboard focus (Tab) still shows one. The Steam client's
+   Chromium 87 draws its own ring on :focus, so this also turns that off for clicks. */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
 ::selection {
     background: rgba(176, 167, 255, 0.35);
     color: #ffffff;
