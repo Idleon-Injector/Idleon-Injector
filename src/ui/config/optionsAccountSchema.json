@@ -6,14 +6,14 @@
         "verified": true
     },
     "1": {
-        "name": "Storage Chest - Quick Deposit",
-        "description": "1 = with the storage chest open, one tap on an inventory item moves it into the chest. Turning it off also turns off Quick Withdraw (slot 18).",
+        "name": "Storage Chest - Quick Tap",
+        "description": "The chest's Quick Tap button. 1 = one tap on an item moves the whole stack between your inventory and the chest. Turning it off also turns off Split Stack (slot 18).",
         "type": "number",
         "verified": true
     },
     "2": {
         "name": "Storage Chest - Button Panel Open",
-        "description": "1 = the storage chest's side panel of buttons is slid out, 0 = tucked away. Opens by itself once for a new account (first character level 6 to 11).",
+        "description": "1 = the storage chest's side panel of buttons is slid out, 0 = tucked away. The panel's Close button tucks it away; the Storage Info button at the chest's bottom left toggles it. Opens by itself once for a new account (first character level 6 to 11).",
         "type": "number",
         "verified": true
     },
@@ -78,8 +78,8 @@
         "verified": true
     },
     "13": {
-        "name": "Chat Option (Account Copy)",
-        "description": "Account-wide copy of the Options menu's chat toggle (character option 21). When 1, that option turns on for every character above level 10.",
+        "name": "Chat Box Icon (Account Copy)",
+        "description": "Account-wide copy of the Options menu's Enable Chat Box Icon toggle (character option 21). When 1, that option turns on for every character above level 10.",
         "type": "number",
         "verified": true
     },
@@ -108,8 +108,8 @@
         "verified": true
     },
     "18": {
-        "name": "Storage Chest - Quick Withdraw",
-        "description": "1 = one tap on a storage chest item moves it to your inventory. Turning it on also turns on Quick Deposit (slot 1).",
+        "name": "Storage Chest - Split Stack",
+        "description": "The chest's Split Stack button. 1 = tapping a chest item asks how many to take out. Turning it on also turns on Quick Tap (slot 1).",
         "type": "number",
         "verified": true
     },
@@ -219,7 +219,7 @@
     },
     "36": {
         "name": "Hide Guild Name",
-        "description": "Account-wide copy of the Options menu toggle for your guild name (character option 26). 0 shows your guild name under your character, 1 hides it.",
+        "description": "Account-wide copy of the Options menu's Show Guild Names toggle (character option 26). 0 shows your guild name under your character, 1 hides it.",
         "type": "number",
         "verified": true
     },
@@ -290,8 +290,8 @@
         "verified": true
     },
     "48": {
-        "name": "Character Select View",
-        "description": "Which view the character select screen uses (0 or 1), switched by a button there. The button appears once your first character is over level 15.",
+        "name": "Character Select Away Timers",
+        "description": "The stopwatch ON/OFF button at the top left of the character select screen. 1 shows how long each character has been away, 0 hides it. The button appears once your first character is over level 15.",
         "type": "number",
         "verified": true
     },
@@ -350,8 +350,8 @@
         "verified": true
     },
     "58": {
-        "name": "Construction Building Info",
-        "description": "On/off switch at the top right of the Construction buildings screen. When 1, each building shows its upgrade cost and build progress bar.",
+        "name": "Construction HUD",
+        "description": "The HUD ON/OFF switch at the top right of the Construction buildings screen. When 1, each building shows a progress bar and a label (Build, Done, Max LV or Upg).",
         "type": "number",
         "verified": true
     },
@@ -473,7 +473,7 @@
     },
     "78": {
         "name": "New Stuff Seen",
-        "description": "The last NewStuffButton number from the server you have seen. While it differs, the sixth main menu button wiggles until you open it.",
+        "description": "The last NewStuffButton number from the server you have seen. While it differs, the Patch Notes button (sixth in the main menu) shows a NEW! marker until you open it.",
         "type": "number",
         "verified": true
     },
@@ -1710,32 +1710,38 @@
     "281": {
         "name": "Poppy - Fish (Yellow)",
         "description": "Poppy yellow fish amount",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "282": {
         "name": "Poppy - Fish (Red)",
         "description": "Poppy red fish amount",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "283": {
         "name": "Poppy - Fish (Green)",
         "description": "Poppy green fish amount",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "284": {
         "name": "Poppy - Fish (Purple)",
         "description": "Poppy purple fish amount",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "285": {
         "name": "Poppy - Fish (Silver)",
         "description": "Poppy silver fish amount",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "286": {
         "name": "Poppy - Fish (Blue)",
         "description": "Poppy blue fish amount",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "287": {
         "name": "Poppy - Tar Pit Open",
@@ -1757,7 +1763,7 @@
     },
     "290": {
         "name": "Poppy - Reset Points",
-        "description": "Unspent Reset Points for the Reset Spirals. Earned by Fisheroo Reset, cleared by Greatest Catch.",
+        "description": "Unspent Reset Points for the Reset Spirals. Earned by Fisheroo Reset. Greatest Catch also adds points and keeps the spiral levels.",
         "type": "number",
         "verified": true
     },
@@ -1853,7 +1859,7 @@
     },
     "306": {
         "name": "Land Rank Bars Hidden",
-        "description": "Checkbox in the Land Rank menu. 1 hides the land rank bars drawn on your farm plots, 0 shows them.",
+        "description": "The Hide Rank button in the Land Ranks tool (Farming). 1 hides the rank bar under each farm plot, 0 shows it.",
         "type": "number",
         "verified": true
     },
@@ -1944,7 +1950,7 @@
     },
     "321": {
         "name": "Summoning High Performance",
-        "description": "Switch in the summoning battle screen. 1 hides the damage numbers that pop up when you click enemies.",
+        "description": "High Performance switch in the summoning battle screen, shown once you have more than 15 summoning wins. 1 hides the damage numbers that pop up when you click enemies.",
         "type": "number",
         "verified": true
     },
@@ -2051,8 +2057,8 @@
         "verified": true
     },
     "339": {
-        "name": "Portal Kills Box Clicked",
-        "description": "1 once you have clicked the kills-to-next-portal box at the top left of the screen. Until then it shows a \"!\".",
+        "name": "Portal Kills Tip Seen",
+        "description": "1 once you have pressed GOT IT on the tip next to the kills-to-next-portal box at the top left. Until then the tip shows on maps that still need kills.",
         "type": "number",
         "verified": true
     },
@@ -2112,19 +2118,19 @@
     },
     "349": {
         "name": "Lab - Hint Step",
-        "description": "Which pointer hint the Laboratory shows: 0 to 2 are the steps, 3 means done. Clicking one spot at the top of the Lab screen starts them again.",
+        "description": "Which Laboratory tip shows: 0 to 2 are the three tips, each closed with GOT IT; 3 means done. The Click here for HELP button at the top of the Lab starts them again.",
         "type": "number",
         "verified": true
     },
     "350": {
-        "name": "Companions - Page to Open",
-        "description": "Which Companions page opens next: 0 = the food page, 1 = the treat page (Tier 1 to 5 treats). The switch button at the top sets it; talking to the dog in the World 1 town sets 0.",
+        "name": "Pet Park - Page to Open",
+        "description": "Which Pet Park Buy page opens next: 0 = the current set (Basic to Deluxe Treats), 1 = Legacy (Tier 1 to 5 treats). The Legacy and View Current Set buttons at the top switch it.",
         "type": "number",
         "verified": true
     },
     "351": {
-        "name": "Companions - Page Shown",
-        "description": "Copy of slot 350 taken when the Companions screen loads; the screen reads this one. 0 = the food page, 1 = the treat page.",
+        "name": "Pet Park - Page Shown",
+        "description": "Copy of slot 350 taken when the Pet Park loads; the Buy page reads this one. 0 = the current set, 1 = Legacy.",
         "type": "number",
         "verified": true
     },
@@ -2226,7 +2232,7 @@
     },
     "368": {
         "name": "Card Drop Hint Seen",
-        "description": "1 once you pressed the button the pointer shows after your first card drop. While 0, the pointer comes back after a card is picked up.",
+        "description": "1 once you pressed GOT IT on the You found a Card! tip, which points at the Codex button. While 0, the tip comes back after a card is picked up.",
         "type": "number",
         "verified": true
     },
@@ -2435,8 +2441,8 @@
         "verified": true
     },
     "403": {
-        "name": "Sailing - Menu Hint Seen",
-        "description": "1 once you've clicked the Sailing menu button the hint points at. Until then the menu shows a hint marker.",
+        "name": "Sailing - Intro Popup Seen",
+        "description": "1 once you've closed the New Feature popup in the Sailing menu with the x at its top right. Until then it shows each time you open Sailing.",
         "type": "number",
         "verified": true
     },
@@ -3031,25 +3037,25 @@
     },
     "502": {
         "name": "Tournament Finals Match Hint Seen",
-        "description": "1 once you have clicked a match in a tournament finals bracket. Until then a hint mark shows at the top of the bracket.",
+        "description": "1 once you have watched a match in a tournament finals bracket. Until then a box at the top of the bracket says you can watch the final matches with the VIEW button.",
         "type": "number",
         "verified": true
     },
     "503": {
         "name": "Tournament Finals Seen Day - Bronze",
-        "description": "The tournament day you last clicked the box at the right end of the Bronze finals bracket. On a later day, once that bracket's finals are done, a marker shows there until you click it.",
+        "description": "The tournament day you last clicked the Spoiler Blocker over the Champion in the Bronze bracket's Final 32 view. On a later day, once that bracket's finals are done, it covers the Champion again until you click it.",
         "type": "number",
         "verified": true
     },
     "504": {
         "name": "Tournament Finals Seen Day - Silver",
-        "description": "The tournament day you last clicked the box at the right end of the Silver finals bracket. On a later day, once that bracket's finals are done, a marker shows there until you click it.",
+        "description": "The tournament day you last clicked the Spoiler Blocker over the Champion in the Silver bracket's Final 32 view. On a later day, once that bracket's finals are done, it covers the Champion again until you click it.",
         "type": "number",
         "verified": true
     },
     "505": {
         "name": "Tournament Finals Seen Day - Gold",
-        "description": "The tournament day you last clicked the box at the right end of the Gold finals bracket. On a later day, once that bracket's finals are done, a marker shows there until you click it.",
+        "description": "The tournament day you last clicked the Spoiler Blocker over the Champion in the Gold bracket's Final 32 view. On a later day, once that bracket's finals are done, it covers the Champion again until you click it.",
         "type": "number",
         "verified": true
     },
@@ -3590,14 +3596,14 @@
         "verified": true
     },
     "588": {
-        "name": "Gaming Auto-Harvest Filter - 6th Mutation",
-        "description": "1 = Harvest All skips the 6th mutation (the one that gives 7x more ₣ and 3x gaming exp). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
+        "name": "Gaming Auto-Harvest Filter - Berri Bush",
+        "description": "1 = Harvest All skips Berri Bush (the 6th mutation: 7x more bits and 3x gaming exp). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
         "verified": true
     },
     "589": {
-        "name": "Gaming Auto-Harvest Filter - 7th Mutation",
-        "description": "1 = Harvest All skips the 7th mutation (the one that gives up to 100x ₣ at random). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
+        "name": "Gaming Auto-Harvest Filter - EverGreen",
+        "description": "1 = Harvest All skips EverGreen (the 7th mutation: up to 100x more bits at random). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
         "verified": true
     },
