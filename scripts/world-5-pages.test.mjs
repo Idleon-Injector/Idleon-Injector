@@ -208,12 +208,28 @@ test("Superbits: a flip keeps a superbit unlocked in game since; Lock all asks, 
     await until(() => gga.Gaming[12] === "", "every superbit locked");
 });
 
-test("Palette: a Black Stars pick saves at once", async () => {
-    const { root } = await openPane(GAMING, "Palette");
-    const row = rowNamed(root, "Olive Green");
+test("Palette: a table of Level and Black Stars; a stars pick saves at once and keeps a level bought in game since", async () => {
+    const { pane } = await openPane(GAMING, "Palette");
+    assert.deepEqual(byClass(byClass(pane, "value-head")[0], "value-head__label").map(text), [
+        "Colour",
+        "Level",
+        "Black Stars",
+    ]);
+    const row = rowNamed(pane, "Olive Green");
     gga.Spelunk[49][0] = 0;
+    gga.Spelunk[9][0] += 3;
+    const level = gga.Spelunk[9][0];
     click(radio(row, "★★"));
     await until(() => gga.Spelunk[49][0] === 2, "two Black Stars");
+    assert.equal(gga.Spelunk[9][0], level, "the level the game holds stays");
+});
+
+test("Palette: a colour's level saves on Enter", async () => {
+    const { pane } = await openPane(GAMING, "Palette");
+    const row = rowNamed(pane, "Mossy Green");
+    typeAndEnter(row, byTag(row, "input")[0], 30);
+    await settled(row);
+    assert.equal(gga.Spelunk[9][1], 30);
 });
 
 // A tab's pane: the rows of one cavern or villager screen (two tabs can hold a row of the same name).

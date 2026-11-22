@@ -1,16 +1,17 @@
-/* Gaming › Rat King: a plant's crowns reclaimed, a plain muted count before its switch. */
+/* Gaming › Rat King: a plant's crowns reclaimed, a plain muted count before its switch. The count has one width, so
+   "10 / 10" and "3 / 10" start at the same place down the list. */
 .rat-king-count {
+    min-width: 4.5rem;
     color: var(--c-text-muted);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-/* Gaming: its Palette tab holds a colour's level and its Black Stars on one line, so the page takes the wider measure. */
+/* Gaming: its Palette tab is a table (a colour's Level and Black Stars), so the page takes the wider measure. */
 .gaming-tab {
     --page-measure: 60rem;
 }
-.palette-stars {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+/* Black Stars' column holds the whole None | ★ | ★★ picker when a row is touched. */
+.gaming-palette {
+    --value-columns: 9.5rem 11rem;
 }

@@ -29,6 +29,7 @@ import { deleteGga, gga, readCList, readGgaEntries } from "../../../services/api
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
@@ -37,7 +38,6 @@ import { AccountToggleRow } from "../../../components/views/account/components/A
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
-import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
 import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
 import {
     bonusText,
@@ -50,7 +50,6 @@ import {
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
 
 const { button, div, span } = van.tags;
 
@@ -503,53 +502,47 @@ const STARS = [
     { value: 2, label: "★★" },
 ];
 
-// Black Stars: a step picker that saves on a pick, like a sigil's tier.
-const StarPicker = ({ index, name, starState }) => {
-    const picked = van.state(starState.val);
-    const path = `${STARS_PATH}[${index}]`;
-    const { status, reason, save, undo } = useAutoSave({
-        capture: () => picked.val,
-        prepare: (stars = picked.val) => {
-            if (stars === starState.val) return { unchanged: true };
-            return {
-                write: async () => {
-                    try {
-                        await writeVerified(path, stars);
-                    } catch (saveError) {
-                        starState.val = toInt(await gga(path).catch(() => starState.val), { min: 0 });
-                        if (picked.val === stars) picked.val = starState.val;
-                        throw saveError;
-                    }
-                    starState.val = stars;
-                    await deleteGga("DNSM.h.PaletteBonz");
-                },
-            };
-        },
-        revert: () => (picked.val = starState.val),
-    });
-    van.derive(() => (picked.val = starState.val));
-    return span(
-        { class: "palette-stars" },
-        SaveState({ status, reason, undo }),
-        StepPicker({
-            name: `${name} Black Stars`,
-            steps: STARS,
-            picked: () => picked.val,
-            onPick: (stars) => {
-                picked.val = stars;
-                void save();
-            },
-        })
-    );
-};
+// A colour per line, like a table: its level, then its Black Stars, each in its own column under a head that names it.
+const PALETTE_FIELDS = [
+    { key: "level", label: "Level", path: LEVELS_PATH },
+    { key: "stars", label: "Black Stars", path: STARS_PATH, steps: STARS },
+];
 
 const PalettePart = () => {
-    const getLevelState = createIndexedStateGetter(0);
-    const getStarState = createIndexedStateGetter(0);
+    const states = new Map();
+    const stateOf = (index) => {
+        if (!states.has(index))
+            states.set(index, Object.fromEntries(PALETTE_FIELDS.map((field) => [field.key, van.state(0)])));
+        return states.get(index);
+    };
     const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
+
+    const ColourRow = (colour) => {
+        const at = (field) => `${field.path}[${colour.index}]`;
+        return ValueTableRow({
+            name: colour.name,
+            info: RowTitles({ bonus: colour.bonus, name: colour.name }),
+            fields: PALETTE_FIELDS.map((field) => ({
+                ...field,
+                valueState: stateOf(colour.index)[field.key],
+                paths: [at(field)],
+            })),
+            read: async () => {
+                const [level, stars] = await Promise.all(PALETTE_FIELDS.map((field) => gga(at(field))));
+                return { level: toInt(level, { min: 0 }), stars: Math.min(2, toInt(stars, { min: 0 })) };
+            },
+            // The game keeps the palette's bonuses until it rebuilds them: a star saved here clears them.
+            afterWrite: (changed) => (changed.includes("stars") ? deleteGga("DNSM.h.PaletteBonz") : null),
+        });
+    };
+
     return {
-        content: div({ class: "field-columns" }, listNode),
+        content: div(
+            { class: "gaming-palette" },
+            ValueTableHead({ name: "Colour", columns: PALETTE_FIELDS.map((field) => field.label) }),
+            listNode
+        ),
         load: async () => {
             const [rawLevels, rawStars, rawDefs] = await Promise.all([
                 gga(LEVELS_PATH),
@@ -564,26 +557,10 @@ const PalettePart = () => {
                 const bonus = bonusText(String(def[10] ?? "").replace(/#/g, "{"));
                 return { index, name: cleanName(def[3], `Colour ${index + 1}`), bonus };
             });
-            reconcileRows(colours.map((colour) => colour.name).join("|"), () =>
-                colours.map((colour) =>
-                    ClampedLevelRow({
-                        valueState: getLevelState(colour.index),
-                        writePath: `${LEVELS_PATH}[${colour.index}]`,
-                        integerMode: "trunc",
-                        name: colour.name,
-                        renderInfo: () => RowTitles({ bonus: colour.bonus, name: colour.name }),
-                        renderExtraActions: () =>
-                            StarPicker({
-                                index: colour.index,
-                                name: colour.name,
-                                starState: getStarState(colour.index),
-                            }),
-                    })
-                )
-            );
+            reconcileRows(colours.map((colour) => colour.name).join("|"), () => colours.map(ColourRow));
             colours.forEach((colour) => {
-                getLevelState(colour.index).val = toInt(levels[colour.index], { min: 0 });
-                getStarState(colour.index).val = Math.min(2, toInt(stars[colour.index], { min: 0 }));
+                stateOf(colour.index).level.val = toInt(levels[colour.index], { min: 0 });
+                stateOf(colour.index).stars.val = Math.min(2, toInt(stars[colour.index], { min: 0 }));
             });
         },
     };

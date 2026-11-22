@@ -574,6 +574,12 @@
     font-weight: 500;
     color: var(--c-text-muted);
 }
+/* A pick in a table column (ValueTableRow's `steps`): its words start where the column's name starts. */
+.viewport .value-cell--steps {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
 .value-cell__label {
     position: absolute;
     width: 1px;

@@ -366,6 +366,9 @@ World 5 uses the same pieces; two shared pages moved onto them:
   tab's own parts (Superbits' boards) are groups in its list. The Hole is two pages, like the game's village on top and caverns below:
   Villagers (tabs Villagers, Opals, Engineer, Conjuror, Measurer, Librarian) and Caverns (a tab per cavern, in the
   game's order). A cavern with parts of its own (Fountain) shows them as groups in its list, never tabs in a tab.
+- **A pick in a table gets its own column** (`ValueTableRow`'s `steps` field): Palette is a table, a colour's Level and
+  Black Stars under their heads, so nothing in a line moves with its neighbour's width (Lumi: "it looks off, not
+  aligned"). A number beside a control (the Rat King's "3 / 10") keeps one width for the same reason.
 - **Many tabs wrap** (`TabbedList`'s `wrap`, Caverns' 18): the rows of tabs fill the panel's width. The open tab runs
   down into the list from the last row; on a row above, it is a block rounded all round.
 - **A limited gem shop buy sits on its system's page** in a quiet "Gem shop" group: Davey Jones Training on Boats,

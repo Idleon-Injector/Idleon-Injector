@@ -14,6 +14,7 @@ import {
 import { SaveState, saveStateClass } from "./autoSave.js";
 import { useFieldEditor } from "./useFieldEditor.js";
 import { AccountRow } from "./components/AccountRow.js";
+import { StepPicker } from "./components/StepPicker.js";
 
 const { div, span } = van.tags;
 
@@ -125,14 +126,18 @@ export const ValueTableHead = ({ name, columns }) =>
  * @param {*} opts.info the row's title (RowTitles, or a name)
  * A `formatted` field shows a big number short ("1.2M") and takes one typed that way; left as shown, it keeps the
  * game's exact value. A `quiet` field is a value that only supports the line's main one: a step smaller and muted.
+ * A `steps` field is a pick out of a few (a palette colour's Black Stars: None, ★, ★★) in its own column, a step picker
+ * that saves on the pick.
  *
  * @param {{key: string, label: string, valueState: {val: number}, paths: string[], max?: number|Function,
- *   formatted?: boolean, quiet?: boolean}[]} opts.fields
+ *   formatted?: boolean, quiet?: boolean, steps?: {value: number, label: string}[]}[]} opts.fields
  * @param {() => Promise<Record<string, number>>} opts.read every field's value as the game holds it now
  * @param {object} [opts.writeOptions] passed to writeManyVerified ({ character })
  * @param {*} [opts.badge] the line's state in a plain word ("Polymer"), before its values
+ * @param {(changed: string[]) => *} [opts.afterWrite] runs once a save is read back, with the keys it changed (a cache
+ *   the game rebuilds from them)
  */
-export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, badge = null }) => {
+export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, badge = null, afterWrite = null }) => {
     const maxOf = (field) => {
         const max = Number(resolveValue(field.max));
         return max > 0 ? max : Infinity;
@@ -166,9 +171,8 @@ export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, bad
             return next;
         },
         write: async (next) => {
-            const writes = fields
-                .filter((field) => next[field.key] !== field.valueState.val)
-                .flatMap((field) => field.paths.map((path) => ({ path, value: next[field.key] })));
+            const changed = fields.filter((field) => next[field.key] !== field.valueState.val);
+            const writes = changed.flatMap((field) => field.paths.map((path) => ({ path, value: next[field.key] })));
             try {
                 await writeManyVerified(writes, writeOptions);
             } catch (error) {
@@ -176,40 +180,53 @@ export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, bad
                 throw error;
             }
             // The write was read back, so it saved: a read after it that fails leaves the line on the saved values.
+            if (afterWrite && changed.length) await afterWrite(changed.map((field) => field.key));
             return read().catch(() => next);
         },
         rowClass: "value-row",
         info,
         badge,
-        renderControls: ({ draftStates, getDraftValue, setFieldFocused }) =>
+        renderControls: ({ draftStates, getDraftValue, setFieldFocused, applyValue }) =>
             div(
                 { class: "value-cells" },
                 ...fields.map((field) =>
-                    StackedNumberField({
-                        field: {
-                            key: field.key,
-                            label: field.label,
-                            rootClass: field.quiet ? "value-cell value-cell--quiet" : "value-cell",
-                            labelClass: "value-cell__label",
-                            formatted: field.formatted,
-                            // + leaves a value the game holds above the cap; − takes one off it.
-                            adjustDraft: (raw, delta) => {
-                                if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
-                                const value = toInt(raw, { min: 0 });
-                                if (value > maxOf(field)) return delta > 0 ? value : value - 1;
-                                return Math.max(0, Math.min(maxOf(field), value + delta));
-                            },
-                            inputProps: {
-                                "aria-label": `${name} ${field.label.toLowerCase()}`,
-                                ...(field.max !== undefined
-                                    ? { cap: () => (maxOf(field) < Infinity ? maxOf(field) : null) }
-                                    : {}),
-                            },
-                        },
-                        draftStates,
-                        getDraftValue,
-                        setFieldFocused,
-                    })
+                    field.steps
+                        ? // A pick saves on the press, like − / +.
+                          div(
+                              { class: "value-cell value-cell--steps" },
+                              span({ class: "value-cell__label" }, field.label),
+                              StepPicker({
+                                  name: `${name} ${field.label.toLowerCase()}`,
+                                  steps: field.steps,
+                                  picked: () => toInt(draftStates[field.key].val, { min: 0 }),
+                                  onPick: (value) => void applyValue({ [field.key]: value }),
+                              })
+                          )
+                        : StackedNumberField({
+                              field: {
+                                  key: field.key,
+                                  label: field.label,
+                                  rootClass: field.quiet ? "value-cell value-cell--quiet" : "value-cell",
+                                  labelClass: "value-cell__label",
+                                  formatted: field.formatted,
+                                  // + leaves a value the game holds above the cap; − takes one off it.
+                                  adjustDraft: (raw, delta) => {
+                                      if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
+                                      const value = toInt(raw, { min: 0 });
+                                      if (value > maxOf(field)) return delta > 0 ? value : value - 1;
+                                      return Math.max(0, Math.min(maxOf(field), value + delta));
+                                  },
+                                  inputProps: {
+                                      "aria-label": `${name} ${field.label.toLowerCase()}`,
+                                      ...(field.max !== undefined
+                                          ? { cap: () => (maxOf(field) < Infinity ? maxOf(field) : null) }
+                                          : {}),
+                                  },
+                              },
+                              draftStates,
+                              getDraftValue,
+                              setFieldFocused,
+                          })
                 )
             ),
     });
