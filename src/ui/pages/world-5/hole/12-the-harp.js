@@ -112,6 +112,7 @@ export default definePage({
     id: "w5.hole.harp",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Harp",
     description: "Harp notes and each string's level and EXP.",
     keywords: ["Harp", "Notes", "Strings"],

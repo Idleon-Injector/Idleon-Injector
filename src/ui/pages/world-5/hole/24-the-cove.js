@@ -114,6 +114,7 @@ export default definePage({
     id: "w5.hole.crystalcove",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Cove",
     description: "Crystal Glunko Cove upgrades, shapes, focus and kills.",
     keywords: ["Crystal Cove", "Crystal Glunko Cove", "Cglunko", "Shapes"],

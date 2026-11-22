@@ -103,6 +103,7 @@ export default definePage({
     id: "w5.hole.villagers",
     world: 5,
     system: "Hole",
+    group: "Villagers",
     tab: "Villagers",
     description: "Villager levels, EXP and opals invested.",
     keywords: ["Explorer", "Engineer", "Conjuror", "Measurer", "Librarian", "Opals"],

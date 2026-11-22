@@ -47,6 +47,7 @@ export default definePage({
     id: "w5.hole.temple",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Temple",
     description: "Torches, the Temple's upgrades and the foes it has seen fall.",
     keywords: ["Torches", "Illuminate", "Amplify", "Centurions", "Golems"],

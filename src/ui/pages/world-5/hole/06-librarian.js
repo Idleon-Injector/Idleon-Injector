@@ -43,6 +43,7 @@ export default definePage({
     id: "w5.hole.studies",
     world: 5,
     system: "Hole",
+    group: "Villagers",
     tab: "Librarian",
     description: "Study levels for each cavern.",
     keywords: ["Studies", "Study"],

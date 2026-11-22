@@ -60,6 +60,7 @@ export default definePage({
     id: "w5.hole.well",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Well",
     description: "Layer resources and the Well's filled bars.",
     keywords: ["Well", "Ores", "Gravel", "Bars"],

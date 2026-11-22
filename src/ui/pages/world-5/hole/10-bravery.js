@@ -63,6 +63,7 @@ export default definePage({
     id: "w5.hole.bravery",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Bravery",
     description: "The Monument of Bravery's AFK hours and bonuses.",
     keywords: ["Monument", "Monument of Bravery"],

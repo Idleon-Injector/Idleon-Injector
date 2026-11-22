@@ -41,6 +41,7 @@ export default definePage({
     id: "w5.hole.grotto",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Grotto",
     description: "Colonies cleared and Gloomies killed.",
     keywords: ["Gloomies", "Colonies"],

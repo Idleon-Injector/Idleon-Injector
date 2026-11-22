@@ -58,6 +58,7 @@ export default definePage({
     id: "w5.hole.lamp",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Lamp",
     description: "Lamp wishes and how many lamp bonuses are unlocked.",
     keywords: ["Lamp", "Wishes"],

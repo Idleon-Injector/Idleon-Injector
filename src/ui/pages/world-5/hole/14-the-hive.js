@@ -39,6 +39,7 @@ export default definePage({
     id: "w5.hole.hive",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Hive",
     description: "Bugs caught toward the next harvest, and the harvests done.",
     keywords: ["Skill", "Undying Hive", "Catching", "Fractal Fly"],

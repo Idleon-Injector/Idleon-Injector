@@ -177,6 +177,7 @@ export default definePage({
     id: "w5.hole.fountain",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Fountain",
     description: "Fountain coins, lucky coins, water and water upgrades.",
     keywords: ["Lucky Coins", "Marbles", "Rubber Duckies", "Blue Water", "Yellow Water", "Green Water"],

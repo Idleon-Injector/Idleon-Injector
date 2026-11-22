@@ -47,6 +47,7 @@ export default definePage({
     id: "w5.hole.gambit",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Gambit",
     description: "Your best time in each gambit.",
     keywords: ["Gambit time", "Chess"],

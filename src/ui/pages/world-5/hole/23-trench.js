@@ -39,6 +39,7 @@ export default definePage({
     id: "w5.hole.trench",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Trench",
     description: "Fish caught toward the next layer, and the layers done.",
     keywords: ["Skill", "Bottomless Trench", "Fishing"],

@@ -170,6 +170,7 @@ export default definePage({
     id: "w5.hole.engineer",
     world: 5,
     system: "Hole",
+    group: "Villagers",
     tab: "Engineer",
     description: "Engineer schematics unlocked.",
     keywords: ["Schematics", "Buildings"],

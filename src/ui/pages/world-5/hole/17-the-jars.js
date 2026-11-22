@@ -97,6 +97,7 @@ export default definePage({
     id: "w5.hole.jar",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Jars",
     description: "Rupies, collectibles, jars broken and Rupie Slugs.",
     keywords: ["Jar", "Rupies", "Collectibles", "Rupie Slugs", "Rupie Slug", "Gem shop", "Limited", "Fomo"],

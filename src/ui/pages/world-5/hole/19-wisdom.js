@@ -63,6 +63,7 @@ export default definePage({
     id: "w5.hole.wisdom",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Wisdom",
     description: "The Monument of Wisdom's AFK hours and bonuses.",
     keywords: ["Monument", "Monument of Wisdom"],

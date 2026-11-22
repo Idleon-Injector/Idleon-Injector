@@ -63,6 +63,7 @@ export default definePage({
     id: "w5.hole.justice",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Justice",
     description: "The Monument of Justice's AFK hours and bonuses.",
     keywords: ["Monument", "Monument of Justice"],

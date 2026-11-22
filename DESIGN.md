@@ -364,3 +364,5 @@ World 5 uses the same pieces; two shared pages moved onto them:
   Measurer, Librarian), then every cavern in the game's order, each its own page.
 - **A limited gem shop buy sits on its system's page** in a quiet "Gem shop" group: Davey Jones Training on Boats,
   Rupie Slugs on The Jars, both found by "gem shop", "limited" and "fomo".
+- **A system's pages can sit in groups** (`group` in `definePage`): the sidebar heads each group with a quiet label
+  where the group changes, lined up with the pages' names, words only (the Hole: Villagers, then Caverns).

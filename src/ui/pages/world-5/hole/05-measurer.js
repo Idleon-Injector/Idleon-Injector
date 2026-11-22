@@ -44,6 +44,7 @@ export default definePage({
     id: "w5.hole.measure",
     world: 5,
     system: "Hole",
+    group: "Villagers",
     tab: "Measurer",
     description: "Measurement levels.",
     keywords: ["Measure", "Measurements"],

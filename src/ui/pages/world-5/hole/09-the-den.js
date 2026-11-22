@@ -35,6 +35,7 @@ export default definePage({
     id: "w5.hole.dawgden",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Den",
     description: "The Dawg Den's highscore.",
     keywords: ["Dawg Den"],

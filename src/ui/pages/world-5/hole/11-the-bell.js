@@ -55,6 +55,7 @@ export default definePage({
     id: "w5.hole.bell",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "The Bell",
     description: "Bell improvement methods and random bonuses.",
     keywords: ["Bell", "Bell Ring", "Bell Clean", "Bell Ping"],

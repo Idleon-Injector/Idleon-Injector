@@ -37,6 +37,7 @@ export default definePage({
     id: "w5.hole.opals",
     world: 5,
     system: "Hole",
+    group: "Villagers",
     tab: "Opals",
     description: "Opals found in each cavern.",
     keywords: ["Caverns", "Explorer"],

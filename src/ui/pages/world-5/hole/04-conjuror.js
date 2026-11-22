@@ -48,6 +48,7 @@ export default definePage({
     id: "w5.hole.cosmo",
     world: 5,
     system: "Hole",
+    group: "Villagers",
     tab: "Conjuror",
     description: "Hole, Village and Idleon Majik levels.",
     keywords: ["Cosmo", "Majiks", "Hole Majik", "Village Majik", "Idleon Majik"],

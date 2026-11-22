@@ -39,6 +39,7 @@ export default definePage({
     id: "w5.hole.evertree",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Evertree",
     description: "Everlog chopped toward the next trunk, and the trunks done.",
     keywords: ["Skill", "Choppin", "Trunks"],

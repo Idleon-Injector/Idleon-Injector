@@ -39,6 +39,7 @@ export default definePage({
     id: "w5.hole.motherlode",
     world: 5,
     system: "Hole",
+    group: "Caverns",
     tab: "Motherlode",
     description: "Ore mined toward the next layer, and the layers done.",
     keywords: ["Skill", "Mining", "Layers"],
