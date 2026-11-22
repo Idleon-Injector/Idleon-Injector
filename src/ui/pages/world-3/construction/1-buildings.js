@@ -605,7 +605,11 @@ const CogsTab = () => {
             const next = text(cogMapStats[index].val?.[key]);
             const draft = hasDraft();
             saved = next;
-            if (!draft) shown.val = next;
+            // The field too: typed text the state never saw stays in it when the state already holds `next`.
+            if (!draft) {
+                shown.val = inputEl.value = next;
+                typing = false;
+            }
         });
         const save = useAutoSave({
             prepare: () => {

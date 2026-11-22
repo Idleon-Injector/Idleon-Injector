@@ -719,6 +719,23 @@ test("Cogs: Escape after a Refresh puts back the game's newer stat", async (t) =
     assert.equal(field.value, "20");
 });
 
+test("Cogs: a read back to the shown stat clears text the game caught up with and then left", async (t) => {
+    keepCog(t);
+    const { root, popup, field, type, key } = await openStat({ a: 11, b: 1 });
+    const other = () => elements(statRow(popup, "b")).find((node) => node.nodeName === "input");
+    type("50");
+    gga.CogMap[1].h = { a: 50, b: 2 }; // the game reaches what was typed: no draft left
+    click(buttonIn(root, "Refresh"));
+    await until(() => other().attributes.value === "2", "the first read");
+    gga.CogMap[1].h = { a: 11, b: 3 }; // and moves back to the value the field last showed
+    click(buttonIn(root, "Refresh"));
+    await until(() => other().attributes.value === "3", "the second read");
+    assert.equal(field.value, "11", "the field shows what the game holds");
+    key("Enter");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(gga.CogMap[1].h.a, 11, "Enter has nothing to save");
+});
+
 // #217: the editor sits on the page's body, so opening another page from the menu left it over that page.
 test("Workbench: opening another page from the menu closes the cog editor", async () => {
     const store = (await importRepo("src/ui/state/store.js")).default;
