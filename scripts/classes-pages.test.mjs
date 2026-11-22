@@ -152,7 +152,8 @@ test("outposts: a refused slot or TYPE pick goes back to what the game holds and
 });
 
 // Review of #120: a failed pick put back the remembered type, though the game may have taken the pick.
-test("outposts: a slot pick whose answer is lost shows what the game holds", async () => {
+// #191: the save reads the game again, so a pick the game took isn't said as failed.
+test("outposts: a slot pick whose answer is lost shows what the game holds, not said as failed", async () => {
     const before = game.gga.RoyalMaps[1][11];
     const root = await openOutposts();
     const slot = slotSelects(card(root, 1))[0];
@@ -170,7 +171,7 @@ test("outposts: a slot pick whose answer is lost shows what the game holds", asy
         await choose(slot, "5");
         assert.equal(String(game.gga.RoyalMaps[1][11])[0], "5", "the game took it");
         assert.equal(slot.value, "5", "the slot shows what the game holds");
-        assert.match(cardSays(card(root, 1)), /Slot 1 not saved/);
+        assert.doesNotMatch(cardSays(card(root, 1)), /not saved/);
     } finally {
         globalThis.fetch = realFetch;
         game.gga.RoyalMaps[1][11] = before;
