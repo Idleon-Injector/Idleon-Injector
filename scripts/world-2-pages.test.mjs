@@ -1002,3 +1002,45 @@ test("liquid: a page opened again after one copy of CAP UPGRADE was refused stil
         ola[371] = copy;
     }
 });
+
+// CodeRabbit on #212: the liquid values are shared by every opening, so an older opening's load that ends last showed
+// what the game held before.
+test("liquid: a load from an earlier opening that ends after a newer one doesn't put old values back", async () => {
+    const info = game.gga.CauldronInfo;
+    const amount = Number(info[6][0]);
+    const realFetch = globalThis.fetch;
+    let release = () => {};
+    try {
+        const first = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        // The first opening's Refresh reads the game, and its answer comes back last.
+        const gate = new Promise((resolve) => (release = resolve));
+        let held = false;
+        globalThis.fetch = async (url, options) => {
+            const response = await realFetch(url, options);
+            if (!held && String(options?.body).includes('"gga.CauldronInfo"')) {
+                held = true;
+                await gate;
+            }
+            return response;
+        };
+        const refresh = buttonNamed(first, "Refresh");
+        click(refresh);
+        await until(() => held, "the first opening's read");
+        globalThis.fetch = realFetch;
+        info[6][0] = amount + 7; // the game moves on
+        const second = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        const input = inputs(rowNamed(second, "Water Droplets"))[0];
+        await until(() => shown(input) === String(amount + 7), "the newer opening's read");
+        release();
+        await until(() => notBusy(refresh), "the first opening's read to end");
+        assert.equal(shown(input), String(amount + 7), "the newer read stays");
+    } finally {
+        release();
+        globalThis.fetch = realFetch;
+        info[6][0] = amount;
+    }
+});

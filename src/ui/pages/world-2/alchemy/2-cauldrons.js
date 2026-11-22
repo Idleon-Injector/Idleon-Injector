@@ -126,13 +126,18 @@ const liquidStates = LIQUIDS.map(() => ({
     cap: van.state(0),
     rate: van.state(0),
 }));
+// Each opening loads in its own turn, so a load from an earlier opening can end after a newer one: only the newest
+// load shows its values.
+let liquidLoads = 0;
 
 const LiquidTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Liquid" });
 
     const load = async () =>
         run(async () => {
+            const id = ++liquidLoads;
             const read = await readLiquids();
+            if (id !== liquidLoads) return;
             LIQUIDS.forEach((liquid, i) => {
                 const values = liquidValues(read, liquid, liquidStates[i]);
                 Object.keys(values).forEach((key) => (liquidStates[i][key].val = values[key]));
