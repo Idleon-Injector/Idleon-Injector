@@ -4022,20 +4022,26 @@
     },
     "666": {
         "name": "Cglunko Gooey Shape Focus",
-        "description": "Selected One Big Blue Gooey shape; 1-6 selects Triangle through Nonagon and 0 is unset",
+        "description": "Which Gooey shape One Big Blue boosts: 1 to 6 = Triangle, Square, Pentagon, Hexagon, Heptagon, Nonagon; 0 = none. Picked in the Cove's shape menu once One Big Blue is level 1.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "667": {
         "name": "Cglunko Quartz Shape Focus",
-        "description": "Selected One Big Purp Quartz shape; 1-6 selects Prismagon through Brillagon and 0 is unset",
+        "description": "Which Quartz shape One Big Purp boosts: 1 to 6 = Prismagon, Cubigon, Pointagon, Octergon, Nullagon, Brillagon; 0 = none. Picked in the Cove's shape menu once One Big Purp is level 1.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "668": {
         "name": "Crystal Glunko Kill Count",
-        "description": "Total Crystal Glunko kills recorded for Cglunko Cove bonuses",
+        "description": "All-time Crystal Glunko kills. Shown as that map's kill count; Killionaire gives Cove drop rate per power of 10 of it.",
         "type": "number",
-        "AI": true
+        "verified": true
+    },
+    "669": {
+        "name": "Cape Vine - Golden Vine Milestones",
+        "description": "Golden Vines earned at Cathie's Cape Vine. The next one needs class level 1000 + 500 x this. Golden Vines owned = 1 + this, plus 3 with the Cape Vine bundle.",
+        "type": "number",
+        "verified": true
     }
 }
