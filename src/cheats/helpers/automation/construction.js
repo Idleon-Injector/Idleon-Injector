@@ -3,8 +3,8 @@
  * click handler: queue it (free), let the build rate fill its progress, complete it (frees the slot), pay its
  * salt (level +1). These are those steps, with the menu art redrawn only while the menu shows the buildings.
  *
- * Settings: cheatConfig.automation.construction, one { id, on, stopAt, priority } per building; id is the building
- * index (0-8 buildings, 9-17 towers, 18-26 shrines), priority 1 is High, 2 Low, anything else Balanced.
+ * Settings: cheatConfig.automation.construction, one { id, on, stopAt, save } per building; id is the building
+ * index (0-8 buildings, 9-17 towers, 18-26 shrines), save is "Save for it": those take free slots first.
  */
 
 import { cList, events, gga, itemDefs } from "../../core/globals.js";
@@ -209,11 +209,10 @@ export function runConstruction() {
     const items = cheatConfig.automation.construction;
     if (!inMap() || !items.some((entry) => entry.on)) return;
     const settings = new Map(items.map((entry) => [String(entry.id), entry]));
-    // High, Low, then Balanced (switched-off buildings you queued count as Balanced).
+    // "Save for it" first (switched-off buildings you queued count as the rest).
     const rank = (b) => {
         const entry = settings.get(String(b));
-        const priority = entry?.on ? entry.priority : null;
-        return priority === 1 ? 0 : priority === 2 ? 1 : 2;
+        return entry?.on && entry.save ? 0 : 1;
     };
     const queueable = (b) => {
         const entry = settings.get(String(b));
@@ -238,13 +237,13 @@ export function runConstruction() {
             )
                 complete(b);
         }
-        // Every completed building is paid once its salt is there; on a shared salt, High, Low, Balanced, cheapest first.
+        // Every completed building is paid once its salt is there; on a shared salt, saved-for ones first, then cheapest first.
         const unpaid = BUILDINGS.filter(awaiting).map((b) => ({ b, rank: rank(b), cost: costs(b)[0].cost }));
         unpaid.sort((x, y) => x.rank - y.rank || x.cost - y.cost);
         for (const { b } of unpaid) if (affordable(b)) pay(b);
     }
 
-    // Free slots take High, Low, then Balanced buildings, the one closest to done first.
+    // Free slots take saved-for buildings first, then the rest, the one closest to done first.
     const free = Array.from({ length: slotCount() }, (_, s) => s).filter(
         (s) => tower()[QUEUE + s] === -1 && !(s === JELLY_SLOT && jellyKept())
     );

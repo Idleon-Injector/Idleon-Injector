@@ -42,7 +42,6 @@ import {
     sortPrefixedNumericCodes,
     useWriteStatus,
     writeManyVerified,
-    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -143,26 +142,26 @@ const StampsTab = () => {
     const readExaltedCodes = async () => (exaltedCodes.val = new Set(normalizeExaltedCodes(await gga("Compass[4]"))));
 
     // Every exalted stamp lives in one list, so flips save one at a time, each from the list the game holds now:
-    // a stamp exalted in the game, or by a flip still saving, isn't written over.
-    // The row's run is asked at once, so a level committed after the flip on that row still saves after it.
+    // a stamp exalted in the game, or by a flip still saving, isn't written over. The game refuses the write
+    // ("changed since") if the list changed after the read. Either way the switches then show what the game holds.
     const inTurn = oneAtATime();
+    const saveExalted = (change) =>
+        inTurn(async () => {
+            try {
+                const read = await gga("Compass[4]");
+                const next = new Set(normalizeExaltedCodes(read));
+                change(next);
+                await writeManyVerified([
+                    { path: "Compass[4]", value: [...next].sort(sortPrefixedNumericCodes), expect: read },
+                ]);
+                exaltedCodes.val = next;
+            } finally {
+                await readExaltedCodes().catch(() => {});
+            }
+        });
+    // The row's run is asked at once, so a level committed after the flip on that row still saves after it.
     const setExalted = (code, exalted, run) =>
-        run(
-            () =>
-                inTurn(async () => {
-                    try {
-                        const next = new Set(normalizeExaltedCodes(await gga("Compass[4]")));
-                        if (exalted) next.add(code);
-                        else next.delete(code);
-                        await writeVerified("Compass[4]", [...next].sort(sortPrefixedNumericCodes));
-                        exaltedCodes.val = next;
-                    } catch (error) {
-                        await readExaltedCodes().catch(() => {}); // the switch then shows what the game holds
-                        throw error;
-                    }
-                }),
-            "switch"
-        );
+        run(() => saveExalted((next) => (exalted ? next.add(code) : next.delete(code))), "switch");
 
     // Each stamp page is a tab; its rows live in its pane.
     const pageContainers = PAGES.map(() => div({ class: "account-page-pane" }));
@@ -188,7 +187,8 @@ const StampsTab = () => {
     const tools = (activeId, ask) => {
         const page = () => pageOf(activeId);
         const codesOn = (p) => stampsOn(p).map((stamp) => makeExaltedStampCode(p.id, stamp.order));
-        const exaltedOn = (p) => codesOn(p).filter((code) => exaltedCodes.val.has(code)).length;
+        const exaltedCodesOn = (p) => codesOn(p).filter((code) => exaltedCodes.val.has(code));
+        const exaltedOn = (p) => exaltedCodesOn(p).length;
 
         const writeLevels = (p, level) =>
             bulk.run(() =>
@@ -216,13 +216,18 @@ const StampsTab = () => {
         const setAll = () => {
             const level = typedLevel();
             if (level === null) return refuseSetAll(setAllInput);
-            const p = page();
-            const lowered = stampsOn(p).filter((stamp) => Number(stamp.levelState.val) > level).length;
+            return askOrWrite(page(), level);
+        };
+        const askOrWrite = (p, level) => {
+            const loweredOf = () => stampsOn(p).filter((stamp) => Number(stamp.levelState.val) > level);
+            const lowered = loweredOf().length;
             if (!lowered) return writeLevels(p, level);
             ask({
                 question: `Lower ${lowered} ${stampWord(p, lowered)} to level ${level}?`,
                 confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
                 from: setAllControl.querySelector(".account-btn"),
+                lowers: loweredOf,
+                again: () => askOrWrite(p, level),
                 onConfirm: () => writeLevels(p, level),
             });
             return undefined;
@@ -233,17 +238,7 @@ const StampsTab = () => {
             const p = page();
             const codes = codesOn(p);
             return bulk.run(() =>
-                inTurn(async () => {
-                    try {
-                        const next = new Set(normalizeExaltedCodes(await gga("Compass[4]")));
-                        codes.forEach((code) => (exalted ? next.add(code) : next.delete(code)));
-                        await writeVerified("Compass[4]", [...next].sort(sortPrefixedNumericCodes));
-                        exaltedCodes.val = next;
-                    } catch (error) {
-                        await readExaltedCodes().catch(() => {});
-                        throw error;
-                    }
-                })
+                saveExalted((next) => codes.forEach((code) => (exalted ? next.add(code) : next.delete(code))))
             );
         };
 
@@ -254,7 +249,19 @@ const StampsTab = () => {
             status: bulk.status,
             onApply: setAll,
         });
-        // Taking exalts away asks first, in the tray.
+        // Taking exalts away asks first, in the tray; once none is left to take, it does nothing.
+        const askUnexalt = (p) => {
+            const n = exaltedOn(p);
+            if (!n) return;
+            ask({
+                question: `Unexalt ${n} ${stampWord(p, n)}?`,
+                confirmLabel: n === 1 ? "Unexalt it" : "Unexalt them",
+                from: unexaltAll,
+                lowers: () => exaltedCodesOn(p),
+                again: () => askUnexalt(p),
+                onConfirm: () => exaltAll(false),
+            });
+        };
         const unexaltAll = ActionButton({
             label: "Unexalt all",
             status: bulk.status,
@@ -262,14 +269,7 @@ const StampsTab = () => {
             disabled: () => exaltedOn(page()) === 0,
             onClick: (e) => {
                 e.preventDefault();
-                const p = page();
-                const n = exaltedOn(p);
-                ask({
-                    question: `Unexalt ${n} ${stampWord(p, n)}?`,
-                    confirmLabel: n === 1 ? "Unexalt it" : "Unexalt them",
-                    from: unexaltAll,
-                    onConfirm: () => exaltAll(false),
-                });
+                askUnexalt(page());
             },
         });
 

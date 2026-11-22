@@ -73,47 +73,51 @@ const type = async (name, value) => {
 
 test("a pick row shows its lines under the name and its picks beside the stop-at", () => {
     assert.match(text(whisker()), /Costs 5 coins/);
-    assert.deepEqual(tagged(select("priority"), "option").map(text), ["High", "Low", "Balanced"], "the engine's order");
-    assert.equal(selected(select("priority")), "Balanced", "nothing picked yet shows the default");
+    assert.deepEqual(
+        tagged(select("save for it"), "option").map(text),
+        ["No", "Yes"],
+        "Save for it: off is the default"
+    );
+    assert.equal(selected(select("save for it")), "No", "nothing picked yet shows the default");
     assert.ok(select("pay with"));
     assert.equal(tagged(row(page, "Royal Pebble"), "select").length, 0, "a row without selects has none");
 });
 
 test("a priority saves on the item with the rest of the list, and the page reads the game after it", async () => {
     const before = reads;
-    await choose("priority", 0);
-    assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, priority: 1 }], "kept while switched off");
+    await choose("save for it", 1);
+    assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, save: true }], "kept while switched off");
     assert.deepEqual(lastSave("shops"), lastUpdate("shops"), "the file gets the same list");
-    assert.equal(picks.field("0:item0", "priority").val, 1);
+    assert.equal(picks.field("0:item0", "save").val, true);
     assert.ok(reads > before, "the page's read ran after the save");
 });
 
 test("another setting and a switch keep the item's priority; the default is left out", async () => {
     await choose("pay with", 1);
-    assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, priority: 1, payWith: "particles" }]);
-    await choose("priority", 2); // Balanced
+    assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, save: true, payWith: "particles" }]);
+    await choose("save for it", 0); // No, the default
     assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, payWith: "particles" }]);
     await choose("pay with", 0); // Materials, the default
     assert.deepEqual(lastUpdate("shops"), [], "a switched-off item with no setting left drops out");
 });
 
 test("a read of the list keeps every setting an item carries", async () => {
-    picks.sync([{ id: "0:item0", on: true, priority: 2, payWith: "particles", stopAt: 4 }]);
-    assert.equal(picks.field("0:item0", "priority").val, 2);
+    picks.sync([{ id: "0:item0", on: true, save: true, payWith: "particles", stopAt: 4 }]);
+    assert.equal(picks.field("0:item0", "save").val, true);
     assert.equal(numberField(whisker()).value ?? picks.get("0:item0").draft.val, "4");
-    await choose("priority", 0);
-    assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: true, stopAt: 4, priority: 1, payWith: "particles" }]);
+    await choose("pay with", 0);
+    assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: true, save: true, stopAt: 4 }]);
 });
 
 test("a refused pick goes back to what the game holds and says why at the row", async () => {
     fake.refuseUpdates = true;
     try {
-        await choose("priority", 1);
+        await choose("save for it", 0);
     } finally {
         fake.refuseUpdates = false;
     }
     await until(() => /save-state--error/.test(saveState(whisker())), "the row to say the save failed");
-    assert.equal(picks.field("0:item0", "priority").val, 1, "still High, as the game holds");
+    assert.equal(picks.field("0:item0", "save").val, true, "still saved for, as the game holds");
     assert.match(text(whisker()), /the game is busy/);
 });
 

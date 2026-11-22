@@ -145,6 +145,30 @@ const SigilTab = () => {
                 })
             );
         const tierButtons = SIGIL_TIERS.map((tier) => {
+            // Lowering (locking included) takes tiers away, so it asks first; raising runs on one press.
+            const askOrWrite = (indices) => {
+                const loweredOf = () => indices.filter((index) => Number(sigilTier[index].val) > tier.value);
+                const lowered = loweredOf().length;
+                if (!lowered) return void writeTier(indices, tier.value);
+                ask({
+                    question:
+                        tier.value < 0
+                            ? `Lock ${lowered} ${sigilWord(lowered)}?`
+                            : `Lower ${lowered} ${sigilWord(lowered)} to ${tierLabel(tier.value)}?`,
+                    confirmLabel:
+                        tier.value < 0
+                            ? lowered === 1
+                                ? "Lock it"
+                                : "Lock them"
+                            : lowered === 1
+                              ? "Lower it"
+                              : "Lower them",
+                    from: tierButton,
+                    lowers: loweredOf,
+                    again: () => askOrWrite(indices),
+                    onConfirm: () => writeTier(indices, tier.value),
+                });
+            };
             const tierButton = ActionButton({
                 label: tier.label,
                 status: bulk.status,
@@ -154,26 +178,7 @@ const SigilTab = () => {
                 },
                 onClick: (e) => {
                     e.preventDefault();
-                    const indices = shownIndices();
-                    // Lowering (locking included) takes tiers away, so it asks first; raising runs on one press.
-                    const lowered = indices.filter((index) => Number(sigilTier[index].val) > tier.value).length;
-                    if (!lowered) return void writeTier(indices, tier.value);
-                    ask({
-                        question:
-                            tier.value < 0
-                                ? `Lock ${lowered} ${sigilWord(lowered)}?`
-                                : `Lower ${lowered} ${sigilWord(lowered)} to ${tierLabel(tier.value)}?`,
-                        confirmLabel:
-                            tier.value < 0
-                                ? lowered === 1
-                                    ? "Lock it"
-                                    : "Lock them"
-                                : lowered === 1
-                                  ? "Lower it"
-                                  : "Lower them",
-                        from: tierButton,
-                        onConfirm: () => writeTier(indices, tier.value),
-                    });
+                    return askOrWrite(shownIndices());
                 },
             });
             return tierButton;

@@ -1,5 +1,5 @@
 // Cooking automation (#92, decided with Lumi on 2026-11-17): "automation cooking" levels switched-on kitchen upgrades
-// with their spice (each spice saving and buying on its own, High / Low / Balanced, saving %) and switched-on meals
+// with their spice (each spice saving and buying on its own, "Save for it", saving %) and switched-on meals
 // with their own quantity, up to the stop-at (and the meal max); while Food Lust stacks are held the priciest
 // affordable meal goes first, because any meal level-up spends them all. It pays what the game charges.
 import assert from "node:assert/strict";
@@ -11,8 +11,6 @@ const { gga, context, cheat, state } = await loadGame();
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-const HIGH = 1;
-const LOW = 2;
 // Kitchen k's upgrade slot s is id 3k + s and pays with spice 2k + s, so ids 2 (kitchen 1 Luck) and 3 (kitchen 2
 // Speed) share spice 2. Each costs its base times (level + 1).
 const KITCHEN_BASE = [5, 7, 10, 25, 9, 11, 3, 3, 3];
@@ -130,18 +128,18 @@ test("each spice buys on its own, and an upgrade never takes another spice", asy
     await cheat("automation cooking", false);
 });
 
-test("High goes first when affordable; Balanced waits for the High or Low goal beyond saving %", async () => {
+test("a saved-for upgrade goes first when affordable; the others wait for the goal beyond saving %", async () => {
     setGame();
     gga.Meals[3][2] = 30;
     setPicks({
         kitchens: [
             { id: "2", on: true },
-            { id: "3", on: true, priority: HIGH },
+            { id: "3", on: true, save: true },
         ],
     });
     await cheat("automation cooking", true);
     tick();
-    // High kitchen 2 Speed (25) before the cheaper Balanced kitchen 1 Luck (10); the 5 left buys nothing.
+    // Saved-for kitchen 2 Speed (25) before the cheaper kitchen 1 Luck (10); the 5 left buys nothing.
     assert.deepEqual([levels()[0][2], levels()[1][0]], [0, 1]);
     assert.equal(gga.Meals[3][2], 5);
 
@@ -150,7 +148,7 @@ test("High goes first when affordable; Balanced waits for the High or Low goal b
     setPicks({
         kitchens: [
             { id: "2", on: true },
-            { id: "3", on: true, priority: LOW },
+            { id: "3", on: true, save: true },
         ],
     });
     tick();
@@ -166,7 +164,7 @@ test("High goes first when affordable; Balanced waits for the High or Low goal b
     setPicks({
         kitchens: [
             { id: "2", on: true },
-            { id: "3", on: true, priority: LOW },
+            { id: "3", on: true, save: true },
         ],
         saving,
     });
@@ -370,7 +368,7 @@ test("the tab's read: each spice with what it holds and saves for, every upgrade
     setGame();
     gga.Meals[3] = [1, 2, 3, 4, 5, 6, 7];
     gga.Meals[0][3] = 4;
-    setPicks({ kitchens: [{ id: "4", on: true, priority: LOW }] });
+    setPicks({ kitchens: [{ id: "4", on: true, save: true }] });
     const read = readComputed("automation", "cooking").value;
     assert.deepEqual(
         read.spices.map(({ spice, owned, goal }) => [spice, owned, goal]),

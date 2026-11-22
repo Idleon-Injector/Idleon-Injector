@@ -1,5 +1,5 @@
 // Automation (#92), World 6 › Sneaking: "automation sneaking" buys the switched-on Ninja Knowledge upgrades with jade
-// coins every second by the shared rule (High / Low / Balanced, saving %), each up to its stop-at, only once
+// coins every second by the shared rule ("Save for it", saving %), each up to its stop-at, only once
 // unlocked, only while a character is in its map, and only what the jade pays for at the game's own price.
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
@@ -10,8 +10,6 @@ const { gga, context, cheat, state } = await loadGame();
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-const HIGH = 1;
-const LOW = 2;
 const ROWS = 32;
 // Base cost and parent per row; the rest cost 1e6 and have row 13 as parent. Rows 17+ unlock with the reef level.
 const BASE = { 13: 50, 14: 80, 12: 350, 8: 1250, 15: 3650, 16: 25000 };
@@ -81,7 +79,7 @@ const turnOff = async () => {
 test("the Sneaking tab reads jade and every upgrade but the placeholder, with its bonus text and lock", () => {
     setGame({ jade: 500, levels: { 13: 3, 14: 0 } });
     setItems([
-        { id: "14", on: true, priority: LOW },
+        { id: "14", on: true, save: true },
         { id: "12", on: true },
     ]);
     const { value } = readComputed("automation", "sneaking");
@@ -198,13 +196,13 @@ test("Star Sweeping refreshes the daily revives as the click does", async () => 
     await turnOff();
 });
 
-test("High goes first when affordable; while saving for a Low goal Balanced buys only up to saving %", async () => {
-    // 16 costs 25000 (Low goal), 13 costs 100, 12 costs 350, 15 costs 3650 (High).
+test("a saved-for upgrade goes first when affordable; while saving the others buy only up to saving %", async () => {
+    // 16 costs 25000 (saved for), 13 costs 100, 12 costs 350, 15 costs 3650 (saved for).
     setGame({ jade: 4200, levels: { 13: 1, 14: 1, 15: 0 } });
     setItems(
         [
-            { id: "16", on: true, priority: LOW },
-            { id: "15", on: true, priority: HIGH, stopAt: 1 },
+            { id: "16", on: true, save: true },
+            { id: "15", on: true, save: true, stopAt: 1 },
             { id: "13", on: true, stopAt: 2 },
             { id: "12", on: true, stopAt: 1 },
         ],
@@ -212,7 +210,7 @@ test("High goes first when affordable; while saving for a Low goal Balanced buys
     );
     await turnOn();
     tick();
-    // High 15 first (3650 of 4200), which unlocks 16; the goal is then the Low 16 at 25000. Balanced may spend 1% of
+    // Saved-for 15 first (3650 of 4200), which unlocks 16; the goal is then 16 at 25000. The others may spend 1% of
     // it, 250: 13 (100) buys, and 12 (350) waits although the 450 left would pay for it.
     assert.equal(levels()[15], 1);
     assert.equal(levels()[13], 2);

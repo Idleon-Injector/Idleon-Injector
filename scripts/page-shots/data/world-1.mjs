@@ -44,6 +44,40 @@ const TAR_PIT_UPGRADES = [
     "Slick_Hook",
 ];
 
+// The game's own Owlz [4] (the real-game bonus), [5] (the upgrade's line, with marks the menu fills in) and [6] (what a
+// level adds), rows 0-28 in order, so the automation tab shows the game's words.
+const OWL_TEXTS = [
+    ["{/sec", "Generates_}_feather_per_second", "0"],
+    ["+{%_Class_XP", "Gain_a_permanent_bonus_in_the_real_game!_This_upgrade_never_resets.", "0"],
+    ["+{_Base_DMG", "Boosts_feather_generation_by_+}%", "0"],
+    ["+{%_Total_DMG", "All_feather_upgrades_are_@%_cheaper", "0"],
+    ["+{%_Skill_XP", "Reset_almost_all_Upgrades_and_Feathers._Generate_{x_Feathers", "0"],
+    ["+{%_Drop_Rate", "Generates_+}_more_feathers_per_second", "0"],
+    ["+{_All_Stat", "Rare_chance_for_a_Shiny_Feather,_each_one_gives_+}%_feather_generation", "0"],
+    ["{", "All_feather_upgrades_are_}%_cheaper", "0"],
+    ["Nah", "Reset_almost_everything._Gain_a_permanent_Megafeather", "0"],
+    ["{/minute", "Catch_{_Fish_every_30_seconds", "10"],
+    ["+{%_Fish_Efficiency", "Bluefin_fishing_speed_is_]x_Faster", "5"],
+    ["+{_Defence", "Catch_Shiny_Fish_at_a_rate_of_{%/hr", "50"],
+    ["+{%_Fishing_XP", "Gain_a_permanent_bonus_in_the_real_game!", "10"],
+    ["+{%_Accuracy", "All_fish_upgrades_are_~%_cheaper", "10"],
+    ["+{%_Total_DMG", "Catch_+{_more_Bluefin_Fish_each_time", "50"],
+    ["+{%_AFK_Gains", "Reset_all_upgrades_and_fish_for_bonuses!", "1"],
+    ["+{%_Cash", "Recruit_a_new_Bluefin_fisherman!", "1"],
+    ["Nah", "Shiny_fishing_speed_is_]x_faster", "5"],
+    ["Nah", "Next_Fisheroo_Reset_gives_+{_more_pts!", "1"],
+    ["Nah", "Catch_+{_more_Bluefin_Fish_each_time", "200"],
+    ["Nah", "Reset_it_all._Gain_a_permanent_Megafish", "5"],
+    ["+{%_Accuracy", "Catch_+{_more_Bluefin_Fish_each_time", "100"],
+    ["+{%_Total_DMG", "+?%_chance_for_extra_shiny_catches", "700"],
+    ["+{%_AFK_Gains", "Boosts_the_amount_of_Bluefin_Fish_caught_by_+{%", "8"],
+    ["+{%_Cash", "All_bluefin_fish_upgrades_are_~%_cheaper", "15"],
+    ["Nah", "Catch_Tartar_Fish_]x_faster", "5"],
+    ["Nah", "Next_Fisheroo_Reset_gives_+{_more_pts_to_spend!", "1"],
+    ["Nah", "Multipliers_in_Shiny_Fishing_show_up_?%_more_often!", "30"],
+    ["Nah", "Catch_+{_more_Bluefin_Fish_every_100_seconds", "1000"],
+];
+
 export default () => ({
     gga: {
         StampLevel: list(3, (tab) => list(STAMP_COUNTS[tab], (i) => (i * 7 + tab * 3) % 60)),
@@ -85,11 +119,23 @@ export default () => ({
                 CompanionDB: COMPANIONS,
                 CompanionSetsInfo: COMPANION_SETS,
                 // Rows 0-8 are Orion's upgrades (World 1), 9-20 Poppy's and 21-28 the Tar Pit's (World 2);
-                // [name, ..., feathers or fish produced that unlock it].
+                // [name, ..., feathers or fish produced that unlock it, the game's texts].
                 Owlz: [
-                    ...OWL_UPGRADES.map((name, i) => [name, "0", "0", String(i === 0 ? 0 : 1e3 * 10 ** i)]),
-                    ...POPPY_UPGRADES.map((name, i) => [name, "0", "0", String(i === 0 ? 0 : 500 * 4 ** i)]),
-                    ...TAR_PIT_UPGRADES.map((name) => [name, "0", "0", "0"]),
+                    ...OWL_UPGRADES.map((name, i) => [
+                        name,
+                        "0",
+                        "0",
+                        String(i === 0 ? 0 : 1e3 * 10 ** i),
+                        ...OWL_TEXTS[i],
+                    ]),
+                    ...POPPY_UPGRADES.map((name, i) => [
+                        name,
+                        "0",
+                        "0",
+                        String(i === 0 ? 0 : 500 * 4 ** i),
+                        ...OWL_TEXTS[9 + i],
+                    ]),
+                    ...TAR_PIT_UPGRADES.map((name, i) => [name, "0", "0", "0", ...OWL_TEXTS[21 + i]]),
                 ],
             },
         },

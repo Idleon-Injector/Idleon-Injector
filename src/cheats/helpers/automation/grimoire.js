@@ -4,13 +4,13 @@
  *
  * Upgrade i is cList.GrimoireUpg[i]: [3] its bone (OptionsListAccount[330 + bone]), [4] its max level (999999 is
  * none), [6] the total of all levels that unlocks it. Its level is Grimoire[i]; "Ripped_Page" rows are placeholders.
- * Settings: cheatConfig.automation.grimoire, one { id, on, stopAt, priority } per upgrade (id the row index), and
+ * Settings: cheatConfig.automation.grimoire, one { id, on, stopAt, save } per upgrade (id the row index), and
  * cheatConfig.automation.grimoireSaving, the saving % the four bone types share.
  */
 
 import { cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, comma, inMap, nextGoal, notate } from "./engine.js";
 
 const BONES = ["femur", "ribcage", "cranium", "bovinae"];
 const NO_MAX = 999999;
@@ -46,7 +46,7 @@ function upgradesFor(bone) {
         const entry = settings.get(String(i));
         if (!entry?.on || placeholder(row) || Number(row[3]) !== bone || i >= unlocked) return [];
         if (gga.Grimoire[i] >= Number(row[4]) || !belowStopAt(gga.Grimoire[i], entry.stopAt)) return [];
-        return [{ id: i, cost: summoning("GrimoireUpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
+        return [{ id: i, cost: summoning("GrimoireUpgCost", i, 0), save: Boolean(entry.save), buy: () => buy(i) }];
     });
 }
 
@@ -76,6 +76,21 @@ export function grimoireStatus() {
     return `Buying ${upgrades}; ${bought === 1 ? "1 level" : `${bought} levels`} bought since it started`;
 }
 
+// An upgrade's line in the Grimoire (GrimoireUpg[i][9]), filled in from GrimoireUpgBonus as the menu does.
+function bonusOf(row, i) {
+    const value = summoning("GrimoireUpgBonus", i, 0);
+    const small = value < 1e9;
+    let multiplier = notate(1 + value / 100);
+    if (small)
+        multiplier = value < 1e3 ? `${parseFloat((1 + value / 100).toFixed(2))}x` : comma(Math.floor(1 + value / 100));
+    return String(row[9])
+        .split("{")
+        .join(small ? comma(value) : notate(value))
+        .split("}")
+        .join(multiplier)
+        .replace(/_/g, " ");
+}
+
 /** The bones (owned, and what each saves for) and every upgrade, for Classes › Grimoire › Automation. */
 export function getAutomationGrimoire() {
     const unlocked = summoning("GrimoireUpgUNLOCKED", 0, 0);
@@ -97,6 +112,7 @@ export function getAutomationGrimoire() {
                     cost: summoning("GrimoireUpgCost", i, 0),
                     unlockAt: Number(row[6]),
                     unlocked: i < unlocked,
+                    bonus: bonusOf(row, i),
                 },
             ];
         }),

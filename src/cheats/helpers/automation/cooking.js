@@ -5,13 +5,13 @@
  *
  * Kitchen k's upgrades are ids 3k + slot (0 Speed, 1 Fire, 2 Luck): level Cooking[k][6 + slot], paid with spice
  * Meals[3][CookingUpgSpiceCostType], so neighbouring kitchens share a spice. Each spice saves and buys on its own
- * (High / Low / Balanced, saving % per spice). There is no max level, so the stop-at is the cap.
+ * ("Save for it", saving % per spice). There is no max level, so the stop-at is the cap.
  *
  * Meals: level Meals[0][i] (0 until discovered), quantity Meals[2][i], one max level for all. Food Lust stacks
  * (OLA[193], up to Dream[11]) discount every meal, and any level-up spends them all, so while stacks are held the
  * priciest affordable meal buys first; otherwise the cheapest.
  *
- * Settings: cheatConfig.automation.kitchens [{ id, on, stopAt, priority }], .kitchenSaving (a % per spice) and
+ * Settings: cheatConfig.automation.kitchens [{ id, on, stopAt, save }], .kitchenSaving (a % per spice) and
  * .meals [{ id, on, stopAt }].
  */
 
@@ -63,10 +63,10 @@ function buyMeal(i) {
 
 /** The switched-on kitchen upgrades spice `spice` may buy now: owned kitchens below their stop-at. */
 function kitchenItems(spice) {
-    return cheatConfig.automation.kitchens.flatMap(({ id, on, stopAt, priority }) => {
+    return cheatConfig.automation.kitchens.flatMap(({ id, on, stopAt, save }) => {
         const n = Number(id);
         if (!on || !kitchenOwned(n) || spiceOf(n) !== spice || !belowStopAt(kitchenLevel(n), stopAt)) return [];
-        return [{ id: n, cost: kitchenCost(n), priority, buy: () => buyKitchen(n) }];
+        return [{ id: n, cost: kitchenCost(n), save: Boolean(save), buy: () => buyKitchen(n) }];
     });
 }
 

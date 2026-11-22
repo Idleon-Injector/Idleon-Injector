@@ -76,9 +76,9 @@ test("switching an upgrade on saves the list and turns the Grimoire automation o
 });
 
 test("a High choice saves, and the bone line reads what it now saves for from the game", async () => {
-    await kit.choose(pick(femurUpgrade.id), "priority", 0);
-    assert.equal(sent("grimoire")[0].priority, 1);
-    assert.equal(selected(pick(femurUpgrade.id)), "High");
+    await kit.choose(pick(femurUpgrade.id), "save for it", 1);
+    assert.equal(sent("grimoire")[0].save, true);
+    assert.equal(selected(pick(femurUpgrade.id)), "Yes");
     await until(
         () => /^Saving for /.test(boneLine("Femur")),
         () => `the femur goal: ${boneLine("Femur")}`
@@ -96,8 +96,8 @@ test("the saving % saves on Enter to its own key, and a value over 100 is refuse
 
 test("a refused save puts the game's choice back and says why at the row", async () => {
     kit.fake.refuseNextUpdates = 1;
-    await kit.choose(pick(femurUpgrade.id), "priority", 1);
-    assert.equal(selected(pick(femurUpgrade.id)), "High");
+    await kit.choose(pick(femurUpgrade.id), "save for it", 1);
+    assert.equal(selected(pick(femurUpgrade.id)), "Yes");
     assert.match(text(pick(femurUpgrade.id)), /the game is busy/);
 });
 
@@ -107,5 +107,5 @@ test("Enable all switches every upgrade on; Disable all asks Click again and kee
     assert.equal(sent("grimoire").filter(({ on }) => on).length, game.upgrades.length);
     await kit.clickTwice(page, "Disable all");
     assert.ok(sent("grimoire").every(({ on }) => !on));
-    assert.equal(sent("grimoire").find(({ id }) => id === String(femurUpgrade.id)).priority, 1);
+    assert.equal(sent("grimoire").find(({ id }) => id === String(femurUpgrade.id)).save, true);
 });

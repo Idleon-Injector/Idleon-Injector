@@ -63,17 +63,17 @@ test("switching an upgrade on saves the list and switches Bubba on, now and at s
 
 test("a priority saves on the item, and the status line follows after the save", async () => {
     await kit.flip(row("Tiny Tide"), true);
-    await kit.choose(row("Tiny Tide"), "priority", 1); // Low
+    await kit.choose(row("Tiny Tide"), "save for it", 1); // Low
     assert.deepEqual(sent("bubba"), [
         { id: "0", on: true },
-        { id: "1", on: true, priority: 2 },
+        { id: "1", on: true, save: true },
     ]);
-    assert.equal(selected(row("Tiny Tide")), "Low");
+    assert.equal(selected(row("Tiny Tide")), "Yes");
     await until(
         () => meatLine() === "Saving for Tiny Tide (64 meat)",
         () => `the goal: ${meatLine()}`
     );
-    await kit.choose(row("Tiny Tide"), "priority", 2); // Balanced
+    await kit.choose(row("Tiny Tide"), "save for it", 0); // Balanced
     assert.deepEqual(sent("bubba")[1], { id: "1", on: true }, "Balanced leaves no priority");
     await until(
         () => meatLine() === "Buying cheapest first",
@@ -105,12 +105,12 @@ test("switched off, the meat line goes and the switch row says Off", async () =>
 });
 
 test("Enable all switches every upgrade on in one save; Disable all asks Click again and keeps priorities", async () => {
-    await kit.choose(row("Tiny Tide"), "priority", 0); // High
+    await kit.choose(row("Tiny Tide"), "save for it", 1); // High
     await kit.button(page, "Enable all").listeners.click({ preventDefault() {} });
     await kit.idle();
     assert.equal(sent("bubba").filter(({ on }) => on).length, 28);
     assert.equal(kit.running("automation bubba"), true, "and Bubba with them");
     await kit.clickTwice(page, "Disable all");
     assert.ok(sent("bubba").every(({ on }) => !on));
-    assert.equal(sent("bubba").find(({ id }) => id === "1").priority, 1, "High stays");
+    assert.equal(sent("bubba").find(({ id }) => id === "1").save, true, "High stays");
 });
