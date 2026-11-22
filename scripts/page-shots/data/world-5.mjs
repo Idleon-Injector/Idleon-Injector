@@ -24,11 +24,8 @@ const TREASURES = 1 + ISLANDS.length * 2;
 // The game's letters for its superbits run past the alphabet; the base data stops at "z".
 const LETTERS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&()*+,-./:;<=>?@[]^`{|}~";
 
-// The client's code doesn't name the sailing treasures or cove shapes (the game fills them in later): stand-ins.
+// The client's code doesn't name the cove shapes (the game fills them in later): stand-ins.
 const itemNames = {
-    ...Object.fromEntries(
-        list(TREASURES, (n) => [`SailTr${n}`, h({ displayName: n === 0 ? "Gold_Bar" : `${fakeName(n)}_Treasure` })])
-    ),
     ...Object.fromEntries(
         list(12, (s) => [`HoleGshape${s}`, h({ displayName: `${s < 6 ? "Blue" : "Purple"}_${fakeName(s + 3)}` })])
     ),
@@ -80,7 +77,16 @@ export default () => ({
         // Slots 0-29 are hired (rarity -1: empty), 30 and up the Recruitment pool.
         Captains: list(CAPTAIN_SLOTS, (c) =>
             c < HIRED || c >= 30
-                ? [c % 7, c % 5, (c + 2) % 5, 20 + ((c * 9) % 60), 1800.5 * (c + 1), 3 + (c % 4), 2 + (c % 3)]
+                ? // A rarity-0 captain has one bonus; the game keeps -1 for the other.
+                  [
+                      c % 7,
+                      c % 5,
+                      c % 7 === 0 ? -1 : (c + 2) % 5,
+                      20 + ((c * 9) % 60),
+                      1800.5 * (c + 1),
+                      3 + (c % 4),
+                      2 + (c % 3),
+                  ]
                 : [-1, 0, 0, 0, 0, 0, 0]
         ),
         GemItemsPurchased: { 8: 3 },

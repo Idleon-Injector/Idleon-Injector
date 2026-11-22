@@ -17,14 +17,14 @@
  *   gga.Sailing[0][i]             - island i's cloud progress; -1 once unlocked (cList.IslandInfo: one per island)
  *   gga.Sailing[3][n]             - artifact n's tier: 0 not found, 1 found, then Ancient up to Verisimilitude (7);
  *                                   cList.ArtifactInfo[n] [0] its name, [4] its bonus
- *   gga.Sailing[1][n]             - how many of treasure n you have (0 is Gold Bars);
- *                                   ItemDefinitionsGET.h.SailTr{n}.displayName names it
+ *   gga.Sailing[1][n]             - how many of treasure n you have: 0 is Gold Bars, then two per island in the map's
+ *                                   order (the game's item list has only placeholder names for them)
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
-import { gga, readCList, readGgaEntries } from "../../../services/api.js";
+import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
@@ -46,7 +46,6 @@ import {
     runBulkSet,
     toInt,
     toNum,
-    unwrapH,
     useWriteStatus,
     writeManyVerified,
     writeVerified,
@@ -175,6 +174,12 @@ const CaptainsPart = ({ pending, reload }) => {
     const reconcilePool = createStaticRowReconciler(poolNode);
     // A kind in a word or two ("Boat Speed"): the title holds two of them.
     const kindLabel = (index) => kinds.val[index]?.short ?? `Bonus ${index + 1}`;
+    // A low-rarity captain has one bonus: the game keeps -1 for the other ("None" on its picker, left off the title).
+    const titleOf = (state) =>
+        [state.kind1.val, state.kind2.val]
+            .filter((kind) => kind >= 0)
+            .map(kindLabel)
+            .join(" · ");
 
     // A bonus kind: a step picker that saves on a pick, like a sigil's tier.
     const KindRow = (slot, pick) => {
@@ -191,7 +196,7 @@ const CaptainsPart = ({ pending, reload }) => {
                             await writeVerified(path, kind);
                         } catch (saveError) {
                             // The picker shows the kind the game holds, so the same pick can be tried again.
-                            kindState.val = toInt(await gga(path).catch(() => kindState.val), { min: 0 });
+                            kindState.val = toNum(await gga(path).catch(() => kindState.val), -1);
                             if (picked.val === kind) picked.val = kindState.val;
                             throw saveError;
                         }
@@ -211,7 +216,10 @@ const CaptainsPart = ({ pending, reload }) => {
                 StepPicker({
                     name: `Captain ${slot + 1} ${pick.label.toLowerCase()}`,
                     className: "captain-kinds",
-                    steps: kinds.val.map((kind) => ({ value: kind.index, label: kind.short })),
+                    steps: [
+                        { value: -1, label: "None" },
+                        ...kinds.val.map((kind) => ({ value: kind.index, label: kind.short })),
+                    ],
                     picked: () => picked.val,
                     onPick: (kind) => {
                         picked.val = kind;
@@ -308,7 +316,7 @@ const CaptainsPart = ({ pending, reload }) => {
                     "aria-expanded": () => String(isOpen()),
                     onclick: () => (openSlot.val = isOpen() ? -1 : slot),
                 },
-                RowTitles({ bonus: () => `${kindLabel(state.kind1.val)} · ${kindLabel(state.kind2.val)}`, name })
+                RowTitles({ bonus: () => titleOf(state), name })
             ),
             fields: CAPTAIN_FIELDS.map((field) => ({
                 ...field,
@@ -373,8 +381,8 @@ const CaptainsPart = ({ pending, reload }) => {
                     const raw = captain[field.index];
                     state[field.key].val = field.formatted ? toNum(raw, 0) : toInt(raw, { min: 0 });
                 });
-                state.kind1.val = toInt(captain[1], { min: 0 });
-                state.kind2.val = toInt(captain[2], { min: 0 });
+                state.kind1.val = toNum(captain[1], -1);
+                state.kind2.val = toNum(captain[2], -1);
             }
         },
     };
@@ -625,11 +633,14 @@ const LootPilePart = () => {
             const amounts = toIndexedArray(rawAmounts ?? []);
             // Each island has two treasures, after the Gold Bars.
             const count = Math.max(amounts.length, 1 + toIndexedArray(rawIslands ?? []).length * 2);
-            const ids = Array.from({ length: count }, (_, n) => `SailTr${n}`);
-            const items = await readGgaEntries("ItemDefinitionsGET.h", ids, ["displayName"]);
-            const treasures = ids.map((id, index) => ({
+            // The game's item list holds no names for its treasures (only placeholders), so each is named by the
+            // island it comes from, as the Loot Pile groups them.
+            const treasures = Array.from({ length: count }, (_, index) => ({
                 index,
-                name: cleanName(unwrapH(items[id])?.displayName, `Treasure ${index + 1}`),
+                name:
+                    index === 0
+                        ? "Gold Bars"
+                        : `${ISLAND_NAMES[Math.floor((index - 1) / 2)] ?? `Island ${Math.floor((index - 1) / 2) + 1}`} treasure ${((index - 1) % 2) + 1}`,
             }));
             reconcileRows(treasures.map((treasure) => treasure.name).join("|"), () =>
                 treasures.map((treasure) =>

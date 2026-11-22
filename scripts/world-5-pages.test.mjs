@@ -105,7 +105,7 @@ test("Boats: Davey Jones Training saves its buys and refuses more than the shop'
 
 test("Captains: a captain's name opens its bonus kinds, and a pick saves that kind", async () => {
     const { root } = await openPane(SAILING, "Captains");
-    const row = rowNamed(root, "Captain 1");
+    const row = rowNamed(root, "Captain 2");
     const opener = byClass(row, "row-opener")[0];
     const detail = byClass(row, "row-detail")[0];
     assert.equal(attr(detail, "hidden"), true);
@@ -113,9 +113,9 @@ test("Captains: a captain's name opens its bonus kinds, and a pick saves that ki
     await until(() => attr(detail, "hidden") === false, "the bonus kinds to open");
     assert.equal(attr(opener, "aria-expanded"), "true");
     const first = byClass(detail, "account-row")[0];
-    click(radio(first, "Loot Value"));
-    await until(() => gga.Captains[0][1] === 1, "the first bonus kind to save");
-    await until(() => text(byClass(opener, "account-row__bonus")[0]).startsWith("Loot Value ·"), "the title to follow");
+    click(radio(first, "Rare Chest"));
+    await until(() => gga.Captains[1][1] === 4, "the first bonus kind to save");
+    await until(() => text(byClass(opener, "account-row__bonus")[0]).startsWith("Rare Chest ·"), "the title to follow");
 });
 
 // Review of #123: a captain's save handed back the EXP read before it, so the row showed old EXP over a newer read.
@@ -333,7 +333,8 @@ test("Slab: Missing only shows what isn't in, Register all adds them; Unregister
 });
 
 for (const [file, tab, name, read, value] of [
-    [SAILING, "Loot Pile", "Gold Bar", () => gga.Sailing[1][0], 60000],
+    [SAILING, "Loot Pile", "Gold Bars", () => gga.Sailing[1][0], 60000],
+    [SAILING, "Loot Pile", "Safari Island treasure 2", () => gga.Sailing[1][2], 700],
     [DIVINITY, null, "Arctis", () => gga.Divinity[29], 44],
     [DIVINITY, null, "Gods unlocked", () => gga.Divinity[25], 10],
     [GAMING, "Garden", "Bits", () => gga.Gaming[0], 123456],
@@ -488,4 +489,19 @@ test("search finds the Greenstacks on the Slab page", async () => {
         assert.equal(hit.label, "Greenstacks");
         assert.deepEqual(hit.target, { world: 5, page: "w5.slab", tab: "greenstacks" });
     }
+});
+
+// In game (SchiKrom, 2026-11-23): a rarity-0 captain's second bonus is -1, and the page called it Boat Speed.
+test("Captains: a captain with one bonus shows only that one, and its second picker says None", async () => {
+    const { pane } = await openPane(SAILING, "Captains");
+    const row = rowNamed(pane, "Captain 1");
+    assert.equal(gga.Captains[0][2], -1);
+    const opener = byClass(row, "row-opener")[0];
+    assert.equal(text(byClass(opener, "account-row__bonus")[0]), "Boat Speed");
+    click(opener);
+    const second = rowNamed(row, "Second bonus");
+    const picked = elements(second).find(
+        (node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true"
+    );
+    assert.equal(text(picked), "None");
 });
