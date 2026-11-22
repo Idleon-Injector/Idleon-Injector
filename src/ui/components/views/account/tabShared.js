@@ -94,9 +94,10 @@ let listCount = 0;
  * @param {(activeId: {val: string}) => string} [opts.toolsLabel]
  * @param {(tabId: string) => boolean} [opts.toolsOn] which tabs have tools (all, when not given): a tab without them
  *   shows no tray, and its open tab runs down into its rows like a list without tools
+ * @param {() => boolean} [opts.busy] true while the page saves: a question's Yes waits, so it can't start a second save
  * @returns {HTMLElement}
  */
-export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsOn = null }) => {
+export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsOn = null, busy = null }) => {
     const activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
     const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
@@ -139,7 +140,7 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsO
     const resized = new ResizeObserver(placePill);
     [nav, ...buttons].forEach((node) => resized.observe(node));
 
-    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId }) : null;
+    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId, busy }) : null;
     if (tray) van.derive(() => (tray.node.hidden = !showsTools()));
 
     let first = true;
@@ -178,7 +179,7 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsO
  * answer: no popup and no timer. Cancel or Escape drop it unanswered; `drop` does too (another tab), and so does a
  * change in the page search, since the question counted the rows the search showed when it was asked.
  */
-const ToolsTray = ({ tools, toolsLabel, activeId }) => {
+const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
     const asking = van.state(null);
     const questionId = `tabbed-list-question-${++listCount}`;
     const answer = (yes) => {
@@ -195,6 +196,7 @@ const ToolsTray = ({ tools, toolsLabel, activeId }) => {
             type: "button",
             class: "account-btn btn-danger btn-sm tabbed-list__yes",
             "aria-describedby": questionId,
+            disabled: () => Boolean(busy?.()),
             onclick: () => answer(true),
         },
         () => asking.val?.confirmLabel ?? ""
