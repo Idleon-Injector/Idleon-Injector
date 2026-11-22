@@ -22,6 +22,10 @@ export const WORLDS = [
             "Card Search",
             "Bundles",
             "Task Board",
+            // IdleonToolbox's Clickers, side by side: the menu has no level for a group inside Account.
+            "Orion",
+            "Poppy",
+            "Bubba",
             "Event Shop",
             "Quests",
             "Automation",
@@ -33,7 +37,7 @@ export const WORLDS = [
         label: "World 1",
         name: "Blunder Hills",
         folder: "world-1",
-        systems: ["Stamps", "Anvil", "Forge", "Statues", "Star Signs", "Pets", "Bribes", "Owl"],
+        systems: ["Stamps", "Anvil", "Forge", "Statues", "Star Signs", "Pets", "Bribes"],
     },
     {
         id: 2,
@@ -41,7 +45,7 @@ export const WORLDS = [
         label: "World 2",
         name: "Yum-Yum Desert",
         folder: "world-2",
-        systems: ["Alchemy", "Arcade Shop", "Post Office", "Killroy", "Islands", "Weekly Bosses", "Poppy"],
+        systems: ["Alchemy", "Arcade Shop", "Post Office", "Killroy", "Islands", "Weekly Bosses"],
     },
     {
         id: 3,
@@ -110,7 +114,6 @@ export const WORLDS = [
             "Glimbo",
             "The Button",
             "Sushi Station",
-            "Bubba",
         ],
     },
     {

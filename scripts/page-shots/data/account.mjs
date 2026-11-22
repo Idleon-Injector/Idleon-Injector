@@ -16,7 +16,7 @@ const EVENT_SHOP = 20;
 const ARMORY = 70;
 
 const vaultMax = (index) => 10 + (index % 5) * 10;
-// World 7 › Bubba › Automation: costs climb by upgrade, the last few unlock with more meat made.
+// Account › Bubba › Automation: costs climb by upgrade, the last few unlock with more meat made.
 const bubbaCost = (i) => Math.round(40 * 1.6 ** i);
 const bubbaUnlock = (i) => (i < 22 ? 0 : 10 ** (i - 16));
 

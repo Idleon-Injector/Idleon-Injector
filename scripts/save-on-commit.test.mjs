@@ -88,7 +88,7 @@ const words = (row) => text(byClass(row, "save-state__label")[0]);
 const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
 const writesSince = (start) => requests.slice(start).filter((entry) => entry.includes("/write"));
 
-const OWL = "src/ui/pages/world-1/owl/1-orion.js";
+const OWL = "src/ui/pages/account/orion/1-upgrades.js";
 
 test("Enter saves the value, shows the read-back ✓ and keeps the field", async () => {
     const root = await openPage(OWL, rowLoaded("Feather Generation"));

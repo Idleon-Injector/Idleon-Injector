@@ -1,5 +1,5 @@
 /**
- * World 2 › Poppy › Automation: which Poppy and Tar Pit upgrades "automation poppy" and "automation tarpit" buy
+ * Account › Poppy › Automation: which Poppy and Tar Pit upgrades "automation poppy" and "automation tarpit" buy
  * (see ClickerAutomationTab).
  */
 
@@ -8,8 +8,8 @@ import { formatNumber } from "../../../utils/numberFormat.js";
 import { ClickerAutomationTab } from "../../../components/views/account/ClickerAutomationTab.js";
 
 export default definePage({
-    id: "w2.kangaroo.automation",
-    world: 2,
+    id: "account.poppy.automation",
+    world: "account",
     system: "Poppy",
     tab: "Automation",
     description: "Poppy's and the Tar Pit's upgrades bought while her menu is open, each up to its stop-at level.",

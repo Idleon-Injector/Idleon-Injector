@@ -212,7 +212,7 @@ test("a save that never reached the game doesn't read the page again", async () 
 test("a reload shows the new value in a field that has focus but no edit, and + steps from it", async () => {
     const ola = game.gga.OptionsListAccount;
     ola[254] = 3;
-    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", "Feather Generation");
+    const root = await openPage("src/ui/pages/account/orion/1-upgrades.js", "Feather Generation");
     const row = findRow(root, "Feather Generation");
     const [input] = inputs(row);
     focus(input);
@@ -254,7 +254,7 @@ test("a focused choice shows the tier Set all gave it", async () => {
 test("leaving a rounded field the reload changed while it had focus saves nothing", async () => {
     const ola = game.gga.OptionsListAccount;
     ola[253] = 1234567;
-    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", "Feathers");
+    const root = await openPage("src/ui/pages/account/orion/1-upgrades.js", "Feathers");
     const row = findRow(root, "Feathers");
     const [input] = inputs(row);
     await until(() => input.value === "1.23M", "the page to show the value");

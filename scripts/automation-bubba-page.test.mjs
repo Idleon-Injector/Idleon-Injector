@@ -1,4 +1,4 @@
-// World 7 › Bubba › Automation (#92) on the fake game. Each upgrade row has High / Low / Balanced, a stop-at and a
+// Account › Bubba › Automation (#92) on the fake game. Each upgrade row has High / Low / Balanced, a stop-at and a
 // switch; the meat section has what it is doing (only while it runs) and the saving %. A change saves
 // cheatConfig.automation.bubba (a plain list) or bubbaSaving to the game and the config file; switching an upgrade on
 // switches the Bubba automation on; the tab reads the game again after every save.
@@ -9,7 +9,7 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, field, sent, fileSent, selected, status, until } = kit;
-const page = (await importRepo("src/ui/pages/world-7/bubba/2-automation.js")).default.component();
+const page = (await importRepo("src/ui/pages/account/bubba/2-automation.js")).default.component();
 const row = (name) => kit.row(page, name);
 const meatLine = () => text(byClass(page, "automation-goal")[0] ?? "");
 await until(() => row("Grand Stone"), "the Bubba automation tab to load");

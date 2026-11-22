@@ -1,5 +1,5 @@
 /**
- * World 1 › Owl › Automation: which Orion upgrades "automation orion" buys with feathers (see ClickerAutomationTab).
+ * Account › Orion › Automation: which Orion upgrades "automation orion" buys with feathers (see ClickerAutomationTab).
  */
 
 import { definePage } from "../../../menu/menuModel.js";
@@ -7,12 +7,12 @@ import { formatNumber } from "../../../utils/numberFormat.js";
 import { ClickerAutomationTab } from "../../../components/views/account/ClickerAutomationTab.js";
 
 export default definePage({
-    id: "w1.owl.automation",
-    world: 1,
-    system: "Owl",
+    id: "account.orion.automation",
+    world: "account",
+    system: "Orion",
     tab: "Automation",
     description: "Orion's upgrades bought with feathers, cheapest first, each up to its stop-at level.",
-    keywords: ["Orion", "Autobuy", "Auto buy", "Clicker", "Feather Restart", "Mega Reset", "Stop at"],
+    keywords: ["Owl", "Orion", "Autobuy", "Auto buy", "Clicker", "Feather Restart", "Mega Reset", "Stop at"],
     component: () =>
         ClickerAutomationTab({
             title: "AUTOMATION",

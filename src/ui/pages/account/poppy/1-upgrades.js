@@ -98,7 +98,7 @@ const PoppyTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Kangaroo",
+        title: "Poppy",
         description: "Poppy the kangaroo's fish, upgrades and Tar Pit.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
@@ -119,10 +119,10 @@ const PoppyTab = () => {
 };
 
 export default definePage({
-    id: "w2.kangaroo",
-    world: 2,
+    id: "account.poppy",
+    world: "account",
     system: "Poppy",
-    tab: "Poppy",
+    tab: "Upgrades",
     description: "Poppy the kangaroo's fishing upgrades, Tar Pit and Spiral Upgrades.",
     keywords: ["Kangaroo", "Poppy", "Clicker", "Tar Pit", "Spiral", "Bluefin", "Megafish"],
     component: PoppyTab,

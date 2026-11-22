@@ -251,10 +251,10 @@ const BubbaTab = () => {
 };
 
 export default definePage({
-    id: "w7.bubba",
-    world: 7,
+    id: "account.bubba",
+    world: "account",
     system: "Bubba",
-    tab: "Bubba",
+    tab: "Upgrades",
     description: "Bubba resources, upgrades, charisma, gifts, dice and smoked meat.",
     keywords: ["Clicker"],
     component: BubbaTab,

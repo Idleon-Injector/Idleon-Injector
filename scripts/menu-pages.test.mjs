@@ -118,7 +118,7 @@ test("search finds systems, tabs, extra words and areas by their old names", () 
             page("w7.button", 7, "The Button", { keywords: ["Button"] }),
             page("w7.sushi.shop", 7, "Sushi Station", { tab: "Shop", keywords: ["Sushi shop"] }),
             page("w7.sushi.general", 7, "Sushi Station", { tab: "General" }),
-            page("w2.kangaroo", 2, "Poppy", { keywords: ["Kangaroo"] }),
+            page("account.poppy", "account", "Poppy", { keywords: ["Kangaroo"] }),
         ])
     );
     const top = (q) => searchMenu(entries, q)[0];

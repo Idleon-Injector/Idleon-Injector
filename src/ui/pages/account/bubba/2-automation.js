@@ -1,5 +1,5 @@
 /**
- * World 7 › Bubba › Automation: which Bubba upgrades the Bubba automation buys with meat, by the shared rule
+ * Account › Bubba › Automation: which Bubba upgrades the Bubba automation buys with meat, by the shared rule
  * (High / Low / Balanced, saving %), each up to its stop-at.
  *
  * Reads readComputed("automation", "bubba") (meat, the goal, every upgrade) and saves cheatConfig.automation.bubba,
@@ -144,8 +144,8 @@ const BubbaAutomationTab = () => {
 };
 
 export default definePage({
-    id: "w7.bubba.automation",
-    world: 7,
+    id: "account.bubba.automation",
+    world: "account",
     system: "Bubba",
     tab: "Automation",
     description: "Bubba upgrades bought with meat by the automation, each up to its stop-at, High, Low or Balanced.",

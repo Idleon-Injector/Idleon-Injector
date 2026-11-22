@@ -64,7 +64,7 @@ const save = (row, value) => {
 };
 
 test("a save the game never answers fails after the limit, a retry saves, and the late answer is dropped", async (t) => {
-    const root = (await importRepo("src/ui/pages/world-1/owl/1-orion.js")).default.component();
+    const root = (await importRepo("src/ui/pages/account/orion/1-upgrades.js")).default.component();
     await until(() => Boolean(findRow(root, "Feather Generation")), "the Orion page");
     const row = findRow(root, "Feather Generation");
     const server = holdAnswers(/\/game\/gga\/write/);

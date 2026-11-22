@@ -68,7 +68,7 @@ function buyable() {
     });
 }
 
-/** Meat, the goal and every upgrade, for World 7 › Bubba › Automation. */
+/** Meat, the goal and every upgrade, for Account › Bubba › Automation. */
 export function getAutomationBubba() {
     const wait = waiting();
     const goal = wait ? null : nextGoal(buyable());
