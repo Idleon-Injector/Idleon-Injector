@@ -559,6 +559,7 @@ const openStampA1 = async () => {
 const watchRequests = (holdIf) => {
     const realFetch = globalThis.fetch;
     const log = [];
+    const bodies = []; // each request as "url body", in the same order as `log`
     const levels = [];
     const started = [];
     let release;
@@ -569,6 +570,7 @@ const watchRequests = (holdIf) => {
         const name = body.includes("Compass[4]") ? "switch" : body.includes("StampLevel") ? "level" : "other";
         const isWrite = String(url).includes("/write");
         log.push(`${name} ${isWrite ? "write" : "read"}`);
+        bodies.push(`${url} ${body}`);
         if (isWrite && name === "level")
             levels.push(JSON.parse(body).writes.find((write) => write.path.includes("StampLevel[")).value);
         if (!holdIf(String(url), body) || held++ > 0) return realFetch(url, options);
@@ -576,6 +578,7 @@ const watchRequests = (holdIf) => {
         started.push(answered);
         const response = await answered;
         log.push("held answered");
+        bodies.push("held answered");
         return response;
     };
     cleanups.push(async () => {
@@ -584,7 +587,7 @@ const watchRequests = (holdIf) => {
         globalThis.fetch = realFetch;
     });
     const track = (operation) => (started.push(operation), operation);
-    return { log, levels, held: () => held > 0, release, track };
+    return { log, bodies, levels, held: () => held > 0, release, track };
 };
 const isLevelWrite = (url, body) => url.includes("/write") && body.includes("StampLevel");
 // The switch asked the game something, and only once the held request was answered.
@@ -970,10 +973,15 @@ test("stamps: a commit that joins a running save is logged on its own page after
         store.openMenu({ view: "HISTORY" }); // the player moves on before it runs
         requests.release();
         await until(() => levels[0] === before + 2, "the second level to save");
-        const { actions } = await fetchChanges();
-        const second = actions.find((action) =>
-            action.entries.some((entry) => entry.path === "StampLevel[0][0]" && entry.after === before + 2)
-        );
+        // The game holds the level before History logs it: wait for the commit's own entry.
+        let second;
+        for (let i = 0; i < 300 && !second; i++) {
+            second = (await fetchChanges()).actions.find((action) =>
+                action.entries.some((entry) => entry.path === "StampLevel[0][0]" && entry.after === before + 2)
+            );
+            if (!second) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        assert.ok(second, "the second level is in History");
         const { view, page } = second.place;
         assert.deepEqual({ view, page }, { view: askedOn.view, page: askedOn.page }, "logged where it was committed");
     } finally {
@@ -1003,18 +1011,20 @@ test("killroy: a failed flip the player already took back isn't said", async () 
     }
 });
 
-// The game takes the write but its answer is lost on the way back.
+// The game takes the write but its answer is lost on the way back. `restore.lost()` counts the answers it replaced.
 const loseAnswers = (path) => {
     const realFetch = globalThis.fetch;
+    let lost = 0;
     globalThis.fetch = async (url, options) => {
         const response = await realFetch(url, options);
         if (!String(url).includes("/write") || !String(options?.body).includes(path)) return response;
+        lost++;
         return new Response(JSON.stringify({ error: "connection lost" }), {
             status: 500,
             headers: { "content-type": "application/json" },
         });
     };
-    return () => (globalThis.fetch = realFetch);
+    return Object.assign(() => (globalThis.fetch = realFetch), { lost: () => lost });
 };
 
 test("slab: a registration whose answer was lost, but which the game kept, isn't said as failed", async () => {
@@ -1029,6 +1039,7 @@ test("slab: a registration whose answer was lost, but which the game kept, isn't
         restore = loseAnswers("Cards[1]");
         await flip(row, true);
         await until(() => wordsOf(row) !== "Missing", "the save to end");
+        assert.equal(restore.lost(), 1, "the write's answer was lost");
         assert.equal(game.gga.Cards[1].length, before.length + 1, "the game kept it");
         assert.equal(wordsOf(row), "Registered", "read back, not said as failed");
     } finally {
@@ -1049,8 +1060,10 @@ test("account options: an on/off save whose answer was lost shows what the game 
         const row = optionRow();
         restore = loseAnswers(`OptionsListAccount[${index}]`);
         await flip(row, false);
+        assert.equal(restore.lost(), 1, "the write's answer was lost");
         assert.equal(ola[index], false, "the game kept Off");
         await until(() => wordsOf(row) === "Off", "the switch to show Off, read back");
+        assert.equal(saveWordsOf(row), "saved", "read back, not said as failed");
     } finally {
         restore();
         ola[index] = (index * 13) % 50;
@@ -1080,6 +1093,11 @@ test("weekly bosses: a skin flipped while trophies save waits and saves", async 
         requests.release();
         await flipped;
         assert.equal(locked.filter((key) => Number(weekly[key]) === 1).length, 1, "the skin saved");
+        const answered = requests.bodies.findIndex((entry) => entry === "held answered");
+        const skinWrite = requests.bodies.findIndex(
+            (entry) => entry.includes("/write") && entry.includes("WeeklyBoss.h.UI_")
+        );
+        assert.ok(answered >= 0 && skinWrite > answered, "the skin's write waited for the trophies' answer");
     } finally {
         await runCleanups();
         for (const key of locked) weekly[key] = 0;
