@@ -77,7 +77,8 @@ function bonusOf(row, i) {
     const multiplier = parseFloat((1 + total / 100).toFixed(2));
     let text = String(row[7]).split("_@_")[0];
     text = text.split("{").join(total < 1e6 ? comma(total) : notate(total));
-    text = text.split("}").join(`${multiplier}x`);
+    // "}x" already carries its x ("}" alone doesn't), so it goes first; "2xx" otherwise.
+    text = text.split("}x").join(`${multiplier}x`).split("}").join(`${multiplier}x`);
     if (BARGAINS.includes(i)) text = text.split("$").join(String(Math.floor(1e4 * (1 - 1 / (1 + total / 100))) / 100));
     if (i === 5)
         text = text.split("$").join(String(Math.round(100 * bubbastuff("DailyPet_HappinessFromUpg", 0, 0)) / 100));

@@ -17,7 +17,7 @@ const UPGRADES = [
     ["Meat_Slicer", 0, 0, 0, 999, 0, 0, LINE],
     ["Big_Grill", 0, 0, 0, 999, 0, 0, LINE],
     ["Spice_Rack", 0, 0, 0, 3, 0, 0, LINE],
-    ["Smoker", 0, 0, 0, 999, 0, 0, LINE],
+    ["Smoker", 0, 0, 0, 999, 0, 0, "Multiplies_meat_by_}x_@_and_more"],
     ["Megaflesh", 0, 0, 0, 999, 0, 0, LINE],
 ];
 const game = { costs: [], needs: [], unlocked: 1, gift: 0, totals: 0 };
@@ -91,6 +91,8 @@ test("the Bubba tab reads meat, the goal and every upgrade with its level, max, 
         unlocked: true,
         bonus: "Boosts Meat Slice production by +50%, so 1.5x more meat",
     });
+    // A line that writes its own x after the mark keeps one x (CodeRabbit on #211).
+    assert.equal(read.upgrades[3].bonus, "Multiplies meat by 1.75x");
     assert.equal(read.upgrades[0].max, null, "999 is no max");
     assert.equal(read.upgrades[4].unlocked, false, "Megaflesh needs 1e6 meat made");
 });
