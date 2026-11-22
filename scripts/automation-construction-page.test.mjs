@@ -1,6 +1,6 @@
-// World 3 › Construction › Automation (#92) on the fake game: Construction's switch, the build queue line, and a row
-// per building in the menu's three rows of nine, each with its bonus, build line, High / Low / Balanced, a stop-at
-// and a switch. A change saves cheatConfig.automation.construction (a plain list); switching a building on switches
+// World 3 › Construction › Automation (#92) on the fake game: Construction's switch, the build queue beside the title,
+// and a row per building in the menu's three rows of nine, each with its bonus, build line, level, next cost, a
+// stop-at, "Save for it" and a switch. A change saves cheatConfig.automation.construction (a plain list); switching a building on switches
 // Construction on; the tab reads the game again after every save.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -8,39 +8,41 @@ import { importRepo } from "./known-bugs/index.mjs";
 import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
-const { text, byClass, sent, fileSent, selected, status, until } = kit;
+const { text, byClass, sent, fileSent, status, until } = kit;
 const tab = (await importRepo("src/ui/pages/world-3/construction/3-automation.js")).default.component();
 const row = (name) => kit.row(tab, name);
 const byName = (index) =>
     byClass(tab, "automation-pick").map((node) => text(byClass(node, "account-row__name")[0]))[index];
 await until(() => row("Mossy Pebble Tower"), "the tab to load");
+// A read-only value of a row, by its column ("Level", "Next level").
+const value = (node, column) =>
+    text(
+        byClass(node, "value-cell")
+            .find((cell) => text(byClass(cell, "value-cell__label")[0]) === column)
+            ?.childNodes.at(-1)
+    );
+const saved = (name) => kit.saveSwitch(row(name)).attributes.checked;
 
 test("the tab shows the switch, the build queue and a row per building in the menu's three rows", () => {
     assert.equal(status(tab, "Construction"), "Off");
-    assert.equal(
-        text(row("Build queue")),
-        "Build queue5 of 8 slots building · slot 8 kept free for the jelly · 420 build/hr"
-    );
-    assert.deepEqual(byClass(tab, "account-section__title").map(text), [
-        "AUTOMATION",
-        "BUILDINGS",
-        "TOWERS",
-        "SHRINES",
-    ]);
+    assert.match(text(tab), /5 of 8 slots building · Slot 8 kept for the jelly · 420 build\/hr/, "beside the title");
+    assert.deepEqual(byClass(tab, "account-section__title").map(text), ["Settings", "Buildings", "Towers", "Shrines"]);
     assert.deepEqual(
         byClass(tab, "account-section")
             .slice(1)
             .map((section) => byClass(section, "automation-pick").length),
         [9, 9, 9]
     );
-    const mossy = text(row("Mossy Pebble Tower"));
-    assert.match(mossy, /\+26% Lucky Lantern gain/, "the panel's bonus line");
-    assert.match(mossy, /LV 14 \/ 50/);
-    assert.match(mossy, /Next level 80 Explosive Salts · in slot 1 · 29% · 42m left/);
-    assert.match(text(row("Lucky Lantern Tower")), /Locked: build Ember Bramble Tower first/);
-    assert.match(text(row("Grand Stone Tower")), /Max level/);
+    const mossy = row("Mossy Pebble Tower");
+    assert.match(text(mossy), /\+26% Lucky Lantern gain/, "the panel's bonus line");
+    assert.equal(value(mossy, "Level"), "14 / 50");
+    assert.equal(value(mossy, "Next level"), "80");
+    assert.match(text(mossy), /Paid with Explosive Salts · in slot 1 · 29% · 42m left/);
+    assert.match(text(row("Lucky Lantern Tower")), /Build Ember Bramble Tower first/);
+    assert.equal(value(row("Lucky Lantern Tower"), "Next level"), "Locked");
+    assert.equal(value(row("Grand Stone Tower"), "Next level"), "Max");
     assert.match(text(row(byName(6))), /built, waiting for salt/);
-    assert.equal(selected(row("Mossy Pebble Tower")), "No");
+    assert.equal(saved("Mossy Pebble Tower"), false);
 });
 
 test("a small salt cost shows whole, rounded up like the game", async () => {
@@ -50,7 +52,7 @@ test("a small salt cost shows whole, rounded up like the game", async () => {
     try {
         await kit.button(tab, "Refresh").listeners.click({ preventDefault() {} });
         await kit.idle();
-        assert.match(text(row("Mossy Pebble Tower")), /Next level 80 Explosive Salts/);
+        assert.equal(value(row("Mossy Pebble Tower"), "Next level"), "80");
         assert.doesNotMatch(text(row("Mossy Pebble Tower")), /79\.4/);
     } finally {
         block.TowerSaltCost = cost;
@@ -67,36 +69,34 @@ test("switching a building on saves it and turns Construction on, now and at sta
     assert.deepEqual(kit.fake.startup, ["automation construction"]);
 });
 
-test("a priority saves with the building, and Balanced saves none", async () => {
-    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
+test("Save for it saves with the building, and off saves none", async () => {
+    await kit.flipSave(row("Mossy Pebble Tower"), true);
     assert.deepEqual(sent("construction"), [{ id: "1", on: true, save: true }]);
-    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
-    assert.deepEqual(sent("construction"), [{ id: "1", on: true, save: true }]);
-    assert.equal(selected(row("Mossy Pebble Tower")), "Yes");
-    await kit.choose(row("Mossy Pebble Tower"), "save for it", 0);
+    assert.equal(saved("Mossy Pebble Tower"), true);
+    await kit.flipSave(row("Mossy Pebble Tower"), false);
     assert.deepEqual(sent("construction"), [{ id: "1", on: true }]);
 });
 
-test("a priority the game refuses goes back to the saved one and says why; the next save clears it", async () => {
+test("a Save for it the game refuses goes back to the saved one and says why; the next save clears it", async () => {
     kit.fake.refuseNextUpdates = 1;
-    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
-    assert.equal(selected(row("Mossy Pebble Tower")), "No");
+    await kit.flipSave(row("Mossy Pebble Tower"), true);
+    assert.equal(saved("Mossy Pebble Tower"), false);
     assert.match(text(row("Mossy Pebble Tower")), /the game is busy/);
-    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
-    assert.equal(selected(row("Mossy Pebble Tower")), "Yes");
+    await kit.flipSave(row("Mossy Pebble Tower"), true);
+    assert.equal(saved("Mossy Pebble Tower"), true);
     assert.doesNotMatch(text(row("Mossy Pebble Tower")), /the game is busy/);
 });
 
-test("a stop-at saves on Enter beside the priority", async () => {
+test("a stop-at saves on Enter beside Save for it", async () => {
     await kit.type(row("Mossy Pebble Tower"), "30");
     assert.deepEqual(sent("construction"), [{ id: "1", on: true, stopAt: 30, save: true }]);
 });
 
-test("Enable all switches every building on in one save; Disable all asks Click again, then keeps priorities", async () => {
+test("Enable all switches every building on in one save; Disable all asks in the tray, then keeps Save for it", async () => {
     await kit.button(tab, "Enable all").listeners.click({ preventDefault() {} });
     await kit.idle();
     assert.equal(sent("construction").filter(({ on }) => on).length, 27);
-    await kit.clickTwice(tab, "Disable all");
+    await kit.askAndConfirm(tab, "Disable all", "Disable 27 buildings?");
     assert.ok(sent("construction").every(({ on }) => !on));
-    assert.equal(sent("construction").find(({ id }) => id === "1").save, true, "High stays");
+    assert.equal(sent("construction").find(({ id }) => id === "1").save, true, "Save for it stays");
 });

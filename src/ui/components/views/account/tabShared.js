@@ -94,10 +94,13 @@ let listCount = 0;
  * @param {(activeId: {val: string}) => string} [opts.toolsLabel]
  * @param {(tabId: string) => boolean} [opts.toolsOn] which tabs have tools (all, when not given): a tab without them
  *   shows no tray, and its open tab runs down into its rows like a list without tools
+ * @param {{val: string}} [opts.activeId] the open tab's id, when the page shows something of it outside the list (the
+ *   stats beside its title)
  * @returns {HTMLElement}
  */
-export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsOn = null }) => {
-    const activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
+export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsOn = null, activeId = null }) => {
+    if (activeId) activeId.val = pickedTabs.get(name) ?? activeId.val;
+    else activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
     const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
     const key = `tabbed-list-${++listCount}`;

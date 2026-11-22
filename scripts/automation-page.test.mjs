@@ -298,6 +298,10 @@ test("Enable all runs on one click; Disable all asks Click again and writes noth
 const shops = (await importRepo("src/ui/pages/account/automation/2-shops.js")).default.component();
 await until(() => row(shops, "Lucky Whisker"), "the Shops tab to load");
 const pickRow = (name) => row(shops, name);
+// The open world's items (W1, the first tab): what Enable all and Disable all cover.
+const w1Items = () => byClass(byClass(shops, "automation-rows")[0], "automation-pick").length;
+// Shops' Disable all asks in its tray; this answers the question.
+const answerYes = (root) => byClass(root, "tabbed-list__yes")[0].listeners.click({});
 const saved = () => updates.at(-1)?.cheatConfig.automation.shops ?? [];
 const field = (name) =>
     elements(pickRow(name)).find((node) => node.nodeName === "input" && node.attributes.type !== "checkbox");
@@ -315,11 +319,12 @@ async function typeStopAt(name, value) {
 test("the Shops tab shows the shop automation's switch, the shops by world, and today's stock", () => {
     assert.ok(row(shops, "Shops"), "the same switch as the overview");
     assert.deepEqual(
-        byClass(shops, "account-sub-tab-btn").map((node) => text(node).trim()),
+        byClass(shops, "tabbed-list__tab").map((node) => text(node).trim()),
         ["W1", "W2", "W3", "W4", "W5", "W6", "W7"]
     );
-    assert.match(text(pickRow("Lucky Whisker")), /Left 50/);
-    assert.match(text(pickRow("Grand Drift")), /Left 0/, "sold out still lists");
+    assert.match(text(pickRow("Lucky Whisker")), /In stock50/);
+    assert.match(text(pickRow("Grand Drift")), /In stock0/, "sold out still lists");
+    assert.match(text(shops), /All \d+ shop items in W1/, "the tray says what Enable all covers: the open world");
 });
 
 test("switching an item on while Shops is off switches Shops on too, now and at start", async () => {
@@ -413,13 +418,13 @@ test("Shops: Enable all switches every item on in one click and one save, and Sh
     await button(shops, "Enable all").listeners.click({ preventDefault() {} });
     await until(() => shopsOn() && updates.length > before && !button(shops, "Enable all"), "every item to go on");
     assert.equal(updates.length, before + 1, "one save");
-    const total = byClass(shops, "automation-pick").length;
+    const total = w1Items();
     assert.equal(saved().length, total);
     assert.ok(saved().every(({ on }) => on));
     assert.deepEqual(startup(), ["automation shops"]);
 });
 
-test("Shops: Disable all asks Click again, then switches every item off and keeps stop-ats", async () => {
+test("Shops: Disable all asks in the tray, then switches every item off and keeps stop-ats", async () => {
     // Its own items on, so it runs alone too (--test-name-pattern).
     await checkbox(pickRow("Velvet Stone")).listeners.change({ target: { checked: true } });
     await until(() => saved().some(({ id, on }) => id === "1:item7" && on), "Velvet Stone to switch on");
@@ -428,14 +433,37 @@ test("Shops: Disable all asks Click again, then switches every item off and keep
     const before = updates.length;
     await disable.listeners.click({ preventDefault() {} });
     await settle();
-    assert.equal(disable.attributes["data-again"], "Click again");
-    assert.equal(updates.length, before, "the first click saves nothing");
+    assert.match(text(shops), /Disable \d+ shop items? in W1\?/, "the tray's line asks");
+    assert.equal(updates.length, before, "asking saves nothing");
 
-    await disable.listeners.click({ preventDefault() {} });
+    await answerYes(shops);
     await until(() => updates.length > before, "the items to switch off");
     await settle();
     assert.deepEqual(saved(), [{ id: "1:item7", on: false, stopAt: 40 }]);
     assert.equal(shopsOn(), true, "only the overview stops Shops itself");
+    await switchAutomation("account.automation.shops", false);
+});
+
+// Lumi's pick (#205): like every other page's tools, Shops' act on the open tab, a world.
+test("Shops: Enable all and Disable all act on the open world only, as the tray's line says", async () => {
+    const tab = (label) => byClass(shops, "tabbed-list__tab").find((node) => text(node).trim() === label);
+    await tab("W2").listeners.click({ preventDefault() {} });
+    await settle();
+    const w2 = byClass(byClass(shops, "automation-rows")[1], "automation-pick").length;
+    assert.ok(w2 > 0 && w2 < byClass(shops, "automation-pick").length, "W2 holds some of the items");
+    assert.match(text(shops), new RegExp(`All ${w2} shop items? in W2`));
+    const before = updates.length;
+    await button(shops, "Enable all").listeners.click({ preventDefault() {} });
+    await until(() => updates.length > before && button(shops, "Disable all"), "W2's items to go on");
+    const switchedOn = saved().filter(({ on }) => on);
+    assert.equal(switchedOn.length, w2, "only W2's items went on");
+    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await settle();
+    assert.ok(text(shops).includes(`Disable ${w2} shop item${w2 === 1 ? "" : "s"} in W2?`), "the tray's line asks");
+    await answerYes(shops);
+    await until(() => !saved().some(({ on }) => on), "W2's items to go off");
+    await tab("W1").listeners.click({ preventDefault() {} });
+    await settle();
     await switchAutomation("account.automation.shops", false);
 });
 
@@ -569,7 +597,7 @@ test("review: a refresh that read the config before an item saved doesn't put th
         "Grand Drift kept"
     );
     await button(shops, "Disable all").listeners.click({ preventDefault() {} });
-    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await answerYes(shops);
     await until(() => !saved().some(({ on }) => on), "everything off");
     await ui.switchAutomation("automation shops", false);
 });
@@ -577,18 +605,19 @@ test("review: a refresh that read the config before an item saved doesn't put th
 test("review: with every item on and Shops off, Enable all still switches Shops on", async () => {
     await until(() => button(shops, "Enable all"), "Enable all");
     await button(shops, "Enable all").listeners.click({ preventDefault() {} });
-    const total = byClass(shops, "automation-pick").length;
+    const total = w1Items();
     await until(
         () => shopsOn() && saved().length === total && saved().every(({ on }) => on),
         "every item and Shops on"
     );
+    await until(() => button(shops, "Refresh"), "Refresh, once the bulk save ends");
     await ui.switchAutomation("automation shops", false);
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => button(shops, "Enable all"), "Enable all to be available with Shops off");
     await button(shops, "Enable all").listeners.click({ preventDefault() {} });
-    await until(() => shopsOn(), "Shops to go on");
+    await until(() => shopsOn() && button(shops, "Disable all"), "Shops to go on, and the bulk save to end");
     await button(shops, "Disable all").listeners.click({ preventDefault() {} });
-    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await answerYes(shops);
     await until(() => !saved().some(({ on }) => on), "everything off");
     await ui.switchAutomation("automation shops", false);
 });
@@ -695,7 +724,7 @@ test("review 3 sibling: Shops' Enable all starts Shops even when the file save f
     failSave = false;
     assert.equal(shopsOn(), true, "the game took every item, so Shops runs");
     await button(shops, "Disable all").listeners.click({ preventDefault() {} });
-    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await answerYes(shops);
     await until(() => !saved().some(({ on }) => on), "everything off");
     await ui.switchAutomation("automation shops", false);
 });
@@ -1439,7 +1468,7 @@ test("reader 3: Shops' Enable all says it is still waiting, then the notice goes
     }
     await until(() => shopsOn() && !/still waiting/.test(text(shops)), "the outcome to replace the notice");
     await button(shops, "Disable all").listeners.click({ preventDefault() {} });
-    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await answerYes(shops);
     await until(() => !saved().some(({ on }) => on), "everything off");
     await ui.switchAutomation("automation shops", false);
 });
@@ -1504,12 +1533,12 @@ test("reader 3: a slow Refresh says it is still waiting on the page's line, not 
                 "the page's line to say it is still waiting"
             );
         });
-        assert.doesNotMatch(failurePanel(shops), /still waiting/, "not under SHOP READ FAILED");
+        assert.doesNotMatch(failurePanel(shops), /still waiting/, "not under the read-failed title");
     } finally {
         release();
     }
     await until(() => !/still waiting/.test(text(shops)), "the read's end to clear the notice");
-    assert.equal(failurePanel(shops), "SHOP READ FAILED", "and the read-failed panel says nothing");
+    assert.equal(failurePanel(shops), "Couldn't read the shops", "and the read-failed panel says nothing");
 });
 
 test("reader 3: an item row's notice stays while its second slow save still waits", async () => {
@@ -1843,18 +1872,19 @@ test("local review: Shops' Enable all stays available while Shops runs but isn't
     await ui.switchAutomation("automation shops", false);
     await until(() => button(shops, "Enable all"), "Enable all");
     await button(shops, "Enable all").listeners.click({ preventDefault() {} });
-    const total = byClass(shops, "automation-pick").length;
+    const total = w1Items();
     await until(
         () => shopsOn() && saved().length === total && saved().every(({ on }) => on),
         "every item and Shops on"
     );
+    await until(() => button(shops, "Refresh"), "Refresh, once the bulk save ends");
     fileStartup = []; // its startup save failed, say
     await button(shops, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => button(shops, "Enable all"), "Enable all, though every item and Shops run");
     await button(shops, "Enable all").listeners.click({ preventDefault() {} });
     await until(() => fileStartup.includes("automation shops"), "Shops back in the startup cheats");
     await button(shops, "Disable all").listeners.click({ preventDefault() {} });
-    await button(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await answerYes(shops);
     await until(() => !saved().some(({ on }) => on), "everything off");
     await ui.switchAutomation("automation shops", false);
 });

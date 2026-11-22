@@ -90,7 +90,7 @@ test("Shops: Enable all goes grey once every item and Shops are on, now and at s
     await until(() => !enabledButton(shops, "Enable all"), "Enable all to have nothing left to do");
 
     await enabledButton(shops, "Disable all").listeners.click({ preventDefault() {} });
-    await enabledButton(shops, "Disable all").listeners.click({ preventDefault() {} });
+    await byClass(shops, "tabbed-list__yes")[0].listeners.click({}); // it asks in the tray first
     await until(() => updates.at(-1)?.every(({ on }) => !on), "every item to go off");
     await until(() => enabledButton(shops, "Enable all"), "Enable all to have work again");
 });

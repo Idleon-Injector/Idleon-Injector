@@ -1,67 +1,136 @@
-/* Account › Automation: what each automation is doing, under its name. */
+/*
+ * Every automation page (AutomationPage in automation.js): one list like a table, with the column names said once in
+ * its head. The shared table grid is tabbed-list.css' value-cells; this adds what an automation row holds. A table
+ * takes the wider measure.
+ */
+
+.automation-page {
+    --page-measure: 60rem;
+}
+
+/* What each automation is doing, under its name (Account › Automation, and the switch row of every page). */
 .automation-row__status {
     color: var(--c-text-muted);
     font-size: 0.875rem;
     overflow-wrap: anywhere;
 }
 
-/* A shop item: its stop-at field, then its switch. Narrow windows put both on a line of their own. A system-wide
-   setting (a saving %, a target) has the same field. */
-.automation-pick .account-row__controls,
-.automation-setting .account-row__controls {
-    display: flex;
-    align-items: flex-end;
-    gap: 16px;
-}
-
-.automation-pick .account-field-metric,
-.automation-setting .account-field-metric {
-    --account-field-metric-input-width: 100%;
-    width: 180px;
-}
-
-.automation-pick .toggle-switch {
-    margin-bottom: 8px;
-}
-
-/* A pick's own lines under its name (its cost, its bonus, why it waits). */
+/* An item's own lines under its name (its bonus, why it waits): small and muted, gone when there are none. */
 .automation-pick__detail {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     color: var(--c-text-muted);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
     overflow-wrap: anywhere;
 }
 
-/* A pick's own choice (High / Low / Balanced, what it pays with), labelled above like the stop-at beside it. */
-.automation-pick__select {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.automation-pick__detail:empty {
+    display: none;
 }
 
-.automation-pick__select .select-base {
-    height: 36px;
-    padding: 0 10px;
-    border-radius: 9px;
+/* A read-only number (Level) starts where its column's name starts, in the fields' type; one that only supports it
+   (Next level) is a step smaller and muted. */
+.viewport .automation-value {
+    padding-left: 12px;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--c-text-main);
+    white-space: nowrap;
 }
 
-/* Narrow windows: the choices take a line of their own, then the stop-at fills the line beside the switch. */
-@media (max-width: 600px) {
-    .automation-pick .account-row__controls {
-        flex-wrap: wrap;
+.viewport .automation-value--quiet {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+/* A switch starts where its column's name starts, like the values. */
+.viewport .automation-rows .value-cell > .toggle-switch {
+    justify-self: start;
+    margin-left: 12px;
+}
+
+/* "No limit" is the absence of a number: as quiet as a field's cap, not a value. */
+.viewport .automation-rows .number-input-wrapper input::placeholder {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-faint);
+    opacity: 1;
+}
+
+/* The column head parts the settings above it from the items with a hairline. */
+.viewport .tabbed-list .automation-rows .value-head {
+    border-top-width: 1px;
+}
+
+/* A group's own line beside its name (an essence's amount and what it is doing). */
+.automation-group__meta {
+    font-size: 0.8125rem;
+    color: var(--c-text-muted);
+}
+
+/* The stats beside the title may wrap on a narrow window, like the title itself. */
+.automation-stats {
+    white-space: normal;
+}
+
+/* The rows' save mark (✓, Undo) sits just before the columns, out of the way of the first one. */
+.viewport .automation-rows .value-row .account-row__controls {
+    gap: 12px;
+}
+
+/* On a phone each row folds (tabbed-list.css): its name, then its cells two to a line, each named again. The item's
+   own switch stays on the name's line, at its end, as on an automation's switch row; the save mark steps left of it.
+   A setting's empty cells step out, so its field sits under its name. */
+@media (max-width: 760px) {
+    .viewport .automation-rows .value-cell--empty {
+        display: none;
     }
 
-    .automation-pick__select {
-        flex: 1 1 100%;
+    .viewport .automation-rows .automation-setting .value-cells {
+        grid-template-columns: minmax(0, 1fr);
     }
 
-    .automation-pick__select .select-base {
-        width: 100%;
+    .viewport .tabbed-list .automation-rows .value-row.automation-row {
+        grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .automation-pick .account-field-metric {
-        flex: 1;
+    .viewport .tabbed-list .automation-rows .value-row.automation-row .account-row__info,
+    .viewport .tabbed-list .automation-rows .value-row.automation-row .account-row__controls {
+        grid-column: auto;
+        width: auto;
+    }
+
+    .viewport .automation-rows .automation-row .value-cells {
+        display: block;
+        width: auto;
+    }
+
+    .viewport .automation-rows .automation-row .value-cell__label,
+    .viewport .automation-rows .automation-pick .value-cells > .value-cell:last-child .value-cell__label {
+        display: none;
+    }
+
+    .viewport .automation-rows .automation-pick .account-row__info {
+        padding-right: 56px;
+    }
+
+    .viewport .automation-rows .automation-pick .value-cells > .value-cell:last-child {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+    }
+
+    .viewport .automation-rows .automation-pick .value-cells > .value-cell:last-child > .toggle-switch {
+        margin-left: 0;
+    }
+
+    .viewport .automation-rows .automation-pick .save-state {
+        right: 64px;
     }
 }

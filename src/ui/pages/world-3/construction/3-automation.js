@@ -1,10 +1,10 @@
 /**
- * World 3 › Construction › Automation: which buildings the construction automation builds. Empty slots take a High,
- * then Low, then Balanced building, the one closest to done first; a finished build is completed at once and paid
- * as soon as its salt is there. Buildings queued by hand are completed and paid, never removed.
+ * World 3 › Construction › Automation: which buildings the construction automation builds. Empty slots take a
+ * saved-for building first, then the rest, the one closest to done first; a finished build is completed at once and
+ * paid as soon as its salt is there. Buildings queued by hand are completed and paid, never removed.
  *
  * Reads readComputed("automation", "construction") (the queue and every building's row) and saves
- * cheatConfig.automation.construction, one { id, on, stopAt, priority } per building.
+ * cheatConfig.automation.construction, one { id, on, stopAt, save } per building.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -12,22 +12,21 @@ import { definePage } from "../../../menu/menuModel.js";
 import { readComputed } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { Said } from "../../../components/inPlace.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
 } from "../../../components/views/account/accountShared.js";
 import {
-    PRIORITY,
+    AutomationPage,
+    AutomationStats,
     PickRow,
+    automationColumns,
     createAutomationPicks,
     useAutomationTab,
     usePicksBulk,
 } from "../../../components/views/account/automation.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 
@@ -36,7 +35,8 @@ const costText = (value) => formatNumber(value < 1000 ? Math.ceil(value) : value
 
 const CHEAT = "automation construction";
 // The construction menu's three rows of nine.
-const SECTIONS = ["BUILDINGS", "TOWERS", "SHRINES"];
+const SECTIONS = ["Buildings", "Towers", "Shrines"];
+const COLUMNS = automationColumns({ values: ["Level", "Next level"], save: true, stopAt: "Stop at level" });
 
 const timeLeft = (hours) => {
     const minutes = Math.ceil(hours * 60);
@@ -46,11 +46,11 @@ const timeLeft = (hours) => {
     return rest >= 60 ? `${Math.floor(rest / 60)}h ${rest % 60}m` : `${rest}m`;
 };
 
-// What the next level costs and where the building is in its build.
+// What the next level is paid with and where the building is in its build.
 const buildLine = (building) => {
-    if (!building.unlocked) return `Locked: build ${cleanName(building.previous)} first`;
-    if (building.maxed) return "Max level";
-    const parts = [`Next level ${costText(building.cost)} ${cleanName(building.currency)}`];
+    if (!building.unlocked) return `Build ${cleanName(building.previous)} first`;
+    if (building.maxed) return "";
+    const parts = [`Paid with ${cleanName(building.currency)}`];
     if (building.awaiting) parts.push("built, waiting for salt");
     else if (building.slot >= 0) {
         parts.push(`in slot ${building.slot + 1}`, `${Math.floor(building.percent)}%`);
@@ -59,18 +59,18 @@ const buildLine = (building) => {
     return parts.join(" · ");
 };
 
-const queueLine = ({ building, slots, jelly, rate }) =>
-    [
-        `${building} of ${slots} slots building`,
-        ...(jelly ? ["slot 8 kept free for the jelly"] : []),
-        `${formatNumber(rate)} build/hr`,
-    ].join(" · ");
+// The queue, beside the title: [amount, words] pairs for AutomationStats.
+const queueStats = ({ building, slots, jelly, rate }) => [
+    [`${building} of ${slots}`, "slots building"],
+    ...(jelly ? [["Slot 8", "kept for the jelly"]] : []),
+    [formatNumber(rate), "build/hr"],
+];
 
 const ConstructionAutomationTab = () => {
     const ids = van.state([]);
     const queue = van.state(null);
     const buildings = new Map(); // id -> state of the game's row
-    const listNode = div({ class: "content-stack" });
+    const listNode = div();
     const reconcileSections = createStaticRowReconciler(listNode);
 
     const BuildingRow = (id, name) => {
@@ -79,13 +79,26 @@ const ConstructionAutomationTab = () => {
             picks,
             id,
             name,
-            selects: [PRIORITY],
+            save: true,
             stopAtTitle: "Stop at level",
-            badge: () => (building.val ? `LV ${building.val.level} / ${building.val.max}` : ""),
-            // The panel's bonus line (none before the first level), then the build's.
+            values: [
+                { name: "Level", text: () => (building.val ? `${building.val.level} / ${building.val.max}` : "") },
+                {
+                    name: "Next level",
+                    quiet: true,
+                    text: () => {
+                        if (!building.val) return "";
+                        if (!building.val.unlocked) return "Locked";
+                        return building.val.maxed ? "Max" : costText(building.val.cost);
+                    },
+                },
+            ],
+            // The panel's bonus line (none before the first level) leads; the build's goes under the name.
+            bonus: () => building.val?.bonus ?? "",
             detail: [
-                span({ hidden: () => !building.val?.bonus }, () => building.val?.bonus ?? ""),
-                span(() => (building.val ? buildLine(building.val) : "")),
+                span({ hidden: () => !building.val || !buildLine(building.val) }, () =>
+                    building.val ? buildLine(building.val) : ""
+                ),
             ],
         });
     };
@@ -93,6 +106,7 @@ const ConstructionAutomationTab = () => {
     const tab = useAutomationTab({
         label: "Construction automation",
         cheats: [CHEAT],
+        switchColumn: COLUMNS.on,
         read: async (automation) => {
             const data = await readComputed("automation", "construction");
             picks.sync(automation.construction);
@@ -103,12 +117,9 @@ const ConstructionAutomationTab = () => {
                 SECTIONS.map((title, n) =>
                     AccountSection({
                         title,
-                        body: div(
-                            { class: "account-item-stack" },
-                            data.buildings
-                                .slice(9 * n, 9 * n + 9)
-                                .map(({ id, name }) => BuildingRow(String(id), cleanName(name)))
-                        ),
+                        body: data.buildings
+                            .slice(9 * n, 9 * n + 9)
+                            .map(({ id, name }) => BuildingRow(String(id), cleanName(name))),
                     })
                 )
             );
@@ -124,40 +135,25 @@ const ConstructionAutomationTab = () => {
         targets: () => [[picks, ids.val]],
         // With every building on it still has work while Construction is off now or at start: switching it on.
         done: (on, total) => on === total && Boolean(automation.val?.on) && tab.atStart(CHEAT),
-        noun: (n) => (n === 1 ? "1 building" : `all ${n} buildings, towers and shrines`),
+        words: ["building", "buildings"],
         waiting: tab.waiting,
+        loading: () => tab.loading.val,
     });
     const busy = () => tab.loading.val || bulk.busy();
 
     tab.load();
 
-    return PersistentAccountListPage({
-        title: "CONSTRUCTION - AUTOMATION",
-        description:
-            "Switched-on buildings are built as the build button does it, and switching one on turns Construction on. An empty slot takes a High, then Low, then Balanced building, the closest to done first; a finished build is completed at once and paid once its salt is there. Buildings you queue yourself keep their slot. Leave the stop-at empty for the max.",
-        actions: BulkActionBar({ actions: bulk.actions(busy), refresh: { onClick: tab.load, disabled: busy } }),
-        topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+    return AutomationPage({
+        description: "Builds switched-on buildings in free slots, then completes and pays them.",
+        total: AutomationStats(() => (queue.val ? queueStats(queue.val) : [])),
+        columns: COLUMNS,
+        bulk,
         state: { loading: tab.loading, error: tab.error },
-        loadingText: "READING CONSTRUCTION",
-        errorTitle: "CONSTRUCTION READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body: div(
-            { class: "scrollable-panel content-stack" },
-            AccountSection({
-                title: "AUTOMATION",
-                body: [
-                    tab.switches,
-                    AccountRow({
-                        info: div(
-                            { class: "account-row__name-group" },
-                            span({ class: "account-row__name" }, "Build queue"),
-                            span({ class: "automation-row__status" }, () => (queue.val ? queueLine(queue.val) : ""))
-                        ),
-                    }),
-                ],
-            }),
-            listNode
-        ),
+        load: tab.load,
+        busy,
+        notices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+        what: "construction",
+        body: [AccountSection({ title: "Settings", body: tab.switches }), COLUMNS.head("Building"), listNode],
     });
 };
 
@@ -167,6 +163,6 @@ export default definePage({
     system: "Construction",
     tab: "Automation",
     description: "Buildings, towers and shrines built, completed and paid with salt, each up to its stop-at.",
-    keywords: ["Construction", "Automation", "Auto build", "Salt", "Stop at"],
+    keywords: ["Construction", "Automation", "Auto build", "Salt", "Stop at", "Save for it", "Priority"],
     component: ConstructionAutomationTab,
 });

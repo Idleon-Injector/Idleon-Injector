@@ -1,10 +1,10 @@
 /**
  * World 6 › Summoning › Automation: which summoning board upgrades the summoning automation buys. Each essence colour
- * has its own section: what it owns, what it is doing while the automation runs, its saving %, and its upgrades, each
- * with High / Low / Balanced, a stop-at level and a switch.
+ * has its own group in the list: what it owns and what it is doing while the automation runs, its saving %, and its
+ * upgrades, each with a stop-at level, "Save for it" and a switch.
  *
  * Reads readComputed("automation", "summoning") ({ waiting, essences, upgrades }) and saves
- * cheatConfig.automation.summoning (one { id, on, stopAt, priority } per upgrade) and
+ * cheatConfig.automation.summoning (one { id, on, stopAt, save } per upgrade) and
  * cheatConfig.automation.summoningSaving (one % per colour, in the order below).
  */
 
@@ -13,23 +13,23 @@ import { definePage } from "../../../menu/menuModel.js";
 import { readComputed } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { Said } from "../../../components/inPlace.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
 } from "../../../components/views/account/accountShared.js";
 import {
-    PRIORITY,
+    AutomationPage,
     PickRow,
+    SAVING_DETAIL,
     SettingRow,
+    automationColumns,
     createAutomationPicks,
     createAutomationSetting,
     useAutomationTab,
     usePicksBulk,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 
@@ -37,34 +37,36 @@ const CHEAT = "automation summoning";
 // The game's essence colours in Summon[2] order, which is also the order of summoningSaving.
 const ESSENCES = ["white", "green", "yellow", "blue", "purple", "red", "cyan", "teal"];
 const title = (colour) => `${colour[0].toUpperCase()}${colour.slice(1)}`;
+const COLUMNS = automationColumns({ values: ["Level", "Next level"], save: true, stopAt: "Stop at level" });
 
 const lockedText = ({ lockedBy: { parent, lore } = {} }) =>
     lore ? "Unlocks once Spelunking's Lore Boss 5 is beaten" : `Unlocks once ${cleanName(parent ?? "")} has a level`;
 
-// The board's bonus text, the Familiar row's note, then the next cost, the lock or the max.
+// Under the board's bonus text (the row's main line): the Familiar row's note, then the lock.
 const upgradeDetail = (upgrade) => [
-    span({ hidden: () => !upgrade.val.bonus }, () => cleanName(upgrade.val.bonus ?? "")),
     span({ hidden: () => !upgrade.val.note }, () => upgrade.val.note ?? ""),
-    span(() => {
-        const { level, max, unlocked, cost, colour } = upgrade.val;
-        if (max !== null && level >= max) return "Max level";
-        if (!unlocked) return lockedText(upgrade.val);
-        // The board rounds a cost under 1000 up, as here; it pays the exact cost.
-        return `Next level ${formatNumber(cost < 1000 ? Math.ceil(cost) : cost)} ${ESSENCES[colour] ?? ""} essence`;
-    }),
+    span({ hidden: () => upgrade.val.unlocked !== false }, () => lockedText(upgrade.val)),
 ];
+
+// The next level's cost, or why there is none. The board rounds a cost under 1000 up, as here; it pays the exact cost.
+const nextLevel = ({ level, max, unlocked, cost = 0 }) => {
+    if (max !== null && max !== undefined && level >= max) return "Max";
+    if (unlocked === false) return "Locked";
+    return formatNumber(cost < 1000 ? Math.ceil(cost) : cost);
+};
 
 const SummoningAutomationTab = () => {
     const waiting = van.state(null);
     const ids = van.state([]);
     const upgrades = new Map(); // id -> state of the game's upgrade entry
     const essences = ESSENCES.map(() => van.state({ owned: 0, goal: null }));
-    const lists = ESSENCES.map(() => div({ class: "account-item-stack" }));
+    const lists = ESSENCES.map(() => div());
     const reconcilers = lists.map(createStaticRowReconciler);
 
     const tab = useAutomationTab({
         label: "Summoning automation",
         cheats: [CHEAT],
+        switchColumn: COLUMNS.on,
         read: async (automation) => {
             const data = await readComputed("automation", "summoning");
             picks.sync(automation.summoning);
@@ -79,12 +81,19 @@ const SummoningAutomationTab = () => {
                             picks,
                             id: String(id),
                             name: cleanName(name),
+                            bonus: () => cleanName(upgrades.get(id).val.bonus ?? ""),
                             detail: upgradeDetail(getOrCreateState(upgrades, id, {})),
-                            badge: () => {
-                                const { level = 0, max } = upgrades.get(id).val;
-                                return `LV ${level}${max ? ` / ${max}` : ""}`;
-                            },
-                            selects: [PRIORITY],
+                            values: [
+                                {
+                                    name: "Level",
+                                    text: () => {
+                                        const { level = 0, max } = upgrades.get(id).val;
+                                        return `${level}${max ? ` / ${max}` : ""}`;
+                                    },
+                                },
+                                { name: "Next level", quiet: true, text: () => nextLevel(upgrades.get(id).val) },
+                            ],
+                            save: true,
                             stopAtTitle: "Stop at level",
                         })
                     )
@@ -116,54 +125,47 @@ const SummoningAutomationTab = () => {
         targets: () => [[picks, ids.val]],
         // With every upgrade on it still has work while Summoning is off now or at start: switching it on.
         done: (on, total) => on === total && Boolean(automation.val?.on) && tab.atStart(CHEAT),
-        noun: (n) => `${n === 1 ? "1 summoning upgrade" : `all ${n} summoning upgrades`}, in every colour`,
+        words: ["summoning upgrade", "summoning upgrades"],
         waiting: tab.waiting,
+        loading: () => tab.loading.val,
     });
     const busy = () => tab.loading.val || bulk.busy();
 
     tab.load();
 
-    return PersistentAccountListPage({
-        title: "AUTOMATION",
-        description:
-            "Switched-on upgrades are bought with essence, each colour saving and buying on its own, and switching one on turns Summoning automation on. A colour saves for its cheapest High or Low upgrade (an affordable High one goes first) and buys Balanced ones cheapest first. Buying stops at the stop-at level; leave it empty for no limit. It pauses while the summoning board is open. Doubler slots stay manual.",
-        actions: BulkActionBar({ actions: bulk.actions(busy), refresh: { onClick: tab.load, disabled: busy } }),
-        topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+    return AutomationPage({
+        description: "Buys switched-on upgrades with essence, each colour on its own. Pauses while the board is open.",
+        columns: COLUMNS,
+        bulk,
         state: { loading: tab.loading, error: tab.error },
-        loadingText: "READING SUMMONING AUTOMATION",
-        errorTitle: "SUMMONING AUTOMATION READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body: div(
-            { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "AUTOMATION", body: tab.switches }),
+        load: tab.load,
+        busy,
+        notices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+        what: "summoning",
+        body: [
+            AccountSection({ title: "Settings", body: tab.switches }),
+            COLUMNS.head("Upgrade"),
             ...ESSENCES.map((colour, i) =>
                 AccountSection({
-                    title: `${colour.toUpperCase()} ESSENCE`,
-                    meta: span(
-                        { class: "account-row__sub-label" },
-                        () => `${formatNumber(essences[i].val.owned)} owned`
+                    title: `${title(colour)} essence`,
+                    // What it owns, and while the automation runs, what it is doing.
+                    meta: span({ class: "automation-group__meta", role: "status" }, () =>
+                        [`${formatNumber(essences[i].val.owned)} owned`, statusLine(i)].filter(Boolean).join(" · ")
                     ),
                     body: [
-                        span(
-                            {
-                                class: "automation-row__status automation-colour-status",
-                                role: "status",
-                                hidden: () => !statusLine(i),
-                            },
-                            () => statusLine(i)
-                        ),
                         SettingRow({
                             setting: saving,
                             index: i,
-                            name: `${title(colour)} essence saving`,
-                            title: "% of the goal",
-                            detail: "While this colour saves for a High or Low upgrade, Balanced ones may cost up to this much of it.",
+                            name: "While saving",
+                            title: "% of goal",
+                            detail: SAVING_DETAIL,
+                            column: COLUMNS.stopAt,
                         }),
                         lists[i],
                     ],
                 })
-            )
-        ),
+            ),
+        ],
     });
 };
 
@@ -173,6 +175,6 @@ export default definePage({
     system: "Summoning",
     tab: "Automation",
     description: "Summoning upgrades bought with essence by the summoning automation, each colour on its own.",
-    keywords: ["Autobuy", "Auto buy", "Summoning Upgrades", "Familiar", "Stop at", "Priority"],
+    keywords: ["Autobuy", "Auto buy", "Summoning Upgrades", "Familiar", "Stop at", "Save for it", "Priority"],
     component: SummoningAutomationTab,
 });

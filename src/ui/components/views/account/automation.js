@@ -45,12 +45,19 @@ import {
     updateSessionConfig,
 } from "../../../services/api.js";
 import { SaveState, saveFailureReason, saveStateClass, useAutoSave } from "./autoSave.js";
-import { AccountRow } from "./components/AccountRow.js";
-import { useWriteStatus } from "./accountShared.js";
+import { AccountRow, RowTitles } from "./components/AccountRow.js";
+import { ActionButton } from "./components/ActionButton.js";
+import { RefreshButton } from "./components/AccountPageChrome.js";
+import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
+import { StepPicker } from "./components/StepPicker.js";
+import { ValueTableHead } from "./EditableFieldsRow.js";
+import { toNodes, useWriteStatus } from "./accountShared.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
-import { Said, useSaid } from "../../inPlace.js";
+import { ListPanel, TabbedList } from "./tabShared.js";
+import { Said, announce, useSaid } from "../../inPlace.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 
-const { div, input, label, option, select, span } = van.tags;
+const { div, input, label, span } = van.tags;
 
 /** Every automation, with its status while it runs. A direct read: inside a step it gives the settled answer. */
 export const readAutomations = () => readComputed("automation", "list");
@@ -197,7 +204,7 @@ export const switchAll = (on, entryOf = () => null, onLate = null) =>
  * One row per automation: its name, what it is doing, and its switch. `entry` is a state holding the game's
  * entry; `onSwitched` reads it back after a switch (queue it: it then reads what the switch did).
  */
-export const AutomationRow = ({ entry, onSwitched = null }) => {
+export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
     const { status, run } = useWriteStatus();
     const said = useSaid();
     // The notice while any of this row's clicks still waits for the game; then the newest outcome shows.
@@ -255,7 +262,7 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
         return on ? (said ?? "On") : "Off";
     };
     return AccountRow({
-        rowClass: "automation-row",
+        rowClass: column === null ? "automation-row" : "value-row automation-row",
         status,
         info: div(
             { class: "account-row__name-group" },
@@ -263,7 +270,11 @@ export const AutomationRow = ({ entry, onSwitched = null }) => {
             span({ class: "automation-row__status", role: "status" }, line),
             Said({ said: late.over(said.said), className: "said--line", kinds: ["failed", "waiting"] })
         ),
-        controls: label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" })),
+        // In an automation list the switch sits in the items' "On" column (automationColumns' `on`).
+        controls:
+            column === null
+                ? switchLabel(checkbox)
+                : div({ class: "value-cells" }, ...cellsBefore(column), Cell("On", switchLabel(checkbox))),
     });
 };
 
@@ -296,7 +307,7 @@ const readAfter = (afterSave) =>
 
 /**
  * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, plus any other setting the
- * system keeps per item (priority, payWith, ...; null or missing is its default). What the game accepted (the
+ * system keeps per item (save, payWith, ...; null or missing is its default). What the game accepted (the
  * last read of the list, or a list it took) is kept apart from the edits still queued; each row shows the accepted item
  * with its queued edits on top. An edit queues a step that sends the accepted list plus only that edit to the game,
  * then the file, then reads back what the game holds: a taken edit joins the accepted list, a refused one is dropped,
@@ -318,7 +329,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
                 on: van.state(false),
                 stopAt: van.state(null),
                 draft: van.state(""),
-                fields: new Map(), // a setting beside the stop-at (priority, payWith, ...) -> its state
+                fields: new Map(), // a setting beside the stop-at (save, payWith, ...) -> its state
             });
         return items.get(id);
     };
@@ -358,7 +369,7 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
         show();
     };
 
-    // Switched-off items stay while they carry a setting (a stop-at, a priority, ...), so it survives. A setting
+    // Switched-off items stay while they carry a setting (a stop-at, Save for it, ...), so it survives. A setting
     // that is null is the default, so it is left out.
     const toConfig = (list) =>
         [...list]
@@ -640,7 +651,14 @@ const useQueuedField = ({ value, draft, parse, write, resave, fileBehind }) => {
     return { save, other, status, reason };
 };
 
-// The labelled number field of a useQueuedField row; the steppers move it by 1, within 0 to `max`.
+// A column's cell: its name (said by the column head; shown again where a phone folds the row), then what it holds.
+const Cell = (name, ...content) => div({ class: "value-cell" }, span({ class: "value-cell__label" }, name), ...content);
+
+// Empty cells up to column `at`, so a row's one control lands in that column of the list.
+const cellsBefore = (at) => Array.from({ length: at }, () => span({ class: "value-cell value-cell--empty" }));
+
+// The number field of a useQueuedField row, as a cell of the list; the steppers move it by 1, within 0 to `max`. Its
+// save state is the row's (QueuedSaveState), at the row's end.
 const QueuedField = ({ field, draft, parse, title, ariaLabel, placeholder = "", mode = "int", max = Infinity }) => {
     const step = (delta) => () => {
         let current;
@@ -655,14 +673,10 @@ const QueuedField = ({ field, draft, parse, title, ariaLabel, placeholder = "", 
     };
     return div(
         {
-            class: () => `account-field-metric ${saveStateClass(field.status.val, field.save.undo)}`,
+            class: () => `value-cell account-field-metric ${saveStateClass(field.status.val, field.save.undo)}`,
             ...field.save.handlers,
         },
-        div(
-            { class: "account-inline-field__head" },
-            span({ class: "account-field-metric__label" }, title),
-            SaveState({ status: field.status, reason: field.reason, undo: field.save.undo })
-        ),
+        span({ class: "value-cell__label" }, title),
         NumberInput({
             mode,
             value: draft,
@@ -674,49 +688,69 @@ const QueuedField = ({ field, draft, parse, title, ariaLabel, placeholder = "", 
     );
 };
 
+const QueuedSaveState = (field) => SaveState({ status: field.status, reason: field.reason, undo: field.save.undo });
+
 const switchLabel = (checkbox) =>
     label({ class: "toggle-switch" }, checkbox, span({ class: "slider", "aria-hidden": "true" }));
 
-// The name, with the row's own lines under it when it has any.
-const nameWithDetail = (name, detail) =>
-    detail === null
-        ? span({ class: "account-row__name" }, name)
-        : div(
-              { class: "account-row__name-group" },
-              span({ class: "account-row__name" }, name),
-              div({ class: "automation-pick__detail" }, detail)
-          );
-
-/**
- * The "Save for it" pick for PickRow's `selects` (#205): the engine saves for the cheapest item with it on and buys the
- * rest with what's left. Off is the default, left out of the config.
- */
-export const PRIORITY = {
-    field: "save",
-    title: "Save for it",
-    options: [
-        { value: null, label: "No" },
-        { value: true, label: "Yes" },
-    ],
+// The name, with the row's own lines under it when it has any. With a `bonus` (what the item does, in the game's words)
+// the bonus is the main line and the name sits under it, small and muted (RowTitles).
+const nameWithDetail = (name, detail, bonus = null) => {
+    const title = bonus === null ? span({ class: "account-row__name" }, name) : RowTitles({ bonus, name });
+    return detail === null
+        ? title
+        : div({ class: "account-row__name-group" }, title, div({ class: "automation-pick__detail" }, detail));
 };
 
 /**
- * An item's row: name, a badge, its stop-at (empty is no limit; saves on Enter or on leaving it) and its switch.
- * `detail` (a node, or a function giving one) adds lines under the name. Each of `selects` ({ field, title, options:
- * [{ value, label }] }, PRIORITY say) adds a pick before the stop-at that saves that setting of the item; a value of
- * null is the default, left out of the config. The switch, the picks and the stop-at share one save state, whose writes
- * take turns in the order the player made them (a stop-at, then the switch, reach the game in that order), so what it
- * shows is the newest one's outcome. `label` names the item for screen readers when `name` alone doesn't (a kitchen's
- * "Speed" under its kitchen's heading, say).
+ * The columns of an automation list, named once in its head (`head(name)`): the page's own `values` (Level, Next
+ * level; a name, or { name, width } for a wider one), a column per pick in `selects`, the stop-at, "Save for it" when `save`, then the item's switch ("On").
+ * `stopAt` and `on` are those columns' places, for a setting's field and an automation's switch in the same list;
+ * `widths` give the list its grid. Every row of the list takes the same columns, so its numbers line up.
+ */
+export const automationColumns = ({ values = [], selects = [], save = false, stopAt = "Stop at" } = {}) => {
+    const columns = [
+        ...values.map((value) => (typeof value === "string" ? [value, "5.75rem"] : [value.name, value.width])),
+        ...selects.map(({ title }) => [title, "12rem"]),
+        [stopAt, "9.5rem"],
+        ...(save ? [["Save for it", "5.5rem"]] : []),
+        ["On", "2.75rem"],
+    ];
+    return {
+        names: columns.map(([name]) => name),
+        stopAt: values.length + selects.length,
+        on: columns.length - 1,
+        widths: columns.map(([, width]) => width).join(" "),
+        head: (name) => ValueTableHead({ name, columns: columns.map(([column]) => column) }),
+    };
+};
+
+/** The words under a saving % (SettingRow's detail). */
+export const SAVING_DETAIL = "Others may cost up to this % of the goal";
+
+/** "Save for it": the engine saves for the cheapest item with it on, and buys the rest with what's left. */
+export const SAVE_FOR_IT = "save";
+
+/**
+ * An item's row, one line of its list (see automationColumns): its name with `detail` under it (a node, or a function
+ * giving one), led by `bonus` (what it does, in the game's words: RowTitles) when it has one, then `values` ([{ name, text, quiet }]: read-only numbers such as its level and next cost; `quiet` for
+ * one that only supports another), a step picker per pick in `selects` ({ field, title, options: [{ value, label }] };
+ * a value of null is the default, left out of the config), its stop-at (empty is no limit; saves on Enter or on leaving
+ * it), its "Save for it" switch when `save`, and its switch. The switches, the picks and the stop-at share one save
+ * state, whose writes take turns in the order the player made them (a stop-at, then the switch, reach the game in that
+ * order), so what it shows is the newest one's outcome. `label` names the item for screen readers when `name` alone
+ * doesn't (a kitchen's "Speed" under its kitchen's heading, say).
  */
 export const PickRow = ({
     picks,
     id,
     name,
     label = name,
-    badge,
+    bonus = null,
     detail = null,
+    values = [],
     selects = [],
+    save = false,
     stopAtTitle = "Stop at",
 }) => {
     const item = picks.get(id);
@@ -744,50 +778,76 @@ export const PickRow = ({
                 .then(() => (checkbox.checked = item.on.val));
         },
     });
+    // A pick saves through the row's queue; once its save ends, taken or not, the row shows what the game holds.
+    const setField = (setting, next) => field.other(() => picks.set(id, { [setting]: next }));
     const pickers = selects.map(({ field: setting, title, options }) => {
         const shown = picks.field(id, setting);
-        const chosen = () => options.findIndex((choice) => choice.value === shown.val);
-        const pick = select(
-            {
-                class: "select-base",
-                "aria-label": `${label} ${title.toLowerCase()}`,
-                onchange: (e) => {
-                    const next = options[Number(e.target.value)].value;
-                    // What the game holds again once the save ends, taken or not.
-                    void field
-                        .other(() => picks.set(id, { [setting]: next }))
-                        .then(() => (pick.value = String(chosen())));
-                },
-            },
-            options.map((choice, i) => option({ value: String(i), selected: () => chosen() === i }, choice.label))
+        return Cell(
+            title,
+            StepPicker({
+                name: `${label} ${title.toLowerCase()}`,
+                steps: options,
+                picked: () => shown.val,
+                onPick: (next) => void setField(setting, next),
+            })
         );
-        return div({ class: "automation-pick__select" }, span({ class: "account-field-metric__label" }, title), pick);
+    });
+    const saved = picks.field(id, SAVE_FOR_IT);
+    const saveBox = input({
+        type: "checkbox",
+        role: "switch",
+        "aria-label": `Save for ${label}`,
+        checked: () => Boolean(saved.val),
+        onchange: (e) =>
+            void setField(SAVE_FOR_IT, e.target.checked || null).then(() => (saveBox.checked = Boolean(saved.val))),
     });
 
-    return AccountRow({
-        rowClass: "account-row--wide-controls automation-pick",
-        info: nameWithDetail(name, detail),
-        badge,
+    const row = AccountRow({
+        rowClass: "value-row automation-pick",
+        info: nameWithDetail(name, detail, bonus),
         controls: [
-            ...pickers,
-            QueuedField({
-                field,
-                draft: item.draft,
-                parse: parseStopAt,
-                title: stopAtTitle,
-                ariaLabel: `${label} ${stopAtTitle.toLowerCase()}`,
-                placeholder: "No limit",
-            }),
-            switchLabel(checkbox),
+            QueuedSaveState(field),
+            div(
+                { class: "value-cells" },
+                ...values.map(({ name: column, text, quiet = false }) =>
+                    Cell(
+                        column,
+                        span({ class: quiet ? "automation-value automation-value--quiet" : "automation-value" }, text)
+                    )
+                ),
+                ...pickers,
+                QueuedField({
+                    field,
+                    draft: item.draft,
+                    parse: parseStopAt,
+                    title: stopAtTitle,
+                    ariaLabel: `${label} ${stopAtTitle.toLowerCase()}`,
+                    placeholder: "No limit",
+                }),
+                save ? Cell("Save for it", switchLabel(saveBox)) : null,
+                Cell("On", switchLabel(checkbox))
+            ),
         ],
     });
+    item.row = row; // the page search's rows: a bulk switch acts only on the ones it shows
+    return row;
 };
 
 /**
  * A setting's row (see createAutomationSetting): its name, `detail` under it, and its field, which saves on Enter or
- * on leaving it. The value is a number from 0 to `max`; `mode` "float" allows one decimal.
+ * on leaving it, in column `column` of its list (a list's stop-at, so typed numbers line up). The value is a number
+ * from 0 to `max`; `mode` "float" allows one decimal.
  */
-export const SettingRow = ({ setting, index = null, name, title, detail = null, max = 100, mode = "int" }) => {
+export const SettingRow = ({
+    setting,
+    index = null,
+    name,
+    title,
+    detail = null,
+    max = 100,
+    mode = "int",
+    column = 0,
+}) => {
     const { value, draft } = setting.get(index);
     const words =
         mode === "float" ? `a number from 0 to ${max}, with one decimal at most` : `a whole number from 0 to ${max}`;
@@ -806,33 +866,50 @@ export const SettingRow = ({ setting, index = null, name, title, detail = null, 
         fileBehind: setting.fileBehind,
     });
     return AccountRow({
-        rowClass: "account-row--wide-controls automation-setting",
+        rowClass: "value-row automation-setting",
         info: nameWithDetail(name, detail),
-        controls: QueuedField({ field, draft, parse, title, ariaLabel: `${name} ${title.toLowerCase()}`, mode, max }),
+        controls: [
+            QueuedSaveState(field),
+            div(
+                { class: "value-cells" },
+                ...cellsBefore(column),
+                QueuedField({ field, draft, parse, title, ariaLabel: `${name} ${title.toLowerCase()}`, mode, max })
+            ),
+        ],
     });
 };
 
 /**
- * Enable all and Disable all for a tab's picks, as BulkActionBar actions: Enable all runs on one click, Disable all
- * asks "Click again" first (#25). `targets()` gives the [picks, ids] pairs the buttons cover, saved one after another
- * (a save switches the automation on with an item, and ends with the page's read when its picks have `afterSave`).
- * `done(on, total)` is true when Enable all has nothing left to do; `noun(n)` names n switched-on items for the
- * question. Returns { actions(pageBusy), said, busy }: `said` holds a bulk failure, for the page's top line.
+ * Enable all and Disable all for a list's picks, as one tool in its tray: Enable all runs on one press, Disable all
+ * asks in the tray first. `targets()` gives the [picks, ids] pairs they cover, saved one after another (a save switches
+ * the automation on with an item, and ends with the page's read when its picks have `afterSave`); while the top bar
+ * searches the page, only the rows it shows. `done(on, total)` is true when Enable all has nothing left to do; `words`
+ * names one and many items (["Orion upgrade", "Orion upgrades"], or a function giving them); `afterAll()`, when given,
+ * is a queued read the page runs after every bulk save. Returns { tools(ask), label(), said, busy }: `tools`
+ * and `label` go to the list's tray, `said` holds a bulk failure, for the page's top line.
  */
-export const usePicksBulk = ({ targets, done, noun, waiting }) => {
+export const usePicksBulk = ({ targets, done, words, waiting, loading = () => false, afterAll = null }) => {
     const bulk = useWriteStatus();
     const bulkSaid = useSaid();
-    const count = () => targets().reduce((n, [picks, ids]) => n + ids.filter((id) => picks.get(id).on.val).length, 0);
-    const total = () => targets().reduce((n, [, ids]) => n + ids.length, 0);
+    const noun = (n) => (typeof words === "function" ? words() : words)[n === 1 ? 0 : 1];
+    const shown = () => targets().map(([picks, ids]) => [picks, ids.filter((id) => shownBySearch(picks.get(id).row))]);
+    const count = () => shown().reduce((n, [picks, ids]) => n + ids.filter((id) => picks.get(id).on.val).length, 0);
+    const total = () => shown().reduce((n, [, ids]) => n + ids.length, 0);
     const setAll = (on) =>
         bulk.run(
             async () => {
                 bulkSaid.clear();
-                // Every target's save is queued now, in order, so a row edit made after the click lands after them
+                // Every target's save is queued now, in order, so a row edit made after the press lands after them
                 // all. One that fails doesn't stop the rest; the first failure is said once all have ended.
+                // A group the search left with no rows sends nothing, unless the file still lacks its last save:
+                // then it saves again, which is what Enable all and Disable all stay pressable for.
                 const saves = await Promise.allSettled(
-                    targets().map(([picks, ids]) => picks.setAll(ids, on, waiting.onLate))
+                    shown()
+                        .filter(([picks, ids]) => ids.length || picks.fileBehind())
+                        .map(([picks, ids]) => picks.setAll(ids, on, waiting.onLate))
                 );
+                // Whatever happened, the page's own follow-up read (a queued step), so Enable all knows what's left.
+                await Promise.resolve(afterAll?.()).catch(() => {});
                 const failed = saves.find(({ status }) => status === "rejected");
                 if (failed) throw failed.reason;
             },
@@ -841,23 +918,117 @@ export const usePicksBulk = ({ targets, done, noun, waiting }) => {
     const busy = () => bulk.status.val === "loading";
     // The game may hold a list the config file doesn't (a file save failed): the buttons stay, to save it again.
     const behind = () => targets().some(([picks]) => picks.fileBehind());
-    const actions = (pageBusy) => [
-        {
-            label: "Enable all",
-            status: bulk.status,
-            disabled: () => pageBusy() || busy() || !total() || (done(count(), total()) && !behind()),
-            onClick: () => setAll(true),
-        },
-        {
+    const label = () => (isSearching() ? `${total()} matching ${noun(total())}` : `All ${total()} ${noun(total())}`);
+    const tools = (ask) => {
+        const disableAll = ActionButton({
             label: "Disable all",
             variant: "danger",
             status: bulk.status,
-            disabled: () => pageBusy() || busy() || !total() || (!count() && !behind()),
-            confirm: () => `switch off ${noun(count())}.`,
-            onClick: () => setAll(false),
-        },
-    ];
-    return { actions, said: bulkSaid.said, busy };
+            disabled: () => loading() || busy() || !total() || (!count() && !behind()),
+            onClick: (e) => {
+                e.preventDefault();
+                const n = count();
+                // Only a resave of the file is left: nothing is switched off, so there is nothing to ask.
+                if (!n) return void setAll(false);
+                ask({
+                    question: `Disable ${n} ${noun(n)}?`,
+                    confirmLabel: n === 1 ? "Disable it" : "Disable them",
+                    from: disableAll,
+                    // The answer isn't the Disable all button, so the outcome is said for screen readers here.
+                    onConfirm: () => setAll(false).then(({ ok }) => announce(`Disable all: ${ok ? "done" : "failed"}`)),
+                });
+            },
+        });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Enable all",
+                status: bulk.status,
+                disabled: () => loading() || busy() || !total() || (done(count(), total()) && !behind()),
+                onClick: (e) => {
+                    e.preventDefault();
+                    void setAll(true);
+                },
+            }),
+            disableAll
+        );
+    };
+    return { tools, label, said: bulkSaid.said, busy };
+};
+
+/**
+ * What the automation holds, beside the page's title like Anvil's points left: `parts()` gives [amount, words] pairs
+ * ("4.2B", "feathers"; an amount of "" for words alone), joined by a dot.
+ */
+export const AutomationStats = (parts) =>
+    span({ class: "amount-left automation-stats", "aria-live": "polite" }, () =>
+        span(
+            ...parts().flatMap(([amount, words], i) => [
+                i ? " · " : "",
+                ...(amount === "" ? [words] : [span({ class: "amount-left__value" }, amount), ` ${words}`]),
+            ])
+        )
+    );
+
+/**
+ * An automation page on the baseline: the title with what the automation holds beside it (`total`, AutomationStats),
+ * one short line, Refresh, then one list (a table: `columns`) whose tray holds `bulk`'s Enable all and Disable all.
+ * `body` is the list: settings first, then the column head and the items. `notices` is the page's own line (a wait, a
+ * bulk failure).
+ *
+ * With `tabs` ([{ id, label, columns, bulk, body }]) the list is a TabbedList instead: each tab is its own table with
+ * its own tools in the tray, and `activeId` (the open tab) lets the title's stats and line follow it.
+ */
+export const AutomationPage = ({
+    title = "Automation",
+    description,
+    total = null,
+    subNav = null,
+    columns = null,
+    bulk = null,
+    tabs = null,
+    activeId = null,
+    state,
+    load,
+    busy,
+    notices = null,
+    what,
+    body = null,
+}) => {
+    const table = (cols, rows) =>
+        div({ class: "automation-rows", style: `--value-columns: ${cols.widths}` }, ...toNodes(rows));
+    const list = tabs
+        ? TabbedList({
+              name: `${title}: ${what}`,
+              activeId,
+              tabs: tabs.map((tab) => ({ id: tab.id, label: tab.label, content: table(tab.columns, tab.body) })),
+              // Every tab's tools are made once; only the open tab's show.
+              tools: (open, ask) =>
+                  tabs.map((tab) =>
+                      div({ class: "automation-tools", hidden: () => open.val !== tab.id }, tab.bulk.tools(ask))
+                  ),
+              toolsLabel: (open) => tabs.find((tab) => tab.id === open.val)?.bulk.label() ?? "",
+          })
+        : ListPanel({
+              className: "automation-list",
+              tools: (_, ask) => bulk.tools(ask),
+              toolsLabel: () => bulk.label(),
+              body: table(columns, body),
+          });
+    return PersistentAccountListPage({
+        rootClass: "tab-container scroll-container automation-page",
+        title,
+        description,
+        total,
+        actions: RefreshButton({ onRefresh: load, disabled: busy }),
+        subNav,
+        topNotices: notices,
+        state,
+        loadingText: `Reading ${what}`,
+        errorTitle: `Couldn't read ${what}`,
+        initialWrapperClass: "account-list",
+        body: div({ class: "account-list account-list--tabbed" }, list),
+    });
 };
 
 /**
@@ -868,7 +1039,7 @@ export const usePicksBulk = ({ targets, done, noun, waiting }) => {
  * createAutomationSetting, so the tab follows every save and bulk save; a read that fails there is said as the tab's
  * read error until a read works. `atStart(cheat)` is whether the last read found it in the startup cheats.
  */
-export const useAutomationTab = ({ label, cheats, read }) => {
+export const useAutomationTab = ({ label, cheats, read, switchColumn = null }) => {
     const entries = cheats.map(() => van.state(null));
     const startup = van.state([]);
     const waiting = useStillWaiting();
@@ -888,7 +1059,9 @@ export const useAutomationTab = ({ label, cheats, read }) => {
         cheats.forEach((cheat, i) => showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null));
         startup.val = config.startupCheats ?? [];
         if (!switches.firstChild && entries.every((entry) => entry.val))
-            switches.append(...entries.map((entry) => AutomationRow({ entry, onSwitched: readSwitches })));
+            switches.append(
+                ...entries.map((entry) => AutomationRow({ entry, onSwitched: readSwitches, column: switchColumn }))
+            );
         // Only a read of the game itself is taken. The server's copy may hold an edit the game refused (after a save,
         // its own read-back already kept that out), and taken as the first read it would let a later save overwrite
         // what the game holds.

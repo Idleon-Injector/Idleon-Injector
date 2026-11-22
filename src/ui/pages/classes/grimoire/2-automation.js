@@ -1,10 +1,10 @@
 /**
  * Classes › Grimoire › Automation: which Grimoire upgrades the grimoire automation buys. Switched-on upgrades are
- * bought with bones, each bone type saving and buying on its own, by the shared High / Low / Balanced rule, up to
- * each stop-at level.
+ * bought with bones, each bone type saving and buying on its own, by the shared rule ("Save for it", saving %), up
+ * to each stop-at level.
  *
  * Reads readComputed("automation", "grimoire") (the bones, what each saves for, every upgrade) and saves
- * cheatConfig.automation.grimoire, one { id, on, stopAt, priority } per upgrade, and grimoireSaving.
+ * cheatConfig.automation.grimoire, one { id, on, stopAt, save } per upgrade, and grimoireSaving.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -12,16 +12,18 @@ import { definePage } from "../../../menu/menuModel.js";
 import { readComputed } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { Said } from "../../../components/inPlace.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
 } from "../../../components/views/account/accountShared.js";
 import {
-    PRIORITY,
+    AutomationPage,
+    AutomationStats,
     PickRow,
+    SAVING_DETAIL,
     SettingRow,
+    automationColumns,
     createAutomationPicks,
     createAutomationSetting,
     useAutomationTab,
@@ -29,7 +31,6 @@ import {
 } from "../../../components/views/account/automation.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 
@@ -41,13 +42,18 @@ const CHEAT = "automation grimoire";
 const BONES = ["femur", "ribcage", "cranium", "bovinae"];
 const upgradeName = (name) => cleanName(name, "", { stripMarker: true });
 const capital = (word) => word[0].toUpperCase() + word.slice(1);
+const COLUMNS = automationColumns({
+    values: ["Level", { name: "Next level", width: "7.5rem" }],
+    save: true,
+    stopAt: "Stop at level",
+});
 
 const GrimoireAutomationPage = () => {
     const bones = new Map(BONES.map((name) => [name, van.state({ name, owned: 0, goal: null })]));
     const upgrades = new Map(); // id -> state of the upgrade as the game last read it
     const names = new Map(); // id -> the upgrade's name, for the "Saving for" lines
     const ids = van.state([]);
-    const listNode = div({ class: "account-item-stack" });
+    const listNode = div();
     const reconcile = createStaticRowReconciler(listNode);
 
     const UpgradeRow = (id) => {
@@ -56,21 +62,35 @@ const GrimoireAutomationPage = () => {
             picks,
             id: String(id),
             name: names.get(id),
-            selects: [PRIORITY],
+            save: true,
             stopAtTitle: "Stop at level",
-            badge: () => `LV ${upgrade.val.level ?? 0}${upgrade.val.max === null ? "" : ` / ${upgrade.val.max}`}`,
-            detail: () => {
-                const { level, max, unlocked, unlockAt, cost, bone } = upgrade.val;
-                if (max !== null && level >= max) return "Max level";
-                if (!unlocked) return `Unlocks at ${formatNumber(unlockAt)} total levels`;
-                return `Next level ${costText(cost)} ${bone}`;
-            },
+            bonus: () => upgrade.val.bonus ?? "",
+            detail: () =>
+                upgrade.val.unlocked === false ? `Unlocks at ${formatNumber(upgrade.val.unlockAt)} total levels` : "",
+            values: [
+                {
+                    name: "Level",
+                    text: () =>
+                        `${upgrade.val.level ?? 0}${(upgrade.val.max ?? null) === null ? "" : ` / ${upgrade.val.max}`}`,
+                },
+                {
+                    name: "Next level",
+                    quiet: true,
+                    text: () => {
+                        const { level, max, unlocked, cost, bone } = upgrade.val;
+                        if ((max ?? null) !== null && level >= max) return "Max";
+                        if (unlocked === false) return "Locked";
+                        return `${costText(cost ?? 0)} ${bone ?? ""}`;
+                    },
+                },
+            ],
         });
     };
 
     const tab = useAutomationTab({
         label: "Grimoire automation",
         cheats: [CHEAT],
+        switchColumn: COLUMNS.on,
         read: async (automation) => {
             const data = await readComputed("automation", "grimoire");
             picks.sync(automation.grimoire);
@@ -90,7 +110,7 @@ const GrimoireAutomationPage = () => {
     const picks = createAutomationPicks("grimoire", { cheat: CHEAT, entry: automation, afterSave: tab.afterSave });
     const saving = createAutomationSetting("grimoireSaving", { afterSave: tab.afterSave });
 
-    // One line per bone type: what it owns, and, while the automation runs, what it is doing.
+    // One line per bone type while the automation runs: what it is doing. What each owns sits beside the title.
     const BoneRow = (name) => {
         const bone = bones.get(name);
         const line = () => {
@@ -100,56 +120,59 @@ const GrimoireAutomationPage = () => {
             const on = ids.val.some((id) => upgrades.get(Number(id))?.val.bone === name && picks.get(id).on.val);
             return on ? "Buying cheapest first" : "Nothing switched on";
         };
-        return AccountRow({
-            rowClass: "automation-currency",
-            info: div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, capital(name)),
-                span({ class: "account-row__sub-label" }, line)
-            ),
-            badge: () => `${heldText(bone.val.owned)} owned`,
-        });
+        return div(
+            { hidden: () => !line() },
+            AccountRow({
+                rowClass: "automation-currency",
+                info: div(
+                    { class: "account-row__name-group" },
+                    span({ class: "account-row__name" }, capital(name)),
+                    span({ class: "automation-row__status", role: "status" }, line)
+                ),
+            })
+        );
     };
 
     const bulk = usePicksBulk({
         targets: () => [[picks, ids.val]],
         // With every upgrade on it still has work while the automation is off now or at start: switching it on.
         done: (on, total) => on === total && Boolean(automation.val?.on) && tab.atStart(CHEAT),
-        noun: (n) => (n === 1 ? "1 Grimoire upgrade" : `all ${n} Grimoire upgrades`),
+        words: ["Grimoire upgrade", "Grimoire upgrades"],
         waiting: tab.waiting,
+        loading: () => tab.loading.val,
     });
     const busy = () => tab.loading.val || bulk.busy();
 
     tab.load();
 
-    return PersistentAccountListPage({
-        title: "AUTOMATION",
-        description:
-            "Switched-on upgrades are bought with bones, each bone type on its own, and switching one on turns the automation on. Each bone type saves for its cheapest High or Low upgrade (High first once affordable) and buys Balanced ones cheapest first, up to the stop-at level. Bones only drop while your Death Bringer plays; buying works on any character.",
-        actions: BulkActionBar({ actions: bulk.actions(busy), refresh: { onClick: tab.load, disabled: busy } }),
-        topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+    return AutomationPage({
+        description: "Buys switched-on upgrades with bones, each bone type on its own.",
+        total: AutomationStats(() => BONES.map((name) => [heldText(bones.get(name).val.owned), name])),
+        columns: COLUMNS,
+        bulk,
         state: { loading: tab.loading, error: tab.error },
-        loadingText: "READING THE GRIMOIRE",
-        errorTitle: "GRIMOIRE READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body: div(
-            { class: "scrollable-panel content-stack" },
-            AccountSection({ title: "AUTOMATION", body: tab.switches }),
+        load: tab.load,
+        busy,
+        notices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+        what: "the Grimoire",
+        body: [
             AccountSection({
-                title: "BONES",
-                body: div(
-                    { class: "account-item-stack" },
-                    BONES.map(BoneRow),
+                title: "Settings",
+                body: [
+                    tab.switches,
+                    ...BONES.map(BoneRow),
                     SettingRow({
                         setting: saving,
-                        name: "Saving",
-                        title: "% of the goal",
-                        detail: "While a bone type saves for a High or Low upgrade, Balanced upgrades may cost up to this much of it.",
-                    })
-                ),
+                        name: "While saving",
+                        title: "% of goal",
+                        detail: SAVING_DETAIL,
+                        column: COLUMNS.stopAt,
+                    }),
+                ],
             }),
-            AccountSection({ title: "UPGRADES", body: listNode })
-        ),
+            COLUMNS.head("Upgrade"),
+            listNode,
+        ],
     });
 };
 
@@ -159,6 +182,15 @@ export default definePage({
     system: "Grimoire",
     tab: "Automation",
     description: "Grimoire upgrades bought with bones, each bone type on its own, up to each stop-at level.",
-    keywords: ["Deathbringer", "Death Bringer", "Autobuy", "Auto buy", "Masterclass", "Stop at"],
+    keywords: [
+        "Deathbringer",
+        "Death Bringer",
+        "Autobuy",
+        "Auto buy",
+        "Masterclass",
+        "Stop at",
+        "Save for it",
+        "Priority",
+    ],
     component: GrimoireAutomationPage,
 });
