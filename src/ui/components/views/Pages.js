@@ -7,7 +7,7 @@ import store from "../../state/store.js";
 import { Icons } from "../../assets/icons.js";
 import { Loader } from "../Loader.js";
 import { menuTree, menuError } from "../../menu/pageRegistry.js";
-import { pageShown, worldClass } from "../../menu/menuModel.js";
+import { pageLeft, pageShown, worldClass } from "../../menu/menuModel.js";
 import { VIEWS } from "../../state/constants.js";
 import { renderLazyPanes } from "./account/tabShared.js";
 // Undo all, offered beside a page's bulk control after it changed values.
@@ -31,10 +31,13 @@ export const pageNow = (world) => pagesOf(world).find((page) => page.id === stor
 const WorldFrame = (tree) => {
     const allPages = tree.flatMap(pagesOf);
     const activePage = van.derive(() => (pageNow(worldNow(tree)) || { id: "" }).id);
-    // Each time a page is shown (picked, or the Pages view shown again), the pages that asked are told.
+    // Each time a page is shown (picked, or the Pages view shown again) or left, the pages that asked are told.
+    let onScreen = null;
     van.derive(() => {
-        if (store.app.activeTab !== VIEWS.PAGES.id) return;
-        pageShown(activePage.val);
+        const now = store.app.activeTab === VIEWS.PAGES.id ? activePage.val : null;
+        if (onScreen && onScreen !== now) pageLeft(onScreen);
+        onScreen = now;
+        if (now) pageShown(now);
     });
 
     // No tab rows: a world's systems and a system's pages are its list in the sidebar (MenuLevels.js); this view is

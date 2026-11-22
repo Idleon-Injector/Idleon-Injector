@@ -629,6 +629,32 @@ for (const { failing, works, said } of [
     });
 }
 
+// #217: a read of the board made the open cog's stats a new object, so the editor built its fields again and the one
+// being typed in went away, with its draft.
+test("Cogs: a Refresh while a stat is typed keeps the field and its draft; the other stats follow the game", async (t) => {
+    const before = { order: gga.CogOrder[1], stats: gga.CogMap[1].h };
+    t.after(() => {
+        gga.CogOrder[1] = before.order;
+        gga.CogMap[1].h = before.stats;
+    });
+    gga.CogOrder[1] = "Cog2B01";
+    gga.CogMap[1].h = { a: 11, b: 1 };
+    const { root, popup, open } = await openCogs();
+    click(buttonIn(root, "Cogs"));
+    open(1);
+    await until(() => statRow(popup, "a") && statRow(popup, "b"), "the slot's stats to show");
+    const field = (code) => elements(statRow(popup, code)).find((node) => node.nodeName === "input");
+    const typed = field("a");
+    typed.value = "50";
+    typed.listeners.input?.({ target: typed });
+
+    gga.CogMap[1].h = { a: 11, b: 2 }; // the game moves on
+    click(buttonIn(root, "Refresh"));
+    await until(() => field("b").attributes.value === "2", "the read to show the game's newer stat");
+    assert.equal(field("a"), typed, "the field being typed in stays");
+    assert.equal(typed.value, "50", "with its draft");
+});
+
 test("Workbench: leaving the Cogs tab closes the cog editor", async () => {
     const { root, open } = await openCogs();
     const overlay = byClass(globalThis.document.body, "cogs-popup-overlay").at(-1);
@@ -637,6 +663,30 @@ test("Workbench: leaving the Cogs tab closes the cog editor", async () => {
     open(1);
     await until(() => !shut(), "the editor to open");
     click(buttonIn(root, "Buildings"));
+    await until(shut, "the editor to close");
+});
+
+// #217: the editor sits on the page's body, so opening another page from the menu left it over that page.
+test("Workbench: opening another page from the menu closes the cog editor", async () => {
+    const store = (await importRepo("src/ui/state/store.js")).default;
+    const { menuTree } = await importRepo("src/ui/menu/pageRegistry.js");
+    const { buildMenuTree } = await importRepo("src/ui/menu/menuModel.js");
+    const pages = await Promise.all(
+        [COGS, "src/ui/pages/world-3/atom-collider/atom-collider.js"].map(
+            async (file) => (await importRepo(file)).default
+        )
+    );
+    menuTree.val = buildMenuTree(pages);
+    const { Pages } = await importRepo("src/ui/components/views/Pages.js");
+    const view = Pages();
+    store.openMenu({ world: 3, page: "w3.construction.buildings" });
+    await until(() => byClass(view, "cogs-slot").length > 0, "the Workbench to show");
+    const overlay = byClass(globalThis.document.body, "cogs-popup-overlay").at(-1);
+    const shut = () => classes(overlay).includes("cogs-popup-overlay--hidden");
+    click(buttonIn(view, "Cogs"));
+    byClass(view, "cogs-slot")[1].listeners.click({ clientX: 10, clientY: 10 });
+    await until(() => !shut(), "the editor to open");
+    store.openMenu({ world: 3, page: "w3.atomcollider" });
     await until(shut, "the editor to close");
 });
 
@@ -808,51 +858,96 @@ test("Cogs: Unlock takes the flag off first, and either half failing leaves Unlo
     }
 });
 
-// Review of #207: a building already at its max got only its pending copy from Max all, but its row still took the
-// max afterwards, over a level the player saved meanwhile.
-test("Buildings: Max all keeps a level saved meanwhile on a building it only wrote the pending copy of", async () => {
-    const levels = gga.TowerInfo.slice(0, 54);
+// Review of #207 and #217: Max all and a row's save wrote the level and its pending copy over each other, so the game
+// could end with the row's level and Max all's pending copy. They now write in turn, and Max all plans from the game.
+const openBuildings = async () => {
     const first = gga.CustomLists.h.TowerInfo[0][0].replace(/_/g, " ");
     const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
     const root = await openPage(COGS, (r) => byClass(r, "account-row").some((row) => nameOf(row) === first));
-    const row = byClass(root, "account-row").find((r) => nameOf(r) === first);
     click(buttonIn(root, "Buildings"));
-    const maxAll = buttonIn(root, "Max all");
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === first);
+    const field = elements(row).find((node) => node.nodeName === "input");
+    const shown = () => {
+        const value = field.attributes.value;
+        return String(typeof value === "function" ? value() : value);
+    };
+    return { root, row, field, shown, maxAll: buttonIn(root, "Max all") };
+};
+// Type a level and press Enter, without waiting for the save.
+const enterLevel = (row, field, value) => {
+    field.value = String(value);
+    field.listeners.input({ target: field });
+    row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+};
+const rowSettled = (row) => /save-state--(success|error)/.test(classes(byClass(row, "save-state")[0]));
+// The first building's max: what Max all writes.
+const firstMax = async () => {
+    const { maxAll } = await openBuildings();
+    click(maxAll);
+    await until(() => settledButton(maxAll), "Max all");
+    return gga.TowerInfo[0];
+};
+
+test("Buildings: a level saved while Max all writes saves after it, in the game and the field", async (t) => {
+    const levels = gga.TowerInfo.slice(0, 54);
+    t.after(() => gga.TowerInfo.splice(0, levels.length, ...levels));
+    gga.TowerInfo[0] = gga.TowerInfo[27] = 3;
+    const { row, field, shown, maxAll } = await openBuildings();
+    const hold = holdWrites();
+    click(maxAll);
+    await until(() => hold.held() === 1, "Max all to reach the game");
+    enterLevel(row, field, 5);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(hold.held(), 1, "the row's save waits for Max all");
+    hold.release();
+    await until(() => settledButton(maxAll) && rowSettled(row), "Max all and the row's save");
+    assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [5, 5]);
+    assert.equal(shown(), "5");
+});
+
+test("Buildings: Max all waits for a level save that started before it, and plans from the game", async (t) => {
+    const levels = gga.TowerInfo.slice(0, 54);
+    t.after(() => gga.TowerInfo.splice(0, levels.length, ...levels));
+    const max = await firstMax(); // the building is at its max: Max all only checks its pending copy
+    assert.notEqual(max, 5);
+    const { row, field, shown, maxAll } = await openBuildings();
+    const hold = holdWrites();
+    enterLevel(row, field, 5);
+    await until(() => hold.held() === 1, "the row's save to reach the game");
+    click(maxAll);
+    hold.release();
+    await until(() => settledButton(maxAll) && rowSettled(row), "the row's save and Max all");
+    assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [max, max], "Max all wrote both copies");
+    assert.equal(shown(), String(max));
+});
+
+test("Buildings: after Max all's write is refused in part, the rows show what the game holds", async (t) => {
+    const levels = gga.TowerInfo.slice(0, 54);
+    t.after(() => gga.TowerInfo.splice(0, levels.length, ...levels));
+    const max = await firstMax();
+    gga.TowerInfo[0] = gga.TowerInfo[27] = 3;
+    const { shown, maxAll } = await openBuildings();
+    assert.equal(shown(), "3");
+    // The game takes the level and refuses its pending copy.
     const realFetch = globalThis.fetch;
-    let release = () => {};
-    try {
+    t.after(() => (globalThis.fetch = realFetch));
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/write-many")) return realFetch(url, options);
+        const body = JSON.parse(options.body);
+        const refused = body.writes.filter((entry) => entry.path === "gga.TowerInfo[27]");
+        body.writes = body.writes.filter((entry) => !refused.includes(entry));
+        const answer = await (await realFetch(url, { ...options, body: JSON.stringify(body) })).json();
+        answer.results.push(...refused.map(({ path }) => ({ path, ok: false, error: "the game refused" })));
+        return new Response(JSON.stringify(answer), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    await quietly(async () => {
         click(maxAll);
-        await until(() => settledButton(maxAll), "the first Max all");
-        const max = gga.TowerInfo[0];
-        // The next Max all's write waits; the row's own save goes through meanwhile.
-        const gate = new Promise((resolve) => (release = resolve));
-        let held = false;
-        globalThis.fetch = async (url, options) => {
-            if (held || !String(url).includes("/write")) return realFetch(url, options);
-            held = true;
-            await gate;
-            return realFetch(url, options);
-        };
-        click(maxAll);
-        await until(() => held, "Max all to reach the game");
-        await typeAndEnter(row, 5);
-        assert.equal(gga.TowerInfo[0], 5);
-        release();
-        await until(() => !/account-btn--loading/.test(classes(maxAll)), "Max all to finish");
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        const field = elements(row).find((node) => node.nodeName === "input");
-        assert.notEqual(max, 5);
-        const shown = field.attributes.value;
-        assert.equal(
-            String(typeof shown === "function" ? shown() : shown),
-            "5",
-            "the row shows the level the game holds"
-        );
-    } finally {
-        globalThis.fetch = realFetch;
-        release();
-        gga.TowerInfo.splice(0, levels.length, ...levels);
-    }
+        await until(() => settledButton(maxAll), "Max all");
+    });
+    globalThis.fetch = realFetch;
+    assert.match(classes(maxAll), /account-btn--error/);
+    assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [max, 3]);
+    await until(() => shown() === String(max), "the row to show the level the game took");
 });
 
 test("Cogs: a Lock that fails while another slot is open shows when its slot is opened again", async () => {

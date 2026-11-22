@@ -240,6 +240,8 @@ const PrinterTab = () => {
                             capture: () => draftsOf(created),
                             prepare: (drafts) => prepareSlot(created, drafts),
                             revert: () => {
+                                // An Escape takes back the edits made so far, apart from a value typed back by hand.
+                                created.escapedAt = created.edits;
                                 updateRow(created, created.baseline.item, created.baseline.qty, true);
                                 created.syncOptions?.();
                             },
@@ -334,8 +336,9 @@ const PrinterTab = () => {
                 );
             }
             const now = draftsOf(state);
-            // Typed while this save waited, and not taken back with Escape: the newer draft stays, for its own Enter.
-            if (committed && now.edits !== committed.edits && isDirty(state, now)) {
+            // Typed while this save waited, and not taken back with Escape: the newer draft stays, for its own Enter,
+            // even when it is the old value typed back.
+            if (committed && now.edits !== committed.edits && state.escapedAt !== now.edits) {
                 state.saved.val = { item, qty };
                 state.baseline = { item, qty };
                 state.dirty.val++;
