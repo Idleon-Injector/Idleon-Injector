@@ -200,41 +200,7 @@ test("map bonuses: Clear world asks in place once a world is picked", async () =
     assert.equal(writes(), before);
 });
 
-test("rat king: removing crowns asks in place; adding them runs on one click", async () => {
-    const root = (await importRepo("src/ui/pages/world-5/gaming/2-rat-king.js")).default.component();
-    const enabled = (label) => buttonsNamed(root, label).find((node) => !node.attributes.disabled);
-    await until(() => enabled("Apply"), "Apply");
-    await settle(100);
-    const apply = enabled("Apply");
-    const field = elements(apply.parentNode).find((node) => node.nodeName === "input");
-    const asks = async (button, what) => {
-        const before = writes();
-        await click(button);
-        await settle(100);
-        assert.equal(button.attributes["data-again"], "Click again", `${what} asks`);
-        assert.equal(writes(), before, `${what} wrote nothing`);
-    };
-
-    let before = writes();
-    await click(enabled("Max all (100)"));
-    await until(() => writes() > before && enabled("Apply"), "Max all to land");
-    await settle(100);
-
-    await asks(enabled("Clear all (0)"), "Clear all");
-    await asks(enabled("Clear"), "a plant's Clear");
-    field.listeners.input({ target: { value: "40" } });
-    await asks(apply, "lowering the count");
-
-    before = writes();
-    await click(enabled("Clear all (0)")); // the second click clears them
-    await until(() => writes() > before && enabled("Apply"), "the crowns to clear");
-    await settle(100);
-    field.listeners.input({ target: { value: "10" } });
-    before = writes();
-    await click(enabled("Apply"));
-    await until(() => writes() > before, "the raise to land");
-    assert.equal(enabled("Apply").attributes["data-again"], undefined, "raising didn't ask");
-});
+// The Rat King's Clear all asks in the tray now: world-5-pages.test.mjs.
 
 test("value search: clearing the saved list asks in place first", async () => {
     const { SavedResultsSection } = await importRepo("src/ui/components/views/search/sections.js");

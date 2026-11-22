@@ -349,3 +349,18 @@ Every automation page is `AutomationPage` in `automation.js`: a table at the wid
 - **On a phone** an item's own switch stays at the end of its name's line; its other cells fold two to a line.
 - **The automation's switch row says why it is on** when an item's switch turned it on ("On, since an upgrade was
   switched on"), and an open page follows a running automation every few seconds, without Refresh (#214).
+
+### World 5 on the same pieces (draft, 2026-11-22)
+
+World 5 uses the same pieces; two shared pages moved onto them:
+
+- **A page that is only numbers** (most of the Hole's caverns) is `SimpleAccountListPage`: the shared panel, its rows
+  under quiet section headings, each with its bonus first where the game has one.
+- **The Slab and the Greenstack** (`ItemRegistrationTab`) are one list with a switch each, searched from the top bar.
+  "Missing only" (off at the start) is their filter on the line under the title; Register all runs on one press,
+  Unregister all asks in the tray.
+- **The menu follows the game's screens:** Sailing is Boats, Captains, Islands, Artifacts, Loot Pile; Gaming is Garden,
+  Imports, Rat King, Superbits, Palette; the Hole lists its villagers' screens (Villagers, Opals, Engineer, Conjuror,
+  Measurer, Librarian), then every cavern in the game's order, each its own page.
+- **A limited gem shop buy sits on its system's page** in a quiet "Gem shop" group: Davey Jones Training on Boats,
+  Rupie Slugs on The Jars, both found by "gem shop", "limited" and "fomo".

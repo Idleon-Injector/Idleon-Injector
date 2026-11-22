@@ -1,118 +1,166 @@
+/**
+ * W5 - Hole › Engineer
+ *
+ * Data sources:
+ *   gga.Holes[13][n]          - schematic n: 1 once unlocked
+ *   cList.HolesBuildings[n]   - [0] the schematic's name, [5] what it does in the game's words
+ *   cList.HolesInfo[40]       - the order the Engineer's screen lists them in
+ *
+ * The Engineer's schematics in the game's order, each with a switch and what it does first. Unlock all runs on one
+ * press; Lock all asks in the tray. Both act on the schematics the top bar's search shows.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { AccountToggleRow } from "../../../components/views/account/components/AccountToggleRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
+    createIndexedStateGetter,
     createStaticRowReconciler,
-    getOrCreateState,
+    runBulkSet,
     toNum,
+    useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountToggleRow } from "../../../components/views/account/components/AccountToggleRow.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
-const buildEngineerEntries = (holes, buildings, order) => {
-    const values = toIndexedArray(toIndexedArray(holes)[13]);
-    const buildingRows = toIndexedArray(buildings ?? []);
-    const rawOrder = toIndexedArray(order ?? []);
-    const numericOrder = new Map(rawOrder.map((value, sortIndex) => [Number(value), sortIndex]));
-    const nameOrder = new Map(rawOrder.map((value, sortIndex) => [cleanName(value), sortIndex]));
-    const count = Math.max(values.length, buildingRows.length);
-
-    return Array.from({ length: count }, (_, index) => {
-        const building = toIndexedArray(buildingRows[index] ?? []);
-        const name = cleanName(building[0]);
-        if (!name) return null;
-
-        return {
-            key: `schematic-${index}`,
-            index,
-            name,
-            path: `Holes[13][${index}]`,
-            unlocked: toNum(values[index], 0) > 0 ? 1 : 0,
-        };
-    })
-        .filter(Boolean)
-        .sort((a, b) => {
-            const aOrder = numericOrder.get(a.index) ?? nameOrder.get(a.name) ?? a.index + 10000;
-            const bOrder = numericOrder.get(b.index) ?? nameOrder.get(b.name) ?? b.index + 10000;
-            return aOrder - bOrder;
-        });
-};
-
-const EngineerRow = ({ entry, unlockedState }) => {
-    const writeToggle = async (enabled) => {
-        const nextValue = enabled ? 1 : 0;
-        const verified = await writeVerified(entry.path, nextValue);
-        unlockedState.val = verified ? 1 : 0;
-    };
-
-    return AccountToggleRow({
-        info: [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        words: ["Unlocked", "Locked"],
-        name: entry.name,
-        checked: () => Boolean(unlockedState.val),
-        title: "Toggle schematic unlock",
-        write: writeToggle,
-    });
-};
+const PATH = "Holes[13]";
 
 const EngineerTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Hole Engineer" });
-    const entries = van.state([]);
-    const unlockedStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
+    const bulk = useWriteStatus();
+    const { loading, error, run } = useAccountLoad({ label: "Engineer", busy: () => bulk.status.val === "loading" });
+    const getState = createIndexedStateGetter(0);
+    const schematics = van.state([]);
+    const rowOf = new Map();
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
+    const readPending = () => loading.val || Boolean(error.val);
+    const unlocked = (schematic) => getState(schematic.index).val > 0;
+
+    const SchematicRow = (schematic) =>
+        AccountToggleRow({
+            info: RowTitles({ bonus: schematic.bonus, name: schematic.name }),
+            words: ["Unlocked", ""],
+            name: schematic.name,
+            checked: () => unlocked(schematic),
+            write: async (on) => {
+                const value = on ? 1 : 0;
+                await writeVerified(`${PATH}[${schematic.index}]`, value);
+                getState(schematic.index).val = value;
+            },
+        });
 
     const load = async () =>
         run(async () => {
-            const [holes, [buildings, order]] = await Promise.all([
-                gga("Holes"),
-                Promise.all([readCList("HolesBuildings"), readCList("HolesInfo[40]")]),
+            const [rawBuilt, rawDefs, rawOrder] = await Promise.all([
+                gga(PATH),
+                readCList("HolesBuildings"),
+                readCList("HolesInfo[40]"),
             ]);
-            entries.val = buildEngineerEntries(holes, buildings, order);
-            reconcileRows(entries.val.map((entry) => `${entry.key}:${entry.name}`).join("|"), () =>
-                entries.val.map((entry) =>
-                    EngineerRow({
-                        entry,
-                        unlockedState: getOrCreateState(unlockedStates, entry.index),
-                    })
-                )
+            const values = toIndexedArray(rawBuilt ?? []);
+            const order = new Map(toIndexedArray(rawOrder ?? []).map((index, place) => [Number(index), place]));
+            const next = toIndexedArray(rawDefs ?? [])
+                .map((raw, index) => {
+                    const def = toIndexedArray(raw ?? []);
+                    const name = cleanName(def[0]);
+                    // Some lines lead with the number's unit ("/hr Bucket Fill Rate") or are only a multiplier ("X").
+                    const bonus = bonusText(def[5])
+                        .replace(/^\/hr\s+/, "")
+                        .replace(/^X(\s+|$)/, "");
+                    return name ? { index, name, bonus } : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => (order.get(a.index) ?? a.index + 1e4) - (order.get(b.index) ?? b.index + 1e4));
+            reconcileRows(next.map((schematic) => `${schematic.index}:${schematic.name}`).join("|"), () =>
+                next.map((schematic) => {
+                    const row = SchematicRow(schematic);
+                    rowOf.set(schematic.index, row);
+                    return row;
+                })
             );
-
-            for (const entry of entries.val) {
-                getOrCreateState(unlockedStates, entry.index).val = entry.unlocked;
-            }
+            next.forEach((schematic) => (getState(schematic.index).val = toNum(values[schematic.index], 0)));
+            schematics.val = next;
         });
+
+    const shown = () => schematics.val.filter((schematic) => shownBySearch(rowOf.get(schematic.index)));
+    const words = (n) => `schematic${n === 1 ? "" : "s"}`;
+
+    const setAll = async (entries, value) => {
+        const result = await bulk.run(() =>
+            runBulkSet({
+                entries,
+                getTargetValue: () => value,
+                getValueState: (schematic) => getState(schematic.index),
+                getPath: (schematic) => `${PATH}[${schematic.index}]`,
+            })
+        );
+        if (!result.ok && !result.cancelled) await load();
+    };
+
+    const tools = (_activeId, ask) => {
+        const lockAll = ActionButton({
+            label: "Lock all",
+            status: bulk.status,
+            variant: "danger",
+            disabled: () => readPending() || !shown().some(unlocked),
+            onClick: (e) => {
+                e.preventDefault();
+                const entries = shown().filter(unlocked);
+                const n = entries.length;
+                ask({
+                    question: `Lock ${n} ${words(n)}?`,
+                    confirmLabel: n === 1 ? "Lock it" : "Lock them",
+                    from: lockAll,
+                    onConfirm: () => setAll(entries, 0),
+                });
+            },
+        });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Unlock all",
+                status: bulk.status,
+                disabled: () => readPending() || !shown().length,
+                onClick: (e) => {
+                    e.preventDefault();
+                    return setAll(shown(), 1);
+                },
+            }),
+            lockAll
+        );
+    };
 
     load();
 
     return PersistentAccountListPage({
-        title: "ENGINEER",
-        description: "Toggle Engineer schematic unlock flags from Holes[13].",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Engineer",
+        description: "Which of the Engineer's schematics are unlocked.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || bulk.status.val === "loading" }),
         state: { loading, error },
-        loadingText: "READING HOLE ENGINEER",
-        errorTitle: "HOLE ENGINEER READ FAILED",
-        initialWrapperClass: "scrollable-panel",
+        loadingText: "Reading the schematics",
+        errorTitle: "Couldn't read the schematics",
+        initialWrapperClass: "account-list",
         body: div(
-            { class: "scrollable-panel content-stack" },
-            AccountSection({
-                title: "SCHEMATICS",
-                note: () => `${entries.val.length} SCHEMATICS`,
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
                 body: listNode,
+                tools,
+                toolsLabel: () => {
+                    const n = shown().length;
+                    return isSearching() ? `${n} matching ${words(n)}` : `All ${n} ${words(n)}`;
+                },
             })
         ),
     });
@@ -123,7 +171,7 @@ export default definePage({
     world: 5,
     system: "Hole",
     tab: "Engineer",
-    description: "Which Engineer schematics are unlocked.",
-    keywords: ["Schematics"],
+    description: "Engineer schematics unlocked.",
+    keywords: ["Schematics", "Buildings"],
     component: EngineerTab,
 });

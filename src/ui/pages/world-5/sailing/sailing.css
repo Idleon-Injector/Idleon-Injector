@@ -1,0 +1,9 @@
+/* Sailing › Captains: one line per captain with five values in columns, a table, so the wider measure. */
+.sailing-table-tab {
+    --page-measure: 60rem;
+}
+
+/* A captain has five values (rarity, level, EXP and two bonuses): narrower columns so they share one line. */
+.sailing-captains-tab {
+    --value-columns: repeat(5, 7rem);
+}

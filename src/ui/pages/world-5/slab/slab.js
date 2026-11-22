@@ -5,8 +5,7 @@ const SlabTab = () =>
     ItemRegistrationTab({
         label: "Slab",
         historyPath: "Cards[1]",
-        description:
-            "Edit Slab registration history. Owned items may register again during W5 town sync. The game refreshes bonuses during normal recalculation.",
+        description: "Which items the Slab has registered. An item you own may register again in town.",
     });
 
 export default definePage({
