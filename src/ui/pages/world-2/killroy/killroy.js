@@ -65,8 +65,8 @@ const META_FIELDS = [
     { index: 230, label: "JADE GAIN TIMES BOUGHT" },
     { index: 467, label: "GALLERY TIMES BOUGHT" },
     { index: 468, label: "MASTERCLASS TIMES BOUGHT" },
-    { index: 469, label: "W7 SKILL XP BONUS" },
-    { index: 470, label: "W7 DAILY CORAL BONUS" },
+    { index: 469, label: "W7 SKILL XP TIMES BOUGHT" },
+    { index: 470, label: "W7 DAILY CORAL TIMES BOUGHT" },
 ];
 
 const RECORD_FIELDS = [{ index: 112, label: "TOTAL FINISHED RUNS" }];
