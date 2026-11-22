@@ -321,7 +321,7 @@ const Pay2WinTab = () => {
     });
 };
 
-const CauldronsTab = () => div({ class: "alchemy-cauldrons" }, LiquidTab(), Pay2WinTab());
+const CauldronsTab = () => div({ class: "alchemy-cauldrons scroll-container" }, LiquidTab(), Pay2WinTab());
 
 export default definePage({
     id: "w2.cauldrons",
