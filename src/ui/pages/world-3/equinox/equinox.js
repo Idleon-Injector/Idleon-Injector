@@ -45,6 +45,13 @@ const { div, p } = van.tags;
 
 const fmtInt = (value) => String(toInt(value, { mode: "floor" }));
 
+// An upgrade's description up to its first full stop: what it does, in the game's words, with the game's own numbers
+// ("Defeating a Random Event boss lowers Meal upgrade cost by -20%"); the rest is detail and jokes.
+const firstSentence = (raw) =>
+    cleanName(String(raw ?? "").split(/(?<=[.!?])_/)[0])
+        .replace(/\s*@.*$/, "")
+        .replace(/\.$/, "");
+
 const getVisibleCloudIndexes = (firstUpgLevel, dreamChallengeArr, weeklyBossMap) => {
     const visibleCount = Math.max(0, Math.min(5, toInt(firstUpgLevel, { mode: "floor" })));
     const out = [];
@@ -281,7 +288,7 @@ const EquinoxTab = () => {
                 return {
                     index,
                     name: cleanName(definition[0], `Upgrade ${index + 1}`),
-                    bonus: bonusText(definition[1]),
+                    bonus: firstSentence(definition[1]),
                     maxLevel: toInt(item.value, { mode: "floor" }),
                     level: toInt(dreamArr[index + 2], { mode: "floor" }),
                 };

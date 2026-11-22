@@ -666,6 +666,8 @@
     gap: 8px;
     width: 100%;
     min-width: 0;
+    /* A row's height inside its padding (54px less 7px each side and its line): opened, the name stays where it was. */
+    min-height: 39px;
     padding: 0;
     border: 0;
     background: none;
