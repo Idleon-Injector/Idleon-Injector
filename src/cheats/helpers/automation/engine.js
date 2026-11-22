@@ -37,14 +37,17 @@ export const inMap = () => bEngine.scene.name === cList.MapName[gga.CurrentMap];
 export const nextGoal = (items) => cheapest(items.filter((item) => item.save));
 
 /**
- * The cheapest saved-for item is the goal, bought once affordable; while saving for it, the other items may only buy
- * things costing at most `saving`% of it, cheapest first. Without a goal it is plain cheapest-first.
+ * The cheapest saved-for item is the goal, bought once affordable. While saving for it, at least (100 − `saving`)% of
+ * its cost stays put, and only the money above that buys the other items, cheapest first: `saving` caps what they
+ * spend in all, not each buy (#214: per buy, Orion spent 1.73T feathers down to 131B before saving started). Without
+ * a goal it is plain cheapest-first.
  */
 export function choosePurchase(items, money, saving) {
     const goal = nextGoal(items);
     if (goal && goal.cost <= money) return goal;
 
-    const limit = goal ? Math.min(money, (goal.cost * saving) / 100) : money;
+    const keep = goal ? (goal.cost * (100 - saving)) / 100 : 0;
+    const limit = money - keep;
     return cheapest(items.filter((item) => !item.save && item.cost <= limit));
 }
 

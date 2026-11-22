@@ -152,7 +152,7 @@ test("a buy Bubba's event refuses isn't counted as bought", async () => {
     await cheat("automation bubba", false);
 });
 
-test("an affordable saved-for upgrade goes first; while saving for one, the others spend only up to saving %", async () => {
+test("an affordable saved-for upgrade goes first; while saving for one, the others spend only what is above the kept part", async () => {
     setBubbaGame();
     gga.Bubba[0][0] = 45;
     // Saved for: Smoker (40) beats the cheaper Meat Slicer (10).
@@ -164,7 +164,7 @@ test("an affordable saved-for upgrade goes first; while saving for one, the othe
     mock.timers.tick(1000);
     assert.deepEqual(levels(), [0, 0, 0, 1, 0], "saved-for first; the 5 left can't reach the 10");
 
-    // Smoker is now 80; with 70 meat and 10% saving, the others may spend only up to 8, so Meat Slicer (10) waits.
+    // Smoker is now 80; 10% saving keeps 72 of it, more than the 70 meat held, so Meat Slicer (10) waits.
     gga.Bubba[0][0] = 70;
     const items = [
         { id: "0", on: true },
@@ -175,11 +175,11 @@ test("an affordable saved-for upgrade goes first; while saving for one, the othe
     assert.deepEqual(levels(), [0, 0, 0, 1, 0], "70 saves for the 80 goal");
     assert.equal(bubba().status, "Saving for Smoker; 1 level bought since it started");
 
-    // At 50% the others may spend up to 40 a level: Meat Slicer's 10, 20 and 30 buy, its 40 is over the 10 left.
+    // At 50% it keeps 40, so 30 of the 70 may go to the others in all: Meat Slicer's 10 and 20 buy, its 30 waits.
     setBubba(items, 50);
     mock.timers.tick(1000);
-    assert.deepEqual(levels(), [3, 0, 0, 1, 0]);
-    assert.equal(gga.Bubba[0][0], 10);
+    assert.deepEqual(levels(), [2, 0, 0, 1, 0]);
+    assert.equal(gga.Bubba[0][0], 40);
 
     // The goal buys once affordable.
     gga.Bubba[0][0] = 80;

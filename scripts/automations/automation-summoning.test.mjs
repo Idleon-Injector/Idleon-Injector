@@ -181,15 +181,18 @@ test("the buy keeps the board's books: quest steps and the cached total level", 
 test("an affordable saved-for upgrade goes first; a goal makes the others save, per colour's saving %", async () => {
     setBoard();
     gga.Summon[2][WHITE] = 60;
-    // Familiar (100) is the goal; at 10%, the others may only buy up to 10 meanwhile.
-    setPicks([
-        { id: "2", on: true, save: true },
-        { id: "1", on: true, stopAt: 4 },
-        { id: "3", on: true },
-    ]);
+    // Familiar (100) is the goal; saving 70% keeps 30 of it, so 30 of the 60 may go to the others meanwhile.
+    setPicks(
+        [
+            { id: "2", on: true, save: true },
+            { id: "1", on: true, stopAt: 4 },
+            { id: "3", on: true },
+        ],
+        { white: 70 }
+    );
     await cheat("automation summoning", true);
     second();
-    // Cheap_Seed 1, 2, 4, 8 (stop-at 4) and Short_Road 5; Short_Road's 10 is still within 10%.
+    // Cheap_Seed 1, 2, 4, 8 (stop-at 4) and Short_Road 5 and 10: 30 in all, and the kept 30 stays.
     assert.deepEqual(levels().slice(0, 4), [1, 4, 0, 2]);
     assert.equal(gga.Summon[2][WHITE], 60 - 15 - 15);
     assert.deepEqual(readComputed("automation", "summoning").value.essences[0].goal, { id: 2, cost: 100 });

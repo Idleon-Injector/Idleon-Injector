@@ -12,7 +12,7 @@ import { defineCheat } from "../core/registration.js";
 const SAVE = 'save true is "Save for it"';
 const saving = (what) => ({
     default: 10,
-    description: `Automation: while ${what} saves for an upgrade, the others may cost up to this % of it.`,
+    description: `Automation: while ${what} saves for an upgrade, it keeps the rest of its cost and the others may spend this % of it in all.`,
 });
 
 defineCheat({
@@ -80,7 +80,7 @@ defineCheat({
         kitchenSaving: {
             default: Array(21).fill(10),
             description:
-                "Automation: per spice, the % of what it saves for that the other kitchen upgrades may spend meanwhile.",
+                "Automation: per spice, the % of what it saves for that the other kitchen upgrades may spend in all meanwhile; the rest is kept.",
         },
         meals: {
             default: [],
@@ -100,7 +100,7 @@ defineCheat({
         summoningSaving: {
             default: Array(8).fill(10),
             description:
-                "Automation: per essence colour, the % of what it saves for that the other summoning upgrades may spend meanwhile.",
+                "Automation: per essence colour, the % of what it saves for that the other summoning upgrades may spend in all meanwhile; the rest is kept.",
         },
         bubba: {
             default: [],
@@ -114,7 +114,7 @@ defineCheat({
         grimoireSaving: {
             default: 10,
             description:
-                "Automation: while a bone type saves for an upgrade, the other upgrades may cost up to this % of it.",
+                "Automation: while a bone type saves for an upgrade, it keeps the rest of its cost and the other upgrades may spend this % of it in all.",
         },
     },
 });

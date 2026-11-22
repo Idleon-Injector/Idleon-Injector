@@ -31,19 +31,37 @@ test("saved-for items are saved for cheapest first", () => {
     assert.equal(pick(items, 200), null, "200 saves for the 300");
 });
 
-test("while saving, the other items may only cost up to saving % of the goal", () => {
+test("while saving, at least (100 − saving)% of the goal stays, and only the rest buys other items", () => {
     const items = [item("goal", 1000, true), item("small", 90), item("big", 150)];
-    assert.equal(pick(items, 500, 10), "small", "90 is under 10% of 1000");
-    assert.equal(pick([item("goal", 1000, true), item("big", 150)], 500, 10), null, "150 waits for the goal");
+    // 10%: 900 of the 1000 stays put. With 1000 nothing does; with 950 only the 50 above it may buy.
+    assert.equal(pick(items, 500, 10), null, "500 is under the 900 kept for the goal");
+    assert.equal(pick([item("goal", 2000, true), item("small", 90)], 1890, 10), "small", "90 above the 1800 kept");
+    assert.equal(pick([item("goal", 2000, true), item("small", 90)], 1889, 10), null, "1 short of keeping 1800");
     assert.equal(pick(items, 1000, 10), "goal", "the goal buys once affordable");
-    assert.equal(pick([item("goal", 1000, true), item("big", 150)], 500, 0), null, "0% saves everything");
+    assert.equal(pick([item("goal", 1000, true), item("small", 1)], 999, 0), null, "0% keeps everything for the goal");
+    assert.equal(pick([item("goal", 1000, true), item("big", 150)], 500, 100), "big", "100% keeps nothing back");
 });
 
-test("Lumi's numbers: with 65B, a 10B restart buys while a 2.5T reset is out of reach", () => {
-    const items = [item("mega reset", 2.5e12, true), item("restart", 10e9, true), item("feather", 5e9)];
-    assert.equal(pick(items, 65e9), "restart", "the cheapest saved-for item is the goal");
-    // Saving for the 2.5T reset alone, 10% lets the others buy up to 250B.
-    assert.equal(pick([items[0], items[2]], 65e9), "feather");
+test("the saving % caps what the other items spend in all, not each buy", () => {
+    // Saving 50% of a 2000 goal keeps 1000: from 1300, three 100s buy and the fourth waits.
+    let money = 1300;
+    const read = () => [
+        { cost: 2000, save: true, buy: () => assert.fail("the goal isn't affordable") },
+        { cost: 100, save: false, buy: () => (money -= 100) },
+    ];
+    assert.equal(
+        buyCheapestFirst(read, () => money, 50),
+        3
+    );
+    assert.equal(money, 1000, "half the goal kept");
+});
+
+test("Lumi's numbers: 1.73T feathers saving for a 2.5T reset keep every feather at 10%", () => {
+    const items = [item("mega reset", 2.5e12, true), item("feather", 5e9)];
+    // Per buy, each 5B buy was under 10% of 2.5T, so it spent down to 131B; now 2.25T stays, more than it holds.
+    assert.equal(pick(items, 1.73e12), null);
+    // A 10B restart is the cheaper goal: it still buys first.
+    assert.equal(pick([...items, item("restart", 10e9, true)], 65e9), "restart");
 });
 
 test("buying re-reads after every buy and stops after 100 in one tick", () => {
