@@ -98,7 +98,8 @@ async function launchBrowser() {
 const PAGE_HELPERS = String.raw`(() => {
     const visible = (el) => el.getClientRects().length > 0;
     const pane = () => document.querySelector(".tab-pane.active") || document.body;
-    const navKey = (nav) => nav.className + "|" + [...nav.querySelectorAll(".account-sub-tab-btn")].map((b) => b.textContent.trim()).join("/");
+    // A nav by its own classes and labels; the pill's state classes come and go as tabs open.
+    const navKey = (nav) => nav.className.replace(/(has-pill|pill-glides|pill-floats)/g, "").trim() + "|" + [...nav.querySelectorAll(".account-sub-tab-btn")].map((b) => b.textContent.trim()).join("/");
     const navs = () => [...pane().querySelectorAll(".account-sub-nav")].filter(visible);
     const describe = (el) => {
         if (!el) return "";

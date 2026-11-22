@@ -45,6 +45,23 @@
     scrollbar-width: none;
 }
 
+/*
+ * Many tabs (a tab per Hole cavern) wrap onto rows that fill the panel's width. The open tab runs down into the list
+ * from the last row; on a row above, its block is rounded all round, with no feet (TabbedList sets pill-floats).
+ */
+.viewport .tabbed-list .tabbed-list__tabs--wrap {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    overflow: visible;
+}
+.tabbed-list__tabs.pill-floats .tabbed-list__pill {
+    border-radius: 10px;
+}
+.tabbed-list__tabs.pill-floats .tabbed-list__pill::before,
+.tabbed-list__tabs.pill-floats .tabbed-list__pill::after {
+    display: none;
+}
+
 /* The block is drawn once and glides to the open tab (placed from the tab's box by TabbedList). Its feet curve out into
    the tray, so the tab and the tray read as one shape. */
 .tabbed-list__pill {
@@ -55,7 +72,7 @@
     height: 40px;
     border-radius: 10px 10px 0 0;
     background: var(--tab-open-fill);
-    transform: translateX(var(--pill-x, 0));
+    transform: translate(var(--pill-x, 0), var(--pill-y, 0));
     opacity: 0;
     pointer-events: none;
 }

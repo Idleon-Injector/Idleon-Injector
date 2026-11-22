@@ -96,6 +96,8 @@ let listCount = 0;
  *   shows no tray, and its open tab runs down into its rows like a list without tools
  * @param {(tabId: string) => void} [opts.onTab] called with the tab the player opens (a pane closes what it had open)
  * @param {() => boolean} [opts.busy] true while the page saves: a question's Yes waits, so it can't start a second save
+ * @param {boolean} [opts.wrap] more tabs than a row holds (a Hole cavern each; six on a phone): the tabs wrap onto rows
+ *   instead of scrolling sideways
  * @param {{val: string}} [opts.activeId] the open tab's id, when the page shows something of it outside the list (the
  *   stats beside its title)
  * @returns {HTMLElement}
@@ -109,6 +111,7 @@ export const TabbedList = ({
     onTab = null,
     busy = null,
     activeId: sharedId = null,
+    wrap = false,
 }) => {
     const activeId = sharedId ?? van.state(tabs[0].id);
     activeId.val = pickedTabs.get(name) ?? activeId.val;
@@ -134,6 +137,7 @@ export const TabbedList = ({
         label: name,
         getButtonProps: (tab) => ({ id: tabId(tab), "aria-controls": paneId(tab) }),
     });
+    if (wrap) nav.classList.add("tabbed-list__tabs--wrap");
 
     // The pill under the open tab (the tabs sit above it): placed from the tab's own box, so it fits any label and
     // follows a resize.
@@ -144,6 +148,9 @@ export const TabbedList = ({
         if (!tab || !tab.offsetWidth) return; // not laid out yet (the page still loading); the resize places it
         pill.style.setProperty("--pill-x", `${tab.offsetLeft}px`);
         pill.style.setProperty("--pill-w", `${tab.offsetWidth}px`);
+        // Wrapped rows: the pill follows its tab's row, and runs down into the list only from the last one.
+        pill.style.setProperty("--pill-y", `${tab.offsetTop - buttons[0].offsetTop}px`);
+        nav.classList.toggle("pill-floats", tab.offsetTop < Math.max(...buttons.map((b) => b.offsetTop)));
         if (nav.classList.contains("has-pill")) return;
         // The first place is taken without a glide; from the next frame on, a move glides.
         nav.classList.add("has-pill");

@@ -354,13 +354,16 @@ Every automation page is `AutomationPage` in `automation.js`: a table at the wid
 
 World 5 uses the same pieces; two shared pages moved onto them:
 
-- **A page that is only numbers** (most of the Hole's caverns) is `SimpleAccountListPage`: the shared panel, its rows
-  under quiet section headings, each with its bonus first where the game has one.
+- **A list of numbers** (a Hole cavern, a villager's screen) is `NumberList`: its rows under quiet section headings,
+  each with its bonus first where the game has one, and a table where a row has several values.
 - **The Slab and the Greenstack** (`ItemRegistrationTab`) are one list with a switch each, searched from the top bar.
   "Missing only" (off at the start) is their filter on the line under the title; Register all runs on one press,
   Unregister all asks in the tray.
 - **The menu follows the game's screens:** Sailing is Boats, Captains, Islands, Artifacts, Loot Pile; Gaming is Garden,
-  Imports, Rat King, Superbits, Palette; the Hole lists its villagers' screens (Villagers, Opals, Engineer, Conjuror,
-  Measurer, Librarian), then every cavern in the game's order, each its own page.
+  Imports, Rat King, Superbits, Palette. The Hole is two pages, like the game's village on top and caverns below:
+  Villagers (tabs Villagers, Opals, Engineer, Conjuror, Measurer, Librarian) and Caverns (a tab per cavern, in the
+  game's order). A cavern with parts of its own (Fountain) shows them as groups in its list, never tabs in a tab.
+- **Many tabs wrap** (`TabbedList`'s `wrap`, Caverns' 18): the rows of tabs fill the panel's width. The open tab runs
+  down into the list from the last row; on a row above, it is a block rounded all round.
 - **A limited gem shop buy sits on its system's page** in a quiet "Gem shop" group: Davey Jones Training on Boats,
   Rupie Slugs on The Jars, both found by "gem shop", "limited" and "fomo".

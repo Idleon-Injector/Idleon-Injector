@@ -6,6 +6,9 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 import { COSMO_UPGRADES, FOUNTAIN_UPGRADES, RANDO_LISTO_2 } from "./page-shots/data/world-5-game.mjs";
 
+const VILLAGERS = "src/ui/pages/world-5/hole/1-villagers.js";
+const CAVERNS = "src/ui/pages/world-5/hole/2-caverns.js";
+
 const { router, game } = await createFakeApi(fakeGameData());
 await loadUi(router);
 const gga = game.gga;
@@ -212,9 +215,22 @@ test("Palette: a Black Stars pick saves at once", async () => {
     await until(() => gga.Spelunk[49][0] === 2, "two Black Stars");
 });
 
+// A tab's pane: the rows of one cavern or villager screen (two tabs can hold a row of the same name).
+const paneOf = (root, label) => {
+    const tab = elements(root).find((node) => node.attributes.role === "tab" && text(node).trim().startsWith(label));
+    return elements(root).find((node) => node.attributes.id === tab.attributes["aria-controls"]);
+};
+const openPane = async (file, label) => {
+    const root = await openPage(file);
+    openTab(root, label);
+    await until(() => rowsIn(paneOf(root, label)), `the ${label} tab`);
+    return { root, pane: paneOf(root, label) };
+};
+const rowsIn = (pane) => byClass(pane, "account-row").length > 0;
+
 test("Villagers: saving a villager's level keeps the EXP it earned in game since", async () => {
-    const root = await openPage("src/ui/pages/world-5/hole/01-villagers.js");
-    const row = rowNamed(root, "Explorer");
+    const { pane } = await openPane(VILLAGERS, "Villagers");
+    const row = rowNamed(pane, "Explorer");
     gga.Holes[2][0] += 500;
     const exp = gga.Holes[2][0];
     typeAndEnter(row, byTag(row, "input")[0], 15);
@@ -223,11 +239,11 @@ test("Villagers: saving a villager's level keeps the EXP it earned in game since
     assert.equal(gga.Holes[2][0], exp);
 });
 
-test("Engineer: a switch unlocks one schematic; Lock all asks first", async (t) => {
+test("Villagers › Engineer: a switch unlocks one schematic; Lock all asks first, on the Engineer's tab only", async (t) => {
     const before = [...gga.Holes[13]];
     t.after(() => (gga.Holes[13] = before));
-    const root = await openPage("src/ui/pages/world-5/hole/03-engineer.js");
-    flip(rowNamed(root, "Better Buckets"), true);
+    const { root, pane } = await openPane(VILLAGERS, "Engineer");
+    flip(rowNamed(pane, "Better Buckets"), true);
     await until(() => gga.Holes[13][1] === 1, "Better Buckets to unlock");
     click(buttonNamed(root, "Lock all"));
     await until(() => /^Lock \d+ schematics\?$/.test(trayLine(root)), "the question");
@@ -235,10 +251,47 @@ test("Engineer: a switch unlocks one schematic; Lock all asks first", async (t) 
     await until(() => gga.Holes[13].every((built) => built === 0), "every schematic locked");
 });
 
-test("Fountain: a water upgrade's level saves and keeps the marbles put in it in game since", async () => {
-    const root = await openPage("src/ui/pages/world-5/hole/22-fountain.js");
-    openTab(root, "Blue");
-    const row = rowNamed(root, FOUNTAIN_UPGRADES[0][1][0].replace(/_/g, " "));
+test("Caverns: a tab per cavern in the game's order, and Fountain's parts are groups in its list, not tabs", async () => {
+    const root = await openPage(CAVERNS);
+    const tabs = elements(root)
+        .filter((node) => node.attributes.role === "tab")
+        .map((node) => text(node).trim());
+    assert.deepEqual(tabs, [
+        "The Well",
+        "Motherlode",
+        "The Den",
+        "Bravery",
+        "The Bell",
+        "The Harp",
+        "The Lamp",
+        "The Hive",
+        "Grotto",
+        "Justice",
+        "The Jars",
+        "Evertree",
+        "Wisdom",
+        "Gambit",
+        "Temple",
+        "Fountain",
+        "Trench",
+        "The Cove",
+    ]);
+    openTab(root, "Fountain");
+    const pane = paneOf(root, "Fountain");
+    assert.equal(elements(pane).filter((node) => node.attributes.role === "tab").length, 0, "no tabs in a tab");
+    assert.deepEqual(byClass(pane, "account-section__title").map(text), [
+        "Coins",
+        "Lucky coins",
+        "Water",
+        "Blue Water upgrades",
+        "Yellow Water upgrades",
+        "Green Water upgrades",
+    ]);
+});
+
+test("Caverns › Fountain: a water upgrade's level saves and keeps the marbles put in it in game since", async () => {
+    const { pane } = await openPane(CAVERNS, "Fountain");
+    const row = rowNamed(pane, FOUNTAIN_UPGRADES[0][1][0].replace(/_/g, " "));
     gga.Holes[32][0][1] = 7;
     typeAndEnter(row, byTag(row, "input")[0], 30);
     await settled(row);
@@ -270,24 +323,6 @@ for (const [file, name, read, value] of [
     ["src/ui/pages/world-5/gaming/2-imports.js", "Little Sprinkler", () => gga.GamingSprout[25][0], 12],
     ["src/ui/pages/world-5/gaming/2-imports.js", "Acorns", () => gga.Gaming[9], 4000],
     ["src/ui/pages/world-5/gaming/3-rat-king.js", "King Tokens", () => gga.Gaming[14], 9000],
-    ["src/ui/pages/world-5/hole/02-opals.js", "The Well", () => gga.Holes[7][0], 11],
-    ["src/ui/pages/world-5/hole/04-conjuror.js", COSMO_UPGRADES[0][0][2].replace(/_/g, " "), () => gga.Holes[4][0], 3],
-    ["src/ui/pages/world-5/hole/05-measurer.js", "Measurement 1", () => gga.Holes[22][0], 9],
-    ["src/ui/pages/world-5/hole/06-librarian.js", "The Well", () => gga.Holes[26][0], 4],
-    ["src/ui/pages/world-5/hole/07-the-well.js", "Gravel", () => gga.Holes[9][0], 5000],
-    ["src/ui/pages/world-5/hole/09-the-den.js", "Highscore", () => gga.Holes[11][8], 321],
-    ["src/ui/pages/world-5/hole/10-bravery.js", "AFK hours", () => gga.Holes[14][0], 200],
-    ["src/ui/pages/world-5/hole/11-the-bell.js", "Method 1", () => gga.Holes[16][0], 31],
-    ["src/ui/pages/world-5/hole/12-the-harp.js", "Crotchet Note", () => gga.Holes[9][10], 900],
-    ["src/ui/pages/world-5/hole/13-the-lamp.js", "Bonuses unlocked", () => gga.Holes[11][24], 11],
-    ["src/ui/pages/world-5/hole/17-the-jars.js", "Rupie Slugs", () => gga.OptionsListAccount[355], 4],
-    ["src/ui/pages/world-5/hole/21-temple.js", "Torches", () => gga.Holes[11][56], 99],
-    [
-        "src/ui/pages/world-5/hole/24-the-cove.js",
-        RANDO_LISTO_2[11][0].replace(/_/g, " "),
-        () => gga.OptionsListAccount[630],
-        6,
-    ],
 ]) {
     test(`${name} saves on Enter`, async () => {
         const root = await openPage(file);
@@ -299,9 +334,44 @@ for (const [file, name, read, value] of [
     });
 }
 
-test("The Lamp refuses more bonuses than the game's 11", async () => {
-    const root = await openPage("src/ui/pages/world-5/hole/13-the-lamp.js");
-    const row = rowNamed(root, "Bonuses unlocked");
+for (const [file, tab, name, read, value] of [
+    [VILLAGERS, "Opals", "The Well", () => gga.Holes[7][0], 11],
+    [VILLAGERS, "Conjuror", COSMO_UPGRADES[0][0][2].replace(/_/g, " "), () => gga.Holes[4][0], 3],
+    [VILLAGERS, "Measurer", "Measurement 1", () => gga.Holes[22][0], 9],
+    [VILLAGERS, "Librarian", "The Well", () => gga.Holes[26][0], 4],
+    [CAVERNS, "The Well", "Gravel", () => gga.Holes[9][0], 5000],
+    [CAVERNS, "Motherlode", "Layers completed", () => gga.Holes[11][1], 41],
+    [CAVERNS, "The Den", "Highscore", () => gga.Holes[11][8], 321],
+    [CAVERNS, "Bravery", "AFK hours", () => gga.Holes[14][0], 200],
+    [CAVERNS, "The Bell", "Method 1", () => gga.Holes[16][0], 31],
+    [CAVERNS, "The Harp", "Crotchet Note", () => gga.Holes[9][10], 900],
+    [CAVERNS, "The Harp", "C string", () => gga.Holes[19][0], 44],
+    [CAVERNS, "The Lamp", "Bonuses unlocked", () => gga.Holes[11][24], 11],
+    [CAVERNS, "The Hive", "Harvests completed", () => gga.Holes[11][3], 12],
+    [CAVERNS, "Grotto", "Colonies cleared", () => gga.Holes[11][26], 8],
+    [CAVERNS, "Justice", "AFK hours", () => gga.Holes[14][2], 70],
+    [CAVERNS, "The Jars", "Rupie Slugs", () => gga.OptionsListAccount[355], 4],
+    [CAVERNS, "Evertree", "Trunks whittled", () => gga.Holes[11][5], 9],
+    [CAVERNS, "Wisdom", "Bonus 1", () => gga.Holes[15][20], 6],
+    [CAVERNS, "Gambit", "King's Gambit", () => gga.Holes[11][65], 140],
+    [CAVERNS, "Temple", "Torches", () => gga.Holes[11][56], 99],
+    [CAVERNS, "Fountain", "Rubber duckies", () => gga.OptionsListAccount[601], 21],
+    [CAVERNS, "Trench", "Layers completed", () => gga.Holes[11][7], 13],
+    [CAVERNS, "The Cove", RANDO_LISTO_2[11][0].replace(/_/g, " "), () => gga.OptionsListAccount[630], 6],
+]) {
+    test(`Hole › ${tab}: ${name} saves on Enter`, async () => {
+        const { pane } = await openPane(file, tab);
+        const row = rowNamed(pane, name);
+        typeAndEnter(row, byTag(row, "input")[0], value);
+        await settled(row);
+        assert.equal(stateOf(row), "success");
+        assert.equal(read(), value);
+    });
+}
+
+test("Caverns › The Lamp refuses more bonuses than the game's 11", async () => {
+    const { pane } = await openPane(CAVERNS, "The Lamp");
+    const row = rowNamed(pane, "Bonuses unlocked");
     const before = gga.Holes[11][24];
     typeAndEnter(row, byTag(row, "input")[0], 12);
     await settled(row);
@@ -310,10 +380,10 @@ test("The Lamp refuses more bonuses than the game's 11", async () => {
 });
 
 test("Rupie Slugs say what they do, and search finds them by the gem shop's words", async () => {
-    const { default: jars } = await importRepo("src/ui/pages/world-5/hole/17-the-jars.js");
-    const root = await openPage("src/ui/pages/world-5/hole/17-the-jars.js");
-    assert.equal(text(byClass(rowNamed(root, "Rupie Slugs"), "account-row__bonus")[0]), "1.5x Jar Rupie value each");
-    for (const word of ["Limited", "Gem shop", "Fomo"]) assert.ok(jars.keywords.includes(word));
+    const { default: caverns } = await importRepo(CAVERNS);
+    const { pane } = await openPane(CAVERNS, "The Jars");
+    assert.equal(text(byClass(rowNamed(pane, "Rupie Slugs"), "account-row__bonus")[0]), "1.5x Jar Rupie value each");
+    for (const word of ["Rupie Slugs", "Limited", "Gem shop", "Fomo"]) assert.ok(caverns.keywords.includes(word));
     const { default: boats } = await importRepo("src/ui/pages/world-5/sailing/1-boats.js");
     for (const word of ["Davey Jones Training", "Limited", "Gem shop", "Fomo"])
         assert.ok(boats.keywords.includes(word));
