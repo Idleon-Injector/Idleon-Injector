@@ -302,7 +302,7 @@ async function main() {
                     name: w.folder,
                     open: { world: w.id },
                     pages: w.systems.flatMap((s) =>
-                        s.pages.map((p) => ({ id: p.id, path: s.pages.length > 1 ? [s.name, p.tab] : [s.name] }))
+                        s.pages.map((p) => ({ id: p.id, path: s.pages.length > 1 ? [s.name, p.tab || p.system] : [s.name] }))
                     ),
                 })))`
             );

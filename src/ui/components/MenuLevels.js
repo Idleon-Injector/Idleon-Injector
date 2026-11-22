@@ -54,7 +54,8 @@ document.addEventListener(
     "scroll",
     (e) => {
         const nodes = [...document.querySelectorAll(".world-sub-pane.active [data-section]")];
-        if (!nodes.length || !e.target.contains?.(nodes[0])) return;
+        // The page itself scrolling (`document`) has no box to measure: only an inner box keeps the section.
+        if (!(e.target instanceof Element) || !nodes.length || !e.target.contains(nodes[0])) return;
         const line = e.target.getBoundingClientRect().top + 120;
         let current = nodes[0];
         for (const node of nodes) if (node.getBoundingClientRect().top <= line) current = node;
