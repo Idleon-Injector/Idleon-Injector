@@ -165,6 +165,9 @@ const WardrobePage = () => {
     let undone = reloadPlace.rawVal;
     const load = () =>
         runLoad(async () => {
+            // A load is newer than every preview and recheck before it: an Apply whose recheck read the game before
+            // this load (a reload after an undo) doesn't write that plan, though the load hasn't read anything yet.
+            previewRun++;
             const target = reloadPlace.rawVal;
             if (target && target !== undone) {
                 undone = target;

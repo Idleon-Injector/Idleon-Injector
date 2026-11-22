@@ -59,10 +59,12 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
 });
 // What the page asks the game, in order: its Wardrobe reads ("wardrobe.preview"), the cheats it runs, and its writes.
 // `holdPreview`: a promise the next preview read waits on. `holdPreviewAnswer`: the same, but the game works the plan
-// out first, so it answers with the plan from before. `failPreviews`: how many of the next preview reads fail.
+// out first, so it answers with the plan from before; `previewWorkedOut` turns true once it has. `failPreviews`: how
+// many of the next preview reads fail.
 const log = [];
 let holdPreview = null;
 let holdPreviewAnswer = null;
+let previewWorkedOut = false;
 let failPreviews = 0;
 const computed = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
@@ -77,7 +79,11 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
         const held = holdPreviewAnswer;
         holdPreviewAnswer = null;
         const read = Object.create(res);
-        read.json = (body) => ((read.answer = body), read);
+        read.json = (body) => {
+            read.answer = body;
+            previewWorkedOut = true;
+            return read;
+        };
         await computed(req, read);
         await held;
         return res.status(read.statusCode).json(read.answer);
@@ -598,16 +604,19 @@ test("an Apply whose recheck read the game before an undo writes nothing", async
     await click(button(page, "Refresh"));
     await settle();
     let release;
+    const stats = [];
     try {
+        previewWorkedOut = false;
         holdPreviewAnswer = new Promise((resolve) => (release = resolve));
         const apply = button(page, "Apply");
         await click(apply);
         const pressed = click(apply);
-        await until(() => holdPreviewAnswer === null, "the recheck to read the game and wait");
-        const previews = () => log.filter((entry) => entry === "wardrobe.preview").length;
-        const before = previews();
+        await until(() => previewWorkedOut, "the recheck to work the plan out before the undo, and wait");
+        // The reload after the undo waits on its first step (the stats), before it reads anything: the recheck
+        // answers while it waits there.
+        holdStats = (release) => stats.push(release);
         await undoAction(action.id);
-        await until(() => previews() > before, "the reload's preview");
+        await until(() => stats.length > 0, "the reload after the undo to start");
         const writes = log.filter((entry) => entry === "write-many").length;
         release();
         await pressed;
@@ -615,6 +624,8 @@ test("an Apply whose recheck read the game before an undo writes nothing", async
         assert.match(text(page), /changed since this preview/);
     } finally {
         release?.();
+        holdStats = null;
+        stats.splice(0).forEach((go) => go());
         gga.Lv0[0] = 500;
         pick(page, "rare-drops");
         await previewShown();
