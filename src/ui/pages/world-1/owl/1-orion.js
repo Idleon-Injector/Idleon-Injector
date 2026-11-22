@@ -15,7 +15,7 @@
  *   260 - Shiny Feathers
  *   261 - Super Feather Cheapener
  *   262 - The Great Mega Reset
- *   263 - Filler Bar (float, bar-fill progress 0-1)
+ *   263 - Feathers Made This Run (the next upgrade unlocks at its target)
  *   264 - Shiny Feathers (count)
  */
 
@@ -42,7 +42,7 @@ const ALL_FIELDS = [
     { index: 260, label: "Shiny Feathers" },
     { index: 261, label: "Super Feather Cheapener" },
     { index: 262, label: "The Great Mega Reset" },
-    { index: 263, label: "Filler Bar", float: true },
+    { index: 263, label: "Feathers Made This Run", live: true, formatted: true },
     { index: 264, label: "Shiny Feathers (count)" },
 ];
 

@@ -401,7 +401,7 @@ test("pay 2 win: Raise on a count past 4 leaves it, and Lower takes one off and 
     ola[123] = 2;
 });
 
-test("post office: the points summary follows a box or misc save as soon as it's saved", async () => {
+test("post office: the points summary follows a box or bonus boxes save as soon as it's saved", async () => {
     const root = await openPage(
         "src/ui/pages/world-2/post-office/post-office.js",
         (root) => byClass(root, "po-box-row__name").length
@@ -420,10 +420,9 @@ test("post office: the points summary follows a box or misc save as soon as it's
     await until(() => stateOf(box) === "success", "the box save");
     await until(() => summary("SPENT ON UPGRADES") === spent + 3, "SPENT to drop by 3"); // shown as -spent
 
-    const misc =
-        rowNamed(root, "MISC OPTION") ?? byClass(root, "account-row").find((row) => text(row).includes("MISC"));
-    enter(misc, Number(ola[131] ?? 0) + 100);
-    await until(() => stateOf(misc) === "success", "the misc save");
+    const bonusBoxes = byClass(root, "account-row").find((row) => text(row).includes("BONUS BOXES"));
+    enter(bonusBoxes, Number(ola[131] ?? 0) + 100);
+    await until(() => stateOf(bonusBoxes) === "success", "the bonus boxes save");
     await until(() => summary("TOTAL EARNED") === earned + 100, "TOTAL EARNED to rise by 100");
 });
 

@@ -12,7 +12,7 @@ const { div } = van.tags;
 
 const BUTTON_FIELDS = [
     { index: 594, label: "Presses Done", formatted: true },
-    { index: 595, label: "Remaining Charges", formatted: true },
+    { index: 595, label: "Insta Skips", formatted: true },
 ];
 
 const ButtonRow = ({ field, fieldState, onWrite }) =>
