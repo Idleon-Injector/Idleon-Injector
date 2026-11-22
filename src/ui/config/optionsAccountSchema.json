@@ -2093,222 +2093,244 @@
         "verified": true
     },
     "346": {
-        "name": "Bugs Caught Counter upgrade vault - bug power en masse",
-        "description": "Cumulative bugs caught for bonuses",
-        "type": "number"
+        "name": "Catching - Bugs Caught",
+        "description": "All bugs you have caught. The Vault upgrade Bug Power En Masse gives damage per power of 10 of this.",
+        "type": "number",
+        "verified": true
     },
     "347": {
-        "name": "Delivery System Bonus",
-        "description": "Delivery box system tracking and bonus",
+        "name": "Post Office - Daily Mailbox Boxes",
+        "description": "Post Office boxes from the Vault upgrade Daily Mailbox. Grows at each daily reset and counts toward the boxes you can spend.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "348": {
-        "name": "Talent Reset Counter",
-        "description": "Tracks daily talent point resets",
+        "name": "Talents - Refunds Used Today",
+        "description": "Talent refunds used today with the Vault upgrade Slight Do-Over (hold down on a talent). Back to 0 at the daily reset.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "349": {
-        "name": "Menu Navigation State",
-        "description": "Manages multi-state menu navigation",
+        "name": "Lab - Hint Step",
+        "description": "Which pointer hint the Laboratory shows: 0 to 2 are the steps, 3 means done. Clicking one spot at the top of the Lab screen starts them again.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "350": {
-        "name": "Companion System Toggle",
-        "description": "Toggles companion system UI modes",
+        "name": "Companions - Page to Open",
+        "description": "Which Companions page opens next: 0 = the food page, 1 = the treat page (Tier 1 to 5 treats). The switch button at the top sets it; talking to the dog in the World 1 town sets 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "351": {
-        "name": "Companion Selection Mode",
-        "description": "Controls companion selection interface",
+        "name": "Companions - Page Shown",
+        "description": "Copy of slot 350 taken when the Companions screen loads; the screen reads this one. 0 = the food page, 1 = the treat page.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "352": {
-        "name": "Quest Completion Flag",
-        "description": "One-time quest completion tracking",
+        "name": "Gambit Cavern - Free Lanterns Given",
+        "description": "1 once you got the 12 free Blinding Lanterns the first time you entered the Gambit cavern.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "353": {
-        "name": "Hidden Wisdom Minigame High Score",
-        "description": "Hidden wisdom minigame high score",
-        "type": "number"
+        "name": "Wisdom Monument - Best Pure Memory Round",
+        "description": "Your best round in the secret Pure Memory mode, stored one lower than the round shown (5 means round 6). Shown in the Tome.",
+        "type": "number",
+        "verified": true
     },
     "354": {
-        "name": "Companion Bonus Multi",
-        "description": "Companion system bonus tracker (Cap 100)",
+        "name": "Companions - Biggole Mole Printer Days",
+        "description": "Days counted for the Biggole Mole companion: +1 at each daily reset while you have it, up to 100. 3D Printer samples grow by its % for each day.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "355": {
         "name": "Rupie Slugs Purchased",
-        "description": "Number of rupie slugs purchased",
-        "type": "number"
+        "description": "Rupie Slugs bought. Each one multiplies jar Rupie value by 1.5, and the first villager's EXP by 1.5 while you own fewer than 13 caverns. The game only reads it.",
+        "type": "number",
+        "verified": true
     },
     "356": {
-        "name": "Grimoire DMG Tracker",
-        "description": "Tracks peak Grimoire damage achieved",
+        "name": "Grimoire - Best Wraith Damage",
+        "description": "Highest Grimoire damage seen while the Grimoire shows it. Shown in the Tome as Best Deathbringer Max Damage in Wraith Mode.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "357": {
-        "name": "Compass - Dust Type 0 (stardust) Counter",
-        "description": "Accumulated Dust Type 0 drops",
-        "type": "number"
+        "name": "Compass - Stardust",
+        "description": "Stardust you have to spend on Compass upgrades and portals. Stardust Hoarding gives Tempest accuracy per power of 10 of it.",
+        "type": "number",
+        "verified": true
     },
     "358": {
-        "name": "Compass - Dust Type 1 (moondust) Counter",
-        "description": "Accumulated Dust Type 1 drops",
-        "type": "number"
+        "name": "Compass - Moondust",
+        "description": "Moondust you have to spend on Compass upgrades and portals. Moondust Hoarding gives Tempest defence per power of 10 of it.",
+        "type": "number",
+        "verified": true
     },
     "359": {
-        "name": "Compass - Dust Type 2 (solardust) Counter",
-        "description": "Accumulated Dust Type 2 drops",
-        "type": "number"
+        "name": "Compass - Solardust",
+        "description": "Solardust you have to spend on Compass upgrades and portals. Solardust Hoarding gives extra dust per power of 10 of it.",
+        "type": "number",
+        "verified": true
     },
     "360": {
-        "name": "Compass - Dust Type 3 (cooldust) Counter",
-        "description": "Accumulated Dust Type 3 drops",
-        "type": "number"
+        "name": "Compass - Cooldust",
+        "description": "Cooldust you have to spend on Compass upgrades and portals. Cooldust Hoarding gives Tempest damage per power of 10 of it.",
+        "type": "number",
+        "verified": true
     },
     "361": {
-        "name": "Compass - Dust Type 4 (novadust) Counter",
-        "description": "Accumulated Dust Type 4 drops",
-        "type": "number"
+        "name": "Compass - Novadust",
+        "description": "Novadust you have to spend on Compass upgrades and portals. It drops only in Tempest form, as a rare drop.",
+        "type": "number",
+        "verified": true
     },
     "362": {
-        "name": "Compass - Total Dust Accumulator",
-        "description": "Aggregates all dust types for global calcs",
-        "type": "number"
+        "name": "Compass - Total Dust Collected",
+        "description": "All dust ever collected, all five types together. Spending dust doesn't lower it. Used for the dust-per-hour estimate and a talent's coin bonus.",
+        "type": "number",
+        "verified": true
     },
     "363": {
-        "name": "Magnesium, days stacked for critter bonus",
-        "description": "Trapping upgrade/bonus tracker (Cap 60)",
-        "type": "number"
+        "name": "Atom - Magnesium Trap Days",
+        "description": "Days stacked for the Magnesium atom (Trap Compounder): +1 at each daily reset, up to 60 plus a Minehead bonus. Placing a new trap sets it to 0.",
+        "type": "number",
+        "verified": true
     },
     "364": {
-        "name": "Moon of Print, days stacked for printer bonus",
-        "description": "Windwalker Compass ultimate bonus (Cap 100)",
-        "type": "number"
+        "name": "Compass - Moon of Print Days",
+        "description": "Days counted for the Compass upgrade Moon of Print: +1 at each daily reset while you have it, up to 100. 3D Printer samples grow by its % for each day.",
+        "type": "number",
+        "verified": true
     },
     "365": {
-        "name": "Top of Morning count - daily kill count on windwalker for TOTM",
-        "description": "Counter for Windwalker/Compass Tempest system",
-        "type": "number"
+        "name": "Compass - Top of the Mornin' Kills Left",
+        "description": "Kills left today with Top of the Mornin's 200x Tempest drop chance. Set at each daily reset; each kill in Tempest form uses one.",
+        "type": "number",
+        "verified": true
     },
     "366": {
-        "name": "Gem shop exalt stamps purchased",
-        "description": "Base/purchased count of Stamp Doublers (7 max as of 21.11.2025)",
-        "type": "number"
+        "name": "Exalted Stamps - Bought Uses",
+        "description": "Exalted Stamp uses bought in the gem shop (7 max as of 21.11.2025). Adds to the uses from the Compass and the event shop. The game only reads it.",
+        "type": "number",
+        "verified": true
     },
     "367": {
-        "name": "Charred Bones enabled (AFK deathbringer)",
-        "description": "Charred Bones enabled (AFK deathbringer)",
-        "type": "number"
+        "name": "Grimoire - AFK Charred Bones Unlocked",
+        "description": "1 once you hold down on 1000 Charred Fragments. Then your Deathbringer earns Charred Bones from AFK fighting, and the fragments stop dropping.",
+        "type": "number",
+        "verified": true
     },
     "368": {
-        "name": "Emperor Interface State",
-        "description": "Boolean flag for emperor interface visibility",
+        "name": "Card Drop Hint Seen",
+        "description": "1 once you pressed the button the pointer shows after your first card drop. While 0, the pointer comes back after a card is picked up.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "369": {
-        "name": "Emperor Showdown Level",
-        "description": "Emperor Showdown Level (value+1 is current showdown)",
-        "type": "number"
+        "name": "Emperor - Showdowns Won",
+        "description": "Emperor showdowns won. The showdown shown is this plus 1, and boss HP grows 1.52x per point. The game can lower it by one with a double click in the Emperor menu.",
+        "type": "number",
+        "verified": true
     },
     "370": {
-        "name": "Emperor Entries Left",
-        "description": "Entries left for Emperor (negative number, goes up to 0)",
-        "type": "number"
+        "name": "Emperor - Tries Counter",
+        "description": "Emperor tries, counted backwards: tries left = 1 minus this. Each try adds 1; each daily reset takes away the daily tries, down to minus the most you can save up. 1 means none left today.",
+        "type": "number",
+        "verified": true
     },
     "371": {
-        "name": "UI Inventory Expansion",
-        "description": "Stores reference to inventory expansion UI image, dynamically calculated based on owned inventory slots",
-        "type": "number"
+        "name": "Alchemy - Water Droplets Cap Level (Best)",
+        "description": "Highest cap upgrade level for Water Droplets, liquid 1. Opening Alchemy raises the real level back to this if it is lower.",
+        "type": "number",
+        "verified": true
     },
     "372": {
-        "name": "Achievement Progress Tracker",
-        "description": "Achievement system tracking for progression monitoring",
+        "name": "Alchemy - Water Droplets Regen Level (Best)",
+        "description": "Highest regen speed upgrade level for Water Droplets, liquid 1. Opening Alchemy raises the real level back to this if it is lower.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "373": {
-        "name": "Game State Achievement Flag",
-        "description": "Game state flag for achievement system",
+        "name": "Alchemy - Liquid Nitrogen Cap Level (Best)",
+        "description": "Highest cap upgrade level for Liquid Nitrogen, liquid 2. Opening Alchemy raises the real level back to this if it is lower.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "374": {
-        "name": "Achievement Unlock Condition",
-        "description": "Achievement unlock condition tracking",
+        "name": "Alchemy - Liquid Nitrogen Regen Level (Best)",
+        "description": "Highest regen speed upgrade level for Liquid Nitrogen, liquid 2. Opening Alchemy raises the real level back to this if it is lower.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "375": {
-        "name": "Achievement Completion State",
-        "description": "Achievement completion state monitoring",
+        "name": "Alchemy - Trench Seawater Cap Level (Best)",
+        "description": "Highest cap upgrade level for Trench Seawater, liquid 3. Opening Alchemy raises the real level back to this if it is lower.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "376": {
-        "name": "Achievement System Variable",
-        "description": "General achievement system variable for tracking",
+        "name": "Alchemy - Trench Seawater Regen Level (Best)",
+        "description": "Highest regen speed upgrade level for Trench Seawater, liquid 3. Opening Alchemy raises the real level back to this if it is lower.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "377": {
-        "name": "Achievement Calculation Parameter",
-        "description": "Calculation parameter used in achievement processing",
+        "name": "Alchemy - Toxic Mercury Cap Level (Best)",
+        "description": "Highest cap upgrade level for Toxic Mercury, liquid 4. Opening Alchemy raises the real level back to this if it is lower.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "378": {
-        "name": "Actor Y-Coordinate System",
-        "description": "Y-coordinate parameter in actor creation system (used in createRecycledActor)",
+        "name": "Alchemy - Toxic Mercury Regen Level (Best)",
+        "description": "Highest regen speed upgrade level for Toxic Mercury, liquid 4. Opening Alchemy raises the real level back to this if it is lower.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "379": {
-        "name": "Armor Set Smithy Sets Unlocked",
-        "description": "Armor Set Smithy sets unlocked",
-        "type": "string"
+        "name": "Armor Set Smithy - Permanent Sets",
+        "description": "Armor sets that give their bonus permanently, as a comma list of set names. A completed set is added once the smithy is hired (slot 380).",
+        "type": "string",
+        "verified": true
     },
     "380": {
-        "name": "Armor Set Smithy Unlocked",
-        "description": "Armor Set Smithy unlocked (set to 1)",
-        "type": "number"
+        "name": "Armor Set Smithy - Hired",
+        "description": "1 once you hired the smith who makes completed armor sets permanent. He can be hired after 30 days (slot 381), or at once with 2000+ gems bought.",
+        "type": "number",
+        "verified": true
     },
     "381": {
-        "name": "Smithy 30-Day Counter",
-        "description": "Day counter for smithy time-gating",
+        "name": "Armor Set Smithy - Days Waited",
+        "description": "Days counted toward the smith's 30-day wait: +1 at each daily reset, with no cap.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "382": {
         "name": "Lifetime FOMO Tickets",
-        "description": "Lifetime tickets bought from FOMO shop",
-        "type": "number"
+        "description": "Lifetime tickets bought from the FOMO shop. Each gives +1 Emperor try per day and +6 to the most tries you can save up. The game only reads it.",
+        "type": "number",
+        "verified": true
     },
     "383": {
-        "name": "Prisma Bubbles",
-        "description": "Prisma bubbles amount",
-        "type": "number"
+        "name": "Prisma Bubble Fragments",
+        "description": "Prisma Bubble fragments you have. 10 make a bubble Prisma in Alchemy.",
+        "type": "number",
+        "verified": true
     },
     "384": {
-        "name": "Selected Prisma Bubbles Index",
-        "description": "Index of selected prisma bubbles",
-        "type": "number"
+        "name": "Prisma Bubbles",
+        "description": "Bubbles made Prisma, as a list like \"_0,a3,\": the cauldron letter (_ orange, a green, b purple, c yellow), then the bubble number and a comma. \"0\" means none.",
+        "type": "string",
+        "verified": true
     },
     "385": {
-        "name": "Treasure Hunt Event ID",
-        "description": "Tracks current treasure hunt event ID",
+        "name": "Treasure Hunt - Last Hunt Found",
+        "description": "Number of the last event treasure hunt you finished. A new hunt starts when the event's number is higher than this.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "386": {
         "name": "Treasure Hunt Count",
