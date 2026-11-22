@@ -595,6 +595,29 @@ test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why
     }
 });
 
+// #197: 33 packs need free inventory slots. Without them the game drops the pack: no items, and never received.
+test("bundles: a buy is refused without the free inventory slots the game needs", async () => {
+    const { firebase } = await importRepo("src/cheats/core/globals.js");
+    await importRepo("src/cheats/cheats/standalone.js");
+    const { cheats } = await importRepo("src/cheats/core/registration.js");
+    const sent = [];
+    firebase.addToMessageQueue = (...args) => sent.push(args);
+    const keys = ["InventorySlotsOwned", "InventoryOrder", "ItemQuantity"];
+    const saved = keys.map((key) => [key, gga[key]]);
+    gga.InventorySlotsOwned = 4;
+    gga.InventoryOrder = ["Copper", "Blank", "Blank", "Blank", "Blank"]; // the fifth slot isn't owned
+    gga.ItemQuantity = [5, 0, 0, 0, 0];
+    try {
+        assert.throws(() => cheats.buy.fn(["bun_d"]), { message: "Needs 4 free inventory slots." });
+        assert.deepEqual(sent, [], "nothing was sent");
+        cheats.buy.fn(["bun_e"]); // needs 3
+        assert.deepEqual(sent, [["SERVER_CODE", "SERVER_ITEM_BUNDLE", "bun_e"]]);
+    } finally {
+        for (const [key, value] of saved) value === undefined ? delete gga[key] : (gga[key] = value);
+        delete firebase.addToMessageQueue;
+    }
+});
+
 // #28: the count and Buy all covered every bundle, whatever the search showed.
 test("bundles: the count and Buy all follow the search, and a search changed before the second press asks again", async () => {
     const root = await openPage(BUNDLES);
