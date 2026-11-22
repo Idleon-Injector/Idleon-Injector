@@ -159,20 +159,26 @@ const MasteryTab = () => {
     const reconcilePurpleRows = createStaticRowReconciler(purpleNode);
     const reconcileMealRows = createStaticRowReconciler(mealNode);
 
+    const pointsOff = van.state(false);
     let pointsRead = 0;
-    const refreshPoints = async () => {
+    // The save already landed, so a failed points read doesn't fail it; the points say they may be off until the next good read.
+    const refreshPointsAfterWrite = async () => {
         const read = ++pointsRead;
-        const [purple, yellow] = await Promise.all([
-            readComputed("cookingMastery", "PtsLeftCook_P"),
-            readComputed("cookingMastery", "PtsLeftCook_Y"),
-        ]);
-        // An older read answering last would show the points from before the newer save.
-        if (read !== pointsRead) return;
-        purplePointsState.val = toInt(purple, { min: 0 });
-        yellowPointsState.val = toInt(yellow, { min: 0 });
+        try {
+            const [purple, yellow] = await Promise.all([
+                readComputed("cookingMastery", "PtsLeftCook_P"),
+                readComputed("cookingMastery", "PtsLeftCook_Y"),
+            ]);
+            // An older read answering last would show the points from before the newer save.
+            if (read !== pointsRead) return;
+            purplePointsState.val = toInt(purple, { min: 0 });
+            yellowPointsState.val = toInt(yellow, { min: 0 });
+            pointsOff.val = false;
+        } catch {
+            if (read === pointsRead) pointsOff.val = true;
+        }
     };
-    // The save already landed; a failed points read keeps the old points until the next save or Refresh.
-    const refreshPointsAfterWrite = () => refreshPoints().catch(() => {});
+    const pointsNote = (points) => (pointsOff.val ? "Points may be off. Refresh." : `${points} POINTS AVAILABLE`);
 
     const expRequirement = () => {
         const storedRank = Math.max(0, toInt(rankState.val, { min: 1 }) - 1);
@@ -237,8 +243,11 @@ const MasteryTab = () => {
             for (const entry of purpleEntries.val) getOrCreateState(purpleStates, entry.key).val = entry.value;
             for (const entry of mealEntries.val) getOrCreateState(mealStates, entry.key).val = entry.value;
 
+            // A good read; a points read still running from before it can no longer say the points are off.
+            pointsRead++;
             purplePointsState.val = toInt(computed[1], { min: 0 });
             yellowPointsState.val = toInt(computed[2], { min: 0 });
+            pointsOff.val = false;
         });
 
     load();
@@ -288,12 +297,12 @@ const MasteryTab = () => {
             }),
             AccountSection({
                 title: "PURPLE UPGRADES",
-                note: () => `${purplePointsState.val} POINTS AVAILABLE`,
+                note: () => pointsNote(purplePointsState.val),
                 body: purpleNode,
             }),
             AccountSection({
                 title: "MEAL MASTERY",
-                note: () => `${yellowPointsState.val} POINTS AVAILABLE · ${mealEntries.val.length} MEALS`,
+                note: () => `${pointsNote(yellowPointsState.val)} · ${mealEntries.val.length} MEALS`,
                 body: mealNode,
             })
         ),

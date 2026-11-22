@@ -379,6 +379,14 @@ const EmperorTab = () => {
         controls: [
             SaveState(entriesWrite),
             entriesInput,
+            // A draft the field keeps (over a refresh too): the count the game holds, when it differs.
+            span({ class: "account-row__now" }, () => {
+                const current = snapshot.val;
+                const draft = String(entriesDraft.val).trim();
+                return current && !current.cheatEnabled && draft !== "" && Number(draft) !== current.remaining
+                    ? `now ${current.remaining}`
+                    : "";
+            }),
             ActionButton({
                 label: "Refill",
                 disabled: () =>

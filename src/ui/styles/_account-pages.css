@@ -776,6 +776,18 @@
     text-overflow: ellipsis;
 }
 
+/* What the game holds now, beside a field that keeps a different draft. */
+.account-row__now {
+    font-family: var(--font-mono);
+    color: var(--c-text-muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.account-row__now:empty {
+    display: none;
+}
+
 @container account-row-info (max-width: 320px) {
     .account-row__name {
         flex-basis: 100%;

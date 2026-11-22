@@ -212,6 +212,21 @@ test("emperor: leaving the showdowns field untouched with a count above the limi
     assert.equal(text(byClass(root, "write-status--error")[0]).trim(), "");
 });
 
+test("emperor: a stored-entries draft shows the game's count beside it while they differ", async () => {
+    const root = await openPage("src/ui/pages/world-6/emperor/emperor.js", (r) =>
+        Boolean(findRow(r, "Remaining entries"))
+    );
+    const row = findRow(root, "Remaining entries");
+    const [field] = inputs(row);
+    const stored = Number(shown(row));
+    const now = () => text(byClass(row, "account-row__now")[0]);
+    assert.equal(now(), "", "no hint while the field shows the game's count");
+    type(field, stored + 1);
+    await until(() => now() === `now ${stored}`, "the game's count beside the draft");
+    type(field, stored);
+    await until(() => now() === "", "the hint to go once the draft matches the game");
+});
+
 test("beanstalk: a Refresh that read the game before a save landed doesn't put the old level back", async () => {
     const levels = game.gga.Ninja[104];
     levels[0] = 0;

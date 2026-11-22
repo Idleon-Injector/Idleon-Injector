@@ -65,20 +65,18 @@ const CACHES = [
     [/^Research\[16\](\[|$)/, "DNSM.h.CellLV_tot"],
     [/^Research\[17\](\[[89]\])?$/, "DNSM.h.JellySlotz"],
 ];
-// A clean-up that fails is tried once more by itself (clearing a cache already gone is fine). Resolves to false when
-// the game didn't clear one either time: the values are back by then, so that is a warning, not a failure.
-const clearCaches = async (paths) => {
+// Resolves to false when the game didn't clear one: the values are back by then, so that is a warning, not a
+// failure, and nothing is tried again (a Refresh reads the totals the game holds).
+const clearCaches = (paths) => {
     const caches = CACHES.filter(([pattern]) => paths.some((path) => pattern.test(path))).map(([, cache]) => cache);
-    const clear = () =>
-        Promise.all(caches.map((cache) => deleteGga(cache))).then(
-            () => true,
-            () => false
-        );
-    return (await clear()) || clear();
+    return Promise.all(caches.map((cache) => deleteGga(cache))).then(
+        () => true,
+        () => false
+    );
 };
 
-/** What an undo says when it landed but the game's cached totals weren't cleared, even on the second try. */
-export const TOTALS_NOT_CLEARED = "Undone. Totals may be off.";
+/** What an undo says when it landed but the game's cached totals weren't cleared. */
+export const TOTALS_NOT_CLEARED = "Undone. Totals may be off. Refresh.";
 
 /**
  * Undo every entry of the action not undone yet. Resolves to the action (with `warning` when the cached totals

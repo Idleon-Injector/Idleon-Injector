@@ -39,6 +39,8 @@ import { createCharacterSelector } from "../../../components/views/account/compo
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
+import { Said, useSaid } from "../../../components/inPlace.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -119,6 +121,8 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap
     const elapsedValue = getValueState(playerName, trap.trapIndex, "elapsed", toInt(trap.elapsed));
     const completionValue = getValueState(playerName, trap.trapIndex, "completion", toInt(trap.completionTime));
     const finishStatus = useWriteStatus();
+    // Why a Finish failed (another character in play, say) stays beside it until the next Finish works.
+    const finishSaid = useSaid();
 
     return EditableFieldsRow({
         fields: [
@@ -200,18 +204,23 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap
                     status: finishStatus.status,
                     className: "trap-row__finish-btn",
                     disabled: () => elapsedValue.val >= completionValue.val,
-                    onClick: (e) => {
+                    onClick: async (e) => {
                         e.preventDefault();
-                        return finishStatus.run(() => finishTrap(playerName, trap));
+                        const { ok, error } = await finishStatus.run(() => finishTrap(playerName, trap));
+                        if (ok) finishSaid.clear();
+                        else if (error) finishSaid.say("failed", saveFailureReason(error));
                     },
                 })
             ),
+        // Why a Finish failed (another character in play, say) stays beside the line until the next Finish works.
+        renderExtraActions: () => Said({ said: finishSaid.said, kinds: ["failed"] }),
     });
 };
 
 const TrappingTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Trapping" });
     const finishAllStatus = useWriteStatus();
+    const finishAllSaid = useSaid();
     const valueStates = new Map();
     const critterNameById = new Map();
     const playersNode = div();
@@ -320,9 +329,21 @@ const TrappingTab = () => {
                 getValueState(playerName, trap.trapIndex, "completion", 0).val
         );
         if (!traps.length) return;
-        await finishAllStatus.run(async () => {
-            for (const trap of traps) await finishTrap(playerName, trap);
-        });
+        await finishAllStatus.run(
+            async () => {
+                for (const trap of traps) {
+                    try {
+                        await finishTrap(playerName, trap);
+                    } catch (error) {
+                        throw new Error(`${playerName} #${trap.trapIndex + 1}: ${saveFailureReason(error)}`);
+                    }
+                }
+            },
+            {
+                onSuccess: () => finishAllSaid.clear(),
+                onError: (error) => finishAllSaid.say("failed", error.message),
+            }
+        );
     };
 
     const loadCritterNames = async (critterIds) => {
@@ -393,7 +414,7 @@ const TrappingTab = () => {
             { class: "account-list account-list--tabbed traps-list" },
             ListPanel({
                 body: playersNode,
-                tools: () =>
+                tools: () => [
                     div(
                         { class: "tabbed-list__tool-group" },
                         ActionButton({
@@ -406,6 +427,9 @@ const TrappingTab = () => {
                             },
                         })
                     ),
+                    // Why Finish all failed stays beside it until the next one works.
+                    Said({ said: finishAllSaid.said, kinds: ["failed"] }),
+                ],
                 toolsLabel: () => {
                     const n = trapsShown(selected.val).length;
                     return isSearching() ? `${n} matching ${trapWord(n)}` : `All ${n} ${trapWord(n)}`;
