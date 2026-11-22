@@ -24,6 +24,7 @@ import {
     createKeptRows,
     unwrapH,
     useWriteStatus,
+    writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
@@ -38,6 +39,11 @@ const normalizeRackIds = (rawRack) =>
     toIndexedArray(rawRack ?? [])
         .map((entry) => String(entry ?? "").trim())
         .filter((entry) => entry.length > 0);
+
+const isEligibleHat = (raw) => {
+    const def = unwrapH(raw);
+    return def?.Type === "PREMIUM_HELMET" && def?.typeGen === "aHelmetMTX";
+};
 
 const buildHatRackState = (rawRack, rawItemDefs) => {
     const itemDefs = rawItemDefs && typeof rawItemDefs === "object" ? rawItemDefs : {};
@@ -155,7 +161,7 @@ const HatRackTab = () => {
         if (rawRack === null || rawRack === undefined || rawSlab === null || rawSlab === undefined) {
             throw new Error("Hat Rack or Slab history is unavailable. Refresh to try again.");
         }
-        return { rack: normalizeRackIds(rawRack), slab: normalizeRackIds(rawSlab) };
+        return { rack: normalizeRackIds(rawRack), slab: normalizeRackIds(rawSlab), slabRead: rawSlab };
     };
 
     // After any outcome the page shows what the game holds. A row whose hat and place are unchanged keeps its node,
@@ -188,15 +194,28 @@ const HatRackTab = () => {
         await writeVerified(`${RACK_PATH}.length`, baseRack.length + items.length);
     };
 
+    // The game refuses the Slab write ("changed since") if it added to the Slab after the read, so nothing it added
+    // is written over; the page reads the game again and the next press starts from that.
+    const writeSlab = (slabRead, next) =>
+        writeManyVerified([{ path: SLAB_HISTORY_PATH, value: next, expect: slabRead }]);
+    // Every eligible hat on the rack goes in the Slab, so one an earlier add placed but couldn't add there (it
+    // failed between the two writes) is added by the next add.
+    const addToSlab = async ({ slab, slabRead }, rack) => {
+        const missing = rack.filter(
+            (id, i) => rack.indexOf(id) === i && !slab.includes(id) && isEligibleHat(itemDefsCache?.[id])
+        );
+        if (missing.length) await writeSlab(slabRead, [...slab, ...missing]);
+    };
+
     const removeAtIndex = async (index) => {
         if (mutating.val) return;
         const itemId = currentRackIds.val[index];
         if (itemId === undefined) return;
 
-        await change(async ({ rack, slab }) => {
+        await change(async ({ rack, slab, slabRead }) => {
             // The Slab first: if the rack write then fails, the row is still on the page to say so.
             const nextSlab = slab.filter((id) => id !== itemId);
-            if (nextSlab.length !== slab.length) await writeVerified(SLAB_HISTORY_PATH, nextSlab);
+            if (nextSlab.length !== slab.length) await writeSlab(slabRead, nextSlab);
             const at = rack[index] === itemId ? index : rack.indexOf(itemId);
             const nextRack = rack.filter((_, i) => i !== at);
             if (at >= 0) await writeVerified(RACK_PATH, nextRack);
@@ -210,10 +229,10 @@ const HatRackTab = () => {
         if (!itemId || mutating.val) return;
 
         await runAdd(() =>
-            change(async ({ rack, slab }) => {
-                if (rack.includes(itemId)) return { cancelled: true };
-                await appendToRack(rack, [itemId]);
-                if (!slab.includes(itemId)) await writeVerified(SLAB_HISTORY_PATH, [...slab, itemId]);
+            change(async (lists) => {
+                if (lists.rack.includes(itemId)) return { cancelled: true };
+                await appendToRack(lists.rack, [itemId]);
+                await addToSlab(lists, [...lists.rack, itemId]);
             })
         );
     };
@@ -221,12 +240,11 @@ const HatRackTab = () => {
     const addAllAvailable = async () => {
         if (mutating.val || missingOptions.val.length === 0) return;
         await runAdd(() =>
-            change(async ({ rack, slab }) => {
-                const toAdd = missingOptions.val.map((item) => item.itemId).filter((id) => !rack.includes(id));
+            change(async (lists) => {
+                const toAdd = missingOptions.val.map((item) => item.itemId).filter((id) => !lists.rack.includes(id));
                 if (toAdd.length === 0) return { cancelled: true };
-                await appendToRack(rack, toAdd);
-                const newInSlab = toAdd.filter((id) => !slab.includes(id));
-                if (newInSlab.length) await writeVerified(SLAB_HISTORY_PATH, [...slab, ...newInSlab]);
+                await appendToRack(lists.rack, toAdd);
+                await addToSlab(lists, [...lists.rack, ...toAdd]);
             })
         );
     };

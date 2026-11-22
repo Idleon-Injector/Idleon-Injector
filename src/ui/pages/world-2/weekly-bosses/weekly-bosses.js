@@ -178,7 +178,10 @@ const WeeklyBossTab = () => {
                 playerStates.set(key, state);
             } else {
                 const state = playerStates.get(key);
-                if (resetDrafts || state.draft.val === state.value.val) state.draft.val = value;
+                // A pick made since the save running now (or waiting its turn) is the player's, even when it equals
+                // what was stored; the pick being saved follows the game.
+                const newerPick = state.write.isBusy() && state.draft.val !== state.saving;
+                if (!newerPick && (resetDrafts || state.draft.val === state.value.val)) state.draft.val = value;
                 state.value.val = value;
             }
         }
@@ -337,6 +340,7 @@ const WeeklyBossTab = () => {
             if (cannotEdit()) return { cancelled: true };
             const state = playerStates.get(playerKey(player));
             const draft = state.draft.val;
+            state.saving = draft;
             busy.val = true;
             message.val = "";
             try {
@@ -357,6 +361,7 @@ const WeeklyBossTab = () => {
                 message.val = caughtError.message;
                 throw caughtError;
             } finally {
+                state.saving = undefined; // no pick is saving now: one queued since is the player's
                 busy.val = false;
             }
         });

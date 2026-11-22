@@ -13,6 +13,7 @@ import { RemovableStoredRow } from "../../../components/views/account/components
 import {
     adjustFormattedIntInput,
     cleanName,
+    createKeptRows,
     createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
@@ -277,13 +278,15 @@ function SpelunkingCavesTab() {
 
     // Edits start from the game's list as it is now, not the page's last read: the game adds to it as objects are
     // destroyed. Whatever happens, the page then shows the list the game holds; an unchanged list keeps its rows, so a
-    // refused Remove keeps saying why on its row.
+    // refused Remove keeps saying why on its row. `edit` resolves to null when the list needs no change.
     const editDestroyedObjects = async (edit) => {
         mutating.val = true;
         let names = null;
         try {
             names = normalizeStoredNames(await gga(DISCOVERED_OBJECTS_PATH));
-            names = await edit(names);
+            const edited = await edit(names);
+            if (edited === null) return { cancelled: true };
+            names = edited;
         } catch (error) {
             names = await gga(DISCOVERED_OBJECTS_PATH).then(normalizeStoredNames, () => names);
             throw error;
@@ -297,7 +300,7 @@ function SpelunkingCavesTab() {
     const addObjects = (objectIds) =>
         editDestroyedObjects(async (currentNames) => {
             const toAdd = objectIds.filter((objectId) => !currentNames.includes(objectId));
-            if (toAdd.length === 0) return currentNames;
+            if (toAdd.length === 0) return null;
             await writeManyVerified([
                 ...toAdd.map((objectId, offset) => ({
                     path: `${DISCOVERED_OBJECTS_PATH}[${currentNames.length + offset}]`,
@@ -310,15 +313,19 @@ function SpelunkingCavesTab() {
 
     const removeObject = async (objectId) => {
         if (mutating.val) return;
-        await editDestroyedObjects(async (currentNames) => {
+        return editDestroyedObjects(async (currentNames) => {
             const index = currentNames.indexOf(objectId);
-            if (index < 0) return currentNames;
+            if (index < 0) return null;
             const nextNames = currentNames.filter((_, other) => other !== index);
             await writeVerified(DISCOVERED_OBJECTS_PATH, nextNames);
             return nextNames;
         });
     };
     const isMutating = () => mutating.val;
+    // A row whose place and object are unchanged keeps its node, so a failed Remove still has its row to say so.
+    const keptRows = createKeptRows((row) =>
+        DestroyedObjectRow({ row, onRemove: () => removeObject(row.objectId), isBusy: isMutating })
+    );
 
     const addSelectedObject = async () => {
         const objectId = selectedObjectId.val;
@@ -359,18 +366,11 @@ function SpelunkingCavesTab() {
                 `${discoveredCount.val} DISCOVERED, ${knownDiscoveredCount.val}/${totalObjectCount.val} KNOWN OBJECTS`,
             body: () => {
                 const rows = destroyedRows.val;
+                // Taken first, so an empty list lets go of the rows it held: a row added back is built new.
+                const nodes = keptRows(rows);
                 return rows.length === 0
                     ? div({ class: "tab-empty" }, "No destroyed objects are currently discovered.")
-                    : div(
-                          { class: "account-item-stack account-item-stack--dense" },
-                          ...rows.map((row) =>
-                              DestroyedObjectRow({
-                                  row,
-                                  onRemove: () => removeObject(row.objectId),
-                                  isBusy: isMutating,
-                              })
-                          )
-                      );
+                    : div({ class: "account-item-stack account-item-stack--dense" }, ...nodes);
             },
         })
     );

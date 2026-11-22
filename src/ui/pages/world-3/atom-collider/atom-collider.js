@@ -48,6 +48,9 @@ const AtomColliderTab = () => {
     const rowList = div({ class: "account-list" });
     let atomsMeta = [];
     const reconcileRows = createStaticRowReconciler(rowList);
+    // While the levels are read again (after a failed bulk set too), or that read failed, the levels shown may be
+    // old: the bulk actions wait for a read that works.
+    const readPending = () => loading.val || Boolean(error.val);
 
     const doSetAll = async (targetLevel) => {
         if (!atomsMeta.length) return;
@@ -118,6 +121,7 @@ const AtomColliderTab = () => {
                 {
                     label: "Max all",
                     status: bulkStatus,
+                    disabled: readPending,
                     tooltip: "Set every atom to its computed max level",
                     onClick: () => doSetAll(null),
                 },
@@ -125,6 +129,7 @@ const AtomColliderTab = () => {
                     label: "Reset all",
                     variant: "danger",
                     status: bulkStatus,
+                    disabled: readPending,
                     tooltip: "Reset every atom to 0",
                     confirm: "reset every atom to 0.",
                     onClick: () => doSetAll(0),
