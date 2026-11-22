@@ -699,9 +699,11 @@
 }
 
 /*
- * A row that holds a list (a Death Note mob's characters, a trap set's traps): its name is the opener, plain text that
- * reads like any row, with the focus ring when keyed to. What it opens spans the row, under it; the rows in it sit a
- * step in, on the page's own ground, with no lines of their own.
+ * A row that holds a list (a Death Note mob's characters, a star sign's players, a captain's bonuses): its name is the
+ * opener, plain text that reads like any row, with the focus ring when keyed to. Its arrow has one place in every row,
+ * the end of the name's column, centred on the name's lines, so it never moves with the name's length and lines up
+ * down the list (Lumi: the arrow after the text looked misplaced). What it opens spans the row, under it; the rows in
+ * it sit a step in, on the page's own ground, with no lines of their own.
  */
 .row-opener {
     display: flex;
@@ -719,12 +721,16 @@
     text-align: left;
     cursor: pointer;
 }
+.row-opener > * {
+    min-width: 0;
+}
 .row-opener::after {
     content: "";
     flex: none;
     width: 6px;
     height: 6px;
-    margin-left: 2px;
+    margin-left: auto;
+    margin-right: 14px;
     border-right: 1.5px solid var(--c-text-muted);
     border-bottom: 1.5px solid var(--c-text-muted);
     transform: translateY(-2px) rotate(45deg);

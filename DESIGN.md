@@ -369,6 +369,10 @@ World 5 uses the same pieces; two shared pages moved onto them:
 - **The Slab holds the Greenstacks** as its second tab (the game shows them on the Slab); each tab keeps its list, its
   "Missing only" filter and its tools. A captain's opened row can remove it, asking in place first; it does what the
   game's discard does and, like the game, refuses a captain on a boat or the last one.
+- **A row that opens has its arrow in one place:** the end of its name's column, centred on the name's lines, the
+  same in every opening row (Star Signs, Death Note, the 3D Printer, Captains, the Rat King's plants), so it never
+  moves with the name's length (Lumi: the arrow after the text looked misplaced). World 5's five systems have their
+  drawings (Lumi: "Put all five in").
 - **A pick in a table gets its own column** (`ValueTableRow`'s `steps` field): Palette is a table, a colour's Level and
   Black Stars under their heads, so nothing in a line moves with its neighbour's width (Lumi: "it looks off, not
   aligned"). A number beside a control (the Rat King's "3 / 10") keeps one width for the same reason.
