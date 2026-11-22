@@ -198,6 +198,37 @@ test("Hat Rack: a hat an add placed but couldn't put in the Slab goes there with
     assert.ok(gga.Cards[1].includes(placed), "the earlier hat is in the Slab now");
 });
 
+test("Hat Rack: loot the game adds to the Slab while an add writes it is kept", async () => {
+    setRack([hat(1)], [hat(1)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 1);
+    const add = buttonIn(root, "Add");
+    const realFetch = globalThis.fetch;
+    let added = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && /"gga\.Cards\[1\]"/.test(options.body) && !added) {
+            added = true;
+            gga.Cards[1].push("NewLoot"); // the game found loot after the page read the Slab
+        }
+        return realFetch(url, options);
+    };
+    try {
+        await quietly(async () => {
+            click(add);
+            await until(() => settledButton(add), "the Add to finish");
+        });
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.ok(gga.Cards[1].includes("NewLoot"), "the loot stays in the Slab");
+    assert.match(classes(add), /account-btn--error/, "the Slab write was refused");
+
+    await until(() => !classes(add).includes("account-btn--error"), "the red to clear");
+    click(add);
+    const placed = gga.Spelunk[46][1];
+    await until(() => gga.Cards[1].includes(placed), "the next Add to put the earlier hat in the Slab");
+    assert.ok(gga.Cards[1].includes("NewLoot"), "the loot is still there");
+});
+
 test("Hat Rack: a removal the Slab refuses stays on its row, red, and can be pressed again", async () => {
     setRack([hat(1), hat(2)], [hat(1)]);
     const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 2);
