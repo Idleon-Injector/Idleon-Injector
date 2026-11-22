@@ -3302,243 +3302,280 @@
     },
     "546": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "547": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "548": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "549": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "550": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "551": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "552": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "553": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "554": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "555": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "556": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "557": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "558": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "559": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "560": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "561": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "562": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "563": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "564": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "565": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "566": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "567": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "568": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "569": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "570": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "571": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "572": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "573": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "574": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "575": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "576": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "577": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "578": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "579": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "580": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "581": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "582": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "583": {
         "name": "Gaming Auto-Harvest Filter - Fungi/Sprout",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Fungi and default Sprouts, 1=skip them",
+        "description": "1 = Harvest All skips Fungi and plain Sprouts. Set by clicking Fungi in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "584": {
         "name": "Gaming Auto-Harvest Filter - Bonsai",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Bonsai, 1=skip them",
+        "description": "1 = Harvest All skips Bonsai plants. Set by clicking Bonsai in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "585": {
         "name": "Gaming Auto-Harvest Filter - Cactus",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Cactus, 1=skip them",
+        "description": "1 = Harvest All skips Cactus plants. Set by clicking Cactus in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "586": {
         "name": "Gaming Auto-Harvest Filter - Blossom",
