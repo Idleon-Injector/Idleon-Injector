@@ -440,6 +440,23 @@
     outline-offset: -2px;
 }
 
+/* On a phone the tabs share the row in a step smaller type, so five short names fit on one line without scrolling. */
+@media (max-width: 760px) {
+    .viewport .tabbed-list .tabbed-list__tabs {
+        gap: 2px;
+        padding: 8px 4px 0;
+    }
+    .viewport .tabbed-list .tabbed-list__tab {
+        flex: 1 1 auto;
+        padding: 0 6px;
+        font-size: 0.875rem;
+    }
+    /* The last tab ends at the panel's edge: no foot to curve out past it. */
+    .tabbed-list__head.last-open .tabbed-list__pill::after {
+        display: none;
+    }
+}
+
 /* The rows' own scroll, with a slim bar inside the panel's edge (no arrows). The page's scroll-container sets the
    standard scrollbar-color, which newer Chrome obeys over the bar drawn below (it then adds arrows); it is reset here
    so Chrome, new and 87, draws this bar, and only browsers without it take the standard thin one. */

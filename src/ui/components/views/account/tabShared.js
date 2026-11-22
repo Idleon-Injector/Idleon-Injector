@@ -155,8 +155,16 @@ export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsO
     return div(
         { class: () => joinClasses("tabbed-list", showsTools() && "has-tools") },
         div(
-            // The first tab open stands on the tray's left edge (its corner there goes square).
-            { class: () => joinClasses("tabbed-list__head", activeId.val === tabs[0].id && "first-open") },
+            // The first tab open stands on the tray's left edge (its corner there goes square); on a phone the tabs fill
+            // the row, so the last one open stands on its right edge.
+            {
+                class: () =>
+                    joinClasses(
+                        "tabbed-list__head",
+                        activeId.val === tabs[0].id && "first-open",
+                        activeId.val === tabs[tabs.length - 1].id && "last-open"
+                    ),
+            },
             nav,
             tray?.node
         ),
