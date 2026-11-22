@@ -7,7 +7,13 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { AddFromListSection } from "../../../components/views/account/components/AddFromListSection.js";
 import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
-import { cleanName, unwrapH, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
+import {
+    cleanName,
+    createKeptRows,
+    unwrapH,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
 
 const { div } = van.tags;
@@ -194,6 +200,8 @@ const TrophyTab = () => {
         }
     };
     clearSlotAtIndex.isBusy = () => mutating.val;
+    // A row whose slot and trophy are unchanged keeps its node, so a failed Remove still has its row to say so.
+    const keptRows = createKeptRows((row) => TrophySlotRow({ row, onClear: clearSlotAtIndex }));
 
     const addSelected = async () => {
         const itemId = selectedAddItemId.val;
@@ -265,6 +273,8 @@ const TrophyTab = () => {
             note: () => `${ownedCount.val} OWNED, ${emptyCount.val} EMPTY, ${slotCount.val} TOTAL SLOTS`,
             body: () => {
                 const rows = visibleSlotRows.val;
+                // Taken first, so an empty list lets go of the rows it held: a row added back is built new.
+                const nodes = keptRows(rows);
                 return rows.length === 0
                     ? div({ class: "tab-empty" }, () =>
                           emptyCount.val > 0
@@ -273,10 +283,7 @@ const TrophyTab = () => {
                                 } available.`
                               : "No trophies currently owned."
                       )
-                    : div(
-                          { class: "account-item-stack account-item-stack--dense" },
-                          ...rows.map((row) => TrophySlotRow({ row, onClear: clearSlotAtIndex }))
-                      );
+                    : div({ class: "account-item-stack account-item-stack--dense" }, ...nodes);
             },
         })
     );

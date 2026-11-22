@@ -30,6 +30,7 @@ import {
     oneAtATime,
     unwrapH,
     useWriteStatus,
+    writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
@@ -44,6 +45,11 @@ const normalizeRackIds = (rawRack) =>
     toIndexedArray(rawRack ?? [])
         .map((entry) => String(entry ?? "").trim())
         .filter((entry) => entry.length > 0);
+
+const isEligibleHat = (raw) => {
+    const def = unwrapH(raw);
+    return def?.Type === "PREMIUM_HELMET" && def?.typeGen === "aHelmetMTX";
+};
 
 const buildHatRackState = (rawRack, rawItemDefs) => {
     const itemDefs = rawItemDefs && typeof rawItemDefs === "object" ? rawItemDefs : {};
@@ -161,7 +167,7 @@ const HatRackTab = () => {
         if (rawRack === null || rawRack === undefined || rawSlab === null || rawSlab === undefined) {
             throw new Error("Couldn't read the rack. Refresh.");
         }
-        return { rack: normalizeRackIds(rawRack), slab: normalizeRackIds(rawSlab) };
+        return { rack: normalizeRackIds(rawRack), slab: normalizeRackIds(rawSlab), slabRead: rawSlab };
     };
 
     // After any outcome the page shows what the game holds.
@@ -191,11 +197,24 @@ const HatRackTab = () => {
         await writeVerified(`${RACK_PATH}.length`, baseRack.length + items.length);
     };
 
+    // The game refuses the Slab write ("changed since") if it added to the Slab after the read, so nothing it added
+    // is written over; the page reads the game again and the next flip starts from that.
+    const writeSlab = (slabRead, next) =>
+        writeManyVerified([{ path: SLAB_HISTORY_PATH, value: next, expect: slabRead }]);
+    // Every eligible hat on the rack goes in the Slab, so one an earlier add placed but couldn't add there (it
+    // failed between the two writes) is added by the next add.
+    const addToSlab = async ({ slab, slabRead }, rack) => {
+        const missing = rack.filter(
+            (id, i) => rack.indexOf(id) === i && !slab.includes(id) && isEligibleHat(itemDefsCache?.[id])
+        );
+        if (missing.length) await writeSlab(slabRead, [...slab, ...missing]);
+    };
+
     const removeHat = (itemId) =>
-        change(async ({ rack, slab }) => {
+        change(async ({ rack, slab, slabRead }) => {
             // The Slab first: if the rack write then fails, the hat still shows on the rack, and the switch says why.
             const nextSlab = slab.filter((id) => id !== itemId);
-            if (nextSlab.length !== slab.length) await writeVerified(SLAB_HISTORY_PATH, nextSlab);
+            if (nextSlab.length !== slab.length) await writeSlab(slabRead, nextSlab);
             if (rack.includes(itemId))
                 await writeVerified(
                     RACK_PATH,
@@ -204,12 +223,11 @@ const HatRackTab = () => {
         });
 
     const addHats = (itemIds) =>
-        change(async ({ rack, slab }) => {
-            const toAdd = itemIds.filter((id) => !rack.includes(id));
+        change(async (lists) => {
+            const toAdd = itemIds.filter((id) => !lists.rack.includes(id));
             if (!toAdd.length) return { cancelled: true };
-            await appendToRack(rack, toAdd);
-            const newInSlab = toAdd.filter((id) => !slab.includes(id));
-            if (newInSlab.length) await writeVerified(SLAB_HISTORY_PATH, [...slab, ...newInSlab]);
+            await appendToRack(lists.rack, toAdd);
+            await addToSlab(lists, [...lists.rack, ...toAdd]);
             return { ok: true };
         });
 

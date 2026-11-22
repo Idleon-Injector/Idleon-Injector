@@ -173,10 +173,10 @@ const PostOfficeTab = () => {
     const shownBoxes = () => boxStates.slice(0, boxCount.val).filter((box) => shownBySearch(box.row));
     const boxWord = (n) => `box${n === 1 ? "" : "es"}`;
 
-    const writeBoxes = (boxes, getNextValue) =>
+    const writeBoxes = (boxes, getNextValue, forCharacter) =>
         bulk.run(() =>
             runBulkSet({
-                character: getCharacter(),
+                character: forCharacter ?? getCharacter(),
                 entries: boxes,
                 getTargetValue: getNextValue,
                 getValueState: (box) => box.current,
@@ -194,11 +194,14 @@ const PostOfficeTab = () => {
             onClick: (e) => {
                 e.preventDefault();
                 const boxes = shownBoxes().filter((box) => Number(box.current.val) > 0);
+                // The answer resets the boxes of the character asked about: the game refuses it once another is in
+                // play, even if the page has read that one meanwhile.
+                const asked = character;
                 ask({
                     question: `Reset ${boxes.length} ${boxWord(boxes.length)} to 0?`,
                     confirmLabel: boxes.length === 1 ? "Reset it" : "Reset them",
                     from: resetAll,
-                    onConfirm: () => writeBoxes(boxes, () => 0),
+                    onConfirm: () => writeBoxes(boxes, () => 0, asked),
                 });
             },
         });

@@ -135,7 +135,7 @@ const RatKingTab = () => {
             targetCount.val = String(desired);
             const held = await readCrowns();
             if (held.size - desired > asked) return { cancelled: true };
-            if (desired === held.size) return;
+            if (desired === held.size) return { cancelled: true };
 
             const current = ALL_CROWNS.filter((id) => held.has(id));
             const missing = ALL_CROWNS.filter((id) => !held.has(id));

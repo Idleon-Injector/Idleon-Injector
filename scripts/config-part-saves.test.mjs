@@ -80,6 +80,32 @@ test("two pages saving at once both land, one after the other, in the order aske
     assert.deepEqual(listOf(await fetchConfig()), ["first", "second"]);
 });
 
+test("a config read that answers after a save landed reads again, so it shows what that save left", async () => {
+    await reset();
+    const realFetch = globalThis.fetch;
+    let release;
+    const answer = new Promise((resolve) => (release = resolve));
+    let held = false;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (!held && String(url).endsWith("/api/config")) {
+            held = true; // a page's Refresh: the game answered, the answer comes late
+            await answer;
+        }
+        return response;
+    };
+    try {
+        const read = fetchConfig();
+        while (!held) await new Promise(setImmediate);
+        await saveConfigPart(add("first"));
+        release();
+        assert.deepEqual(listOf(await read), ["first"], "not the list from before the save");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+});
+
 test("a failed save sends nothing more, so another tab's newer save stays", async () => {
     await reset();
     let since;

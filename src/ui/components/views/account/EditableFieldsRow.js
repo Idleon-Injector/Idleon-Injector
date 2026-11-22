@@ -163,7 +163,8 @@ export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, bad
                 await showRead().catch(() => {});
                 throw error;
             }
-            return read();
+            // The write was read back, so it saved: a read after it that fails leaves the line on the saved values.
+            return read().catch(() => next);
         },
         rowClass: "value-row",
         info,

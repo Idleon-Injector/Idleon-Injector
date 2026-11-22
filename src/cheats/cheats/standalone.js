@@ -13,6 +13,8 @@ import { cheatState, cheatConfig } from "../core/state.js";
 import { firebase, itemDefs, monsterDefs, events, gga, cList } from "../core/globals.js";
 import { deepCopy } from "../utils/deepCopy.js";
 import { dropOnChar, getCharCords } from "../helpers/dropOnChar.js";
+import { characterInPlay } from "../helpers/wardrobe/perfect.js";
+import { bundleSlots, freeInventorySlots } from "../helpers/bundles.js";
 import { keychainStatsMap } from "../constants.js";
 
 // The OG-drop function that we all love
@@ -439,6 +441,13 @@ defineCheat({
         if (!code) {
             return "No code was given, provide a code";
         }
+        // The pack's items go to the character in play; at character select there is none (each command of a Buy
+        // all asks again, as the page only checks once before it starts).
+        characterInPlay();
+        // Without the free slots it needs, the game drops the pack (see bundleSlots).
+        const slots = bundleSlots[code];
+        if (slots && freeInventorySlots() < slots)
+            throw new Error(`Needs ${slots} free inventory slot${slots === 1 ? "" : "s"}.`);
 
         firebase.addToMessageQueue("SERVER_CODE", "SERVER_ITEM_BUNDLE", code);
         return `${code} has been sent!`;

@@ -213,14 +213,23 @@ const IslandsTab = () => {
             const target = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
             if (target === null) return refuseSetAll(setAllInput);
             const tab = tabOf(activeId);
-            const fields = upgradesOn(tab);
-            const lowered = fields.filter((field) => Number(getValueState(field.index).val) > target).length;
-            if (!lowered) return setUpgrades(fields, target);
+            return askOrSet(upgradesOn(tab), target, tab.noun);
+        };
+        const askOrSet = (fields, target, noun) => {
+            const loweredOf = () => fields.filter((field) => Number(getValueState(field.index).val) > target);
+            const lowered = loweredOf();
+            const n = lowered.length;
+            if (!n) return setUpgrades(fields, target);
             ask({
-                question: `Lower ${lowered} ${plural(tab.noun, lowered)} to ${target}?`,
-                confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
+                question: `Lower ${n} ${plural(noun, n)} to ${target}?`,
+                confirmLabel: n === 1 ? "Lower it" : "Lower them",
                 from: setAllControl.querySelector(".account-btn"),
-                onConfirm: () => setUpgrades(fields, target),
+                // A row saved while the question was open can change what gets lowered: then it asks again.
+                onConfirm: () => {
+                    const now = loweredOf();
+                    const same = now.length === n && now.every((field, i) => field === lowered[i]);
+                    return same ? setUpgrades(fields, target) : askOrSet(fields, target, noun);
+                },
             });
             return undefined;
         };

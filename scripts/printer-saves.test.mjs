@@ -251,6 +251,7 @@ test("Printer's reload after an Undo waits for a slot write still running", asyn
         return { promise, open };
     });
     let writing = false;
+    let readsAnswered = 0; // reads of the game answered so far
     globalThis.fetch = async (url, options) => {
         if (String(url).includes("write-many")) {
             writing = true;
@@ -258,10 +259,11 @@ test("Printer's reload after an Undo waits for a slot write still running", asyn
             writing = false;
             return realFetch(url, options);
         }
-        if (!writing) return realFetch(url, options);
+        if (!writing) return realFetch(url, options).finally(() => readsAnswered++);
         // A read made while the slot write runs: the game answers now, the answer arrives after the write.
         const answer = await realFetch(url, options);
         await gates[1].promise;
+        readsAnswered++;
         return answer;
     };
     t.after(() => {
@@ -273,12 +275,15 @@ test("Printer's reload after an Undo waits for a slot write still running", asyn
     type(input, 2222);
     enter(row, input);
     await until(() => writing, "Sample 2's save to reach the game");
+    const answered = readsAnswered;
     reloadPlace.val = { view: "", page: "" }; // an Undo elsewhere changed what this page shows
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve)); // VanJS runs the page's reload watch on the next turn
     gates[0].open();
     await until(() => saved(row), "Sample 2's save");
     gates[1].open();
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // The reload has read the game and ended: Refresh is usable again only once no load runs.
+    const refresh = button(root, "Refresh");
+    await until(() => readsAnswered > answered && !refresh.attributes.disabled, "the reload to finish");
     assert.equal(gga.Printer[printerSlot(2) + 1], 2222);
     assert.equal(input.value, "2.22K", "the row shows the quantity saved, not the reload's older answer");
 });

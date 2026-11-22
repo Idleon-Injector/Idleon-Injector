@@ -185,7 +185,10 @@ const WeeklyBossTab = () => {
                 playerStates.set(key, state);
             } else {
                 const state = playerStates.get(key);
-                if (resetDrafts || state.draft.val === state.value.val) state.draft.val = value;
+                // A pick made since the save running now (or waiting its turn) is the player's, even when it equals
+                // what was stored; the pick being saved follows the game.
+                const newerPick = state.write.isBusy() && state.draft.val !== state.saving;
+                if (!newerPick && (resetDrafts || state.draft.val === state.value.val)) state.draft.val = value;
                 state.value.val = value;
             }
         }
@@ -322,7 +325,8 @@ const WeeklyBossTab = () => {
         });
 
     // `button`: the tool pressed. Unlocking adds, so it runs on one press; locking takes away, so it asks in the tray.
-    const setAll = (enabled, button, ask) =>
+    // `shown`: the skins the search showed at the press; a search typed while it waits or reads doesn't change them.
+    const setAll = (enabled, button, ask, shown = shownSkins()) =>
         inTurn(async () => {
             if (cannotEdit()) return;
             // The bulk action starts after a read: keep the button's press, so it's named after and offers Undo all
@@ -333,7 +337,7 @@ const WeeklyBossTab = () => {
             let targets;
             try {
                 const snapshot = await readFresh();
-                targets = shownSkins().filter(({ key }) => (Number(snapshot.weekly[key]) === 1) !== enabled);
+                targets = shown.filter(({ key }) => (Number(snapshot.weekly[key]) === 1) !== enabled);
             } catch (caughtError) {
                 message.val = caughtError.message;
                 return;
@@ -341,8 +345,8 @@ const WeeklyBossTab = () => {
                 busy.val = false;
             }
             if (!targets.length) return;
-            // Not awaited: it takes its turn after this one.
-            if (enabled) return void writeSkins(true, targets, inGesture);
+            // Not awaited: it takes its turn after this one. The press waits for it outside this turn (see Unlock all).
+            if (enabled) return { written: writeSkins(true, targets, inGesture) };
             const n = targets.length;
             ask({
                 question: `Lock ${n} skin${n === 1 ? "" : "s"}?`,
@@ -359,6 +363,7 @@ const WeeklyBossTab = () => {
             if (cannotEdit()) return { cancelled: true };
             const state = playerStates.get(playerKey(player));
             const draft = state.draft.val;
+            state.saving = draft;
             busy.val = true;
             message.val = "";
             try {
@@ -379,6 +384,7 @@ const WeeklyBossTab = () => {
                 message.val = caughtError.message;
                 throw caughtError;
             } finally {
+                state.saving = undefined; // no pick is saving now: one queued since is the player's
                 busy.val = false;
             }
         });
@@ -546,9 +552,10 @@ const WeeklyBossTab = () => {
                 label: "Unlock all",
                 status: bulk.status,
                 disabled: () => cannotWrite() || lockedShown() === 0,
+                // The press ends with the write, so the button says how it went.
                 onClick: (e) => {
                     e.preventDefault();
-                    void setAll(true, e.currentTarget, ask);
+                    return setAll(true, e.currentTarget, ask).then((turn) => turn?.written);
                 },
             }),
             lockAll

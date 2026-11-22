@@ -144,6 +144,56 @@ test("Hat Rack: a half-done Add all shows the hats that landed, and the next swi
     for (const itemId of landed) assert.ok(gga.Spelunk[46].includes(itemId), `${itemId} stays on the rack`);
 });
 
+test("Hat Rack: a hat a flip put on the rack but couldn't put in the Slab goes there with the next add", async () => {
+    setRack([hat(1)], [hat(1)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    const row = rackRowFor(root, hat(2));
+
+    const restore = failWrites(/"gga\.Cards\[1\]"/);
+    try {
+        await quietly(async () => {
+            flip(row, true);
+            await until(() => switchFailed(row), "the switch to say why");
+        });
+    } finally {
+        restore();
+    }
+    assert.ok(gga.Spelunk[46].includes(hat(2)), "the hat landed on the rack");
+    assert.ok(!gga.Cards[1].includes(hat(2)), "the Slab refused it");
+
+    flip(rackRowFor(root, hat(3)), true);
+    await until(() => gga.Cards[1].includes(hat(3)), "the next add to finish");
+    assert.ok(gga.Cards[1].includes(hat(2)), "the earlier hat is in the Slab now");
+});
+
+test("Hat Rack: loot the game adds to the Slab while a flip writes it is kept", async () => {
+    setRack([hat(1)], [hat(1)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    const row = rackRowFor(root, hat(2));
+    const realFetch = globalThis.fetch;
+    let added = false;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && /"gga\.Cards\[1\]"/.test(options.body) && !added) {
+            added = true;
+            gga.Cards[1].push("NewLoot"); // the game found loot after the page read the Slab
+        }
+        return realFetch(url, options);
+    };
+    try {
+        await quietly(async () => {
+            flip(row, true);
+            await until(() => switchFailed(row), "the Slab write to be refused");
+        });
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.ok(gga.Cards[1].includes("NewLoot"), "the loot stays in the Slab");
+
+    flip(rackRowFor(root, hat(3)), true);
+    await until(() => gga.Cards[1].includes(hat(2)), "the next add to put the earlier hat in the Slab");
+    assert.ok(gga.Cards[1].includes("NewLoot"), "the loot is still there");
+});
+
 test("Hat Rack: a removal the Slab refuses says why on its switch, and the next flip takes it off", async () => {
     setRack([hat(1), hat(2)], [hat(1)]);
     const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
@@ -766,4 +816,40 @@ test("Cogs: reopening a slot while its tiny cog saves shows the tier being saved
     again.listeners.focusout?.({ target: tier, currentTarget: again, relatedTarget: null });
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(gga.CogOrder[228], "CogSma1", "leaving the field keeps tier 2");
+});
+
+test("Atom Collider: Max all and Reset all wait while the levels are read again, and after that read fails", async () => {
+    const root = await openPage("src/ui/pages/world-3/atom-collider/atom-collider.js", (r) =>
+        Boolean(buttonIn(r, "Max all"))
+    );
+    const [maxAll, resetAll] = [buttonIn(root, "Max all"), buttonIn(root, "Reset all")];
+    const enabled = (node) => node.attributes.disabled !== true && node.attributes.disabled !== "";
+    assert.ok(enabled(maxAll) && enabled(resetAll), "both are usable once the levels are read");
+
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/gga/read") || !/"gga\.Atoms"/.test(options.body)) return realFetch(url, options);
+        await gate;
+        return new Response(JSON.stringify({ error: "the game is busy" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    try {
+        await quietly(async () => {
+            click(buttonIn(root, "Refresh"));
+            await until(() => !enabled(maxAll), "Max all to wait for the read");
+            assert.ok(!enabled(resetAll), "Reset all waits too");
+            release();
+            await until(() => text(root).includes("the game is busy"), "the failed read to say why");
+        });
+        assert.ok(!enabled(maxAll) && !enabled(resetAll), "both wait for a read that works");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    click(buttonIn(root, "Refresh"));
+    await until(() => enabled(maxAll) && enabled(resetAll), "a read that works to free them");
 });

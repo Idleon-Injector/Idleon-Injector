@@ -38,6 +38,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { SaveState, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { Icons } from "../../../assets/icons.js";
+import { announce } from "../../../components/inPlace.js";
 
 const { div, button, span, p, select, option } = van.tags;
 
@@ -420,16 +421,16 @@ const StarSignsTab = () => {
         return sign ? encodeProgress(sign.players) : undefined;
     };
 
-    // The row's switch: on keeps who has it and adds the first players it still needs; off clears it.
+    // Keeps who has the sign and adds the first players it still needs; a full sign stays as it is.
+    const filled = (sign) => {
+        if (sign.unlocked) return sign;
+        const others = PLAYER_NUMBERS.filter((num) => !sign.players.includes(num));
+        return withPlayers(sign, [...sign.players, ...others].slice(0, Math.max(sign.playersNeeded, 1)));
+    };
+
+    // The row's switch: on fills the sign; off clears it.
     const setUnlocked = (index, on) =>
-        commit((list) =>
-            list.map((sign) => {
-                if (sign.index !== index) return sign;
-                if (!on) return withPlayers(sign, []);
-                const others = PLAYER_NUMBERS.filter((num) => !sign.players.includes(num));
-                return withPlayers(sign, [...sign.players, ...others].slice(0, Math.max(sign.playersNeeded, 1)));
-            })
-        );
+        commit((list) => list.map((sign) => (sign.index !== index ? sign : on ? filled(sign) : withPlayers(sign, []))));
 
     // The open tab's signs the tools act on: all of them, or the ones the top bar's search shows.
     const rowOf = new Map();
@@ -437,29 +438,21 @@ const StarSignsTab = () => {
         (signs.val ?? []).filter((sign) => sign.world === world && shownBySearch(rowOf.get(sign.index)));
     const signWord = (n) => `star sign${n === 1 ? "" : "s"}`;
 
-    // Unlock all fills each sign with players 1, 2, 3... in order; Randomize all with players picked at random.
-    const unlockAll = (world, randomize) =>
+    // `change` applied to the tab's signs as the game holds them now.
+    const changeAll = (world, change) =>
         bulk.run(() => {
             const indices = new Set(signsIn(world).map((sign) => sign.index));
-            return commit((list) =>
-                list.map((sign) =>
-                    indices.has(sign.index)
-                        ? withPlayers(
-                              sign,
-                              (randomize ? shuffled(PLAYER_NUMBERS) : PLAYER_NUMBERS).slice(0, sign.playersNeeded)
-                          )
-                        : sign
-                )
-            );
+            return commit((list) => list.map((sign) => (indices.has(sign.index) ? change(sign) : sign)));
         });
-
+    // Unlock all fills the empty places only; Randomize all puts players picked at random on every sign.
+    const unlockAll = (world) => changeAll(world, filled);
+    const randomizeAll = (world) =>
+        changeAll(world, (sign) => withPlayers(sign, shuffled(PLAYER_NUMBERS).slice(0, sign.playersNeeded)));
     // Reset clears the tab's signs and lowers the star points to match; the star signs already unlocked stay.
-    const resetAll = (world) =>
-        bulk.run(() => {
-            const indices = new Set(signsIn(world).map((sign) => sign.index));
-            return commit((list) => list.map((sign) => (indices.has(sign.index) ? withPlayers(sign, []) : sign)));
-        });
+    const resetAll = (world) => changeAll(world, (sign) => withPlayers(sign, []));
 
+    // The tray's Yes runs the change after the press ended, so the press can't say how it went (ActionButton): this does.
+    const said = (name, change) => () => change().then(({ ok }) => announce(`${name}: ${ok ? "done" : "failed"}`));
     const tools = (activeId, ask) => {
         const started = () => signsIn(activeId.val).filter((sign) => sign.players.length || toInt(sign.claimed, 0));
         const resetButton = ActionButton({
@@ -474,7 +467,22 @@ const StarSignsTab = () => {
                     question: `Reset ${n} ${signWord(n)} in ${activeId.val}?`,
                     confirmLabel: n === 1 ? "Reset it" : "Reset them",
                     from: resetButton,
-                    onConfirm: () => resetAll(activeId.val),
+                    onConfirm: said("Reset all", () => resetAll(activeId.val)),
+                });
+            },
+        });
+        const randomizeButton = ActionButton({
+            label: "Randomize all",
+            status: bulk.status,
+            disabled: () => !signsIn(activeId.val).length,
+            onClick: (e) => {
+                e.preventDefault();
+                const n = signsIn(activeId.val).length;
+                ask({
+                    question: `Randomize ${n} ${signWord(n)} in ${activeId.val}?`,
+                    confirmLabel: n === 1 ? "Randomize it" : "Randomize them",
+                    from: randomizeButton,
+                    onConfirm: said("Randomize all", () => randomizeAll(activeId.val)),
                 });
             },
         });
@@ -487,18 +495,10 @@ const StarSignsTab = () => {
                     disabled: () => signsIn(activeId.val).every((sign) => sign.unlocked),
                     onClick: (e) => {
                         e.preventDefault();
-                        void unlockAll(activeId.val, false);
+                        void unlockAll(activeId.val);
                     },
                 }),
-                ActionButton({
-                    label: "Randomize all",
-                    status: bulk.status,
-                    disabled: () => !signsIn(activeId.val).length,
-                    onClick: (e) => {
-                        e.preventDefault();
-                        void unlockAll(activeId.val, true);
-                    },
-                })
+                randomizeButton
             ),
             div({ class: "tabbed-list__tool-group" }, resetButton),
         ];

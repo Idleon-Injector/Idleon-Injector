@@ -107,6 +107,21 @@ const openRatKing = async (crowns) => {
     return { root, active, button, press };
 };
 
+test("rat king: Set Count with the count the game already holds saves nothing and doesn't say saved", async () => {
+    const before = gga.Research[11];
+    const { root, press } = await openRatKing(["0_", "0a"]);
+    const row = byClass(root, "account-setall-row")[0];
+    const input = elements(row).find((node) => node.nodeName === "input");
+    const apply = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Apply");
+    input.value = "2";
+    input.listeners.input({ target: input });
+    const start = writes();
+    await press(apply);
+    assert.equal(writes(), start, "nothing was written");
+    assert.doesNotMatch(attr(apply, "class"), /account-btn--success/, "no ✓ for a change that wasn't made");
+    gga.Research[11] = before;
+});
+
 test("rat king: Set Count asks before it removes a crown reclaimed in game since the page opened", async () => {
     const before = gga.Research[11];
     const { root, active, press } = await openRatKing(["0_", "0a", "0b"]);

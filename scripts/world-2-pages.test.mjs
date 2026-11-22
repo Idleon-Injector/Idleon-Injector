@@ -175,6 +175,132 @@ test("weekly bosses: a skin picked while the last pick saves is the one saved", 
     weekly.set0 = 2;
 });
 
+const weeklyPicker = async () => {
+    const isPicker = (node) => node.nodeName === "select" && String(node.attributes["aria-label"]).includes("main-bar");
+    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
+        elements(root).some(isPicker)
+    );
+    const picker = elements(root).find(isPicker);
+    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
+    const picks = elements(picker)
+        .filter((node) => node.nodeName === "option" && !resolve(node.attributes.disabled))
+        .map((option) => String(resolve(option.attributes.value)))
+        .filter((pick) => pick !== "2" && pick !== "__unknown__");
+    return { root, picker, picks };
+};
+
+test("weekly bosses: a pick back to the stored skin is saved after a failed save the game changed meanwhile", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { picker, picks } = await weeklyPicker();
+    const [first, other] = picks;
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && held++ === 0) {
+            await gate;
+            return new Response(JSON.stringify({ error: "the game refused" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        }
+        return realFetch(url, options);
+    };
+    try {
+        picker.listeners.change({ target: { value: first } });
+        await until(() => held > 0, "the first pick's save to reach the game");
+        picker.listeners.change({ target: { value: "2" } }); // back to the stored skin
+        weekly.set0 = Number(other); // the game changed it meanwhile
+        release();
+        await until(() => String(weekly.set0) === "2", "the newer pick to save");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        weekly.set0 = 2;
+    }
+});
+
+test("weekly bosses: a pick waiting its turn survives a reload after an undo elsewhere", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const { root, picker, picks } = await weeklyPicker();
+    const trophiesBefore = ola[188];
+    const hold = holdWrites();
+    try {
+        enter(rowNamed(root, "Trophies"), Number(ola[188]) + 5);
+        await until(() => hold.held() > 0, "the trophies save to reach the game");
+        picker.listeners.change({ target: { value: picks[0] } });
+        reloadPlace.val = { view: "", page: "" }; // an Undo elsewhere changed what this page shows
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        hold.release();
+        await until(() => String(weekly.set0) === picks[0], "the waiting pick to save");
+    } finally {
+        hold.release();
+        weekly.set0 = 2;
+        ola[188] = trophiesBefore;
+    }
+});
+
+test("weekly bosses: the picker follows the game when it changed the skin as the pick saved", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { picker, picks } = await weeklyPicker();
+    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
+    const pickedValue = () =>
+        String(
+            resolve(
+                elements(picker).find((node) => node.nodeName === "option" && resolve(node.attributes.selected))
+                    ?.attributes.value
+            )
+        );
+    const realFetch = globalThis.fetch;
+    let wrote = false;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (String(url).includes("/write") && !wrote) {
+            wrote = true;
+            weekly.set0 = 2; // the game put the old skin back right after the save landed
+        }
+        return response;
+    };
+    try {
+        picker.listeners.change({ target: { value: picks[0] } });
+        await until(() => wrote, "the pick to save");
+        await until(() => pickedValue() === "2", "the picker to show the skin the game holds");
+    } finally {
+        globalThis.fetch = realFetch;
+        weekly.set0 = 2;
+    }
+});
+
+test("weekly bosses: a pick back to Default waiting behind the trophies after a Default save stays the player's", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { root, picker, picks } = await weeklyPicker();
+    const trophiesBefore = ola[188];
+    picker.listeners.change({ target: { value: "0" } }); // an earlier Default save
+    await until(() => String(weekly.set0) === "0", "the Default save");
+    await until(() => notBusy(buttonNamed(root, "Refresh")), "the page to settle");
+    const hold = holdWrites();
+    try {
+        enter(rowNamed(root, "Trophies"), Number(ola[188]) + 5);
+        await until(() => hold.held() > 0, "the trophies save to reach the game");
+        picker.listeners.change({ target: { value: picks.find((pick) => pick !== "0") } }); // waits behind the trophies
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        picker.listeners.change({ target: { value: "0" } }); // back to Default, saved after it
+        weekly.set0 = 2; // the game picks another skin meanwhile
+        hold.release();
+        await until(() => String(weekly.set0) === "0", "the player's Default to save");
+    } finally {
+        hold.release();
+        weekly.set0 = 2;
+        ola[188] = trophiesBefore;
+    }
+});
+
 test("weekly bosses: a skin unlocked while the trophies save is kept", async () => {
     const weekly = game.gga.WeeklyBoss.h;
     const switchOf = (row) => inputs(row).find((node) => node.attributes.role === "switch");
@@ -540,4 +666,175 @@ test("liquid: a connection lost while CAP UPGRADE saves writes neither of its tw
     }
     assert.equal(info[8][4][2][1], cap, "the first copy wasn't written alone");
     assert.equal(ola[371], copy);
+});
+
+// CodeRabbit on #196, round 1.
+const rowAt = (root, index) =>
+    byClass(root, "account-row").find((row) => text(byClass(row, "account-row__index")[0]).trim() === `#${index}`);
+
+test("vials and sigils: a bonus shows the sentence that holds its number, not the joke before it", async () => {
+    const { bonusText } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { VIALS, SIGILS } = await import("./page-shots/data/world-2-game.mjs");
+    const description = (rows, name, at) => rows.find((row) => row[0] === name)[at];
+    assert.match(bonusText(description(VIALS, "FLY_IN_MY_DRINK", 9)), /base Accuracy$/);
+    assert.match(bonusText(description(SIGILS, "METAL_EXTERIOR", 6)), /Class EXP$/);
+    assert.equal(bonusText("+{%_Mining_EXP_gain._A_joke."), "Mining EXP gain %", "a first-sentence bonus stays");
+});
+
+test("liquid: a save the game read back stays saved when the read after it fails", async () => {
+    const info = game.gga.CauldronInfo;
+    const amount = Number(info[6][0]);
+    const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+        rowNamed(root, "Water Droplets")
+    );
+    const row = rowNamed(root, "Water Droplets");
+    const realFetch = globalThis.fetch;
+    let written = false;
+    globalThis.fetch = async (url, options) => {
+        if (written && String(url).includes("/read") && String(options?.body).includes("CauldronInfo"))
+            throw new TypeError("Failed to fetch");
+        const response = await realFetch(url, options);
+        if (String(url).includes("/write")) written = true;
+        return response;
+    };
+    try {
+        const input = enter(row, amount + 11);
+        await until(() => stateOf(row) === "success" || stateOf(row) === "error", "the save to end");
+        assert.equal(stateOf(row), "success", "the save isn't shown as failed");
+        assert.equal(Number(info[6][0]), amount + 11);
+        assert.equal(shown(input), String(amount + 11));
+    } finally {
+        globalThis.fetch = realFetch;
+        info[6][0] = amount;
+    }
+});
+
+const sigilRow = async () => {
+    const root = await openPage("src/ui/pages/world-2/alchemy/4-sigils.js", (root) => rowAt(root, 0));
+    const row = rowAt(root, 0);
+    const radio = (label) => elements(row).find((node) => node.attributes.role === "radio" && text(node) === label);
+    await click(buttonNamed(root, "Refresh"));
+    await until(() => attr(radio("Ethereal"), "aria-checked") === "true", "the row to show Ethereal");
+    return { row, radio };
+};
+
+test("sigils: a tier picked while the last pick saves is the one saved", async () => {
+    const tiers = game.gga.CauldronP2W[4];
+    tiers[1] = 3;
+    const { row, radio } = await sigilRow();
+    const hold = holdWrites();
+    click(radio("Boosted"));
+    await until(() => hold.held() > 0, "the first pick's save to reach the game");
+    click(radio("Ionized"));
+    hold.release();
+    await until(() => tiers[1] === 2 && stateOf(row) === "success", "the newer pick to save");
+    assert.equal(attr(radio("Ionized"), "aria-checked"), "true");
+    tiers[1] = 3;
+});
+
+test("sigils: after a failed save the picker shows the game's tier, and the same pick can be tried again", async () => {
+    const tiers = game.gga.CauldronP2W[4];
+    tiers[1] = 3;
+    const { row, radio } = await sigilRow();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && String(options?.body).includes("CauldronP2W[4][1]"))
+            throw new TypeError("Failed to fetch");
+        return realFetch(url, options);
+    };
+    try {
+        click(radio("Boosted"));
+        await until(() => stateOf(row) === "error", "the save to fail");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(tiers[1], 3);
+    assert.equal(attr(radio("Ethereal"), "aria-checked"), "true", "the picker shows the game's tier");
+    click(radio("Boosted"));
+    await until(() => tiers[1] === 1 && stateOf(row) === "success", "the retry to save");
+    tiers[1] = 3;
+});
+
+test("arcade: a level saved while All to asks changes what gets lowered, so it asks again", async () => {
+    const levels = game.gga.ArcadeUpg;
+    const saved = [...levels];
+    levels.forEach((_, i) => (levels[i] = 50));
+    levels[0] = 101;
+    levels[1] = 80;
+    try {
+        const root = await openPage("src/ui/pages/world-2/arcade-shop/arcade-shop.js", (root) => rowAt(root, 1));
+        const tray = byClass(root, "tabbed-list__tools")[0];
+        await click(buttonNamed(tray, "100"));
+        assert.equal(trayLabel(root), "Lower 1 upgrade to level 100?");
+        const row = rowAt(root, 1);
+        enter(row, 102);
+        await until(() => stateOf(row) === "success", "the row's save");
+        const before = writes();
+        await yes(root);
+        assert.equal(trayLabel(root), "Lower 2 upgrades to level 100?", "it asks again");
+        assert.equal(writes(), before, "nothing was written");
+        assert.equal(levels[1], 102);
+        await yes(root);
+        await until(() => levels[0] === 100 && levels[1] === 100, "the answer to lower both");
+    } finally {
+        saved.forEach((value, i) => (levels[i] = value));
+    }
+});
+
+test("islands: a row saved while Set all asks changes what gets lowered, so it asks again", async () => {
+    ola[163] = 7;
+    ola[164] = 2;
+    const root = await openPage(
+        "src/ui/pages/world-2/islands/islands.js",
+        (root) => rowNamed(root, "Bottles %") && String(inputs(rowNamed(root, "Bottles %"))[0].value) === "2"
+    );
+    openTab(root, "Trash");
+    const { input, button } = setAllOf(root);
+    typeInto(input, "5");
+    await until(() => notBusy(button), "Set all to be ready");
+    await click(button);
+    assert.equal(trayLabel(root), "Lower 1 trash upgrade to 5?");
+    const bottles = rowNamed(root, "Bottles %");
+    enter(bottles, 9);
+    await until(() => stateOf(bottles) === "success", "the row's save");
+    const before = writes();
+    await yes(root);
+    assert.equal(trayLabel(root), "Lower 2 trash upgrades to 5?", "it asks again");
+    assert.equal(writes(), before, "nothing was written");
+    assert.equal(ola[164], 9);
+    await yes(root);
+    await until(() => ola[163] === 5 && ola[164] === 5, "the answer to lower both");
+    openTab(root, "Islands");
+});
+
+test("post office: Reset all asked about one character resets nothing once the page has read another", async () => {
+    const boxes = game.gga.PostOfficeInfo[3];
+    const saved = boxes.map((box) => box[0]);
+    const { PLAYERS } = await import("./page-shots/data/shared.mjs");
+    const playing = game.gga.UserInfo[0];
+    boxes.forEach((box) => (box[0] = 1));
+    try {
+        const root = await openPage("src/ui/pages/world-2/post-office/post-office.js", (root) =>
+            rowNamed(root, "Civil War Memory Box")
+        );
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => notBusy(buttonNamed(root, "Reset all")), "Reset all to be ready");
+        await click(buttonNamed(root, "Reset all"));
+        assert.ok(asks(root));
+        game.gga.UserInfo[0] = PLAYERS[1];
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => notBusy(buttonNamed(root, "Refresh")), "the other character's read");
+        assert.ok(asks(root), "the question is still open");
+        const before = writes();
+        await yes(root);
+        await until(() => writes() > before, "the answer to reach the game");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.ok(
+            boxes.every((box) => box[0] === 1),
+            "the game refused it: another character is in play"
+        );
+    } finally {
+        game.gga.UserInfo[0] = playing;
+        boxes.forEach((box, i) => (box[0] = saved[i]));
+    }
 });

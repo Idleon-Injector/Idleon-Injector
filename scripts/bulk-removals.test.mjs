@@ -346,6 +346,37 @@ test("bribes: Enable all changes the bribes shown at the press, even if the sear
     }
 });
 
+// CodeRabbit on #196: the skins are the ones the search showed at the press, and the press says "done" once they're
+// written, though the read before the write takes longer than the button waits on its own.
+test("weekly bosses: Unlock all unlocks the skins shown at the press and says done once they're written", async () => {
+    const { searchHits } = await importRepo("src/ui/menu/pageSearch.js");
+    const { announce } = await importRepo("src/ui/components/inPlace.js");
+    const weekly = game.gga.WeeklyBoss.h;
+    const keys = Object.keys(weekly).filter((key) => key.startsWith("UI_"));
+    const saved = keys.map((key) => weekly[key]);
+    keys.forEach((key) => (weekly[key] = 0));
+    try {
+        const unlock = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Unlock all");
+        announce("");
+        const read = holdNext((url, body) => /read/.test(url) && JSON.stringify(body).includes("WeeklyBoss"));
+        const pressed = click(unlock);
+        await until(() => read.reached, "the read");
+        searchHits.val = new Set(); // a search that shows none of them
+        await settle(100); // the button has looked at the status while the read waits
+        read.release();
+        await pressed;
+        assert.ok(
+            keys.every((key) => Number(weekly[key]) === 1),
+            "the press ended with the skins shown at it written"
+        );
+        const region = elements(globalThis.document.body).find((node) => node.attributes.role === "status");
+        await until(() => region.textContent === "Unlock all: done", "the press to say done");
+    } finally {
+        searchHits.val = null;
+        keys.forEach((key, i) => (weekly[key] = saved[i]));
+    }
+});
+
 for (const [file, label] of [
     ["src/ui/pages/world-1/bribes/bribes.js", "Enable all"],
     ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Unlock all"],
