@@ -157,12 +157,12 @@ test("1-orion.js: Raise on a huge feathers-made count steps it by what shows and
 test("general.js: the spice claims field shows and saves a count below 0, and has no cap of 100", async () => {
     ola[100] = -50;
     const label = "Spice claims used today";
-    const root = await openPage("src/ui/pages/world-4/breeding/general.js", (r) => rowLoaded(r, label));
+    const root = await openPage("src/ui/pages/world-4/breeding/4-territory.js", (r) => rowLoaded(r, label));
     const [input] = elements(findRow(root, label)).filter((node) => node.nodeName === "input");
     assert.equal(String(input.attributes.value), "-50", "the game's value shows as it is");
     assert.equal(await setRow(root, label, -75), "success");
     assert.equal(ola[100], -75);
-    const again = await openPage("src/ui/pages/world-4/breeding/general.js", (r) => rowLoaded(r, label));
+    const again = await openPage("src/ui/pages/world-4/breeding/4-territory.js", (r) => rowLoaded(r, label));
     assert.equal(await setRow(again, label, 150), "success");
     assert.equal(ola[100], 150);
     ola[100] = 0;
@@ -171,7 +171,7 @@ test("general.js: the spice claims field shows and saves a count below 0, and ha
 test("general.js: a spice claims value that isn't a number is refused, not shown as 0", async () => {
     ola[100] = "invalid";
     try {
-        const root = await openPage("src/ui/pages/world-4/breeding/general.js", (r) =>
+        const root = await openPage("src/ui/pages/world-4/breeding/4-territory.js", (r) =>
             text(r).includes("Couldn't read the spice claims")
         );
         assert.ok(text(root).includes("Couldn't read the spice claims"));

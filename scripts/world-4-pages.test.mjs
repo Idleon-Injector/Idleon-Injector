@@ -8,6 +8,7 @@ import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 // The points-left read can be made to fail once, the way the game helper throws or the connection drops.
 const fixture = fakeGameData();
 let failPointsRead = false;
+let failMealPointsRead = false;
 fixture.computed._customBlock_Summoning2 = {
     ...(fixture.computed._customBlock_Summoning2 ?? {}),
     isMasteryUnlocked: 1,
@@ -16,7 +17,11 @@ fixture.computed._customBlock_Summoning2 = {
         failPointsRead = false;
         throw new Error("game threw");
     },
-    PtsLeftCook_Y: 3,
+    PtsLeftCook_Y: () => {
+        if (!failMealPointsRead) return 3;
+        failMealPointsRead = false;
+        throw new Error("game threw");
+    },
 };
 const { router, game } = await createFakeApi(fixture);
 await loadUi(router);
@@ -92,7 +97,7 @@ test("saving a meal's Level keeps the Amount and Ribbon the game moved on since 
 });
 
 test("saving a pet's DNA keeps the Breedability and Shiny Days the game counted since the page read them", async () => {
-    const root = await openPage("src/ui/pages/world-4/breeding/pets.js");
+    const root = await openPage("src/ui/pages/world-4/breeding/3-pets.js");
     const row = rowNamed(root, "Crabcake");
     const [dna, breedField, shinyField] = byTag(row, "input");
     gga.Breeding[14][2] += 777;
@@ -317,24 +322,43 @@ for (const [name, findRow, read] of [
     });
 }
 
-test("a failed Mastery points read says the points may be off until the next good read", async () => {
+const titleTotal = (root) => text(byClass(root, "amount-left")[0] ?? "").trim();
+
+test("a failed Mastery points read says beside the title that the points may be off, until the next good read", async () => {
     const root = await openPage("src/ui/pages/world-4/cooking/3-mastery.js");
-    const notes = () => byClass(root, "account-section__note").map(text);
-    const pointNotes = () => notes().filter((note) => /points? left|Points may be off/.test(note));
+    click(byClass(root, "tabbed-list__tab").find((node) => text(node) === "Upgrades"));
+    await until(() => /^5 points left$/.test(titleTotal(root)), "the Upgrades tab's points beside the title");
     const row = byClass(root, "account-row").find((node) => /from rank [0-9]+/.test(text(node)));
     const [input] = byTag(row, "input");
     failPointsRead = true;
     typeAndEnter(row, input, 4);
     await settled(row);
-    await until(
-        () => pointNotes().length === 2 && pointNotes().every((note) => note === "Points may be off. Refresh."),
-        "both point notes to say the points may be off"
-    );
+    await until(() => titleTotal(root) === "Points may be off. Refresh.", "the points to say they may be off");
     typeAndEnter(row, input, 5);
+    await until(() => titleTotal(root) === "5 points left", "the next good read to show the points again");
+    click(byClass(root, "tabbed-list__tab").find((node) => text(node) === "Rank"));
+    await until(() => titleTotal(root) === "", "the Rank tab to show no points");
+});
+
+test("a meal's Mastery saves from the Meals table, and its points left beside the title follow", async () => {
+    const root = await openPage("src/ui/pages/world-4/cooking/2-meals.js");
+    const row = rowNamed(root, "Salad");
+    const [level, , , mastery] = byTag(row, "input");
+    await until(() => titleTotal(root) === "3 mastery points left", "the meal mastery points");
+    const levelBefore = gga.Meals[0][2];
+    typeAndEnter(row, mastery, 7);
+    await settled(row);
+    assert.equal(stateOf(row), "success");
+    assert.equal(gga.CookMaster[0][2], 7);
+    assert.equal(gga.Meals[0][2], levelBefore, "only the changed column is written");
+    assert.equal(shown(level), String(levelBefore));
+    failMealPointsRead = true;
+    typeAndEnter(row, mastery, 8);
     await until(
-        () => pointNotes().length === 2 && pointNotes().every((note) => /^\d+ points? left$/.test(note)),
-        "the next good read to show the points again"
+        () => gga.CookMaster[0][2] === 8 && stateOf(row) === "success",
+        "the save to land even though the points read fails"
     );
+    await until(() => titleTotal(root) === "Points may be off. Refresh.", "the points to say they may be off");
 });
 
 test("Cape Vine never lists Lava Wings, and counts the capes on the vine", async () => {
@@ -370,33 +394,40 @@ test("a Tome record with no field shows its value as plain text", async () => {
     assert.ok(rowNamed(root, "Total Talent Max LV"), "the game's marks are taken off the names");
 });
 
-test("Breeding: Max all raises every egg and upgrade in one press and brings one above its max down", async (t) => {
-    const before = { eggs: [...gga.Breeding[0]], upgrades: [...gga.Breeding[2]] };
-    t.after(() => {
-        gga.Breeding[0] = before.eggs;
-        gga.Breeding[2] = before.upgrades;
-    });
-    gga.Breeding[2][1] = 999;
-    const root = await openPage("src/ui/pages/world-4/breeding/general.js");
-    assert.equal(trayLine(root), "All 8 eggs and 13 upgrades");
+test("Eggs: Max all raises every egg in one press; Reset all asks in the tray first", async (t) => {
+    const before = [...gga.Breeding[0]];
+    t.after(() => (gga.Breeding[0] = before));
+    gga.Breeding[0][0] = 15;
+    const root = await openPage("src/ui/pages/world-4/breeding/1-eggs.js");
+    assert.equal(trayLine(root), "All 8 eggs");
     click(buttonNamed(root, "Max all"));
-    await until(() => gga.Breeding[0].every((egg) => egg === 11), "every egg at 11");
-    await until(() => gga.Breeding[2][1] === 50, "the upgrade above its max at 50");
-    assert.equal(gga.Breeding[2][2], 100);
-});
-
-test("Breeding: Reset all asks in the tray first and writes nothing until the answer", async (t) => {
-    const before = { eggs: [...gga.Breeding[0]], upgrades: [...gga.Breeding[2]] };
-    t.after(() => {
-        gga.Breeding[0] = before.eggs;
-        gga.Breeding[2] = before.upgrades;
-    });
-    const root = await openPage("src/ui/pages/world-4/breeding/general.js");
+    await until(() => gga.Breeding[0].every((egg) => egg === 11), "every egg at 11, the one above it too");
     click(buttonNamed(root, "Reset all"));
-    await until(() => trayLine(root) === "Reset 8 eggs and 13 upgrades to 0?", "the question");
-    assert.deepEqual([...gga.Breeding[0]], before.eggs, "nothing written yet");
+    await until(() => trayLine(root) === "Reset 8 eggs to 0?", "the question");
+    assert.ok(
+        gga.Breeding[0].every((egg) => egg === 11),
+        "nothing written yet"
+    );
     click(byClass(root, "tabbed-list__yes")[0]);
     await until(() => gga.Breeding[0].every((egg) => egg === 0), "the eggs at 0");
+});
+
+test("Upgrades: bonus first, the filler slot's bonus is Breeding EXP, and Max all brings one above its max down", async (t) => {
+    const before = [...gga.Breeding[2]];
+    t.after(() => (gga.Breeding[2] = before));
+    gga.Breeding[2][1] = 999;
+    const root = await openPage("src/ui/pages/world-4/breeding/2-upgrades.js");
+    const bonusOf = (name) => text(byClass(rowNamed(root, name), "account-row__bonus")[0]);
+    assert.equal(bonusOf("No Upgrade Selected"), "Breeding EXP %");
+    assert.equal(bonusOf("Egg Capacity"), "Egg Max");
+    assert.equal(trayLine(root), "All 13 upgrades");
+    click(buttonNamed(root, "Max all"));
+    await until(() => gga.Breeding[2][1] === 50, "the upgrade above its max at 50");
+    assert.equal(gga.Breeding[2][2], 100);
+    click(buttonNamed(root, "Reset all"));
+    await until(() => trayLine(root) === "Reset 13 upgrades to 0?", "the question");
+    assert.equal(gga.Breeding[2][2], 100, "nothing written yet");
+    click(byClass(root, "tabbed-list__yes")[0]);
     await until(() => gga.Breeding[2].every((level) => level === 0), "the upgrades at 0");
 });
 
@@ -416,7 +447,10 @@ test("Jewels: a switch unlocks one jewel; Lock all asks first", async (t) => {
 for (const [file, name, read, value] of [
     ["src/ui/pages/world-4/rift/rift.js", "Rift levels completed", () => gga.Rift[0], 31],
     ["src/ui/pages/world-4/cooking/4-spices.js", "Jungle Spice", () => gga.Meals[3][1], 500],
-    ["src/ui/pages/world-4/breeding/territory.js", "Territories unlocked", () => gga.OptionsListAccount[85], 20],
+    ["src/ui/pages/world-4/breeding/4-territory.js", "Territories unlocked", () => gga.OptionsListAccount[85], 20],
+    ["src/ui/pages/world-4/breeding/2-upgrades.js", "Dead cells", () => gga.Breeding[3][8], 60000],
+    ["src/ui/pages/world-4/breeding/5-arena.js", "Best round", () => gga.OptionsListAccount[89], 80],
+    ["src/ui/pages/world-4/breeding/5-arena.js", "Best Crucible round", () => gga.OptionsListAccount[628], 15],
 ]) {
     test(`${name} saves on Enter`, async () => {
         const root = await openPage(file);
@@ -429,7 +463,7 @@ for (const [file, name, read, value] of [
 }
 
 test("Territories unlocked refuses a count over the game's 26", async () => {
-    const root = await openPage("src/ui/pages/world-4/breeding/territory.js");
+    const root = await openPage("src/ui/pages/world-4/breeding/4-territory.js");
     const row = rowNamed(root, "Territories unlocked");
     const before = gga.OptionsListAccount[85];
     typeAndEnter(row, byTag(row, "input")[0], 30);
