@@ -91,8 +91,19 @@ export async function executeCheatAction(action, on) {
     return result;
 }
 
+// Goes up as each config save or session update answers.
+let configSaves = 0;
+
+/**
+ * The config. A read that a save answered during reads again (at most twice more), so a page's Refresh that started
+ * before a save can't put the settings from before it back.
+ */
 export async function fetchConfig() {
-    return _request("/config");
+    for (let reads = 1; ; reads++) {
+        const saves = configSaves;
+        const config = await _request("/config");
+        if (configSaves === saves || reads === 3) return config;
+    }
 }
 
 /** List the menu's page modules and their stylesheets (paths under /pages/). */
@@ -125,7 +136,7 @@ export async function updateSessionConfig(updatedConfig) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedConfig),
-    });
+    }).finally(() => configSaves++);
 }
 
 export async function saveConfigFile(configToSave) {
@@ -133,7 +144,7 @@ export async function saveConfigFile(configToSave) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(configToSave),
-    });
+    }).finally(() => configSaves++);
 }
 
 let configTurn = Promise.resolve();
