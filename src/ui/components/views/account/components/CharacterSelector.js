@@ -30,8 +30,9 @@ export const createCharacterSelector = ({ id, selected, disabled, onChange, info
     pick.opener.id = id;
     // A click on the list's own ground keeps it open; anywhere else (or Tab past the end) closes it.
     pick.panel.tabIndex = -1;
-    // The names run in columns: Left and Right step one name, Up and Down one line, Home and End to the ends.
-    pick.panel.addEventListener("keydown", (e) => {
+    // The names run in columns: Left and Right step one name, Up and Down one line, Home and End to the ends. On the
+    // list inside the panel, so a key moved here stops before the panel's own one-step Up and Down.
+    pick.list.addEventListener("keydown", (e) => {
         const options = [...pick.panel.querySelectorAll(".pick-in-place__option")];
         const at = options.indexOf(document.activeElement);
         if (at < 0) return;

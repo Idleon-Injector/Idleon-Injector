@@ -49,6 +49,7 @@ import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { TabbedList } from "../../../components/views/account/tabShared.js";
+import { EmptyState } from "../../../components/EmptyState.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -753,7 +754,7 @@ const CogsTab = () => {
     van.add(popupHost, popup);
 
     // The board as the Cogs tab's content; the Workbench page reads it with the buildings.
-    return { node: boardPane, load, loading, error };
+    return { node: boardPane, load, loading, error, close: closeSlotPopup };
 };
 
 const BUILDING_COUNT = 27;
@@ -913,8 +914,17 @@ const WorkbenchTab = () => {
     const buildings = ConstructionBuildingsTab();
     const cogs = CogsTab();
     const loading = van.derive(() => buildings.loading.val || cogs.loading.val);
-    const error = van.derive(() => buildings.error.val || cogs.error.val);
+    // The page fails only when both reads do; one that fails says so in its own tab, and the other tab still works.
+    const error = van.derive(() => (buildings.error.val && cogs.error.val) || "");
     const load = () => Promise.all([buildings.load(), cogs.load()]);
+    const pane = (part, title) =>
+        div(
+            () =>
+                part.error.val && !error.val
+                    ? EmptyState({ failed: true, title, subtitle: part.error.val })
+                    : div({ hidden: true }),
+            part.node
+        );
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Workbench",
@@ -929,9 +939,11 @@ const WorkbenchTab = () => {
             TabbedList({
                 name: "Workbench",
                 tabs: [
-                    { id: "buildings", label: "Buildings", content: buildings.node },
-                    { id: "cogs", label: "Cogs", content: cogs.node },
+                    { id: "buildings", label: "Buildings", content: pane(buildings, "Couldn't read the buildings") },
+                    { id: "cogs", label: "Cogs", content: pane(cogs, "Couldn't read the cog board") },
                 ],
+                // The cog editor belongs to the Cogs tab: leaving the tab closes it.
+                onTab: (tabId) => tabId !== "cogs" && cogs.close(),
                 tools: buildings.tools,
                 toolsLabel: buildings.toolsLabel,
                 toolsOn: (tabId) => tabId === "buildings",

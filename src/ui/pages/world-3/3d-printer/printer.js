@@ -301,10 +301,12 @@ const PrinterTab = () => {
         return { write: () => inTurn((inAction) => writeSlot(state, item, qty, false, inAction, drafts)) };
     };
 
-    // Stop and Clear take one thing out of a slot: they save at once, and the row offers Undo.
+    // Stop and Clear take one thing out of a slot: they save at once, and the row offers Undo. The drafts at the press
+    // go with it, so an item picked while it runs stays for its own save.
     const clearSlot = (state) => {
         if (cannotWrite()) return;
-        return state.write.run(() => inTurn((inAction) => writeSlot(state, "Blank", 0, true, inAction)));
+        const drafts = draftsOf(state);
+        return state.write.run(() => inTurn((inAction) => writeSlot(state, "Blank", 0, true, inAction, drafts)));
     };
 
     // `inAction`: runs the write under the History action of the row that asked for it. `committed`: the drafts the

@@ -229,8 +229,9 @@ const PrayersTab = () => {
         }
     };
 
-    // `ask(question, plan)`: the in-place confirm (#77) for a plan with a confirmation; true goes ahead.
-    const execute = async (buildPlan, ask) => {
+    // `ask(question, plan)`: the in-place confirm (#77) for a plan with a confirmation; true goes ahead. `target`: the
+    // character the change is for; once another is picked, it refuses.
+    const execute = async (buildPlan, ask, target = selected.val) => {
         if (unavailable()) throw new Error("Prayers are busy or unavailable. Refresh and try again.");
         busy.val = true;
         message.val = "";
@@ -238,8 +239,8 @@ const PrayersTab = () => {
         let verified = 0;
         let touchedLive = false;
         let initial = null;
-        const target = selected.val;
         try {
+            if (selected.val !== target) throw new Error(CHARACTER_CHANGED);
             initial = await readSnapshot();
             if (initial.current !== snapshot.val.current) {
                 throw new Error(CHARACTER_CHANGED);
@@ -342,14 +343,15 @@ const PrayersTab = () => {
             return { equipment, levels: [] };
         });
 
-    // `only`: the prayers the search showed when the tool was pressed. Unequip was asked in the tray already.
-    const bulk = async (mode, only) => {
+    // `only`: the prayers the search showed when the tool was pressed. Unequip was asked in the tray already, about
+    // `asked`: it unequips that character's prayers, and refuses once another is picked.
+    const bulk = async (mode, only, asked = selected.val) => {
         if (unavailable()) return;
         await bulkStatus.run(() =>
             execute(
                 (state) => {
                     if (mode === "unequip") {
-                        const player = state.players.find((entry) => entry.name === selected.val);
+                        const player = state.players.find((entry) => entry.name === asked);
                         if (!player) throw new Error("Selected character no longer exists.");
                         const ids = state.definitions
                             .map((entry) => entry.id)
@@ -375,7 +377,8 @@ const PrayersTab = () => {
                     // is what Max means (Lumi, 2026-11-20), and Undo puts it back.
                     return { equipment: [], levels, confirmation: null };
                 },
-                () => true
+                () => true,
+                asked
             )
         );
     };
@@ -437,11 +440,12 @@ const PrayersTab = () => {
             onClick: (e) => {
                 e.preventDefault();
                 const ids = equippedShown();
+                const asked = selected.val;
                 ask({
-                    question: `Unequip ${ids.length} ${prayerWord(ids.length)} from ${selected.val}?`,
+                    question: `Unequip ${ids.length} ${prayerWord(ids.length)} from ${asked}?`,
                     confirmLabel: ids.length === 1 ? "Unequip it" : "Unequip them",
                     from: unequipAll,
-                    onConfirm: () => bulk("unequip", ids),
+                    onConfirm: () => bulk("unequip", ids, asked),
                 });
             },
         });

@@ -123,6 +123,19 @@ test("Hat Rack: Add all and a switch keep what the game added after the page rea
     await until(() => rackRowFor(root, "InGameHat"), "the page to show the other hat the rack holds");
 });
 
+// Review of #207: a hat the game added rebuilt every row, so a switch lost its focus and its save's state.
+test("Hat Rack: a hat the game adds gets its own row and the other rows stay as they are", async () => {
+    setRack([hat(1), hat(2)], [hat(1), hat(2)]);
+    const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
+    const before = rackRowFor(root, hat(1));
+
+    gga.Spelunk[46].push("InGameHat");
+    click(buttonIn(root, "Refresh"));
+    await until(() => rackRowFor(root, "InGameHat"), "the page to show the hat the game added");
+    assert.equal(rackRowFor(root, hat(1)), before, "the first hat keeps its row");
+    assert.equal(rackRows(root).at(-1), rackRowFor(root, "InGameHat"), "the new hat comes last");
+});
+
 test("Hat Rack: a half-done Add all shows the hats that landed, and the next switch keeps them", async () => {
     setRack([hat(1), hat(2)], []);
     const root = await openPage(HAT_RACK, (r) => rackRows(r).length === 12);
@@ -593,6 +606,40 @@ test("Cogs: a stat that is a number refuses text that isn't one; the shape patte
     assert.equal(gga.CogMap[1].h.h, "ring");
 });
 
+// Review of #207: one tab's failed read hid the whole Workbench, the other tab's rows with it.
+for (const { failing, works, said } of [
+    { failing: "CogOrder", works: "account-row", said: "Couldn't read the cog board" },
+    { failing: "TowerInfo", works: "cogs-slot", said: "Couldn't read the buildings" },
+]) {
+    test(`Workbench: when the ${failing} read fails, its tab says so and the other tab still shows`, async () => {
+        const realFetch = globalThis.fetch;
+        globalThis.fetch = async (url, options) =>
+            String(url).includes("/read") && String(options?.body).includes(failing)
+                ? new Response(JSON.stringify({ error: "the game refused" }), {
+                      status: 500,
+                      headers: { "content-type": "application/json" },
+                  })
+                : realFetch(url, options);
+        try {
+            const root = await quietly(() => openPage(COGS, (r) => byClass(r, works).length > 0));
+            assert.ok(text(root).includes(said), "the failed tab says it failed");
+        } finally {
+            globalThis.fetch = realFetch;
+        }
+    });
+}
+
+test("Workbench: leaving the Cogs tab closes the cog editor", async () => {
+    const { root, open } = await openCogs();
+    const overlay = byClass(globalThis.document.body, "cogs-popup-overlay").at(-1);
+    const shut = () => classes(overlay).includes("cogs-popup-overlay--hidden");
+    click(buttonIn(root, "Cogs"));
+    open(1);
+    await until(() => !shut(), "the editor to open");
+    click(buttonIn(root, "Buildings"));
+    await until(shut, "the editor to close");
+});
+
 // Hold the game's writes until released, to act while one runs; `fail` answers them with a failure.
 const holdWrites = ({ fail = false } = {}) => {
     const realFetch = globalThis.fetch;
@@ -854,4 +901,50 @@ test("Atom Collider: Max all and Reset all wait while the levels are read again,
     }
     click(buttonIn(root, "Refresh"));
     await until(() => enabled(maxAll) && enabled(resetAll), "a read that works to free them");
+});
+
+// Review of #207: the panel's own Up and Down ran too, so Down from the first name went to the sixth, not the fifth.
+test("Character picker: Down moves one line down the columns, once", async (t) => {
+    const { createCharacterSelector } = await importRepo(
+        "src/ui/components/views/account/components/CharacterSelector.js"
+    );
+    // What the browser does here: a focus, the columns the list is laid out in, and a key going up from the name.
+    const proto = Object.getPrototypeOf(globalThis.document.createElement("div"));
+    proto.querySelectorAll = function (selector) {
+        return elements(this).filter((node) => node !== this && classes(node).split(" ").includes(selector.slice(1)));
+    };
+    proto.querySelector = function (selector) {
+        return this.querySelectorAll(selector)[0] ?? null;
+    };
+    proto.focus = function () {
+        globalThis.document.activeElement = this;
+    };
+    globalThis.getComputedStyle = () => ({ gridTemplateColumns: "1fr 1fr 1fr 1fr" });
+    t.after(() => {
+        delete proto.querySelectorAll;
+        delete proto.querySelector;
+        delete proto.focus;
+        delete globalThis.getComputedStyle;
+        delete globalThis.document.activeElement;
+    });
+    const press = (from, key) => {
+        let stopped = false;
+        const event = { key, target: from, preventDefault() {}, stopPropagation: () => (stopped = true) };
+        for (let node = from; node && !stopped; node = node.parentNode) {
+            (node.handlers?.keydown ?? []).forEach((handler) => handler(event));
+        }
+    };
+
+    const picker = createCharacterSelector({
+        id: "test-character",
+        selected: { val: "" },
+        onChange() {},
+        info: null,
+    });
+    picker.setCharacters(gga.GetPlayersUsernames);
+    await until(() => byClass(picker.node, "pick-in-place__option").length > 5, "the names to show");
+    const options = byClass(picker.node, "pick-in-place__option");
+    options[0].focus();
+    press(options[0], "ArrowDown");
+    assert.equal(globalThis.document.activeElement, options[4], "the name one line down");
 });

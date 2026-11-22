@@ -204,6 +204,36 @@ test("Printer's Clear saves at once, and the press also saves another slot's dra
     await until(() => undoOffered(clearRow), "Sample 4 to offer Undo");
 });
 
+// Review of #207: Clear's end emptied the row's draft, so an item picked while Clear read the game was saved but the
+// row went on showing Empty.
+test("Printer keeps an item picked while Clear runs, and shows it once saved", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 4");
+    const quantity = gga.Printer[printerSlot(4) + 1];
+    const opener = byClass(row, "row-opener")[0];
+    const nameOf = (id) => String(gga.ItemDefinitionsGET.h[id]?.h?.displayName ?? "").replace(/_/g, " ");
+    click(opener);
+    const option = byClass(row, "pick-in-place__option").find(
+        (node) => text(node).trim() !== nameOf(gga.Printer[printerSlot(4)])
+    );
+    const picked = Object.keys(gga.ItemDefinitionsGET.h).find((id) => nameOf(id) === text(option).trim());
+    click(opener);
+    const hold = holdWrites({ reads: true });
+    t.after(hold.release);
+
+    click(button(row, "Clear"));
+    await until(() => hold.held() > 0, "Clear to read the game");
+    click(opener);
+    click(option);
+    hold.release();
+    await until(() => gga.Printer[printerSlot(4)] === picked && saved(row), "the picked item to be saved");
+    assert.equal(gga.Printer[printerSlot(4) + 1], quantity);
+    await until(() => text(opener).startsWith(text(option).trim()), "the row to show the picked item");
+    assert.notEqual(inputs(row)[0].value, "0", "with the quantity saved with it");
+});
+
 // Review of #131: while an Undo's reload waited for another slot's write, an item picked on the undone row saved with
 // the quantity the row still showed, over the one the Undo put back.
 test("Printer saves nothing while an Undo's reload waits, then keeps the picked item with the game's quantity", async (t) => {

@@ -175,6 +175,23 @@ for (const { page, levels, label } of [
         assert.deepEqual(writes.paths, [`gga.${levels}[1]`]);
     });
 
+    // Review of #207: a row Reset all skipped (the game already held 0) went on showing its old level.
+    test(`${label} Reset all shows 0 on a row the game had already reset`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels].fill(0, 0, before.length);
+        gga[levels][0] = 5;
+        gga[levels][1] = 2;
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        const field = inputs(byClass(root, "account-row")[0])[0];
+        assert.equal(String(field.attributes.value), "5");
+        gga[levels][0] = 0; // reset in the game
+
+        resetAll(root);
+        await until(() => gga[levels][1] === 0, "the reset");
+        await until(() => String(field.attributes.value) === "0", "the skipped row to show 0");
+    });
+
     test(`${label} shows the game's levels again when Reset all fails`, async (t) => {
         const before = gga[levels].slice();
         t.after(() => gga[levels].splice(0, before.length, ...before));
@@ -205,6 +222,31 @@ test("A prayer row's Max sets the prayer's max level", async () => {
     } finally {
         gga.PrayersUnlocked.splice(0, before.length, ...before);
     }
+});
+
+// Review of #207: Unequip all asked about one character, and once another was picked the answer unequipped that one.
+test("Prayers' Unequip all refuses once another character is picked than the one it asked about", async (t) => {
+    const first = gga.UserInfo[0];
+    const other = gga.GetPlayersUsernames.find((name) => name !== first);
+    // The other character has the same prayers on, so the answer would find them on that one too.
+    const otherOwn = [...db[other].h.Prayers];
+    db[other].h.Prayers.splice(0, 12, ...db[first].h.Prayers);
+    t.after(() => db[other].h.Prayers.splice(0, 12, ...otherOwn));
+    const [firstBefore, otherBefore] = [first, other].map((name) => [...db[name].h.Prayers]);
+    const root = await openPage("src/ui/pages/world-3/prayers/prayers.js", (r) => byClass(r, "prayer-row").length > 0);
+    const unequipAll = button(root, "Unequip all");
+    unequipAll.listeners.click({ currentTarget: unequipAll, preventDefault() {} });
+    await until(() => text(root).includes(`from ${first}?`), "the question to name the character picked");
+
+    const option = byClass(root, "pick-in-place__option").find(
+        (node) => text(byClass(node, "pick-in-place__option-label")[0]) === other
+    );
+    option.listeners.click({ currentTarget: option, preventDefault() {} });
+    const yes = byClass(root, "tabbed-list__yes")[0];
+    yes.listeners.click({ currentTarget: yes, preventDefault() {} });
+    await until(() => text(root).includes("Character changed") || db[other].h.Prayers[0] === -1, "Unequip all to end");
+    assert.deepEqual([...db[other].h.Prayers], otherBefore, `${other}'s prayers stay on`);
+    assert.deepEqual([...db[first].h.Prayers], firstBefore, `${first}'s prayers stay on too`);
 });
 
 test("Library: a save for one character that answers after a Refresh to another stays off the new rows", async () => {

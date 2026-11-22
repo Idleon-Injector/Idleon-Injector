@@ -26,7 +26,6 @@ import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import {
     cleanName,
-    createStaticRowReconciler,
     normalCase,
     oneAtATime,
     unwrapH,
@@ -130,7 +129,6 @@ const HatRackTab = () => {
     // Changes run one at a time, each from the lists the game holds when its turn comes.
     const inTurn = oneAtATime();
     const listNode = div({ class: "account-page-pane" });
-    const reconcileRows = createStaticRowReconciler(listNode);
     const rowOf = new Map();
     let itemDefsCache = null;
 
@@ -150,17 +148,30 @@ const HatRackTab = () => {
                 .filter((entry) => !eligibleIds.has(entry.itemId))
                 .map((entry) => ({ itemId: entry.itemId, name: entry.name || entry.itemId, eligible: false })),
         ];
-        reconcileRows(next.map((entry) => entry.itemId).join("|"), () =>
-            next.map((entry) => {
-                const row = HatRow({
-                    hat: entry,
-                    isOn: () => currentRackIds.val.includes(entry.itemId),
-                    onFlip: (on) => (on ? addHats([entry.itemId]) : removeHat(entry.itemId)),
-                });
-                rowOf.set(entry.itemId, row);
-                return row;
-            })
-        );
+        // Rows are kept by hat: a hat the game adds gets a new row, and the others stay put, so a switch keeps its
+        // focus and its save's state.
+        const ids = new Set(next.map((entry) => entry.itemId));
+        for (const [itemId, row] of rowOf) {
+            if (ids.has(itemId)) continue;
+            row.remove();
+            rowOf.delete(itemId);
+        }
+        let at = listNode.firstChild;
+        for (const entry of next) {
+            if (!rowOf.has(entry.itemId)) {
+                rowOf.set(
+                    entry.itemId,
+                    HatRow({
+                        hat: entry,
+                        isOn: () => currentRackIds.val.includes(entry.itemId),
+                        onFlip: (on) => (on ? addHats([entry.itemId]) : removeHat(entry.itemId)),
+                    })
+                );
+            }
+            const row = rowOf.get(entry.itemId);
+            if (row === at) at = at.nextSibling;
+            else listNode.insertBefore(row, at);
+        }
         hats.val = next;
     };
 

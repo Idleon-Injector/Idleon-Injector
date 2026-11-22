@@ -23,7 +23,7 @@ const { button, div, input, p, span } = van.tags;
  * @param {() => string} [opts.label] the pick in words, read out with `name` (when `opener` is nodes)
  * @param {string} [opts.openerClass]
  * @param {string} [opts.panelClass]
- * @returns {{ opener: HTMLElement, panel: HTMLElement, isOpen: () => boolean, close: () => void }}
+ * @returns {{ opener: HTMLElement, panel: HTMLElement, list: HTMLElement, isOpen: () => boolean, close: () => void }}
  */
 export const PickInPlace = ({
     opener: openerContent,
@@ -145,5 +145,5 @@ export const PickInPlace = ({
         },
         look === "row" ? openerContent : span({ class: "pick-in-place__value" }, openerContent)
     );
-    return { opener: openerNode, panel, isOpen: () => open.val, close: () => close() };
+    return { opener: openerNode, panel, list, isOpen: () => open.val, close: () => close() };
 };

@@ -111,8 +111,13 @@ const AtomColliderTab = () => {
                 getTargetValue: targetOf,
                 getValueState: (atom) => getLevelState(atom.index),
                 getPath: (atom) => `Atoms[${atom.index}]`,
-                // Planned from the game, not the fields: a level bought there since the page read it is reset too.
-                shouldWrite: ({ entry, targetValue }) => Number(fresh[entry.index] ?? 0) !== targetValue,
+                // Planned from the game, not the fields: a level bought there since the page read it is reset too,
+                // and a row the game already holds at the target shows it.
+                shouldWrite: ({ entry, targetValue, valueState }) => {
+                    if (Number(fresh[entry.index] ?? 0) !== targetValue) return true;
+                    valueState.val = targetValue;
+                    return false;
+                },
             });
         });
         // Some of it may have landed: the rows show what the game holds.
