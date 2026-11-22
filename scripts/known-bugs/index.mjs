@@ -316,6 +316,19 @@ export async function loadUi(router) {
         body,
         createElement: (name) => new Element(name),
         createElementNS: (_, name) => new Element(name),
+        // Page-wide keys (a tabbed list's Escape); no test presses one on the document.
+        addEventListener() {},
+    };
+    // Every browser has it; nothing here is laid out, so no frame ever comes (a test that times frames sets its own).
+    globalThis.requestAnimationFrame ??= () => 0;
+    globalThis.ResizeObserver ??= class {
+        observe() {}
+        disconnect() {}
+    };
+    // Every browser has it too; no page here is opened in the top bar's sense, so the page search never watches one.
+    globalThis.MutationObserver ??= class {
+        observe() {}
+        disconnect() {}
     };
     globalThis.Text = class extends Node {
         nodeType = 3;

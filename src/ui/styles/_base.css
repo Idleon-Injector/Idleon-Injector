@@ -16,6 +16,7 @@ body {
     height: 100vh;
     overflow: hidden;
     line-height: 1.4;
+    background: var(--c-void);
 }
 
 /* --- SCROLLBARS --- */
@@ -35,4 +36,9 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--c-accent);
+}
+
+::selection {
+    background: rgba(176, 167, 255, 0.35);
+    color: #ffffff;
 }

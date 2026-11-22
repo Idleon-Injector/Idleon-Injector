@@ -28,11 +28,7 @@ textarea:focus {
 }
 
 .control-bar {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 25px;
     align-items: center;
-    background: var(--c-panel);
     padding: 15px;
     border: 1px solid var(--c-border);
     border-radius: var(--radius-md);
@@ -60,4 +56,9 @@ textarea:focus {
 .search-wrapper input {
     padding-left: 30px;
     border-color: var(--c-control-border-strong);
+}
+
+.viewport .global-search-input {
+    border-color: transparent !important;
+    border-radius: 10px;
 }

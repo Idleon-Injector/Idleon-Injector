@@ -87,7 +87,7 @@ const QuickAccessSection = () => {
         { class: "quick-access-section" },
         div(
             { class: "quick-access-group" },
-            div({ class: "quick-access-header" }, span("FAVORITES"), Said({ said: favoritesSaid.said })),
+            div({ class: "quick-access-header" }, span("Favorites"), Said({ said: favoritesSaid.said })),
             () => {
             const favorites = [...store.data.favoriteCheats];
             if (favorites.length === 0) {
@@ -99,7 +99,7 @@ const QuickAccessSection = () => {
 
         div(
             { class: "quick-access-group" },
-            div({ class: "quick-access-header" }, span("RECENT"), Said({ said: recentSaid.said })),
+            div({ class: "quick-access-header" }, span("Recent"), Said({ said: recentSaid.said })),
             () => {
             const recent = [...store.data.recentCheats];
             if (recent.length === 0) {
@@ -200,7 +200,7 @@ export const Cheats = () => {
 
     // The menu search sent the player to a cheat: clear this page's filter, open its category and show the row.
     // It only shows the row; the player runs the cheat from it.
-    const searchBar = SearchBar({ placeholder: "SEARCH_COMMANDS", onInput: handleSearch });
+    const searchBar = SearchBar({ placeholder: "Search cheats", onInput: handleSearch });
     let shownFocus = 0;
     van.derive(() => {
         const { cheat: value, setting, focus, n } = store.app.cheatFocus;
@@ -265,7 +265,7 @@ export const Cheats = () => {
                 { class: "account-header account-tab-header" },
                 div(
                     { class: "account-tab-header__main" },
-                    h3({ class: "account-tab-header__title" }, "CHEATS"),
+                    h3({ class: "account-tab-header__title" }, "Cheats"),
                     p(
                         { class: "account-tab-header__desc" },
                         "Click a cheat to run it in the game. A cheat with a field takes its value first; the star keeps it under Favorites."
@@ -305,7 +305,7 @@ export const Cheats = () => {
 
             () => {
                 if (store.app.isLoading && store.data.cheats.length === 0) {
-                    return Loader({ text: "INITIALIZING" });
+                    return Loader({ text: "Loading cheats" });
                 }
 
                 // Get fresh snapshot of cheats and filter term
@@ -323,7 +323,7 @@ export const Cheats = () => {
 
                 if (categories.length === 0) {
                     return EmptyState({
-                        title: "NO CHEATS FOUND",
+                        title: "No cheats found",
                         subtitle: filterTerm ? "Try a different search term" : "Cheats list is empty",
                     });
                 }

@@ -28,6 +28,7 @@ import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelR
 import { CappedValue } from "../../../components/NumberInput.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { AmountLeft } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
@@ -223,22 +224,19 @@ const LibraryTab = () => {
                     .join("||"),
             () => [
                 AccountRow({
-                    info: span({ class: "account-row__name" }, "Active Class"),
+                    info: span({ class: "account-row__name" }, "Active class"),
+                    rowClass: "account-row--alone",
                     badge: () => activeClassNameState.val || "-",
                 }),
                 ...groups.map((group) =>
                     AccountSection({
                         title: group.className,
                         note: group.isSpecial
-                            ? "Individual maximums only. Excluded from MAX BOOKS and the Library book cap."
+                            ? "Individual maximums only. Excluded from Max books and the Library book cap."
                             : null,
                         meta: group.isSpecial
                             ? null
-                            : span(
-                                  { class: "library-section-points" },
-                                  () => getAvailablePointsState(group.classId).val.toLocaleString(),
-                                  span({ class: "library-section-points__label" }, " pts")
-                              ),
+                            : AmountLeft({ value: () => getAvailablePointsState(group.classId).val }),
                         body: div(
                             { class: "content-stack" },
                             ...group.talents.map((talent) =>
@@ -318,7 +316,7 @@ const LibraryTab = () => {
             if (specialTalents.length) {
                 groups.push({
                     classId: "special",
-                    className: "SPECIAL TALENTS",
+                    className: "Special talents",
                     isSpecial: true,
                     talents: specialTalents,
                 });
@@ -333,7 +331,7 @@ const LibraryTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "LIBRARY",
+        title: "Library",
         description: "Set max talent levels for the active in-game character.",
         wrapActions: false,
         actions: BulkActionBar({
@@ -362,8 +360,8 @@ const LibraryTab = () => {
             },
         }),
         state: { loading, error },
-        loadingText: "READING LIBRARY",
-        errorTitle: "LIBRARY READ FAILED",
+        loadingText: "Reading library",
+        errorTitle: "Library read failed",
         initialWrapperClass: "account-list",
         body: listNode,
     });

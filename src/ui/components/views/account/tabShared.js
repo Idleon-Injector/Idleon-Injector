@@ -1,12 +1,23 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { joinClasses, toNodes } from "./accountShared.js";
+import { replay } from "../../inPlace.js";
+import { labelOf, withAction } from "../../../services/changeLog.js";
+import { searchHits } from "../../../menu/pageSearch.js";
 
-const { div, button, p } = van.tags;
+const { div, button, p, span } = van.tags;
 
 export const createComingSoonPlaceholder = (label) =>
     div({ class: "world-sub-placeholder" }, p({ class: "world-sub-placeholder__label" }, `${label} — COMING SOON`));
 
-export const renderTabNav = ({
+/**
+ * A row of tabs. Read out as tabs; Left and Right (Home, End) move to a tab and open it, and Tab reaches only the open
+ * one, so the keyboard goes from the tabs straight into what they show.
+ * `label` names what the tabs choose between, for assistive technology.
+ */
+export const renderTabNav = (opts) => buildTabNav(opts).nav;
+
+// The row and its buttons, for a caller that also places things by the buttons (TabbedList's pill).
+const buildTabNav = ({
     tabs,
     activeId,
     navClass,
@@ -16,27 +27,224 @@ export const renderTabNav = ({
     isStub = () => false,
     renderLabel = (tab) => tab.label,
     getButtonProps = null,
-}) =>
-    div(
-        { class: joinClasses("account-sub-nav", navClass) },
-        ...tabs.map((tab) =>
-            button(
-                {
-                    ...(typeof getButtonProps === "function" ? getButtonProps(tab) : {}),
-                    // class and onclick are owned by renderTabNav so active-state wiring stays consistent.
-                    class: () =>
-                        joinClasses(
-                            "account-sub-tab-btn",
-                            typeof buttonClass === "function" ? buttonClass(tab) : buttonClass,
-                            activeId.val === tab.id && activeClass,
-                            stubClass && isStub(tab) && stubClass
-                        ),
-                    onclick: () => (activeId.val = tab.id),
-                },
-                renderLabel(tab)
-            )
+    label = null,
+}) => {
+    const buttons = tabs.map((tab) =>
+        button(
+            {
+                ...(typeof getButtonProps === "function" ? getButtonProps(tab) : {}),
+                type: "button",
+                role: "tab",
+                "aria-selected": () => String(activeId.val === tab.id),
+                tabindex: () => (activeId.val === tab.id ? "0" : "-1"),
+                // class and onclick are owned by renderTabNav so active-state wiring stays consistent.
+                class: () =>
+                    joinClasses(
+                        "account-sub-tab-btn",
+                        typeof buttonClass === "function" ? buttonClass(tab) : buttonClass,
+                        activeId.val === tab.id && activeClass,
+                        stubClass && isStub(tab) && stubClass
+                    ),
+                onclick: () => (activeId.val = tab.id),
+            },
+            renderLabel(tab)
         )
     );
+    const onkeydown = (e) => {
+        const at = tabs.findIndex((tab) => tab.id === activeId.val);
+        const to = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (to === undefined) return;
+        e.preventDefault();
+        const next = (to + tabs.length) % tabs.length;
+        activeId.val = tabs[next].id;
+        buttons[next].focus();
+    };
+    const nav = div(
+        {
+            class: joinClasses("account-sub-nav", navClass),
+            role: "tablist",
+            ...(label ? { "aria-label": label } : {}),
+            onkeydown,
+        },
+        ...buttons
+    );
+    return { nav, buttons };
+};
+
+// The tab each tabbed list was left on, by its name: a page opened again comes back on that tab.
+const pickedTabs = new Map();
+let listCount = 0;
+
+/**
+ * A long list split into tabs, the way a page shows a system's parts (Stamps: Combat, Skills, Misc). The tabs are the
+ * top of one panel and only the panel's rows scroll, so the page's title and the tabs stay where they are. Every tab's
+ * rows stay mounted (they keep their saves and Undo); a newly opened tab starts at its top.
+ *
+ * Switching glides the open tab's pill to the new tab and lets the new list fade in (both off when the player asks
+ * for less motion). `tools`, when given, is a tray under the tabs for what acts on the open tab (Set all, Exalt all),
+ * set into the panel so it never reads as more tabs; `toolsLabel` is its first line, saying what the tools act on
+ * ("All 30 combat stamps"). Both are functions of the open tab's id state; `tools` also gets `ask`, which puts a
+ * question in the tray before a risky change runs.
+ *
+ * @param {object} opts
+ * @param {string} opts.name what the tabs choose between ("Stamps"), read out by assistive technology
+ * @param {{id: string, label: string, content: *}[]} opts.tabs
+ * @param {(activeId: {val: string}, ask: (q: {question: string, confirmLabel: string, from: HTMLElement,
+ *   onConfirm: () => *}) => void) => *} [opts.tools]
+ * @param {(activeId: {val: string}) => string} [opts.toolsLabel]
+ * @returns {HTMLElement}
+ */
+export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null }) => {
+    const activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
+    // Each tab names the pane it opens and each pane its tab, for assistive technology.
+    const key = `tabbed-list-${++listCount}`;
+    const tabId = (tab) => `${key}-tab-${tabs.indexOf(tab)}`;
+    const paneId = (tab) => `${key}-pane-${tabs.indexOf(tab)}`;
+    const body = div(
+        { class: "tabbed-list__body" },
+        ...renderPersistentPagePanes({
+            tabs,
+            activeId,
+            renderContent: (tab) => tab.content,
+            getPaneProps: (tab) => ({ id: paneId(tab), role: "tabpanel", "aria-labelledby": tabId(tab) }),
+        })
+    );
+    const { nav, buttons } = buildTabNav({
+        tabs,
+        activeId,
+        navClass: "tabbed-list__tabs",
+        buttonClass: "tabbed-list__tab",
+        label: name,
+        getButtonProps: (tab) => ({ id: tabId(tab), "aria-controls": paneId(tab) }),
+    });
+
+    // The pill under the open tab (the tabs sit above it): placed from the tab's own box, so it fits any label and
+    // follows a resize.
+    const pill = span({ class: "tabbed-list__pill", "aria-hidden": "true" });
+    nav.append(pill);
+    const placePill = () => {
+        const tab = buttons[tabs.findIndex((t) => t.id === activeId.val)];
+        if (!tab || !tab.offsetWidth) return; // not laid out yet (the page still loading); the resize places it
+        pill.style.setProperty("--pill-x", `${tab.offsetLeft}px`);
+        pill.style.setProperty("--pill-w", `${tab.offsetWidth}px`);
+        if (nav.classList.contains("has-pill")) return;
+        // The first place is taken without a glide; from the next frame on, a move glides.
+        nav.classList.add("has-pill");
+        requestAnimationFrame(() => nav.classList.add("pill-glides"));
+    };
+    // The row and each tab: a tab whose label changes (a count while searching) moves the pill with it.
+    const resized = new ResizeObserver(placePill);
+    [nav, ...buttons].forEach((node) => resized.observe(node));
+
+    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId }) : null;
+
+    let first = true;
+    van.derive(() => {
+        pickedTabs.set(name, activeId.val);
+        requestAnimationFrame(placePill);
+        if (first) return (first = false);
+        tray?.drop(); // a question is about the tab it was asked on
+        body.scrollTop = 0;
+        replay(body, "switched");
+    });
+
+    return div(
+        { class: joinClasses("tabbed-list", tools && "has-tools") },
+        div(
+            // The first tab open stands on the tray's left edge (its corner there goes square).
+            { class: () => joinClasses("tabbed-list__head", activeId.val === tabs[0].id && "first-open") },
+            nav,
+            tray?.node
+        ),
+        body
+    );
+};
+
+/**
+ * The tray of tools under a list's head (TabbedList, ListPanel), and the question a tool can ask in it before a risky
+ * change (lowering, taking away). The question takes the tray's place, in its words and shapes, and waits for an
+ * answer: no popup and no timer. Cancel or Escape drop it unanswered; `drop` does too (another tab), and so does a
+ * change in the page search, since the question counted the rows the search showed when it was asked.
+ */
+const ToolsTray = ({ tools, toolsLabel, activeId }) => {
+    const asking = van.state(null);
+    const questionId = `tabbed-list-question-${++listCount}`;
+    const answer = (yes) => {
+        const question = asking.val;
+        if (!question) return;
+        asking.val = null;
+        // A keyboard player goes back to the button that asked, once it shows again (the next frame).
+        if (question.byKeyboard) requestAnimationFrame(() => question.from?.focus({ preventScroll: true }));
+        // The change is the asking button's: its Undo all comes up beside it.
+        if (yes) withAction({ label: labelOf(question.from), anchor: question.from }, () => question.onConfirm());
+    };
+    const yesButton = button(
+        {
+            type: "button",
+            class: "account-btn btn-danger btn-sm tabbed-list__yes",
+            "aria-describedby": questionId,
+            onclick: () => answer(true),
+        },
+        () => asking.val?.confirmLabel ?? ""
+    );
+    const noButton = button(
+        { type: "button", class: "account-btn btn-quiet btn-sm", onclick: () => answer(false) },
+        "Cancel"
+    );
+    /** Ask before `onConfirm` runs: `question` ("Lower 30 combat stamps to level 47?"), `confirmLabel` ("Lower
+     *  them"), and `from`, the button that asked. */
+    const ask = ({ question, confirmLabel, from, onConfirm }) => {
+        // Pressed from the keyboard, the asking button holds focus: the answer takes it. A click leaves focus alone,
+        // so nothing is ringed that the pointer didn't touch.
+        const byKeyboard = document.activeElement === from;
+        asking.val = { question, confirmLabel, from, onConfirm, byKeyboard };
+        if (byKeyboard) requestAnimationFrame(() => yesButton.focus({ preventScroll: true }));
+    };
+    van.derive(() => {
+        searchHits.val;
+        asking.val = null;
+    });
+    const node = div(
+        { class: "tabbed-list__tools" },
+        div(
+            { id: questionId, class: () => joinClasses("tabbed-list__tools-label", asking.val && "is-question") },
+            () => asking.val?.question ?? (toolsLabel ? toolsLabel(activeId) : "")
+        ),
+        div(
+            { class: "tabbed-list__tools-row", "data-undo-at-end": "", hidden: () => !!asking.val },
+            ...toNodes(tools(activeId, ask))
+        ),
+        div({ class: "tabbed-list__tools-row tabbed-list__answer", hidden: () => !asking.val }, yesButton, noButton)
+    );
+    // Escape drops the question wherever focus is (a click on a tool left it outside the tray), but only on the page
+    // showing: a page left open in the background keeps its question, and leaves Escape to the one on screen.
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape" || !asking.val || e.defaultPrevented || !node.getClientRects().length) return;
+        e.preventDefault();
+        answer(false);
+    });
+    return { node, drop: () => (asking.val = null) };
+};
+
+/**
+ * One list in the same panel as TabbedList, for a page without parts (Statues): only the rows scroll, and the tools
+ * (a function of `ask`, see TabbedList) sit in the tray above them.
+ *
+ * @param {object} opts
+ * @param {*} opts.body the rows (and a column head, when the list is a table)
+ * @param {(activeId: *, ask: Function) => *} [opts.tools]
+ * @param {() => string} [opts.toolsLabel]
+ * @param {string} [opts.className]
+ * @returns {HTMLElement}
+ */
+export const ListPanel = ({ body, tools = null, toolsLabel = null, className = "" }) => {
+    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId: van.state("") }) : null;
+    return div(
+        { class: joinClasses("tabbed-list no-tabs", tools && "has-tools", className) },
+        tray ? div({ class: "tabbed-list__head" }, tray.node) : null,
+        div({ class: "tabbed-list__body" }, ...toNodes(body))
+    );
+};
 
 export const renderLazyPanes = ({
     tabs,
@@ -74,10 +282,12 @@ export const renderPersistentPagePanes = ({
     hiddenClass = "account-page-pane--hidden",
     dataAttr = "data-tab",
     renderContent = null,
+    getPaneProps = null,
 }) =>
     tabs.map((tab, index) =>
         div(
             {
+                ...(typeof getPaneProps === "function" ? getPaneProps(tab) : {}),
                 class: () => joinClasses(paneClass, activeId.val !== tab.id && hiddenClass),
                 [dataAttr]: tab.id,
             },

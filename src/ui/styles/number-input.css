@@ -99,3 +99,94 @@ input[type="number"] {
 .number-input-wrapper--capped input:disabled + .number-input__cap {
     opacity: 0.4;
 }
+
+@media (max-width: 600px) {
+    .viewport .account-row__controls .number-input-wrapper {
+        width: 104px;
+        flex: 0 0 104px;
+    }
+
+    /* A list of mixed fields keeps its one field width here too, and its Reset stays beside the field like Max. */
+    .viewport .field-columns .account-row__controls .number-input-wrapper {
+        width: var(--field-columns-width);
+        flex: none;
+    }
+}
+
+/* The value's well: the one fill on a row, no edge. The value is white and heavy; its limit faint and smaller. */
+.viewport .number-input-wrapper {
+    min-height: 36px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--c-panel-dim);
+    transition: background-color 150ms var(--ease-soft);
+}
+.viewport .number-input-wrapper:hover,
+.viewport .account-row:hover .number-input-wrapper,
+.viewport .account-row:focus-within .number-input-wrapper {
+    background: var(--c-well-hover);
+}
+.viewport .number-input-wrapper:focus-within {
+    background: var(--c-well-hover);
+    box-shadow: none;
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+.viewport .number-input-wrapper input {
+    background: transparent !important;
+    font-family: var(--font-display);
+    font-size: var(--size-value);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #ffffff;
+    caret-color: var(--c-accent);
+}
+
+/* A row's value field holds seven digits (9,999,999) at full size, so a big level never runs under its − / +; a
+   longer one scrolls inside its own box. One width for every row keeps the values in one column. */
+.viewport .account-row__controls .number-input-wrapper:not(.number-input-wrapper--capped),
+.viewport .tabbed-list__tools .number-input-wrapper {
+    width: 9.5rem;
+    flex: none;
+}
+.viewport .account-row__controls .number-input-wrapper:not(.number-input-wrapper--capped) input,
+.viewport .tabbed-list__tools .number-input-wrapper input {
+    min-width: 0;
+    padding: 0 4px 0 12px;
+}
+.viewport .number-input__cap {
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-faint);
+    opacity: 1;
+}
+.viewport .account-row--error .number-input-wrapper {
+    box-shadow: inset 0 0 0 1px var(--c-danger);
+}
+.viewport .tabbed-list__tools .number-input-wrapper {
+    height: 36px;
+    border-radius: 10px 0 0 10px;
+    background: transparent;
+}
+@media (min-width: 761px) {
+    .viewport .field-columns .account-row__controls .number-input-wrapper,
+    .viewport .field-columns .account-row__controls .number-input-wrapper:not(.number-input-wrapper--capped) {
+        width: var(--field-columns-width);
+        max-width: none;
+        flex: none;
+    }
+    .viewport .field-columns .account-row__controls .number-input-wrapper:not(.number-input-wrapper--capped) input {
+        padding: 0 calc(var(--field-columns-cap) + 2px) 0 4px;
+    }
+}
+@media (max-width: 760px) {
+    /* A row's field shares its line with the switch: it starts small enough for both and grows into what's left,
+       up to its full seven-digit width. */
+    .viewport .account-row__controls .number-input-wrapper:not(.number-input-wrapper--capped) {
+        flex: 1 1 7rem;
+        width: auto;
+        min-width: 0;
+        max-width: 9.5rem;
+    }
+}

@@ -209,3 +209,50 @@
     letter-spacing: 0.08em;
     margin: 0;
 }
+
+.viewport .account-sub-nav[hidden] {
+    display: none !important;
+}
+
+.viewport .world-sub-content,
+.viewport .world-sub-pane {
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+
+/* A page's own tab row (one not yet on a tabbed panel): plain words, the open one filled. */
+.viewport .account-sub-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    max-width: var(--page-measure);
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+.viewport .account-sub-tab-btn {
+    padding: 6px 12px;
+    border: 0 !important;
+    border-radius: var(--radius-sm);
+    background: transparent !important;
+    box-shadow: none !important;
+    font-family: var(--font-display);
+    font-size: var(--size-body);
+    font-weight: 600;
+    color: var(--c-text-muted);
+}
+.viewport .account-sub-tab-btn::before,
+.viewport .account-sub-tab-btn::after {
+    display: none !important;
+}
+.viewport .account-sub-tab-btn:hover {
+    color: var(--c-text-main);
+    background: var(--c-white-03) !important;
+}
+.viewport .account-sub-tab-btn.active {
+    color: var(--c-text-main);
+    background: var(--c-here) !important;
+}

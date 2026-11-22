@@ -2,8 +2,9 @@
 
 The look the WebUI is heading for, agreed with the maintainer. So far it covers buttons and icons, decided on 2026-11-20
 over four rounds of a concept board and built across the whole menu, and the page layout (#26), chosen the same day from
-a live concept, and colour ("Dusk", picked from three concepts). The rest of the look (tabs, navigation, tags) waits
-for the later passes.
+a live concept, and colour ("Dusk", picked from three concepts, then "Ink" from concept finish-2 on 2026-11-21). Tabs
+got their pass on Stamps on 2026-11-21 (Lists with tabs, at the end), and the menu became one sidebar list that drills
+down; tags wait for a later pass.
 
 ## What it should feel like
 
@@ -12,7 +13,7 @@ shouting text. Lumify's buttons are the nearest reference, made quieter.
 
 ## Buttons
 
-There are three kinds of button, all pills (`border-radius: 999px`) set in Rajdhani 600.
+There are three kinds of button, all pills (`border-radius: 999px`) set in Fira Sans 600 (`--font-display`).
 
 | Kind   | At rest                           | On hover                                 |
 | ------ | --------------------------------- | ---------------------------------------- |
@@ -34,7 +35,7 @@ Which kind a button is:
   capitals typed into a label. Proper names keep theirs (Auto Play, Pets+).
 - **A quiet toggle that is on** (Watching, Saved, the Config drawer) keeps its hover fill.
 - **"Click again"** (a risky press asking to be sure) lies over the button as the same pill, in the colours its kind has
-  on hover, and its wash drains away.
+  on hover, and its wash drains away. A list with tabs asks in its tray instead (Lists with tabs, below).
 - Tabs, navigation, on/off switches and tiles aren't action buttons. An on/off state is a switch (see Page layout).
 
 Values:
@@ -53,19 +54,20 @@ In the code the kinds are `.btn-main`, `.btn-quiet` and `.btn-danger`, with `.bt
 `src/ui/styles/_buttons.css`; an `ActionButton`'s `variant` is `main`, `quiet` or `danger` (or `switch` for an on/off
 switch). Icons are in `src/ui/assets/icons.js`.
 
-## Colour: Dusk
+## Colour: Ink
 
-One violet family, so a player who skims finds things by place and fill, not by colour. Colour stays only where it
-means something: status (saved, failed, warning), on/off, the world codes, and names that identify a thing (tiers,
-cauldrons, liquids, brews, signs). Everything else is six surfaces and two text colours.
+A violet night, chosen on concept finish-2 (2026-11-21). The page is the darkest step and everything a player reads
+rests on a surface one step up, edged by a hairline. Colour stays only where it means something: trouble (failed,
+warning), on/off and where you are (the lavender accent), the world codes, and names that identify a thing (tiers,
+cauldrons, liquids, brews, signs).
 
-- **Surfaces:** page `#1c1d33`, section `#222440`, row and card `#2d2e4f`, row hover `#36385c`, border `#34365b`,
-  strong border `#4a4d7a`. Inputs sink back to the page shade. Borders nearly dissolve: rows are told apart by fill.
-- **Text:** main `#eeedf9` and muted `#c0bfdc`. Section titles are main text. Values are plain text, never a box.
-- **Accent:** lavender `#aaa6f7`, for what you can press, what is on (a switch, Prisma, an exalted stamp) and where you
-  are. W4's colour is a saturated orchid (`#b787ff`) so it never reads as the accent.
-- **Status fills** are solid (`--c-success-tint`, `--c-danger-tint`, `--c-warning-tint` and their flashes), so every
-  status and text colour on them is measured: each meets WCAG AA.
+- **Surfaces:** page `#0d0c18`, sidebar `#121120`, a group of rows (and the search, a panel) `#161526`, row hover
+  `#1c1a2f`, a value's well `#211f3a`, edge `#252340`, strong edge `#36325a`, the hairline between rows `#1f1d35`.
+- **Text:** main `#f3f1ff`, row names `#e3e0f6`, muted `#aaa6c8`, faint `#8e8ab0` (indices, a field's cap), the
+  sidebar's words `#b4b0d0`. Each meets WCAG AA on every surface it sits on.
+- **Accent:** lavender `#b0a7ff`, for where you are, what is on and the focus ring; a switch that is on is `#7d72ee`.
+- **Trouble:** failed `#ff8a80` (soft text `#ff9d94`), warning `#ffc24d`. Saved is a quiet tick in the muted colour.
+- **Type:** Fira Sans for everything a player reads; Rajdhani only where it is a mark (the logo and the codes, W1, HOM).
 - **No decorative tints:** no tinted cards or boxes behind tiers, cauldrons or values; the tier keeps only its word's
   colour.
 
@@ -170,3 +172,123 @@ switches, picking the first option each time.
 
 Not switches, on purpose: picks with a limit or an order (the 2× doublers, Organic labels, palette stars, the cape
 vine, prayer slots, bundle purchases) keep their buttons.
+
+## Lists with tabs
+
+Decided one point at a time on the Stamps page of concept finish-2 (2026-11-21), in its Ink colours. A system's parts
+(Stamps: Combat, Skills, Misc) are tabs on one list, built with `TabbedList` in
+`src/ui/components/views/account/tabShared.js`. This is the baseline: a page uses `TabbedList` and gives it its tabs,
+its rows and its tools, instead of writing its own tabs, tools or CSS.
+
+- **Parts are tabs on the page,** not entries in the sidebar and not one long page of stacked sections. The sidebar
+  lists only the page.
+- **The open tab** is a block with 10 px top corners in the colour of what it opens, running straight down into it with
+  curved feet: no pill, no bubble, no coloured line. Its word is lavender (where you are); the other tabs are plain
+  muted words, 16 px. The first tab stands flush on the tray's left edge.
+- **Switching** glides the block to the new tab and lets the new list fade in with a small rise; both are off when the
+  player asks for less motion. A page comes back on the tab it was left on; a newly opened tab starts at its top. Left,
+  Right, Home and End move between the tabs, and Tab goes from the open tab into its list.
+- **Only the list scrolls,** inside its panel, with a slim bar inside the panel's edge. The title, the tabs and the
+  tools stay where they are. A window too short for the panel scrolls the page instead, so nothing is cut off.
+- **Tools for the open tab** (Set all, Exalt all) sit in a tray under the tabs: a darker strip set into the panel (the
+  page's own ground), joined to the open tab. Its first line says what the tools act on: "All 30 combat stamps". While
+  the top bar searches the page, the tools act only on the rows it shows, and the line says so: "3 matching combat
+  stamps" (a page keeps each entry's row and asks `shownBySearch(row)`; `isSearching()` picks the words). Each
+  tool is one joined shape with 10 px corners and hairline dividers (a level field with its Set all; Exalt all |
+  Unexalt all), never pills, so tools never look like tabs. A field's label is its placeholder ("Level"), and the field
+  shows no ring or fill while it's typed in.
+- **Asking before a risky change** (lowering, taking away) happens in the tray, never with "Click again" or a popup. The
+  tray's first line becomes the question ("Lower 30 combat stamps to level 47?") and the tools give way to the answer:
+  the change in the soft red ("Lower them", "Unexalt it") and Cancel. Nothing times out. Cancel, Escape or another tab
+  drop the question. A change that only raises runs on one click. Focus moves to the answer only when the tool was
+  pressed from the keyboard. Tools ask with the `ask` that `TabbedList` hands them.
+- **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`); with no
+  room there it takes its old place.
+- **Row buttons** (Relock, Max, Reset) are soft filled shapes in the field's colour with no outline; one that lowers or
+  removes turns red only under the pointer. No hover popup explains a button.
+- **A switch shows its word only when on** where the off word would repeat down the list: "Exalted", never "Not
+  exalted". The switch keeps its name for screen readers.
+- **Value fields** hold seven digits (9,999,999) at full size; a longer value scrolls inside its field. One width for
+  every row keeps the values in one column. On a phone a field shares its line with the switch and grows into what's
+  left.
+- **Without tools,** the tab row is the darker ground and the open tab runs down into the rows instead.
+
+For pages that move to this look, it replaces "Click again" (Buttons), sections as headings over a rule, and switch
+words that keep one width (Page layout).
+
+### Tables (decided on Statues, 2026-11-21)
+
+- **A thing with several values is one line,** like a table: its name, then each value in its own column (Statues:
+  Level, Deposited, Tier, Flair). The column names are said once, in a head that stays at the top of the list while
+  it scrolls; the fields keep their names for screen readers. On a phone a line folds into a small grid and each field
+  shows its name again.
+- **A page without parts** uses `ListPanel`: the same panel, tray, question and scrolling list as `TabbedList`, with no
+  tab row.
+- **A pick out of a few** (a tier: Stone, Gold, Onyx, Zenith) is a `StepPicker`: one joined shape, one press, no
+  dropdown. The picked step lights; a tier lights in its own colour, because it names a thing.
+- **A switch about one column** sits in that column's head (Statues' Flair unlock).
+- **A table page takes the wider measure** (60rem); a list page stays compact (48rem).
+- **Rows are quiet until touched** (every list and table): at rest a value is a plain number with no box and no − / +,
+  and a step picker shows only its pick (a tier as its coloured word). The row under the pointer, or with focus in it,
+  shows the controls in place; nothing moves. Touch screens always show them.
+- **Every value starts where its column's name starts** (12px into the column), quiet or touched, so a column reads
+  straight down. A capped value keeps its cap right after it ("1 / 4").
+- **One main number a row:** a value that only supports another (Deposited, progress toward the next level) is a step
+  smaller and muted.
+- **− and +** are a close pair at the field's end, with room before its edge.
+- **Names the game writes in capitals** (THICC_SKIN) show in normal case: "Thicc Skin". EXP stays in capitals.
+- **A thing with a bonus shows the bonus first** (`RowTitles`): players know stamps and statues by what they do, so the
+  bonus is the row's main line ("Base HP", "Move Speed %") and the name sits under it, small and muted ("Heart
+  Stamp"). Only the game's words show, never a number the page works out: the game's own numbers come from many
+  multipliers. A percent bonus ends in "%".
+- **A warning banner holds only a warning.** A useful fact that isn't one becomes a short line under the title.
+
+### Picks with states (decided on Pets, 2026-11-21)
+
+- **A thing with a few states is one step picker,** not a card click plus small letter buttons: a pet's tier is Off |
+  Normal | Pets+. Off picked is quiet; the strongest pick (Pets+) is "what is on", in lavender. A separate saved
+  state (a pet token) is its own switch in its own column.
+- **Say once how long a state lasts, in the column head:** "Tier · while the injector runs", "Token 1/2 · saved in your
+  game". That replaces instructions, legends and banners that said the same.
+- **A plain state word sits in its own column before the picker,** muted: "Owned", "Owned · Pets+".
+- **Bulk tiers are one "All to" tool** (Off | Normal | Pets+) for the open tab; lowering asks in the tray, and bulk
+  never touches a saved state (tokens).
+- **Every page's search is the top bar,** with no code on the page (`src/ui/menu/pageSearch.js`). On any page with
+  shared rows (`.account-row`) the bar says "This page | Everywhere" at its right end: "This page" hides the rows whose
+  name or bonus doesn't match as the player types, "Everywhere" drops the menu's list down as before. The typed text
+  stays when it flips; another page starts fresh on "This page". A section left with no match hides with its heading;
+  each tab shows how many of its rows match, as a small muted number after its name; a list with none says "Nothing
+  here matches". A page adds no search box of its own. A column head row carries `account-row--head` so it stays.
+- **A page's filters** sit on the line under the title. A filter that hides odd rows starts off, and says what it shows:
+  "Show unavailable".
+- **A tab with nothing to show says why** where its rows would be.
+- **A warning shows only while its trouble is real,** as one short amber line under the name (`RowTitles`' `warning`):
+  the problem, then what to do. "Pets+ turns this bonus off. Keep it Normal." shows on Spirit Reindeer at Pets+ and is
+  gone at Normal or Off. A warning the game has since fixed is dropped, not softened.
+
+### Every page the same (decided on World 1, 2026-11-21)
+
+Lumi: "i dont see why any of them should be any different than the others." Every World 1 page now uses the same
+pieces, and new pages start from them.
+
+- **The game's groups are tabs** (Pets' sets, Star Signs' worlds, Bribes' sets, Stamps' pages). **A game screen that
+  only splits one list in pages is not a group** (Forge's Page 1 and Page 2): one list in the game's order. **Nothing
+  is set apart by how much to care**: Owl is one list in the game's order, with no "permanent" group, no highlighted
+  rows and no banner telling players which values to keep.
+- **A page with a few rows in two kinds** (Anvil: Points, Spent on) keeps one `ListPanel` with an `AccountSection` per
+  kind: its name is a quiet line set on the panel, a hairline parts two groups, never a box or big heading.
+- **Tools act on the open tab** (Unlock all on World 1's star signs only), and a tool that takes away asks in the tray.
+  A whole-account side effect that only fits "everything" goes: Star Signs' Reset clears the tab and recounts the
+  star points, and no longer re-locks the unlocked star signs (Lumi's pick).
+- **A row that holds a list** (a star sign's players) opens in place under the row: the row's name is its opener (a
+  button with `aria-expanded`), one row is open at a time, and the row keeps a switch for the quick path (Unlocked:
+  fills it with the players it needs, off clears it). What opens spans the whole row; on a phone the row folds.
+- **Taking one thing out of a row's list saves at once** (× on a player), with Undo in the row's save state. No
+  "Click again" and no popup.
+- **A switch's word names the state that matters:** "Owned" when on, "Locked" while it can't be had yet, nothing
+  when simply off. A row that can't change says so in its place, quietly ("Can't be bought").
+- **A page's title is its sidebar name** (Owl, not Orion), so it gets its system's icon; the description names the
+  thing ("Orion the owl's feathers and upgrades."). Titles, loading and failure lines are normal case ("Reading the
+  forge", "Couldn't read the forge").
+- **Numbers in a list end in one column**, capped or not (`field-columns`: a field without a cap keeps the cap's
+  room). An amount left beside the title turns red with a real minus when overspent ("−18 points left").
