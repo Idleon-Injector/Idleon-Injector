@@ -962,3 +962,43 @@ test("liquid: after the game refuses one copy of CAP UPGRADE, the same value can
     info[8][4][2][1] = cap;
     ola[371] = copy;
 });
+
+// CodeRabbit on #212: a page opened again after the split read the first copy and couldn't save the same value.
+test("liquid: a page opened again after one copy of CAP UPGRADE was refused still saves the value into both", async () => {
+    const info = game.gga.CauldronInfo;
+    const cap = Number(info[8][4][2][1]);
+    const copy = Number(ola[371]);
+    info[8][4][2][1] = copy;
+    const open = async () => {
+        const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        const row = rowNamed(root, "Water Droplets");
+        const input = inputs(row)[1];
+        const save = (value) => {
+            input.listeners.focus?.({ target: input });
+            typeInto(input, value);
+            row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        };
+        return { row, input, save };
+    };
+    try {
+        const first = await open();
+        Object.defineProperty(ola, 371, { configurable: true, enumerable: true, get: () => copy, set: () => {} });
+        try {
+            first.save(copy + 5);
+            await until(() => stateOf(first.row) === "error", "the save to fail");
+        } finally {
+            Object.defineProperty(ola, 371, { configurable: true, enumerable: true, writable: true, value: copy });
+        }
+        const again = await open();
+        await until(() => shown(again.input) === String(copy), "the copy the save didn't change");
+        again.save(copy + 5);
+        await until(() => stateOf(again.row) === "success", "the save on the page opened again");
+        assert.equal(Number(ola[371]), copy + 5, "the second copy has it now");
+        assert.equal(Number(info[8][4][2][1]), copy + 5);
+    } finally {
+        info[8][4][2][1] = cap;
+        ola[371] = copy;
+    }
+});

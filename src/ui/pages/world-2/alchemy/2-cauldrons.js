@@ -118,14 +118,17 @@ const LiquidRow = ({ liquid, states }) =>
         read: async () => liquidValues(await readLiquids(), liquid, states),
     });
 
+// Kept while the menu runs, not per opening: a line whose save split an upgrade's copies still shows the copy the save
+// didn't change when the page opens again, so saving the new value writes both.
+// ponytail: lost when the injector restarts; a split found then shows CauldronInfo's copy.
+const liquidStates = LIQUIDS.map(() => ({
+    amount: van.state(0),
+    cap: van.state(0),
+    rate: van.state(0),
+}));
+
 const LiquidTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Liquid" });
-
-    const liquidStates = LIQUIDS.map(() => ({
-        amount: van.state(0),
-        cap: van.state(0),
-        rate: van.state(0),
-    }));
 
     const load = async () =>
         run(async () => {
