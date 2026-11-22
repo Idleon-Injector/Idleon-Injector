@@ -611,7 +611,7 @@ test("Equinox: a penguin count saved while the fill rate can't be read says so o
     await until(() => rowWarning(row) === "", "a read that works to clear it");
 });
 
-for (const odd of ["broken", -1, 1.5]) {
+for (const odd of ["broken", "", " ", true, false, -1, "-1", 1.5, "1.5"]) {
     test(`Equinox: a penguin count of ${JSON.stringify(odd)} is a read error, not 0`, async (t) => {
         const before = gga.OptionsListAccount[320];
         t.after(() => (gga.OptionsListAccount[320] = before));
@@ -621,14 +621,20 @@ for (const odd of ["broken", -1, 1.5]) {
     });
 }
 
-for (const empty of [0, null, undefined]) {
-    test(`Equinox: a penguin count of ${empty} shows as 0`, async (t) => {
+for (const [stored, shows] of [
+    [0, "0"],
+    [null, "0"],
+    [undefined, "0"],
+    ["0", "0"],
+    ["3", "3"],
+]) {
+    test(`Equinox: a penguin count of ${JSON.stringify(stored)} shows as ${shows}`, async (t) => {
         const before = gga.OptionsListAccount[320];
         t.after(() => (gga.OptionsListAccount[320] = before));
-        gga.OptionsListAccount[320] = empty;
+        gga.OptionsListAccount[320] = stored;
         const root = await openPage(EQUINOX, penguinRow);
         const shown = elements(penguinRow(root)).find((node) => node.nodeName === "input").attributes.value;
-        assert.equal(String(typeof shown === "function" ? shown() : shown), "0");
+        assert.equal(String(typeof shown === "function" ? shown() : shown), shows);
     });
 }
 

@@ -338,9 +338,16 @@ const EquinoxTab = () => {
             barFillState.val = toInt(dreamArr[0], { mode: "floor" });
             barFillReqState.val = toInt(barFillReq, { mode: "floor" });
             barFillRateState.val = toInt(barFillRate, { mode: "floor" });
-            // An account that never bought one holds 0 or nothing; anything but a whole count is a broken read.
-            const penguins = rawPenguins ?? 0;
-            if (!Number.isInteger(penguins) || penguins < 0)
+            // An account that never bought one holds 0 or nothing. A count may be text ("3"), as the game reads the
+            // slot through its number conversion; anything but a whole count from 0 is a broken read.
+            const stored = rawPenguins ?? 0;
+            const penguins = Number(stored);
+            if (
+                !["number", "string"].includes(typeof stored) ||
+                String(stored).trim() === "" ||
+                !Number.isInteger(penguins) ||
+                penguins < 0
+            )
                 throw new Error(`Unexpected Pingy penguin count: ${JSON.stringify(rawPenguins)}`);
             penguinState.val = penguins;
             rateError.val = false;
