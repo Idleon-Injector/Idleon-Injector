@@ -199,10 +199,13 @@ const PrinterTab = () => {
 
     const updateRow = (state, item, qty, resetDraft = false) => {
         const drafts = draftsOf(state);
-        const retainDraft = !resetDraft && isDirty(state, drafts);
+        // Typed while this row's save runs, and not taken back with Escape: a draft even when it is the old value.
+        const typedWhileSaving =
+            state.saving && drafts.edits !== state.saving.edits && state.escapedAt !== drafts.edits;
+        const retainDraft = !resetDraft && (isDirty(state, drafts) || typedWhileSaving);
         // A kept draft keeps only the half the player changed; the other shows what the game holds now.
         const keepItem = retainDraft && drafts.item !== state.baseline.item;
-        const keepQty = retainDraft && !showsQty(drafts);
+        const keepQty = retainDraft && (!showsQty(drafts) || typedWhileSaving);
         state.saved.val = { item, qty };
         // A kept draft is compared with what the game holds now.
         state.baseline = { item, qty };
@@ -317,6 +320,8 @@ const PrinterTab = () => {
     // `inAction`: runs the write under the History action of the row that asked for it. `committed`: the drafts the
     // save was asked with.
     const writeSlot = async (state, item, qty, clear, inAction, committed = null) => {
+        // The drafts this save was asked with: its own read of the game keeps what is typed after them.
+        state.saving = committed;
         try {
             const next = await readFresh();
             const cap = Math.round(
@@ -347,6 +352,8 @@ const PrinterTab = () => {
         } catch (caughtError) {
             error.val = caughtError.message;
             throw caughtError;
+        } finally {
+            state.saving = null;
         }
     };
 
