@@ -875,25 +875,6 @@ test("stamps: a Set all question is dropped when the page search changes", async
     }
 });
 
-test("star signs: a Reset all question is dropped when the page search changes", async () => {
-    const saved = [...g.StarSignProg[2]];
-    g.StarSignProg[2] = ["_", 0];
-    try {
-        const root = await openPage(STAR_SIGNS, signsReady);
-        const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset all");
-        reset.listeners.click({ preventDefault() {} });
-        await until(() => trayLabel(root).startsWith("Reset "), "the question");
-        searchHits.val = new Set();
-        await until(() => !trayLabel(root).startsWith("Reset "), "the question to drop");
-        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
-        await tick();
-        assert.equal(g.StarSignProg[2][0], "_", "a dropped question changes nothing");
-    } finally {
-        searchHits.val = null;
-        g.StarSignProg[2] = saved;
-    }
-});
-
 // #126 (CodeRabbit on #208): a token the game gives after the save's own read is checked again once the save lands.
 test("pets: Pets+ on a pet the game gives a token after the save read the tokens is taken back, and says why", async () => {
     const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
@@ -1004,5 +985,24 @@ test("pets: a save that fails after a newer one started leaves the newer one's m
         await done();
         await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
         g.OptionsListAccount[606] = "2,5";
+    }
+});
+
+test("star signs: a Reset all question is dropped when the page search changes", async () => {
+    const saved = [...g.StarSignProg[2]];
+    g.StarSignProg[2] = ["_", 0];
+    try {
+        const root = await openPage(STAR_SIGNS, signsReady);
+        const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset all");
+        reset.listeners.click({ preventDefault() {} });
+        await until(() => trayLabel(root).startsWith("Reset "), "the question");
+        searchHits.val = new Set();
+        await until(() => !trayLabel(root).startsWith("Reset "), "the question to drop");
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await tick();
+        assert.equal(g.StarSignProg[2][0], "_", "a dropped question changes nothing");
+    } finally {
+        searchHits.val = null;
+        g.StarSignProg[2] = saved;
     }
 });
