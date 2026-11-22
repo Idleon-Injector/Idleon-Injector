@@ -128,7 +128,6 @@ export const LevelItems = (key, { after = () => {} } = {}) => {
         const children =
             system.pages.length > 1
                 ? system.pages.map((p) => ({
-                      group: p.group,
                       label: pageTitle(p, system),
                       current: () => shownPage(world) === p,
                       pick: () => store.openMenu({ world: world.id, page: p.id }),
@@ -152,11 +151,7 @@ export const LevelItems = (key, { after = () => {} } = {}) => {
                     after();
                 },
             }),
-            ...children.flatMap((child, i) => [
-                // A quiet heading where a system's pages change group (the Hole's Villagers, Caverns): words only.
-                ...(child.group && child.group !== children[i - 1]?.group
-                    ? [div({ class: "drill-group" }, child.group)]
-                    : []),
+            ...children.map((child) =>
                 Item({
                     ...child,
                     sub: true,
@@ -164,8 +159,8 @@ export const LevelItems = (key, { after = () => {} } = {}) => {
                         child.pick();
                         after();
                     },
-                }),
-            ]),
+                })
+            ),
         ];
     });
 };

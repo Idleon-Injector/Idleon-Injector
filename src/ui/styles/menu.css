@@ -385,20 +385,6 @@
     color: var(--c-text-main);
     font-weight: 600;
 }
-/*
- * A group of a system's pages (the Hole's Villagers, Caverns): a quiet label like the sidebar's own (Active cheats),
- * lined up with the pages' words. Words only: nothing to press, so no hover and no focus.
- */
-.drill-group {
-    padding: 10px 10px 2px 46px;
-    font-family: var(--font-display);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--c-text-faint);
-    user-select: none;
-}
 .drill-note {
     padding: 7px 12px;
     color: var(--c-text-muted);

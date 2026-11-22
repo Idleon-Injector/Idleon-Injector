@@ -170,8 +170,6 @@ export const pageFolder = (page) => `${findWorld(page.world).folder}/${slugify(p
  * @param {number|string} page.world - 1-7, "account" or "classes"
  * @param {string} page.system - the IdleonToolbox system name, one of WORLDS[].systems
  * @param {string} [page.tab] - tab name, required when a system has several pages
- * @param {string} [page.group] - the group the page sits in within its system ("Caverns"): the sidebar heads each
- *   group's pages with its name, where the group changes
  * @param {string} page.description - one plain sentence for players
  * @param {string[]} [page.keywords] - extra search words, including the injector's old names
  * @param {Function} page.component - VanJS component that renders the page
@@ -189,8 +187,6 @@ export const definePage = (page) => {
     if (typeof page.component !== "function") throw new Error(`${where}: component must be a function`);
     if (page.tab !== undefined && (typeof page.tab !== "string" || !page.tab.trim()))
         throw new Error(`${where}: tab must be a non-empty string`);
-    if (page.group !== undefined && (typeof page.group !== "string" || !page.group.trim()))
-        throw new Error(`${where}: group must be a non-empty string`);
     if (
         page.keywords !== undefined &&
         !(Array.isArray(page.keywords) && page.keywords.every((k) => typeof k === "string"))
