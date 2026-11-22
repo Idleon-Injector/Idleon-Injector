@@ -666,6 +666,59 @@ test("Workbench: leaving the Cogs tab closes the cog editor", async () => {
     await until(shut, "the editor to close");
 });
 
+// CodeRabbit on #225: the stat field compared its draft with the value it last showed, not the one saved or read.
+const openStat = async (stats) => {
+    gga.CogOrder[1] = "Cog2B01";
+    gga.CogMap[1].h = stats;
+    const { root, popup, open } = await openCogs();
+    click(buttonIn(root, "Cogs"));
+    open(1);
+    await until(() => statRow(popup, "a") && statRow(popup, "b"), "the slot's stats to show");
+    const row = statRow(popup, "a");
+    const field = elements(row).find((node) => node.nodeName === "input");
+    const type = (value) => {
+        field.value = value;
+        field.listeners.input?.({ target: field });
+    };
+    const key = (name) => row.listeners.keydown({ key: name, target: field, preventDefault() {} });
+    return { root, popup, row, field, type, key };
+};
+const keepCog = (t) => {
+    const before = { order: gga.CogOrder[1], stats: gga.CogMap[1].h };
+    t.after(() => {
+        gga.CogOrder[1] = before.order;
+        gga.CogMap[1].h = before.stats;
+    });
+};
+
+test("Cogs: the old stat typed back while a save runs is the next Enter's save", async (t) => {
+    keepCog(t);
+    const { row, type, key } = await openStat({ a: 11, b: 1 });
+    const hold = holdWrites();
+    type("50");
+    key("Enter");
+    await until(() => hold.held() === 1, "the save to reach the game");
+    type("11");
+    hold.release();
+    await until(() => /save-state--success/.test(classes(byClass(row, "save-state")[0])), "the save's ✓");
+    assert.equal(gga.CogMap[1].h.a, 50);
+    key("Enter");
+    await until(() => gga.CogMap[1].h.a === 11, "the typed-back 11 to be saved");
+});
+
+test("Cogs: Escape after a Refresh puts back the game's newer stat", async (t) => {
+    keepCog(t);
+    const { root, popup, field, type, key } = await openStat({ a: 11, b: 1 });
+    type("50");
+    gga.CogMap[1].h = { a: 20, b: 2 }; // the game moves on
+    click(buttonIn(root, "Refresh"));
+    const other = elements(statRow(popup, "b")).find((node) => node.nodeName === "input");
+    await until(() => other.attributes.value === "2", "the read to show the game's stats");
+    assert.equal(field.value, "50", "the draft stays through the read");
+    key("Escape");
+    assert.equal(field.value, "20");
+});
+
 // #217: the editor sits on the page's body, so opening another page from the menu left it over that page.
 test("Workbench: opening another page from the menu closes the cog editor", async () => {
     const store = (await importRepo("src/ui/state/store.js")).default;

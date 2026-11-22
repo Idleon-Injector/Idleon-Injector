@@ -586,8 +586,11 @@ const CogsTab = () => {
 
     const renderStatRow = (index, key, readOnly) => {
         const initial = cogMapStats[index].rawVal[key];
-        // The shown text is rounded ("1.2M"): only text the player changed saves.
-        const shown = van.state(initial !== null && initial !== undefined ? formatNumber(initial) : "");
+        const text = (value) => (value !== null && value !== undefined ? formatNumber(value) : "");
+        // What the game holds, as text: the last read or save. The shown text is rounded ("1.2M"), so only text that
+        // differs from it saves.
+        let saved = text(initial);
+        const shown = van.state(saved);
         let typing = false;
         const inputEl = input({
             type: "text",
@@ -596,11 +599,13 @@ const CogsTab = () => {
             disabled: readOnly,
             oninput: () => (typing = true),
         });
-        const hasDraft = () => typing && inputEl.value !== shown.rawVal;
-        // A newer game value shows only in a field that has no draft.
+        const hasDraft = () => typing && inputEl.value !== saved;
+        // Each read updates what the game holds; the field shows it only while it has no draft.
         van.derive(() => {
-            const next = cogMapStats[index].val?.[key];
-            if (!hasDraft()) shown.val = next !== null && next !== undefined ? formatNumber(next) : "";
+            const next = text(cogMapStats[index].val?.[key]);
+            const draft = hasDraft();
+            saved = next;
+            if (!draft) shown.val = next;
         });
         const save = useAutoSave({
             prepare: () => {
@@ -617,15 +622,19 @@ const CogsTab = () => {
                         await writeVerified(`CogMap[${getCogOrderIndex(index)}].h.${key}`, writeVal);
                         // In place: a new stats object would tell every field of the slot to follow it.
                         cogMapStats[index].rawVal[key] = writeVal;
+                        saved = text(writeVal);
+                        // Text typed since stays, for its own Enter, even the old value typed back.
                         if (inputEl.value === typed) {
-                            shown.val = inputEl.value = formatNumber(writeVal);
+                            shown.val = inputEl.value = saved;
                             typing = false;
                         }
                     },
                 };
             },
+            // Escape shows what the game holds now, a read made while typing included.
             revert: () => {
-                inputEl.value = shown.rawVal;
+                saved = text(cogMapStats[index].rawVal?.[key]);
+                shown.val = inputEl.value = saved;
                 typing = false;
             },
         });
