@@ -46,3 +46,30 @@ test("Config says Save settings also sends the settings to the running game", as
         "the Save settings tooltip"
     );
 });
+
+// #112: the config read says whether it reached the game (`gameRead`); the save sends the settings without it.
+test("Apply and Save settings send the settings, not the read's gameRead", async () => {
+    const { Config } = await importRepo("src/ui/components/views/Config.js");
+    const root = Config();
+    const button = (id) => elements(root).find((node) => node.attributes.id === id);
+    await until(() => button("save-config-button"), "the Config page");
+    const realFetch = globalThis.fetch;
+    const sent = [];
+    globalThis.fetch = (url, options) => {
+        if (/\/config\/(save|update)/.test(String(url))) sent.push(JSON.parse(options.body));
+        return realFetch(url, options);
+    };
+    try {
+        for (const id of ["update-config-button", "save-config-button"]) {
+            const node = button(id);
+            await node.listeners.click({ currentTarget: node, target: node });
+        }
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(sent.length, 2, "both saves reached the server");
+    for (const body of sent) {
+        assert.ok(body.cheatConfig, "the settings are sent");
+        assert.equal("gameRead" in body, false, "the read's gameRead isn't");
+    }
+});

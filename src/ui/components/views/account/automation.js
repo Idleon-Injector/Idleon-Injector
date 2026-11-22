@@ -580,17 +580,17 @@ const useQueuedField = ({ value, draft, parse, write, resave, fileBehind }) => {
                 stop = commit.stop;
             }
             const typed = commit?.typed ?? getNumberInputLiveRaw(draft) ?? draft.val;
+            // A value typed after this commit, while it waited its turn, stays in the field for the save after it.
+            const stillTyped = () => (getNumberInputLiveRaw(draft) ?? draft.val) === typed;
             try {
                 const next = parse(typed);
                 if (next === value.val) {
-                    showValue();
+                    if (stillTyped()) showValue();
                     // The game has it but the file may not: Enter saves it again.
                     if (fileBehind()) return { write: track(() => resave(), stop) };
                     stop();
                     return { unchanged: true };
                 }
-                // A value typed while this one saves stays in the field for the save after it.
-                const stillTyped = () => (getNumberInputLiveRaw(draft) ?? draft.val) === typed;
                 return { write: track(() => write(next).finally(() => stillTyped() && showValue()), stop) };
             } catch (error) {
                 stop();
