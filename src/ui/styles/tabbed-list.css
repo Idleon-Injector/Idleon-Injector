@@ -106,9 +106,11 @@
     border-radius: 12px;
     background: var(--c-void);
 }
+/* One line height for the line and the question that takes its place, so asking moves nothing under it. */
 .tabbed-list__tools-label {
     font-size: 0.8125rem;
     font-weight: 500;
+    line-height: 1.25rem;
     color: var(--c-text-muted);
 }
 .tabbed-list__tools-row {
@@ -343,6 +345,12 @@
     }
 }
 
+/* A tab without tools has no tray (TabbedList's toolsOn), and a tool for other tabs steps out of the row. */
+.viewport .tabbed-list .tabbed-list__tools[hidden],
+.viewport .tabbed-list .tabbed-list__tools-row > [hidden] {
+    display: none;
+}
+
 /* A question in the tray: its first line asks, in the main colour; the answer is two shapes of their own, the change
    in the soft red (it lowers or takes away) and Cancel plain. Nothing times out. */
 .tabbed-list__tools-row[hidden] {
@@ -498,4 +506,134 @@
         opacity: 0;
         transform: translateY(8px);
     }
+}
+
+/*
+ * A table in a list (Liquid, Pay 2 Win; Statues keeps its own): one thing per line, each value in its own column. The
+ * column names are said once, in a head that stays at the top of the list while it scrolls; the fields keep their names
+ * for screen readers. The head and every row share one grid (`--value-columns`), so values line up under their names
+ * and each starts 12px into its column, where the name starts.
+ */
+.viewport .value-cells {
+    display: grid;
+    grid-template-columns: var(--value-columns, repeat(3, 9.5rem));
+    align-items: center;
+    gap: 10px;
+}
+.value-cell {
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    min-width: 0;
+}
+.value-cell__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+.viewport .value-cells .number-input-wrapper {
+    width: 100%;
+    min-width: 0;
+}
+.viewport .value-cells .number-input-wrapper input {
+    padding: 0 4px 0 12px;
+    text-align: left;
+}
+/* A capped value ("33 / 150") keeps its cap right after it, and the caps line up down the column: the value ends where
+   three digits would. */
+.viewport .value-cells .number-input-wrapper--capped input {
+    flex: 0 0 calc(3ch + 16px);
+    min-width: 0;
+    padding-right: 0;
+    text-align: right;
+}
+.viewport .value-cells .number-input-wrapper--capped .number-input__cap {
+    margin-right: auto;
+}
+.viewport .tabbed-list .value-head,
+.viewport .tabbed-list .value-head:hover {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-height: 40px;
+    border-width: 0 0 1px;
+    background: var(--c-void-soft);
+}
+.value-head__label {
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.value-head .value-cells > .value-head__label {
+    padding-left: 12px;
+}
+.viewport .tabbed-list .value-head + * .account-row:first-child,
+.viewport .tabbed-list .value-head + .account-row {
+    border-top-width: 0;
+}
+
+/* On a phone each line folds: its name, then its fields two to a line (room for a value and its − / +), each showing
+   its name again. */
+@media (max-width: 760px) {
+    .viewport .tabbed-list .value-row {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 10px;
+    }
+    .viewport .value-row .account-row__info,
+    .viewport .value-row .account-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+    /* The save mark (✓, Undo) goes to the end of the name's line, so the fields start under the name. */
+    .viewport .value-row .save-state {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+    }
+    .viewport .value-cells {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+    .value-cell__label {
+        position: static;
+        width: auto;
+        height: auto;
+        padding-left: 12px;
+        overflow: visible;
+        clip: auto;
+        font-size: 0.75rem;
+        color: var(--c-text-muted);
+    }
+    .viewport .tabbed-list .value-head {
+        display: none;
+    }
+}
+
+/* In a list's panel a row's state (Cosmic, Active) is a plain muted word before the field, never a pill. */
+.viewport .tabbed-list .account-row__badge {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+/* A value with no field (Best stage "3 / 5") reads like the fields' values, and in a list of fields it ends in their
+   column. */
+.viewport .tabbed-list .capped-value {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+}
+.viewport .field-columns .account-row__controls > .capped-value {
+    box-sizing: border-box;
+    justify-content: flex-end;
+    width: var(--field-columns-width);
+    padding-right: 54px; /* where a field's − / + sit (two 24px buttons and their 6px) */
 }

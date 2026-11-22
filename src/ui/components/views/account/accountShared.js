@@ -172,6 +172,45 @@ export const cleanNameEffect = (raw, fallback = "") =>
         fallback
     );
 
+/** A name the game writes in capitals (ROID_RAGIN) in normal case ("Roid Ragin"), keeping EXP as the game writes it. */
+export const normalCase = (text) =>
+    cleanName(text)
+        .toLowerCase()
+        .replace(/(^|\s)\S/g, (start) => start.toUpperCase())
+        .replace(/\bExp\b/g, "EXP");
+
+// The number's place in a game description: "+{", "{%", "+{%", "-{%", "}x".
+const BONUS_NUMBER = /[+-]?\{%?\}?%?/g;
+
+/**
+ * A bonus in the game's own words, from its description ("+{%_Mining_EXP_gain.", "Boosts_base_STR_by_+{"): the
+ * number's place goes, since the game works the number out with many multipliers, and only the first sentence shows
+ * (the rest is the game's jokes). A short bonus whose number leads or ends it as a percent ends in "%":
+ * "Mining EXP gain %", "Boosts base STR".
+ */
+export const bonusText = (template = "") => {
+    const raw = String(template ?? "")
+        .replace(/_/g, " ")
+        .trim();
+    // A multiplier ("}x_Sushi_Bucks") leads with the number's closing mark.
+    const lead = /^(?:[+-]?\{%?\}?%?|\}x)/;
+    const tail = /(?:\s+by)?\s*[+-]?\{%?\}?%?\s*$/i;
+    const percent = (raw.match(lead) ?? raw.match(tail) ?? [""])[0].includes("%");
+    const words = raw
+        .replace(lead, "")
+        .replace(tail, "")
+        .replace(BONUS_NUMBER, "")
+        .replace(/[|@$^]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .split(/(?<=[.!?:])\s/)[0]
+        .replace(/\s+by\s*[+-]?\s*(?=[.,]|$)/g, "")
+        .replace(/\s+([.,!?])/g, "$1")
+        .replace(/[.:]$/, "");
+    const text = words.charAt(0).toUpperCase() + words.slice(1);
+    return percent && text && text.split(" ").length <= 5 ? `${text} %` : text;
+};
+
 /**
  * Read GGA levels plus a definition table and map both by index.
  *
