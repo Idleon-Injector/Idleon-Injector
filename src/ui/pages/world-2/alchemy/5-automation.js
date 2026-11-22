@@ -2,7 +2,7 @@
  * World 2 › Alchemy › Automation: which alchemy bubbles the bubble automation raises, with the game's own upgrade.
  * Bubbles that have a max rise to one page-wide target % of it, the one furthest behind first; bubbles without a max
  * need a stop-at level, which also caps any bubble. A row pays with its materials, or with particles once the
- * particle buy is open for it. No priority and no saving.
+ * particle buy is open for it. No "Save for it" and no saving.
  *
  * Reads readComputed("automation", "bubbles") (each cauldron's bubbles with level, % of max, costs and particle
  * option) and saves cheatConfig.automation.bubbles (one { id: "cauldron:bubble", on, stopAt, pay } per bubble, pay
@@ -14,22 +14,24 @@ import { definePage } from "../../../menu/menuModel.js";
 import { readComputed } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { Said } from "../../../components/inPlace.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import {
     cleanName,
+    normalCase,
     createStaticRowReconciler,
     getOrCreateState,
 } from "../../../components/views/account/accountShared.js";
 import {
+    AutomationPage,
+    AutomationStats,
     PickRow,
     SettingRow,
+    automationColumns,
     createAutomationPicks,
     createAutomationSetting,
     useAutomationTab,
     usePicksBulk,
 } from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
 const { div, span } = van.tags;
 
@@ -42,6 +44,7 @@ const PAY = {
         { value: "particles", label: "Particles" },
     ],
 };
+const COLUMNS = automationColumns({ values: ["Level", "% of max"], selects: [PAY], stopAt: "Stop at level" });
 
 // A row's next cost: every slot, or the particle buy on a Particles row.
 const costText = (bubble, pay) => {
@@ -63,7 +66,7 @@ const BubblesAutomationPage = () => {
     const ids = van.state([]);
     const bubbles = new Map(); // "cauldron:bubble" -> state of what the game read
     const particles = van.state(null);
-    const listNode = div({ class: "content-stack" });
+    const listNode = div();
     const reconcile = createStaticRowReconciler(listNode);
 
     const BubbleRow = ({ id, name }) => {
@@ -76,12 +79,19 @@ const BubblesAutomationPage = () => {
             name,
             stopAtTitle: "Stop at level",
             selects: [PAY],
-            badge: () => {
-                const { level = 0, percent = null } = bubble.val;
-                return `LV ${formatNumber(level)} · ${percent === null ? "no max" : `${(Math.floor(10 * percent) / 10).toFixed(1)}%`}`;
-            },
+            values: [
+                { name: "Level", text: () => formatNumber(bubble.val.level ?? 0) },
+                {
+                    name: "% of max",
+                    quiet: true,
+                    text: () => {
+                        const { percent = null } = bubble.val;
+                        return percent === null ? "No max" : `${(Math.floor(10 * percent) / 10).toFixed(1)}%`;
+                    },
+                },
+            ],
+            bonus: () => cleanName(bubble.val.bonus ?? ""),
             detail: [
-                span(() => cleanName(bubble.val.bonus ?? "")),
                 span(() => {
                     if (!bubble.val.costs) return "";
                     if (!(bubble.val.level > 0)) return "Not discovered yet; it can be switched on ahead";
@@ -96,6 +106,7 @@ const BubblesAutomationPage = () => {
     const tab = useAutomationTab({
         label: "Bubble automation",
         cheats: [CHEAT],
+        switchColumn: COLUMNS.on,
         read: async (automation) => {
             const data = await readComputed("automation", "bubbles");
             picks.sync(automation.bubbles);
@@ -106,11 +117,8 @@ const BubblesAutomationPage = () => {
             reconcile(all.map(({ id }) => id).join("|"), () =>
                 data.cauldrons.map((cauldron) =>
                     AccountSection({
-                        title: cauldron.name,
-                        body: div(
-                            { class: "account-item-stack" },
-                            cauldron.bubbles.map(({ id, name }) => BubbleRow({ id, name: cleanName(name) }))
-                        ),
+                        title: normalCase(cauldron.name).replace(/-iq /i, "-IQ "),
+                        body: cauldron.bubbles.map(({ id, name }) => BubbleRow({ id, name: cleanName(name) })),
                     })
                 )
             );
@@ -127,34 +135,35 @@ const BubblesAutomationPage = () => {
         targets: () => [[picks, ids.val]],
         // With every bubble on it still has work while Bubbles is off now or at start: switching it on.
         done: (on, total) => on === total && Boolean(automation.val?.on) && tab.atStart(CHEAT),
-        noun: (n) => `${n === 1 ? "1 bubble" : `all ${n} bubbles`}, in every cauldron`,
+        words: ["bubble", "bubbles"],
         waiting: tab.waiting,
+        loading: () => tab.loading.val,
     });
     const busy = () => tab.loading.val || bulk.busy();
 
     tab.load();
 
-    return PersistentAccountListPage({
-        title: "AUTOMATION",
-        description:
-            "Switched-on bubbles are raised with the game's own upgrade, paying materials, or particles on a Particles row once the particle buy opens; switching one on turns Bubbles on. It pauses while the alchemy menu is open or you hold Bargain Tags, which any upgrade uses up. A free extra level can pass the stop-at.",
-        actions: BulkActionBar({ actions: bulk.actions(busy), refresh: { onClick: tab.load, disabled: busy } }),
-        topNotices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+    return AutomationPage({
+        description: "Raises switched-on bubbles. Pauses while alchemy is open or you hold Bargain Tags.",
+        total: AutomationStats(() =>
+            particles.val
+                ? [
+                      [formatNumber(particles.val.owned), "particles"],
+                      [formatNumber(particles.val.charges), "charges"],
+                  ]
+                : []
+        ),
+        columns: COLUMNS,
+        bulk,
         state: { loading: tab.loading, error: tab.error },
-        loadingText: "READING BUBBLES",
-        errorTitle: "BUBBLE READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body: div(
-            { class: "scrollable-panel content-stack bubbles-automation" },
+        load: tab.load,
+        busy,
+        notices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+        what: "bubbles",
+        body: [
             AccountSection({
-                title: "SETTINGS",
-                meta: span({ class: "account-row__sub-label" }, () =>
-                    particles.val
-                        ? `${formatNumber(particles.val.owned)} particles · ${formatNumber(particles.val.charges)} charges`
-                        : ""
-                ),
-                body: div(
-                    { class: "account-item-stack" },
+                title: "Settings",
+                body: [
                     tab.switches,
                     SettingRow({
                         setting: target,
@@ -162,12 +171,14 @@ const BubblesAutomationPage = () => {
                         title: "% of max",
                         mode: "float",
                         max: 99.9,
-                        detail: "Bubbles that have a max rise to this % of it, the one furthest behind first. A stop-at still caps a bubble.",
-                    })
-                ),
+                        detail: "Bubbles with a max rise to this %, the furthest behind first",
+                        column: COLUMNS.stopAt,
+                    }),
+                ],
             }),
-            listNode
-        ),
+            COLUMNS.head("Bubble"),
+            listNode,
+        ],
     });
 };
 

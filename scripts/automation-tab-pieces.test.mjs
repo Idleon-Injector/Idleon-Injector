@@ -1,5 +1,5 @@
 // The pieces a system's automation tab is built from (#92), beyond the Shops tab's: a pick row's own settings
-// (priority, a pay-with choice), a system-wide setting (a saving %, a target) with its field, the page's read after
+// ("Save for it", a pay-with choice), a system-wide setting (a saving %, a target) with its field, the page's read after
 // every save, and Enable all / Disable all. Each save sends cheatConfig.automation[key] to the game and the file.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -8,13 +8,13 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { fake, updates, text, byClass, row, field: numberField, saveState, settle, until, selected } = kit;
+const { saveSwitch } = kit;
 const tagged = kit.byTag;
 const lastUpdate = kit.sent;
 const lastSave = kit.fileSent;
 
 const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
 const ui = await importRepo("src/ui/components/views/account/automation.js");
-const { BulkActionBar } = await importRepo("src/ui/components/views/account/BulkActionBar.js");
 const { div } = van.tags;
 
 let reads = 0; // the page's reads after a save
@@ -42,23 +42,45 @@ const page = div(
         picks,
         id: "0:item0",
         name: "Lucky Whisker",
-        badge: "LV 1",
         detail: "Costs 5 coins",
-        selects: [ui.PRIORITY, PAY],
+        values: [{ name: "Level", text: "1" }],
+        selects: [PAY],
+        save: true,
     }),
-    ui.PickRow({ picks, id: "1:item3", name: "Royal Pebble", badge: "LV 2" }),
+    ui.PickRow({ picks, id: "1:item3", name: "Royal Pebble", values: [{ name: "Level", text: "2" }] }),
     ui.SettingRow({ setting: saving, name: "Coins", title: "Saving %" }),
     ui.SettingRow({ setting: target, name: "Every bubble", title: "Raise to %", mode: "float", max: 99.9 }),
     ui.SettingRow({ setting: perCurrency, index: 1, name: "Second coin", title: "Saving %" })
 );
 const whisker = () => row(page, "Lucky Whisker");
-const select = (title) => tagged(whisker(), "select").find((node) => node.attributes["aria-label"].endsWith(title));
+const picker = (title) =>
+    byClass(whisker(), "step-picker").find((node) => node.attributes["aria-label"].endsWith(title));
 const choose = async (title, index) => {
     const since = updates.length;
-    select(title).listeners.change({ target: { value: String(index) } });
+    tagged(picker(title), "button")[index].listeners.click({});
     await until(() => updates.length > since, `the ${title} save`);
     await ui.inTurn(() => {});
     await settle();
+};
+const flipSave = async (on) => {
+    const since = updates.length;
+    saveSwitch(whisker()).listeners.change({ target: { checked: on } });
+    await until(() => updates.length > since, "the save-for-it save");
+    await ui.inTurn(() => {});
+    await settle();
+};
+// A list's tray tools (Enable all, Disable all), with the question Disable all asks caught instead of shown.
+const trayOf = (bulk) => {
+    let asked = null;
+    const node = bulk.tools((question) => (asked = question));
+    const [enable, disable] = tagged(node, "button");
+    const press = async (button) => {
+        await button.listeners.click({ preventDefault() {} });
+        await until(() => !bulk.busy(), "the bulk save");
+        await ui.inTurn(() => {});
+        await settle();
+    };
+    return { enable, disable, asked: () => asked, press };
 };
 const type = async (name, value) => {
     const node = row(page, name);
@@ -71,31 +93,28 @@ const type = async (name, value) => {
     await settle();
 };
 
-test("a pick row shows its lines under the name and its picks beside the stop-at", () => {
+test("a pick row shows its lines under the name, its values, its picks and its Save for it switch", () => {
     assert.match(text(whisker()), /Costs 5 coins/);
-    assert.deepEqual(
-        tagged(select("save for it"), "option").map(text),
-        ["No", "Yes"],
-        "Save for it: off is the default"
-    );
-    assert.equal(selected(select("save for it")), "No", "nothing picked yet shows the default");
-    assert.ok(select("pay with"));
-    assert.equal(tagged(row(page, "Royal Pebble"), "select").length, 0, "a row without selects has none");
+    assert.deepEqual(tagged(picker("pay with"), "button").map(text), ["Materials", "Particles"]);
+    assert.equal(selected(picker("pay with")), "Materials", "nothing picked yet shows the default");
+    assert.equal(saveSwitch(whisker()).checked ?? false, false);
+    assert.equal(byClass(row(page, "Royal Pebble"), "step-picker").length, 0, "a row without selects has none");
+    assert.equal(saveSwitch(row(page, "Royal Pebble")), undefined, "nor a Save for it switch unless asked");
 });
 
-test("a priority saves on the item with the rest of the list, and the page reads the game after it", async () => {
+test("Save for it saves on the item with the rest of the list, and the page reads the game after it", async () => {
     const before = reads;
-    await choose("save for it", 1);
+    await flipSave(true);
     assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, save: true }], "kept while switched off");
     assert.deepEqual(lastSave("shops"), lastUpdate("shops"), "the file gets the same list");
     assert.equal(picks.field("0:item0", "save").val, true);
     assert.ok(reads > before, "the page's read ran after the save");
 });
 
-test("another setting and a switch keep the item's priority; the default is left out", async () => {
+test("another setting and a switch keep the item's Save for it; off is the default and left out", async () => {
     await choose("pay with", 1);
     assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, save: true, payWith: "particles" }]);
-    await choose("save for it", 0); // No, the default
+    await flipSave(false);
     assert.deepEqual(lastUpdate("shops"), [{ id: "0:item0", on: false, payWith: "particles" }]);
     await choose("pay with", 0); // Materials, the default
     assert.deepEqual(lastUpdate("shops"), [], "a switched-off item with no setting left drops out");
@@ -112,7 +131,7 @@ test("a read of the list keeps every setting an item carries", async () => {
 test("a refused pick goes back to what the game holds and says why at the row", async () => {
     fake.refuseUpdates = true;
     try {
-        await choose("save for it", 0);
+        await flipSave(false);
     } finally {
         fake.refuseUpdates = false;
     }
@@ -170,18 +189,19 @@ test("a refused setting goes back to what the game holds and says why", async ()
     assert.doesNotMatch(text(row(page, "Coins")), /the game is busy/, "and the failure goes");
 });
 
-test("Enable all switches every listed item on in one save; Disable all asks first", async () => {
+test("Enable all switches every listed item on in one save; Disable all asks in the tray first", async () => {
     const waiting = ui.useStillWaiting();
     const ids = ["0:item0", "1:item3"];
     const bulk = ui.usePicksBulk({
         targets: () => [[picks, ids]],
         done: (on, total) => on === total,
-        noun: (n) => `${n} items`,
+        words: ["item", "items"],
         waiting,
     });
-    const [enable, disable] = bulk.actions(() => false);
+    const { enable, disable, asked, press } = trayOf(bulk);
+    assert.equal(bulk.label(), "All 2 items", "the tray's line says what the tools act on");
     const before = reads;
-    await enable.onClick();
+    await press(enable);
     assert.deepEqual(
         lastUpdate("shops").map(({ id, on }) => [id, on]),
         [
@@ -190,18 +210,15 @@ test("Enable all switches every listed item on in one save; Disable all asks fir
         ]
     );
     assert.ok(reads > before, "the page reads after a bulk save too");
-    assert.equal(enable.disabled(), true, "nothing left to switch on");
-    assert.equal(disable.confirm(), "switch off 2 items.");
-    // Through the button the player clicks: the first click only asks.
-    const bar = BulkActionBar({ actions: bulk.actions(() => false) });
-    const button = tagged(bar, "button").find((node) => text(node).trim() === "Disable all");
+    assert.equal(enable.attributes.disabled, true, "nothing left to switch on");
+    // Disable all only asks; the change waits for the answer.
     const since = updates.length;
-    await button.listeners.click({ preventDefault() {} });
+    await disable.listeners.click({ preventDefault() {} });
     await settle();
-    assert.equal(updates.length, since, "the first Disable all click saves nothing");
-    assert.equal(button.attributes["data-again"], "Click again");
-    await button.listeners.click({ preventDefault() {} });
-    await until(() => updates.length > since, "the second click's save");
+    assert.equal(updates.length, since, "asking saves nothing");
+    assert.equal(asked().question, "Disable 2 items?");
+    assert.equal(asked().confirmLabel, "Disable them");
+    await asked().onConfirm();
     await ui.inTurn(() => {});
     await settle();
     assert.deepEqual(
@@ -221,11 +238,11 @@ test("Enable all queues every target's save at the click, so a row edit made aft
             [other, ["a", "b"]],
         ],
         done: () => false,
-        noun: (n) => `${n} items`,
+        words: ["item", "items"],
         waiting,
     });
     const since = updates.length;
-    const click = bulk.actions(() => false)[0].onClick();
+    const click = trayOf(bulk).press(trayOf(bulk).enable);
     const edit = picks.set("0:item0", { stopAt: 9 }); // clicked right after Enable all
     await Promise.all([click, edit]);
     const keys = updates.slice(since).map((body) => Object.keys(body.cheatConfig.automation)[0]);
@@ -239,22 +256,22 @@ test("while a bulk save reached the game but not the file, Enable all and Disabl
     const bulk = ui.usePicksBulk({
         targets: () => [[picks, ids]],
         done: (on, total) => on === total,
-        noun: (n) => `${n} items`,
+        words: ["item", "items"],
         waiting,
     });
-    const [enable, disable] = bulk.actions(() => false);
+    const { enable, disable, press } = trayOf(bulk);
     fake.failSave = true;
     try {
-        await enable.onClick();
+        await press(enable);
     } finally {
         fake.failSave = false;
     }
     assert.equal(picks.fileBehind(), true);
-    assert.equal(enable.disabled(), false, "every item is on, but the file doesn't have it yet");
-    await enable.onClick();
+    assert.equal(enable.attributes.disabled, false, "every item is on, but the file doesn't have it yet");
+    await press(enable);
     assert.equal(picks.fileBehind(), false);
-    assert.equal(enable.disabled(), true);
-    assert.equal(disable.disabled(), false);
+    assert.equal(enable.attributes.disabled, true);
+    assert.equal(disable.attributes.disabled, false);
 });
 
 test("the tab's read after a refused save doesn't take the server's copy of the refused edit", async () => {
@@ -295,12 +312,12 @@ test("before the first read of the game, a save or a bulk save sends nothing and
     const bulk = ui.usePicksBulk({
         targets: () => [[unread, []]], // a page whose read failed has no rows
         done: (on, total) => on === total,
-        noun: (n) => `${n} items`,
+        words: ["item", "items"],
         waiting: ui.useStillWaiting(),
     });
-    const [enable, disable] = bulk.actions(() => false);
-    assert.equal(enable.disabled(), true);
-    assert.equal(disable.disabled(), true);
+    const { enable, disable } = trayOf(bulk);
+    assert.equal(enable.attributes.disabled, true);
+    assert.equal(disable.attributes.disabled, true);
 });
 
 test("a tab whose first read only reaches the server's copy reads nothing in and can't save over the game", async () => {
@@ -410,9 +427,10 @@ test("a row switch waiting behind its own stop-at save doesn't undo a Disable al
     const bulk = ui.usePicksBulk({
         targets: () => [[picks, ["1:item3"]]],
         done: () => false,
-        noun: (n) => `${n} items`,
+        words: ["item", "items"],
         waiting: ui.useStillWaiting(),
     });
+    const tray = trayOf(bulk);
     let release;
     fake.holdUpdates = new Promise((resolve) => (release = resolve));
     const since = updates.length;
@@ -427,7 +445,8 @@ test("a row switch waiting behind its own stop-at save doesn't undo a Disable al
         await until(() => updates.length > since, "the stop-at save to reach the game");
         const box = tagged(pebble, "input").find((node) => node.attributes.type === "checkbox");
         box.listeners.change({ target: { checked: true } }); // waits behind the stop-at save
-        void bulk.actions(() => false)[1].onClick(); // Disable all, clicked after
+        tray.disable.listeners.click({ preventDefault() {} }); // Disable all, pressed after...
+        void tray.asked()?.onConfirm(); // ...and answered (the row's switch counts as on while it waits)
     } finally {
         fake.holdUpdates = null;
         release();
@@ -437,4 +456,100 @@ test("a row switch waiting behind its own stop-at save doesn't undo a Disable al
     await ui.inTurn(() => {});
     await settle();
     assert.equal(lastUpdate("shops").find(({ id }) => id === "1:item3")?.on ?? false, false, "Disable all wins");
+});
+
+// CodeRabbit on #209: a group the page search left with no rows doesn't send its whole list again.
+test("a bulk save skips a group the search left empty, unless its file still lacks its last save", async () => {
+    const empty = ui.createAutomationPicks("testEmptyGroup");
+    empty.sync([{ id: "x", on: false }]);
+    const sentFor = (since) => updates.slice(since).some((body) => "testEmptyGroup" in body.cheatConfig.automation);
+    const bulk = ui.usePicksBulk({
+        targets: () => [
+            [empty, []],
+            [picks, ["1:item3"]],
+        ],
+        done: () => false,
+        words: ["item", "items"],
+        waiting: ui.useStillWaiting(),
+    });
+    const { enable, press } = trayOf(bulk);
+    const since = updates.length;
+    await press(enable);
+    assert.equal(sentFor(since), false, "nothing is sent for the group with no rows");
+
+    // A file save that failed leaves the group behind: the next press saves it again.
+    fake.failSave = true;
+    try {
+        await empty.set("x", { on: true }).catch(() => {});
+    } finally {
+        fake.failSave = false;
+    }
+    assert.equal(empty.fileBehind(), true);
+    const again = updates.length;
+    await press(enable);
+    assert.equal(sentFor(again), true, "the group's list is saved again for the file");
+    assert.equal(empty.fileBehind(), false);
+});
+
+// CodeRabbit on #209: the tray's answer isn't the Disable all button, so the outcome is said for screen readers.
+test("a confirmed Disable all says its outcome for screen readers", async () => {
+    const said = () =>
+        kit
+            .elements(globalThis.document.body)
+            .filter((node) => node.attributes.role === "status")
+            .map((node) => String(node.textContent ?? text(node)))
+            .find((line) => line.startsWith("Disable all:"));
+    const bulk = ui.usePicksBulk({
+        targets: () => [[picks, ["1:item3"]]],
+        done: () => false,
+        words: ["item", "items"],
+        waiting: ui.useStillWaiting(),
+    });
+    const tray = trayOf(bulk);
+    for (const [refused, outcome] of [
+        [false, "Disable all: done"],
+        [true, "Disable all: failed"],
+    ]) {
+        await picks.set("1:item3", { on: true });
+        await tray.disable.listeners.click({ preventDefault() {} });
+        fake.refuseUpdates = refused;
+        try {
+            await tray.asked().onConfirm();
+        } finally {
+            fake.refuseUpdates = false;
+        }
+        assert.equal(said(), outcome);
+    }
+});
+
+// CodeRabbit on #209: with every row hidden by the search, a pending file save still needs the buttons for its retry.
+test("with no row shown, Enable all and Disable all stay usable while a file save is pending", async () => {
+    const hidden = ui.createAutomationPicks("testHiddenGroup");
+    hidden.sync([{ id: "y", on: false }]);
+    const bulk = ui.usePicksBulk({
+        targets: () => [[hidden, []]],
+        done: () => false,
+        words: ["item", "items"],
+        waiting: ui.useStillWaiting(),
+    });
+    const { enable, disable, press } = trayOf(bulk);
+    assert.equal(enable.attributes.disabled, true, "nothing to do: no row and nothing pending");
+    assert.equal(disable.attributes.disabled, true);
+    fake.failSave = true;
+    try {
+        await hidden.set("y", { on: true }).catch(() => {});
+    } finally {
+        fake.failSave = false;
+    }
+    assert.equal(hidden.fileBehind(), true);
+    assert.equal(enable.attributes.disabled, false, "the retry needs Enable all");
+    assert.equal(disable.attributes.disabled, false, "and Disable all");
+    const since = updates.length;
+    await press(disable);
+    assert.ok(
+        updates.slice(since).some((body) => "testHiddenGroup" in body.cheatConfig.automation),
+        "saved again"
+    );
+    assert.equal(hidden.fileBehind(), false);
+    assert.equal(enable.attributes.disabled, true, "nothing pending any more");
 });

@@ -1,8 +1,8 @@
 // Account › Clickers › Automation › Orion and Account › Clickers › Automation › Poppy (#92) on the fake game. Each upgrade row shows its
-// level, next cost or what unlocks it, a stop-at level, High / Low / Balanced and a switch; the saving % has its own
-// row. Every change saves cheatConfig.automation.<clicker> (and <clicker>Saving) to the game and the config file;
+// level, next cost or what unlocks it, a stop-at level, "Save for it" and a switch; the saving % has its own row.
+// Every change saves cheatConfig.automation.<clicker> (and <clicker>Saving) to the game and the config file;
 // switching an upgrade on switches its automation on; a save the game refuses puts the row back, says why at the row,
-// and the next save that works clears it. Enable all covers every clicker on the tab; Disable all asks "Click again".
+// and the next save that works clears it. Enable all covers every clicker on the tab; Disable all asks in the tray.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
@@ -71,17 +71,17 @@ const classes = (node) => String(typeof node.attributes.class === "function" ? "
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
 const row = (root, name) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === name);
-const byTag = (node, tag) => elements(node).find((entry) => entry.nodeName === tag);
-const checkbox = (node) =>
-    elements(node).find((entry) => entry.nodeName === "input" && entry.attributes.type === "checkbox");
+const switches = (node) =>
+    elements(node).filter((entry) => entry.nodeName === "input" && entry.attributes.type === "checkbox");
+// A row's own switch, and its "Save for it" switch.
+const checkbox = (node) => switches(node).find((entry) => !/^Save for /.test(entry.attributes["aria-label"]));
+const saveBox = (node) => switches(node).find((entry) => /^Save for /.test(entry.attributes["aria-label"]));
 const field = (node) =>
     elements(node).find((entry) => entry.nodeName === "input" && entry.attributes.type !== "checkbox");
 const button = (root, label) =>
     elements(root).find(
         (node) => node.nodeName === "button" && text(node).trim() === label && !node.attributes.disabled
     );
-// The "Save for it" options by their option value: No, then Yes.
-const [NO, YES] = ["0", "1"];
 const saveState = (node) => classes(byClass(node, "save-state")[0]);
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(check, what) {
@@ -98,8 +98,13 @@ const sentSince = (since, key) =>
     updates.slice(since).findLast((body) => key in body.cheatConfig.automation)?.cheatConfig.automation[key];
 const fileSent = (key) =>
     saves.findLast((body) => body.cheatConfig && key in body.cheatConfig.automation)?.cheatConfig.automation[key];
-// The option shown; the page binds each option's `selected` (an attribute in this fake DOM).
-const selected = (node) => elements(node).find((o) => o.nodeName === "option" && o.attributes.selected === true);
+// A read-only value of a row, by its column ("Level", "Next level").
+const value = (node, column) =>
+    text(
+        byClass(node, "value-cell")
+            .find((cell) => text(byClass(cell, "value-cell__label")[0]) === column)
+            ?.childNodes.at(-1)
+    );
 async function type(node, value) {
     const input = field(node);
     input.listeners.input({ target: { value } });
@@ -109,7 +114,16 @@ async function type(node, value) {
     await settle();
 }
 
-const owl = (await importRepo("src/ui/pages/account/clickers/4-automation.js")).OrionAutomationTab();
+// The page: a tab per clicker on one list, every tab mounted; Orion's is open first.
+const page = (await importRepo("src/ui/pages/account/clickers/4-automation.js")).ClickersAutomation();
+const owl = page;
+// A tab's own table (0 Orion, 1 Poppy, 2 Bubba) and its own tray tools.
+const pane = (i) => byClass(page, "automation-rows")[i];
+const tools = (i) => byClass(page, "automation-tools")[i];
+const openTab = (label) =>
+    byClass(page, "tabbed-list__tab")
+        .find((node) => text(node).trim() === label)
+        .listeners.click({ preventDefault() {} });
 await until(() => row(owl, "The Great Mega Reset"), "the Owl's Automation tab to load");
 const orion = (name) => row(owl, name);
 
@@ -117,17 +131,19 @@ test("the Owl tab lists Orion's switch, feathers, the saving % and every upgrade
     assert.ok(row(owl, "Orion"), "the same switch as the overview");
     assert.equal(text(byClass(row(owl, "Orion"), "automation-row__status")[0]), "Off");
     assert.match(text(owl), /4\.2B feathers · 3\.1M per second/);
-    assert.equal(byClass(owl, "automation-pick").length, 9);
-    assert.match(text(orion("Feather Generation")), /LV 14/);
-    assert.match(text(orion("Feather Generation")), /Next level 2\.78K feathers/);
+    assert.equal(byClass(pane(0), "automation-pick").length, 9);
+    assert.equal(value(orion("Feather Generation"), "Level"), "14");
+    assert.equal(value(orion("Feather Generation"), "Next level"), "2.78K");
     assert.match(text(orion("The Great Mega Reset")), /Unlocks at 100B feathers produced/, "locked stays listed");
-    assert.equal(field(row(owl, "Saving")).attributes.value, "10", "the saving % the game holds");
+    assert.equal(value(orion("The Great Mega Reset"), "Next level"), "Locked");
+    assert.equal(field(row(owl, "While saving")).attributes.value, "10", "the saving % the game holds");
+    assert.match(text(owl), /All 9 Orion upgrades/, "the tray says what its tools act on");
 });
 
-test("the preset shows: The Great Mega Reset is High and Feather Restart Low, both off", () => {
-    assert.equal(text(selected(orion("The Great Mega Reset"))), "Yes");
-    assert.equal(text(selected(orion("Feather Restart"))), "Yes");
-    assert.equal(text(selected(orion("Feather Generation"))), "No");
+test("the preset shows: The Great Mega Reset and Feather Restart are saved for, both off", () => {
+    assert.equal(saveBox(orion("The Great Mega Reset")).attributes.checked, true);
+    assert.equal(saveBox(orion("Feather Restart")).attributes.checked, true);
+    assert.equal(saveBox(orion("Feather Generation")).attributes.checked, false);
     assert.equal(checkbox(orion("The Great Mega Reset")).attributes.checked, false);
 });
 
@@ -149,38 +165,38 @@ test("switching an upgrade on keeps the preset, saves it, and switches Orion on 
     assert.deepEqual(fileStartup, ["automation orion"]);
 });
 
-test("Save for it saves on change; No leaves nothing in the list", async () => {
-    const pick = byTag(orion("Feather Cheapener"), "select");
+test("Save for it saves on flip; switched off, it leaves nothing in the list", async () => {
     let since = updates.length;
-    await pick.listeners.change({ target: { value: YES } });
-    await until(() => sentSince(since, "orion")?.some(({ id, save }) => id === "3" && save === true), "Yes to save");
-    assert.equal(text(selected(orion("Feather Cheapener"))), "Yes");
+    await saveBox(orion("Feather Cheapener")).listeners.change({ target: { checked: true } });
+    await until(() => sentSince(since, "orion")?.some(({ id, save }) => id === "3" && save), "Save for it to save");
+    assert.equal(saveBox(orion("Feather Cheapener")).attributes.checked, true);
 
     since = updates.length;
-    await byTag(orion("Feather Restart"), "select").listeners.change({ target: { value: NO } });
-    await until(() => sentSince(since, "orion")?.every(({ id }) => id !== "4"), "No to drop the off, plain row");
-    assert.equal(text(selected(orion("Feather Restart"))), "No");
+    await saveBox(orion("Feather Restart")).listeners.change({ target: { checked: false } });
+    await until(() => sentSince(since, "orion")?.every(({ id }) => id !== "4"), "off to drop the off, plain row");
+    assert.equal(saveBox(orion("Feather Restart")).attributes.checked, false);
 });
 
-test("two quick Save for it picks save in order, and the last one stands", async () => {
+test("two quick Save for it flips save in order, and the last one stands", async () => {
     slowUpdate = 40;
-    const pick = byTag(orion("Shiny Feathers"), "select");
+    const box = saveBox(orion("Shiny Feathers"));
     const since = updates.length;
-    const first = pick.listeners.change({ target: { value: NO } });
-    const second = pick.listeners.change({ target: { value: YES } });
+    const first = box.listeners.change({ target: { checked: true } });
+    const second = box.listeners.change({ target: { checked: false } });
     await Promise.all([first, second]);
-    await until(
-        () => sentSince(since, "orion")?.find(({ id }) => id === "6")?.save === true,
-        "the second pick to save last"
-    );
+    await until(() => updates.length >= since + 2, "both flips to save");
     await settle(100);
     slowUpdate = 0;
-    assert.equal(sent("orion").find(({ id }) => id === "6").save, true);
-    assert.equal(text(selected(orion("Shiny Feathers"))), "Yes");
+    assert.equal(
+        sent("orion").find(({ id }) => id === "6"),
+        undefined,
+        "the second flip (off) saved last"
+    );
+    assert.equal(saveBox(orion("Shiny Feathers")).attributes.checked, false);
 });
 
 test("the saving % saves on Enter; a value out of range is refused at the row and nothing is sent", async () => {
-    const saving = row(owl, "Saving");
+    const saving = row(owl, "While saving");
     await type(saving, "25");
     assert.equal(sent("orionSaving"), 25);
     assert.equal(fileSent("orionSaving"), 25);
@@ -226,47 +242,44 @@ test("after a save the tab reads the game again, so the level and cost follow", 
     const before = gga.OptionsListAccount[254];
     gga.OptionsListAccount[254] = before + 3; // the game moved on since the tab read it
     await type(node, "90");
-    await until(() => new RegExp(`LV ${before + 3}`).test(text(node)), "the level the game holds now");
+    await until(() => value(node, "Level") === String(before + 3), "the level the game holds now");
     gga.OptionsListAccount[254] = before;
 });
 
-test("Disable all asks Click again, then switches every upgrade off and keeps the priorities", async () => {
-    // An upgrade on and Feather Cheapener Low, whatever ran before.
-    let since = updates.length;
+test("Disable all asks in the tray, then switches every upgrade off and keeps Save for it", async () => {
+    // An upgrade on, whatever ran before; Feather Cheapener and the Mega Reset are saved for.
+    const since = updates.length;
     await checkbox(orion("Feather Generation")).listeners.change({ target: { checked: true } });
     await until(() => sentSince(since, "orion"), "Feather Generation to save");
-    since = updates.length;
-    await byTag(orion("Feather Cheapener"), "select").listeners.change({ target: { value: YES } });
-    await until(() => sentSince(since, "orion"), "Yes to save");
     await until(() => button(owl, "Disable all"), "Disable all");
 
-    const disable = button(owl, "Disable all");
     const before = updates.length;
-    await disable.listeners.click({ preventDefault() {} });
+    await button(owl, "Disable all").listeners.click({ preventDefault() {} });
     await settle();
-    assert.equal(disable.attributes["data-again"], "Click again");
-    assert.equal(updates.length, before, "the first click saves nothing");
+    assert.match(text(owl), /Disable \d+ Orion upgrades?\?/, "the tray's line asks");
+    assert.equal(updates.length, before, "asking saves nothing");
 
-    await disable.listeners.click({ preventDefault() {} });
+    await byClass(owl, "tabbed-list__yes")[0].listeners.click({});
     await until(() => sent("orion").every(({ on }) => !on), "every upgrade to switch off");
-    assert.equal(sent("orion").find(({ id }) => id === "8").save, true, "High stays");
-    assert.equal(sent("orion").find(({ id }) => id === "3").save, true, "Low stays");
+    assert.equal(sent("orion").find(({ id }) => id === "8").save, true, "Save for it stays");
+    assert.equal(sent("orion").find(({ id }) => id === "3").save, true, "Save for it stays");
 });
 
-const kangaroo = (await importRepo("src/ui/pages/account/clickers/4-automation.js")).PoppyAutomationTab();
+const kangaroo = page;
 await until(() => row(kangaroo, "Slick Hook"), "the Kangaroo's Automation tab to load");
 
-test("the Kangaroo tab has Poppy and the Tar Pit, each with its own switch, currency and saving %", () => {
+test("the Kangaroo tab has Poppy and the Tar Pit, each with its own switch, currency and saving %", async () => {
+    await openTab("Poppy"); // the title's stats follow the open tab
     assert.ok(row(kangaroo, "Poppy") && row(kangaroo, "Tar Pit"));
     assert.match(text(kangaroo), /3\.4M fish/);
     assert.match(text(kangaroo), /8\.4K tartar fish/);
-    assert.equal(byClass(kangaroo, "automation-setting").length, 2);
+    assert.equal(byClass(pane(1), "automation-setting").length, 2);
     assert.match(text(row(kangaroo, "Oily Worm")), /Needs more megafish/);
     assert.match(text(row(kangaroo, "Greatest Catch")), /Unlocks at 2\.1B fish caught/);
 });
 
 test("Enable all on the Kangaroo tab switches every upgrade on, and Poppy and the Tar Pit with them", async () => {
-    await button(kangaroo, "Enable all").listeners.click({ preventDefault() {} });
+    await button(tools(1), "Enable all").listeners.click({ preventDefault() {} });
     await until(() => running("automation poppy") && running("automation tarpit"), "both automations to go on");
     await until(() => sent("tarpit")?.length === 8 && sent("tarpit").every(({ on }) => on), "the Tar Pit list");
     const poppy = updates.findLast((body) => body.cheatConfig.automation.poppy)?.cheatConfig.automation.poppy;

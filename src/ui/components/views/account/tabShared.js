@@ -96,6 +96,8 @@ let listCount = 0;
  *   shows no tray, and its open tab runs down into its rows like a list without tools
  * @param {(tabId: string) => void} [opts.onTab] called with the tab the player opens (a pane closes what it had open)
  * @param {() => boolean} [opts.busy] true while the page saves: a question's Yes waits, so it can't start a second save
+ * @param {{val: string}} [opts.activeId] the open tab's id, when the page shows something of it outside the list (the
+ *   stats beside its title)
  * @returns {HTMLElement}
  */
 export const TabbedList = ({
@@ -106,8 +108,10 @@ export const TabbedList = ({
     toolsOn = null,
     onTab = null,
     busy = null,
+    activeId: sharedId = null,
 }) => {
-    const activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
+    const activeId = sharedId ?? van.state(tabs[0].id);
+    activeId.val = pickedTabs.get(name) ?? activeId.val;
     const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
     const key = `tabbed-list-${++listCount}`;

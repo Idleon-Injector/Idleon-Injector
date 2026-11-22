@@ -95,7 +95,11 @@ export async function automationTabKit() {
     const row = (root, name) =>
         byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === name);
     const byTag = (node, tag) => elements(node).filter((entry) => entry.nodeName === tag);
-    const checkbox = (node) => byTag(node, "input").find((entry) => entry.attributes.type === "checkbox");
+    const switches = (node) => byTag(node, "input").filter((entry) => entry.attributes.type === "checkbox");
+    // A row's own switch (an item's "On", an automation's); its "Save for it" switch is saveSwitch.
+    const checkbox = (node) => switches(node).find((entry) => !/^Save for /.test(entry.attributes["aria-label"] ?? ""));
+    const saveSwitch = (node) =>
+        switches(node).find((entry) => /^Save for /.test(entry.attributes["aria-label"] ?? ""));
     const field = (node) => byTag(node, "input").find((entry) => entry.attributes.type !== "checkbox");
     const button = (root, label) =>
         byTag(root, "button").find((node) => text(node).trim() === label && !node.attributes.disabled);
@@ -121,8 +125,11 @@ export async function automationTabKit() {
     const sent = (key) => updates.findLast((body) => key in body.cheatConfig.automation)?.cheatConfig.automation[key];
     const fileSent = (key) =>
         saves.findLast((body) => body.cheatConfig && key in body.cheatConfig.automation)?.cheatConfig.automation[key];
-    // The option a select shows; the page binds each option's `selected` (an attribute in this fake DOM).
-    const selected = (node) => text(byTag(node, "option").find((o) => o.attributes.selected === true));
+    // The step a step picker shows picked; the page binds each step's `aria-checked` (an attribute in this fake DOM).
+    const selected = (node) => text(byTag(node, "button").find((o) => o.attributes["aria-checked"] === "true"));
+    // The row's step picker named `title` ("pay with").
+    const picker = (node, title) =>
+        byClass(node, "step-picker").find((entry) => entry.attributes["aria-label"].endsWith(title));
     // Type into a row's number field and press Enter; then every step ends. A value with nothing to save ends there.
     async function type(node, value) {
         const input = field(node);
@@ -143,24 +150,33 @@ export async function automationTabKit() {
         );
         await idle();
     }
-    // Pick the option at `index` in the row's select titled `title` ("priority", "pay with"); then every step ends.
+    // Pick the step at `index` in the row's step picker titled `title` ("pay with"); then every step ends.
     async function choose(node, title, index) {
-        const pick = byTag(node, "select").find((entry) => entry.attributes["aria-label"].endsWith(title));
         const since = updates.length;
-        await pick.listeners.change({ target: { value: String(index) } });
+        await byTag(picker(node, title), "button")[index].listeners.click({});
         await until(() => updates.length > since || /save-state--error/.test(saveState(node)), `the ${title} save`);
+        await idle();
+    }
+    // Flip the row's "Save for it" switch; then every step ends.
+    async function flipSave(node, on) {
+        const since = updates.length;
+        await saveSwitch(node).listeners.change({ target: { checked: on } });
+        await until(() => updates.length > since || /save-state--error/.test(saveState(node)), "the save-for-it save");
         await idle();
     }
     async function flip(node, on) {
         await checkbox(node).listeners.change({ target: { checked: on } });
         await idle();
     }
-    async function clickTwice(root, label) {
-        const action = button(root, label);
-        await action.listeners.click({ preventDefault() {} });
+    // Press a tray tool that asks first (Disable all), check its question, and answer it; then every step ends.
+    async function askAndConfirm(root, label, question) {
+        await button(root, label).listeners.click({ preventDefault() {} });
         await settle();
-        assert.equal(action.attributes["data-again"], "Click again", `${label} asks first`);
-        await action.listeners.click({ preventDefault() {} });
+        const asked = byClass(root, "tabbed-list__tools-label")
+            .map(text)
+            .find((line) => line.endsWith("?"));
+        assert.equal(asked, question, `${label} asks first`);
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
         await idle();
     }
     return {
@@ -179,6 +195,7 @@ export async function automationTabKit() {
         row,
         byTag,
         checkbox,
+        saveSwitch,
         field,
         button,
         saveState,
@@ -192,7 +209,8 @@ export async function automationTabKit() {
         selected,
         type,
         choose,
+        flipSave,
         flip,
-        clickTwice,
+        askAndConfirm,
     };
 }

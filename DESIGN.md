@@ -326,3 +326,24 @@ World 3 uses the World 1 and World 2 pieces; a few of them grew, and are now sha
   under it (Lumi's pick of two concepts, 2026-11-22).
 - **Bonus first everywhere the game has one**: hats (their Hat Rack stat), armor sets (their set bonus), talents
   (their first line), buildings (a town building's current bonus, a tower's or shrine's first line).
+
+### Automation pages (decided 2026-11-22, #205)
+
+Every automation page is `AutomationPage` in `automation.js`: a table at the wider measure, built once for all of them.
+
+- **One "Save for it" switch per upgrade** replaces High / Low / Balanced. Saved-for upgrades are saved for, cheapest
+  first; the rest buy cheapest first with what's left. The saving % is "While saving: Others may cost up to this % of
+  the goal".
+- **What the automation holds sits beside the title** (`AutomationStats`: "4.2B feathers · 3.1M per second"), and the
+  description is one short line ("Buys switched-on upgrades with feathers.").
+- **One list:** a quiet "Settings" group first (the automation's switch and its saving %), then the column head, named
+  once (Level, Next level, Stop at level, Save for it, On), then the items, grouped by the game's groups. A setting's
+  field sits in the stop-at column and an automation's switch in the On column, so they line up with the items'.
+- **A page with parts** (Clickers' Orion, Poppy, Bubba; Cooking's Kitchens, Meals; Shops' worlds) puts them as tabs on
+  that one list (`TabbedList`), never as loose words above the title; the title's stats follow the open tab.
+- **An upgrade shows what it does first** (`RowTitles`): the game's own line with its current value ("Boosts feather
+  generation by +45%"), the name small under it.
+- **Enable all | Disable all are the tray's tool**, acting on what the tray's line names ("All 9 Orion upgrades",
+  "All 7 shop items in W2": the open tab only, Lumi's pick for Shops too); Disable all asks in the tray, Enable all
+  runs on one press.
+- **On a phone** an item's own switch stays at the end of its name's line; its other cells fold two to a line.

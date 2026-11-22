@@ -1,5 +1,5 @@
 // World 4 › Cooking › Automation (#92) on the fake game: a Kitchens sub-tab (the spices with their saving %, then each
-// kitchen's Speed, Fire and Luck with High / Low / Balanced, a stop-at and a switch) and a Meals sub-tab. A change
+// kitchen's Speed, Fire and Luck with a stop-at, "Save for it" and a switch) and a Meals sub-tab. A change
 // saves cheatConfig.automation.kitchens, meals or one spice's place in kitchenSaving; switching an item on switches
 // Cooking on; the tab reads the game again after every save; Enable all / Disable all cover the open sub-tab.
 import assert from "node:assert/strict";
@@ -12,20 +12,30 @@ const { text, byClass, elements, sent, fileSent, status, until } = kit;
 const tab = (await importRepo("src/ui/pages/world-4/cooking/5-automation.js")).default.component();
 const ariaIs = (label) => (node) => node.attributes["aria-label"] === label;
 const rowOf = (label) => byClass(tab, "account-row").find((node) => elements(node).some(ariaIs(label)));
-const SPICE = "Encroaching Forest Spice saving %";
+const SPICE = "Encroaching Forest Spice % of goal";
+// A read-only value of a row, by its column ("Level", "Next level").
+const value = (node, column) =>
+    text(
+        byClass(node, "value-cell")
+            .find((cell) => text(byClass(cell, "value-cell__label")[0]) === column)
+            ?.childNodes.at(-1)
+    );
 const shownSavings = () =>
     byClass(tab, "automation-setting").filter((node) => !(node.parentNode.attributes.hidden || node.parentNode.hidden));
 await until(() => rowOf("Buy Kitchen 1 Speed"), "the tab to load");
 
 test("the tab lists each kitchen's Speed, Fire and Luck, and each meal, with what the game shows", () => {
     assert.equal(status(tab, "Cooking"), "Off");
-    assert.match(text(rowOf("Buy Kitchen 1 Speed")), /Speed1\.5K\/hr · next level 121 Grasslands Spice/);
-    assert.match(text(rowOf("Buy Kitchen 2 Luck")), /1\.25x · next level 311 Stinky Sewers Spice/);
+    assert.match(text(rowOf("Buy Kitchen 1 Speed")), /Speed1\.5K\/hr · paid with Grasslands Spice/);
+    assert.equal(value(rowOf("Buy Kitchen 1 Speed"), "Next level"), "121");
+    assert.match(text(rowOf("Buy Kitchen 2 Luck")), /1\.25x · paid with Stinky Sewers Spice/);
+    assert.equal(value(rowOf("Buy Kitchen 2 Luck"), "Next level"), "311");
     assert.match(text(rowOf("Buy Kitchen 5 Speed")), /Kitchen not bought yet/);
-    assert.match(text(rowOf("Buy Mossy Pebble Pie")), /\+30\.49% Ember Bramble · 1\.23K held · next level 600/);
-    assert.match(text(rowOf("Buy Mossy Pebble Pie")), /LV 14 \/ 90/);
+    assert.equal(text(byClass(rowOf("Buy Mossy Pebble Pie"), "account-row__bonus")[0]), "+30.49% Ember Bramble");
+    assert.match(text(rowOf("Buy Mossy Pebble Pie")), /1\.23K held/);
+    assert.equal(value(rowOf("Buy Mossy Pebble Pie"), "Level"), "14 / 90");
+    assert.equal(value(rowOf("Buy Mossy Pebble Pie"), "Next level"), "600");
     assert.match(text(rowOf("Buy Ember Bramble Pie")), /Not discovered yet/);
-    assert.match(text(tab), /2 Food Lust stacks: the priciest meal goes first/);
     assert.match(text(tab), /No kitchen upgrade is switched on/);
     assert.equal(shownSavings().length, 0, "no spice is in use yet");
 });
@@ -41,13 +51,11 @@ test("switching an upgrade on saves it, turns Cooking on now and at start, and s
     await until(() => /held · (saving for|buying cheapest first)/.test(text(rowOf(SPICE))), "the spice line");
 });
 
-test("the priority choice saves High, Low and back to Balanced", async () => {
+test("Save for it saves on, and off again", async () => {
     const row = rowOf("Buy Kitchen 2 Speed");
-    await kit.choose(row, "save for it", 1);
+    await kit.flipSave(row, true);
     assert.deepEqual(sent("kitchens"), [{ id: "3", on: true, save: true }]);
-    await kit.choose(row, "save for it", 1);
-    assert.equal(sent("kitchens")[0].save, true);
-    await kit.choose(row, "save for it", 0);
+    await kit.flipSave(row, false);
     assert.deepEqual(sent("kitchens"), [{ id: "3", on: true }]);
 });
 
@@ -77,17 +85,18 @@ test("switched off, a spice line says only what it holds", async () => {
     assert.doesNotMatch(text(rowOf(SPICE)), /saving for|buying cheapest first/);
 });
 
-test("on the Meals tab, Enable all switches every meal on in one save; Disable all asks Click again first", async () => {
-    await byClass(tab, "account-page-btn")
+test("on the Meals tab, Enable all switches every meal on in one save; Disable all asks in the tray first", async () => {
+    await byClass(tab, "tabbed-list__tab")
         .find((node) => text(node).trim() === "Meals")
         .listeners.click({ preventDefault() {} });
     await kit.settle();
+    assert.match(text(tab), /2 Food Lust stacks · priciest meal first/, "beside the title, on the Meals tab");
     const kitchensBefore = sent("kitchens");
     await kit.button(tab, "Enable all").listeners.click({ preventDefault() {} });
     await kit.idle();
     assert.ok(sent("meals").length > 1 && sent("meals").every(({ on }) => on));
     assert.deepEqual(sent("kitchens"), kitchensBefore, "the kitchens stay as they were");
     assert.equal(kit.running("automation cooking"), true);
-    await kit.clickTwice(tab, "Disable all");
+    await kit.askAndConfirm(tab, "Disable all", `Disable ${sent("meals").length} meals?`);
     assert.ok(sent("meals").every(({ on }) => !on));
 });
