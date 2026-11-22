@@ -36,9 +36,8 @@
 }
 
 .function-type-select:focus {
-    border-color: var(--c-accent);
+    border-color: var(--c-border-strong);
     outline: none;
-    box-shadow: 0 0 0 1px var(--c-accent-dim);
 }
 
 /* Slider Group: slider + editable number input */
@@ -103,8 +102,7 @@
 }
 
 .function-value-input-wrapper:focus-within {
-    border-color: var(--c-accent);
-    box-shadow: 0 0 0 1px var(--c-accent-dim);
+    border-color: var(--c-border-strong);
 }
 
 .function-value-input {
@@ -184,8 +182,7 @@
 }
 
 .function-number-input-wrapper:focus-within {
-    border-color: var(--c-accent);
-    box-shadow: 0 0 0 1px var(--c-accent-dim);
+    border-color: var(--c-border-strong);
 }
 
 .function-number-btn {
@@ -225,7 +222,6 @@
 }
 
 .function-raw-input:focus {
-    border-color: var(--c-accent);
+    border-color: var(--c-border-strong);
     outline: none;
-    box-shadow: 0 0 0 1px var(--c-accent-dim);
 }
