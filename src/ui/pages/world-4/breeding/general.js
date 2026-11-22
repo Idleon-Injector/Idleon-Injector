@@ -141,7 +141,8 @@ const GeneralTab = () => {
             petUpgradeDnaState.val = toInt(petUpgradeDna, { min: 0 });
             arenaRoundState.val = toInt(rawOptions["89"], { min: 0 });
             arenaCrucibleRoundState.val = toInt(rawOptions["628"], { min: 0 });
-            spiceClaimState.val = toInt(rawOptions["100"], { min: 0 });
+            // The daily reset takes 25 off for each Trasher pet, so it can be below 0.
+            spiceClaimState.val = toInt(rawOptions["100"]);
             reconcileRows();
 
             for (const entry of eggEntries.val) getEggState(entry.index).val = entry.value;
@@ -216,11 +217,12 @@ const GeneralTab = () => {
                 SimpleNumberRow({
                     entry: {
                         index: 100,
-                        name: "Spiceclaim Counter",
+                        name: "Spice Claims Used Today",
                         path: SPICE_CLAIM_PATH,
-                        max: 100,
+                        // No max: the game works out the daily limit on the breeding screen,
+                        // and a value past it only stops claims.
+                        min: -Infinity,
                         formatted: false,
-                        cap: 100,
                     },
                     valueState: spiceClaimState,
                 })

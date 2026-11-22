@@ -232,7 +232,7 @@ const PostOfficeTab = () => {
                 }),
                 div({ class: "po-section__divider" }, "MISC SOURCES (contribute to DeliveryBoxMisc)"),
                 CurrencyRow({
-                    label: "MISC OPTION",
+                    label: "BONUS BOXES",
                     valueState: opt131,
                     writePath: "OptionsListAccount[131]",
                 }),

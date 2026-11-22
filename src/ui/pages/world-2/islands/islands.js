@@ -40,7 +40,7 @@ const CANONICAL_UNLOCK_ORDER = "abcde_";
 const CURRENCY_FIELDS = [
     { index: 161, name: "Garbage Currency" },
     { index: 162, name: "Bottles Currency" },
-    { index: 170, name: "Uncollected Bottles" },
+    { index: 170, name: "Days of Bottles" },
 ];
 const GARBAGE_FIELDS = [
     { index: 163, name: "% Garbage" },

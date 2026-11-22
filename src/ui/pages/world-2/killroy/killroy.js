@@ -9,8 +9,9 @@
  *   [204]              -> highest killroy score on warrior
  *   [205]              -> highest killroy score on archer
  *   [206]              -> highest killroy score on mage
- *   [227..230]         -> shop meta bonus values
- *   [467..470]         -> meta bonus values
+ *   [227]              -> 3rd weekly fight unlocked (0/1)
+ *   [228..230]         -> times each Skull Shop boost was bought
+ *   [467..470]         -> times each Skull Shop item was bought
  *
  * Tome label rows (name/label only):
  *   cList.Tome[27] -> warrior label row
@@ -59,11 +60,11 @@ const SHOP_FIELDS = [
 
 const META_FIELDS = [
     { index: 227, label: "3RD WEEKLY FIGHT UNLOCK FLAG" },
-    { index: 228, label: "ARTIFACT FIND CHANCE BONUS" },
-    { index: 229, label: "CROP EVOLUTION CHANCE BONUS" },
-    { index: 230, label: "JADE GAIN BONUS" },
-    { index: 467, label: "GALLERY BONUS" },
-    { index: 468, label: "MASTERCLASS BONUS" },
+    { index: 228, label: "ARTIFACT FIND TIMES BOUGHT" },
+    { index: 229, label: "CROP EVOLUTION TIMES BOUGHT" },
+    { index: 230, label: "JADE GAIN TIMES BOUGHT" },
+    { index: 467, label: "GALLERY TIMES BOUGHT" },
+    { index: 468, label: "MASTERCLASS TIMES BOUGHT" },
     { index: 469, label: "W7 SKILL XP BONUS" },
     { index: 470, label: "W7 DAILY CORAL BONUS" },
 ];

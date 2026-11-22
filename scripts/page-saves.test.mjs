@@ -110,10 +110,10 @@ const tickBetweenCalls = (list, index, step) => {
 };
 
 test("1-orion.js: a save of a value the game keeps raising shows success", async () => {
-    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Filler Bar"));
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Feathers Made This Run"));
     const stop = tickBetweenCalls(ola, 263, 1e7);
     try {
-        assert.equal(await setRow(root, "Filler Bar", 1.69e12), "success");
+        assert.equal(await setRow(root, "Feathers Made This Run", 1.69e12), "success");
         assert.ok(ola[263] >= 1.69e12, "the save landed and the game kept counting from it");
     } finally {
         stop();
@@ -121,15 +121,47 @@ test("1-orion.js: a save of a value the game keeps raising shows success", async
 });
 
 test("1-orion.js: a value the game keeps raising still shows failed when the game refuses the write", async () => {
-    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Filler Bar"));
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, "Feathers Made This Run"));
     ola[263] = 5;
     const restore = refuseWrites(ola, 263);
     try {
-        assert.equal(await setRow(root, "Filler Bar", 1.69e12), "error");
+        assert.equal(await setRow(root, "Feathers Made This Run", 1.69e12), "error");
         assert.equal(ola[263], 5);
     } finally {
         restore();
     }
+});
+
+// OptionsListAccount[263] is the feathers made this run: a whole number that gets huge, not a 0 to 1 bar.
+test("1-orion.js: Raise on a huge feathers-made count steps it by what shows and saves a whole number", async () => {
+    ola[263] = 1.69e12;
+    const label = "Feathers Made This Run";
+    const root = await openPage("src/ui/pages/world-1/owl/1-orion.js", (r) => rowLoaded(r, label));
+    const row = findRow(root, label);
+    const [input] = elements(row).filter((node) => node.nodeName === "input");
+    const raise = elements(row).find((node) => node.nodeName === "button" && node.attributes["aria-label"] === "Raise");
+    input.listeners.focus({ target: input });
+    raise.listeners.click({ preventDefault() {}, currentTarget: raise, target: raise });
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    const state = () => String(byClass(row, "save-state")[0].attributes.class);
+    await until(() => /save-state--(success|error)/.test(state()), "the raised count to save");
+    assert.ok(state().includes("save-state--success"));
+    assert.equal(ola[263], 1.7e12, "one step at the shown precision (1.69T to 1.70T)");
+});
+
+// OptionsListAccount[100] is the spice claims used today; the daily reset takes 25 off for each Trasher pet.
+test("general.js: the spice claims field shows and saves a count below 0, and has no cap of 100", async () => {
+    ola[100] = -50;
+    const label = "Spice Claims Used Today";
+    const root = await openPage("src/ui/pages/world-4/breeding/general.js", (r) => rowLoaded(r, label));
+    const [input] = elements(findRow(root, label)).filter((node) => node.nodeName === "input");
+    assert.equal(String(input.attributes.value), "-50", "the game's value shows as it is");
+    assert.equal(await setRow(root, label, -75), "success");
+    assert.equal(ola[100], -75);
+    const again = await openPage("src/ui/pages/world-4/breeding/general.js", (r) => rowLoaded(r, label));
+    assert.equal(await setRow(again, label, 150), "success");
+    assert.equal(ola[100], 150);
+    ola[100] = 0;
 });
 
 // Pets: the token list in OptionsListAccount[606] and the missing token sources.
