@@ -247,6 +247,38 @@ test("weekly bosses: a pick waiting its turn survives a reload after an undo els
     }
 });
 
+test("weekly bosses: the picker follows the game when it changed the skin as the pick saved", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { picker, picks } = await weeklyPicker();
+    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
+    const pickedValue = () =>
+        String(
+            resolve(
+                elements(picker).find((node) => node.nodeName === "option" && resolve(node.attributes.selected))
+                    ?.attributes.value
+            )
+        );
+    const realFetch = globalThis.fetch;
+    let wrote = false;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (String(url).includes("/write") && !wrote) {
+            wrote = true;
+            weekly.set0 = 2; // the game put the old skin back right after the save landed
+        }
+        return response;
+    };
+    try {
+        picker.listeners.change({ target: { value: picks[0] } });
+        await until(() => wrote, "the pick to save");
+        await until(() => pickedValue() === "2", "the picker to show the skin the game holds");
+    } finally {
+        globalThis.fetch = realFetch;
+        weekly.set0 = 2;
+    }
+});
+
 test("weekly bosses: a skin unlocked while the trophies save is kept", async () => {
     const weekly = game.gga.WeeklyBoss.h;
     const switchOf = (row) => inputs(row).find((node) => node.attributes.role === "switch");

@@ -904,7 +904,7 @@ test("Atom Collider: Max all and Reset all wait while the levels are read again,
             await until(() => !enabled(maxAll), "Max all to wait for the read");
             assert.ok(!enabled(resetAll), "Reset all waits too");
             release();
-            await new Promise((resolve) => setTimeout(resolve, 50));
+            await until(() => text(root).includes("the game is busy"), "the failed read to say why");
         });
         assert.ok(!enabled(maxAll) && !enabled(resetAll), "both wait for a read that works");
     } finally {

@@ -366,9 +366,11 @@ function SpelunkingCavesTab() {
                 `${discoveredCount.val} DISCOVERED, ${knownDiscoveredCount.val}/${totalObjectCount.val} KNOWN OBJECTS`,
             body: () => {
                 const rows = destroyedRows.val;
+                // Taken first, so an empty list lets go of the rows it held: a row added back is built new.
+                const nodes = keptRows(rows);
                 return rows.length === 0
                     ? div({ class: "tab-empty" }, "No destroyed objects are currently discovered.")
-                    : div({ class: "account-item-stack account-item-stack--dense" }, ...keptRows(rows));
+                    : div({ class: "account-item-stack account-item-stack--dense" }, ...nodes);
             },
         })
     );

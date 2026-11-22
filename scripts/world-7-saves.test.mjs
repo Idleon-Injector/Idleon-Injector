@@ -499,3 +499,26 @@ test("Spelunking Caves: an Add or Remove the game no longer needs writes nothing
     assert.deepEqual(writesSince(start), [], "nothing was written");
     Spelunk[6] = before;
 });
+
+test("Spelunking Caves: an object removed down to an empty list and added back gets a new row", async () => {
+    const removeButtons = (root) =>
+        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
+    const before = [...Spelunk[6]];
+    Spelunk[6] = [before[0]];
+    const root = await openPage(
+        "src/ui/pages/world-7/spelunking/1-caves.js",
+        (node) => removeButtons(node).length === 1
+    );
+    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
+    const [remove] = removeButtons(root);
+    remove.listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
+    await remove.listeners.click({ preventDefault() {} });
+    await until(() => removeButtons(root).length === 0, "the list to be empty");
+    const picker = elements(root).find((node) => node.nodeName === "select");
+    picker.listeners.change({ target: { value: before[0] } }); // the same object again
+    await buttonNamed(root, "Add").listeners.click({ preventDefault() {} });
+    assert.deepEqual([...Spelunk[6]], [before[0]]);
+    await until(() => removeButtons(root).length === 1, "the object to show again");
+    assert.notEqual(removeButtons(root)[0], remove, "a new row, without the removed one's state");
+    Spelunk[6] = before;
+});

@@ -188,6 +188,23 @@ test("a refused Trophy Remove stays red on its row", async () => {
     assert.deepEqual(gga.Spelunk[16], [1, 2, -1, -1, -1, -1]);
 });
 
+test("a trophy removed down to an empty list and added back gets a new row, not the removed one", async () => {
+    gga.Spelunk[16] = [1, -1, -1, -1, -1, -1];
+    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
+        text(root).includes("CURRENT SLOTS")
+    );
+    const [removed] = byClass(page, "account-row");
+    const remove = button(removed, "Remove");
+    const click = (node) => node.listeners.click({ preventDefault() {} });
+    click(remove);
+    await click(remove);
+    await until(() => byClass(page, "account-row").length === 0, "the list to be empty");
+    gga.Spelunk[16] = [1, -1, -1, -1, -1, -1]; // the game has it again
+    await click(button(page, "Refresh"));
+    await until(() => byClass(page, "account-row").length === 1, "the trophy to show again");
+    assert.notEqual(byClass(page, "account-row")[0], removed, "a new row, without the removed one's state");
+});
+
 test("Nametag 6 (the game's EquipmentNametag6b) has its row", async () => {
     gga.Spelunk[17][6] = 3;
     const page = await openPage("src/ui/pages/world-7/gallery/2-nametag.js", (root) =>

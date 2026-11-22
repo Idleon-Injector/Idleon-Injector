@@ -234,14 +234,26 @@ const BundlesTab = () => {
         return pendingEntries;
     };
 
-    // After a failed Buy or Unbuy the game may hold either state, so the rows read it again (once for a Buy all).
+    // After a failed Buy or Unbuy the game may hold either state, so the rows read it again (once for a Buy all). A
+    // failure while that read runs reads once more after it, since the running read may predate its write.
     let failureRead = null;
+    let readAgain = false;
+    const readAfterFailure = () => {
+        if (failureRead) return void (readAgain = true);
+        failureRead = refreshCatalog()
+            .catch(() => {}) // ponytail: the rows stay as they were; Refresh reads them again
+            .finally(() => {
+                failureRead = null;
+                if (readAgain) {
+                    readAgain = false;
+                    readAfterFailure();
+                }
+            });
+    };
     const failed = (state, what, caughtError) => {
         console.error(`[bundles] ${what}:`, caughtError);
         state.said.say("failed", saveFailureReason(caughtError));
-        failureRead ??= refreshCatalog()
-            .catch(() => {}) // ponytail: the rows stay as they were; Refresh reads them again
-            .finally(() => (failureRead = null));
+        readAfterFailure();
     };
 
     async function buyBundle(bundle, state) {
@@ -323,8 +335,10 @@ const BundlesTab = () => {
                     }
                 } catch (caughtError) {
                     console.error("[bundles] Ownership poll failed after Buy All:", caughtError);
+                    // One a newer read showed owned is bought; every other waits for nothing more.
                     for (const entry of queued) {
-                        if (!isOwned(entry.state.owned.val)) entry.confirmation.reject(caughtError);
+                        if (isOwned(entry.state.owned.val)) entry.confirmation.resolve();
+                        else entry.confirmation.reject(caughtError);
                     }
                 }
             }

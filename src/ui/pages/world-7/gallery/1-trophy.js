@@ -273,6 +273,8 @@ const TrophyTab = () => {
             note: () => `${ownedCount.val} OWNED, ${emptyCount.val} EMPTY, ${slotCount.val} TOTAL SLOTS`,
             body: () => {
                 const rows = visibleSlotRows.val;
+                // Taken first, so an empty list lets go of the rows it held: a row added back is built new.
+                const nodes = keptRows(rows);
                 return rows.length === 0
                     ? div({ class: "tab-empty" }, () =>
                           emptyCount.val > 0
@@ -281,7 +283,7 @@ const TrophyTab = () => {
                                 } available.`
                               : "No trophies currently owned."
                       )
-                    : div({ class: "account-item-stack account-item-stack--dense" }, ...keptRows(rows));
+                    : div({ class: "account-item-stack account-item-stack--dense" }, ...nodes);
             },
         })
     );

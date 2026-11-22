@@ -433,6 +433,96 @@ test("bundles: the read after a failed Unbuy that answers after a newer Refresh 
     }
 });
 
+test("bundles: an Unbuy that fails while the read after another failure runs gets a read of its own", async () => {
+    const root = await openPage(BUNDLES);
+    const received = gga.BundlesReceived.h;
+    const first = rowWith(root, "Unbuy");
+    const second = rowWith(root, "Buy");
+    const code = ownedFlag(second);
+    received[code] = 1; // a second owned bundle
+    await button(root, "Refresh").listeners.click({});
+    await until(() => button(second, "Unbuy"), "the second bundle to show owned");
+    const realFetch = globalThis.fetch;
+    let release;
+    const answer = new Promise((resolve) => (release = resolve));
+    let held = false;
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) {
+            if (++writes === 2) received[code] = 0; // the second Unbuy lands, but its answer is lost
+            return new Response(JSON.stringify({ error: "the connection dropped" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        }
+        const response = await realFetch(url, options);
+        if (String(url).includes("/game/bundles") && !held) {
+            held = true; // the read after the first failure: the second bundle is still owned then
+            await answer;
+        }
+        return response;
+    };
+    try {
+        await button(first, "Unbuy").listeners.click({});
+        await until(() => held, "the read after the first failure");
+        await button(second, "Unbuy").listeners.click({});
+        release();
+        await until(() => button(second, "Buy"), "the second bundle to show not owned");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        received[code] = 0;
+        received[ownedFlag(first)] = 1;
+    }
+});
+
+test("bundles: Buy all ends when its ownership poll fails after another read showed a bundle owned", async () => {
+    const root = await openPage(BUNDLES);
+    const buyAll = elements(root).find(
+        (node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim())
+    );
+    const count = Number(/\((\d+)\)/.exec(text(buyAll))[1]);
+    const received = gga.BundlesReceived.h;
+    const before = { ...received };
+    const realFetch = globalThis.fetch;
+    let toggles = 0;
+    let catalogReads = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/toggle")) {
+            const code = JSON.parse(options.body).action.split(" ")[1];
+            // The last buy fails (its failure reads the catalog, which shows the others owned); the rest land.
+            if (++toggles === count)
+                return new Response(JSON.stringify({ error: "the cheat didn't run" }), {
+                    status: 500,
+                    headers: { "content-type": "application/json" },
+                });
+            received[code] = 1;
+            return new Response(JSON.stringify({ ok: true, message: "bought" }), {
+                headers: { "content-type": "application/json" },
+            });
+        }
+        // The ownership poll's read (the second catalog read after the press) fails.
+        if (String(url).includes("/game/bundles") && toggles > 0 && ++catalogReads === 2)
+            return new Response(JSON.stringify({ error: "the game is busy" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        return realFetch(url, options);
+    };
+    try {
+        const click = () => buyAll.listeners.click({ currentTarget: buyAll });
+        await click(); // asks first
+        void click();
+        await until(
+            () => /One or more bundle purchases/.test(text(byClass(root, "said--buy-all")[0])),
+            "Buy all to end and say why"
+        );
+    } finally {
+        globalThis.fetch = realFetch;
+        Object.assign(received, before);
+    }
+});
+
 test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why beside it", async () => {
     const root = await openPage(BUNDLES);
     const row = rowWith(root, "Buy");
