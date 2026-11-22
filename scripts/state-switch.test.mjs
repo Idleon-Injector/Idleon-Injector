@@ -1115,6 +1115,130 @@ test("account options: an on/off save whose answer was lost shows what the game 
     }
 });
 
+// #191: every page save reads the game again when its answer is lost. Forge Speed is a plain level row.
+const FORGE = "src/ui/pages/world-1/forge/forge.js";
+const openForgeSpeed = async () => {
+    const levels = game.gga.FurnaceLevels;
+    const before = levels[2];
+    cleanups.push(() => (levels[2] = before));
+    const root = await openPage(FORGE, (root) => pageRead(root) && rowNamed(root, "Forge Speed"));
+    return { row: rowNamed(root, "Forge Speed"), levels, before };
+};
+// Forge Speed's History entries, newest first; `since` (an earlier call's list) leaves out the ones it had.
+const forgeSpeedLogged = async (since = []) => {
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const logged = (await fetchChanges()).actions
+        .flatMap((action) => action.entries)
+        .filter((entry) => entry.path === "FurnaceLevels[2]")
+        .map(({ before, after }) => ({ before, after }));
+    return logged.slice(0, logged.length - since.length);
+};
+const saveEnded = (row) => saveWordsOf(row) !== "saving…" && saveWordsOf(row) !== "";
+
+test("forge: a level whose answer was lost, but which the game kept, says saved and is in History once", async () => {
+    const restore = loseAnswers("FurnaceLevels[2]");
+    try {
+        const { row, levels, before } = await openForgeSpeed();
+        const logged = await forgeSpeedLogged();
+        const field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => saveEnded(row), "the save to end");
+        assert.equal(restore.lost(), 1, "the write's answer was lost");
+        assert.equal(levels[2], before + 1, "the game kept it");
+        assert.equal(saveWordsOf(row), "saved", "read back, not said as failed");
+        assert.deepEqual(await forgeSpeedLogged(logged), [{ before, after: before + 1 }], "one History entry");
+    } finally {
+        restore();
+        await runCleanups();
+    }
+});
+
+test("forge: Escape during a save whose answer is lost shows the level the game kept", async () => {
+    const restore = loseAnswers("FurnaceLevels[2]");
+    const release = holdWrites(); // on top: the write waits, then its answer is lost
+    try {
+        const { row, levels, before } = await openForgeSpeed();
+        const logged = await forgeSpeedLogged();
+        const field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => release.held() > 0, "the write to reach the game");
+        row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        await until(() => field.attributes.value === String(before), "Escape to put the old level back");
+        release();
+        await until(() => saveEnded(row), "the save to end");
+        assert.equal(restore.lost(), 1, "the write's answer was lost");
+        assert.equal(levels[2], before + 1, "the game kept it");
+        assert.equal(saveWordsOf(row), "saved", "read back, not said as failed");
+        await until(() => field.attributes.value === String(before + 1), "the field to show what the game holds");
+        assert.deepEqual(await forgeSpeedLogged(logged), [{ before, after: before + 1 }], "one History entry");
+    } finally {
+        release();
+        restore();
+        await runCleanups();
+    }
+});
+
+test("forge: a level whose answer was lost and which the game didn't keep reads it again and says failed", async () => {
+    const restore = loseAnswers("FurnaceLevels[2]");
+    const lostFetch = globalThis.fetch;
+    let readsAfter = 0; // reads of the level after its answer was lost
+    globalThis.fetch = async (url, options) => {
+        if (String(url).endsWith("/gga/read") && String(options?.body).includes("FurnaceLevels[2]"))
+            readsAfter += restore.lost();
+        return lostFetch(url, options);
+    };
+    try {
+        const { row, levels, before } = await openForgeSpeed();
+        cleanups.push(refuseWrites(levels, 2));
+        const logged = await forgeSpeedLogged();
+        const field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => saveEnded(row), "the save to end");
+        assert.equal(restore.lost(), 1, "the write's answer was lost");
+        assert.equal(levels[2], before, "the game kept the old level");
+        assert.equal(readsAfter, 1, "it read the game again");
+        assert.equal(saveWordsOf(row), "connection lost", "said as failed, in the write's own words");
+        assert.deepEqual(await forgeSpeedLogged(logged), [], "nothing in History");
+    } finally {
+        globalThis.fetch = lostFetch;
+        restore();
+        await runCleanups();
+    }
+});
+
+// #112: with no read either, the row says failed and keeps the old level; it shows no unknown value.
+test("forge: a lost answer whose read-back fails too says failed and keeps the old level", async () => {
+    const restore = loseAnswers("FurnaceLevels[2]");
+    const lostFetch = globalThis.fetch;
+    // The read after the write fails too (the old values, read before it, still come).
+    globalThis.fetch = async (url, options) =>
+        String(url).endsWith("/gga/read") && String(options?.body).includes("FurnaceLevels[2]")
+            ? new Response(JSON.stringify({ error: "connection lost" }), {
+                  status: 500,
+                  headers: { "content-type": "application/json" },
+              })
+            : lostFetch(url, options);
+    try {
+        const { row, levels, before } = await openForgeSpeed();
+        const logged = await forgeSpeedLogged();
+        const field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => saveEnded(row), "the save to end");
+        assert.equal(levels[2], before + 1, "the game kept it, unseen");
+        assert.equal(saveWordsOf(row), "connection lost", "said as failed");
+        assert.deepEqual(await forgeSpeedLogged(logged), [], "nothing in History");
+        row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
+        await until(
+            () => field.attributes.value === String(before),
+            "Escape to show the old level, not an unknown one"
+        );
+    } finally {
+        globalThis.fetch = lostFetch;
+        restore();
+        await runCleanups();
+    }
+});
+
 test("weekly bosses: a skin flipped while trophies save waits and saves", async () => {
     const weekly = game.gga.WeeklyBoss.h;
     const locked = Object.keys(weekly).filter((key) => key.startsWith("UI_") && Number(weekly[key]) === 0);

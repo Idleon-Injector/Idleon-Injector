@@ -1,7 +1,7 @@
 /** Shared hooks and helpers for account feature tabs. */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { gga, ggaMany, readCList, readComputed, readGgaMany } from "../../../services/api.js";
+import { gga, ggaMany, matchesVerifiedValue, readCList, readComputed, readGgaMany } from "../../../services/api.js";
 import { Loader } from "../../Loader.js";
 import { EmptyState } from "../../EmptyState.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
@@ -217,11 +217,13 @@ export const renderAccountError = (message) => EmptyState({ failed: true, title:
 /**
  * Write a value through gga (or a compatible writer) and fail if verification
  * reports a mismatch. A value that lands goes in the change log (History, Undo).
- * With `character`, the game writes it only while that character is in play (as writeManyVerified).
- * With `readBack`, a write whose answer failed reads the value again: one the game holds counts as landed (and is
- * logged once); otherwise, or unread, the write's own error stands.
+ * With `character`, the game writes it only while that character is in play (as writeManyVerified, so a lost answer
+ * isn't read back: a read can't tell whose value it is).
+ * A game write whose answer failed reads the value again (`readBack`, on by default): one the game holds counts as
+ * landed (and is logged once); otherwise, or unread, the write's own error stands. A custom writer reads nothing back:
+ * the page's own writeVerified inside it does.
  */
-export const writeVerified = (path, value, { write = gga, character, readBack = false } = {}) => {
+export const writeVerified = (path, value, { write = gga, character, readBack = write === gga } = {}) => {
     if (character !== undefined) return writeManyVerified([{ path, value }], { character }).then(() => value);
     // Claimed now, while the caller's code runs, so the save joins the user action that made it. A custom writer
     // (a row handing the write to its page) saves through writeVerified itself, so only the game write logs.
@@ -236,7 +238,7 @@ export const writeVerified = (path, value, { write = gga, character, readBack = 
             const now = await gga(path).catch(() => {
                 throw error;
             });
-            if (JSON.stringify(now) !== JSON.stringify(value)) throw error;
+            if (!matchesVerifiedValue(value, now)) throw error;
             ok = true;
         }
         if (!ok) throw new Error(`Write mismatch at ${path}`);
@@ -275,6 +277,7 @@ export const readCharacterInPlay = (expected) =>
  * The values that land go in the change log as one action, unless `log` is false (an undo's own writes).
  * `character`, the one the writes were planned for: when another one is in play by the time the game writes, nothing
  * is written and it rejects saying who is in play.
+ * A lost answer isn't read back: callers read each entry's own result (`error.results`), which a read can't give.
  *
  * @param {Array<{ path: string, value: any }>} writes
  * @param {{ log?: boolean, character?: string }} [options]
