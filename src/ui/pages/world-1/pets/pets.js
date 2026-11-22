@@ -344,9 +344,11 @@ const CompanionsTab = () => {
                 }
                 let entries;
                 // Chosen pets also turn the cheat on at every start; none takes it off that list.
-                const { result, config } = await saveConfigPart((now) => {
-                    // The tiers from the config as it is in the save's turn, so a list saved meanwhile (the Config
-                    // tab) isn't overwritten; the change asked for again on them.
+                const { result, config } = await saveConfigPart(async (now) => {
+                    // The tokens and the tiers from the config as they are in the save's turn, so a token the game
+                    // gave meanwhile is refused and a list saved meanwhile (the Config tab) isn't overwritten; the
+                    // change asked for again on them.
+                    tokens.val = await readComputed("companions", "petTokens");
                     showSelection(now);
                     const { normal, plus } = getChange();
                     entries = companions.val
@@ -366,8 +368,12 @@ const CompanionsTab = () => {
                 // Part of it may have landed: the cards show what is saved now.
                 onError: (error) => {
                     writeError.val = error.message;
+                    // A save started since is newer than this read: it keeps its own tokens.
+                    const writes = selectionWrites;
                     void readComputed("companions", "petTokens")
-                        .then((read) => (tokens.val = read))
+                        .then((read) => {
+                            if (writes === selectionWrites) tokens.val = read;
+                        })
                         .then(() => readSelection())
                         .catch(() => {});
                 },
