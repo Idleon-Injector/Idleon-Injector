@@ -315,19 +315,29 @@ const StatuesTab = () => {
             runBulkSet({
                 // StatueLevels is the character in play's own, as in a row's save.
                 character: getCharacter(),
+                shownCharacter: () => character,
                 entries: shownIndices(),
                 getTargetValue: () => target,
                 getValueState: (index) => states.get(index),
                 getPath: (index) => pathOf(index),
             })
         );
-    const countAbove = (states, target) => shownIndices().filter((index) => states.get(index).val > target).length;
+    const above = (states, target) => shownIndices().filter((index) => states.get(index).val > target);
     const allAt = (states, target) => shownIndices().every((index) => states.get(index).val === target);
 
     const tools = (_activeId, ask) => {
+        // `question(n)` for the `lowered()` statues; a row saved while it asks can change them, and then it asks again.
         const askOrRun = ({ lowered, question, from, change }) => {
-            if (!lowered) return void change();
-            ask({ question, confirmLabel: lowered === 1 ? "Lower it" : "Lower them", from, onConfirm: change });
+            const n = lowered().length;
+            if (!n) return void change();
+            ask({
+                question: question(n),
+                confirmLabel: n === 1 ? "Lower it" : "Lower them",
+                from,
+                lowers: lowered,
+                again: () => askOrRun({ lowered, question, from, change }),
+                onConfirm: change,
+            });
         };
 
         const levelControl = SetAllNumberControl({
@@ -338,10 +348,9 @@ const StatuesTab = () => {
             onApply: () => {
                 const level = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
                 if (level === null) return refuseSetAll(setAllInput);
-                const lowered = countAbove(levelStates, level);
                 return askOrRun({
-                    lowered,
-                    question: `Lower ${lowered} ${statueWord(lowered)} to level ${level}?`,
+                    lowered: () => above(levelStates, level),
+                    question: (n) => `Lower ${n} ${statueWord(n)} to level ${level}?`,
                     from: levelControl.querySelector(".account-btn"),
                     change: () => writeAll((index) => `StatueLevels[${index}][0]`, levelStates, level),
                 });
@@ -356,10 +365,9 @@ const StatuesTab = () => {
                 disabled: () => !shownIndices().length || allAt(tierStates, tier.value),
                 onClick: (e) => {
                     e.preventDefault();
-                    const lowered = countAbove(tierStates, tier.value);
                     askOrRun({
-                        lowered,
-                        question: `Lower ${lowered} ${statueWord(lowered)} to ${tier.label}?`,
+                        lowered: () => above(tierStates, tier.value),
+                        question: (n) => `Lower ${n} ${statueWord(n)} to ${tier.label}?`,
                         from: tierButton,
                         change: () => writeAll((index) => `StatueG[${index}]`, tierStates, tier.value),
                     });

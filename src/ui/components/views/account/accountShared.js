@@ -390,10 +390,13 @@ const toWriteEntries = (writeOrWrites) => {
  * @param {function} [opts.shouldWrite]
  * @param {function} [opts.applyLocal]
  * @param {string} [opts.character] - when set, the game writes only while this character is in play
+ * @param {function} [opts.shownCharacter] - the character the page's rows show now, for rows every character shares:
+ *   once it isn't `character` (a Refresh read another meanwhile), the rows are that one's and keep what it read
  * @returns {Promise<void>}
  */
 export const runBulkSet = async ({
     character,
+    shownCharacter = null,
     entries,
     getTargetValue,
     getValueState,
@@ -425,6 +428,7 @@ export const runBulkSet = async ({
     });
 
     await writeManyVerified(writes, { character });
+    if (shownCharacter && shownCharacter() !== character) return;
 
     resolvedEntries.forEach((entry, index) => {
         if (!targets.has(index)) return;
