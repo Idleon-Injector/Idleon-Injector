@@ -105,13 +105,18 @@ const VialTab = () => {
         const setAll = () => {
             const level = resolveNumberInput(setAllInput.val, { min: 0, max: MAX_VIAL_LEVEL, fallback: null });
             if (level === null) return refuseSetAll(setAllInput);
-            const vials = shown();
-            const lowered = vials.filter((vial) => Number(getLevelState(vial.index).val) > level).length;
+            return askOrWrite(shown(), level);
+        };
+        const askOrWrite = (vials, level) => {
+            const loweredOf = () => vials.filter((vial) => Number(getLevelState(vial.index).val) > level);
+            const lowered = loweredOf().length;
             if (!lowered) return writeLevels(vials, level);
             ask({
                 question: `Lower ${lowered} ${vialWord(lowered)} to level ${level}?`,
                 confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
                 from: setAllControl.querySelector(".account-btn"),
+                lowers: loweredOf,
+                again: () => askOrWrite(vials, level),
                 onConfirm: () => writeLevels(vials, level),
             });
             return undefined;

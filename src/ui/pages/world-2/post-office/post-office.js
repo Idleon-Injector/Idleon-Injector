@@ -177,6 +177,7 @@ const PostOfficeTab = () => {
         bulk.run(() =>
             runBulkSet({
                 character: forCharacter ?? getCharacter(),
+                shownCharacter: () => character,
                 entries: boxes,
                 getTargetValue: getNextValue,
                 getValueState: (box) => box.current,

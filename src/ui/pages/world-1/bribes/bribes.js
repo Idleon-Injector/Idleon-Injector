@@ -113,8 +113,9 @@ const BribesTab = () => {
     const ownedIn = (set) => inSet(set).filter((entry) => rowStates.get(entry.index).value.val === 1);
     const bribeWord = (n) => `bribe${n === 1 ? "" : "s"}`;
 
-    // Enabling adds, so it runs on one press; disabling takes away, so the tray asks first.
-    const setAll = (enabled, set) =>
+    // Enabling adds, so it runs on one press; disabling takes away, so the tray asks first. `asked` is that question:
+    // the bribes it named, and how to ask again.
+    const setAll = (enabled, set, asked = null) =>
         inTurn(async () => {
             if (cannotWrite()) return;
             // The bulk action starts after a read: keep the press, so it's named after and offers Undo all beside the
@@ -129,6 +130,8 @@ const BribesTab = () => {
                 const targets = shown.filter((entry) =>
                     enabled ? values[entry.index] !== 1 : values[entry.index] === 1
                 );
+                // The game enabled a bribe the question didn't name (the read put it on its row): it asks again.
+                if (asked && targets.some((entry) => !asked.named.includes(entry.index))) return void asked.again();
                 if (!targets.length) return;
                 const writes = targets.map(({ index }) => ({
                     index,
@@ -201,6 +204,21 @@ const BribesTab = () => {
     const setOf = (activeId) => sets.find((set) => set.label === activeId.val);
 
     const tools = (activeId, ask) => {
+        // A bribe enabled while it asks is one more to disable, so it asks again; with none left it does nothing.
+        const askDisable = (set) => {
+            const named = ownedIn(set).map((entry) => entry.index);
+            if (!named.length) return;
+            const n = named.length;
+            const again = () => askDisable(set);
+            ask({
+                question: `Disable ${n} ${bribeWord(n)} in ${set.label}?`,
+                confirmLabel: n === 1 ? "Disable it" : "Disable them",
+                from: disableButton,
+                lowers: () => ownedIn(set).map((entry) => entry.index),
+                again,
+                onConfirm: () => setAll(false, set, { named, again }),
+            });
+        };
         const disableButton = ActionButton({
             label: "Disable all",
             status: bulk.status,
@@ -208,14 +226,7 @@ const BribesTab = () => {
             disabled: () => cannotWrite() || !ownedIn(setOf(activeId)).length,
             onClick: (e) => {
                 e.preventDefault();
-                const set = setOf(activeId);
-                const n = ownedIn(set).length;
-                ask({
-                    question: `Disable ${n} ${bribeWord(n)} in ${set.label}?`,
-                    confirmLabel: n === 1 ? "Disable it" : "Disable them",
-                    from: disableButton,
-                    onConfirm: () => setAll(false, set),
-                });
+                askDisable(setOf(activeId));
             },
         });
         return div(

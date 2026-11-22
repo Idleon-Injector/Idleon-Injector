@@ -490,27 +490,37 @@ const CompanionsTab = () => {
             });
         };
         const tierButtons = TIERS.map((tier) => {
+            // A pet saved while it asks can change what gets lowered: then it asks again.
+            const loweredOf = () =>
+                targets()
+                    .filter((pet) => TIER_RANK[tierOf(pet.id)] > TIER_RANK[tier.value])
+                    .map((pet) => pet.id);
+            const askOrWrite = () => {
+                const lowered = loweredOf().length;
+                if (!lowered) return void allTo(tier.value);
+                const where = sectionOf(activeId)?.label ?? "this tab";
+                ask({
+                    question:
+                        tier.value === "off"
+                            ? `Turn off ${lowered} ${petWord(lowered)} in ${where}?`
+                            : `Lower ${lowered} ${petWord(lowered)} in ${where} to ${tier.label}?`,
+                    confirmLabel:
+                        tier.value === "off"
+                            ? `Turn ${lowered === 1 ? "it" : "them"} off`
+                            : `Lower ${lowered === 1 ? "it" : "them"}`,
+                    from: tierButton,
+                    lowers: loweredOf,
+                    again: askOrWrite,
+                    onConfirm: () => allTo(tier.value),
+                });
+            };
             const tierButton = ActionButton({
                 label: tier.label,
                 status: writeStatus,
                 disabled: () => isBusy() || targets().every((pet) => tierOf(pet.id) === tier.value),
                 onClick: (e) => {
                     e.preventDefault();
-                    const lowered = targets().filter((pet) => TIER_RANK[tierOf(pet.id)] > TIER_RANK[tier.value]).length;
-                    if (!lowered) return void allTo(tier.value);
-                    const where = sectionOf(activeId)?.label ?? "this tab";
-                    ask({
-                        question:
-                            tier.value === "off"
-                                ? `Turn off ${lowered} ${petWord(lowered)} in ${where}?`
-                                : `Lower ${lowered} ${petWord(lowered)} in ${where} to ${tier.label}?`,
-                        confirmLabel:
-                            tier.value === "off"
-                                ? `Turn ${lowered === 1 ? "it" : "them"} off`
-                                : `Lower ${lowered === 1 ? "it" : "them"}`,
-                        from: tierButton,
-                        onConfirm: () => allTo(tier.value),
-                    });
+                    return askOrWrite();
                 },
             });
             return tierButton;

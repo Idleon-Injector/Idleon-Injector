@@ -187,7 +187,8 @@ const StampsTab = () => {
     const tools = (activeId, ask) => {
         const page = () => pageOf(activeId);
         const codesOn = (p) => stampsOn(p).map((stamp) => makeExaltedStampCode(p.id, stamp.order));
-        const exaltedOn = (p) => codesOn(p).filter((code) => exaltedCodes.val.has(code)).length;
+        const exaltedCodesOn = (p) => codesOn(p).filter((code) => exaltedCodes.val.has(code));
+        const exaltedOn = (p) => exaltedCodesOn(p).length;
 
         const writeLevels = (p, level) =>
             bulk.run(() =>
@@ -215,13 +216,18 @@ const StampsTab = () => {
         const setAll = () => {
             const level = typedLevel();
             if (level === null) return refuseSetAll(setAllInput);
-            const p = page();
-            const lowered = stampsOn(p).filter((stamp) => Number(stamp.levelState.val) > level).length;
+            return askOrWrite(page(), level);
+        };
+        const askOrWrite = (p, level) => {
+            const loweredOf = () => stampsOn(p).filter((stamp) => Number(stamp.levelState.val) > level);
+            const lowered = loweredOf().length;
             if (!lowered) return writeLevels(p, level);
             ask({
                 question: `Lower ${lowered} ${stampWord(p, lowered)} to level ${level}?`,
                 confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
                 from: setAllControl.querySelector(".account-btn"),
+                lowers: loweredOf,
+                again: () => askOrWrite(p, level),
                 onConfirm: () => writeLevels(p, level),
             });
             return undefined;
@@ -243,7 +249,19 @@ const StampsTab = () => {
             status: bulk.status,
             onApply: setAll,
         });
-        // Taking exalts away asks first, in the tray.
+        // Taking exalts away asks first, in the tray; once none is left to take, it does nothing.
+        const askUnexalt = (p) => {
+            const n = exaltedOn(p);
+            if (!n) return;
+            ask({
+                question: `Unexalt ${n} ${stampWord(p, n)}?`,
+                confirmLabel: n === 1 ? "Unexalt it" : "Unexalt them",
+                from: unexaltAll,
+                lowers: () => exaltedCodesOn(p),
+                again: () => askUnexalt(p),
+                onConfirm: () => exaltAll(false),
+            });
+        };
         const unexaltAll = ActionButton({
             label: "Unexalt all",
             status: bulk.status,
@@ -251,14 +269,7 @@ const StampsTab = () => {
             disabled: () => exaltedOn(page()) === 0,
             onClick: (e) => {
                 e.preventDefault();
-                const p = page();
-                const n = exaltedOn(p);
-                ask({
-                    question: `Unexalt ${n} ${stampWord(p, n)}?`,
-                    confirmLabel: n === 1 ? "Unexalt it" : "Unexalt them",
-                    from: unexaltAll,
-                    onConfirm: () => exaltAll(false),
-                });
+                askUnexalt(page());
             },
         });
 

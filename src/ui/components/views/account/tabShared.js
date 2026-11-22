@@ -90,7 +90,7 @@ let listCount = 0;
  * @param {string} opts.name what the tabs choose between ("Stamps"), read out by assistive technology
  * @param {{id: string, label: string, content: *}[]} opts.tabs
  * @param {(activeId: {val: string}, ask: (q: {question: string, confirmLabel: string, from: HTMLElement,
- *   onConfirm: () => *}) => void) => *} [opts.tools]
+ *   onConfirm: () => *, lowers?: () => Array, again?: () => *}) => void) => *} [opts.tools]
  * @param {(activeId: {val: string}) => string} [opts.toolsLabel]
  * @param {(tabId: string) => boolean} [opts.toolsOn] which tabs have tools (all, when not given): a tab without them
  *   shows no tray, and its open tab runs down into its rows like a list without tools
@@ -188,8 +188,15 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
         asking.val = null;
         // A keyboard player goes back to the button that asked, once it shows again (the next frame).
         if (question.byKeyboard) requestAnimationFrame(() => question.from?.focus({ preventScroll: true }));
+        if (!yes) return;
+        // A row saved while the question was open can change what the answer takes away: then the tool asks again.
+        const now = question.lowers?.();
+        const changed =
+            now && (now.length !== question.lowered.length || now.some((item, i) => item !== question.lowered[i]));
         // The change is the asking button's: its Undo all comes up beside it.
-        if (yes) withAction({ label: labelOf(question.from), anchor: question.from }, () => question.onConfirm());
+        withAction({ label: labelOf(question.from), anchor: question.from }, () =>
+            changed ? question.again() : question.onConfirm()
+        );
     };
     const yesButton = button(
         {
@@ -206,12 +213,13 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
         "Cancel"
     );
     /** Ask before `onConfirm` runs: `question` ("Lower 30 combat stamps to level 47?"), `confirmLabel` ("Lower
-     *  them"), and `from`, the button that asked. */
-    const ask = ({ question, confirmLabel, from, onConfirm }) => {
+     *  them"), and `from`, the button that asked. `lowers`, when given, lists what the answer takes away (ids or
+     *  rows); if that list is different when Yes is pressed, `again` runs instead of `onConfirm`, to ask again. */
+    const ask = ({ question, confirmLabel, from, onConfirm, lowers = null, again = null }) => {
         // Pressed from the keyboard, the asking button holds focus: the answer takes it. A click leaves focus alone,
         // so nothing is ringed that the pointer didn't touch.
         const byKeyboard = document.activeElement === from;
-        asking.val = { question, confirmLabel, from, onConfirm, byKeyboard };
+        asking.val = { question, confirmLabel, from, onConfirm, lowers, again, lowered: lowers?.(), byKeyboard };
         if (byKeyboard) requestAnimationFrame(() => yesButton.focus({ preventScroll: true }));
     };
     van.derive(() => {

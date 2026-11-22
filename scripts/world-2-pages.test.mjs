@@ -537,12 +537,17 @@ test("vials: a vial saved while Set all runs keeps the level it saved (Set all l
     typeInto(setAllInput, "13");
 
     const hold = holdWrites("/write-many");
-    const setAll = click(button);
-    await until(() => hold.held() > 0, "Set all to reach the game");
-    const input = enter(row, 4);
-    await until(() => stateOf(row) === "success", "the row's save");
-    leave(row, input);
-    hold.release();
+    let setAll;
+    let input;
+    try {
+        setAll = click(button);
+        await until(() => hold.held() > 0, "Set all to reach the game");
+        input = enter(row, 4);
+        await until(() => stateOf(row) === "success", "the row's save");
+        leave(row, input);
+    } finally {
+        hold.release();
+    }
     await setAll;
     await until(() => shown(inputs(other)[0]) === "13", "Set all's levels to show");
     assert.equal(levels[0], 4);
@@ -723,10 +728,14 @@ test("sigils: a tier picked while the last pick saves is the one saved", async (
     tiers[1] = 3;
     const { row, radio } = await sigilRow();
     const hold = holdWrites();
-    click(radio("Boosted"));
-    await until(() => hold.held() > 0, "the first pick's save to reach the game");
-    click(radio("Ionized"));
-    hold.release();
+    try {
+        click(radio("Boosted"));
+        await until(() => hold.held() > 0, "the first pick's save to reach the game");
+        click(radio("Ionized"));
+    } finally {
+        // A wait that timed out still lets the writes go, so later tests' writes aren't held.
+        hold.release();
+    }
     await until(() => tiers[1] === 2 && stateOf(row) === "success", "the newer pick to save");
     assert.equal(attr(radio("Ionized"), "aria-checked"), "true");
     tiers[1] = 3;
@@ -813,6 +822,7 @@ test("post office: Reset all asked about one character resets nothing once the p
     const { PLAYERS } = await import("./page-shots/data/shared.mjs");
     const playing = game.gga.UserInfo[0];
     boxes.forEach((box) => (box[0] = 1));
+    const realFetch = globalThis.fetch;
     try {
         const root = await openPage("src/ui/pages/world-2/post-office/post-office.js", (root) =>
             rowNamed(root, "Civil War Memory Box")
@@ -825,16 +835,212 @@ test("post office: Reset all asked about one character resets nothing once the p
         await click(buttonNamed(root, "Refresh"));
         await until(() => notBusy(buttonNamed(root, "Refresh")), "the other character's read");
         assert.ok(asks(root), "the question is still open");
-        const before = writes();
+        // The game's answer to the reset write, once it has come back.
+        let answered = false;
+        globalThis.fetch = async (url, options) => {
+            const response = await realFetch(url, options);
+            if (String(url).includes("/write")) answered = true;
+            return response;
+        };
         await yes(root);
-        await until(() => writes() > before, "the answer to reach the game");
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await until(() => answered, "the game to answer the reset");
         assert.ok(
             boxes.every((box) => box[0] === 1),
             "the game refused it: another character is in play"
         );
     } finally {
+        globalThis.fetch = realFetch;
         game.gga.UserInfo[0] = playing;
         boxes.forEach((box, i) => (box[0] = saved[i]));
+    }
+});
+
+// #204: follow-ups from #196's review.
+test("post office: Max all that lands after a Refresh read another character leaves that one's boxes as read", async () => {
+    const boxes = game.gga.PostOfficeInfo[3];
+    const saved = boxes.map((box) => box[0]);
+    const { PLAYERS } = await import("./page-shots/data/shared.mjs");
+    const playing = game.gga.UserInfo[0];
+    boxes.forEach((box) => (box[0] = 1));
+    const realFetch = globalThis.fetch;
+    let release = () => {};
+    try {
+        const root = await openPage("src/ui/pages/world-2/post-office/post-office.js", (root) =>
+            rowNamed(root, "Civil War Memory Box")
+        );
+        await click(buttonNamed(root, "Refresh"));
+        const maxAll = buttonNamed(root, "Max all");
+        await until(() => notBusy(maxAll), "Max all to be ready");
+        // Max all lands in the game; its answer comes back only after the page has read another character.
+        const gate = new Promise((resolve) => (release = resolve));
+        let landed = false;
+        globalThis.fetch = async (url, options) => {
+            const response = await realFetch(url, options);
+            if (String(url).includes("/write")) {
+                landed = true;
+                await gate;
+            }
+            return response;
+        };
+        click(maxAll);
+        await until(() => landed, "Max all to land");
+        globalThis.fetch = realFetch;
+        assert.ok(boxes[0][0] > 1, "the first character's boxes were maxed");
+        game.gga.UserInfo[0] = PLAYERS[1];
+        boxes.forEach((box) => (box[0] = 2)); // the other character's boxes
+        const box = rowNamed(root, "Civil War Memory Box");
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => shown(inputs(box)[0]) === "2", "the other character's read");
+        release();
+        await until(() => notBusy(maxAll), "Max all to end");
+        assert.equal(shown(inputs(box)[0]), "2", "the box shows the other character's value");
+    } finally {
+        release();
+        globalThis.fetch = realFetch;
+        game.gga.UserInfo[0] = playing;
+        boxes.forEach((box, i) => (box[0] = saved[i]));
+    }
+});
+
+test("vials: a vial saved while Set all asks changes what gets lowered, so it asks again", async () => {
+    const levels = game.gga.CauldronInfo[4];
+    for (let i = 0; i < levels.length; i++) levels[i] = 2;
+    levels[0] = 13;
+    const root = await openPage(
+        "src/ui/pages/world-2/alchemy/3-vials.js",
+        (root) => byClass(root, "account-row").length > 4
+    );
+    const [, second] = byClass(root, "account-row");
+    const { input, button } = setAllOf(root);
+    typeInto(input, "8");
+    await click(button);
+    assert.equal(trayLabel(root), "Lower 1 vial to level 8?");
+    enter(second, 12);
+    await until(() => stateOf(second) === "success", "the row's save");
+    const before = writes();
+    await yes(root);
+    assert.equal(trayLabel(root), "Lower 2 vials to level 8?", "it asks again");
+    assert.equal(writes(), before, "nothing was written");
+    assert.equal(levels[1], 12);
+    await yes(root);
+    await until(() => levels[0] === 8 && levels[1] === 8, "the answer to lower both");
+});
+
+test("liquid: after the game refuses one copy of CAP UPGRADE, the same value can be saved again into both", async () => {
+    const info = game.gga.CauldronInfo;
+    const cap = Number(info[8][4][2][1]);
+    const copy = Number(ola[371]);
+    info[8][4][2][1] = copy;
+    const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+        rowNamed(root, "Water Droplets")
+    );
+    const row = rowNamed(root, "Water Droplets");
+    const input = inputs(row)[1];
+    const save = (value) => {
+        input.listeners.focus?.({ target: input });
+        typeInto(input, value);
+        row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    };
+    // The game keeps its own value in the second copy: the first one takes the save, the second refuses it.
+    Object.defineProperty(ola, 371, { configurable: true, enumerable: true, get: () => copy, set: () => {} });
+    try {
+        save(copy + 5);
+        await until(() => stateOf(row) === "error", "the save to fail");
+        assert.equal(Number(info[8][4][2][1]), copy + 5, "the first copy took it");
+    } finally {
+        Object.defineProperty(ola, 371, { configurable: true, enumerable: true, writable: true, value: copy });
+    }
+    // A Refresh still shows the copy the save didn't change; the typed value stays, and Enter tries it again.
+    const refresh = buttonNamed(root, "Refresh");
+    await click(refresh);
+    await until(() => notBusy(refresh), "the read");
+    assert.equal(shown(input), String(copy + 5));
+    save(copy + 5);
+    await until(() => stateOf(row) === "success", "the second save");
+    assert.equal(Number(ola[371]), copy + 5, "the second copy has it now");
+    assert.equal(Number(info[8][4][2][1]), copy + 5);
+    info[8][4][2][1] = cap;
+    ola[371] = copy;
+});
+
+// CodeRabbit on #212: a page opened again after the split read the first copy and couldn't save the same value.
+test("liquid: a page opened again after one copy of CAP UPGRADE was refused still saves the value into both", async () => {
+    const info = game.gga.CauldronInfo;
+    const cap = Number(info[8][4][2][1]);
+    const copy = Number(ola[371]);
+    info[8][4][2][1] = copy;
+    const open = async () => {
+        const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        const row = rowNamed(root, "Water Droplets");
+        const input = inputs(row)[1];
+        const save = (value) => {
+            input.listeners.focus?.({ target: input });
+            typeInto(input, value);
+            row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+        };
+        return { row, input, save };
+    };
+    try {
+        const first = await open();
+        Object.defineProperty(ola, 371, { configurable: true, enumerable: true, get: () => copy, set: () => {} });
+        try {
+            first.save(copy + 5);
+            await until(() => stateOf(first.row) === "error", "the save to fail");
+        } finally {
+            Object.defineProperty(ola, 371, { configurable: true, enumerable: true, writable: true, value: copy });
+        }
+        const again = await open();
+        await until(() => shown(again.input) === String(copy), "the copy the save didn't change");
+        again.save(copy + 5);
+        await until(() => stateOf(again.row) === "success", "the save on the page opened again");
+        assert.equal(Number(ola[371]), copy + 5, "the second copy has it now");
+        assert.equal(Number(info[8][4][2][1]), copy + 5);
+    } finally {
+        info[8][4][2][1] = cap;
+        ola[371] = copy;
+    }
+});
+
+// CodeRabbit on #212: the liquid values are shared by every opening, so an older opening's load that ends last showed
+// what the game held before.
+test("liquid: a load from an earlier opening that ends after a newer one doesn't put old values back", async () => {
+    const info = game.gga.CauldronInfo;
+    const amount = Number(info[6][0]);
+    const realFetch = globalThis.fetch;
+    let release = () => {};
+    try {
+        const first = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        // The first opening's Refresh reads the game, and its answer comes back last.
+        const gate = new Promise((resolve) => (release = resolve));
+        let held = false;
+        globalThis.fetch = async (url, options) => {
+            const response = await realFetch(url, options);
+            if (!held && String(options?.body).includes('"gga.CauldronInfo"')) {
+                held = true;
+                await gate;
+            }
+            return response;
+        };
+        const refresh = buttonNamed(first, "Refresh");
+        click(refresh);
+        await until(() => held, "the first opening's read");
+        globalThis.fetch = realFetch;
+        info[6][0] = amount + 7; // the game moves on
+        const second = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+            rowNamed(root, "Water Droplets")
+        );
+        const input = inputs(rowNamed(second, "Water Droplets"))[0];
+        await until(() => shown(input) === String(amount + 7), "the newer opening's read");
+        release();
+        await until(() => notBusy(refresh), "the first opening's read to end");
+        assert.equal(shown(input), String(amount + 7), "the newer read stays");
+    } finally {
+        release();
+        globalThis.fetch = realFetch;
+        info[6][0] = amount;
     }
 });
