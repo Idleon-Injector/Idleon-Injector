@@ -368,13 +368,14 @@ const CompanionsTab = () => {
                 // Part of it may have landed: the cards show what is saved now.
                 onError: (error) => {
                     writeError.val = error.message;
-                    // A save started since is newer than this read: it keeps its own tokens.
+                    // A save started since is newer than this read: it keeps its own tokens and reads its own tiers.
                     const writes = selectionWrites;
                     void readComputed("companions", "petTokens")
                         .then((read) => {
-                            if (writes === selectionWrites) tokens.val = read;
+                            if (writes !== selectionWrites) return;
+                            tokens.val = read;
+                            return readSelection();
                         })
-                        .then(() => readSelection())
                         .catch(() => {});
                 },
             }

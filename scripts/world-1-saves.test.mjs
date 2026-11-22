@@ -471,8 +471,10 @@ test("pets: a failed save's token read that answers after a newer save doesn't b
     const realFetch = globalThis.fetch;
     let step = "first save";
     let release;
+    let staleReads = 0;
     const held = new Promise((resolve) => (release = resolve));
     globalThis.fetch = async (url, options) => {
+        if (step === "released" && /\/config$/.test(String(url)) && !options?.body) staleReads++;
         if (step === "first save" && /\/config$/.test(String(url))) {
             tokenInGame(9); // the first save's token write is refused
             step = "failed";
@@ -489,6 +491,10 @@ test("pets: a failed save's token read that answers after a newer save doesn't b
         await until(() => step === "held", "the failed save to read the tokens again");
         await flipToken(root, 2); // the newer save takes pet 2's token off
         assert.equal(g.OptionsListAccount[606], "9");
+        step = "released";
+        release();
+        for (let i = 0; i < 5; i++) await tick();
+        assert.equal(staleReads, 0, "the old save doesn't read the tiers again after a newer save");
     } finally {
         globalThis.fetch = realFetch;
         release();
