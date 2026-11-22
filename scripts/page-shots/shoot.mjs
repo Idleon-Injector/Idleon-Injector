@@ -281,7 +281,9 @@ async function main() {
             await evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
         };
 
-        await rm(args.out, { recursive: true, force: true });
+        // Only its own: the width folders, the diffs and the report. Anything else kept in the folder stays.
+        for (const own of [...WIDTHS.map(({ width }) => String(width)), "diff", "report.json"])
+            await rm(join(args.out, own), { recursive: true, force: true });
         for (const { width, height } of WIDTHS) {
             const metrics = (h) =>
                 Emulation.setDeviceMetricsOverride({ width, height: h, deviceScaleFactor: 1, mobile: false });
