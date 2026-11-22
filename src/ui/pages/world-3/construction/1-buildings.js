@@ -194,11 +194,15 @@ const stateLabel = (state) => {
 const isPlayerCog = (cogId) => String(cogId ?? "").startsWith("Player_");
 const isReadOnlyCog = (cogId) => isPlayerCog(cogId) || PREMIUM_COG_IDS.has(String(cogId ?? ""));
 
-const renderWriteStatus = (statusState, labels) => () => {
-    const status = statusState.val;
-    if (!status) return null;
-    return span({ class: `write-status write-status--${status}` }, labels[status] ?? "");
-};
+// One status line that stays in place, so assistive technology hears each change.
+const renderWriteStatus = (statusState, labels) =>
+    span(
+        {
+            class: () => `write-status${statusState.val ? ` write-status--${statusState.val}` : ""}`,
+            role: "status",
+        },
+        () => labels[statusState.val] ?? ""
+    );
 
 const cogsUiStore = {
     popupHost: null,
@@ -357,10 +361,8 @@ const CogsTab = () => {
         const next = unlock ? UNLOCKED_SENTINEL : 0;
         lockSlot.val = index;
         await runLockWrite(async () => {
-            const unlockPath = `FlagUnlock[${index}]`;
-            await writeVerified(unlockPath, next);
-            slotValues[index].val = next;
-
+            // The flag goes first: if that fails the slot is as it was, and if the slot's write fails the flag's
+            // removal stays, so the press can be tried again either way.
             if (flaggedSlots.val.has(index)) {
                 const arr = flagsRaw.val;
                 const pos = arr.findIndex((v) => toNum(v) === index);
@@ -375,6 +377,9 @@ const CogsTab = () => {
                     flaggedSlots.val = newFlagged;
                 }
             }
+
+            await writeVerified(`FlagUnlock[${index}]`, next);
+            slotValues[index].val = next;
         });
     };
 
@@ -872,16 +877,25 @@ const ConstructionBuildingsTab = () => {
     // Max only raises, so it runs on one press.
     const doMaxAll = async () => {
         await runMaxAll(async () => {
+            // The buildings whose level Max all writes; one at its max gets only its pending copy, and its row keeps
+            // what it shows (a save made meanwhile too).
+            const levelWritten = new Set();
             await runBulkSet({
                 entries: shown(),
                 getTargetValue: (building) => building.maxLevel,
                 getValueState: (building) => levelStates[building.index],
-                getWrites: ({ entry, currentValue, targetValue }) => [
-                    toNum(currentValue) !== targetValue
-                        ? { path: `TowerInfo[${entry.index}]`, value: targetValue }
-                        : null,
-                    { path: `TowerInfo[${entry.index + BUILDING_COUNT}]`, value: targetValue },
-                ],
+                getWrites: ({ entry, currentValue, targetValue }) => {
+                    if (toNum(currentValue) !== targetValue) levelWritten.add(entry.index);
+                    return [
+                        levelWritten.has(entry.index)
+                            ? { path: `TowerInfo[${entry.index}]`, value: targetValue }
+                            : null,
+                        { path: `TowerInfo[${entry.index + BUILDING_COUNT}]`, value: targetValue },
+                    ];
+                },
+                applyLocal: (building, _, targetValue) => {
+                    if (levelWritten.has(building.index)) levelStates[building.index].val = targetValue;
+                },
             });
         });
     };

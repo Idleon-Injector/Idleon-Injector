@@ -255,6 +255,29 @@ test("Printer's Clear leaves the row cleared when the game's quantity changed be
     assert.deepEqual(gga.Printer.slice(printerSlot(4), printerSlot(4) + 2), ["Blank", 0], "leaving saves nothing");
 });
 
+// Review of #207: a quantity typed while Clear wrote, then taken back with Escape, still counted as a newer draft, so
+// the row went on showing the item and quantity Clear had just taken out.
+test("Printer's Clear shows the slot empty when an edit made while it wrote was taken back with Escape", async (t) => {
+    const before = gga.Printer.slice();
+    t.after(() => gga.Printer.splice(0, before.length, ...before));
+    const root = await openPrinter();
+    const row = findRow(root, "Sample 4");
+    const input = inputs(row)[0];
+    assert.notEqual(gga.Printer[printerSlot(4)], "Blank");
+    const hold = holdWrites();
+    t.after(hold.release);
+
+    click(button(row, "Clear"));
+    await until(() => hold.held() === 1, "Clear's write to reach the game");
+    type(input, 77);
+    row.listeners.keydown({ key: "Escape", target: input, preventDefault() {} });
+    hold.release();
+    await until(() => saved(row), "Clear to end");
+    assert.deepEqual(gga.Printer.slice(printerSlot(4), printerSlot(4) + 2), ["Blank", 0]);
+    assert.ok(text(byClass(row, "row-opener")[0]).startsWith("Empty"), "the row shows the slot empty");
+    assert.equal(inputs(row)[0].value, "0");
+});
+
 // Review of #131: while an Undo's reload waited for another slot's write, an item picked on the undone row saved with
 // the quantity the row still showed, over the one the Undo put back.
 test("Printer saves nothing while an Undo's reload waits, then keeps the picked item with the game's quantity", async (t) => {

@@ -742,6 +742,119 @@ test("Cogs: Lock and Unlock wait for a read of the board that works", async () =
     assert.ok(!text(root).includes("Couldn't read the cog board"), "the board's failure clears");
 });
 
+// Review of #207: the status line was left out until the first Lock or Unlock, and then never came back.
+test("Cogs: the editor's status line says the Lock is saved", async () => {
+    const before = gga.FlagUnlock[5];
+    gga.FlagUnlock[5] = -11;
+    gga.CogOrder[5] = "Blank";
+    try {
+        const { popup, open } = await openCogs();
+        const status = byClass(popup, "write-status")[0];
+        assert.ok(status, "the status line is there before any Lock");
+        assert.equal(status.attributes.role, "status");
+        open(5);
+        const lock = buttonIn(popup, "Lock");
+        await until(() => !isDisabled(lock), "slot 5's Lock");
+        click(lock);
+        await until(() => text(status) === "Saved", "the status line to say Saved");
+        assert.equal(gga.FlagUnlock[5], 0);
+    } finally {
+        gga.FlagUnlock[5] = before;
+    }
+});
+
+// Review of #207: Unlock wrote the slot before its flag, so a flag the game didn't take stayed on an unlocked slot, and
+// Unlock couldn't be pressed again.
+test("Cogs: Unlock takes the flag off first, and either half failing leaves Unlock to try again", async () => {
+    const flagged = gga.FlagsPlaced[0];
+    const [flagsBefore, slotBefore, cogBefore] = [[...gga.FlagsPlaced], gga.FlagUnlock[flagged], gga.CogOrder[flagged]];
+    gga.FlagUnlock[flagged] = 2000;
+    gga.CogOrder[flagged] = "Blank";
+    try {
+        const { popup, open } = await openCogs();
+        open(flagged);
+        const unlock = buttonIn(popup, "Unlock");
+        await until(() => !isDisabled(unlock), "the flagged slot's Unlock");
+        const pressFailing = async (pattern) => {
+            // A failure shows for a moment; the next press waits for it to clear, so its own result is the one seen.
+            await until(() => !/account-btn--error/.test(classes(unlock)), "the last failure to clear");
+            const restore = failWrites(pattern);
+            try {
+                await quietly(async () => {
+                    click(unlock);
+                    await until(() => settledButton(unlock), "the Unlock to finish");
+                });
+            } finally {
+                restore();
+            }
+            assert.match(classes(unlock), /account-btn--error/);
+        };
+
+        await pressFailing(/FlagsPlaced/);
+        assert.deepEqual([gga.FlagsPlaced[0], gga.FlagUnlock[flagged]], [flagged, 2000], "nothing changed");
+        assert.ok(!isDisabled(unlock), "Unlock can be pressed again");
+
+        await pressFailing(/FlagUnlock/);
+        assert.deepEqual([gga.FlagsPlaced[0], gga.FlagUnlock[flagged]], [-1, 2000], "the flag is off, the slot not");
+        await until(() => !isDisabled(unlock), "Unlock to be free again");
+
+        click(unlock);
+        await until(() => gga.FlagUnlock[flagged] === -11, "the retried Unlock");
+        assert.equal(gga.FlagsPlaced[0], -1);
+    } finally {
+        gga.FlagsPlaced.splice(0, flagsBefore.length, ...flagsBefore);
+        gga.FlagUnlock[flagged] = slotBefore;
+        gga.CogOrder[flagged] = cogBefore;
+    }
+});
+
+// Review of #207: a building already at its max got only its pending copy from Max all, but its row still took the
+// max afterwards, over a level the player saved meanwhile.
+test("Buildings: Max all keeps a level saved meanwhile on a building it only wrote the pending copy of", async () => {
+    const levels = gga.TowerInfo.slice(0, 54);
+    const first = gga.CustomLists.h.TowerInfo[0][0].replace(/_/g, " ");
+    const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
+    const root = await openPage(COGS, (r) => byClass(r, "account-row").some((row) => nameOf(row) === first));
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === first);
+    click(buttonIn(root, "Buildings"));
+    const maxAll = buttonIn(root, "Max all");
+    const realFetch = globalThis.fetch;
+    let release = () => {};
+    try {
+        click(maxAll);
+        await until(() => settledButton(maxAll), "the first Max all");
+        const max = gga.TowerInfo[0];
+        // The next Max all's write waits; the row's own save goes through meanwhile.
+        const gate = new Promise((resolve) => (release = resolve));
+        let held = false;
+        globalThis.fetch = async (url, options) => {
+            if (held || !String(url).includes("/write")) return realFetch(url, options);
+            held = true;
+            await gate;
+            return realFetch(url, options);
+        };
+        click(maxAll);
+        await until(() => held, "Max all to reach the game");
+        await typeAndEnter(row, 5);
+        assert.equal(gga.TowerInfo[0], 5);
+        release();
+        await until(() => !/account-btn--loading/.test(classes(maxAll)), "Max all to finish");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const field = elements(row).find((node) => node.nodeName === "input");
+        assert.notEqual(max, 5);
+        const shown = field.attributes.value;
+        assert.equal(
+            String(typeof shown === "function" ? shown() : shown),
+            "5",
+            "the row shows the level the game holds"
+        );
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        gga.TowerInfo.splice(0, levels.length, ...levels);
+    }
+});
+
 test("Cogs: a Lock that fails while another slot is open shows when its slot is opened again", async () => {
     for (const index of [4, 9]) {
         gga.FlagUnlock[index] = -11;

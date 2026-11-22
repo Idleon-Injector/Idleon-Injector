@@ -231,6 +231,45 @@ for (const { page, levels, label } of [
         assert.equal(String(field.attributes.value), "4", "the row keeps its save");
     });
 
+    // Review of #207: the read answered with the level from before the row's save, so Reset all wrote 0 over the save.
+    test(`${label} Reset all doesn't write over a level the row saved while it read the game`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels].fill(0, 0, before.length);
+        gga[levels][0] = 2;
+        gga[levels][1] = 2;
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        const row = byClass(root, "account-row")[0];
+        const field = inputs(row)[0];
+        const realFetch = globalThis.fetch;
+        let release;
+        const gate = new Promise((resolve) => (release = resolve));
+        let held = false;
+        globalThis.fetch = (url, options) => {
+            if (!String(url).includes("/game/gga/read") || JSON.parse(options.body).path !== `gga.${levels}`) {
+                return realFetch(url, options);
+            }
+            held = true;
+            const answer = realFetch(url, options);
+            return gate.then(() => answer);
+        };
+        t.after(() => {
+            globalThis.fetch = realFetch;
+            release();
+        });
+
+        resetAll(root);
+        await until(() => held, "Reset all to read the levels");
+        type(field, 4);
+        enter(row, field);
+        await until(() => saved(row) && gga[levels][0] === 4, "the row's save");
+        release();
+        await until(() => gga[levels][1] === 0, "the reset of the other row");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.equal(gga[levels][0], 4, "the game keeps the row's save");
+        assert.equal(String(field.attributes.value), "4", "and the row shows it");
+    });
+
     test(`${label} shows the game's levels again when Reset all fails`, async (t) => {
         const before = gga[levels].slice();
         t.after(() => gga[levels].splice(0, before.length, ...before));

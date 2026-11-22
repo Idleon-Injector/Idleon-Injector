@@ -334,8 +334,8 @@ const PrinterTab = () => {
                 );
             }
             const now = draftsOf(state);
-            if (committed && now.edits !== committed.edits) {
-                // Typed while this save waited: the newer draft stays, for its own Enter to save.
+            // Typed while this save waited, and not taken back with Escape: the newer draft stays, for its own Enter.
+            if (committed && now.edits !== committed.edits && isDirty(state, now)) {
                 state.saved.val = { item, qty };
                 state.baseline = { item, qty };
                 state.dirty.val++;
