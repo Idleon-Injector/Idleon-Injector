@@ -821,7 +821,7 @@
 /* The character a page shows, on the line under the title: its name, the pick, and a short line about it. */
 .character-picker {
     position: relative;
-    flex: 1 1 100%;
+    flex: none;
     max-width: var(--page-measure);
     display: flex;
     flex-direction: column;
@@ -847,7 +847,10 @@
     animation: character-picker-in 180ms var(--ease-soft);
 }
 /* On the line under the title the list spans the page's own box, its names starting under "Character". */
+/* In a row (the toolbar) it takes the line; in a column (Player's levels) it stays one line tall, so the list opens
+   right under it. */
 .account-page-toolbar > .character-picker {
+    flex: 1 1 100%;
     max-width: calc(var(--page-measure) - 36px);
 }
 .account-page-toolbar > .character-picker .pick-in-place {
@@ -867,8 +870,8 @@
 }
 .character-picker .pick-in-place__options {
     display: grid;
-    /* Never more than four across, so a name and its class keep their room. */
-    grid-template-columns: repeat(auto-fill, minmax(max(8.5rem, calc(25% - 2px)), 1fr));
+    /* The columns follow the list's own width on every page: four at most, never fewer than two. */
+    grid-template-columns: repeat(auto-fill, minmax(max(min(8.5rem, calc(50% - 1px)), calc(25% - 2px)), 1fr));
     gap: 2px;
     max-height: none;
     overflow: visible;
@@ -882,6 +885,12 @@
     border-radius: 10px;
     overflow: hidden;
     white-space: nowrap;
+}
+/* On a phone the names sit a little closer to their edges, so the longest class ("Elemental Sorcerer") fits. */
+@media (max-width: 600px) {
+    .character-picker .pick-in-place__option {
+        padding: 6px 8px;
+    }
 }
 .pick-in-place__option-text {
     display: flex;
