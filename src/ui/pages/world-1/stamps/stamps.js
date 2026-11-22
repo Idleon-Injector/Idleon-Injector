@@ -42,7 +42,6 @@ import {
     sortPrefixedNumericCodes,
     useWriteStatus,
     writeManyVerified,
-    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -143,26 +142,26 @@ const StampsTab = () => {
     const readExaltedCodes = async () => (exaltedCodes.val = new Set(normalizeExaltedCodes(await gga("Compass[4]"))));
 
     // Every exalted stamp lives in one list, so flips save one at a time, each from the list the game holds now:
-    // a stamp exalted in the game, or by a flip still saving, isn't written over.
-    // The row's run is asked at once, so a level committed after the flip on that row still saves after it.
+    // a stamp exalted in the game, or by a flip still saving, isn't written over. The game refuses the write
+    // ("changed since") if the list changed after the read. Either way the switches then show what the game holds.
     const inTurn = oneAtATime();
+    const saveExalted = (change) =>
+        inTurn(async () => {
+            try {
+                const read = await gga("Compass[4]");
+                const next = new Set(normalizeExaltedCodes(read));
+                change(next);
+                await writeManyVerified([
+                    { path: "Compass[4]", value: [...next].sort(sortPrefixedNumericCodes), expect: read },
+                ]);
+                exaltedCodes.val = next;
+            } finally {
+                await readExaltedCodes().catch(() => {});
+            }
+        });
+    // The row's run is asked at once, so a level committed after the flip on that row still saves after it.
     const setExalted = (code, exalted, run) =>
-        run(
-            () =>
-                inTurn(async () => {
-                    try {
-                        const next = new Set(normalizeExaltedCodes(await gga("Compass[4]")));
-                        if (exalted) next.add(code);
-                        else next.delete(code);
-                        await writeVerified("Compass[4]", [...next].sort(sortPrefixedNumericCodes));
-                        exaltedCodes.val = next;
-                    } catch (error) {
-                        await readExaltedCodes().catch(() => {}); // the switch then shows what the game holds
-                        throw error;
-                    }
-                }),
-            "switch"
-        );
+        run(() => saveExalted((next) => (exalted ? next.add(code) : next.delete(code))), "switch");
 
     // Each stamp page is a tab; its rows live in its pane.
     const pageContainers = PAGES.map(() => div({ class: "account-page-pane" }));
@@ -233,17 +232,7 @@ const StampsTab = () => {
             const p = page();
             const codes = codesOn(p);
             return bulk.run(() =>
-                inTurn(async () => {
-                    try {
-                        const next = new Set(normalizeExaltedCodes(await gga("Compass[4]")));
-                        codes.forEach((code) => (exalted ? next.add(code) : next.delete(code)));
-                        await writeVerified("Compass[4]", [...next].sort(sortPrefixedNumericCodes));
-                        exaltedCodes.val = next;
-                    } catch (error) {
-                        await readExaltedCodes().catch(() => {});
-                        throw error;
-                    }
-                })
+                saveExalted((next) => codes.forEach((code) => (exalted ? next.add(code) : next.delete(code))))
             );
         };
 
