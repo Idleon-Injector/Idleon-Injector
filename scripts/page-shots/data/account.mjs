@@ -5,6 +5,7 @@
 import { wardrobeComputed, wardrobeDefinitions } from "../../wardrobe-fixture.mjs";
 import { fakeName, h, level, list, upgradeDefs, upgradeLevels } from "./helpers.mjs";
 import { MAPS, MONSTERS, PLAYERS } from "./shared.mjs";
+import { PREMIUM_HATS } from "./world-3-game.mjs";
 
 const WORLDS = 7;
 const TASKS = 8;
@@ -66,7 +67,7 @@ const built = (map, i) => [i + 1, i, 2, 40 * i, 12, 3, 0, 0, -1, -1, i % 3, 2222
 // Automation › Shops: nine town shops (two in W1 and W2, one in each later world) selling the shared items.
 const SHOP_MAPS = [1, 2, 51, 52, 101, 151, 201, 251, 301];
 const shopItems = (shop) =>
-    list(4 + (shop % 3), (i) => (i === 3 ? `EquipmentHatsPrem${shop + 1}` : `item${(shop * 3 + i) % 30}`));
+    list(4 + (shop % 3), (i) => (i === 3 ? PREMIUM_HATS[shop][0] : `item${(shop * 3 + i) % 30}`));
 
 // Grimoire › Automation: each upgrade's next level costs more bones the later it comes.
 const grimoireCost = (i) => Math.round(10 * 1.6 ** i);
@@ -150,7 +151,9 @@ export default () => ({
             StonePremSTR: stone("Premium_Stone", "Main_Stat,3"),
         }),
         PlayerDATABASE: h(
-            Object.fromEntries(PLAYERS.map((name, i) => [name, h({ ...attireSlot(WORN[i]), ...wardrobePlayer() })]))
+            Object.fromEntries(
+                PLAYERS.map((name, i) => [name, h({ ...attireSlot(WORN[i] ?? "Blank"), ...wardrobePlayer() })])
+            )
         ),
         // The live copy of the character in play (world-3.mjs sets its EquipmentOrder).
         EquipmentQuantity: [...attireSlot(WORN[0]).EquipmentQuantity.slice(0, 2), [25000, 800, ...list(14, () => 0)]],

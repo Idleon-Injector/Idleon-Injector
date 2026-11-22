@@ -936,9 +936,9 @@ test("reader: the Shops tab's switch read that a newer one overtook is dropped",
 test("walk: a refused save whose read-back fails still says why the save failed", async () => {
     refuseNextUpdates = 1;
     failNextConfigRead = true; // the read-back after the refusal
-    await checkbox(pickRow("Golden Crown Hat")).listeners.change({ target: { checked: true } });
-    await until(() => /save-state--error/.test(saveState("Golden Crown Hat")), "the failure");
-    assert.match(text(pickRow("Golden Crown Hat")), /busy/, "the refusal, not the read");
+    await checkbox(pickRow("Pink Headband")).listeners.change({ target: { checked: true } });
+    await until(() => /save-state--error/.test(saveState("Pink Headband")), "the failure");
+    assert.match(text(pickRow("Pink Headband")), /busy/, "the refusal, not the read");
     failNextConfigRead = false;
 });
 

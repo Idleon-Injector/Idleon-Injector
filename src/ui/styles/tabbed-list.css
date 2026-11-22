@@ -654,3 +654,277 @@
     width: var(--field-columns-width);
     padding-right: 54px; /* where a field's − / + sit (two 24px buttons and their 6px) */
 }
+
+/*
+ * A row that holds a list (a Death Note mob's characters, a trap set's traps): its name is the opener, plain text that
+ * reads like any row, with the focus ring when keyed to. What it opens spans the row, under it; the rows in it sit a
+ * step in, on the page's own ground, with no lines of their own.
+ */
+.row-opener {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    /* A row's height inside its padding (54px less 7px each side and its line): opened, the name stays where it was. */
+    min-height: 39px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.row-opener::after {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin-left: 2px;
+    border-right: 1.5px solid var(--c-text-muted);
+    border-bottom: 1.5px solid var(--c-text-muted);
+    transform: translateY(-2px) rotate(45deg);
+}
+.row-opener[aria-expanded="true"]::after {
+    transform: translateY(1px) rotate(-135deg);
+}
+.row-opener:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+.viewport .tabbed-list .account-row > .row-detail {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin: 2px 0 -6px;
+    border-radius: 10px;
+    background: var(--c-void);
+}
+.viewport .tabbed-list .row-detail > .account-row {
+    border-width: 0;
+    background: transparent;
+}
+.viewport .tabbed-list .row-detail > .account-row + .account-row {
+    border-top: 1px solid var(--c-hairline);
+}
+
+/*
+ * A pick that opens in place (PickInPlace): the opener is a soft filled shape like the tray's tools, with the pick in
+ * the page's own type and a small chevron; the list opens under it (or under its row) on the page's ground, the
+ * picked one in lavender. A search field narrows a long list as the player types.
+ */
+.pick-in-place__opener {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
+    height: 36px;
+    padding: 0 12px 0 14px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--c-panel-dim);
+    color: var(--c-text-main);
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.pick-in-place__opener:hover:not(:disabled) {
+    background: var(--c-well-hover);
+}
+.pick-in-place__opener:focus-visible,
+.pick-in-place__option:focus-visible,
+.pick-in-place__search:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+.pick-in-place__opener:disabled {
+    cursor: default;
+    color: var(--c-text-muted);
+}
+.pick-in-place__value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pick-in-place__opener::after {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--c-text-muted);
+    border-bottom: 1.5px solid var(--c-text-muted);
+    transform: translateY(-2px) rotate(45deg);
+}
+.pick-in-place__opener[aria-expanded="true"]::after {
+    transform: translateY(1px) rotate(-135deg);
+}
+.pick-in-place[hidden] {
+    display: none;
+}
+.pick-in-place {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 6px;
+    border-radius: 10px;
+    background: var(--c-void);
+}
+.pick-in-place__search {
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--c-panel-dim);
+    color: var(--c-text-main);
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+}
+.pick-in-place__search::placeholder {
+    color: var(--c-text-muted);
+}
+.pick-in-place__options {
+    display: flex;
+    flex-direction: column;
+    max-height: 16rem;
+    overflow-y: auto;
+}
+.pick-in-place__option {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--c-text-body);
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+.pick-in-place__option:hover {
+    background: var(--c-panel-hover);
+}
+.pick-in-place__option.is-picked {
+    color: var(--c-accent);
+    font-weight: 600;
+}
+.pick-in-place__none {
+    margin: 0;
+    padding: 8px 10px;
+    color: var(--c-text-muted);
+}
+
+/* The character a page shows, on the line under the title: its name, the pick, and a short line about it. */
+.character-picker {
+    position: relative;
+    flex: none;
+    max-width: var(--page-measure);
+    display: flex;
+    flex-direction: column;
+}
+/*
+ * The names open over the page, the way the top bar's results drop over it, so nothing below moves: the panel's
+ * colour with its hairline and the menu's shadow. An account holds at most 11 characters; they run in up to four
+ * columns (two on a phone), each with its class under it, with no scrolling.
+ */
+.character-picker .pick-in-place {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    margin-top: 0;
+    padding: 8px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-group);
+    background: var(--c-panel);
+    box-shadow: 0 14px 28px var(--c-black-50);
+    outline: none;
+    animation: character-picker-in 180ms var(--ease-soft);
+}
+/* On the line under the title the list spans the page's own box, its names starting under "Character". */
+/* In a row (the toolbar) it takes the line; in a column (Player's levels) it stays one line tall, so the list opens
+   right under it. */
+.account-page-toolbar > .character-picker {
+    flex: 1 1 100%;
+    max-width: calc(var(--page-measure) - 36px);
+}
+.account-page-toolbar > .character-picker .pick-in-place {
+    left: -18px;
+    right: -18px;
+}
+@keyframes character-picker-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .character-picker .pick-in-place {
+        animation: none;
+    }
+}
+.character-picker .pick-in-place__options {
+    display: grid;
+    /* The columns follow the list's own width on every page: four at most, never fewer than two. */
+    grid-template-columns: repeat(auto-fill, minmax(max(min(8.5rem, calc(50% - 1px)), calc(25% - 2px)), 1fr));
+    gap: 2px;
+    max-height: none;
+    overflow: visible;
+}
+.character-picker .pick-in-place__option {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 50px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+/* On a phone the names sit a little closer to their edges, so the longest class ("Elemental Sorcerer") fits. */
+@media (max-width: 600px) {
+    .character-picker .pick-in-place__option {
+        padding: 6px 8px;
+    }
+}
+.pick-in-place__option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+.pick-in-place__option-label,
+.pick-in-place__option-note {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pick-in-place__option-label {
+    color: var(--c-text-main);
+    font-weight: 600;
+}
+.pick-in-place__option-note {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.pick-in-place__option.is-picked .pick-in-place__option-label {
+    color: var(--c-accent);
+}
+.character-picker__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+}
+.character-picker__label,
+.character-picker__info {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}

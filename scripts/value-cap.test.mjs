@@ -181,12 +181,18 @@ test("stamps.js: the field shows the level alone, with no cap and no badge", asy
 test("library.js: a talent's field is its max level over the book cap, and its points aren't shown or read", async () => {
     const before = sent.length;
     const root = await openPage("src/ui/pages/world-3/library/library.js");
-    const bookCap = text(byClass(root, "library-maxbooklv__value")[0]);
+    const bookCap = text(root).match(/book cap \((\d+)\)/)[1];
+    // A talent is named once in the game's list, so its name finds its id.
+    const { normalCase } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const names = game.gga.CustomLists.h.TalentIconNames.map(normalCase);
     const row = byClass(root, "talent-row").find(
-        (candidate) => capOf(candidate) !== "" && text(badgeOf(candidate)) === ""
+        (candidate) =>
+            capOf(candidate) !== "" &&
+            text(badgeOf(candidate)) === "" &&
+            names.filter((name) => name === text(byClass(candidate, "account-row__name")[0])).length === 1
     );
     assert.ok(row, "a book talent is listed");
-    const talentId = Number(text(byClass(row, "account-row__index")[0]).slice(1));
+    const talentId = names.indexOf(text(byClass(row, "account-row__name")[0]));
 
     assert.equal(capOf(row), `/ ${bookCap}`, "the cap is what Max books sets");
     assert.equal(shown(row), String(game.gga.SkillLevelsMAX[talentId]), "the field is the max level");

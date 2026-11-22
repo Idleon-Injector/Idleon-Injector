@@ -4,107 +4,63 @@
  * Data sources:
  *   gga.Refinery[3..11][0]                    - current charge (salt stored)
  *   gga.Refinery[3..11][1]                    - level
- *   gga.ItemDefinitionsGET.h.Refinery1..9.h.displayName - refinery names
+ *   gga.ItemDefinitionsGET.h.Refinery1..9.h.displayName - salt names
  *
- * Notes:
- *   - Refineries 7-9 require the "Polymer Refinery" research to be unlocked in-game.
- *   - Refinery 9 (gga.Refinery[11]) is a placeholder and has no in-game effect yet.
+ * The refinery's three tabs as the game has them (Combustion, Synthesis, Polymerization, three salts each), one salt per
+ * line with its Level and Charge in the table's columns. Polymerization needs the "Polymer Refinery" research.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { readGgaEntries } from "../../../services/api.js";
-import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import {
-    NoticeBanner,
-    RefreshButton,
-    WarningBanner,
-} from "../../../components/views/account/components/AccountPageChrome.js";
+import { gga, readGgaEntries } from "../../../services/api.js";
+import { toIndexedArray } from "../../../utils/index.js";
+import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
+    createStaticRowReconciler,
     readLevelDefinitions,
     toNum,
-    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
 const REFINERY_COUNT = 9;
 const REFINERY_OFFSET = 3;
-const POLYMER_LOCK_FROM = 6;
-const PLACEHOLDER_INDEX = 8;
+// The game's refinery tabs, three salts (chambers) each.
+const TABS = [
+    { id: "combustion", label: "Combustion" },
+    { id: "synthesis", label: "Synthesis" },
+    { id: "polymerization", label: "Polymerization" },
+];
 
-const RefineryValueRow = ({ label, fieldIndex, gameIndex, valueState }) =>
-    EditableNumberRow({
-        valueState,
-        normalize: (rawValue) => {
-            const nextValue = Math.max(0, Math.round(Number(rawValue)));
-            return Number.isNaN(nextValue) ? null : nextValue;
-        },
-        write: async (nextValue) => {
-            const path = `Refinery[${gameIndex}][${fieldIndex}]`;
-            await writeVerified(path, nextValue);
-            return nextValue;
-        },
-        renderInfo: () => span({ class: "account-row__name" }, label),
-        controlsClass: "account-row__controls--xl",
-    });
+// A salt's two values as the game holds them.
+const saltValues = (raw, gameIndex) => {
+    const salt = toIndexedArray(toIndexedArray(raw)[gameIndex] ?? []);
+    return { level: toNum(salt[1]), charge: toNum(salt[0]) };
+};
 
-const RefinerySection = ({ refIndex, name, levelState, chargeState }) => {
+const SaltRow = ({ refIndex, name, states }) => {
     const gameIndex = refIndex + REFINERY_OFFSET;
-    const isPolymer = refIndex >= POLYMER_LOCK_FROM;
-    const isPlaceholder = refIndex === PLACEHOLDER_INDEX;
-    // The section names its state in plain words, like a switch's word: no box, no colour of its own.
-    const state = [isPolymer ? "Polymer" : "", isPlaceholder ? "Not in game" : ""].filter(Boolean).join(" · ");
-
-    return AccountSection({
-        title: typeof name === "function" ? () => `#${refIndex + 1} ${name()}` : `#${refIndex + 1} ${name}`,
-        meta: state ? span({ class: "refinery-section__state" }, state) : null,
-        body: [
-            RefineryValueRow({
-                label: "LEVEL",
-                fieldIndex: 1,
-                gameIndex,
-                valueState: levelState,
-            }),
-            RefineryValueRow({
-                label: "CHARGE",
-                fieldIndex: 0,
-                gameIndex,
-                valueState: chargeState,
-            }),
+    return ValueTableRow({
+        name,
+        info: span({ class: "account-row__name" }, name),
+        fields: [
+            { key: "level", label: "Level", valueState: states.level, paths: [`Refinery[${gameIndex}][1]`] },
+            { key: "charge", label: "Charge", valueState: states.charge, paths: [`Refinery[${gameIndex}][0]`] },
         ],
+        read: async () => saltValues(await gga("Refinery"), gameIndex),
     });
 };
 
 const RefineryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Refinery" });
-    const nameStates = Array.from({ length: REFINERY_COUNT }, (_, i) => van.state(`Refinery ${i + 1}`));
-    const levelStates = Array.from({ length: REFINERY_COUNT }, () => van.state(0));
-    const chargeStates = Array.from({ length: REFINERY_COUNT }, () => van.state(0));
-    const sectionsPerColumn = Math.ceil(REFINERY_COUNT / 3);
-    const grid = div(
-        { class: "refinery-grid grid-3col" },
-        ...Array.from({ length: 3 }, (_, columnIndex) =>
-            div(
-                { class: "refinery-col" },
-                ...Array.from({ length: sectionsPerColumn }, (_, offset) => {
-                    const index = columnIndex * sectionsPerColumn + offset;
-                    if (index >= REFINERY_COUNT) return null;
-                    return RefinerySection({
-                        refIndex: index,
-                        name: () => nameStates[index].val,
-                        levelState: levelStates[index],
-                        chargeState: chargeStates[index],
-                    });
-                }).filter(Boolean)
-            )
-        )
-    );
-    const body = div({ class: "scrollable-panel" }, grid);
+    const saltStates = Array.from({ length: REFINERY_COUNT }, () => ({ level: van.state(0), charge: van.state(0) }));
+    const listNodes = TABS.map(() => div());
+    const reconcilers = listNodes.map((node) => createStaticRowReconciler(node));
 
     const load = async () =>
         run(async () => {
@@ -115,49 +71,48 @@ const RefineryTab = () => {
                 selectLevels: (_, levels) => levels.slice(REFINERY_OFFSET, REFINERY_OFFSET + REFINERY_COUNT),
                 selectDefinitions: (nameEntries) => refineryKeys.map((key) => nameEntries[key]),
                 mapEntry: ({ rawDefinition, rawLevel, index }) => ({
-                    name: cleanName(rawDefinition?.displayName, `Refinery ${index + 1}`),
+                    name: cleanName(rawDefinition?.displayName, `Salt ${index + 1}`),
                     charge: toNum(rawLevel?.[0]),
                     level: toNum(rawLevel?.[1]),
                 }),
             });
 
-            for (let i = 0; i < REFINERY_COUNT; i++) {
-                nameStates[i].val = refineries[i].name;
-                chargeStates[i].val = refineries[i].charge;
-                levelStates[i].val = refineries[i].level;
-            }
+            TABS.forEach((_, tab) => {
+                const salts = refineries.slice(tab * 3, tab * 3 + 3);
+                reconcilers[tab](salts.map((salt) => salt.name).join("|"), () =>
+                    salts.map((salt, i) =>
+                        SaltRow({ refIndex: tab * 3 + i, name: salt.name, states: saltStates[tab * 3 + i] })
+                    )
+                );
+            });
+            refineries.forEach((salt, i) => {
+                saltStates[i].level.val = salt.level;
+                saltStates[i].charge.val = salt.charge;
+            });
         });
 
     load();
 
     return PersistentAccountListPage({
-        title: "W3 - REFINERY",
-        description: "Set refinery levels and salt charges.",
-        actions: RefreshButton({ onRefresh: load }),
-        topNotices: [
-            NoticeBanner(
-                { variant: "polymer" },
-                span(
-                    {},
-                    "Refineries 7-9 require the ",
-                    span({ class: "warning-banner__highlight" }, "Polymer Refinery"),
-                    " research to be unlocked in-game before they are available."
-                )
-            ),
-            WarningBanner(
-                span(
-                    {},
-                    "Refinery 9 is a ",
-                    span({ class: "warning-banner__highlight" }, "placeholder"),
-                    " - it does not exist in the game yet and setting it has no effect."
-                )
-            ),
-        ],
+        rootClass: "tab-container scroll-container",
+        title: "Refinery",
+        description: "Salt levels and charge. Polymerization needs the Polymer Refinery research.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING REFINERY",
-        errorTitle: "REFINERY READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the refinery",
+        errorTitle: "Couldn't read the refinery",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed refinery-table" },
+            TabbedList({
+                name: "Refinery",
+                tabs: TABS.map((tab, i) => ({
+                    id: tab.id,
+                    label: tab.label,
+                    content: [ValueTableHead({ name: "Salt", columns: ["Level", "Charge"] }), listNodes[i]],
+                })),
+            })
+        ),
     });
 };
 
@@ -166,6 +121,6 @@ export default definePage({
     world: 3,
     system: "Refinery",
     description: "Refinery salt charge and levels.",
-    keywords: ["Salts"],
+    keywords: ["Salts", "Polymer"],
     component: RefineryTab,
 });

@@ -53,6 +53,13 @@ const type = (input, value) => {
 };
 const enter = (row, input) => row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
 const saved = (row) => /save-state--(success|error)/.test(saveState(row));
+// Reset all takes levels away, so it asks in the tray first; the answer there resets them.
+const resetAll = (root) => {
+    const reset = button(root, "Reset all");
+    reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+    const yes = byClass(root, "tabbed-list__yes")[0];
+    yes.listeners.click({ currentTarget: yes, preventDefault() {} });
+};
 
 // Record each write-many's paths; with `fail`, the game answers it with an error.
 function watchWrites({ fail = false } = {}) {
@@ -149,10 +156,7 @@ for (const { page, levels, label } of [
         const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
         gga[levels][0] = 3; // bought in the game
 
-        const reset = button(root, "Reset all");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
-        assert.equal(reset.attributes["data-again"], "Click again");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        resetAll(root);
         await until(() => gga[levels][0] === 0, "the reset to reach the bought level");
         assert.ok(gga[levels].slice(0, before.length).every((level) => Number(level) === 0));
     });
@@ -166,11 +170,104 @@ for (const { page, levels, label } of [
         const writes = watchWrites();
         t.after(writes.restore);
 
-        const reset = button(root, "Reset all");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        resetAll(root);
         await until(() => gga[levels][1] === 0, "the reset");
         assert.deepEqual(writes.paths, [`gga.${levels}[1]`]);
+    });
+
+    // Review of #207: a row Reset all skipped (the game already held 0) went on showing its old level.
+    test(`${label} Reset all shows 0 on a row the game had already reset`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels].fill(0, 0, before.length);
+        gga[levels][0] = 5;
+        gga[levels][1] = 2;
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        const field = inputs(byClass(root, "account-row")[0])[0];
+        assert.equal(String(field.attributes.value), "5");
+        gga[levels][0] = 0; // reset in the game
+
+        resetAll(root);
+        await until(() => gga[levels][1] === 0, "the reset");
+        await until(() => String(field.attributes.value) === "0", "the skipped row to show 0");
+    });
+
+    // Review of #207: Reset all's read of the levels answered with the game before a row's save, so the row it skipped
+    // went back to that older level over the save.
+    test(`${label} Reset all keeps a level the row saved while Reset all read the game`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels].fill(0, 0, before.length);
+        gga[levels][1] = 2;
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        const row = byClass(root, "account-row")[0];
+        const field = inputs(row)[0];
+        // Reset all's read answers with the game as it was, but only once released.
+        const realFetch = globalThis.fetch;
+        let release;
+        const gate = new Promise((resolve) => (release = resolve));
+        let held = false;
+        globalThis.fetch = (url, options) => {
+            if (!String(url).includes("/game/gga/read") || JSON.parse(options.body).path !== `gga.${levels}`) {
+                return realFetch(url, options);
+            }
+            held = true;
+            const answer = realFetch(url, options);
+            return gate.then(() => answer);
+        };
+        t.after(() => {
+            globalThis.fetch = realFetch;
+            release();
+        });
+
+        resetAll(root);
+        await until(() => held, "Reset all to read the levels");
+        type(field, 4);
+        enter(row, field);
+        await until(() => saved(row) && gga[levels][0] === 4, "the row's save");
+        release();
+        await until(() => gga[levels][1] === 0, "the reset");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.equal(String(field.attributes.value), "4", "the row keeps its save");
+    });
+
+    // Review of #207: the read answered with the level from before the row's save, so Reset all wrote 0 over the save.
+    test(`${label} Reset all doesn't write over a level the row saved while it read the game`, async (t) => {
+        const before = gga[levels].slice();
+        t.after(() => gga[levels].splice(0, before.length, ...before));
+        gga[levels].fill(0, 0, before.length);
+        gga[levels][0] = 2;
+        gga[levels][1] = 2;
+        const root = await openPage(`src/ui/pages/world-3/${page}`, (r) => byClass(r, "account-row").length > 0);
+        const row = byClass(root, "account-row")[0];
+        const field = inputs(row)[0];
+        const realFetch = globalThis.fetch;
+        let release;
+        const gate = new Promise((resolve) => (release = resolve));
+        let held = false;
+        globalThis.fetch = (url, options) => {
+            if (!String(url).includes("/game/gga/read") || JSON.parse(options.body).path !== `gga.${levels}`) {
+                return realFetch(url, options);
+            }
+            held = true;
+            const answer = realFetch(url, options);
+            return gate.then(() => answer);
+        };
+        t.after(() => {
+            globalThis.fetch = realFetch;
+            release();
+        });
+
+        resetAll(root);
+        await until(() => held, "Reset all to read the levels");
+        type(field, 4);
+        enter(row, field);
+        await until(() => saved(row) && gga[levels][0] === 4, "the row's save");
+        release();
+        await until(() => gga[levels][1] === 0, "the reset of the other row");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.equal(gga[levels][0], 4, "the game keeps the row's save");
+        assert.equal(String(field.attributes.value), "4", "and the row shows it");
     });
 
     test(`${label} shows the game's levels again when Reset all fails`, async (t) => {
@@ -183,9 +280,7 @@ for (const { page, levels, label } of [
         const writes = watchWrites({ fail: true });
         t.after(writes.restore);
 
-        const reset = button(root, "Reset all");
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
-        reset.listeners.click({ currentTarget: reset, preventDefault() {} });
+        resetAll(root);
         await until(
             () => writes.paths.length > 0 && String(field.attributes.value) === "3",
             "the field to show the game's level again"
@@ -207,16 +302,46 @@ test("A prayer row's Max sets the prayer's max level", async () => {
     }
 });
 
+// Review of #207: Unequip all asked about one character, and once another was picked the answer unequipped that one.
+test("Prayers' Unequip all refuses once another character is picked than the one it asked about", async (t) => {
+    const first = gga.UserInfo[0];
+    const other = gga.GetPlayersUsernames.find((name) => name !== first);
+    // The other character has the same prayers on, so the answer would find them on that one too.
+    const otherOwn = [...db[other].h.Prayers];
+    db[other].h.Prayers.splice(0, 12, ...db[first].h.Prayers);
+    t.after(() => db[other].h.Prayers.splice(0, 12, ...otherOwn));
+    const [firstBefore, otherBefore] = [first, other].map((name) => [...db[name].h.Prayers]);
+    const root = await openPage("src/ui/pages/world-3/prayers/prayers.js", (r) => byClass(r, "prayer-row").length > 0);
+    const unequipAll = button(root, "Unequip all");
+    unequipAll.listeners.click({ currentTarget: unequipAll, preventDefault() {} });
+    await until(() => text(root).includes(`from ${first}?`), "the question to name the character picked");
+
+    const option = byClass(root, "pick-in-place__option").find(
+        (node) => text(byClass(node, "pick-in-place__option-label")[0]) === other
+    );
+    option.listeners.click({ currentTarget: option, preventDefault() {} });
+    const yes = byClass(root, "tabbed-list__yes")[0];
+    yes.listeners.click({ currentTarget: yes, preventDefault() {} });
+    await until(() => text(root).includes("Character changed") || db[other].h.Prayers[0] === -1, "Unequip all to end");
+    assert.deepEqual([...db[other].h.Prayers], otherBefore, `${other}'s prayers stay on`);
+    assert.deepEqual([...db[first].h.Prayers], firstBefore, `${first}'s prayers stay on too`);
+});
+
 test("Library: a save for one character that answers after a Refresh to another stays off the new rows", async () => {
     const [main, alt] = [gga.UserInfo[0], Object.keys(db).find((name) => name !== gga.UserInfo[0])];
     const levels = gga.SkillLevelsMAX;
     const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
         byClass(r, "talent-row").some((row) => inputs(row).length)
     );
-    const indexOf = (row) => text(byClass(row, "account-row__index")[0]);
-    const row = byClass(root, "talent-row").find((candidate) => inputs(candidate).length);
-    const talentId = Number(indexOf(row).slice(1));
-    const rowFor = () => byClass(root, "talent-row").find((candidate) => indexOf(candidate) === `#${talentId}`);
+    // A talent is named once in the game's list, so its name finds its id.
+    const { normalCase } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const names = gga.CustomLists.h.TalentIconNames.map(normalCase);
+    const nameOf = (candidate) => text(byClass(candidate, "account-row__name")[0]);
+    const row = byClass(root, "talent-row").find(
+        (candidate) => inputs(candidate).length && names.filter((name) => name === nameOf(candidate)).length === 1
+    );
+    const talentId = names.indexOf(nameOf(row));
+    const rowFor = () => byClass(root, "talent-row").find((candidate) => nameOf(candidate) === nameOf(row));
     const shown = () => String(inputs(rowFor())[0].attributes.value);
     levels[talentId] = 2;
     await button(root, "Refresh").listeners.click({});
