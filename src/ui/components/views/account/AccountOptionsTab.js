@@ -59,9 +59,20 @@ const createOptionRow = (index, rawValue, schema) => {
         prepare: () => {
             const nextValue = normalizeForWrite(editorType.val, currentValue.val);
             if (JSON.stringify(nextValue) === JSON.stringify(stored())) return { unchanged: true };
+            const path = `OptionsListAccount[${index}]`;
             return {
                 write: async () => {
-                    await writeVerified(`OptionsListAccount[${index}]`, nextValue);
+                    try {
+                        await writeVerified(path, nextValue);
+                    } catch (error) {
+                        // One value: it landed or it didn't (an answer can be lost after the game took it), and
+                        // reading it again says which. Unread, the row says the save's own failure.
+                        const now = await gga(path).catch(() => {
+                            throw error;
+                        });
+                        store.data.accountOptions[index] = now;
+                        if (JSON.stringify(now) !== JSON.stringify(nextValue)) throw error;
+                    }
                     store.data.accountOptions[index] = nextValue;
                 },
             };
@@ -90,18 +101,11 @@ const createOptionRow = (index, rawValue, schema) => {
                 checked: currentValue,
                 words: ["On", "Off"],
                 name: () => name.val,
-                // A save that fails or is refused puts the switch back to what the game holds (read again after a
-                // failure: the write may have landed). The row's own save state says why, so the switch doesn't.
+                // A save that fails or is refused puts the switch back to what the game holds (the save read it again
+                // after a failure). The row's own save state says why, so the switch doesn't.
                 onFlip: async (next) => {
                     currentValue.val = next;
                     const outcome = await save();
-                    if (outcome?.error) {
-                        try {
-                            store.data.accountOptions[index] = await gga(`OptionsListAccount[${index}]`);
-                        } catch {
-                            // ponytail: unread, it shows the last value read; the row already says it wasn't saved.
-                        }
-                    }
                     if (!outcome?.ok) currentValue.val = valueToDisplay(editorType.val, stored());
                 },
             });

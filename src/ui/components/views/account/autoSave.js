@@ -171,6 +171,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
 
     const track = async (task, by, failKind = null) => {
         settle("loading", "", by);
+        const at = commits;
         try {
             const result = await task();
             if (result?.cancelled) {
@@ -180,7 +181,9 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             settle("success", result?.warning ?? "", by);
             return { ok: true, result };
         } catch (error) {
-            settle("error", saveFailureReason(error), by, failKind);
+            // Escape took this save's draft back while it wrote: its failure isn't said (the caller still hears it).
+            if (by === "save" && at !== commits) settle(null, "", by);
+            else settle("error", saveFailureReason(error), by, failKind);
             return { ok: false, error };
         }
     };
