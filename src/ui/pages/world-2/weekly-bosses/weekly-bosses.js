@@ -361,6 +361,7 @@ const WeeklyBossTab = () => {
                 message.val = caughtError.message;
                 throw caughtError;
             } finally {
+                state.saving = undefined; // no pick is saving now: one queued since is the player's
                 busy.val = false;
             }
         });

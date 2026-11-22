@@ -279,6 +279,31 @@ test("weekly bosses: the picker follows the game when it changed the skin as the
     }
 });
 
+test("weekly bosses: a pick back to Default waiting behind the trophies after a Default save stays the player's", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { root, picker, picks } = await weeklyPicker();
+    const trophiesBefore = ola[188];
+    picker.listeners.change({ target: { value: "0" } }); // an earlier Default save
+    await until(() => String(weekly.set0) === "0", "the Default save");
+    await until(() => notBusy(buttonNamed(root, "Refresh")), "the page to settle");
+    const hold = holdWrites();
+    try {
+        enter(rowNamed(root, "Trophies"), Number(ola[188]) + 5);
+        await until(() => hold.held() > 0, "the trophies save to reach the game");
+        picker.listeners.change({ target: { value: picks.find((pick) => pick !== "0") } }); // waits behind the trophies
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        picker.listeners.change({ target: { value: "0" } }); // back to Default, saved after it
+        weekly.set0 = 2; // the game picks another skin meanwhile
+        hold.release();
+        await until(() => String(weekly.set0) === "0", "the player's Default to save");
+    } finally {
+        hold.release();
+        weekly.set0 = 2;
+        ola[188] = trophiesBefore;
+    }
+});
+
 test("weekly bosses: a skin unlocked while the trophies save is kept", async () => {
     const weekly = game.gga.WeeklyBoss.h;
     const switchOf = (row) => inputs(row).find((node) => node.attributes.role === "switch");

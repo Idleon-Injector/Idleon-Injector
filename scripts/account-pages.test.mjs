@@ -476,6 +476,49 @@ test("bundles: an Unbuy that fails while the read after another failure runs get
     }
 });
 
+test("bundles: the read after a failure that answers after another bundle's Unbuy landed doesn't show it owned again", async () => {
+    const root = await openPage(BUNDLES);
+    const received = gga.BundlesReceived.h;
+    const first = rowWith(root, "Unbuy");
+    const second = rowWith(root, "Buy");
+    const code = ownedFlag(second);
+    received[code] = 1; // a second owned bundle
+    await button(root, "Refresh").listeners.click({});
+    await until(() => button(second, "Unbuy"), "the second bundle to show owned");
+    const realFetch = globalThis.fetch;
+    let release;
+    const answer = new Promise((resolve) => (release = resolve));
+    let held = false;
+    let writes = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && ++writes === 1)
+            return new Response(JSON.stringify({ error: "the game refused" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        const response = await realFetch(url, options);
+        if (String(url).includes("/game/bundles") && !held) {
+            held = true; // the read after the first failure: the second bundle is still owned then
+            await answer;
+        }
+        return response;
+    };
+    try {
+        await button(first, "Unbuy").listeners.click({});
+        await until(() => held, "the read after the failure");
+        await button(second, "Unbuy").listeners.click({}); // lands
+        assert.ok(button(second, "Buy"));
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.ok(button(second, "Buy"), "the older read didn't put Unbuy back");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        received[code] = 0;
+        received[ownedFlag(first)] = 1;
+    }
+});
+
 test("bundles: Buy all ends when its ownership poll fails after another read showed a bundle owned", async () => {
     const root = await openPage(BUNDLES);
     const buyAll = elements(root).find(

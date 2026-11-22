@@ -195,17 +195,24 @@ const BundlesTab = () => {
         );
     };
 
-    // An older read answering after a newer one would put back what the game held before it.
+    // An older read answering after a newer one would put back what the game held before it, and so would a read
+    // that started before an Unbuy landed: that one reads again.
     let catalogReads = 0;
     let catalogShown = 0;
+    let unbuysLanded = 0;
     const refreshCatalog = async () => {
-        const read = ++catalogReads;
-        const catalog = await fetchBundleCatalog();
-        if (read > catalogShown) {
-            catalogShown = read;
-            applyCatalog(catalog);
+        // ponytail: at most three reads; Unbuys landing nonstop would show the third read.
+        for (let tries = 1; ; tries++) {
+            const read = ++catalogReads;
+            const landed = unbuysLanded;
+            const catalog = await fetchBundleCatalog();
+            if (landed !== unbuysLanded && tries < 3) continue;
+            if (read > catalogShown) {
+                catalogShown = read;
+                applyCatalog(catalog);
+            }
+            return catalogCache;
         }
-        return catalogCache;
     };
 
     const pollForOwnership = async (code, state) => {
@@ -356,6 +363,7 @@ const BundlesTab = () => {
                 // Unbuy is deliberately the only direct ownership write, and it can
                 // only write 0. writeVerified reads the flag back before this updates.
                 await writeVerified(bundlePath(bundle.code), 0);
+                unbuysLanded++;
                 state.owned.val = 0;
                 state.pending.val = false;
             },
