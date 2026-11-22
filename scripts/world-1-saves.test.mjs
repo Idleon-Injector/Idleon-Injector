@@ -54,6 +54,20 @@ const refuseWrites = (list, index) => {
     return () => Object.defineProperty(list, index, { value: kept, writable: true, configurable: true });
 };
 
+// The game changes something just before (or just after) the page's next request matching `route` reaches it.
+const onRequest = (route, act, { after = false } = {}) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (!route.test(String(url))) return realFetch(url, options);
+        globalThis.fetch = realFetch;
+        if (!after) act();
+        const response = await realFetch(url, options);
+        if (after) act();
+        return response;
+    };
+    return () => (globalThis.fetch = realFetch);
+};
+
 const pageRead = (root) =>
     !byClass(root, "account-page-shell__body").some((node) => classes(node).includes("is-hidden-until-ready"));
 const openPage = async (file, ready) => {
@@ -111,6 +125,39 @@ test("stamps: a refused exalt says why on the row and shows what the game holds"
     assert.equal(switchOf(row).checked, false);
     await tick();
     assert.equal(wordsOf(rowNamed(root, "Battleaxe Stamp")), "Exalted", "the page shows the game's own exalt too");
+});
+
+// #126 (from #122): a stamp the game exalts between the flip's read and its write isn't written over.
+test("stamps: a stamp the game exalts while a flip saves stays exalted, and the flip says why", async () => {
+    g.Compass[4] = ["_1", "a0", "b4"];
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Shield Stamp"));
+    const row = rowNamed(root, "Shield Stamp");
+    const restore = onRequest(/\/game\/gga\/write/, () => g.Compass[4].push("_9"));
+    try {
+        await flip(row, true);
+    } finally {
+        restore();
+    }
+    assert.deepEqual([...g.Compass[4]], ["_1", "a0", "b4", "_9"], "the game's exalt stays and nothing is written");
+    assert.equal(wordsOf(row), "changed since");
+    assert.equal(switchOf(row).checked, false);
+    await tick();
+    assert.equal(wordsOf(rowNamed(root, "Battleaxe Stamp")), "Exalted", "the page shows the game's own exalt");
+});
+
+// #126 (from #122): after a flip that worked, the switches show what the game holds, not the list the page wrote.
+test("stamps: after a flip saves, the page reads the exalts again", async () => {
+    g.Compass[4] = ["_1", "a0", "b4"];
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Shield Stamp"));
+    const restore = onRequest(/\/game\/gga\/write/, () => g.Compass[4].push("_9"), { after: true });
+    try {
+        await flip(rowNamed(root, "Shield Stamp"), true);
+    } finally {
+        restore();
+    }
+    assert.equal(wordsOf(rowNamed(root, "Shield Stamp")), "Exalted");
+    await tick();
+    assert.equal(wordsOf(rowNamed(root, "Battleaxe Stamp")), "Exalted", "the exalt the game added after the write");
 });
 
 const STATUES = "src/ui/pages/world-1/statues/statues.js";
@@ -340,6 +387,44 @@ test("pets: picking Off for a token the game dropped since leaves the pet off", 
     assert.equal(tierShown(root, 2), "Off");
     g.OptionsListAccount[606] = "2,5";
 });
+
+// #126 (from #122): a token the game adds while a click reads the config isn't dropped by the token write.
+test("pets: a token the game picks while a token removal reads the config stays, and the page says why", async () => {
+    g.OptionsListAccount[606] = "2";
+    const root = await openPage(PETS, (root) => petRow(root, 2));
+    const restore = onRequest(/\/config$/, () => tokenInGame(9));
+    try {
+        await flipToken(root, 2);
+    } finally {
+        restore();
+    }
+    assert.equal(g.OptionsListAccount[606], "2,9", "nothing is written over the game's new token");
+    await until(() => alertText(root) === "Tokens changed in the game. Try again.", "the reason");
+    await until(() => tierShown(root, 9) === "Normal", "the page to show the game's new token");
+    g.OptionsListAccount[606] = "2,5";
+});
+
+// #126 (from #122): Pets+ or Off on a pet the game gave a token since the press would leave a token pet at Pets+, or
+// not off; it is refused with the reason. Normal is what the token gives, so that press still goes through.
+for (const tier of ["Pets+", "Off"]) {
+    test(`pets: ${tier} on a pet the game gave a token since is refused, and says why`, async () => {
+        const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+        const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "12:0" } } } }); // pet 12 at Normal
+        g.OptionsListAccount[606] = "2";
+        try {
+            const root = await openPage(PETS, (root) => petRow(root, 12) && tierShown(root, 12) === "Normal");
+            tokenInGame(12);
+            await pickTier(root, 12, tier);
+            assert.equal(g.OptionsListAccount[606], "2,12");
+            assert.equal((await fetchConfig()).cheatConfig.w1.companion.companions, "12:0", "the tiers are unchanged");
+            await until(() => alertText(root) === "This pet has a token now.", "the reason");
+        } finally {
+            await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+            g.OptionsListAccount[606] = "2,5";
+        }
+    });
+}
 
 // Review of #122: the click read the saved tiers against the tokens the page had before, and dropped pet 2's Pets+.
 test("pets: a pick keeps a Pets+ pick saved for a pet whose token the game dropped since", async () => {
