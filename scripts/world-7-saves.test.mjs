@@ -447,3 +447,55 @@ test("Menagerie: Undo all after Unlock all takes back 'All 25 unlocks saved.'", 
     assert.equal(Menagerie[2][3], 0);
     assert.equal(unlockLine(root), "");
 });
+
+test("Spelunking Caves: a refused Remove stays red on its row when the game added an object meanwhile", async () => {
+    const removeButtons = (root) =>
+        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
+    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 0);
+    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
+    const before = [...Spelunk[6]];
+    const remove = removeButtons(root)[0];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/write")) return realFetch(url, options);
+        Spelunk[6].push("Rock_7_3"); // the game destroyed another object meanwhile
+        return new Response(JSON.stringify({ error: "the game refused" }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+        });
+    };
+    try {
+        remove.listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
+        await remove.listeners.click({ preventDefault() {} });
+        await until(() => removeButtons(root).length === before.length + 1, "the page to show the game's list");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.ok(removeButtons(root).includes(remove), "the row that asked is still on the page");
+    assert.match(classes(remove), /account-btn--error/);
+    Spelunk[6] = before;
+});
+
+test("Spelunking Caves: an Add or Remove the game no longer needs writes nothing and doesn't say saved", async () => {
+    const removeButtons = (root) =>
+        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
+    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 1);
+    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
+    const before = [...Spelunk[6]];
+    const start = requests.length;
+
+    const remove = removeButtons(root)[0];
+    Spelunk[6] = before.slice(1); // the game no longer lists it
+    remove.listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
+    await remove.listeners.click({ preventDefault() {} });
+    assert.doesNotMatch(classes(remove), /account-btn--success/, "no ✓ on Remove");
+
+    const add = buttonNamed(root, "Add");
+    await until(() => add.attributes.disabled === false, "Add to be ready");
+    const picked = elements(root).find((node) => node.nodeName === "select");
+    Spelunk[6] = [...Spelunk[6], String(picked.attributes.value)]; // the game destroyed it meanwhile
+    await add.listeners.click({ preventDefault() {} });
+    assert.doesNotMatch(classes(add), /account-btn--success/, "no ✓ on Add");
+    assert.deepEqual(writesSince(start), [], "nothing was written");
+    Spelunk[6] = before;
+});

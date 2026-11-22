@@ -126,6 +126,25 @@ test("markets: Raise on a level above its cap keeps the level and saves nothing"
     }
 });
 
+test("markets: a typed level above the cap is refused even below the stored level, and − still steps down", async () => {
+    game.gga.FarmUpg[2] = 99;
+    const root = await openPage("src/ui/pages/world-6/farming/2-markets.js", (r) => Boolean(rowAt(r, 2)));
+    const row = rowAt(root, 2);
+    const [field] = inputs(row);
+    const [lower] = buttons(row).filter((node) => text(node).trim() === "");
+    focus(field);
+    type(field, 98);
+    press(row, field, "Enter");
+    await settled(row);
+    assert.equal(stateOf(row), "error", "typing 98 over the cap of 20 is refused");
+    assert.equal(game.gga.FarmUpg[2], 99);
+
+    press(row, field, "Escape");
+    click(lower);
+    leave(row, field);
+    await until(() => game.gga.FarmUpg[2] === 98 && stateOf(row) === "success", "− to save 98");
+});
+
 test("omni jade: the next bonus-levels field stays usable while one saves, and both save", async () => {
     const levels = game.gga.Menagerie[7];
     const root = await openPage("src/ui/pages/world-6/sneaking/3-omni-jade.js", (r) => {

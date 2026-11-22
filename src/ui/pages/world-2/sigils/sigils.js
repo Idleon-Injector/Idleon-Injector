@@ -41,9 +41,11 @@ const getTierInfo = (value) => SIGIL_TIERS.find((tier) => tier.value === Number(
 const SigilCard = ({ index, tierState, nameState }) => {
     const tierInput = van.state(String(tierState.val));
     // Picking a tier saves it.
+    // The pick is taken when it's made: the derive below shows the game's tier once an earlier pick lands.
     const { status, reason, save, handlers, undo } = useAutoSave({
-        prepare: () => {
-            const tier = Math.min(4, Math.max(-1, Math.round(Number(tierInput.val))));
+        capture: () => tierInput.val,
+        prepare: (picked = tierInput.val) => {
+            const tier = Math.min(4, Math.max(-1, Math.round(Number(picked))));
             if (tier === Number(tierState.val)) return { unchanged: true };
             return {
                 write: async () => {

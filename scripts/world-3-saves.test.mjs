@@ -189,3 +189,46 @@ test("A prayer row's Max sets the prayer's max level", async () => {
         gga.PrayersUnlocked.splice(0, before.length, ...before);
     }
 });
+
+test("Library: a save for one character that answers after a Refresh to another stays off the new rows", async () => {
+    const [main, alt] = [gga.UserInfo[0], Object.keys(db).find((name) => name !== gga.UserInfo[0])];
+    const levels = gga.SkillLevelsMAX;
+    const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
+        byClass(r, "talent-row").some((row) => inputs(row).length)
+    );
+    const indexOf = (row) => text(byClass(row, "account-row__index")[0]);
+    const row = byClass(root, "talent-row").find((candidate) => inputs(candidate).length);
+    const talentId = Number(indexOf(row).slice(1));
+    const rowFor = () => byClass(root, "talent-row").find((candidate) => indexOf(candidate) === `#${talentId}`);
+    const shown = () => String(inputs(rowFor())[0].attributes.value);
+    levels[talentId] = 2;
+    await button(root, "Refresh").listeners.click({});
+    await until(() => shown() === "2", "the page to show level 2");
+
+    // The game takes Main's save at once; its answer reaches the page only after the Refresh to Alt.
+    const realFetch = globalThis.fetch;
+    let release;
+    const answer = new Promise((resolve) => (release = resolve));
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        if (String(url).includes("write-many")) await answer;
+        return response;
+    };
+    try {
+        type(inputs(row)[0], 3);
+        enter(row, inputs(row)[0]);
+        await until(() => levels[talentId] === 3, "Main's save to land");
+        gga.UserInfo[0] = alt;
+        gga.SkillLevelsMAX = Object.assign([...levels], { [talentId]: 1 });
+        await button(root, "Refresh").listeners.click({});
+        await until(() => shown() === "1", "Alt's rows");
+        release();
+        await until(() => saved(row), "Main's save to finish");
+        assert.equal(shown(), "1", "Alt's row still shows Alt's level");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        gga.UserInfo[0] = main;
+        gga.SkillLevelsMAX = levels;
+    }
+});

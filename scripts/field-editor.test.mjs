@@ -272,3 +272,39 @@ test("leaving a rounded field the reload changed while it had focus saves nothin
     );
     assert.equal(ola[253], 2345678);
 });
+
+// #117: save 2, queue 3, then type 2 without Enter: once 3 lands, the field keeps the 2 the player typed.
+test("a value typed after a queued Enter stays in the field when the queued save lands, even the one saved before", async () => {
+    const ola = game.gga.OptionsListAccount;
+    const before = ola[188];
+    ola[188] = 1;
+    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Trophies");
+    const row = findRow(root, "Trophies");
+    const [input] = inputs(row);
+    await until(() => shown(input) === "1", "the field to show 1");
+    const realFetch = globalThis.fetch;
+    const gates = [];
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) await new Promise((resolve) => gates.push(resolve));
+        return realFetch(url, options);
+    };
+    try {
+        focus(input);
+        type(input, 2);
+        press(row, input, "Enter");
+        await until(() => gates.length === 1, "the save of 2 to reach the game");
+        type(input, 3);
+        press(row, input, "Enter");
+        type(input, 2); // no Enter
+        gates[0]();
+        await until(() => gates.length === 2, "the save of 3 to reach the game");
+        gates[1]();
+        await until(() => ola[188] === 3 && stateOf(row) === "success", "3 to land");
+        await tick();
+        assert.equal(shown(input), "2", "the typed 2 stays");
+    } finally {
+        globalThis.fetch = realFetch;
+        gates.forEach((open) => open());
+        ola[188] = before;
+    }
+});

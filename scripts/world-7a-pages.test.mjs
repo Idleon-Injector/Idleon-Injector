@@ -156,6 +156,38 @@ test("Trophy Remove asks Click again first, and the second press clears the slot
     assert.deepEqual(gga.Spelunk[16], [-1, 2, -1, -1, -1, -1]);
 });
 
+test("a refused Trophy Remove stays red on its row", async () => {
+    gga.Spelunk[16] = [1, 2, -1, -1, -1, -1];
+    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
+        text(root).includes("CURRENT SLOTS")
+    );
+    const [first] = byClass(page, "account-row");
+    const remove = button(first, "Remove");
+    const click = (node) => node.listeners.click({ preventDefault() {} });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/write")
+            ? new Response(JSON.stringify({ error: "the game refused" }), {
+                  status: 500,
+                  headers: { "content-type": "application/json" },
+              })
+            : realFetch(url, options);
+    const realError = console.error;
+    console.error = () => {};
+    try {
+        click(remove);
+        await click(remove);
+        await until(() => /account-btn--error/.test(String(remove.attributes.class)), "the refusal to show");
+        await new Promise((resolve) => setTimeout(resolve, 50)); // the read after it
+    } finally {
+        globalThis.fetch = realFetch;
+        console.error = realError;
+    }
+    assert.ok(byClass(page, "account-row").includes(first), "the row that asked is still on the page");
+    assert.match(String(remove.attributes.class), /account-btn--error/);
+    assert.deepEqual(gga.Spelunk[16], [1, 2, -1, -1, -1, -1]);
+});
+
 test("Nametag 6 (the game's EquipmentNametag6b) has its row", async () => {
     gga.Spelunk[17][6] = 3;
     const page = await openPage("src/ui/pages/world-7/gallery/2-nametag.js", (root) =>

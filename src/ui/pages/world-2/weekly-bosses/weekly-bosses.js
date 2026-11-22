@@ -178,7 +178,9 @@ const WeeklyBossTab = () => {
                 playerStates.set(key, state);
             } else {
                 const state = playerStates.get(key);
-                if (resetDrafts || state.draft.val === state.value.val) state.draft.val = value;
+                // A pick still saving (or waiting its turn) is the player's, even when it equals what was stored.
+                if (!state.write.isBusy() && (resetDrafts || state.draft.val === state.value.val))
+                    state.draft.val = value;
                 state.value.val = value;
             }
         }

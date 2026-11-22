@@ -159,6 +159,94 @@ test("weekly bosses: a skin picked while the last pick saves is the one saved", 
     weekly.set0 = 2;
 });
 
+test("sigils: a second tier picked while the first saves is the one saved", async () => {
+    const tiers = game.gga.CauldronP2W[4];
+    tiers[1] = 0;
+    const root = await openPage("src/ui/pages/world-2/sigils/sigils.js", (root) =>
+        byClass(root, "sigil-tier-badge--unlocked").some((badge) => text(badge) === "UNLOCKED")
+    );
+    const picker = byClass(root, "tier-card__select")[0];
+    const hold = holdWrites();
+    try {
+        picker.listeners.change({ target: { value: "2" } });
+        await until(() => hold.held() > 0, "the first pick's save to reach the game");
+        picker.listeners.change({ target: { value: "3" } });
+        hold.release();
+        await until(() => tiers[1] === 3, "the second pick to save");
+    } finally {
+        hold.release();
+    }
+});
+
+const weeklyPicker = async () => {
+    const isPicker = (node) => node.nodeName === "select" && String(node.attributes["aria-label"]).includes("main-bar");
+    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
+        elements(root).some(isPicker)
+    );
+    const picker = elements(root).find(isPicker);
+    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
+    const picks = elements(picker)
+        .filter((node) => node.nodeName === "option" && !resolve(node.attributes.disabled))
+        .map((option) => String(resolve(option.attributes.value)))
+        .filter((pick) => pick !== "2" && pick !== "__unknown__");
+    return { root, picker, picks };
+};
+
+test("weekly bosses: a pick back to the stored skin is saved after a failed save the game changed meanwhile", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { picker, picks } = await weeklyPicker();
+    const [first, other] = picks;
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write") && held++ === 0) {
+            await gate;
+            return new Response(JSON.stringify({ error: "the game refused" }), {
+                status: 500,
+                headers: { "content-type": "application/json" },
+            });
+        }
+        return realFetch(url, options);
+    };
+    try {
+        picker.listeners.change({ target: { value: first } });
+        await until(() => held > 0, "the first pick's save to reach the game");
+        picker.listeners.change({ target: { value: "2" } }); // back to the stored skin
+        weekly.set0 = Number(other); // the game changed it meanwhile
+        release();
+        await until(() => String(weekly.set0) === "2", "the newer pick to save");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        weekly.set0 = 2;
+    }
+});
+
+test("weekly bosses: a pick waiting its turn survives a reload after an undo elsewhere", async () => {
+    const weekly = game.gga.WeeklyBoss.h;
+    weekly.set0 = 2;
+    const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
+    const { root, picker, picks } = await weeklyPicker();
+    const trophiesBefore = ola[188];
+    const hold = holdWrites();
+    try {
+        enter(rowNamed(root, "Trophies"), Number(ola[188]) + 5);
+        await until(() => hold.held() > 0, "the trophies save to reach the game");
+        picker.listeners.change({ target: { value: picks[0] } });
+        reloadPlace.val = { view: "", page: "" }; // an Undo elsewhere changed what this page shows
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        hold.release();
+        await until(() => String(weekly.set0) === picks[0], "the waiting pick to save");
+    } finally {
+        hold.release();
+        weekly.set0 = 2;
+        ola[188] = trophiesBefore;
+    }
+});
+
 test("weekly bosses: a skin unlocked while the trophies save is kept", async () => {
     const weekly = game.gga.WeeklyBoss.h;
     const switchOf = (row) => inputs(row).find((node) => node.attributes.role === "switch");

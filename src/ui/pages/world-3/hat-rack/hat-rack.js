@@ -39,6 +39,11 @@ const normalizeRackIds = (rawRack) =>
         .map((entry) => String(entry ?? "").trim())
         .filter((entry) => entry.length > 0);
 
+const isEligibleHat = (raw) => {
+    const def = unwrapH(raw);
+    return def?.Type === "PREMIUM_HELMET" && def?.typeGen === "aHelmetMTX";
+};
+
 const buildHatRackState = (rawRack, rawItemDefs) => {
     const itemDefs = rawItemDefs && typeof rawItemDefs === "object" ? rawItemDefs : {};
     const rack = normalizeRackIds(rawRack);
@@ -188,6 +193,15 @@ const HatRackTab = () => {
         await writeVerified(`${RACK_PATH}.length`, baseRack.length + items.length);
     };
 
+    // Every eligible hat on the rack goes in the Slab, so one an earlier add placed but couldn't add there (it
+    // failed between the two writes) is added by the next add.
+    const addToSlab = async (slab, rack) => {
+        const missing = rack.filter(
+            (id, i) => rack.indexOf(id) === i && !slab.includes(id) && isEligibleHat(itemDefsCache?.[id])
+        );
+        if (missing.length) await writeVerified(SLAB_HISTORY_PATH, [...slab, ...missing]);
+    };
+
     const removeAtIndex = async (index) => {
         if (mutating.val) return;
         const itemId = currentRackIds.val[index];
@@ -213,7 +227,7 @@ const HatRackTab = () => {
             change(async ({ rack, slab }) => {
                 if (rack.includes(itemId)) return { cancelled: true };
                 await appendToRack(rack, [itemId]);
-                if (!slab.includes(itemId)) await writeVerified(SLAB_HISTORY_PATH, [...slab, itemId]);
+                await addToSlab(slab, [...rack, itemId]);
             })
         );
     };
@@ -225,8 +239,7 @@ const HatRackTab = () => {
                 const toAdd = missingOptions.val.map((item) => item.itemId).filter((id) => !rack.includes(id));
                 if (toAdd.length === 0) return { cancelled: true };
                 await appendToRack(rack, toAdd);
-                const newInSlab = toAdd.filter((id) => !slab.includes(id));
-                if (newInSlab.length) await writeVerified(SLAB_HISTORY_PATH, [...slab, ...newInSlab]);
+                await addToSlab(slab, [...rack, ...toAdd]);
             })
         );
     };

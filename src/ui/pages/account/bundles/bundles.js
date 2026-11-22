@@ -195,8 +195,16 @@ const BundlesTab = () => {
         );
     };
 
+    // An older read answering after a newer one would put back what the game held before it.
+    let catalogReads = 0;
+    let catalogShown = 0;
     const refreshCatalog = async () => {
-        applyCatalog(await fetchBundleCatalog());
+        const read = ++catalogReads;
+        const catalog = await fetchBundleCatalog();
+        if (read > catalogShown) {
+            catalogShown = read;
+            applyCatalog(catalog);
+        }
         return catalogCache;
     };
 
@@ -226,9 +234,14 @@ const BundlesTab = () => {
         return pendingEntries;
     };
 
+    // After a failed Buy or Unbuy the game may hold either state, so the rows read it again (once for a Buy all).
+    let failureRead = null;
     const failed = (state, what, caughtError) => {
         console.error(`[bundles] ${what}:`, caughtError);
         state.said.say("failed", saveFailureReason(caughtError));
+        failureRead ??= refreshCatalog()
+            .catch(() => {}) // ponytail: the rows stay as they were; Refresh reads them again
+            .finally(() => (failureRead = null));
     };
 
     async function buyBundle(bundle, state) {
