@@ -218,15 +218,27 @@ export const renderAccountError = (message) => EmptyState({ failed: true, title:
  * Write a value through gga (or a compatible writer) and fail if verification
  * reports a mismatch. A value that lands goes in the change log (History, Undo).
  * With `character`, the game writes it only while that character is in play (as writeManyVerified).
+ * With `readBack`, a write whose answer failed reads the value again: one the game holds counts as landed (and is
+ * logged once); otherwise, or unread, the write's own error stands.
  */
-export const writeVerified = (path, value, { write = gga, character } = {}) => {
+export const writeVerified = (path, value, { write = gga, character, readBack = false } = {}) => {
     if (character !== undefined) return writeManyVerified([{ path, value }], { character }).then(() => value);
     // Claimed now, while the caller's code runs, so the save joins the user action that made it. A custom writer
     // (a row handing the write to its page) saves through writeVerified itself, so only the game write logs.
     const change = write === gga ? startChange([path]) : null;
     return (async () => {
         const before = change && (await change);
-        const ok = await write(path, value);
+        let ok;
+        try {
+            ok = await write(path, value);
+        } catch (error) {
+            if (!readBack) throw error;
+            const now = await gga(path).catch(() => {
+                throw error;
+            });
+            if (JSON.stringify(now) !== JSON.stringify(value)) throw error;
+            ok = true;
+        }
         if (!ok) throw new Error(`Write mismatch at ${path}`);
         if (before) await finishChange(before, [value]);
         return value;

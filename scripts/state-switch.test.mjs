@@ -1064,6 +1064,16 @@ test("account options: an on/off save whose answer was lost shows what the game 
         assert.equal(ola[index], false, "the game kept Off");
         await until(() => wordsOf(row) === "Off", "the switch to show Off, read back");
         assert.equal(saveWordsOf(row), "saved", "read back, not said as failed");
+        // The save landed, so History has it once, with the value from before it.
+        const { fetchChanges } = await importRepo("src/ui/services/api.js");
+        const logged = (await fetchChanges()).actions
+            .flatMap((action) => action.entries)
+            .filter((entry) => entry.path === `OptionsListAccount[${index}]`);
+        assert.deepEqual(
+            logged.map(({ before, after }) => ({ before, after })),
+            [{ before: true, after: false }],
+            "one History entry"
+        );
     } finally {
         restore();
         ola[index] = (index * 13) % 50;

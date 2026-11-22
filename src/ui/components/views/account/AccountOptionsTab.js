@@ -63,15 +63,12 @@ const createOptionRow = (index, rawValue, schema) => {
             return {
                 write: async () => {
                     try {
-                        await writeVerified(path, nextValue);
+                        // An answer can be lost after the game took the value: the read-back says it landed.
+                        await writeVerified(path, nextValue, { readBack: true });
                     } catch (error) {
-                        // One value: it landed or it didn't (an answer can be lost after the game took it), and
-                        // reading it again says which. Unread, the row says the save's own failure.
-                        const now = await gga(path).catch(() => {
-                            throw error;
-                        });
-                        store.data.accountOptions[index] = now;
-                        if (JSON.stringify(now) !== JSON.stringify(nextValue)) throw error;
+                        // It didn't land: the row shows what the game holds (unread, the last value read) and why.
+                        store.data.accountOptions[index] = await gga(path).catch(() => stored());
+                        throw error;
                     }
                     store.data.accountOptions[index] = nextValue;
                 },
