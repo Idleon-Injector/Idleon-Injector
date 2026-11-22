@@ -1,5 +1,5 @@
 /**
- * World 2 › Kangaroo › Automation: which Poppy and Tar Pit upgrades "automation poppy" and "automation tarpit" buy
+ * World 2 › Poppy › Automation: which Poppy and Tar Pit upgrades "automation poppy" and "automation tarpit" buy
  * (see ClickerAutomationTab).
  */
 
@@ -10,10 +10,10 @@ import { ClickerAutomationTab } from "../../../components/views/account/ClickerA
 export default definePage({
     id: "w2.kangaroo.automation",
     world: 2,
-    system: "Kangaroo",
+    system: "Poppy",
     tab: "Automation",
     description: "Poppy's and the Tar Pit's upgrades bought while her menu is open, each up to its stop-at level.",
-    keywords: ["Poppy", "Tar Pit", "Autobuy", "Auto buy", "Clicker", "Stop at"],
+    keywords: ["Kangaroo", "Poppy", "Tar Pit", "Autobuy", "Auto buy", "Clicker", "Stop at"],
     component: () =>
         ClickerAutomationTab({
             title: "AUTOMATION",

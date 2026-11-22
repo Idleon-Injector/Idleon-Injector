@@ -1,5 +1,5 @@
 /**
- * World 2 › Bubbles › Automation: which alchemy bubbles the bubble automation raises, with the game's own upgrade.
+ * World 2 › Alchemy › Automation: which alchemy bubbles the bubble automation raises, with the game's own upgrade.
  * Bubbles that have a max rise to one page-wide target % of it, the one furthest behind first; bubbles without a max
  * need a stop-at level, which also caps any bubble. A row pays with its materials, or with particles once the
  * particle buy is open for it. No priority and no saving.
@@ -174,9 +174,9 @@ const BubblesAutomationPage = () => {
 export default definePage({
     id: "w2.bubbles.automation",
     world: 2,
-    system: "Bubbles",
+    system: "Alchemy",
     tab: "Automation",
     description: "Alchemy bubbles raised with their own materials or particles, to a target % of their max.",
-    keywords: ["Autobuy", "Auto buy", "Auto upgrade", "Alchemy", "Particles", "Stop at"],
+    keywords: ["Bubbles", "Autobuy", "Auto buy", "Auto upgrade", "Alchemy", "Particles", "Stop at"],
     component: BubblesAutomationPage,
 });

@@ -207,7 +207,8 @@ const SigilTab = () => {
 export default definePage({
     id: "w2.sigils",
     world: 2,
-    system: "Sigils",
+    system: "Alchemy",
+    tab: "Sigils",
     description: "Each sigil's tier, from locked to eclectic.",
     keywords: ["Alchemy", "Unlocked", "Boosted", "Ionized", "Ethereal", "Eclectic"],
     component: SigilTab,

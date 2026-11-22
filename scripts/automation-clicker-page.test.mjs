@@ -1,4 +1,4 @@
-// World 1 › Owl › Automation and World 2 › Kangaroo › Automation (#92) on the fake game. Each upgrade row shows its
+// World 1 › Owl › Automation and World 2 › Poppy › Automation (#92) on the fake game. Each upgrade row shows its
 // level, next cost or what unlocks it, a stop-at level, High / Low / Balanced and a switch; the saving % has its own
 // row. Every change saves cheatConfig.automation.<clicker> (and <clicker>Saving) to the game and the config file;
 // switching an upgrade on switches its automation on; a save the game refuses puts the row back, says why at the row,
@@ -256,7 +256,7 @@ test("Disable all asks Click again, then switches every upgrade off and keeps th
     assert.equal(sent("orion").find(({ id }) => id === "3").priority, 2, "Low stays");
 });
 
-const kangaroo = (await importRepo("src/ui/pages/world-2/kangaroo/2-automation.js")).default.component();
+const kangaroo = (await importRepo("src/ui/pages/world-2/poppy/2-automation.js")).default.component();
 await until(() => row(kangaroo, "Slick Hook"), "the Kangaroo's Automation tab to load");
 
 test("the Kangaroo tab has Poppy and the Tar Pit, each with its own switch, currency and saving %", () => {

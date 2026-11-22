@@ -303,7 +303,7 @@ const BubblesTab = () => {
 export default definePage({
     id: "w2.bubbles",
     world: 2,
-    system: "Bubbles",
+    system: "Alchemy",
     tab: "Bubbles",
     description: "Bubble levels and prisma bubbles in all four cauldrons.",
     keywords: ["Alchemy", "Brewing", "Prisma", "Orange", "Green", "Purple", "Yellow"],

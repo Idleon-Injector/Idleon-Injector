@@ -117,7 +117,7 @@ test("a bulk action is one action, and Undo all puts every value back", async ()
     cauldron.forEach((_, i) => (cauldron[i] = i % 7));
     const before = [...cauldron];
     const root = await openPage(
-        "src/ui/pages/world-2/vials/vials.js",
+        "src/ui/pages/world-2/alchemy/3-vials.js",
         (node) => byClass(node, "account-row").length > 3
     );
     const setAll = byClass(root, "account-setall-row")[0];

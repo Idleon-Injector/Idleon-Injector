@@ -155,7 +155,8 @@ const VialTab = () => {
 export default definePage({
     id: "w2.vials",
     world: 2,
-    system: "Vials",
+    system: "Alchemy",
+    tab: "Vials",
     description: "Vial levels.",
     keywords: ["Alchemy"],
     component: VialTab,

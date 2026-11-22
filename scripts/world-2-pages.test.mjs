@@ -132,7 +132,7 @@ test("sigils: a tier for all asks before it lowers any sigil, and raising runs o
             (node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true" && text(node) === label
         );
     const root = await openPage(
-        "src/ui/pages/world-2/sigils/sigils.js",
+        "src/ui/pages/world-2/alchemy/4-sigils.js",
         (root) => picked(root, "Ethereal").length === 24
     );
     const all = (tier) => Array.from({ length: 24 }, (_, i) => tiers[2 * i + 1]).every((value) => value === tier);
@@ -271,7 +271,7 @@ test("islands: Set all asks before it lowers an upgrade, and an empty field writ
     openTab(root, "Islands");
 });
 
-const BUBBLES = "src/ui/pages/world-2/bubbles/1-bubbles.js";
+const BUBBLES = "src/ui/pages/world-2/alchemy/1-bubbles.js";
 const orangeRows = (root) => byClass(paneOf(root, "orange"), "account-row");
 
 test("bubbles: two Prisma switches flipped close together both stay Prisma (they share one string)", async () => {
@@ -372,7 +372,7 @@ test("vials: Set all with an empty field writes nothing, lowering asks first, ra
     const levels = game.gga.CauldronInfo[4];
     for (let i = 0; i < levels.length; i++) levels[i] = 13;
     const root = await openPage(
-        "src/ui/pages/world-2/vials/vials.js",
+        "src/ui/pages/world-2/alchemy/3-vials.js",
         (root) => byClass(root, "account-row").length > 4
     );
     const shownRows = byClass(root, "account-row").length;
@@ -403,7 +403,7 @@ test("vials: a vial saved while Set all runs keeps the level it saved (Set all l
     for (let i = 0; i < levels.length; i++) levels[i] = 2;
     levels[0] = 13;
     const root = await openPage(
-        "src/ui/pages/world-2/vials/vials.js",
+        "src/ui/pages/world-2/alchemy/3-vials.js",
         (root) => byClass(root, "account-row").length > 4
     );
     const [row, other] = byClass(root, "account-row");
@@ -425,7 +425,7 @@ test("vials: a vial saved while Set all runs keeps the level it saved (Set all l
 
 test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the game shows as it is", async () => {
     ola[123] = 2;
-    const root = await openPage("src/ui/pages/world-2/cauldrons/pay-2-win.js", (root) =>
+    const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
         rowNamed(root, "Draconic cauldrons")
     );
     const row = rowNamed(root, "Draconic cauldrons");
@@ -444,7 +444,7 @@ test("pay 2 win: a draconic count past 4 is refused, and a count past 4 in the g
 test("pay 2 win: Raise on a count past 4 leaves it, and Lower takes one off and saves it", async () => {
     ola[123] = 9;
     const root = await openPage(
-        "src/ui/pages/world-2/cauldrons/pay-2-win.js",
+        "src/ui/pages/world-2/alchemy/2-cauldrons.js",
         (root) => rowNamed(root, "Draconic cauldrons") && shown(inputs(rowNamed(root, "Draconic cauldrons"))[0]) === "9"
     );
     const row = rowNamed(root, "Draconic cauldrons");
@@ -516,7 +516,9 @@ test("post office: Max all runs on one press, and Reset all asks in the tray", a
 
 test("liquid: a connection lost while CAP UPGRADE saves writes neither of its two copies", async () => {
     const info = game.gga.CauldronInfo;
-    const root = await openPage("src/ui/pages/world-2/cauldrons/liquid.js", (root) => rowNamed(root, "Water Droplets"));
+    const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>
+        rowNamed(root, "Water Droplets")
+    );
     const row = rowNamed(root, "Water Droplets"); // its Cap upgrade is the line's second field
     const cap = info[8][4][2][1];
     const copy = ola[371];

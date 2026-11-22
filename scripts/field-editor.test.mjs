@@ -230,7 +230,7 @@ test("a reload shows the new value in a field that has focus but no edit, and + 
 test("a focused choice shows the tier Set all gave it", async () => {
     const tiers = game.gga.CauldronP2W[4];
     tiers[1] = 0;
-    const root = (await importRepo("src/ui/pages/world-2/sigils/sigils.js")).default.component();
+    const root = (await importRepo("src/ui/pages/world-2/alchemy/4-sigils.js")).default.component();
     const attr = (node, name) =>
         typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
     const row = () =>
