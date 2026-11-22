@@ -327,6 +327,8 @@ const StatuesTab = () => {
 
     const tools = (_activeId, ask) => {
         // `question(n)` for the `lowered()` statues; a row saved while it asks can change them, and then it asks again.
+        // The list starts with the character it was asked for: a Refresh that read another one asks again too, even
+        // when the same statues would come down.
         const askOrRun = ({ lowered, question, from, change }) => {
             const n = lowered().length;
             if (!n) return void change();
@@ -334,7 +336,7 @@ const StatuesTab = () => {
                 question: question(n),
                 confirmLabel: n === 1 ? "Lower it" : "Lower them",
                 from,
-                lowers: lowered,
+                lowers: () => [character, ...lowered()],
                 again: () => askOrRun({ lowered, question, from, change }),
                 onConfirm: change,
             });

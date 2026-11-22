@@ -333,6 +333,43 @@ test("statues: names show the game's underscores as spaces, in normal case", asy
     assert.equal(text(byClass(statueRow(root, 7), "account-row__name")[0]), "Thicc Skin");
 });
 
+// CodeRabbit on #212: a Set all question asked for one character, answered after Refresh read another whose same
+// statues would come down, asks again for that one instead of lowering its statues unasked.
+test("statues: a Set all question asks again once Refresh has read another character", async () => {
+    const saved = [g.StatueLevels.map((entry) => [...entry]), g.UserInfo[0]];
+    g.StatueLevels.forEach((entry) => (entry[0] = 3));
+    g.StatueLevels[0][0] = 10;
+    try {
+        const root = await openPage(STATUES, (root) => statueRow(root, 0));
+        const label = () => text(byClass(root, "tabbed-list__tools-label")[0]);
+        const control = byClass(root, "account-setall-row")[0];
+        const apply = elements(control).find((node) => node.nodeName === "button" && text(node).trim() === "Set all");
+        control.querySelector = () => apply; // the fake DOM has no selectors; the page asks for its button
+        elements(control)
+            .find((node) => node.nodeName === "input")
+            .listeners.input({ target: { value: "5" } });
+        await tick();
+        await apply.listeners.click({ preventDefault() {} });
+        await until(() => label() === "Lower 1 statue to level 5?", "the question");
+        g.UserInfo[0] = "Lumi_Alt"; // another character, whose first statue is above 5 too
+        const refresh = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Refresh");
+        await refresh.listeners.click({ preventDefault() {}, currentTarget: refresh });
+        await until(() => !refresh.attributes.disabled, "the other character's read");
+        const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+        const before = writes();
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await tick();
+        assert.equal(label(), "Lower 1 statue to level 5?", "it asks again");
+        assert.equal(writes(), before, "nothing was written");
+        assert.equal(g.StatueLevels[0][0], 10);
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await until(() => g.StatueLevels[0][0] === 5, "the answer for the character now in play");
+    } finally {
+        g.StatueLevels.forEach((entry, i) => (entry[0] = saved[0][i][0]));
+        g.UserInfo[0] = saved[1];
+    }
+});
+
 const PETS = "src/ui/pages/world-1/pets/pets.js";
 // A pet is a row: its tier is a step picker (Off | Normal | Pets+), its token a switch.
 const petRow = (root, id) =>
