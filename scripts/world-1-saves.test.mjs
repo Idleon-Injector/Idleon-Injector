@@ -629,3 +629,54 @@ test("star signs: the row's switch moves star points by what a sign gives, so po
         g.OptionsListAccount[40] = savedPoints;
     }
 });
+
+// A tray question counts the rows the top bar's search shows when it is asked; a new search drops it, so Yes never
+// acts on rows the player wasn't asked about.
+const { searchHits } = await importRepo("src/ui/menu/pageSearch.js");
+const trayLabel = (root) => text(byClass(root, "tabbed-list__tools-label")[0]);
+const levelWrites = () => requests.filter((entry) => entry.includes("/write") && entry.includes("StampLevel")).length;
+
+test("stamps: a Set all question is dropped when the page search changes", async () => {
+    const saved = g.StampLevel[0].map((level) => level);
+    g.StampLevel[0] = saved.map(() => 3);
+    try {
+        const root = await openPage(STAMPS, (root) => rowNamed(root, "Mana Stamp"));
+        const control = byClass(root, "account-setall-row")[0];
+        const apply = elements(control).find((node) => node.nodeName === "button" && text(node).trim() === "Set all");
+        control.querySelector = () => apply; // the fake DOM has no selectors; the page asks for its button
+        elements(control)
+            .find((node) => node.nodeName === "input")
+            .listeners.input({ target: { value: "0" } });
+        await tick();
+        await apply.listeners.click({ preventDefault() {} });
+        await until(() => trayLabel(root).startsWith("Lower "), "the question");
+        searchHits.val = new Set();
+        await until(() => !trayLabel(root).startsWith("Lower "), "the question to drop");
+        const before = levelWrites();
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await tick();
+        assert.equal(levelWrites(), before, "a dropped question changes nothing");
+    } finally {
+        searchHits.val = null;
+        g.StampLevel[0] = saved;
+    }
+});
+
+test("star signs: a Reset all question is dropped when the page search changes", async () => {
+    const saved = [...g.StarSignProg[2]];
+    g.StarSignProg[2] = ["_", 0];
+    try {
+        const root = await openPage(STAR_SIGNS, signsReady);
+        const reset = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Reset all");
+        reset.listeners.click({ preventDefault() {} });
+        await until(() => trayLabel(root).startsWith("Reset "), "the question");
+        searchHits.val = new Set();
+        await until(() => !trayLabel(root).startsWith("Reset "), "the question to drop");
+        await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+        await tick();
+        assert.equal(g.StarSignProg[2][0], "_", "a dropped question changes nothing");
+    } finally {
+        searchHits.val = null;
+        g.StarSignProg[2] = saved;
+    }
+});
