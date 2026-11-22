@@ -8,6 +8,9 @@
  *
  * Eligible hats:
  *   Type === "PREMIUM_HELMET" && typeGen === "aHelmetMTX"
+ *
+ * One list of every premium hat, each with an On rack switch, then any other hat the rack holds. Add all sits in the
+ * tray and puts the hats the top bar's search shows on the rack.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -15,20 +18,23 @@ import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { AddFromListSection } from "../../../components/views/account/components/AddFromListSection.js";
-import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import {
     cleanName,
-    createKeptRows,
+    createStaticRowReconciler,
+    oneAtATime,
     unwrapH,
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { toIndexedArray } from "../../../utils/index.js";
 
-const { div } = van.tags;
+const { div, span } = van.tags;
 
 const RACK_PATH = "Spelunk[46]";
 const SLAB_HISTORY_PATH = "Cards[1]";
@@ -80,57 +86,57 @@ const buildHatRackState = (rawRack, rawItemDefs) => {
     };
 };
 
-const RackRow = ({ row, onRemove }) => {
-    return RemovableStoredRow({
-        index: row.index,
-        primaryLabel: row.name,
-        fallbackLabel: row.itemId,
-        secondaryLabel: row.itemId,
-        badge: "On rack",
+// One hat: its name, and an On rack switch that puts it on the rack or takes it off.
+const HatRow = ({ hat, isOn, onFlip }) =>
+    AccountRow({
         rowClass: "hat-rack-row",
-        nameGroupClass: "hat-rack-row__name-group",
-        onRemove,
-        isBusy: onRemove.isBusy,
+        rowProps: { "data-item": hat.itemId },
+        info: span({ class: "account-row__name" }, hat.name),
+        badge: hat.eligible ? null : "Not a premium hat",
+        controls: StateSwitch({
+            checked: isOn,
+            words: ["On rack", ""],
+            name: `${hat.name} on rack`,
+            ownStatus: true,
+            onFlip,
+        }),
     });
-};
 
 const HatRackTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Hat Rack" });
     const currentRackIds = van.state([]);
-    const rackRows = van.state([]);
-    const missingOptions = van.state([]);
-    const selectedAddItemId = van.state("");
-    const eligibleCount = van.state(0);
-    const onRackCount = van.state(0);
-    const missingCount = van.state(0);
-    const rackCount = van.state(0);
-    const mutating = van.state(false);
-
-    const { status: addStatus, run: runAdd } = useWriteStatus();
+    const hats = van.state([]);
+    const bulk = useWriteStatus();
+    // Changes run one at a time, each from the lists the game holds when its turn comes.
+    const inTurn = oneAtATime();
+    const listNode = div({ class: "account-page-pane" });
+    const reconcileRows = createStaticRowReconciler(listNode);
+    const rowOf = new Map();
     let itemDefsCache = null;
-    let scrollEl = null;
-
-    const withPreservedScroll = (fn) => {
-        const prevTop = scrollEl?.scrollTop ?? 0;
-        fn();
-        requestAnimationFrame(() => {
-            if (scrollEl) scrollEl.scrollTop = prevTop;
-        });
-    };
 
     const applyRackState = (rackIds) => {
         const result = buildHatRackState(rackIds, itemDefsCache);
         currentRackIds.val = [...normalizeRackIds(rackIds)];
-        rackRows.val = result.rack;
-        missingOptions.val = result.missingFromRack;
-        eligibleCount.val = result.eligible.length;
-        onRackCount.val = result.onRack.length;
-        missingCount.val = result.missingFromRack.length;
-        rackCount.val = result.rack.length;
-
-        if (!result.missingFromRack.some((item) => item.itemId === selectedAddItemId.val)) {
-            selectedAddItemId.val = result.missingFromRack[0]?.itemId ?? "";
-        }
+        // Every premium hat, then any other hat the rack holds.
+        const eligibleIds = new Set(result.eligible.map((entry) => entry.itemId));
+        const next = [
+            ...result.eligible.map((entry) => ({ itemId: entry.itemId, name: entry.name, eligible: true })),
+            ...result.rack
+                .filter((entry) => !eligibleIds.has(entry.itemId))
+                .map((entry) => ({ itemId: entry.itemId, name: entry.name || entry.itemId, eligible: false })),
+        ];
+        reconcileRows(next.map((entry) => entry.itemId).join("|"), () =>
+            next.map((entry) => {
+                const row = HatRow({
+                    hat: entry,
+                    isOn: () => currentRackIds.val.includes(entry.itemId),
+                    onFlip: (on) => (on ? addHats([entry.itemId]) : removeHat(entry.itemId)),
+                });
+                rowOf.set(entry.itemId, row);
+                return row;
+            })
+        );
+        hats.val = next;
     };
 
     const load = async () => {
@@ -153,33 +159,30 @@ const HatRackTab = () => {
     const readLists = async () => {
         const [rawRack, rawSlab] = await Promise.all([gga(RACK_PATH), gga(SLAB_HISTORY_PATH)]);
         if (rawRack === null || rawRack === undefined || rawSlab === null || rawSlab === undefined) {
-            throw new Error("Hat Rack or Slab history is unavailable. Refresh to try again.");
+            throw new Error("Couldn't read the rack. Refresh.");
         }
         return { rack: normalizeRackIds(rawRack), slab: normalizeRackIds(rawSlab) };
     };
 
-    // After any outcome the page shows what the game holds. A row whose hat and place are unchanged keeps its node,
-    // so a failed removal still has its row to say so.
+    // After any outcome the page shows what the game holds.
     const showGame = async () => {
         try {
             const { rack } = await readLists();
-            if (JSON.stringify(rack) !== JSON.stringify(currentRackIds.val)) {
-                withPreservedScroll(() => applyRackState(rack));
-            }
+            if (JSON.stringify(rack) !== JSON.stringify(currentRackIds.val)) applyRackState(rack);
         } catch {
             // ponytail: the picture stays as it was; the next change reads the game again before it writes.
         }
     };
 
-    const change = async (task) => {
-        mutating.val = true;
-        try {
-            return await task(await readLists());
-        } finally {
-            await showGame();
-            mutating.val = false;
-        }
-    };
+    const change = (task) =>
+        inTurn(async () => {
+            try {
+                const outcome = await task(await readLists());
+                return outcome ?? { ok: true };
+            } finally {
+                await showGame();
+            }
+        });
 
     const appendToRack = async (baseRack, items) => {
         for (let i = 0; i < items.length; i++) {
@@ -188,97 +191,70 @@ const HatRackTab = () => {
         await writeVerified(`${RACK_PATH}.length`, baseRack.length + items.length);
     };
 
-    const removeAtIndex = async (index) => {
-        if (mutating.val) return;
-        const itemId = currentRackIds.val[index];
-        if (itemId === undefined) return;
-
-        await change(async ({ rack, slab }) => {
-            // The Slab first: if the rack write then fails, the row is still on the page to say so.
+    const removeHat = (itemId) =>
+        change(async ({ rack, slab }) => {
+            // The Slab first: if the rack write then fails, the hat still shows on the rack, and the switch says why.
             const nextSlab = slab.filter((id) => id !== itemId);
             if (nextSlab.length !== slab.length) await writeVerified(SLAB_HISTORY_PATH, nextSlab);
-            const at = rack[index] === itemId ? index : rack.indexOf(itemId);
-            const nextRack = rack.filter((_, i) => i !== at);
-            if (at >= 0) await writeVerified(RACK_PATH, nextRack);
+            if (rack.includes(itemId))
+                await writeVerified(
+                    RACK_PATH,
+                    rack.filter((id) => id !== itemId)
+                );
         });
-    };
-    removeAtIndex.isBusy = () => mutating.val;
-    const keptRows = createKeptRows((row) => RackRow({ row, onRemove: removeAtIndex }));
 
-    const addSelected = async () => {
-        const itemId = selectedAddItemId.val;
-        if (!itemId || mutating.val) return;
+    const addHats = (itemIds) =>
+        change(async ({ rack, slab }) => {
+            const toAdd = itemIds.filter((id) => !rack.includes(id));
+            if (!toAdd.length) return { cancelled: true };
+            await appendToRack(rack, toAdd);
+            const newInSlab = toAdd.filter((id) => !slab.includes(id));
+            if (newInSlab.length) await writeVerified(SLAB_HISTORY_PATH, [...slab, ...newInSlab]);
+            return { ok: true };
+        });
 
-        await runAdd(() =>
-            change(async ({ rack, slab }) => {
-                if (rack.includes(itemId)) return { cancelled: true };
-                await appendToRack(rack, [itemId]);
-                if (!slab.includes(itemId)) await writeVerified(SLAB_HISTORY_PATH, [...slab, itemId]);
-            })
-        );
-    };
-
-    const addAllAvailable = async () => {
-        if (mutating.val || missingOptions.val.length === 0) return;
-        await runAdd(() =>
-            change(async ({ rack, slab }) => {
-                const toAdd = missingOptions.val.map((item) => item.itemId).filter((id) => !rack.includes(id));
-                if (toAdd.length === 0) return { cancelled: true };
-                await appendToRack(rack, toAdd);
-                const newInSlab = toAdd.filter((id) => !slab.includes(id));
-                if (newInSlab.length) await writeVerified(SLAB_HISTORY_PATH, [...slab, ...newInSlab]);
-            })
-        );
-    };
+    // The hats the tools act on: every one, or the ones the top bar's search shows.
+    const shown = () => hats.val.filter((entry) => shownBySearch(rowOf.get(entry.itemId)));
+    const offRack = () => shown().filter((entry) => entry.eligible && !currentRackIds.val.includes(entry.itemId));
+    const hatWord = (n) => `hat${n === 1 ? "" : "s"}`;
 
     load();
 
-    const body = div(
-        {
-            class: "scrollable-panel content-stack",
-        },
-
-        AddFromListSection({
-            title: "ADD ELIGIBLE HAT",
-            note: () => `${missingCount.val} AVAILABLE TO ADD`,
-            selectLabel: "SELECT HAT",
-            selectedValue: selectedAddItemId,
-            options: missingOptions,
-            emptyOptionLabel: "No eligible hats left to add",
-            getOptionValue: (item) => item.itemId,
-            getOptionLabel: (item) => `${item.name} (${item.itemId})`,
-            addStatus,
-            addDisabled: () => mutating.val || !selectedAddItemId.val || missingOptions.val.length === 0,
-            addAllDisabled: () => mutating.val || missingOptions.val.length === 0,
-            onAdd: addSelected,
-            onAddAll: addAllAvailable,
-            rowClass: "tab-add-row tab-add-row--dual-action",
-        }),
-
-        AccountSection({
-            title: "ON RACK",
-            note: () => `${rackCount.val} ON RACK, ${onRackCount.val}/${eligibleCount.val} TOTAL`,
-            body: () => div({ class: "hat-rack-rows" }, ...keptRows(rackRows.val)),
-        })
-    );
-    scrollEl = body;
-
     return PersistentAccountListPage({
-        title: "HAT RACK",
-        description:
-            "Manage Hat rack entries. Remove any rack hat, or add eligible premium helmets. Rack changes also sync Slab history (Cards[1]).",
-        actions: RefreshButton({
-            onRefresh: () => {
-                if (mutating.val) return;
-                load();
-            },
-            disabled: () => loading.val || mutating.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Hat Rack",
+        description: "Premium hats on the Hat Rack. A change here also updates the Slab.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING HAT RACK",
-        errorTitle: "HAT RACK READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the hat rack",
+        errorTitle: "Couldn't read the hat rack",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: listNode,
+                // Adding only puts hats on, so it runs on one press.
+                tools: () =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Add all",
+                            status: bulk.status,
+                            disabled: () => loading.val || !offRack().length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                const ids = offRack().map((entry) => entry.itemId);
+                                return bulk.run(() => addHats(ids));
+                            },
+                        })
+                    ),
+                toolsLabel: () => {
+                    const n = shown().length;
+                    const on = shown().filter((entry) => currentRackIds.val.includes(entry.itemId)).length;
+                    return `${isSearching() ? `${n} matching ${hatWord(n)}` : `All ${n} ${hatWord(n)}`} · ${on} on the rack`;
+                },
+            })
+        ),
     });
 };
 

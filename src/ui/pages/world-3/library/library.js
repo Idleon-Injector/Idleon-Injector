@@ -17,25 +17,31 @@
  *
  * Computed:
  *   p._customBlock_WorkbenchStuff("maxBookLv", 0, 0)             — global max book level cap
+ *
+ * The game's talent pages are tabs: the class path to the character in play, then the special talents. Max books sits
+ * in the tray and acts on the open tab's talents the top bar's search shows; the special talents have no book cap.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { readComputed, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { CappedValue } from "../../../components/NumberInput.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { AmountLeft } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     CHARACTER_CHANGED,
     NO_CHARACTER,
+    cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    normalCase,
     readCharacterInPlay,
     runBulkSet,
     toNum,
@@ -93,18 +99,14 @@ const TalentRow = ({
     character,
     checkCharacter,
 }) => {
+    // A talent the Library has no book for: it says so in its state word, and its max shows without a field.
     if (!isBookAvailable) {
         return AccountRow({
-            rowClass: "talent-row talent-row--unavailable",
-            info: [
-                span({ class: "account-row__index" }, `#${talentId}`),
-                div(
-                    { class: "talent-row__text" },
-                    span({ class: "account-row__name" }, talentName),
-                    div({ class: "talent-row__notice" }, "This is not a Library book and can't be set.")
-                ),
-            ],
-            badge: () => (maxState.val === -1 ? "Locked" : CappedValue({ value: () => maxState.val })),
+            rowClass: "talent-row",
+            rowProps: { "data-talent": talentId },
+            info: span({ class: "account-row__name" }, talentName),
+            badge: () => (maxState.val === -1 ? "Locked" : "Not a book"),
+            controls: () => (maxState.val === -1 ? span() : CappedValue({ value: () => maxState.val })),
         });
     }
 
@@ -119,15 +121,11 @@ const TalentRow = ({
         },
         max: isSpecial ? Infinity : () => maxBookLvState.val,
         integerMode: isSpecial ? "floor" : null,
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${talentId}`),
-            div({ class: "talent-row__text" }, span({ class: "account-row__name" }, talentName)),
-        ],
+        renderInfo: () => span({ class: "account-row__name" }, talentName),
         // A max level of -1 is a talent the character hasn't unlocked: the word says so and the field shows empty.
         renderBadge: () => (maxState.val === -1 ? "Locked" : ""),
         unset: -1,
         rowClass: "talent-row",
-        controlsClass: "account-row__controls--xl",
     });
 };
 
@@ -157,11 +155,12 @@ const LibraryTab = () => {
     const maxBookLvState = van.state(null);
     const maxStates = new Map();
     const availablePointsStates = new Map();
-    const listNode = div({ class: "account-list" });
-    const availableTalentCount = van.state(0);
+    const listNode = div({ class: "account-list account-list--tabbed" });
+    // Each talent's row and each tab's talents, so Max books acts on the open tab's talents the search shows.
+    const rowOf = new Map();
+    let groupsShown = [];
 
     let staticMeta = null;
-    let currentAvailableTalentIds = [];
     let loadedCharacter = null;
 
     // SkillLevelsMAX is the live copy of whoever is in play: a save goes there only while that is still the
@@ -178,9 +177,9 @@ const LibraryTab = () => {
 
     const rowReconciler = createStaticRowReconciler(listNode);
 
-    const doMaxAll = async () => {
+    const doMaxAll = async (talentIds) => {
         const cap = toNum(maxBookLvState.val, 0);
-        if (!currentAvailableTalentIds.length || cap <= 0) return;
+        if (!talentIds.length || cap <= 0) return;
 
         // The character the rows were read for: the game checks it again as it writes.
         const character = loadedCharacter;
@@ -194,7 +193,7 @@ const LibraryTab = () => {
             }
             await runBulkSet({
                 character,
-                entries: currentAvailableTalentIds,
+                entries: talentIds,
                 getTargetValue: () => cap,
                 getValueState: (talentId) => getMaxState(talentId),
                 getPath: (talentId) => `SkillLevelsMAX[${talentId}]`,
@@ -203,11 +202,20 @@ const LibraryTab = () => {
         });
     };
 
-    const reconcileRows = ({ activeClassName, maxBookLv, groups, availableTalentIds }) => {
-        currentAvailableTalentIds = availableTalentIds;
-        availableTalentCount.val = availableTalentIds.length;
+    // The open tab's talents Max books can set: books, not the special talents, and only those the search shows.
+    const booksShown = (tabId) => {
+        const group = groupsShown.find((entry) => String(entry.classId) === tabId);
+        if (!group || group.isSpecial) return [];
+        return group.talents
+            .filter((talent) => talent.isBookAvailable && shownBySearch(rowOf.get(talent.talentId)))
+            .map((talent) => talent.talentId);
+    };
+    const talentWord = (n) => `talent${n === 1 ? "" : "s"}`;
+
+    const reconcileRows = ({ activeClassName, maxBookLv, groups }) => {
         activeClassNameState.val = activeClassName;
         maxBookLvState.val = maxBookLv;
+        groupsShown = groups;
 
         // Another character gets new rows, so a save still waiting in the old ones stays with the old character.
         rowReconciler(
@@ -222,25 +230,17 @@ const LibraryTab = () => {
                         ].join("|")
                     )
                     .join("||"),
-            () => [
-                AccountRow({
-                    info: span({ class: "account-row__name" }, "Active class"),
-                    rowClass: "account-row--alone",
-                    badge: () => activeClassNameState.val || "-",
-                }),
-                ...groups.map((group) =>
-                    AccountSection({
-                        title: group.className,
-                        note: group.isSpecial
-                            ? "Individual maximums only. Excluded from Max books and the Library book cap."
-                            : null,
-                        meta: group.isSpecial
-                            ? null
-                            : AmountLeft({ value: () => getAvailablePointsState(group.classId).val }),
-                        body: div(
-                            { class: "content-stack" },
-                            ...group.talents.map((talent) =>
-                                TalentRow({
+            () =>
+                TabbedList({
+                    // Named for the class, so another class's page doesn't come back on a tab it hasn't got.
+                    name: `Library ${activeClassName}`,
+                    tabs: groups.map((group) => ({
+                        id: String(group.classId),
+                        label: group.className,
+                        content: div(
+                            { class: "account-page-pane" },
+                            ...group.talents.map((talent) => {
+                                const row = TalentRow({
                                     talentId: talent.talentId,
                                     talentName: talent.talentName,
                                     maxState: getMaxState(talent.talentId),
@@ -249,12 +249,33 @@ const LibraryTab = () => {
                                     isSpecial: group.isSpecial,
                                     character: loadedCharacter,
                                     checkCharacter,
-                                })
-                            )
+                                });
+                                rowOf.set(talent.talentId, row);
+                                return row;
+                            })
                         ),
-                    })
-                ),
-            ]
+                    })),
+                    toolsOn: (tabId) => groups.some((group) => String(group.classId) === tabId && !group.isSpecial),
+                    toolsLabel: (activeId) => {
+                        const n = booksShown(activeId.val).length;
+                        const left = getAvailablePointsState(activeId.val).val;
+                        const books = isSearching() ? `${n} matching ${talentWord(n)}` : `All ${n} ${talentWord(n)}`;
+                        return `${books} · ${toNum(left) < 0 ? "−" + Math.abs(left) : left} points left`;
+                    },
+                    tools: (activeId) =>
+                        div(
+                            { class: "tabbed-list__tool-group" },
+                            ActionButton({
+                                label: "Max books",
+                                status: bulkStatus,
+                                disabled: () => loading.val || !booksShown(activeId.val).length,
+                                onClick: (e) => {
+                                    e.preventDefault();
+                                    return doMaxAll(booksShown(activeId.val));
+                                },
+                            })
+                        ),
+                })
         );
     };
 
@@ -277,14 +298,14 @@ const LibraryTab = () => {
             const skillLevelsMAX = toIndexedArray(rawSkillLevelsMAX ?? []);
             const talentDL2 = toIndexedArray(rawTalentDL2 ?? []);
             const classIds = getLibraryClassPageIds(classId);
-            const activeClassName = staticMeta.classNames[classId] || `Class ${classId}`;
-            const getTalentName = (talentId) => staticMeta.talentIconNames?.[talentId] || `Talent ${talentId}`;
-            const availableTalentIds = [];
+            const activeClassName = cleanName(staticMeta.classNames[classId]) || `Class ${classId}`;
+            const getTalentName = (talentId) =>
+                normalCase(staticMeta.talentIconNames?.[talentId] ?? "") || `Talent ${talentId}`;
             const groups = classIds
                 .map((cId, groupIndex) => {
-                    const className = staticMeta.classNames[cId] || `Class ${cId}`;
+                    const className = cleanName(staticMeta.classNames[cId]) || `Class ${cId}`;
                     const talents = [];
-                    getAvailablePointsState(cId).val = toNum(talentDL2[groupIndex]);
+                    getAvailablePointsState(String(cId)).val = toNum(talentDL2[groupIndex]);
 
                     for (let slot = 0; slot < 15; slot++) {
                         const rawTalentId = staticMeta.talentOrder[15 * (cId - 1) + slot];
@@ -293,7 +314,6 @@ const LibraryTab = () => {
                         const talentId = Number(rawTalentId);
                         const isBookAvailable = !staticMeta.blockedLibraryTalentIds.has(talentId);
                         getMaxState(talentId).val = toNum(skillLevelsMAX[talentId]);
-                        if (isBookAvailable) availableTalentIds.push(talentId);
 
                         talents.push({
                             talentId,
@@ -316,7 +336,7 @@ const LibraryTab = () => {
             if (specialTalents.length) {
                 groups.push({
                     classId: "special",
-                    className: "Special talents",
+                    className: "Special",
                     isSpecial: true,
                     talents: specialTalents,
                 });
@@ -324,7 +344,7 @@ const LibraryTab = () => {
 
             // Only now do the rows show this character; a Refresh that failed leaves them, and saves, with the last.
             loadedCharacter = String(rawUserInfo);
-            reconcileRows({ activeClassName, maxBookLv, groups, availableTalentIds });
+            reconcileRows({ activeClassName, maxBookLv, groups });
         });
 
     load();
@@ -332,36 +352,12 @@ const LibraryTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Library",
-        description: "Set max talent levels for the active in-game character.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            leading: div(
-                {
-                    class: () => `library-maxbooklv${maxBookLvState.val === null ? " library-maxbooklv--hidden" : ""}`,
-                },
-                span({ class: "library-maxbooklv__label" }, "Max Library Book:"),
-                span({ class: "library-maxbooklv__value" }, () =>
-                    maxBookLvState.val !== null ? String(maxBookLvState.val) : "-"
-                )
-            ),
-            actions: [
-                {
-                    label: "Max books",
-                    status: bulkStatus,
-                    disabled: () => loading.val || availableTalentCount.val <= 0,
-                    tooltip: "Set all available Library books to the current max book level",
-                    onClick: doMaxAll,
-                },
-            ],
-            refresh: {
-                onClick: load,
-                disabled: () => loading.val,
-                tooltip: "Re-read Library values from game memory",
-            },
-        }),
+        description: () =>
+            `Talent max levels for the ${activeClassNameState.val || "character"} in play. Max books sets them to the book cap${maxBookLvState.val ? ` (${maxBookLvState.val})` : ""}.`,
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "Reading library",
-        errorTitle: "Library read failed",
+        loadingText: "Reading the library",
+        errorTitle: "Couldn't read the library",
         initialWrapperClass: "account-list",
         body: listNode,
     });

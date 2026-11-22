@@ -152,9 +152,9 @@ const formatSideCharge = (rawValue, index) => {
 };
 
 const stateLabel = (state) => {
-    if (state === "unlocked") return "UNLOCKED";
-    if (state === "locked") return "LOCKED";
-    return "UNLOCKING";
+    if (state === "unlocked") return "Unlocked";
+    if (state === "locked") return "Locked";
+    return "Unlocking";
 };
 
 const isPlayerCog = (cogId) => String(cogId ?? "").startsWith("Player_");
@@ -632,7 +632,7 @@ const CogsTab = () => {
                     ? div(
                           { class: "cogs-flag-indicator" },
                           Cogs.FlagIcon({ class: "cogs-flag-indicator__icon", width: "14", height: "14" }),
-                          span("FLAG PLACED")
+                          span("Flag placed")
                       )
                     : null,
                 !showMainMode && isUnlocked ? renderTinyEditor() : null,
@@ -645,7 +645,7 @@ const CogsTab = () => {
                               { class: "cogs-cog-stats" },
                               div(
                                   { class: "cogs-cog-stats__warning" },
-                                  "Base values shown - final in-game values are influenced by surrounding cogs."
+                                  "Base values. In the game, the cogs around it change them."
                               ),
                               statsNode
                           )
@@ -688,9 +688,9 @@ const CogsTab = () => {
             div(
                 { class: "cogs-modal-footer-right" },
                 renderWriteStatus(shownLockStatus, {
-                    loading: "SAVING...",
-                    success: "SAVED",
-                    error: "WRITE FAILED",
+                    loading: "Saving…",
+                    success: "Saved",
+                    error: "Couldn't save",
                 }),
                 button({ type: "button", class: "btn-quiet btn-sm", onclick: closeSlotPopup }, "Close")
             )
@@ -720,10 +720,12 @@ const CogsTab = () => {
     van.add(popupHost, popup);
 
     return PersistentAccountListPage({
-        title: "CONSTRUCTION - COGS",
-        description: "Click a slot to view details and edit CogMap fields.",
-        actions: RefreshButton({ onRefresh: load }),
+        title: "Cogs",
+        description: "The cog board. Pick a slot to see its cog and change its stats.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
+        loadingText: "Reading the cog board",
+        errorTitle: "Couldn't read the cog board",
         body: boardPane,
     });
 };

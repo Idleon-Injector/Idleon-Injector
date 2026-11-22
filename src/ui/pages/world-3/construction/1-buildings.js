@@ -11,12 +11,17 @@
  * (read through the injected ActorEvents bridge, not reimplemented in the UI).
  *
  * When setting a building level, write both TowerInfo[i] and TowerInfo[i + 27].
+ *
+ * One list in the game's order; Max all sits in the tray and acts on the buildings the top bar's search shows.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { readComputedMany } from "../../../services/api.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -48,7 +53,6 @@ const BuildingRow = ({ index, name, maxLevel, levelState }) =>
             ]);
             return nextLevel;
         },
-        indexLabel: `#${index + 1}`,
         name,
         maxAction: true,
     });
@@ -57,8 +61,9 @@ const ConstructionBuildingsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Construction Buildings" });
     const { status: bulkStatus, run: runMaxAll } = useWriteStatus();
     const levelStates = Array.from({ length: BUILDING_COUNT }, () => van.state(0));
-    const rowList = div({ class: "account-list construction-buildings-list" });
-    let buildingMeta = [];
+    const rowList = div({ class: "account-page-pane" });
+    const buildings = van.state([]);
+    const rowOf = new Map();
     const reconcileRows = createStaticRowReconciler(rowList);
 
     const load = async () =>
@@ -68,6 +73,7 @@ const ConstructionBuildingsTab = () => {
                 definitionsPath: "TowerInfo",
                 selectDefinitions: (_, definitions) => definitions.slice(0, BUILDING_COUNT),
                 mapEntry: ({ definition, rawLevel, index }) => ({
+                    index,
                     name: cleanName(definition[0], `Building ${index + 1}`),
                     baseMax: toNum(definition[8]),
                     level: toNum(rawLevel),
@@ -79,56 +85,49 @@ const ConstructionBuildingsTab = () => {
                 buildingRows.map((building, i) => [building.baseMax, i])
             );
 
-            const buildings = buildingRows.map((building, i) => {
+            const next = buildingRows.map((building, i) => {
                 if (!computedResults[i]?.ok) {
                     throw new Error(`ExtraMaxLvAtom failed for building ${i}`);
                 }
                 const extraMax = toNum(computedResults[i].value);
-                const maxLevel = building.baseMax + extraMax;
-                return { ...building, extraMax, maxLevel };
+                return { ...building, extraMax, maxLevel: building.baseMax + extraMax };
             });
 
-            reconcileRows(buildings.map((building) => `${building.name}:${building.maxLevel}`).join("|"), () => {
-                const rowsPerColumn = Math.ceil(buildings.length / 3);
-                const columns = Array.from({ length: 3 }, (_, columnIndex) =>
-                    div(
-                        { class: "construction-buildings-col" },
-                        ...buildings
-                            .slice(columnIndex * rowsPerColumn, (columnIndex + 1) * rowsPerColumn)
-                            .map((building, offset) => {
-                                const index = columnIndex * rowsPerColumn + offset;
-                                return BuildingRow({
-                                    index,
-                                    name: building.name,
-                                    maxLevel: building.maxLevel,
-                                    levelState: levelStates[index],
-                                });
-                            })
-                    )
-                );
-
-                return div({ class: "construction-buildings-grid grid-3col" }, ...columns);
-            });
+            reconcileRows(next.map((building) => `${building.name}:${building.maxLevel}`).join("|"), () =>
+                next.map((building) => {
+                    const row = BuildingRow({
+                        index: building.index,
+                        name: building.name,
+                        maxLevel: building.maxLevel,
+                        levelState: levelStates[building.index],
+                    });
+                    rowOf.set(building.index, row);
+                    return row;
+                })
+            );
 
             for (let i = 0; i < BUILDING_COUNT; i++) {
-                levelStates[i].val = toNum(buildings[i]?.level);
+                levelStates[i].val = toNum(next[i]?.level);
             }
-
-            buildingMeta = buildings;
+            buildings.val = next;
         });
 
+    // The buildings Max all acts on: every one, or the ones the top bar's search shows.
+    const shown = () => buildings.val.filter((building) => shownBySearch(rowOf.get(building.index)));
+    const buildingWord = (n) => `building${n === 1 ? "" : "s"}`;
+
+    // Max only raises, so it runs on one press.
     const doMaxAll = async () => {
         await runMaxAll(async () => {
-            if (!buildingMeta.length) {
-                throw new Error("No buildings loaded yet. Refresh first.");
-            }
             await runBulkSet({
-                entries: buildingMeta,
-                getTargetValue: (building) => building?.maxLevel ?? 0,
-                getValueState: (_, index) => levelStates[index],
-                getWrites: ({ index, currentValue, targetValue }) => [
-                    toNum(currentValue) !== targetValue ? { path: `TowerInfo[${index}]`, value: targetValue } : null,
-                    { path: `TowerInfo[${index + BUILDING_COUNT}]`, value: targetValue },
+                entries: shown(),
+                getTargetValue: (building) => building.maxLevel,
+                getValueState: (building) => levelStates[building.index],
+                getWrites: ({ entry, currentValue, targetValue }) => [
+                    toNum(currentValue) !== targetValue
+                        ? { path: `TowerInfo[${entry.index}]`, value: targetValue }
+                        : null,
+                    { path: `TowerInfo[${entry.index + BUILDING_COUNT}]`, value: targetValue },
                 ],
             });
         });
@@ -137,25 +136,37 @@ const ConstructionBuildingsTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "CONSTRUCTION - BUILDINGS",
-        description: "Set building levels. Each building has its own max.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            actions: [
-                {
-                    label: "Max all",
-                    status: bulkStatus,
-                    disabled: () => loading.val || !buildingMeta.length,
-                    onClick: doMaxAll,
-                },
-            ],
-            refresh: { onClick: load },
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Buildings",
+        description: "Building levels, each up to its max with the Workbench's extra levels.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING CONSTRUCTION BUILDINGS",
-        errorTitle: "CONSTRUCTION BUILDINGS READ FAILED",
+        loadingText: "Reading buildings",
+        errorTitle: "Couldn't read buildings",
         initialWrapperClass: "account-list",
-        body: rowList,
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: rowList,
+                tools: () =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Max all",
+                            status: bulkStatus,
+                            disabled: () => loading.val || !shown().length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                return doMaxAll();
+                            },
+                        })
+                    ),
+                toolsLabel: () => {
+                    const n = shown().length;
+                    return isSearching() ? `${n} matching ${buildingWord(n)}` : `All ${n} ${buildingWord(n)}`;
+                },
+            })
+        ),
     });
 };
 

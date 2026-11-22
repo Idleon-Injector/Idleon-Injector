@@ -1,45 +1,6 @@
-/* Death Note tab */
-
-.dn-panels {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-}
-
-.dn-sub-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.dn-mob-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-}
-
-.dn-mob-row .account-expandable-group__meta {
-    font-weight: 700;
-    min-width: 64px;
-    text-align: right;
-}
-
-.dn-player-row {
-    padding: 6px 12px 6px 32px;
-    border-bottom: 1px solid var(--c-border-faint);
-    transition: background 0.12s;
-}
-
-.dn-player-row:last-child {
-    border-bottom: none;
-}
-
-.dn-player-row__current-tag {
-    color: var(--c-accent);
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+/* Death Note: a mob's kills on all characters, as plain text in the fields' column. */
+.dn-mob-row__total {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
 }

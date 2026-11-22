@@ -17,6 +17,9 @@
  *   t[6] completion time
  *   t[7] exp reward
  *   t[8] rare chance
+ *
+ * Each character is a tab, its traps a table: Qty, EXP and Rare in columns, Finish at the line's end. Finish all sits
+ * in the tray and finishes the open tab's traps the top bar's search shows.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -24,10 +27,15 @@ import { definePage } from "../../../menu/menuModel.js";
 import { gga, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
-import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
-import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import {
+    EditableFieldsRow,
+    StackedNumberField,
+    ValueTableHead,
+} from "../../../components/views/account/EditableFieldsRow.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { AccountExpandableGroup } from "../../../components/views/account/components/AccountExpandableGroup.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
@@ -43,7 +51,7 @@ import {
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div, p, span } = van.tags;
 
 const trapStateKey = (playerName, trapIndex, field) => `${playerName}:${trapIndex}:${field}`;
 const trapBasePath = (playerName, trapIndex) => `PlayerDATABASE.h[${playerName}].h.PldTraps[${trapIndex}]`;
@@ -61,7 +69,7 @@ const progressLabel = (elapsed, completion) => {
     const done = toInt(elapsed, 0);
     const total = Math.max(0, toInt(completion, 0));
     const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((done / total) * 100))) : 0;
-    return `Progress: ${formatNumber(done)} / ${formatNumber(total)} (${pct}%)`;
+    return `${formatNumber(done)} / ${formatNumber(total)} done (${pct}%)`;
 };
 
 const resolveCritterName = (critterId, itemDefs, monsterDefs) => {
@@ -102,7 +110,7 @@ const parseTrapRows = (rawTraps) =>
         })
         .filter(Boolean);
 
-const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
+const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap }) => {
     const qtyValue = getValueState(playerName, trap.trapIndex, "qty", toInt(trap.qty));
     const expValue = getValueState(playerName, trap.trapIndex, "exp", toInt(trap.exp));
     const rareValue = getValueState(playerName, trap.trapIndex, "rare", toInt(trap.rareChance));
@@ -129,110 +137,87 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField }) => {
             const verifiedRare = await onWriteField(playerName, trap.trapIndex, 8, rare);
             return { qty: verifiedQty, exp: verifiedExp, rare: verifiedRare };
         },
-        info: [
-            span({ class: "account-row__index" }, `#${trap.trapIndex + 1}`),
+        // The critter, then how far the trap is, small and muted under it.
+        info: span(
+            { class: "account-row__titles" },
+            span({ class: "account-row__name" }, trap.critterName),
+            span({ class: "trap-row__progress" }, () => progressLabel(elapsedValue.val, completionValue.val))
+        ),
+        rowClass: "trap-row value-row",
+        renderControls: ({ draftStates, getDraftValue, setFieldFocused, resetDraft }) =>
             div(
-                { class: "trap-row__text" },
-                span({ class: "account-row__name" }, trap.critterName),
-                span({ class: "trap-row__meta" }, () => progressLabel(elapsedValue.val, completionValue.val))
+                { class: "value-cells" },
+                StackedNumberField({
+                    field: {
+                        key: "qty",
+                        label: "Qty",
+                        formatted: true,
+                        rootClass: "value-cell",
+                        labelClass: "value-cell__label",
+                        inputProps: { "aria-label": `${trap.critterName} qty` },
+                        adjustDraft: (raw, delta) => adjustFormattedIntInput(raw, delta, qtyValue.val, { min: 0 }),
+                    },
+                    draftStates,
+                    getDraftValue,
+                    setFieldFocused,
+                    resetDraft,
+                }),
+                StackedNumberField({
+                    field: {
+                        key: "exp",
+                        label: "EXP",
+                        formatted: true,
+                        rootClass: "value-cell",
+                        labelClass: "value-cell__label",
+                        inputProps: { "aria-label": `${trap.critterName} EXP` },
+                        adjustDraft: (raw, delta) => adjustFormattedIntInput(raw, delta, expValue.val, { min: 0 }),
+                    },
+                    draftStates,
+                    getDraftValue,
+                    setFieldFocused,
+                    resetDraft,
+                }),
+                StackedNumberField({
+                    field: {
+                        key: "rare",
+                        label: "Rare",
+                        formatted: true,
+                        rootClass: "value-cell",
+                        labelClass: "value-cell__label",
+                        inputProps: { "aria-label": `${trap.critterName} rare` },
+                        adjustDraft: (raw, delta) => adjustFormattedIntInput(raw, delta, rareValue.val, { min: 0 }),
+                    },
+                    draftStates,
+                    getDraftValue,
+                    setFieldFocused,
+                    resetDraft,
+                }),
+                // Finish closes the line, in the table's last column.
+                ActionButton({
+                    label: "Finish",
+                    status: finishStatus.status,
+                    className: "trap-row__finish-btn",
+                    disabled: () => elapsedValue.val >= completionValue.val,
+                    onClick: (e) => {
+                        e.preventDefault();
+                        return finishStatus.run(() => finishTrap(playerName, trap));
+                    },
+                })
             ),
-        ],
-        rowClass: "trap-row",
-        controlsClass: "trap-row__controls",
-        renderControls: ({ draftStates, getDraftValue, setFieldFocused, resetDraft }) => [
-            StackedNumberField({
-                field: {
-                    key: "qty",
-                    label: "Qty",
-                    formatted: true,
-                    rootClass: "trap-row__input-group",
-                    labelClass: "trap-row__input-label",
-                    adjustDraft: (raw, delta) => adjustFormattedIntInput(raw, delta, qtyValue.val, { min: 0 }),
-                },
-                draftStates,
-                getDraftValue,
-                setFieldFocused,
-                resetDraft,
-            }),
-            StackedNumberField({
-                field: {
-                    key: "exp",
-                    label: "EXP",
-                    formatted: true,
-                    rootClass: "trap-row__input-group",
-                    labelClass: "trap-row__input-label",
-                    adjustDraft: (raw, delta) => adjustFormattedIntInput(raw, delta, expValue.val, { min: 0 }),
-                },
-                draftStates,
-                getDraftValue,
-                setFieldFocused,
-                resetDraft,
-            }),
-            StackedNumberField({
-                field: {
-                    key: "rare",
-                    label: "Rare",
-                    formatted: true,
-                    rootClass: "trap-row__input-group",
-                    labelClass: "trap-row__input-label",
-                    adjustDraft: (raw, delta) => adjustFormattedIntInput(raw, delta, rareValue.val, { min: 0 }),
-                },
-                draftStates,
-                getDraftValue,
-                setFieldFocused,
-                resetDraft,
-            }),
-        ],
-        renderExtraActions: () =>
-            ActionButton({
-                label: "Finish",
-                status: finishStatus.status,
-                className: "trap-row__finish-btn",
-                tooltip: "Finish this trap",
-                onClick: async (e) => {
-                    e.preventDefault();
-                    const finishAt = toInt(completionValue.val, toInt(trap.completionTime));
-                    const { ok, result } = await finishStatus.run(async () =>
-                        onWriteField(playerName, trap.trapIndex, 2, finishAt)
-                    );
-                    if (ok) elapsedValue.val = result;
-                },
-            }),
-    });
-};
-
-const PlayerTrapPanel = ({ player, currentPlayer, getExpandedState, getValueState, onWriteField }) => {
-    const expanded = getExpandedState(player.playerName);
-    const isCurrentPlayer = currentPlayer === player.playerName;
-    const rows = player.traps.map((trap) =>
-        TrappingRow({
-            playerName: player.playerName,
-            trap,
-            getValueState,
-            onWriteField,
-        })
-    );
-
-    return AccountExpandableGroup({
-        expanded,
-        title: [player.playerName, isCurrentPlayer ? span({ class: "trap-user-current" }, "(selected)") : null],
-        meta: () => `${player.traps.length} traps`,
-        body: div({ class: "trap-user-dropdown__rows" }, ...rows),
     });
 };
 
 const TrappingTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Trapping" });
     const finishAllStatus = useWriteStatus();
-    const trapCountState = van.state(0);
     const valueStates = new Map();
-    const expandedStates = new Map();
     const critterNameById = new Map();
-    const playersNode = div({ class: "trap-user-list" });
+    const playersNode = div({ class: "account-list account-list--tabbed traps-list" });
+    // Each trap's row, so Finish all acts on the open tab's traps the search shows.
+    const rowOf = new Map();
     let latestSnapshot = { currentPlayer: "", players: [] };
     const reconcilePlayerPanels = createStaticRowReconciler(playersNode);
 
-    const getExpandedState = (playerName) => getOrCreateState(expandedStates, playerName, false);
     const getValueState = (playerName, trapIndex, field, initialValue = 0) =>
         getOrCreateState(valueStates, trapStateKey(playerName, trapIndex, field), initialValue);
 
@@ -250,20 +235,53 @@ const TrappingTab = () => {
 
     const reconcilePlayers = (snapshot) => {
         latestSnapshot = snapshot;
-        trapCountState.val = snapshot.players.reduce((sum, player) => sum + player.traps.length, 0);
         setTrapStatesFromSnapshot(snapshot);
 
-        reconcilePlayerPanels(trapShapeSignature(snapshot), () =>
-            snapshot.players.map((player) =>
-                PlayerTrapPanel({
-                    player,
-                    currentPlayer: snapshot.currentPlayer,
-                    getExpandedState,
-                    getValueState,
-                    onWriteField,
-                })
-            )
-        );
+        reconcilePlayerPanels(trapShapeSignature(snapshot), () => {
+            rowOf.clear();
+            return TabbedList({
+                name: "Traps",
+                tabs: snapshot.players.map((player) => ({
+                    id: player.playerName,
+                    label: player.playerName,
+                    content: player.traps.length
+                        ? [
+                              ValueTableHead({ name: "Critter", columns: ["Qty", "EXP", "Rare", ""] }),
+                              ...player.traps.map((trap) => {
+                                  const row = TrappingRow({
+                                      playerName: player.playerName,
+                                      trap,
+                                      getValueState,
+                                      onWriteField,
+                                      finishTrap,
+                                  });
+                                  rowOf.set(`${player.playerName}:${trap.trapIndex}`, row);
+                                  return row;
+                              }),
+                          ]
+                        : p({ class: "trap-empty" }, "No traps placed."),
+                })),
+                toolsOn: (playerName) => Boolean(trapsOf(playerName).length),
+                toolsLabel: (activeId) => {
+                    const n = trapsShown(activeId.val).length;
+                    const inPlay = activeId.val === latestSnapshot.currentPlayer ? " · in play" : "";
+                    return `${isSearching() ? `${n} matching ${trapWord(n)}` : `All ${n} ${trapWord(n)}`}${inPlay}`;
+                },
+                tools: (activeId) =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Finish all",
+                            status: finishAllStatus.status,
+                            disabled: () => loading.val || !trapsShown(activeId.val).length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                return finishAllTraps(activeId.val);
+                            },
+                        })
+                    ),
+            });
+        });
     };
 
     // PlacedTraps holds the traps of the character in play now, so a save asks the game who that is first.
@@ -278,24 +296,33 @@ const TrappingTab = () => {
         return writeVerified(dbPath, value);
     };
 
-    const finishAllTraps = async () => {
-        if (!trapCountState.val) return;
+    // One trap done: its progress set to its completion time.
+    const finishTrap = async (playerName, trap) => {
+        const finishAt = toInt(
+            getValueState(playerName, trap.trapIndex, "completion", 0).val,
+            toInt(trap.completionTime)
+        );
+        const verifiedElapsed = await onWriteField(playerName, trap.trapIndex, 2, finishAt);
+        getValueState(playerName, trap.trapIndex, "elapsed", 0).val = verifiedElapsed;
+    };
 
+    const trapsOf = (playerName) =>
+        latestSnapshot.players.find((player) => player.playerName === playerName)?.traps ?? [];
+    // The open tab's traps Finish all acts on: every one, or those the top bar's search shows.
+    const trapsShown = (playerName) =>
+        trapsOf(playerName).filter((trap) => shownBySearch(rowOf.get(`${playerName}:${trap.trapIndex}`)));
+    const trapWord = (n) => `trap${n === 1 ? "" : "s"}`;
+
+    // Finishing only moves progress forward, so it runs on one press.
+    const finishAllTraps = async (playerName) => {
+        const traps = trapsShown(playerName).filter(
+            (trap) =>
+                getValueState(playerName, trap.trapIndex, "elapsed", 0).val <
+                getValueState(playerName, trap.trapIndex, "completion", 0).val
+        );
+        if (!traps.length) return;
         await finishAllStatus.run(async () => {
-            for (const player of latestSnapshot.players) {
-                for (const trap of player.traps) {
-                    const completionState = getValueState(player.playerName, trap.trapIndex, "completion", 0);
-                    const finishAt = toInt(completionState.val, toInt(trap.completionTime));
-                    try {
-                        const verifiedElapsed = await onWriteField(player.playerName, trap.trapIndex, 2, finishAt);
-                        getValueState(player.playerName, trap.trapIndex, "elapsed", 0).val = verifiedElapsed;
-                    } catch (error) {
-                        throw new Error(
-                            `Finish all failed for ${player.playerName} trap ${trap.trapIndex}: ${error?.message ?? String(error)}`
-                        );
-                    }
-                }
-            }
+            for (const trap of traps) await finishTrap(playerName, trap);
         });
     };
 
@@ -354,30 +381,15 @@ const TrappingTab = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "TRAPPING",
-        description:
-            "Edit trap quantity, EXP, and rare chance for each player. Finish individual traps or all traps per player.",
-        actions: [
-            ActionButton({
-                label: "Finish all",
-                status: finishAllStatus.status,
-                disabled: () => loading.val || !trapCountState.val,
-                tooltip: "Finish every loaded trap",
-                onClick: (e) => {
-                    e.preventDefault();
-                    finishAllTraps();
-                },
-            }),
-            RefreshButton({ onRefresh: load }),
-        ],
-        topNotices: WarningBanner(
-            "Rare chance values above 100 still behave as 100% rare chance and do not grant extra benefit."
-        ),
-        body: div({ class: "trap-scroll scrollable-panel" }, playersNode),
-        rootClass: "tab-container scroll-container",
+        rootClass: "tab-container scroll-container traps-tab",
+        title: "Traps",
+        description: "Each character's placed traps. Rare chance tops out at 100.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "Loading Trapping...",
-        errorTitle: "TRAPPING LOAD FAILED",
+        loadingText: "Reading traps",
+        errorTitle: "Couldn't read traps",
+        initialWrapperClass: "account-list",
+        body: playersNode,
     });
 };
 

@@ -14,9 +14,8 @@
  *   gga.Ninja[105]                              - array of kill counts (one per miniboss, account-wide)
  *   gga.MonsterDefinitionsGET.h[mobId].Name     - mob display name
  *
- * Sub-tabs: Miniboss (first), W1-W7.
- * World mob rows expand to reveal per-character kill counts.
- * Miniboss rows are flat account-wide kill counters.
+ * The game's pages are tabs: World 1 to World 7, then Minibosses. A world's mob opens its characters' kills in place
+ * under its row (one open at a time); minibosses are account-wide kill counts.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -26,7 +25,7 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountExpandableGroup } from "../../../components/views/account/components/AccountExpandableGroup.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import {
     adjustFormattedIntInput,
     cleanName,
@@ -42,17 +41,17 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { renderPersistentPagePanes, renderTabNav } from "../../../components/views/account/tabShared.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 
-const { div, span } = van.tags;
+const { button, div, span } = van.tags;
 
 const MINIBOSS_WORLD_KEY = "Miniboss";
 const WORLD_LABELS = ["W1", "W2", "W3", "W4", "W5", "W6", "W7"];
 const SENTINEL_PLAYER_NAMES = new Set(["Player", "Current", ""]);
 
 const DN_SUBTABS = [
-    { id: "miniboss", label: "MINIBOSS", worldKey: MINIBOSS_WORLD_KEY },
     ...WORLD_LABELS.map((worldKey) => ({ id: worldKey.toLowerCase(), label: worldKey, worldKey })),
+    { id: "miniboss", label: "Minibosses", worldKey: MINIBOSS_WORLD_KEY },
 ];
 
 const playerDbKillsLeftPath = (playerName, mapIndex) =>
@@ -77,12 +76,17 @@ const createPaneSignature = (worldKey, snapshot) => {
     return `${snapshot?.currentPlayer ?? ""}::${createWorldSignature(mobs)}`;
 };
 
-const createPaneStore = (worldKey) => ({
-    signature: null,
-    listNode: div({ class: `account-list${worldKey === MINIBOSS_WORLD_KEY ? "" : " dn-mob-list"}` }),
-});
+const createPaneStore = () => ({ signature: null, listNode: div({ class: "account-page-pane" }) });
 
-const KillCountRow = ({ killState, rowClass = "", controlsClass = "", renderInfo, write, onWriteError = null }) =>
+const KillCountRow = ({
+    killState,
+    rowClass = "",
+    controlsClass = "",
+    renderInfo,
+    renderBadge = null,
+    write,
+    onWriteError = null,
+}) =>
     EditableNumberRow({
         valueState: killState,
         normalize: (rawValue) => resolveFormattedIntInput(rawValue, null, { min: 0 }),
@@ -95,10 +99,10 @@ const KillCountRow = ({ killState, rowClass = "", controlsClass = "", renderInfo
             }
         },
         renderInfo,
+        renderBadge,
         adjustInput: (rawValue, delta, currentValue) =>
             adjustFormattedIntInput(rawValue, delta, currentValue ?? 0, { min: 0 }),
         rowClass,
-        badgeClass: "account-row__badge--highlight",
         controlsClass,
         inputProps: {
             formatter: largeFormatter,
@@ -110,11 +114,8 @@ const PlayerKillRow = ({ playerName, killState, isCurrentPlayer, mob }) =>
     KillCountRow({
         killState,
         rowClass: "dn-player-row",
-        controlsClass: "account-row__controls--xl",
-        renderInfo: () => [
-            span({ class: "account-row__name" }, playerName),
-            isCurrentPlayer ? span({ class: "dn-player-row__current-tag" }, "(selected)") : null,
-        ],
+        renderInfo: () => span({ class: "account-row__name" }, playerName),
+        renderBadge: isCurrentPlayer ? () => "In play" : null,
         write: async (nextKills) => {
             if (
                 !Number.isInteger(mob.mapIndex) ||
@@ -151,8 +152,8 @@ const PlayerKillRow = ({ playerName, killState, isCurrentPlayer, mob }) =>
         },
     });
 
-const MobRow = ({ mob, getKillState, getExpandState, currentPlayer }) => {
-    const expanded = getExpandState(mob.mobId);
+// A mob and its kills on all characters; its name opens each character's kills in place, under the row.
+const MobRow = ({ mob, getKillState, isOpen, onOpen, currentPlayer }) => {
     const playerNames = Object.keys(mob.perCharacterKills);
     const totalKills = () => playerNames.reduce((sum, name) => sum + toInt(getKillState(mob.mobId, name).val), 0);
     const playerRows = playerNames.map((name) =>
@@ -163,20 +164,22 @@ const MobRow = ({ mob, getKillState, getExpandState, currentPlayer }) => {
             mob,
         })
     );
-
-    return AccountExpandableGroup({
-        expanded,
-        title: mob.mobName,
-        meta: () => formatNumber(totalKills()),
-        body: playerRows,
-        rootClass: "dn-mob-row",
+    const row = AccountRow({
+        rowClass: () => `dn-mob-row${isOpen() ? " is-open" : ""}`,
+        info: button(
+            { type: "button", class: "row-opener", "aria-expanded": () => String(isOpen()), onclick: onOpen },
+            span({ class: "account-row__name" }, mob.mobName)
+        ),
+        controls: span({ class: "dn-mob-row__total" }, () => formatNumber(totalKills())),
     });
+    // The characters' rows stay mounted (they keep their saves and Undo); closed, they're hidden.
+    row.append(div({ class: "row-detail", hidden: () => !isOpen() }, ...playerRows));
+    return row;
 };
 
 const MinibossRow = ({ mob, killState }) =>
     KillCountRow({
         killState,
-        controlsClass: "account-row__controls--xl",
         renderInfo: () => span({ class: "account-row__name" }, mob.mobName),
         write: async (nextKills) => {
             const path = `Ninja[105][${mob.mobIndex}]`;
@@ -256,16 +259,15 @@ const buildStaticMeta = async () => {
 
 const DeathNoteTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Death Note" });
-    const activeSubTab = van.state(DN_SUBTABS[0].id);
     const killStates = new Map();
-    const expandStates = new Map();
+    // The mob whose characters show, one at a time.
+    const openMob = van.state(null);
     const paneStores = new Map();
     let staticMeta = null;
 
     const getKillState = (mobId, playerName) => getOrCreateState(killStates, `${mobId}:${playerName}`);
-    const getExpandState = (mobId) => getOrCreateState(expandStates, mobId, false);
     const getPaneStore = (worldKey) => {
-        if (!paneStores.has(worldKey)) paneStores.set(worldKey, createPaneStore(worldKey));
+        if (!paneStores.has(worldKey)) paneStores.set(worldKey, createPaneStore());
         return paneStores.get(worldKey);
     };
 
@@ -283,7 +285,8 @@ const DeathNoteTab = () => {
                       MobRow({
                           mob,
                           getKillState,
-                          getExpandState,
+                          isOpen: () => openMob.val === mob.mobId,
+                          onOpen: () => (openMob.val = openMob.val === mob.mobId ? null : mob.mobId),
                           currentPlayer: snapshot.currentPlayer,
                       })
                   );
@@ -373,40 +376,28 @@ const DeathNoteTab = () => {
             }
         });
 
-    const panes = renderPersistentPagePanes({
-        tabs: DN_SUBTABS,
-        activeId: activeSubTab,
-        paneClass: "account-page-pane",
-        hiddenClass: "account-page-pane--hidden",
-        dataAttr: "data-deathnote",
-        renderContent: (tab) => getPaneStore(tab.worldKey).listNode,
-    });
-
     const body = div(
-        { class: "dn-panels" },
-        renderTabNav({
-            tabs: DN_SUBTABS,
-            activeId: activeSubTab,
-            navClass: "account-page-nav",
-            buttonClass: "account-page-btn",
-        }),
-        div({ class: "dn-sub-content" }, ...panes)
+        { class: "account-list account-list--tabbed" },
+        TabbedList({
+            name: "Death Note",
+            tabs: DN_SUBTABS.map((tab) => ({
+                id: tab.id,
+                label: tab.label,
+                content: getPaneStore(tab.worldKey).listNode,
+            })),
+        })
     );
 
     load();
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "DEATH NOTE",
-        description: "View kill counts per character for each mob in the Death Note.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-            tooltip: "Re-read Death Note kill counts from game memory",
-        }),
+        title: "Death Note",
+        description: "Kills of each Death Note mob on every character, and miniboss kills.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING DEATH NOTE",
-        errorTitle: "DEATH NOTE READ FAILED",
+        loadingText: "Reading the death note",
+        errorTitle: "Couldn't read the death note",
         initialWrapperClass: "account-list",
         body,
     });

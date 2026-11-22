@@ -24,6 +24,7 @@ import { SaveState, saveStateClass, useAutoSave } from "../../../components/view
 import { clickAgain } from "../../../components/inPlace.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 
 const { div, span, select, option } = van.tags;
 
@@ -32,7 +33,11 @@ const slotLocation = (character, kind, slot) =>
         ? { array: "PrinterXtra", index: 10 * character + 2 * (slot - 5) }
         : { array: "Printer", index: (kind === "print" ? 15 : 5) + 14 * character + 2 * slot };
 
-/** Edit stored printer samples and active prints. */
+/**
+ * Edit stored printer samples and active prints. The character is picked on the line under the title, like Prayers;
+ * its prints and samples are one list, each slot a row with its item and amount. Stop and Clear save at once, with
+ * Undo in the row.
+ */
 const PrinterTab = () => {
     // Slot writes queued or running, and a Refresh. An Undo's reload waits for them, so it can't put an older value back.
     const busy = van.state(0);
@@ -67,7 +72,7 @@ const PrinterTab = () => {
             selected.val = Number(event.target.value);
             showCharacter();
         },
-        info: "Inspect and edit 3D printer for this character",
+        info: null,
     });
     let accountIdentity = "";
     let cachedCatalogue = null;
@@ -97,7 +102,6 @@ const PrinterTab = () => {
         return item !== state.baseline.item || qtyChanged;
     };
     const hasDrafts = () => [...rows.values()].some((state) => isDirty(state));
-    const getItemDisplayName = (id) => snapshot.val?.namesById?.get(id) ?? id;
     const isAllowedItem = (item, state, snap = snapshot.val) =>
         Boolean(snap?.ids?.has(item)) || (item !== "Blank" && item === state.baseline.item);
 
@@ -133,9 +137,14 @@ const PrinterTab = () => {
         }
 
         const definitions = await readGgaEntries("ItemDefinitionsGET.h", [...candidates], ["displayName"]);
-        const catalogue = [...candidates]
+        const named = [...candidates]
             .filter((id) => definitions[id])
-            .map((id) => ({ id, name: cleanName(unwrapH(definitions[id]).displayName, id) }))
+            .map((id) => ({ id, name: cleanName(unwrapH(definitions[id]).displayName, id) }));
+        // Two items with one name keep their ids, so the pick tells them apart.
+        const nameCount = new Map();
+        named.forEach(({ name }) => nameCount.set(name, (nameCount.get(name) ?? 0) + 1));
+        const catalogue = named
+            .map((entry) => ({ ...entry, twin: nameCount.get(entry.name) > 1 }))
             .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
         if (!catalogue.length) throw new Error("Printer item catalogue is unavailable.");
         const namesById = new Map(catalogue.map((entry) => [entry.id, entry.name]));
@@ -292,17 +301,9 @@ const PrinterTab = () => {
         return { write: () => inTurn((inAction) => writeSlot(state, item, qty, false, inAction, drafts)) };
     };
 
-    // Stop and Clear ask in place (#77): the button reads "Click again" for a few seconds.
-    const clearSlot = (state, button) => {
+    // Stop and Clear take one thing out of a slot: they save at once, and the row offers Undo.
+    const clearSlot = (state) => {
         if (cannotWrite()) return;
-        const charName = snapshot.val?.names?.[state.character] ?? "character";
-        if (
-            !clickAgain(
-                button,
-                `${state.kind === "print" ? "stop" : "clear"} ${charName}'s ${state.kind} ${state.slot + 1}.`
-            )
-        )
-            return;
         return state.write.run(() => inTurn((inAction) => writeSlot(state, "Blank", 0, true, inAction)));
     };
 
@@ -365,9 +366,11 @@ const PrinterTab = () => {
                 (id) => id !== "Blank" && !ids.has(id)
             );
             reconcileOptions(unknown.join(","), () => [
-                option({ value: "Blank" }, "Select an item"),
+                option({ value: "Blank" }, "Pick an item"),
                 ...unknown.map((id) => option({ value: id }, String(id))),
-                ...catalogue.map(({ id, name: itemName }) => option({ value: id }, `${itemName} (${id})`)),
+                ...catalogue.map(({ id, name: itemName, twin }) =>
+                    option({ value: id }, twin ? `${itemName} (${id})` : itemName)
+                ),
             ]);
             itemSelect.value = state.item.val;
         };
@@ -375,32 +378,14 @@ const PrinterTab = () => {
         return div(
             { "data-printer-slot": `${state.kind}-${state.slot + 1}` },
             AccountRow({
-                rowClass: () =>
-                    `printer-row account-row--wide-controls ${saveStateClass(state.write.status.val, state.write.undo)}`,
-                controlsClass: "account-row__controls--xl",
+                rowClass: () => `printer-row ${saveStateClass(state.write.status.val, state.write.undo)}`,
                 rowProps: state.write.handlers,
-                info: div(
-                    { class: "account-row__name-group" },
-                    span(
-                        { class: "account-row__name" },
-                        `${state.kind === "print" ? "Print" : "Sample"} ${state.slot + 1}`
-                    ),
-                    span({ class: "account-row__sub-label" }, () =>
-                        state.saved.val.item !== "Blank"
-                            ? `${getItemDisplayName(state.saved.val.item)} · ${largeFormatter(state.saved.val.qty)}${state.kind === "print" ? "/hr" : ""}`
-                            : "Empty slot"
-                    )
+                // The slot, and what it holds by name: the item and amount show once, in the slot's fields.
+                info: span(
+                    { class: "account-row__name" },
+                    `${state.kind === "print" ? "Print" : "Sample"} ${state.slot + 1}`
                 ),
-                badge: () =>
-                    lockedCharacter()
-                        ? "Character locked"
-                        : lockedSlot()
-                          ? "Slot locked"
-                          : state.saved.val.item !== "Blank"
-                            ? state.kind === "print"
-                                ? "Printing"
-                                : "Stored"
-                            : "Empty",
+                badge: () => (lockedCharacter() || lockedSlot() ? "Locked" : ""),
                 controls: [
                     SaveState(state.write),
                     itemSelect,
@@ -432,7 +417,10 @@ const PrinterTab = () => {
                         variant: "danger",
                         disabled: () =>
                             uneditable() || (state.saved.val.item === "Blank" && !Number(state.saved.val.qty)),
-                        onClick: (e) => clearSlot(state, e.currentTarget),
+                        onClick: (e) => {
+                            e.preventDefault();
+                            return clearSlot(state);
+                        },
                     }),
                 ],
             })
@@ -446,24 +434,22 @@ const PrinterTab = () => {
         const name = next.names[character];
         const panel = div(
             {
-                class: () => `content-stack${selected.val === character ? "" : " hidden"}`,
+                class: () => `printer-character${selected.val === character ? "" : " hidden"}`,
                 "data-printer-character": name,
             },
-            AccountSection({
-                title: "ACTIVE PRINTS",
-                body: div(
-                    { class: "account-item-stack" },
-                    ...[0, 1].map((slot) => renderSlot(rows.get(`${character}:print:${slot}`), name))
-                ),
-            }),
-            AccountSection({
-                title: "SAVED SAMPLES",
-                body: div(
-                    { class: "account-item-stack" },
-                    ...Array.from({ length: 10 }, (_, slot) =>
-                        renderSlot(rows.get(`${character}:sample:${slot}`), name)
-                    )
-                ),
+            ListPanel({
+                body: [
+                    AccountSection({
+                        title: "Prints",
+                        body: [0, 1].map((slot) => renderSlot(rows.get(`${character}:print:${slot}`), name)),
+                    }),
+                    AccountSection({
+                        title: "Samples",
+                        body: Array.from({ length: 10 }, (_, slot) =>
+                            renderSlot(rows.get(`${character}:sample:${slot}`), name)
+                        ),
+                    }),
+                ],
             })
         );
         panels.set(character, panel);
@@ -509,14 +495,15 @@ const PrinterTab = () => {
     load();
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "PRINTER",
-        description: "Edit stored samples and active prints independently.",
+        title: "Printer",
+        description: "Each character's prints and stored samples, with their items and amounts.",
         actions: RefreshButton({ onRefresh: load, disabled: isBusy }),
+        toolbar: characterSelector.node,
         state: { loading, error },
-        loadingText: "READING PRINTER",
-        errorTitle: "PRINTER READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body: div({ class: "scrollable-panel content-stack" }, characterSelector.node, panelsNode),
+        loadingText: "Reading the printer",
+        errorTitle: "Couldn't read the printer",
+        initialWrapperClass: "account-list",
+        body: div({ class: "account-list account-list--tabbed" }, panelsNode),
     });
 };
 

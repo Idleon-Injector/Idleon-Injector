@@ -1,19 +1,27 @@
-/** Account-wide prayer levels and per-character equipment. */
+/**
+ * Account-wide prayer levels and per-character equipment.
+ *
+ * One list in the game's order, each prayer's bonus first, its name and curse under it. The character whose prayers
+ * Equip changes is picked on the line under the title. Unlock all, Max all and Unequip all sit in the tray and act on
+ * the prayers the top bar's search shows; Unequip asks there first.
+ */
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { deleteGga, gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
-import { askAtField, clickAgain } from "../../../components/inPlace.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { askAtField } from "../../../components/inPlace.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     CHARACTER_CHANGED,
+    bonusText,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
@@ -28,9 +36,6 @@ import {
 const { div, span } = van.tags;
 
 export const savedPath = (name, slot) => `PlayerDATABASE.h[${name}].h.Prayers[${slot}]`;
-
-export const effectText = (text, coefficient, level) =>
-    cleanName(String(text).replace(/\{/g, String(Math.round(Number(coefficient) * Math.max(1, 1 + (level - 1) / 10)))));
 
 export const calculateCapacity = (wizardLevel, thresholds, gemSlots) => {
     let capacity = 0;
@@ -89,7 +94,11 @@ const PrayersTab = () => {
     const levelStates = new Map();
     const metadataStates = new Map();
     const bulkStatus = useWriteStatus();
-    const rows = div({ class: "account-list" });
+    const rows = div({ class: "account-page-pane" });
+    // Each prayer's row, so the tools act only on the prayers the top bar's search shows.
+    const rowOf = new Map();
+    const shownIds = () =>
+        (snapshot.val?.definitions ?? []).map(({ id }) => id).filter((id) => shownBySearch(rowOf.get(id)));
     const reconcileRows = createStaticRowReconciler(rows);
     const characterSelector = createCharacterSelector({
         id: "prayers-character",
@@ -98,12 +107,7 @@ const PrayersTab = () => {
         onChange: (event) => {
             if (!busy.val) selected.val = event.target.value;
         },
-        info: () => {
-            if (!snapshot.val) return "";
-            const player = snapshot.val.players.find((entry) => entry.name === selected.val);
-            if (!player) return "";
-            return `${player.prayers.filter((id) => id !== -1).length}/${snapshot.val.capacity} slots used`;
-        },
+        info: () => (snapshot.val ? slotsLine() : ""),
     });
     const unavailable = () => busy.val || loading.val || Boolean(error.val) || !snapshot.val;
 
@@ -279,7 +283,6 @@ const PrayersTab = () => {
             }
             await writeBatch(plan.levels);
             applySnapshot(await readSnapshot());
-            if (attempted > 0) message.val = `${verified} write(s) verified.`;
             return { value: plan.value };
         } catch (caught) {
             // Asking again happens beside the field, before anything was written.
@@ -339,8 +342,8 @@ const PrayersTab = () => {
             return { equipment, levels: [] };
         });
 
-    // `button`: the bulk button clicked, which asks in place (#77).
-    const bulk = async (mode, button) => {
+    // `only`: the prayers the search showed when the tool was pressed. Unequip was asked in the tray already.
+    const bulk = async (mode, only) => {
         if (unavailable()) return;
         await bulkStatus.run(() =>
             execute(
@@ -350,18 +353,16 @@ const PrayersTab = () => {
                         if (!player) throw new Error("Selected character no longer exists.");
                         const ids = state.definitions
                             .map((entry) => entry.id)
-                            .filter((id) => player.prayers.includes(id));
-                        if (!ids.length) {
-                            message.val = `No prayers equipped on ${player.name}.`;
-                            return { equipment: [], levels: [], cancelled: true };
-                        }
+                            .filter((id) => only.includes(id) && player.prayers.includes(id));
+                        if (!ids.length) return { equipment: [], levels: [], cancelled: true };
                         return {
                             equipment: equipmentPlan(state, player, ids),
                             levels: [],
-                            confirmation: `unequip ${ids.length} named prayer(s) from ${player.name}.`,
+                            confirmation: `unequip ${ids.length} from ${player.name}`,
                         };
                     }
                     const levels = state.definitions
+                        .filter(({ id }) => only.includes(id))
                         .filter(({ id, data }) =>
                             mode === "unlock" ? state.levels[id] === 0 : state.levels[id] !== Number(data[9])
                         )
@@ -369,15 +370,12 @@ const PrayersTab = () => {
                             path: `PrayersUnlocked[${id}]`,
                             value: mode === "unlock" ? 1 : Number(data[9]),
                         }));
-                    if (!levels.length) {
-                        message.val = `All prayers are already ${mode === "unlock" ? "unlocked" : "maxed"}.`;
-                        return { equipment: [], levels: [], cancelled: true };
-                    }
+                    if (!levels.length) return { equipment: [], levels: [], cancelled: true };
                     // Unlock and Max all run on one click (#25). Max brings a prayer above its cap down to it: that
                     // is what Max means (Lumi, 2026-11-20), and Undo puts it back.
                     return { equipment: [], levels, confirmation: null };
                 },
-                (question, plan) => clickAgain(button, question, { targets: plan })
+                () => true
             )
         );
     };
@@ -388,40 +386,27 @@ const PrayersTab = () => {
         const equipmentStatus = useWriteStatus();
         const isEquipped = () =>
             Boolean(snapshot.val?.players.find((player) => player.name === selected.val)?.prayers.includes(id));
-        return EditableNumberRow({
+        const row = EditableNumberRow({
             valueState: level,
             normalize: (raw) => resolveNumberInput(raw, { min: 0, max: Number(metadata.val[9]) }),
             write: (next) => setLevel(id, next),
             // Not while a save runs: the field keeps focus, and `execute` refuses a save that overlaps.
             disabled: () => loading.val || Boolean(error.val) || !snapshot.val,
-            rowClass: "prayer-row account-row--wide-controls",
+            rowClass: "prayer-row",
             inputProps: { "aria-label": `${cleanName(metadata.val[0])} level` },
             maxAction: { label: "Max", value: () => Number(metadata.val[9]) },
+            // The bonus first, then the name and the curse it brings, in the game's words.
             renderInfo: () =>
-                div(
-                    { class: "account-row__name-group" },
-                    span({ class: "account-row__name" }, () => cleanName(metadata.val[0])),
-                    span(
-                        { class: "prayer-row__effect" },
-                        () =>
-                            `${level.val === 0 ? "Level 1 preview. " : ""}Bonus: ${effectText(metadata.val[1], metadata.val[3], Math.max(1, level.val))}`
-                    ),
-                    span(
-                        { class: "prayer-row__effect" },
-                        () => `Curse: ${effectText(metadata.val[2], metadata.val[4], Math.max(1, level.val))}`
-                    ),
-                    span(
-                        { class: "prayer-row__effect" },
-                        () =>
-                            `Unlock: ${snapshot.val?.trialNames?.[Number(metadata.val[8])] || `Trial ${metadata.val[8]}`}, wave ${metadata.val[7]}`
-                    )
+                span(
+                    { class: "prayer-row__titles" },
+                    RowTitles({ bonus: () => bonusText(metadata.val[1]), name: () => cleanName(metadata.val[0]) }),
+                    span({ class: "prayer-row__curse" }, () => `Curse: ${bonusText(metadata.val[2])}`)
                 ),
             cap: () => Number(metadata.val[9]),
             renderBadge: () => (level.val === 0 ? "Locked" : isEquipped() ? "Equipped" : ""),
             renderExtraActions: () =>
                 ActionButton({
                     label: () => (isEquipped() ? "Unequip" : "Equip"),
-                    variant: () => (isEquipped() ? "danger" : "quiet"),
                     status: equipmentStatus.status,
                     className: "prayer-row__equip-btn",
                     disabled: () => unavailable() || (!isEquipped() && level.val === 0),
@@ -432,60 +417,85 @@ const PrayersTab = () => {
                     },
                 }),
         });
+        rowOf.set(id, row);
+        return row;
+    };
+
+    const selectedPlayer = () => snapshot.val?.players.find((entry) => entry.name === selected.val);
+    const prayerWord = (n) => `prayer${n === 1 ? "" : "s"}`;
+    // The shown prayers the picked character has on.
+    const equippedShown = () => shownIds().filter((id) => selectedPlayer()?.prayers.includes(id));
+
+    // Unlock and Max all only raise (Max brings a level above its cap down to it: that is what Max means, Lumi
+    // 2026-11-20, and Undo puts it back), so they run on one press. Unequip takes prayers off, so it asks first.
+    const tools = (_activeId, ask) => {
+        const unequipAll = ActionButton({
+            label: "Unequip all",
+            status: bulkStatus.status,
+            variant: "danger",
+            disabled: () => unavailable() || !equippedShown().length,
+            onClick: (e) => {
+                e.preventDefault();
+                const ids = equippedShown();
+                ask({
+                    question: `Unequip ${ids.length} ${prayerWord(ids.length)} from ${selected.val}?`,
+                    confirmLabel: ids.length === 1 ? "Unequip it" : "Unequip them",
+                    from: unequipAll,
+                    onConfirm: () => bulk("unequip", ids),
+                });
+            },
+        });
+        const raise = (label, mode) =>
+            ActionButton({
+                label,
+                status: bulkStatus.status,
+                disabled: () => unavailable() || !shownIds().length,
+                onClick: (e) => {
+                    e.preventDefault();
+                    return bulk(mode, shownIds());
+                },
+            });
+        return [
+            div({ class: "tabbed-list__tool-group" }, raise("Unlock all", "unlock"), raise("Max all", "max")),
+            div({ class: "tabbed-list__tool-group" }, unequipAll),
+        ];
+    };
+
+    // What the picked character's slots hold, and what Gaming gives with them all empty.
+    const slotsLine = () => {
+        const player = selectedPlayer();
+        if (!player) return "";
+        const used = `${player.prayers.filter((id) => id !== -1).length} / ${snapshot.val.capacity} slots used`;
+        if (!snapshot.val.gamingPercent) return used;
+        const gaming = `${snapshot.val.gamingPercent}% of owned bonuses and no curses`;
+        return player.prayers.every((id) => id === -1)
+            ? `${used}. Gaming gives ${gaming}.`
+            : `${used}. With every slot empty, Gaming gives ${gaming}.`;
     };
 
     void load();
     return PersistentAccountListPage({
-        title: "PRAYERS",
-        rootClass: "tab-container prayers-page",
-        description: "Edit account levels and character equipment. Level edits bypass soul costs and trial unlocks.",
-        actions: BulkActionBar({
-            actions: [
-                {
-                    label: "Unlock all",
-                    status: bulkStatus.status,
-                    disabled: unavailable,
-                    onClick: (e) => bulk("unlock", e.currentTarget),
-                },
-                {
-                    label: "Max all",
-                    status: bulkStatus.status,
-                    disabled: unavailable,
-                    onClick: (e) => bulk("max", e.currentTarget),
-                },
-                {
-                    label: "Unequip all",
-                    variant: "danger",
-                    status: bulkStatus.status,
-                    disabled: unavailable,
-                    onClick: (e) => bulk("unequip", e.currentTarget),
-                },
-            ],
-            refresh: { onClick: load, disabled: () => busy.val || loading.val },
-        }),
-        wrapActions: false,
+        title: "Prayers",
+        rootClass: "tab-container scroll-container prayers-page",
+        description: "Prayer levels and each character's prayers. Level 0 unequips a prayer everywhere first.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => busy.val || loading.val }),
+        toolbar: characterSelector.node,
         state: { loading, error },
-        topNotices: WarningBanner("Setting a prayer to level 0 removes it from every character before locking it."),
         body: div(
-            { class: "scrollable-panel content-stack" },
-            characterSelector.node,
-            () => {
-                if (!snapshot.val || !snapshot.val.gamingPercent) return div();
-                const player = snapshot.val.players.find((entry) => entry.name === selected.val);
-                if (!player) return div();
-                return div(
-                    { class: "prayer-row__effect" },
-                    player.prayers.every((id) => id === -1)
-                        ? `Gaming bonus active: ${snapshot.val.gamingPercent}% of owned prayer bonuses, excluding Tachion of the Titans, with no curses.`
-                        : `Gaming bonus: ${snapshot.val.gamingPercent}% of owned bonuses with no curses when all 12 slots are empty. Tachion of the Titans is excluded.`
-                );
-            },
-            div({ class: "write-status", role: "status", "aria-live": "polite" }, message),
-            AccountSection({ title: "PRAYERS", body: rows })
+            { class: "account-list account-list--tabbed" },
+            div({ class: "write-status", role: "status", "aria-live": "polite", hidden: () => !message.val }, message),
+            ListPanel({
+                body: rows,
+                tools,
+                toolsLabel: () => {
+                    const n = shownIds().length;
+                    return isSearching() ? `${n} matching ${prayerWord(n)}` : `All ${n} ${prayerWord(n)}`;
+                },
+            })
         ),
-        initialWrapperClass: "scrollable-panel",
-        loadingText: "READING PRAYERS",
-        errorTitle: "PRAYERS READ FAILED",
+        initialWrapperClass: "account-list",
+        loadingText: "Reading prayers",
+        errorTitle: "Couldn't read prayers",
     });
 };
 
