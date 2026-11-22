@@ -93,7 +93,8 @@ test("Hat Rack: every premium hat is a row, and its switch takes it off the rack
     flip(rackRowFor(root, hat(5)), true);
     await until(() => gga.Spelunk[46].includes(hat(5)), "the hat to go on");
     assert.deepEqual([...gga.Spelunk[46]], [hat(2), hat(5)]);
-    assert.deepEqual([...gga.Cards[1]], [hat(5)]);
+    // Every premium hat on the rack goes in the Slab with an add, the one already there too.
+    assert.deepEqual([...gga.Cards[1]], [hat(2), hat(5)]);
 });
 
 test("Hat Rack: Add all and a switch keep what the game added after the page read it", async () => {

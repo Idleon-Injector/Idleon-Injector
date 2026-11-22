@@ -196,10 +196,15 @@ test("Library: a save for one character that answers after a Refresh to another 
     const root = await openPage("src/ui/pages/world-3/library/library.js", (r) =>
         byClass(r, "talent-row").some((row) => inputs(row).length)
     );
-    const indexOf = (row) => text(byClass(row, "account-row__index")[0]);
-    const row = byClass(root, "talent-row").find((candidate) => inputs(candidate).length);
-    const talentId = Number(indexOf(row).slice(1));
-    const rowFor = () => byClass(root, "talent-row").find((candidate) => indexOf(candidate) === `#${talentId}`);
+    // A talent is named once in the game's list, so its name finds its id.
+    const { normalCase } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const names = gga.CustomLists.h.TalentIconNames.map(normalCase);
+    const nameOf = (candidate) => text(byClass(candidate, "account-row__name")[0]);
+    const row = byClass(root, "talent-row").find(
+        (candidate) => inputs(candidate).length && names.filter((name) => name === nameOf(candidate)).length === 1
+    );
+    const talentId = names.indexOf(nameOf(row));
+    const rowFor = () => byClass(root, "talent-row").find((candidate) => nameOf(candidate) === nameOf(row));
     const shown = () => String(inputs(rowFor())[0].attributes.value);
     levels[talentId] = 2;
     await button(root, "Refresh").listeners.click({});
