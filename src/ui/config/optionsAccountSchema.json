@@ -3944,73 +3944,73 @@
     "654": {
         "name": "Cglunko Gooey Triangle",
         "description": "Gooey Triangle shapes (blue) you have to spend on the Cglunko upgrades Opal Find and Slop Drop. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "655": {
         "name": "Cglunko Gooey Square",
         "description": "Gooey Square shapes (blue) you have to spend on the Cglunko upgrades Reslime and Droplier. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "656": {
         "name": "Cglunko Gooey Pentagon",
         "description": "Gooey Pentagon shapes (blue) you have to spend on the Cglunko upgrades Killionaire and Insta-Ribbon. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "657": {
         "name": "Cglunko Gooey Hexagon",
         "description": "Gooey Hexagon shapes (blue) you have to spend on the Cglunko upgrades Big Hit Multkill and Active Drops. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "658": {
         "name": "Cglunko Gooey Heptagon",
         "description": "Gooey Heptagon shapes (blue) you have to spend on the Cglunko upgrades Sleepy Drops and One Big Blue. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "659": {
         "name": "Cglunko Gooey Nonagon",
         "description": "Gooey Nonagon shapes (blue) you have to spend on the Cglunko upgrades Blue Collector and Researchy. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "660": {
         "name": "Cglunko Quartz Prismagon",
         "description": "Quartz Prismagon shapes (purple) you have to spend on the Cglunko upgrades Droplier+ and Sleepy Drops+. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "661": {
         "name": "Cglunko Quartz Cubigon",
         "description": "Quartz Cubigon shapes (purple) you have to spend on the Cglunko upgrades Cavernicus and Multikill. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "662": {
         "name": "Cglunko Quartz Pointagon",
         "description": "Quartz Pointagon shapes (purple) you have to spend on the Cglunko upgrades One Big Purp and Slop Drop+. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "663": {
         "name": "Cglunko Quartz Octergon",
         "description": "Quartz Octergon shapes (purple) you have to spend on the Cglunko upgrades Rich Get Rich and DeEmGe. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "664": {
         "name": "Cglunko Quartz Nullagon",
         "description": "Quartz Nullagon shapes (purple) you have to spend on the Cglunko upgrades Grandioso and Slop Drop++. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "665": {
         "name": "Cglunko Quartz Brillagon",
         "description": "Quartz Brillagon shapes (purple) you have to spend on the Cglunko upgrades Purp Collector and IDK Broh. 0.1 means found but none left. Big values like 5e30 are fine.",
-        "type": "string",
+        "type": "number",
         "verified": true
     },
     "666": {
