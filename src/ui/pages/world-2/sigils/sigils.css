@@ -1,55 +1,90 @@
-/* Sigils uses shared tier-* layout classes from _account-pages.css.
-   This file keeps only sigil-specific color mapping. */
+/* Sigils: a sigil's tier is a step picker; a picked tier lights in its own colour, because it names a thing. */
 
-.sigils-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-@media (max-width: 1600px) {
-    .sigils-grid {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 1320px) {
-    .sigils-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 1080px) {
-    .sigils-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 820px) {
-    .sigils-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-/* The tier's word keeps its colour; the card doesn't. */
-.sigil-tier-badge--locked {
-    color: var(--c-text-dim);
-}
-
-.sigil-tier-badge--unlocked {
+.step-picker__step--sigil-unlocked.is-picked {
     color: var(--c-ui-blue);
 }
 
-.sigil-tier-badge--boosted {
+.step-picker__step--sigil-boosted.is-picked {
     color: var(--c-ui-yellow);
 }
 
-.sigil-tier-badge--ionized {
+.step-picker__step--sigil-ionized.is-picked {
     color: var(--c-ui-red);
 }
 
-.sigil-tier-badge--ethereal {
+.step-picker__step--sigil-ethereal.is-picked {
     color: var(--c-ui-purple);
 }
 
-.sigil-tier-badge--eclectic {
+.step-picker__step--sigil-eclectic.is-picked {
     color: var(--c-ui-green);
+}
+
+/* Six tiers in one shape: each step as wide as its word. */
+.viewport .sigil-tiers .step-picker__step {
+    flex: 1 1 auto;
+    padding: 0 10px;
+}
+
+/* On a phone the six share the row's width, a step smaller, and the tray's tier tool tightens to fit. */
+@media (max-width: 760px) {
+    .viewport .sigils-tab .account-row {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 10px;
+    }
+
+    .viewport .sigils-tab .account-row .account-row__controls {
+        width: 100%;
+    }
+
+    .viewport .sigil-tiers {
+        width: 100%;
+    }
+
+    .viewport .sigil-tiers .step-picker__step {
+        padding: 0 2px;
+        font-size: 0.8125rem;
+    }
+
+    /* The tray's six tiers fold into one shape of two lines, three to a line, without the "Tier for all" label. */
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        height: auto;
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn {
+        min-width: 0;
+        padding: 0 4px;
+        border-radius: 0;
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(3n + 2) {
+        border-left: 0;
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(n + 5) {
+        border-top: 1px solid var(--c-btn-edge);
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(2) {
+        border-radius: 10px 0 0;
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(4) {
+        border-radius: 0 10px 0 0;
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(5) {
+        border-radius: 0 0 0 10px;
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:last-child {
+        border-radius: 0 0 10px;
+    }
+
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-label {
+        display: none;
+    }
 }

@@ -5,16 +5,24 @@
  *   [4][2*i + 1] -> tier for sigil i (-1=Locked .. 4=Eclectic)
  *   [4][2*i]     -> EXP for sigil i (not displayed; tier-only UI)
  *
- * Sigil names come from cList.SigilDesc[i][0].
+ * Sigil names come from cList.SigilDesc[i][0], their bonus in the game's words from [6] ("Boosts_base_STR_by_+{").
+ * One list in the game's order; a sigil's tier is a step picker, and "Tier for all" in the tray sets the sigils the top
+ * bar's search shows.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { BulkActionBar, SetAllSelectControl } from "../../../components/views/account/BulkActionBar.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
-    cleanName,
+    bonusText,
+    normalCase,
     readLevelDefinitions,
     runBulkSet,
     toNum,
@@ -23,27 +31,28 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 
-const { div, span, select, option } = van.tags;
+const { div, span } = van.tags;
 
+// A tier names a thing, so each lights in its own colour (sigils.css).
 const SIGIL_TIERS = [
-    { value: -1, label: "LOCKED", cls: "locked" },
-    { value: 0, label: "UNLOCKED", cls: "unlocked" },
-    { value: 1, label: "BOOSTED", cls: "boosted" },
-    { value: 2, label: "IONIZED", cls: "ionized" },
-    { value: 3, label: "ETHEREAL", cls: "ethereal" },
-    { value: 4, label: "ECLECTIC", cls: "eclectic" },
+    { value: -1, label: "Locked", tone: "off" },
+    { value: 0, label: "Unlocked", tone: "sigil-unlocked" },
+    { value: 1, label: "Boosted", tone: "sigil-boosted" },
+    { value: 2, label: "Ionized", tone: "sigil-ionized" },
+    { value: 3, label: "Ethereal", tone: "sigil-ethereal" },
+    { value: 4, label: "Eclectic", tone: "sigil-eclectic" },
 ];
 
 const SIGIL_COUNT = 24;
 
-const getTierInfo = (value) => SIGIL_TIERS.find((tier) => tier.value === Number(value)) ?? SIGIL_TIERS[0];
+const tierLabel = (value) => (SIGIL_TIERS.find((tier) => tier.value === Number(value)) ?? SIGIL_TIERS[0]).label;
 
-const SigilCard = ({ index, tierState, nameState }) => {
-    const tierInput = van.state(String(tierState.val));
+const SigilRow = ({ index, tierState, nameState, bonusState }) => {
+    const pickedTier = van.state(tierState.val);
     // Picking a tier saves it.
     const { status, reason, save, handlers, undo } = useAutoSave({
         prepare: () => {
-            const tier = Math.min(4, Math.max(-1, Math.round(Number(tierInput.val))));
+            const tier = pickedTier.val;
             if (tier === Number(tierState.val)) return { unchanged: true };
             return {
                 write: async () => {
@@ -52,51 +61,41 @@ const SigilCard = ({ index, tierState, nameState }) => {
                 },
             };
         },
-        revert: () => (tierInput.val = String(tierState.val)),
+        revert: () => (pickedTier.val = Number(tierState.val)),
     });
 
-    // A choice saves as it's picked, so there is no draft to keep: show the game's tier, with focus too.
-    van.derive(() => (tierInput.val = String(tierState.val)));
+    // A pick saves as it's made, so there is no draft to keep: show the game's tier.
+    van.derive(() => (pickedTier.val = Number(tierState.val)));
 
-    return div(
-        {
-            class: () => ["tier-card", saveStateClass(status.val, undo)].filter(Boolean).join(" "),
-        },
-        div(
-            { class: "tier-card__header" },
-            div(
-                { class: "tier-card__identity" },
-                span({ class: "tier-card__index" }, `#${index}`),
-                span({ class: "tier-card__name" }, () => nameState.val)
-            ),
+    return AccountRow({
+        rowClass: () => saveStateClass(status.val, undo),
+        rowProps: handlers,
+        info: [
+            span({ class: "account-row__index" }, `#${index}`),
+            RowTitles({ bonus: () => bonusState.val, name: () => nameState.val }),
+        ],
+        controls: [
             SaveState({ status, reason, undo }),
-            span(
-                { class: () => `tier-card__badge sigil-tier-badge--${getTierInfo(tierState.val).cls}` },
-                () => getTierInfo(tierState.val).label
-            )
-        ),
-        select(
-            {
-                class: "tier-card__select select-base",
-                onkeydown: handlers.onkeydown,
-                onchange: (e) => {
-                    tierInput.val = e.target.value;
+            StepPicker({
+                name: () => `${nameState.val} tier`,
+                className: "sigil-tiers",
+                steps: SIGIL_TIERS,
+                picked: () => pickedTier.val,
+                onPick: (tier) => {
+                    pickedTier.val = tier;
                     void save();
                 },
-            },
-            ...SIGIL_TIERS.map((tier) =>
-                option({ value: tier.value, selected: () => Number(tierInput.val) === tier.value }, tier.label)
-            )
-        )
-    );
+            }),
+        ],
+    });
 };
 
 const SigilTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Sigils" });
     const sigilTier = Array.from({ length: SIGIL_COUNT }, () => van.state(-1));
-    const sigilName = Array.from({ length: SIGIL_COUNT }, (_, index) => van.state(`#${index}`));
-    const setAllTier = van.state("-1");
-    const { status: setAllStatus, run: runSetAll } = useWriteStatus();
+    const sigilName = Array.from({ length: SIGIL_COUNT }, (_, index) => van.state(`Sigil ${index}`));
+    const sigilBonus = Array.from({ length: SIGIL_COUNT }, () => van.state(""));
+    const bulk = useWriteStatus();
 
     const load = async () =>
         run(async () => {
@@ -106,64 +105,102 @@ const SigilTab = () => {
                 selectLevels: (_, levels) => levels[4],
                 mapEntry: ({ definition, levels, index }) => ({
                     tier: toNum(levels[2 * index + 1], -1),
-                    name: cleanName(definition[0], `#${index}`).toUpperCase(),
+                    name: normalCase(definition[0] ?? `Sigil ${index}`),
+                    bonus: bonusText(definition[6]),
                 }),
             });
 
             for (let index = 0; index < SIGIL_COUNT; index++) {
                 sigilTier[index].val = sigils[index]?.tier ?? -1;
-                sigilName[index].val = sigils[index]?.name ?? `#${index}`;
+                sigilName[index].val = sigils[index]?.name ?? `Sigil ${index}`;
+                sigilBonus[index].val = sigils[index]?.bonus ?? "";
             }
         });
 
-    const pickedTier = () => Math.min(4, Math.max(-1, Math.round(Number(setAllTier.val))));
-    // Lowering (locking included) takes tiers away, so it asks first; raising runs on one click.
-    const confirmSetAll = () => {
-        const tier = pickedTier();
-        const lowered = sigilTier.filter((state) => Number(state.val) > tier).length;
-        return lowered ? `lower ${lowered} sigil${lowered === 1 ? "" : "s"} to ${getTierInfo(tier).label}.` : null;
-    };
+    const rows = sigilTier.map((tierState, index) =>
+        SigilRow({ index, tierState, nameState: sigilName[index], bonusState: sigilBonus[index] })
+    );
+    // The sigils the tools act on: every one, or the ones the top bar's search shows.
+    const shownIndices = () => rows.map((_, index) => index).filter((index) => shownBySearch(rows[index]));
+    const sigilWord = (n) => `sigil${n === 1 ? "" : "s"}`;
 
-    const doSetAll = async () => {
-        const tier = pickedTier();
-        if (Number.isNaN(tier)) return;
-
-        await runSetAll(async () => {
-            await runBulkSet({
-                entries: sigilTier,
-                getTargetValue: () => tier,
-                getValueState: (tierState) => tierState,
-                getPath: (_, index) => `CauldronP2W[4][${2 * index + 1}]`,
+    const tools = (_activeId, ask) => {
+        const writeTier = (indices, tier) =>
+            bulk.run(() =>
+                runBulkSet({
+                    entries: indices,
+                    getTargetValue: () => tier,
+                    getValueState: (index) => sigilTier[index],
+                    getPath: (index) => `CauldronP2W[4][${2 * index + 1}]`,
+                })
+            );
+        const tierButtons = SIGIL_TIERS.map((tier) => {
+            const tierButton = ActionButton({
+                label: tier.label,
+                status: bulk.status,
+                disabled: () => {
+                    const indices = shownIndices();
+                    return !indices.length || indices.every((index) => Number(sigilTier[index].val) === tier.value);
+                },
+                onClick: (e) => {
+                    e.preventDefault();
+                    const indices = shownIndices();
+                    // Lowering (locking included) takes tiers away, so it asks first; raising runs on one press.
+                    const lowered = indices.filter((index) => Number(sigilTier[index].val) > tier.value).length;
+                    if (!lowered) return void writeTier(indices, tier.value);
+                    ask({
+                        question:
+                            tier.value < 0
+                                ? `Lock ${lowered} ${sigilWord(lowered)}?`
+                                : `Lower ${lowered} ${sigilWord(lowered)} to ${tierLabel(tier.value)}?`,
+                        confirmLabel:
+                            tier.value < 0
+                                ? lowered === 1
+                                    ? "Lock it"
+                                    : "Lock them"
+                                : lowered === 1
+                                  ? "Lower it"
+                                  : "Lower them",
+                        from: tierButton,
+                        onConfirm: () => writeTier(indices, tier.value),
+                    });
+                },
             });
+            return tierButton;
         });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            span(
+                { class: "tabbed-list__tool-label" },
+                "Tier",
+                span({ class: "tabbed-list__tool-label-more" }, " for all")
+            ),
+            ...tierButtons
+        );
     };
 
     load();
 
-    const grid = div(
-        { class: "tier-grid sigils-grid" },
-        ...Array.from({ length: SIGIL_COUNT }, (_, index) =>
-            SigilCard({ index, tierState: sigilTier[index], nameState: sigilName[index] })
-        )
-    );
-
     return PersistentAccountListPage({
-        title: "ALCHEMY - SIGILS",
-        description: "Manage tier and unlock status for all 24 alchemy sigils.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            leading: SetAllSelectControl({
-                label: "SET ALL TIERS TO",
-                value: setAllTier,
-                options: SIGIL_TIERS,
-                status: setAllStatus,
-                onApply: doSetAll,
-                confirm: confirmSetAll,
-            }),
-            refresh: { onClick: load },
-        }),
+        rootClass: "tab-container scroll-container sigils-tab",
+        title: "Sigils",
+        description: "Each sigil's tier, from locked to eclectic.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        body: div({ class: "tier-scroll scrollable-panel" }, grid),
+        loadingText: "Reading sigils",
+        errorTitle: "Couldn't read sigils",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: rows,
+                tools,
+                toolsLabel: () => {
+                    const n = shownIndices().length;
+                    return isSearching() ? `${n} matching ${sigilWord(n)}` : `All ${n} ${sigilWord(n)}`;
+                },
+            })
+        ),
     });
 };
 
@@ -172,6 +209,6 @@ export default definePage({
     world: 2,
     system: "Sigils",
     description: "Each sigil's tier, from locked to eclectic.",
-    keywords: ["Alchemy"],
+    keywords: ["Alchemy", "Unlocked", "Boosted", "Ionized", "Ethereal", "Eclectic"],
     component: SigilTab,
 });

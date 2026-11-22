@@ -1,30 +1,36 @@
 /**
- * W2 - Brewing Tab (Alchemy Bubbles)
+ * W2 - Bubbles Tab (Alchemy Bubbles)
+ *
+ * Levels: CauldronInfo[cauldron][bubble]. Each cauldron is a tab, its bubbles in the game's order.
+ * Bubble definitions: cList.AlchemyDescription[cauldron][bubble]: [0] name, [9] the bonus in the game's words,
+ * [10] 1 = big bubble (prisma blocked).
  *
  * Prisma format in OptionsListAccount[384]:
  *   "0"         -> no prisma bubbles
  *   "_0,"       -> orange bubble index 0 is prisma
  *   "_0,_1,a3," -> orange[0], orange[1], green[3] are prisma
  *
- * Big bubble flag:
- *   cList.AlchemyDescription[cauldron][bubble][10]
- *   0 = normal bubble (prisma allowed)
- *   1 = big bubble    (prisma blocked)
+ * The tray acts on the open cauldron's bubbles the top bar's search shows: a level for all (asks before it lowers),
+ * Prisma all, and Unprisma all (asks).
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar, SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
+import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import {
-    cleanName,
+    bonusText,
+    normalCase,
     oneAtATime,
     readLevelDefinitions,
     resolveNumberInput,
@@ -37,11 +43,12 @@ import {
 const { div, span } = van.tags;
 
 const CAULDRONS = [
-    { id: "orange", label: "ORANGE", index: 0, prismaKey: "_" },
-    { id: "green", label: "GREEN", index: 1, prismaKey: "a" },
-    { id: "purple", label: "PURPLE", index: 2, prismaKey: "b" },
-    { id: "yellow", label: "YELLOW", index: 3, prismaKey: "c" },
+    { id: "orange", label: "Orange", index: 0, prismaKey: "_" },
+    { id: "green", label: "Green", index: 1, prismaKey: "a" },
+    { id: "purple", label: "Purple", index: 2, prismaKey: "b" },
+    { id: "yellow", label: "Yellow", index: 3, prismaKey: "c" },
 ];
+const PRISMA_PATH = "OptionsListAccount[384]";
 
 function parsePrisma(str) {
     if (!str || str === "0") return new Set();
@@ -59,262 +66,237 @@ function parsePrisma(str) {
     );
 }
 
-function prismaCode(key, idx) {
-    return key + String(idx);
-}
+const prismaCode = (cauldron, bubble) => cauldron.prismaKey + String(bubble.index);
 
 function encodePrisma(set) {
     if (set.size === 0) return "0,";
     return [...set].sort(sortPrefixedNumericCodes).join(",") + ",";
 }
 
-const BubbleRow = ({ bubble, cauldron, levels, prismaSet, prismaInTurn }) => {
-    const levelState = van.state(Number(levels.val?.[bubble.index] ?? 0));
-    const prismaBlocked = bubble.isBigBubble === true;
-    const isPrisma = van.derive(() => (prismaSet.val ?? new Set()).has(prismaCode(cauldron.prismaKey, bubble.index)));
-
-    van.derive(() => {
-        levelState.val = Number(levels.val?.[bubble.index] ?? 0);
-    });
-
-    const setLocalLevel = (level) => {
-        const nextLevels = [...toIndexedArray(levels.val ?? [])];
-        nextLevels[bubble.index] = level;
-        levels.val = nextLevels;
-    };
+const BubbleRow = ({ bubble, cauldron, prismaSet, setPrisma }) => {
+    const isPrisma = van.derive(() => prismaSet.val.has(prismaCode(cauldron, bubble)));
 
     return ClampedLevelRow({
-        valueState: levelState,
+        valueState: bubble.levelState,
         max: Infinity,
-        write: async (nextLevel) => {
-            const path = `CauldronInfo[${cauldron.index}][${bubble.index}]`;
-            await writeVerified(path, nextLevel);
-            setLocalLevel(nextLevel);
-            return nextLevel;
-        },
+        writePath: `CauldronInfo[${cauldron.index}][${bubble.index}]`,
         renderInfo: () => [
             span({ class: "account-row__index" }, `#${bubble.index}`),
-            span({ class: "account-row__name" }, bubble.name),
-            prismaBlocked ? span({ class: "account-row__sub-label" }, "BIG BUBBLE") : null,
+            RowTitles({ bonus: bubble.bonus, name: bubble.name }),
         ],
-        rowClass: () => `brewing-row${isPrisma.val ? " brewing-row--prisma" : ""}`,
-        badgeClass: "brewing-row__badge",
-        controlsClass: "brewing-row__controls account-row__controls--xl",
+        // A big bubble can't be prisma: it says so where the switch would be.
         renderExtraActions: ({ run }) =>
-            prismaBlocked
-                ? null
+            bubble.isBigBubble
+                ? span({ class: "bubbles-row__note" }, "Big bubble")
                 : StateSwitch({
                       checked: isPrisma,
-                      words: ["Prisma", "Not prisma"],
+                      // Only a prisma bubble says so; "Not prisma" on every other row was noise.
+                      words: ["Prisma", ""],
                       name: `${bubble.name} prisma`,
-                      title: () => (isPrisma.val ? "Remove Prisma" : "Set Prisma"),
                       // The switch says how its save went; the row's save state says saving… and ✓ (or the level's failure).
                       ownStatus: true,
-                      onFlip: (prisma) =>
-                          run(
-                              () =>
-                                  prismaInTurn(async () => {
-                                      const code = prismaCode(cauldron.prismaKey, bubble.index);
-                                      const held = parsePrisma(await gga("OptionsListAccount[384]"));
-                                      const next = new Set(held);
-                                      if (prisma) next.add(code);
-                                      else next.delete(code);
-                                      try {
-                                          await writeVerified("OptionsListAccount[384]", encodePrisma(next));
-                                      } catch (error) {
-                                          // The write may have landed: the switches show what the game holds now
-                                          // (what it held when this save started, if that read fails too).
-                                          prismaSet.val = await gga("OptionsListAccount[384]").then(
-                                              parsePrisma,
-                                              () => held
-                                          );
-                                          throw error;
-                                      }
-                                      prismaSet.val = next;
-                                  }),
-                              "switch"
-                          ),
+                      onFlip: (prisma) => setPrisma([prismaCode(cauldron, bubble)], prisma, run, "switch"),
                   }),
     });
 };
 
-const CauldronSectionBlock = ({ cauldron, levels, defs, sectionBody, setAllInput }) => {
-    const { status: bulkStatus, run: runBulk } = useWriteStatus();
-
-    const typedLevel = () => resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
-    const levelOf = (bubble) => Number(toIndexedArray(levels.val ?? [])[bubble.index] ?? 0);
-    // Lowering takes levels away, so it asks first; raising runs on one click.
-    const confirmSetAll = () => {
-        const lvl = typedLevel();
-        if (lvl === null) return null;
-        const lowered = (defs.val ?? []).filter((bubble) => levelOf(bubble) > lvl).length;
-        return lowered
-            ? `lower ${lowered} ${cauldron.label.toLowerCase()} bubble${lowered === 1 ? "" : "s"} to level ${lvl}.`
-            : null;
-    };
-
-    const doSetAll = async () => {
-        const lvl = typedLevel();
-        if (lvl === null) return refuseSetAll(setAllInput);
-
-        const bubblesToSet = (defs.val ?? []).filter((bubble) => levelOf(bubble) !== lvl);
-        if (bubblesToSet.length === 0) return undefined;
-
-        return runBulk(async () => {
-            await runBulkSet({
-                entries: bubblesToSet,
-                getTargetValue: () => lvl,
-                getValueState: (bubble) => ({ val: levelOf(bubble) }),
-                getPath: (bubble) => `CauldronInfo[${cauldron.index}][${bubble.index}]`,
-                // Only the bubbles written change: a row saved meanwhile keeps its level.
-                applyLocal: (bubble) => {
-                    const nextLevels = [...toIndexedArray(levels.val ?? [])];
-                    nextLevels[bubble.index] = lvl;
-                    levels.val = nextLevels;
-                },
-            });
-        });
-    };
-
-    return AccountSection({
-        title: cauldron.label,
-        rootClass: `brewing-section brewing-section--${cauldron.id}`,
-        meta: ActionButton({
-            label: "Set all",
-            status: bulkStatus,
-            tooltip: "Set all bubbles in this cauldron",
-            confirm: confirmSetAll,
-            onClick: async (e) => {
-                e.preventDefault();
-                await doSetAll();
-            },
-        }),
-        body: sectionBody,
-    });
-};
-
-const BrewingTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Brewing" });
-    const setAllInput = van.state("50000");
-
-    const cauldronLevels = new Map(CAULDRONS.map((c) => [c.id, van.state([])]));
-    const bubbleDefs = new Map(CAULDRONS.map((c) => [c.id, van.state([])]));
+const BubblesTab = () => {
+    const { loading, error, run } = useAccountLoad({ label: "Bubbles" });
     const prismaSet = van.state(new Set());
-    // Every bubble's Prisma lives in one string, so flips save one at a time, each from the string the game holds now.
+    // What each tab's tools act on: its bubbles with their level states and rows, kept by load.
+    const bubblesByCauldron = van.state(CAULDRONS.map(() => []));
+    const paneOf = CAULDRONS.map(() => div({ class: "account-page-pane" }));
+    const signatures = CAULDRONS.map(() => null);
+
+    const readPrisma = async () => (prismaSet.val = parsePrisma(await gga(PRISMA_PATH)));
+
+    // Every bubble's Prisma lives in one string, so flips save one at a time, each from the string the game holds now:
+    // a bubble made prisma in the game, or by a flip still saving, isn't written over. `run` is the row's or the
+    // tray's, so the save state shows where the player acted.
     const prismaInTurn = oneAtATime();
-    const sectionsGrid = div({ class: "brewing-sections-grid grid-4col" });
-    const contentNode = div({ class: "scrollable-panel" }, sectionsGrid);
-    const sectionBodyNodes = new Map();
-    const sectionDefinitionSignatures = new Map();
-    const sectionNodes = [];
-
-    CAULDRONS.forEach((cauldron) => {
-        const sectionBody = div({ class: "brewing-section__rows" });
-        sectionBodyNodes.set(cauldron.id, sectionBody);
-        sectionNodes.push(
-            CauldronSectionBlock({
-                cauldron,
-                levels: cauldronLevels.get(cauldron.id),
-                defs: bubbleDefs.get(cauldron.id),
-                sectionBody,
-                setAllInput,
-            })
+    const setPrisma = (codes, prisma, runIn, ...runArgs) =>
+        runIn(
+            () =>
+                prismaInTurn(async () => {
+                    try {
+                        const next = parsePrisma(await gga(PRISMA_PATH));
+                        codes.forEach((code) => (prisma ? next.add(code) : next.delete(code)));
+                        await writeVerified(PRISMA_PATH, encodePrisma(next));
+                        prismaSet.val = next;
+                    } catch (error) {
+                        // The write may have landed: the switches show what the game holds now.
+                        await readPrisma().catch(() => {});
+                        throw error;
+                    }
+                }),
+            ...runArgs
         );
-    });
-
-    const reconcileCauldronRows = (cauldron) => {
-        const defs = bubbleDefs.get(cauldron.id).val ?? [];
-        const signature = defs
-            .map((bubble) => `${bubble.index}:${bubble.name}:${bubble.isBigBubble ? 1 : 0}`)
-            .join("|");
-        if (sectionDefinitionSignatures.get(cauldron.id) === signature) return;
-
-        const sectionBody = sectionBodyNodes.get(cauldron.id);
-        if (!sectionBody) return;
-
-        sectionDefinitionSignatures.set(cauldron.id, signature);
-
-        sectionBody.replaceChildren(
-            ...defs.map((bubble) =>
-                BubbleRow({
-                    bubble,
-                    cauldron,
-                    levels: cauldronLevels.get(cauldron.id),
-                    prismaSet,
-                    prismaInTurn,
-                })
-            )
-        );
-    };
-
-    const reconcileBody = () => {
-        CAULDRONS.forEach(reconcileCauldronRows);
-
-        sectionsGrid.replaceChildren(...sectionNodes);
-        contentNode.replaceChildren(sectionsGrid);
-    };
 
     const load = async () =>
         run(async () => {
-            const [rawPrismaStr, cauldronRows] = await Promise.all([
-                gga("OptionsListAccount[384]"),
+            const [rawPrisma, cauldrons] = await Promise.all([
+                gga(PRISMA_PATH),
                 readLevelDefinitions({
                     levelsPath: "CauldronInfo",
                     definitionsPath: "AlchemyDescription",
                     mapEntry: ({ definition, rawLevel, index }) => {
-                        const cauldron = CAULDRONS.find((entry) => entry.index === index);
-                        if (!cauldron) return null;
-                        return {
-                            id: cauldron.id,
-                            levels: toIndexedArray(rawLevel ?? []),
-                            defs: definition
-                                .map((entry, idx) => {
-                                    const entryArr = toIndexedArray(entry ?? []);
-                                    const name = cleanName(entryArr[0], "BUBBLE");
-                                    const isBigBubble = Number(entryArr[10] ?? 0) === 1;
-                                    return { name, index: idx, isBigBubble };
-                                })
-                                .filter((b) => b.name.toUpperCase() !== "BUBBLE" && b.name.trim() !== ""),
-                        };
+                        if (!CAULDRONS[index]) return null;
+                        const levels = toIndexedArray(rawLevel ?? []);
+                        return definition
+                            .map((entry, at) => {
+                                const fields = toIndexedArray(entry ?? []);
+                                return {
+                                    index: at,
+                                    name: normalCase(fields[0] ?? ""),
+                                    bonus: bonusText(fields[9]),
+                                    isBigBubble: Number(fields[10] ?? 0) === 1,
+                                    level: Number(levels[at] ?? 0),
+                                };
+                            })
+                            .filter((b) => b.name !== "" && b.name.toUpperCase() !== "BUBBLE");
                     },
                 }),
             ]);
 
-            const nextPrismaSet = parsePrisma(rawPrismaStr);
-            const nextLevelsById = new Map();
-            const nextDefsById = new Map();
-
-            cauldronRows.forEach((cauldron) => {
-                nextLevelsById.set(cauldron.id, cauldron.levels);
-                nextDefsById.set(cauldron.id, cauldron.defs);
+            prismaSet.val = parsePrisma(rawPrisma);
+            const next = [...bubblesByCauldron.val];
+            CAULDRONS.forEach((cauldron) => {
+                const read = cauldrons[cauldron.index] ?? [];
+                const signature = read.map((b) => `${b.index}:${b.name}:${b.bonus}:${b.isBigBubble}`).join("|");
+                if (signature === signatures[cauldron.index]) {
+                    // The same bubbles: their rows stay, with the levels the game holds now.
+                    next[cauldron.index].forEach((bubble, at) => (bubble.levelState.val = read[at].level));
+                    return;
+                }
+                signatures[cauldron.index] = signature;
+                const bubbles = read.map((b) => {
+                    const bubble = { ...b, levelState: van.state(b.level) };
+                    bubble.row = BubbleRow({ bubble, cauldron, prismaSet, setPrisma });
+                    return bubble;
+                });
+                paneOf[cauldron.index].replaceChildren(...bubbles.map((bubble) => bubble.row));
+                next[cauldron.index] = bubbles;
             });
-
-            prismaSet.val = nextPrismaSet;
-            CAULDRONS.forEach((c) => {
-                cauldronLevels.get(c.id).val = nextLevelsById.get(c.id) ?? [];
-                bubbleDefs.get(c.id).val = nextDefsById.get(c.id) ?? [];
-            });
-            reconcileBody();
+            bubblesByCauldron.val = next;
         });
+
+    // The open tab's tools. They share one status, so a bulk write runs alone.
+    const bulk = useWriteStatus();
+    const setAllInput = van.state("");
+    const cauldronOf = (activeId) => CAULDRONS.find((cauldron) => cauldron.id === activeId.val);
+    // A tab's bubbles the tools act on: all of them, or the ones the top bar's search shows.
+    const bubblesOn = (cauldron) => bubblesByCauldron.val[cauldron.index].filter((bubble) => shownBySearch(bubble.row));
+    const bubbleWord = (cauldron, n) => `${cauldron.id} bubble${n === 1 ? "" : "s"}`;
+    const toolsLabel = (activeId) => {
+        const cauldron = cauldronOf(activeId);
+        const n = bubblesOn(cauldron).length;
+        return isSearching() ? `${n} matching ${bubbleWord(cauldron, n)}` : `All ${n} ${bubbleWord(cauldron, n)}`;
+    };
+
+    const tools = (activeId, ask) => {
+        const cauldron = () => cauldronOf(activeId);
+        const prismaCodesOn = (c) =>
+            bubblesOn(c)
+                .filter((bubble) => !bubble.isBigBubble)
+                .map((bubble) => prismaCode(c, bubble));
+        const prismaOn = (c) => prismaCodesOn(c).filter((code) => prismaSet.val.has(code)).length;
+
+        const writeLevels = (c, bubbles, level) =>
+            bulk.run(() =>
+                runBulkSet({
+                    entries: bubbles,
+                    getTargetValue: () => level,
+                    getValueState: (bubble) => bubble.levelState,
+                    getPath: (bubble) => `CauldronInfo[${c.index}][${bubble.index}]`,
+                })
+            );
+        // Lowering takes levels away, so it asks first (in the tray); raising runs on one click.
+        const setAll = () => {
+            const level = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
+            if (level === null) return refuseSetAll(setAllInput);
+            const c = cauldron();
+            const bubbles = bubblesOn(c);
+            const lowered = bubbles.filter((bubble) => Number(bubble.levelState.val) > level).length;
+            if (!lowered) return writeLevels(c, bubbles, level);
+            ask({
+                question: `Lower ${lowered} ${bubbleWord(c, lowered)} to level ${level}?`,
+                confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
+                from: setAllControl.querySelector(".account-btn"),
+                onConfirm: () => writeLevels(c, bubbles, level),
+            });
+            return undefined;
+        };
+        const setAllControl = SetAllNumberControl({
+            label: "",
+            placeholder: "Level",
+            value: setAllInput,
+            status: bulk.status,
+            onApply: setAll,
+        });
+
+        // Every prisma lives in one string: the tab's bubbles go in (or out) in one write, in turn with the switches.
+        const prismaAll = (codes, prisma) => setPrisma(codes, prisma, bulk.run);
+        const unprismaAll = ActionButton({
+            label: "Unprisma all",
+            status: bulk.status,
+            variant: "danger",
+            disabled: () => prismaOn(cauldron()) === 0,
+            onClick: (e) => {
+                e.preventDefault();
+                const c = cauldron();
+                const codes = prismaCodesOn(c).filter((code) => prismaSet.val.has(code));
+                ask({
+                    question: `Unprisma ${codes.length} ${bubbleWord(c, codes.length)}?`,
+                    confirmLabel: codes.length === 1 ? "Unprisma it" : "Unprisma them",
+                    from: unprismaAll,
+                    onConfirm: () => prismaAll(codes, false),
+                });
+            },
+        });
+
+        return [
+            setAllControl,
+            div(
+                { class: "tabbed-list__tool-group" },
+                ActionButton({
+                    label: "Prisma all",
+                    status: bulk.status,
+                    disabled: () => prismaOn(cauldron()) === prismaCodesOn(cauldron()).length,
+                    onClick: (e) => {
+                        e.preventDefault();
+                        const c = cauldron();
+                        void prismaAll(prismaCodesOn(c), true);
+                    },
+                }),
+                unprismaAll
+            ),
+        ];
+    };
 
     load();
 
     return PersistentAccountListPage({
-        title: "ALCHEMY - BREWING",
-        description: "Set bubble levels and toggle Prisma upgrades.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            leading: SetAllNumberControl({
-                label: "SET ALL LEVEL:",
-                value: setAllInput,
-            }),
-            refresh: { onClick: load },
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Bubbles",
+        description: "Bubble levels and prisma bubbles in all four cauldrons.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING BREWING",
-        errorTitle: "BREWING READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body: contentNode,
+        loadingText: "Reading bubbles",
+        errorTitle: "Couldn't read bubbles",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Bubbles",
+                tabs: CAULDRONS.map((cauldron) => ({
+                    id: cauldron.id,
+                    label: cauldron.label,
+                    content: paneOf[cauldron.index],
+                })),
+                tools,
+                toolsLabel,
+            })
+        ),
     });
 };
 
@@ -324,6 +306,6 @@ export default definePage({
     system: "Bubbles",
     tab: "Bubbles",
     description: "Bubble levels and prisma bubbles in all four cauldrons.",
-    keywords: ["Alchemy", "Brewing", "Prisma"],
-    component: BrewingTab,
+    keywords: ["Alchemy", "Brewing", "Prisma", "Orange", "Green", "Purple", "Yellow"],
+    component: BubblesTab,
 });

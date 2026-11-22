@@ -9,6 +9,9 @@
  *   OptionsListAccount[123] -> Draconic cauldron count
  *
  * Max levels are read via readComputedMany("alchemy", "CauldronLvMAX", ...).
+ *
+ * The game's groups are tabs: Cauldrons and Liquids are tables (a line per cauldron, its upgrades in columns), Vials
+ * and Player lists. The Draconic count closes the Liquids tab.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -18,92 +21,48 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { writeVerified } from "../../../components/views/account/accountShared.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
-const makeStateList = (count, initialValue = 0) => Array.from({ length: count }, () => van.state(initialValue));
-const makeStateGrid = (columns, rows, initialValue = 0) =>
-    Array.from({ length: columns }, () => makeStateList(rows, initialValue));
-
-const P2W_SECTION_DEFS = [
+// The game's groups, each a tab. A table tab has a line per cauldron (or liquid), its upgrades in columns; a list tab a
+// row per upgrade. `bucket` is CauldronP2W's list; an upgrade's place in it is column + stride × line.
+const GROUPS = [
     {
-        kind: "grid",
-        title: "BREWING CAULDRONS",
-        note: "P2W upgrade levels per cauldron",
+        id: "cauldrons",
+        label: "Cauldrons",
+        thing: "Cauldron",
         bucket: 0,
         stride: 3,
-        columns: [
-            { label: "POWER CAULDRON", tone: "brew-power" },
-            { label: "QUICC CAULDRON", tone: "brew-quicc" },
-            { label: "HIGH-IQ CAULDRON", tone: "brew-high-iq" },
-            { label: "KAZAM CAULDRON", tone: "brew-kazam" },
+        lines: [
+            { label: "Power Cauldron", tone: "brew-power" },
+            { label: "Quicc Cauldron", tone: "brew-quicc" },
+            { label: "High-IQ Cauldron", tone: "brew-high-iq" },
+            { label: "Kazam Cauldron", tone: "brew-kazam" },
         ],
-        rowLabels: ["SPEED", "NEW BUBBLE", "BOOST REQ"],
+        columns: ["Speed", "New bubble", "Boost req"],
     },
     {
-        kind: "grid",
-        title: "LIQUID CAULDRONS",
-        note: "P2W upgrade levels per liquid",
+        id: "liquids",
+        label: "Liquids",
+        thing: "Liquid",
         bucket: 1,
         stride: 2,
-        columns: [
-            { label: "WATER DROPLETS", tone: "liquid-water-droplets" },
-            { label: "LIQUID NITROGEN", tone: "liquid-nitrogen" },
-            { label: "TRENCH SEAWATER", tone: "liquid-trench-seawater" },
-            { label: "TOXIC MERCURY", tone: "liquid-toxic-mercury" },
+        lines: [
+            { label: "Water Droplets", tone: "water-droplets" },
+            { label: "Liquid Nitrogen", tone: "liquid-nitrogen" },
+            { label: "Trench Seawater", tone: "trench-seawater" },
+            { label: "Toxic Mercury", tone: "toxic-mercury" },
         ],
-        rowLabels: ["REGEN", "CAPACITY"],
+        columns: ["Regen", "Capacity"],
     },
-    {
-        kind: "single",
-        title: "DRACONIC CAULDRONS",
-        note: "Number of draconic liquid cauldrons (0-4)",
-        rowLabels: ["COUNT"],
-        max: 4,
-        writePath: "OptionsListAccount[123]",
-    },
-    {
-        kind: "list",
-        title: "VIALS UPGRADES",
-        note: "P2W vial upgrade levels",
-        bucket: 2,
-        rowLabels: ["ATTEMPTS", "RNG"],
-    },
-    {
-        kind: "list",
-        title: "PLAYER BOOSTS",
-        note: "P2W player alchemy boosts",
-        bucket: 3,
-        rowLabels: ["ALCH SPD", "EXTRA EXP"],
-    },
+    { id: "vials", label: "Vials", bucket: 2, rows: ["Attempts", "RNG"] },
+    { id: "player", label: "Player", bucket: 3, rows: ["Alchemy speed", "Extra EXP"] },
 ];
-
-const createSectionState = (section) => {
-    if (section.kind === "grid") {
-        return {
-            ...section,
-            valueStates: makeStateGrid(section.columns.length, section.rowLabels.length),
-            maxStates: makeStateGrid(section.columns.length, section.rowLabels.length),
-        };
-    }
-
-    if (section.kind === "single") {
-        return {
-            ...section,
-            valueStates: makeStateList(section.rowLabels.length),
-            maxStates: makeStateList(section.rowLabels.length, section.max ?? 0),
-        };
-    }
-
-    return {
-        ...section,
-        valueStates: makeStateList(section.rowLabels.length),
-        maxStates: makeStateList(section.rowLabels.length),
-    };
-};
+const DRACONIC = { label: "Draconic cauldrons", max: 4, writePath: "OptionsListAccount[123]" };
 
 const P2WRow = ({ label, valueState, maxState, writePath }) =>
     EditableNumberRow({
@@ -119,7 +78,7 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
         },
         write: async (nextValue) => writeVerified(writePath, nextValue),
         renderInfo: () => span({ class: "account-row__name" }, label),
-        // The cauldron's max level, where −/+ stop; none until it's read.
+        // The max level, where −/+ stop; none until it's read.
         cap: () => (maxState.val > 0 ? maxState.val : null),
         adjustInput: (rawValue, delta, currentValue) => {
             const base = Number(rawValue);
@@ -133,98 +92,40 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
         inputMode: "int",
     });
 
-const renderSection = (section) => {
-    if (section.kind === "grid") {
-        return AccountSection({
-            title: section.title,
-            note: section.note,
-            body: div(
-                { class: "grid-4col" },
-                ...section.columns.map((column, columnIndex) =>
-                    div(
-                        { class: `p2w-col ${column.tone ? `p2w-col--${column.tone}` : ""}` },
-                        div({ class: "col-header" }, span({ class: "col-header__name" }, column.label)),
-                        ...section.rowLabels.map((label, rowIndex) =>
-                            P2WRow({
-                                label,
-                                valueState: section.valueStates[columnIndex][rowIndex],
-                                maxState: section.maxStates[columnIndex][rowIndex],
-                                writePath: `CauldronP2W[${section.bucket}][${rowIndex + section.stride * columnIndex}]`,
-                            })
-                        )
-                    )
-                )
-            ),
-        });
-    }
-
-    return AccountSection({
-        title: section.title,
-        note: section.note,
-        body: section.rowLabels.map((label, index) =>
-            P2WRow({
-                label,
-                valueState: section.valueStates[index],
-                maxState: section.maxStates[index],
-                writePath: section.kind === "single" ? section.writePath : `CauldronP2W[${section.bucket}][${index}]`,
-            })
-        ),
-    });
-};
-
 const Pay2WinTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Pay 2 Win" });
-    const sections = P2W_SECTION_DEFS.map(createSectionState);
+    // Each group's values and max levels: one state per upgrade, at its place in the group's bucket.
+    const slots = (group) => (group.lines ? group.lines.length * group.stride : group.rows.length);
+    const valueStates = GROUPS.map((group) => Array.from({ length: slots(group) }, () => van.state(0)));
+    const maxStates = GROUPS.map((group) => Array.from({ length: slots(group) }, () => van.state(0)));
+    const draconic = { value: van.state(0), max: van.state(DRACONIC.max) };
 
     const load = async () =>
         run(async () => {
             const [rawP2W, rawDraconic] = await Promise.all([gga("CauldronP2W"), gga("OptionsListAccount[123]")]);
             const p2w = toIndexedArray(rawP2W ?? []);
+            // What the game holds, even past the max, so the row never hides it.
+            const count = Number(rawDraconic ?? 0);
+            draconic.value.val = Number.isFinite(count) ? count : 0;
+
             const maxTargets = [];
-
-            for (const section of sections) {
-                if (section.kind === "single") {
-                    // What the game holds, even past the max, so the row never hides it.
-                    const rawValue = Number(rawDraconic ?? 0);
-                    section.valueStates[0].val = Number.isFinite(rawValue) ? rawValue : 0;
-                    continue;
-                }
-
-                const bucketValues = toIndexedArray(p2w[section.bucket] ?? []);
-
-                if (section.kind === "grid") {
-                    for (let columnIndex = 0; columnIndex < section.columns.length; columnIndex++) {
-                        for (let rowIndex = 0; rowIndex < section.rowLabels.length; rowIndex++) {
-                            const flatIndex = rowIndex + section.stride * columnIndex;
-                            section.valueStates[columnIndex][rowIndex].val = Number(bucketValues[flatIndex] ?? 0);
-                            maxTargets.push({
-                                args: [section.bucket, columnIndex, String(rowIndex)],
-                                apply: (value) => {
-                                    section.maxStates[columnIndex][rowIndex].val = Number(value ?? 0);
-                                },
-                            });
-                        }
-                    }
-                    continue;
-                }
-
-                for (let index = 0; index < section.rowLabels.length; index++) {
-                    section.valueStates[index].val = Number(bucketValues[index] ?? 0);
-                    maxTargets.push({
-                        args: [section.bucket, index, "0"],
-                        apply: (value) => {
-                            section.maxStates[index].val = Number(value ?? 0);
-                        },
-                    });
-                }
-            }
+            GROUPS.forEach((group, g) => {
+                const bucket = toIndexedArray(p2w[group.bucket] ?? []);
+                valueStates[g].forEach((state, at) => {
+                    state.val = Number(bucket[at] ?? 0);
+                    // The game asks for a max by group, line and column ("0" for a list's row).
+                    const args = group.lines
+                        ? [group.bucket, Math.floor(at / group.stride), String(at % group.stride)]
+                        : [group.bucket, at, "0"];
+                    maxTargets.push({ args, apply: (value) => (maxStates[g][at].val = Number(value ?? 0)) });
+                });
+            });
 
             const maxResults = await readComputedMany(
                 "alchemy",
                 "CauldronLvMAX",
                 maxTargets.map((entry) => entry.args)
             );
-
             maxTargets.forEach((entry, index) => {
                 if (!maxResults[index]?.ok) {
                     throw new Error(
@@ -235,14 +136,74 @@ const Pay2WinTab = () => {
             });
         });
 
+    const tableRows = (group, g) =>
+        group.lines.map((line, l) => {
+            const at = (column) => column + group.stride * l;
+            return ValueTableRow({
+                name: line.label,
+                info: span({ class: `account-row__name liquid-name liquid-name--${line.tone}` }, line.label),
+                fields: group.columns.map((label, column) => ({
+                    key: String(column),
+                    label,
+                    valueState: valueStates[g][at(column)],
+                    max: () => maxStates[g][at(column)].val,
+                    paths: [`CauldronP2W[${group.bucket}][${at(column)}]`],
+                })),
+                read: async () => {
+                    const bucket = toIndexedArray((await gga(`CauldronP2W[${group.bucket}]`)) ?? []);
+                    return Object.fromEntries(
+                        group.columns.map((_, column) => [String(column), Number(bucket[at(column)] ?? 0)])
+                    );
+                },
+            });
+        });
+
+    const tabContent = (group, g) =>
+        group.lines
+            ? div(
+                  { class: "account-page-pane" },
+                  ValueTableHead({ name: group.thing, columns: group.columns }),
+                  ...tableRows(group, g),
+                  // The Draconic count is the liquid cauldrons' own: it closes their tab.
+                  group.id === "liquids"
+                      ? P2WRow({
+                            label: DRACONIC.label,
+                            valueState: draconic.value,
+                            maxState: draconic.max,
+                            writePath: DRACONIC.writePath,
+                        })
+                      : null
+              )
+            : div(
+                  { class: "account-page-pane" },
+                  ...group.rows.map((label, at) =>
+                      P2WRow({
+                          label,
+                          valueState: valueStates[g][at],
+                          maxState: maxStates[g][at],
+                          writePath: `CauldronP2W[${group.bucket}][${at}]`,
+                      })
+                  )
+              );
+
     load();
 
     return PersistentAccountListPage({
-        title: "ALCHEMY - PAY 2 WIN",
-        description: "Edit P2W upgrades for cauldrons, liquids, draconic count, vials and player boosts.",
-        actions: RefreshButton({ onRefresh: load }),
+        rootClass: "tab-container scroll-container",
+        title: "Pay 2 Win",
+        description: "Pay 2 Win upgrades for cauldrons, liquids, vials and players, each up to its max.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        body: div({ class: "scrollable-panel content-stack" }, ...sections.map(renderSection)),
+        loadingText: "Reading Pay 2 Win",
+        errorTitle: "Couldn't read Pay 2 Win",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Pay 2 Win",
+                tabs: GROUPS.map((group, g) => ({ id: group.id, label: group.label, content: tabContent(group, g) })),
+            })
+        ),
     });
 };
 
@@ -251,7 +212,7 @@ export default definePage({
     world: 2,
     system: "Cauldrons",
     tab: "Pay 2 Win",
-    description: "Pay 2 Win cauldron, vial and player boost levels, and Draconic cauldrons.",
-    keywords: ["Alchemy", "P2W"],
+    description: "Pay 2 Win cauldron, liquid, vial and player levels, and Draconic cauldrons.",
+    keywords: ["Alchemy", "P2W", "Draconic"],
     component: Pay2WinTab,
 });

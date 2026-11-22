@@ -1,84 +1,18 @@
-/* Brewing tab */
-
-.brewing-section--orange {
-    --col-color: var(--c-cauldron-orange);
+/* A big bubble can't be prisma: it says so, muted, where the switch would be, as wide as the switch with its word
+   (5.5em of 14px words, the 12px gap and the 38px switch), so the levels stay in one column. */
+.bubbles-row__note {
+    min-width: calc(5.5 * 0.875rem + 50px);
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+    text-align: right;
 }
 
-.brewing-section--green {
-    --col-color: var(--c-cauldron-green);
-}
-
-.brewing-section--purple {
-    --col-color: var(--c-cauldron-purple);
-}
-
-.brewing-section--yellow {
-    --col-color: var(--c-cauldron-yellow);
-}
-
-.brewing-sections-grid {
-    align-items: start;
-}
-
-.brewing-section {
-    min-width: 0;
-}
-
-.brewing-section__rows {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.brewing-row {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-        "info"
-        "badge"
-        "controls";
-    align-items: start;
-    gap: 7px;
-}
-
-.brewing-row > .account-row__info {
-    grid-area: info;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-
-.brewing-row .account-row__name {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-}
-
-/* Prisma on: the accent, like every on-state; the cauldron's colour stays on its name. */
-.brewing-row--prisma {
-    border-color: var(--c-accent);
-}
-
-.brewing-row > .brewing-row__badge {
-    grid-area: badge;
-    justify-self: start;
-    white-space: normal;
-}
-
-.brewing-row > .brewing-row__controls {
-    grid-area: controls;
-    justify-self: stretch;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    min-width: 0;
-}
-
-.brewing-row__controls .number-input-wrapper {
-    flex: 1 1 150px;
-    width: auto;
-    min-width: 130px;
-}
-
-.brewing-section .account-section__title {
-    color: var(--col-color, var(--c-accent));
+@media (max-width: 760px) {
+    .bubbles-row__note {
+        min-width: 0;
+    }
 }
 
 /* Automation tab: a bubble's bonus and next cost wrap instead of being cut off. */
