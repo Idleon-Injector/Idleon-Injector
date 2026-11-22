@@ -313,6 +313,26 @@ for (const [name, findRow, read] of [
     });
 }
 
+test("a failed Mastery points read says the points may be off until the next good read", async () => {
+    const root = await openPage("src/ui/pages/world-4/cooking/3-mastery.js");
+    const notes = () => byClass(root, "account-section__note").map(text);
+    const pointNotes = () => notes().filter((note) => /POINTS AVAILABLE|Points may be off/.test(note));
+    const row = byClass(root, "account-row").find((node) => /RANK [0-9]+ ·/.test(text(node)));
+    const [input] = byTag(row, "input");
+    failPointsRead = true;
+    typeAndEnter(row, input, 4);
+    await settled(row);
+    await until(
+        () => pointNotes().length === 2 && pointNotes().every((note) => note.startsWith("Points may be off. Refresh.")),
+        "both point notes to say the points may be off"
+    );
+    typeAndEnter(row, input, 5);
+    await until(
+        () => pointNotes().length === 2 && pointNotes().every((note) => /^\d+ POINTS AVAILABLE/.test(note)),
+        "the next good read to show the points again"
+    );
+});
+
 test("Undo after adding a cape takes it back off the vine", async () => {
     const root = await openPage("src/ui/pages/world-4/cape-vine/cape-vine.js");
     const before = [...gga.Spelunk[54]];
