@@ -2,3 +2,12 @@
 .refinery-table {
     --value-columns: repeat(2, 9.5rem);
 }
+
+/* On a phone a salt's state word sits at the end of its name's line, where the save mark shows while it saves. */
+@media (max-width: 760px) {
+    .viewport .refinery-table .value-row > .account-row__badge {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+    }
+}

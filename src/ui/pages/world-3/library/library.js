@@ -210,7 +210,7 @@ const LibraryTab = () => {
             .filter((talent) => talent.isBookAvailable && shownBySearch(rowOf.get(talent.talentId)))
             .map((talent) => talent.talentId);
     };
-    const talentWord = (n) => `talent${n === 1 ? "" : "s"}`;
+    const talentWord = (n) => `book${n === 1 ? "" : "s"}`;
 
     const reconcileRows = ({ activeClassName, maxBookLv, groups }) => {
         activeClassNameState.val = activeClassName;

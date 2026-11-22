@@ -8,8 +8,13 @@
 
 /* The bar and a cloud: a value with no field, then its button. On a phone they share the line under the name. */
 @media (max-width: 760px) {
+    .viewport .tabbed-list .equinox-action-row {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 8px;
+    }
     .viewport .equinox-action-row .account-row__controls {
-        flex-wrap: wrap;
+        grid-column: 1 / -1;
+        width: 100%;
     }
     .viewport .field-columns .equinox-action-row .account-row__controls > .capped-value {
         width: auto;

@@ -11,7 +11,13 @@
 
 /* On a phone the pick takes the line under the slot's name, the amount and Stop or Clear under it. */
 @media (max-width: 760px) {
-    .printer-row .account-row__controls {
+    .viewport .tabbed-list .printer-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        row-gap: 8px;
+    }
+    .viewport .printer-row .account-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
         flex-wrap: wrap;
     }
 
