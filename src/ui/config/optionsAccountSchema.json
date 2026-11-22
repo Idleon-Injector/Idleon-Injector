@@ -2336,218 +2336,241 @@
         "name": "Treasure Hunt Count",
         "description": "Tracks found treasures (limit 25)",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "387": {
-        "name": "Windwalker Restriction",
-        "description": "Restriction flag for Windwalker class",
+        "name": "Windwalker Challenge Accepted",
+        "description": "1 once you've accepted Lava's Windwalker challenge: become a Windwalker early and beat the 36 Abominations. Its rules apply after that (no talent resets, Abominations gate world travel).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "388": {
-        "name": "Tachyon 1",
-        "description": "Tachyon 1 amount",
-        "type": "number"
+        "name": "Tachyons - Singulon (Purple)",
+        "description": "Singulon tachyons (the purple ones) you have to spend on the Arcane Cultist's Arcane upgrades.",
+        "type": "number",
+        "verified": true
     },
     "389": {
-        "name": "Tachyon 2",
-        "description": "Tachyon 2 amount",
-        "type": "number"
+        "name": "Tachyons - Doubulon (Brown)",
+        "description": "Doubulon tachyons (the brown ones) you have to spend on the Arcane Cultist's Arcane upgrades.",
+        "type": "number",
+        "verified": true
     },
     "390": {
-        "name": "Tachyon 3",
-        "description": "Tachyon 3 amount",
-        "type": "number"
+        "name": "Tachyons - Verdon (Green)",
+        "description": "Verdon tachyons (the green ones) you have to spend on the Arcane Cultist's Arcane upgrades.",
+        "type": "number",
+        "verified": true
     },
     "391": {
-        "name": "Tachyon 4",
-        "description": "Tachyon 4 amount",
-        "type": "number"
+        "name": "Tachyons - Bludon (Red)",
+        "description": "Bludon tachyons (the red ones) you have to spend on the Arcane Cultist's Arcane upgrades.",
+        "type": "number",
+        "verified": true
     },
     "392": {
-        "name": "Tachyon 5",
-        "description": "Tachyon 5 amount",
-        "type": "number"
+        "name": "Tachyons - Massivon (Silver)",
+        "description": "Massivon tachyons (the silver ones) you have to spend on the Arcane Cultist's Arcane upgrades.",
+        "type": "number",
+        "verified": true
     },
     "393": {
-        "name": "Tachyon 6",
-        "description": "Tachyon 6 amount",
-        "type": "number"
+        "name": "Tachyons - Aurion (Gold)",
+        "description": "Aurion tachyons (the gold ones) you have to spend on the Arcane Cultist's Arcane upgrades.",
+        "type": "number",
+        "verified": true
     },
     "394": {
         "name": "Total Tachyon Collected",
         "description": "Total Tachyon ever collected",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "395": {
-        "name": "Prisma drop from active AC",
-        "description": "Prisma drop from active AC",
-        "type": "number"
+        "name": "Arcane - Prisma Bubbles Found",
+        "description": "Prisma Bubbles you've found from mobs in Arcanist Form. Each one makes the next one rarer.",
+        "type": "number",
+        "verified": true
     },
     "396": {
         "name": "Daily Arcane Weapon Drops",
-        "description": "Tracks Arcane weapon drop progress",
-        "type": "number"
+        "description": "Arcanist weapons dropped today. Mobs drop up to 100 a day, and each one makes the next rarer. Resets daily.",
+        "type": "number",
+        "verified": true
     },
     "397": {
         "name": "Daily Arcane Ring Drops",
-        "description": "Tracks Arcane ring drop progress",
-        "type": "number"
+        "description": "Arcanist rings dropped today. Mobs drop up to 100 a day, and each one makes the next rarer. Resets daily.",
+        "type": "number",
+        "verified": true
     },
     "398": {
         "name": "Toggle Tempest Weapon Drops",
-        "description": "Tracks Tempest weapon drops",
-        "type": "number"
+        "description": "1 turns Tempest Weapon drops off, 0 keeps them on. It's the TOGGLE on the Compass's Weapon Drop upgrade (needs Stop Drop and Roll).",
+        "type": "number",
+        "verified": true
     },
     "399": {
         "name": "Toggle Tempest Ring Drops",
-        "description": "Tracks Tempest ring drops",
-        "type": "number"
+        "description": "1 turns Tempest Ring drops off, 0 keeps them on. It's the TOGGLE on the Compass's Ring Drop upgrade (needs Stop Drop and Roll).",
+        "type": "number",
+        "verified": true
     },
     "400": {
-        "name": "Tempest Stone Drops",
-        "description": "Tracks Tempest stone drops",
+        "name": "Toggle Tempest Stone Drops",
+        "description": "1 turns Tempest Upgrade Stone drops off, 0 keeps them on. It's the TOGGLE on the Compass's Stone Drop upgrade (needs Stop Drop and Roll).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "401": {
         "name": "Enable AFK Windwalker",
-        "description": "Tracks Quest 100 progress",
-        "type": "number"
+        "description": "1 once you've used 1000 Aether Fragments. Your Windwalker then earns 1 Aethermoon per hour of AFK, and Aether Fragments stop dropping.",
+        "type": "number",
+        "verified": true
     },
     "402": {
-        "name": "Items Discovered in Sneaking",
-        "description": "resets daily - controls ability to find pristine charms/symbols",
+        "name": "Sneaking - Charms Found Today",
+        "description": "Charms your ninjas found today in Sneaking. The more you find, the lower the chance of a Pristine Charm or Symbol. Resets daily.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "403": {
-        "name": "Sailing Progression Unlock",
-        "description": "Unlocks sailing-related feature, displays 'S' marker in UI",
+        "name": "Sailing - Menu Hint Seen",
+        "description": "1 once you've clicked the Sailing menu button the hint points at. Until then the menu shows a hint marker.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "404": {
-        "name": "Asset Positioning Literal 404",
-        "description": "Literal numeric value used heavily in asset loading, coordinate layout, and UI element positioning (NOTE: Acts as a literal, not an array index)",
+        "name": "Upgrade Vault Hint",
+        "description": "1 while the hint button that opens the Upgrade Vault shows on screen, for newer accounts. Opening the Vault from it sets 0.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "405": {
-        "name": "UI State Manager 1",
-        "description": "State transitions for UI components",
+        "name": "The Harp - Hint Seen",
+        "description": "1 once you've first filled and used The Harp's power in the Caverns. Until then a hint about Harp Power shows.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "406": {
-        "name": "UI State Manager 2",
-        "description": "State transitions for UI components",
+        "name": "Construction Tutorial Step",
+        "description": "Step of the Construction tutorial, from 0 to 10. 10 means it's done.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "407": {
-        "name": "UI State Manager 3",
-        "description": "State transitions for UI components",
+        "name": "3D Printer - Hint Done",
+        "description": "1 once you've put a sample in the 3D Printer. Until then a hint shows for the first character.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "408": {
-        "name": "Kill Quest Completion",
-        "description": "Tracks specific kill quest completion",
+        "name": "W7 Portal Powered",
+        "description": "1 once you've given the Producer Pelican the Gem to W7. That powers the World 7 portal in the Spirit Village.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "409": {
-        "name": "Quest Item Drop Tracker",
-        "description": "Accumulates quest item drops",
+        "name": "Sigil Syrup",
+        "description": "Sigil Syrup you have. Each one used in Alchemy gives 24 hours of Sigil EXP.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "410": {
         "name": "Daily Spelunky Page reads",
         "description": "Tracks daily Spelunky page reads",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "411": {
-        "name": "Gaming Mode Toggle",
-        "description": "Controls gaming/Spelunky display mode and affects sprout growth time multiplier",
+        "name": "Gaming - Palette Sprout Switch",
+        "description": "Switch on the Gaming Palette page. At 1, new sprouts carry one of your selected palette colours, grow 100x slower and are worth 100x more. Flipping it harvests your sprouts.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "412": {
-        "name": "Display Mode Selector",
-        "description": "Display mode selector cycling through 3 states",
+        "name": "Gaming - Palette View",
+        "description": "View button on the Gaming Palette page: 0 plain, 1 shows each colour's level, 2 shows which spots sit next to your colours.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "413": {
-        "name": "Gaming Palette Selection",
-        "description": "Tracks selected gaming palette/tab",
+        "name": "Gaming - Superbits Tab",
+        "description": "Which Superbits tab the Gaming page opens on: 0 Superbits, 1 Duperbits, 2 Zuperbits.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "414": {
         "name": "Total Jeweled Cog Claims today",
         "description": "Tracks total Jeweled Cog claims today",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "415": {
-        "name": "Acorn Shop Purchases",
-        "description": "Tracks acorn shop purchase count, affects cost calculations",
+        "name": "Gaming - Acorn Shop Luck Level",
+        "description": "Times you've bought the acorn shop's third upgrade, which raises palette luck. Each buy costs more acorns.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "416": {
         "name": "Exotic Market Purchased for Week",
         "description": "Tracks exotic market purchase count for current week (set to 0 to reset)",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "417": {
-        "name": "Quest 107 Progress",
-        "description": "Tracks progress for Quest 107 (cap 50)",
+        "name": "Killroy - Ball Buys This Week",
+        "description": "Times you bought \"Get 10 Balls\" in Killroy's skull shop this week. The limit is 50. Resets weekly.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "418": {
         "name": "Hoops Minigame Points",
         "description": "Hoops minigame points",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "419": {
         "name": "Hoops - Damage Bonus",
         "description": "Hoops minigame shop damage bonus",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "420": {
         "name": "Hoops - Coin Drop Bonus",
         "description": "Hoops minigame shop coin drop bonus",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "421": {
         "name": "Hoops - Class EXP Bonus",
         "description": "Hoops minigame shop class EXP bonus",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "422": {
         "name": "Hoops - Skill Efficiency Bonus",
         "description": "Hoops minigame shop skill efficiency bonus",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "423": {
-        "name": "Hoops Reset Timer",
-        "description": "Time until Hoops minigame resets (negative to play)",
-        "type": "number"
+        "name": "Hoops Cooldown",
+        "description": "Seconds until you can play Hoops again. Each game today makes the wait longer (90 seconds up to 15 minutes). Resets daily.",
+        "type": "number",
+        "verified": true
     },
     "424": {
         "name": "Hoops Played Today",
         "description": "Number of Hoops minigame played today",
-        "type": "number"
+        "type": "number",
+        "verified": true
     },
     "425": {
-        "name": "Divinity God Selection",
-        "description": "Tracks selected divinity god (1-10)",
+        "name": "W7 Divinity God",
+        "description": "God picked at the World 7 volcano. That god's major bonus counts for all characters. 0 none, then 1 Snehebatu, 2 Arctis, 3 Nobisect, 4 Harriep, 5 Goharut, 6 Omniphau, 7 Purrmep, 8 Flutterbis, 9 Kattlekruk, 10 Bagur.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "426": {
         "name": "Coral Kid - Unlocked",
