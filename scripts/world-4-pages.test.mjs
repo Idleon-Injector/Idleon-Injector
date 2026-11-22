@@ -481,19 +481,28 @@ test("Territories unlocked refuses a count over the game's 26", async () => {
     assert.equal(gga.OptionsListAccount[85], before);
 });
 
-// Review of #221: a write held at the server until `release`, for the paths `match` picks.
+// Review of #221: a write held at the server until `release`, for the paths `match` picks. `release.reached` resolves
+// once such a write arrives.
 const holdWrites = (match) => {
     const realFetch = globalThis.fetch;
     let release;
+    let arrived;
     const held = new Promise((resolve) => (release = resolve));
+    const reached = new Promise((resolve) => (arrived = resolve));
     globalThis.fetch = async (url, options) => {
-        if (String(url).includes("/write") && match(String(options?.body ?? ""))) await held;
+        if (String(url).includes("/write") && match(String(options?.body ?? ""))) {
+            arrived();
+            await held;
+        }
         return realFetch(url, options);
     };
-    return () => {
-        release();
-        globalThis.fetch = realFetch;
-    };
+    return Object.assign(
+        () => {
+            release();
+            globalThis.fetch = realFetch;
+        },
+        { reached }
+    );
 };
 // Requests whose body `match` picks fail, the way a dropped connection does.
 const failRequests = (match) => {
@@ -625,17 +634,16 @@ test("a chip slot whose save ends while another character shows says so when it 
     const release = holdWrites((body) => body.includes("Lab[1][3]"));
     try {
         pickWoodChip(row);
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        await release.reached;
         pickCharacter(root, 1);
         await until(() => slotRow(root, "Slot 4") !== row, "the second character's slots");
     } finally {
         release();
     }
-    await until(() => gga.Lab[1][3] === 14, "the held save to reach the game");
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Still in the page while hidden, so it follows its save.
+    await until(() => gga.Lab[1][3] === 14 && stateOf(row) === "success", "the hidden row to say it saved");
     pickCharacter(root, 0);
     await until(() => slotRow(root, "Slot 4") === row, "the first character's own row back");
-    assert.equal(stateOf(row), "success", "its save says it saved");
     assert.match(text(byClass(row, "account-row__name")[0]), /Wood Chip/, "its title names the new chip");
     assert.ok(
         byTag(row, "button").some((node) => /Undo/.test(text(node))),
