@@ -366,6 +366,9 @@ World 5 uses the same pieces; two shared pages moved onto them:
   tab's own parts (Superbits' boards) are groups in its list. The Hole is two pages, like the game's village on top and caverns below:
   Villagers (tabs Villagers, Opals, Engineer, Conjuror, Measurer, Librarian) and Caverns (a tab per cavern, in the
   game's order). A cavern with parts of its own (Fountain) shows them as groups in its list, never tabs in a tab.
+- **The Slab holds the Greenstacks** as its second tab (the game shows them on the Slab); each tab keeps its list, its
+  "Missing only" filter and its tools. A captain's opened row can remove it, asking in place first; it does what the
+  game's discard does and, like the game, refuses a captain on a boat or the last one.
 - **A pick in a table gets its own column** (`ValueTableRow`'s `steps` field): Palette is a table, a colour's Level and
   Black Stars under their heads, so nothing in a line moves with its neighbour's width (Lumi: "it looks off, not
   aligned"). A number beside a control (the Rat King's "3 / 10") keeps one width for the same reason.

@@ -2,26 +2,29 @@ import van from "../../../vendor/van-1.6.0.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { useAccountLoad } from "./accountLoadPolicy.js";
 import { cleanName, createStaticRowReconciler, oneAtATime, useWriteStatus, writeVerified } from "./accountShared.js";
-import { ListPanel } from "./tabShared.js";
-import { RefreshButton } from "./components/AccountPageChrome.js";
 import { AccountRow } from "./components/AccountRow.js";
 import { ActionButton } from "./components/ActionButton.js";
 import { StateSwitch } from "./components/StateSwitch.js";
 import { EmptyState } from "../../EmptyState.js";
-import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 
 const { div, input, label: labelTag, span } = van.tags;
 
 /**
- * The Slab's and the Greenstack's item lists (one history each), in the shared panel: every item of the game's
- * catalogue in its order, each with a switch. The top bar's search finds items by name; "Missing only" (off at the
- * start) hides the ones already in. The tray's tools act on the items shown: adding runs on one press, taking away asks.
+ * One of the Slab page's tabs (the Slab's registrations, the Greenstacks): every item of the game's catalogue in its
+ * order, each with a switch. The top bar's search finds items by name; "Missing only" (off at the start), its filter,
+ * hides the ones already in. Its tools act on the items shown: adding runs on one press, taking away asks.
+ *
+ * @param {object} opts
+ * @param {string} opts.label "Slab" or "Greenstack", for the load's messages
+ * @param {string} opts.historyPath the game's list of items in (Cards[1], GreenStacks)
+ * @param {() => boolean} opts.pending true while the page reads the game, or after a read that failed
+ * @param {() => Promise<*>} opts.reload reads the whole page again
+ * @returns {{content: *, filter: *, load: () => Promise<void>, busy: () => boolean, tools: Function,
+ *   toolsLabel: () => string}}
  */
-export const ItemRegistrationTab = ({ label, historyPath, description }) => {
+export const ItemRegistrationPart = ({ label, historyPath, pending, reload }) => {
     const bulk = useWriteStatus();
-    const { loading, error, run: runLoad } = useAccountLoad({ label, busy: () => bulk.status.val === "loading" });
     const entries = van.state([]);
     const missingOnly = van.state(false);
     const rowStates = new Map();
@@ -35,7 +38,7 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
         ? ["Greenstack all", "Clear all", "Clear"]
         : ["Register all", "Unregister all", "Unregister"];
 
-    const readPending = () => loading.val || Boolean(error.val) || !entries.val.length;
+    const readPending = () => pending() || !entries.val.length;
 
     const updateHistory = (history) => {
         const registered = new Set(history);
@@ -70,13 +73,7 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             updateHistory(next);
         } catch (caughtError) {
             // One value (the whole history): it landed or it didn't, and reading it again says which.
-            let now;
-            try {
-                now = new Set(await readHistory());
-            } catch (readError) {
-                error.val = readError.message;
-                throw new Error("Not checked. Refresh.");
-            }
+            const now = new Set(await readHistory().catch(() => Promise.reject(new Error("Not checked. Refresh."))));
             if (targets.every((itemId) => now.has(itemId) === registered)) return undefined;
             throw caughtError;
         }
@@ -117,42 +114,41 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
         return div({ hidden: () => !isShown(itemId) && !state.write.status.val }, row);
     };
 
-    const load = () =>
-        runLoad(async () => {
-            const catalog = toIndexedArray((await readCList("SlabItemSort")) ?? [])
-                .map((itemId) => String(itemId ?? "").trim())
-                .filter((itemId) => itemId.length > 0);
-            if (!catalog.length) throw new Error(`Couldn't read the ${label} items.`);
-            const itemIds = [...new Set(catalog)];
-            const definitions = await readGgaEntries("ItemDefinitionsGET.h", itemIds, ["displayName"]);
-            for (const itemId of itemIds) {
-                const name = cleanName(definitions[itemId]?.displayName, itemId);
-                if (!rowStates.has(itemId))
-                    rowStates.set(itemId, {
-                        name: van.state(name),
-                        registered: van.state(false),
-                        write: useWriteStatus(),
-                        node: null,
-                    });
-                else rowStates.get(itemId).name.val = name;
+    const load = async () => {
+        const catalog = toIndexedArray((await readCList("SlabItemSort")) ?? [])
+            .map((itemId) => String(itemId ?? "").trim())
+            .filter((itemId) => itemId.length > 0);
+        if (!catalog.length) throw new Error(`Couldn't read the ${label} items.`);
+        const itemIds = [...new Set(catalog)];
+        const definitions = await readGgaEntries("ItemDefinitionsGET.h", itemIds, ["displayName"]);
+        for (const itemId of itemIds) {
+            const name = cleanName(definitions[itemId]?.displayName, itemId);
+            if (!rowStates.has(itemId))
+                rowStates.set(itemId, {
+                    name: van.state(name),
+                    registered: van.state(false),
+                    write: useWriteStatus(),
+                    node: null,
+                });
+            else rowStates.get(itemId).name.val = name;
+        }
+        entries.val = itemIds;
+        await readHistory();
+        reconcileRows(itemIds.join("|"), () =>
+            itemIds.map((itemId) => {
+                const state = rowStates.get(itemId);
+                if (!state.node) state.node = createRow(itemId, state);
+                return state.node;
+            })
+        );
+        const catalogIds = new Set(itemIds);
+        for (const [itemId, state] of rowStates) {
+            if (!catalogIds.has(itemId)) {
+                state.write.clearStatus();
+                rowStates.delete(itemId);
             }
-            entries.val = itemIds;
-            await readHistory();
-            reconcileRows(itemIds.join("|"), () =>
-                itemIds.map((itemId) => {
-                    const state = rowStates.get(itemId);
-                    if (!state.node) state.node = createRow(itemId, state);
-                    return state.node;
-                })
-            );
-            const catalogIds = new Set(itemIds);
-            for (const [itemId, state] of rowStates) {
-                if (!catalogIds.has(itemId)) {
-                    state.write.clearStatus();
-                    rowStates.delete(itemId);
-                }
-            }
-        });
+        }
+    };
 
     // The items the tools act on: the ones the list shows now.
     const shown = () => entries.val.filter((itemId) => isShown(itemId) && shownBySearch(rowStates.get(itemId)?.row));
@@ -166,10 +162,10 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                 return need.length ? applyHistory(history, need, registered) : { cancelled: true };
             })
         );
-        if (!result.ok && !result.cancelled) await load();
+        if (!result.ok && !result.cancelled) await reload();
     };
 
-    const tools = (_activeId, ask) => {
+    const tools = (ask) => {
         const remove = ActionButton({
             label: removeAll,
             status: bulk.status,
@@ -202,45 +198,31 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
         );
     };
 
-    load();
-
-    return PersistentAccountListPage({
-        rootClass: "tab-container scroll-container",
-        title: label,
-        description,
-        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || bulk.status.val === "loading" }),
-        toolbar: [
-            labelTag(
-                { class: "toggle-switch account-toggle" },
-                input({
-                    type: "checkbox",
-                    checked: () => missingOnly.val,
-                    onchange: (e) => (missingOnly.val = e.target.checked),
-                }),
-                span({ class: "slider" }),
-                span({ class: "label" }, "Missing only")
+    return {
+        content: [
+            listNode,
+            div(
+                { hidden: () => !entries.val.length || entries.val.some(isShown) },
+                EmptyState({ title: "Nothing missing", subtitle: "Every item is in." })
             ),
         ],
-        state: { loading, error },
-        loadingText: `Reading the ${label}`,
-        errorTitle: `Couldn't read the ${label}`,
-        initialWrapperClass: "account-list",
-        body: div(
-            { class: "account-list account-list--tabbed" },
-            ListPanel({
-                body: [
-                    listNode,
-                    div(
-                        { hidden: () => !entries.val.length || entries.val.some(isShown) },
-                        EmptyState({ title: "Nothing missing", subtitle: "Every item is in." })
-                    ),
-                ],
-                tools,
-                toolsLabel: () => {
-                    const n = shown().length;
-                    return isSearching() || missingOnly.val ? `${n} shown ${itemWord(n)}` : `All ${n} ${itemWord(n)}`;
-                },
-            })
+        // The tab's filter, for the line under the page's title.
+        filter: labelTag(
+            { class: "toggle-switch account-toggle" },
+            input({
+                type: "checkbox",
+                checked: () => missingOnly.val,
+                onchange: (e) => (missingOnly.val = e.target.checked),
+            }),
+            span({ class: "slider" }),
+            span({ class: "label" }, "Missing only")
         ),
-    });
+        load,
+        busy: () => bulk.status.val === "loading",
+        tools,
+        toolsLabel: () => {
+            const n = shown().length;
+            return isSearching() || missingOnly.val ? `${n} shown ${itemWord(n)}` : `All ${n} ${itemWord(n)}`;
+        },
+    };
 };

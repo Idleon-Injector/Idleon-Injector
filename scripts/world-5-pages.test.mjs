@@ -434,3 +434,58 @@ test("search finds Sailing's and Gaming's tabs by name and old words, and a hit 
     await new Promise((resolve) => setTimeout(resolve, 30));
     assert.equal(selected().trim(), "Captains");
 });
+
+// The game's own discard (its sailing screen): rarity -1, level 1, EXP 0 on that slot only; never a captain on a boat.
+test("Captains: Remove asks in place, then empties only that slot the way the game does", async (t) => {
+    const before = gga.Captains.map((captain) => [...captain]);
+    t.after(() => (gga.Captains = before.map((captain) => [...captain])));
+    const { pane } = await openPane(SAILING, "Captains");
+    // Captain 8 sails no boat on the fake game (boats take captains 1 to 6).
+    const row = rowNamed(pane, "Captain 8");
+    click(byClass(row, "row-opener")[0]);
+    const removeRow = rowNamed(row, "Remove captain");
+    click(buttonNamed(removeRow, "Remove"));
+    await until(() => text(byClass(removeRow, "account-row__name")[0]) === "Remove Captain 8?", "the question");
+    assert.deepEqual(gga.Captains[7], before[7], "nothing written yet");
+    click(buttonNamed(removeRow, "Remove it"));
+    await until(() => gga.Captains[7][0] === -1, "the slot to empty");
+    assert.deepEqual(gga.Captains[7], [-1, before[7][1], before[7][2], 1, 0, before[7][5], before[7][6]]);
+    gga.Captains.forEach((captain, slot) => slot !== 7 && assert.deepEqual(captain, before[slot], `slot ${slot} kept`));
+    await until(() => !rowNamed(pane, "Captain 8"), "the row to go once the page reads the game again");
+});
+
+test("Captains: Remove won't take a captain on a boat, and says why", async () => {
+    const before = [...gga.Captains[0]];
+    const { pane } = await openPane(SAILING, "Captains");
+    const row = rowNamed(pane, "Captain 1");
+    click(byClass(row, "row-opener")[0]);
+    const removeRow = rowNamed(row, "Remove captain");
+    click(buttonNamed(removeRow, "Remove"));
+    click(buttonNamed(removeRow, "Remove it"));
+    await until(() => text(byClass(removeRow, "captain-remove__refusal")[0]) !== "", "the reason");
+    assert.equal(text(byClass(removeRow, "captain-remove__refusal")[0]), "It's on a boat. Take it off first.");
+    assert.deepEqual(gga.Captains[0], before, "nothing written");
+});
+
+test("Slab › Greenstacks: its own list, filter and tools; Clear all asks first", async (t) => {
+    const before = [...gga.GreenStacks];
+    t.after(() => (gga.GreenStacks = before));
+    const { root, pane } = await openPane("src/ui/pages/world-5/slab/slab.js", "Greenstacks");
+    assert.equal(trayLine(root), `All ${byClass(pane, "account-row").length} items`);
+    click(buttonNamed(root, "Greenstack all"));
+    await until(() => gga.GreenStacks.length === byClass(pane, "account-row").length, "every item greenstacked");
+    click(buttonNamed(root, "Clear all"));
+    await until(() => /^Clear \d+ items\?$/.test(trayLine(root)), "the question");
+    yes(root);
+    await until(() => gga.GreenStacks.length === 0, "no greenstacks left");
+});
+
+test("search finds the Greenstacks on the Slab page", async () => {
+    const { buildMenuTree, searchEntries, searchMenu } = await importRepo("src/ui/menu/menuModel.js");
+    const slab = (await importRepo("src/ui/pages/world-5/slab/slab.js")).default;
+    for (const query of ["greenstack", "greenstacks"]) {
+        const hit = searchMenu(searchEntries(buildMenuTree([slab])), query)[0];
+        assert.equal(hit.label, "Greenstacks");
+        assert.deepEqual(hit.target, { world: 5, page: "w5.slab", tab: "greenstacks" });
+    }
+});

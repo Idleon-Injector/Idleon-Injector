@@ -7,3 +7,10 @@
 .sailing-captains {
     --value-columns: repeat(5, 7rem);
 }
+
+/* Why a captain can't be removed (on a boat, the last one): a short amber line beside the button, like a row's warning. */
+.captain-remove__refusal {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c-warning);
+}

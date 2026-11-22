@@ -75,8 +75,8 @@ export default () => ({
             [],
             list(ARTIFACTS.length, (i) => (i < 30 ? [1, 2, 3, 4, 5, 2, 1][i % 7] : 0)),
         ],
-        // [0] captain, [1] island, [3] Loot Value level, [5] Speed level.
-        Boats: list(BOATS, (b) => [b % HIRED, b % 9, 0, 40 + b * 13, 0, 25 + b * 9, 0, 0]),
+        // [0] captain (the first six sail; the rest wait on the dock), [1] island, [3] Loot Value level, [5] Speed level.
+        Boats: list(BOATS, (b) => [b % 6, b % 9, 0, 40 + b * 13, 0, 25 + b * 9, 0, 0]),
         // Slots 0-29 are hired (rarity -1: empty), 30 and up the Recruitment pool.
         Captains: list(CAPTAIN_SLOTS, (c) =>
             c < HIRED || c >= 30

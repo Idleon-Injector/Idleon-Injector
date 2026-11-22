@@ -653,6 +653,12 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         width: 100%;
     }
+    /* A pick's column on a phone: its name over it, like a number's. */
+    .viewport .value-cell--steps {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
     .value-cell__label {
         position: static;
         width: auto;

@@ -11,7 +11,9 @@
  *                                   (_customBlock_Sailing "DaveyJonesBonus" and "Minimumtraveltime")
  *   gga.Captains[c]               - [0] rarity (0 to 6; -1 an empty slot), [1], [2] its two bonus kinds
  *                                   (cList.CaptainBonuses[k][3] in the game's words), [3] level, [4] EXP, [5], [6] the
- *                                   bonus amounts; slots 0-29 are hired, 30 and up the Recruitment pool
+ *                                   bonus amounts; slots 0-29 are hired, 30 and up the Recruitment pool. The game's
+ *                                   discard sets [0] to -1, [3] to 1 and [4] to 0, not for a captain on a boat
+ *                                   (gga.Boats[b][0]) or the last one
  *   gga.Sailing[0][i]             - island i's cloud progress; -1 once unlocked (cList.IslandInfo: one per island)
  *   gga.Sailing[3][n]             - artifact n's tier: 0 not found, 1 found, then Ancient up to Verisimilitude (7);
  *                                   cList.ArtifactInfo[n] [0] its name, [4] its bonus
@@ -46,6 +48,7 @@ import {
     toNum,
     unwrapH,
     useWriteStatus,
+    writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
@@ -152,7 +155,7 @@ const KIND_PICKS = [
     { slot: 2, label: "Second bonus" },
 ];
 
-const CaptainsPart = () => {
+const CaptainsPart = ({ pending, reload }) => {
     const kinds = van.state([]);
     const states = new Map();
     const stateOf = (slot) => {
@@ -219,6 +222,78 @@ const CaptainsPart = () => {
         });
     };
 
+    // Removing a hired captain, the way the game's own discard does it (its sailing screen): the slot's rarity goes to
+    // -1, its level back to 1 and its EXP to 0, and nothing else moves. Like the game it won't take a captain that is
+    // on a boat, or the last one. It asks first, in place.
+    const RemoveRow = (slot) => {
+        const asking = van.state(false);
+        const status = useWriteStatus();
+        const refusal = van.state("");
+        const name = `Captain ${slot + 1}`;
+        const remove = () =>
+            status.run(async () => {
+                const [rawBoats, rawCaptains] = await Promise.all([gga("Boats"), gga("Captains")]);
+                const boats = toIndexedArray(rawBoats ?? []).map((raw) => toIndexedArray(raw ?? []));
+                const captains = toIndexedArray(rawCaptains ?? []).map((raw) => toIndexedArray(raw ?? []));
+                asking.val = false;
+                if (boats.some((boat) => toNum(boat[0], -1) === slot)) {
+                    refusal.val = "It's on a boat. Take it off first.";
+                    return { cancelled: true };
+                }
+                const hired = captains.slice(0, OWNED_SLOTS).filter((captain) => toNum(captain[0], -1) >= 0).length;
+                if (hired < 2) {
+                    refusal.val = "Can't remove your last captain.";
+                    return { cancelled: true };
+                }
+                refusal.val = "";
+                await writeManyVerified([
+                    { path: `Captains[${slot}][0]`, value: -1 },
+                    { path: `Captains[${slot}][3]`, value: 1 },
+                    { path: `Captains[${slot}][4]`, value: 0 },
+                ]);
+                openSlot.val = -1;
+                await reload();
+            });
+        return AccountRow({
+            info: span({ class: "account-row__name" }, () => (asking.val ? `Remove ${name}?` : "Remove captain")),
+            controls: [
+                span({ class: "captain-remove__refusal", role: "status" }, () => refusal.val),
+                div(
+                    { class: "tabbed-list__tool-group", hidden: () => asking.val },
+                    ActionButton({
+                        label: "Remove",
+                        variant: "danger",
+                        disabled: pending,
+                        onClick: (e) => {
+                            e.preventDefault();
+                            refusal.val = "";
+                            asking.val = true;
+                        },
+                    })
+                ),
+                div(
+                    { class: "tabbed-list__tool-group", hidden: () => !asking.val },
+                    ActionButton({
+                        label: "Remove it",
+                        variant: "danger",
+                        status: status.status,
+                        onClick: (e) => {
+                            e.preventDefault();
+                            return remove();
+                        },
+                    }),
+                    ActionButton({
+                        label: "Cancel",
+                        onClick: (e) => {
+                            e.preventDefault();
+                            asking.val = false;
+                        },
+                    })
+                ),
+            ],
+        });
+    };
+
     const CaptainRow = (slot) => {
         const state = stateOf(slot);
         const name = `Captain ${slot + 1}`;
@@ -254,7 +329,12 @@ const CaptainsPart = () => {
             },
         });
         row.append(
-            div({ class: "row-detail", hidden: () => !isOpen() }, ...KIND_PICKS.map((pick) => KindRow(slot, pick)))
+            div(
+                { class: "row-detail", hidden: () => !isOpen() },
+                ...KIND_PICKS.map((pick) => KindRow(slot, pick)),
+                // A pool offer is the shop's, not yours to remove.
+                slot < OWNED_SLOTS ? RemoveRow(slot) : null
+            )
         );
         return row;
     };
