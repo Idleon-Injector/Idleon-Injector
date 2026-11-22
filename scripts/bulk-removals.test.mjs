@@ -282,6 +282,30 @@ test("bribes: Enable all on a set unlocks the next set when it owns the expansio
     }
 });
 
+// The tools act on the bribes the search showed at the press; a search typed while the game is read doesn't change that.
+test("bribes: Enable all changes the bribes shown at the press, even if the search changes during the read", async () => {
+    const { searchHits } = await importRepo("src/ui/menu/pageSearch.js");
+    const status = game.gga.BribeStatus;
+    const before = [...status];
+    for (let index = 0; index < 5; index++) status[index] = 0; // Set 1's bribes before its expansion, not owned
+    try {
+        const enable = await openPage("src/ui/pages/world-1/bribes/bribes.js", "Enable all");
+        const read = holdNext((url, body) => /read/.test(url) && JSON.stringify(body).includes("BribeStatus"));
+        const pressed = click(enable);
+        await until(() => read.reached, "the read");
+        searchHits.val = new Set(); // a search that shows none of them
+        read.release();
+        await pressed;
+        await until(
+            () => status.slice(0, 5).every((value) => value === 1),
+            "the bribes shown at the press to be owned"
+        );
+    } finally {
+        searchHits.val = null;
+        before.forEach((value, index) => (status[index] = value));
+    }
+});
+
 for (const [file, label] of [
     ["src/ui/pages/world-1/bribes/bribes.js", "Enable all"],
     ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Enable all"],

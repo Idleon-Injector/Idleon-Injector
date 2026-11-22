@@ -120,11 +120,13 @@ const BribesTab = () => {
             // The bulk action starts after a read: keep the press, so it's named after and offers Undo all beside the
             // button even if something else was clicked meanwhile.
             const inGesture = captureGesture();
+            // The bribes shown at the press: a search typed while the game is read doesn't change them.
+            const shown = inSet(set);
             busy.val = true;
             message.val = "";
             try {
                 const values = await readStatuses();
-                const targets = inSet(set).filter((entry) =>
+                const targets = shown.filter((entry) =>
                     enabled ? values[entry.index] !== 1 : values[entry.index] === 1
                 );
                 if (!targets.length) return;
