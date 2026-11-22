@@ -94,6 +94,16 @@ test("the Bubba tab reads meat, the goal and every upgrade with its level, max, 
     assert.equal(read.upgrades[4].unlocked, false, "Megaflesh needs 1e6 meat made");
 });
 
+test("a stop-at with a fraction (typed into the config file) stops below it", async () => {
+    setBubbaGame();
+    gga.Bubba[0][0] = 1e6;
+    setBubba([{ id: "0", on: true, stopAt: 2.5 }]);
+    await cheat("automation bubba");
+    mock.timers.tick(1000);
+    assert.equal(levels()[0], 2, "level 3 would pass 2.5");
+    await cheat("automation bubba", false);
+});
+
 test("it buys switched-on upgrades cheapest first, each up to its stop-at and max, never past the meat", async () => {
     const ui = setBubbaGame();
     gga.Bubba[0][0] = 200;

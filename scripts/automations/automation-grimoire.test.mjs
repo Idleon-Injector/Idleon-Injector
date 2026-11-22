@@ -107,6 +107,14 @@ test("it buys switched-on upgrades cheapest first with their own bone, as the me
     await cheat("automation grimoire", false);
 });
 
+test("a stop-at with a fraction (typed into the config file) stops below it", async () => {
+    setGrimoireGame();
+    gga.OptionsListAccount[FEMUR] = 1e9;
+    gga.OptionsListAccount[RIBCAGE] = 1e9;
+    await run([{ id: 0, on: true, stopAt: 2.5 }]);
+    assert.equal(gga.Grimoire[0], 2, "level 3 would pass 2.5");
+});
+
 test("it stops at the stop-at and the max level, and never buys locked, switched-off or placeholder rows", async () => {
     setGrimoireGame();
     gga.OptionsListAccount[FEMUR] = 1e9;

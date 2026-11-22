@@ -8,7 +8,7 @@
 
 import { cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
 
 const ola = () => gga.OptionsListAccount;
 const summoning = (...args) => events(579)._customBlock_Summoning(...args);
@@ -85,7 +85,7 @@ function buyable(key) {
     const settings = new Map(cheatConfig.automation[key].map((entry) => [String(entry.id), entry]));
     return clicker.rows().flatMap((row, i) => {
         const entry = settings.get(String(i));
-        if (!entry?.on || !unlocked(clicker, i, row) || clicker.level(i) >= (entry.stopAt ?? Infinity)) return [];
+        if (!entry?.on || !unlocked(clicker, i, row) || !belowStopAt(clicker.level(i), entry.stopAt)) return [];
         if (clicker.canBuy?.(i) === false) return [];
         return [
             { id: i, name: label(row), cost: clicker.cost(i), priority: entry.priority, buy: () => clicker.buy(i) },

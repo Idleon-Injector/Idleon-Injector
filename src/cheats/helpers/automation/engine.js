@@ -12,6 +12,12 @@ const LOW = 2;
 
 const cheapest = (items) => items.reduce((best, item) => (!best || item.cost < best.cost ? item : best), null);
 
+/**
+ * The next level stays within the stop-at (none: no limit). It checks the level a buy would reach, so a stop-at with
+ * a fraction (2.5, typed into the config file) stops at 2, not 3.
+ */
+export const belowStopAt = (level, stopAt) => level + 1 <= (stopAt ?? Infinity);
+
 /** A character is in its map; character select has no player, so nothing buys there. */
 export const inMap = () => bEngine.scene.name === cList.MapName[gga.CurrentMap];
 

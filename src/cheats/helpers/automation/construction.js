@@ -9,7 +9,7 @@
 
 import { cList, events, gga, itemDefs } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { inMap } from "./engine.js";
+import { belowStopAt, inMap } from "./engine.js";
 
 const BUILDINGS = Array.from({ length: 27 }, (_, b) => b);
 // TowerInfo[54..61] is the queue; TowerBuildSlots isn't capped and a 9th slot would be cog data.
@@ -211,12 +211,19 @@ export function runConstruction() {
     const settings = new Map(items.map((entry) => [String(entry.id), entry]));
     // High, Low, then Balanced (switched-off buildings you queued count as Balanced).
     const rank = (b) => {
-        const priority = settings.get(String(b))?.priority;
+        const entry = settings.get(String(b));
+        const priority = entry?.on ? entry.priority : null;
         return priority === 1 ? 0 : priority === 2 ? 1 : 2;
     };
     const queueable = (b) => {
         const entry = settings.get(String(b));
-        return entry?.on && unlocked(b) && !awaiting(b) && tower()[b] < Math.min(maxLevel(b), entry.stopAt ?? Infinity);
+        return (
+            entry?.on &&
+            unlocked(b) &&
+            !awaiting(b) &&
+            tower()[b] < maxLevel(b) &&
+            belowStopAt(tower()[b], entry.stopAt)
+        );
     };
 
     if (!busy()) {

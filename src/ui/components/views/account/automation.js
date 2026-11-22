@@ -287,8 +287,12 @@ const NOT_READ = "not read from the game yet: press Refresh";
 const GAME_NOT_READ = "the game didn't answer with its settings: press Refresh";
 
 // The page's own read at the end of a save step (direct reads only: it runs inside the step), so its levels, costs
-// and status lines follow the save. Its failure is the page's to say; the save's outcome stands.
-const readAfter = (afterSave) => Promise.resolve(afterSave?.()).catch(() => {});
+// and status lines follow the save. Its failure is the page's to say, even one thrown at once; the save's outcome
+// stands.
+const readAfter = (afterSave) =>
+    Promise.resolve()
+        .then(() => afterSave?.())
+        .catch(() => {});
 
 /**
  * A system's saved picks, cheatConfig.automation[group]: one { id, on, stopAt? } per item, plus any other setting the
@@ -428,16 +432,29 @@ export const createAutomationPicks = (group, { cheat = null, entry = null, after
 
     /** Change one item's fields (`patch`: { on } or { stopAt }). `onLate` as for inTurn. */
     const set = (id, patch, onLate = null) => save([[id, patch]], onLate);
+    // How many bulk switches each item has had asked for, so a row's switch clicked before one can tell.
+    const bulkAsks = new Map();
     /** Switch every item in `ids` on or off with one save. */
-    const setAll = (ids, on, onLate = null) =>
-        save(
+    const setAll = (ids, on, onLate = null) => {
+        for (const id of ids) bulkAsks.set(id, (bulkAsks.get(id) ?? 0) + 1);
+        return save(
             ids.map((id) => [id, { on }]),
             onLate
         );
+    };
     /** Send the list again: after a file save failed, the field's Enter retries it. */
     const resave = (onLate = null) => save([], onLate);
 
-    return { get, field, sync, set, setAll, resave, fileBehind: () => fileBehind.val };
+    return {
+        get,
+        field,
+        sync,
+        set,
+        setAll,
+        resave,
+        fileBehind: () => fileBehind.val,
+        bulkAsks: (id) => bulkAsks.get(id) ?? 0,
+    };
 };
 
 /**
@@ -716,7 +733,13 @@ export const PickRow = ({
         checked: () => item.on.val,
         onchange: (e) => {
             const on = e.target.checked;
-            void field.other(() => picks.set(id, { on })).then(() => (checkbox.checked = item.on.val));
+            // The switch may wait behind the row's own save; an Enable all or Disable all clicked meanwhile is newer.
+            const asks = picks.bulkAsks(id);
+            void field
+                .other(() =>
+                    picks.bulkAsks(id) === asks ? picks.set(id, { on }) : Promise.resolve({ cancelled: true })
+                )
+                .then(() => (checkbox.checked = item.on.val));
         },
     });
     const pickers = selects.map(({ field: setting, title, options }) => {
@@ -849,12 +872,14 @@ export const useAutomationTab = ({ label, cheats, read }) => {
     const waiting = useStillWaiting();
     const { loading, error, run } = useAccountLoad({ label });
     const switches = div();
+    // After a switch row's click: the automations, and the startup list it changed too (Enable all reads it).
     const readSwitches = () =>
         inTurn(async () => {
-            const list = await readAutomations();
+            const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);
             cheats.forEach((cheat, i) =>
                 showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null)
             );
+            startup.val = config.startupCheats ?? [];
         }, waiting.onLate);
     const readTab = async (afterSave = false) => {
         const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);

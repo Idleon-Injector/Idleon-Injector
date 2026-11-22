@@ -13,7 +13,7 @@
 
 import { cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
 
 const ninja = (...args) => events(579)._customBlock_Ninja(...args);
 const notate = (...args) => events(124)._customBlock_NotateNumber(...args);
@@ -44,7 +44,7 @@ function buyable() {
     return cList.NinjaUpg.flatMap((row, i) => {
         const entry = settings.get(String(i));
         // Row 9, the placeholder, is its own parent, so it never unlocks.
-        if (!entry?.on || !isUnlocked(i) || gga.Ninja[103][i] >= (entry.stopAt ?? Infinity)) return [];
+        if (!entry?.on || !isUnlocked(i) || !belowStopAt(gga.Ninja[103][i], entry.stopAt)) return [];
         return [{ id: i, cost: ninja("JadeUpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
     });
 }

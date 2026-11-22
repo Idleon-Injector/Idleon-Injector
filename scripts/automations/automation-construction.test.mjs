@@ -100,10 +100,21 @@ function setGame({ slotCount = 3, jelly = false } = {}) {
     };
     context["scripts.ActorEvents_189"]._customBlock_MenagerieStuff = (key) =>
         key === "SideJellyUnlocked" && world.jelly ? 1 : 0;
-    // The game's removeitems takes from the chest here; it is only called with what the chest can give.
+    // The game's removeitems with "InventoryStorage": the active character's inventory, the first refinery storage
+    // slot holding the item, then the chest. A pay never asks for more than those hold.
     context["scripts.ActorEvents_189"]._customBlock_removeitems = (item, amount, where) => {
         world.removed.push([item, amount, where]);
-        gga.ChestQuantity[gga.ChestOrder.indexOf(item)] -= amount;
+        let left = amount;
+        const take = (list, i) => {
+            const taken = Math.min(list[i], left);
+            list[i] -= taken;
+            left -= taken;
+        };
+        for (let i = 0; i < gga.InventorySlotsOwned; i++) if (gga.InventoryOrder[i] === item) take(gga.ItemQuantity, i);
+        const stored = gga.Refinery[1].indexOf(item);
+        if (stored >= 0 && stored < 8) take(gga.Refinery[2], stored);
+        for (let i = 0; i < gga.ChestSlotsOwned; i++) if (gga.ChestOrder[i] === item) take(gga.ChestQuantity, i);
+        assert.equal(left, 0, `asked for ${amount} ${item}, more than the inventory, refinery and chest hold`);
     };
 }
 const setConstruction = (entries) => state.updateCheatConfig({ automation: { construction: entries } });
@@ -168,7 +179,8 @@ test("a finished build is completed at once and paid with its salt, one level pe
     assert.equal(level(4), 2, "and paid");
     assert.equal(progressOf(4), 0);
     assert.deepEqual(world.removed, [["Refinery1", 50, "InventoryStorage"]]);
-    assert.equal(salt("Refinery1"), 950);
+    assert.equal(gga.ItemQuantity[0], 0, "the inventory's 5 go first");
+    assert.equal(salt("Refinery1"), 955, "then 45 from the chest");
     assert.equal(automation().status, "Building; 1 level paid since it started");
     // Back into a free slot for its next level; nothing is paid twice.
     assert.deepEqual(slots().slice(0, 3), [4, -1, -1]);
@@ -213,6 +225,8 @@ test("refinery storage counts toward a salt", async () => {
     await cheat(CHEAT, true);
     tick();
     assert.equal(level(9), 2);
+    assert.equal(gga.Refinery[2][0], 0, "the refinery's 40 go first");
+    assert.equal(salt("Refinery2"), 0, "then the chest's 60");
     await cheat(CHEAT, false);
 });
 
@@ -236,6 +250,7 @@ test("on a shared salt High pays first, then Low, then Balanced, cheapest first;
         [60, 30, 15],
         "High (60), then Low (30), then the cheapest Balanced (15), the switched-off one included"
     );
+    assert.equal(gga.ItemQuantity[0] + salt("Refinery1"), 115 - 105, "what was paid left the inventory and chest");
     gga.ChestQuantity[0] += 100;
     tick();
     assert.deepEqual(
@@ -243,6 +258,21 @@ test("on a shared salt High pays first, then Low, then Balanced, cheapest first;
         [60, 30, 15, 20]
     );
     assert.deepEqual([1, 2, 3, 5].map(level), [2, 2, 2, 2]);
+    await cheat(CHEAT, false);
+});
+
+test("a switched-off building queued by hand pays as Balanced, whatever priority it saved", async () => {
+    setGame();
+    for (const b of [3, 5]) gga.TowerInfo[b + 27] = 2;
+    setConstruction([
+        { id: 5, on: true, priority: HIGH },
+        { id: 3, on: false, priority: HIGH }, // cheaper (40), but switched off
+    ]);
+    gga.ChestQuantity[0] = 60; // + 5 in the inventory: enough for one of the two
+    await cheat(CHEAT, true);
+    tick();
+    assert.deepEqual(world.removed, [["Refinery1", 60, "InventoryStorage"]], "the switched-on High pays first");
+    assert.deepEqual([level(3), level(5)], [1, 2]);
     await cheat(CHEAT, false);
 });
 
@@ -281,6 +311,19 @@ test("queueing stops at the stop-at and the max, and skips locked, switched-off 
         { id: 11, on: true },
         { id: 4, on: true },
         { id: 5, on: false },
+        { id: 6, on: true, stopAt: 6 },
+    ]);
+    await cheat(CHEAT, true);
+    tick();
+    assert.deepEqual(slots(), [6, -1, -1, -1, -1, -1, -1, -1]);
+    await cheat(CHEAT, false);
+});
+
+test("a stop-at with a fraction (typed into the config file) counts as the level below it", async () => {
+    setGame({ slotCount: 8 });
+    gga.TowerInfo[1] = gga.TowerInfo[1 + 27] = 5; // stop-at 5.5: level 6 would pass it
+    setConstruction([
+        { id: 1, on: true, stopAt: 5.5 },
         { id: 6, on: true, stopAt: 6 },
     ]);
     await cheat(CHEAT, true);

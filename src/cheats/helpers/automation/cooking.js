@@ -17,7 +17,7 @@
 
 import { cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
 
 const cooking = (...args) => events(345)._customBlock_CookingR(...args);
 const spiceOf = (id) => cooking("CookingUpgSpiceCostType", Math.floor(id / 3), id % 3);
@@ -30,7 +30,6 @@ const mealCost = (i) => cooking("CookingMenuMealCosts", i, 0);
 // The stacks CookingMenuMealCosts applies: OLA[193], capped by Equinox Food Lust's level.
 const foodLust = () => Math.min(gga.OptionsListAccount[193], gga.Dream[11]);
 // A level may be bought while the next one stays within the stop-at (a fraction from config.custom.js included).
-const belowStopAt = (level, stopAt) => level + 1 <= (stopAt ?? Infinity);
 
 let bought = 0; // levels bought since the automation turned on
 
