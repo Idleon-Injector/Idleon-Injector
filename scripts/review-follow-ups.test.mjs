@@ -99,6 +99,29 @@ test("a field left with nothing to save keeps a button's failure, and takes back
     assert.equal(row.status.val, null, "the field's own failure goes once nothing needs saving");
 });
 
+// #111: the player presses Escape while a level saves, and that save then fails: its failure stays unsaid.
+test("a save that fails after Escape took its draft back says nothing", async () => {
+    const { useAutoSave } = await importRepo("src/ui/components/views/account/autoSave.js");
+    let fail;
+    const answer = new Promise((resolve) => (fail = resolve));
+    const row = useAutoSave({
+        prepare: () => ({
+            write: async () => {
+                await answer;
+                throw new Error("the game refused");
+            },
+        }),
+    });
+    const saved = row.save();
+    row.cancel(); // Escape while it writes
+    fail();
+    const outcome = await saved;
+    assert.equal(outcome.ok, false, "the caller still hears it failed");
+    assert.equal(row.status.val, null, "the discarded draft's failure isn't said");
+    await row.run(async () => {});
+    assert.equal(row.status.val, "success", "and doesn't come back after another write");
+});
+
 // #126 (#114): a failed Prisma save showed the set remembered from before it, though the write had landed.
 test("bubbles: a Prisma save whose answer is lost shows what the game holds", async () => {
     ola[384] = "0";
