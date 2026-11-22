@@ -80,8 +80,8 @@ const button = (root, label) =>
     elements(root).find(
         (node) => node.nodeName === "button" && text(node).trim() === label && !node.attributes.disabled
     );
-// The priority options in the order the row lists them, by their option value.
-const [HIGH, LOW, BALANCED] = ["0", "1", "2"];
+// The "Save for it" options by their option value: No, then Yes.
+const [NO, YES] = ["0", "1"];
 const saveState = (node) => classes(byClass(node, "save-state")[0]);
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(check, what) {
@@ -125,9 +125,9 @@ test("the Owl tab lists Orion's switch, feathers, the saving % and every upgrade
 });
 
 test("the preset shows: The Great Mega Reset is High and Feather Restart Low, both off", () => {
-    assert.equal(text(selected(orion("The Great Mega Reset"))), "High");
-    assert.equal(text(selected(orion("Feather Restart"))), "Low");
-    assert.equal(text(selected(orion("Feather Generation"))), "Balanced");
+    assert.equal(text(selected(orion("The Great Mega Reset"))), "Yes");
+    assert.equal(text(selected(orion("Feather Restart"))), "Yes");
+    assert.equal(text(selected(orion("Feather Generation"))), "No");
     assert.equal(checkbox(orion("The Great Mega Reset")).attributes.checked, false);
 });
 
@@ -139,8 +139,8 @@ test("switching an upgrade on keeps the preset, saves it, and switches Orion on 
         "Orion to go on"
     );
     assert.deepEqual(sent("orion"), [
-        { id: "8", on: false, priority: 1 },
-        { id: "4", on: false, priority: 2 },
+        { id: "8", on: false, save: true },
+        { id: "4", on: false, save: true },
         { id: "0", on: true },
     ]);
     assert.deepEqual(fileSent("orion"), sent("orion"), "the config file got the same list");
@@ -149,37 +149,34 @@ test("switching an upgrade on keeps the preset, saves it, and switches Orion on 
     assert.deepEqual(fileStartup, ["automation orion"]);
 });
 
-test("a priority saves on change; Balanced leaves no priority in the list", async () => {
+test("Save for it saves on change; No leaves nothing in the list", async () => {
     const pick = byTag(orion("Feather Cheapener"), "select");
     let since = updates.length;
-    await pick.listeners.change({ target: { value: LOW } });
-    await until(
-        () => sentSince(since, "orion")?.some(({ id, priority }) => id === "3" && priority === 2),
-        "Low to save"
-    );
-    assert.equal(text(selected(orion("Feather Cheapener"))), "Low");
+    await pick.listeners.change({ target: { value: YES } });
+    await until(() => sentSince(since, "orion")?.some(({ id, save }) => id === "3" && save === true), "Yes to save");
+    assert.equal(text(selected(orion("Feather Cheapener"))), "Yes");
 
     since = updates.length;
-    await byTag(orion("Feather Restart"), "select").listeners.change({ target: { value: BALANCED } });
-    await until(() => sentSince(since, "orion")?.every(({ id }) => id !== "4"), "Balanced to drop the off, plain row");
-    assert.equal(text(selected(orion("Feather Restart"))), "Balanced");
+    await byTag(orion("Feather Restart"), "select").listeners.change({ target: { value: NO } });
+    await until(() => sentSince(since, "orion")?.every(({ id }) => id !== "4"), "No to drop the off, plain row");
+    assert.equal(text(selected(orion("Feather Restart"))), "No");
 });
 
-test("two quick priority picks save in order, and the last one stands", async () => {
+test("two quick Save for it picks save in order, and the last one stands", async () => {
     slowUpdate = 40;
     const pick = byTag(orion("Shiny Feathers"), "select");
     const since = updates.length;
-    const first = pick.listeners.change({ target: { value: HIGH } });
-    const second = pick.listeners.change({ target: { value: LOW } });
+    const first = pick.listeners.change({ target: { value: NO } });
+    const second = pick.listeners.change({ target: { value: YES } });
     await Promise.all([first, second]);
     await until(
-        () => sentSince(since, "orion")?.find(({ id }) => id === "6")?.priority === 2,
+        () => sentSince(since, "orion")?.find(({ id }) => id === "6")?.save === true,
         "the second pick to save last"
     );
     await settle(100);
     slowUpdate = 0;
-    assert.equal(sent("orion").find(({ id }) => id === "6").priority, 2);
-    assert.equal(text(selected(orion("Shiny Feathers"))), "Low");
+    assert.equal(sent("orion").find(({ id }) => id === "6").save, true);
+    assert.equal(text(selected(orion("Shiny Feathers"))), "Yes");
 });
 
 test("the saving % saves on Enter; a value out of range is refused at the row and nothing is sent", async () => {
@@ -220,7 +217,7 @@ test("a stop-at level saves on Enter, empty is no limit", async () => {
     await type(node, "40");
     assert.equal(sent("orion").find(({ id }) => id === "0").stopAt, 40);
     await type(node, "");
-    // An off row with no limit and no priority leaves the list, which is no limit too.
+    // An off row with no limit and no Save for it leaves the list, which is no limit too.
     assert.equal(sent("orion").find(({ id }) => id === "0")?.stopAt, undefined);
 });
 
@@ -239,8 +236,8 @@ test("Disable all asks Click again, then switches every upgrade off and keeps th
     await checkbox(orion("Feather Generation")).listeners.change({ target: { checked: true } });
     await until(() => sentSince(since, "orion"), "Feather Generation to save");
     since = updates.length;
-    await byTag(orion("Feather Cheapener"), "select").listeners.change({ target: { value: LOW } });
-    await until(() => sentSince(since, "orion"), "Low to save");
+    await byTag(orion("Feather Cheapener"), "select").listeners.change({ target: { value: YES } });
+    await until(() => sentSince(since, "orion"), "Yes to save");
     await until(() => button(owl, "Disable all"), "Disable all");
 
     const disable = button(owl, "Disable all");
@@ -252,8 +249,8 @@ test("Disable all asks Click again, then switches every upgrade off and keeps th
 
     await disable.listeners.click({ preventDefault() {} });
     await until(() => sent("orion").every(({ on }) => !on), "every upgrade to switch off");
-    assert.equal(sent("orion").find(({ id }) => id === "8").priority, 1, "High stays");
-    assert.equal(sent("orion").find(({ id }) => id === "3").priority, 2, "Low stays");
+    assert.equal(sent("orion").find(({ id }) => id === "8").save, true, "High stays");
+    assert.equal(sent("orion").find(({ id }) => id === "3").save, true, "Low stays");
 });
 
 const kangaroo = (await importRepo("src/ui/pages/account/clickers/4-automation.js")).PoppyAutomationTab();

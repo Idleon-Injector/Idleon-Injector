@@ -55,12 +55,12 @@ test("switching an upgrade on while Sneaking is off switches Sneaking on too, no
 });
 
 test("a priority and a stop-at save on the item; the saving % saves to its own key", async () => {
-    await kit.choose(row("Way of Stealth"), "priority", 0);
+    await kit.choose(row("Way of Stealth"), "save for it", 1);
     await kit.type(row("Way of Stealth"), "60");
     const item = sent("sneaking").find(({ on }) => on);
-    assert.equal(item.priority, 1);
+    assert.equal(item.save, true);
     assert.equal(item.stopAt, 60);
-    assert.equal(selected(row("Way of Stealth")), "High");
+    assert.equal(selected(row("Way of Stealth")), "Yes");
     await kit.type(row("Saving"), "25");
     assert.equal(sent("sneakingSaving"), 25);
     assert.equal(fileSent("sneakingSaving"), 25);
@@ -76,8 +76,8 @@ test("a saving % over 100 is refused at its field and nothing is saved", async (
 
 test("a priority the game refuses goes back to what the game holds and says why at the row", async () => {
     kit.fake.refuseNextUpdates = 1;
-    await kit.choose(row("Way of Stealth"), "priority", 1);
-    assert.equal(selected(row("Way of Stealth")), "High");
+    await kit.choose(row("Way of Stealth"), "save for it", 1);
+    assert.equal(selected(row("Way of Stealth")), "Yes");
     assert.match(text(row("Way of Stealth")), /the game is busy/);
 });
 
@@ -88,7 +88,7 @@ test("Enable all switches every upgrade on; Disable all asks Click again and kee
     await kit.clickTwice(tab, "Disable all");
     assert.ok(sent("sneaking").every(({ on }) => !on));
     const kept = sent("sneaking").find(({ stopAt }) => stopAt === 60);
-    assert.equal(kept.priority, 1, "the stop-at and priority stay");
+    assert.equal(kept.save, true, "the stop-at and priority stay");
 });
 
 test("after Sneaking's own switch turns it on, Enable all knows it is in the startup cheats too", async () => {

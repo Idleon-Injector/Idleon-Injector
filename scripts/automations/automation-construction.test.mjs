@@ -1,6 +1,6 @@
 // Automation (#92): "automation construction" does what W3 construction's build button does, every second. A finished
-// build is completed at once and paid as soon as its salt is reachable (High, Low, Balanced, cheapest first on a
-// shared salt); empty slots take switched-on buildings, High, Low, then Balanced, the one closest to done first, up to
+// build is completed at once and paid as soon as its salt is reachable (saved-for first, then cheapest first on a
+// shared salt); empty slots take switched-on buildings, saved-for first, the one closest to done first, up to
 // the stop-at (decided with Lumi on 2026-11-17). Buildings queued by hand are completed and paid, never removed, and
 // the 8th slot stays free once it feeds the Menagerie jelly.
 import assert from "node:assert/strict";
@@ -13,8 +13,6 @@ const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
 const CHEAT = "automation construction";
-const HIGH = 1;
-const LOW = 2;
 const QUEUE = 54;
 const SALTS = ["Refinery1", "Refinery2", "Refinery3"];
 
@@ -230,67 +228,71 @@ test("refinery storage counts toward a salt", async () => {
     await cheat(CHEAT, false);
 });
 
-test("on a shared salt High pays first, then Low, then Balanced, cheapest first; switched-off builds pay too", async () => {
+test("on a shared salt saved-for builds pay first, then the rest, cheapest first; switched-off builds pay too", async () => {
     setGame();
     for (const b of [1, 2, 3, 5]) gga.TowerInfo[b + 27] = 2;
     world.costs = { 3: 15 }; // the switched-off build costs less than building 1's 20
     setConstruction([
         { id: 1, on: true },
-        { id: 2, on: true, priority: LOW },
-        { id: 5, on: true, priority: HIGH },
+        { id: 2, on: true, save: true },
+        { id: 5, on: true, save: true },
         { id: 3, on: false },
     ]);
-    // 115 salt: 60 High + 30 Low leaves 25, enough for the 15 or the 20 Balanced build, not both.
+    // 115 salt: the saved-for 30 and 60 leave 25, enough for the 15 or the 20 build, not both.
     gga.ChestQuantity[0] = 110;
     gga.ItemQuantity[0] = 5;
     await cheat(CHEAT, true);
     tick();
     assert.deepEqual(
         world.removed.map(([, amount]) => amount),
-        [60, 30, 15],
-        "High (60), then Low (30), then the cheapest Balanced (15), the switched-off one included"
+        [30, 60, 15],
+        "the saved-for 30 then 60, then the cheapest of the rest (15), the switched-off one included"
     );
     assert.equal(gga.ItemQuantity[0] + salt("Refinery1"), 115 - 105, "what was paid left the inventory and chest");
     gga.ChestQuantity[0] += 100;
     tick();
     assert.deepEqual(
         world.removed.map(([, amount]) => amount),
-        [60, 30, 15, 20]
+        [30, 60, 15, 20]
     );
     assert.deepEqual([1, 2, 3, 5].map(level), [2, 2, 2, 2]);
     await cheat(CHEAT, false);
 });
 
-test("a switched-off building queued by hand pays as Balanced, whatever priority it saved", async () => {
+test("a switched-off building queued by hand pays with the rest, even with Save for it on", async () => {
     setGame();
     for (const b of [3, 5]) gga.TowerInfo[b + 27] = 2;
     setConstruction([
-        { id: 5, on: true, priority: HIGH },
-        { id: 3, on: false, priority: HIGH }, // cheaper (40), but switched off
+        { id: 5, on: true, save: true },
+        { id: 3, on: false, save: true }, // cheaper (40), but switched off
     ]);
     gga.ChestQuantity[0] = 60; // + 5 in the inventory: enough for one of the two
     await cheat(CHEAT, true);
     tick();
-    assert.deepEqual(world.removed, [["Refinery1", 60, "InventoryStorage"]], "the switched-on High pays first");
+    assert.deepEqual(
+        world.removed,
+        [["Refinery1", 60, "InventoryStorage"]],
+        "the switched-on saved-for build pays first"
+    );
     assert.deepEqual([level(3), level(5)], [1, 2]);
     await cheat(CHEAT, false);
 });
 
-test("free slots take High, Low, then Balanced buildings, the one closest to done first", async () => {
+test("free slots take saved-for buildings first, then the rest, the one closest to done first", async () => {
     setGame({ slotCount: 4 });
     gga.TowerInfo[66 + 8] = 850; // 50 left of 900
     gga.TowerInfo[66 + 6] = 600; // 100 left of 700
     gga.TowerInfo[66 + 0] = 0; // 100 left of 100
     setConstruction([
         { id: 0, on: true },
-        { id: 6, on: true, priority: LOW },
+        { id: 6, on: true, save: true },
         { id: 8, on: true },
-        { id: 20, on: true, priority: HIGH }, // 2100 left
-        { id: 21, on: true, priority: HIGH }, // 2200 left
+        { id: 20, on: true, save: true }, // 2100 left
+        { id: 21, on: true, save: true }, // 2200 left
     ]);
     await cheat(CHEAT, true);
     tick();
-    assert.deepEqual(slots().slice(0, 4), [20, 21, 6, 8], "High fastest first, then Low, then Balanced");
+    assert.deepEqual(slots().slice(0, 4), [6, 20, 21, 8], "saved-for fastest first, then the rest");
     assert.equal(automation().status, "Filling free slots, completing and paying");
     assert.equal(gga.OptionsListAccount[406], 1, "the queue's tutorial step, as the button sets it");
     await cheat(CHEAT, false);
@@ -336,7 +338,7 @@ test("buildings queued by hand stay in their slot and are completed and paid", a
     setGame({ slotCount: 2 });
     gga.TowerInfo[QUEUE + 1] = 3; // switched off, queued by hand
     setConstruction([
-        { id: 0, on: true, priority: HIGH },
+        { id: 0, on: true, save: true },
         { id: 3, on: false },
     ]);
     await cheat(CHEAT, true);

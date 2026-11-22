@@ -1,5 +1,5 @@
-// Automation (#92): the buying rule every system shares (High / Low / Balanced and saving %, decided with Lumi on
-// 2026-11-10), and the shop automation on top of it: "automation shops" buys the switched-on town shop items into the
+// Automation (#92): the buying rule every system shares ("Save for it" and saving %, decided with Lumi on 2026-11-10,
+// one switch since #205), and the shop automation on top of it: "automation shops" buys the switched-on town shop items into the
 // chest with chest coins, cheapest first, up to the stop-at, only what the chest can take, every second.
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
@@ -11,34 +11,38 @@ const { choosePurchase, buyCheapestFirst } = await importRepo("src/cheats/helper
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-const HIGH = 1;
-const LOW = 2;
-const item = (name, cost, priority) => ({ name, cost, priority });
+const item = (name, cost, save = false) => ({ name, cost, save });
 const pick = (items, money, saving = 10) => choosePurchase(items, money, saving)?.name ?? null;
 
-test("Balanced items buy cheapest first, and nothing buys what the money can't reach", () => {
+test("without Save for it, items buy cheapest first, and nothing buys what the money can't reach", () => {
     const items = [item("b", 30), item("a", 10), item("c", 20)];
     assert.equal(pick(items, 100), "a");
     assert.equal(pick(items, 5), null);
     assert.equal(pick([], 100), null);
 });
 
-test("an affordable High item goes first, even before a cheaper Balanced one", () => {
-    assert.equal(pick([item("cheap", 1), item("high", 50, HIGH)], 60), "high");
+test("an affordable saved-for item goes first, even before a cheaper one", () => {
+    assert.equal(pick([item("cheap", 1), item("saved", 50, true)], 60), "saved");
 });
 
-test("while saving for the cheapest High or Low item, Balanced items may only cost up to saving % of it", () => {
-    const items = [item("goal", 1000, LOW), item("small", 90), item("big", 150)];
+test("saved-for items are saved for cheapest first", () => {
+    const items = [item("big goal", 900, true), item("small goal", 300, true)];
+    assert.equal(pick(items, 500), "small goal");
+    assert.equal(pick(items, 200), null, "200 saves for the 300");
+});
+
+test("while saving, the other items may only cost up to saving % of the goal", () => {
+    const items = [item("goal", 1000, true), item("small", 90), item("big", 150)];
     assert.equal(pick(items, 500, 10), "small", "90 is under 10% of 1000");
-    assert.equal(pick([item("goal", 1000, LOW), item("big", 150)], 500, 10), null, "150 waits for the goal");
+    assert.equal(pick([item("goal", 1000, true), item("big", 150)], 500, 10), null, "150 waits for the goal");
     assert.equal(pick(items, 1000, 10), "goal", "the goal buys once affordable");
-    assert.equal(pick([item("goal", 1000, LOW), item("big", 150)], 500, 0), null, "0% saves everything");
+    assert.equal(pick([item("goal", 1000, true), item("big", 150)], 500, 0), null, "0% saves everything");
 });
 
-test("Lumi's numbers: with 65B, a 10B Low restart buys while a 2.5T High reset is out of reach", () => {
-    const items = [item("mega reset", 2.5e12, HIGH), item("restart", 10e9, LOW), item("feather", 5e9)];
-    assert.equal(pick(items, 65e9), "restart", "no group blocks another");
-    // Saving for the 2.5T reset alone, 10% lets Balanced items up to 250B buy.
+test("Lumi's numbers: with 65B, a 10B restart buys while a 2.5T reset is out of reach", () => {
+    const items = [item("mega reset", 2.5e12, true), item("restart", 10e9, true), item("feather", 5e9)];
+    assert.equal(pick(items, 65e9), "restart", "the cheapest saved-for item is the goal");
+    // Saving for the 2.5T reset alone, 10% lets the others buy up to 250B.
     assert.equal(pick([items[0], items[2]], 65e9), "feather");
 });
 

@@ -40,7 +40,7 @@ test("the tab shows the switch, the build queue and a row per building in the me
     assert.match(text(row("Lucky Lantern Tower")), /Locked: build Ember Bramble Tower first/);
     assert.match(text(row("Grand Stone Tower")), /Max level/);
     assert.match(text(row(byName(6))), /built, waiting for salt/);
-    assert.equal(selected(row("Mossy Pebble Tower")), "Balanced");
+    assert.equal(selected(row("Mossy Pebble Tower")), "No");
 });
 
 test("a small salt cost shows whole, rounded up like the game", async () => {
@@ -68,28 +68,28 @@ test("switching a building on saves it and turns Construction on, now and at sta
 });
 
 test("a priority saves with the building, and Balanced saves none", async () => {
-    await kit.choose(row("Mossy Pebble Tower"), "priority", 0);
-    assert.deepEqual(sent("construction"), [{ id: "1", on: true, priority: 1 }]);
-    await kit.choose(row("Mossy Pebble Tower"), "priority", 1);
-    assert.deepEqual(sent("construction"), [{ id: "1", on: true, priority: 2 }]);
-    assert.equal(selected(row("Mossy Pebble Tower")), "Low");
-    await kit.choose(row("Mossy Pebble Tower"), "priority", 2);
+    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
+    assert.deepEqual(sent("construction"), [{ id: "1", on: true, save: true }]);
+    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
+    assert.deepEqual(sent("construction"), [{ id: "1", on: true, save: true }]);
+    assert.equal(selected(row("Mossy Pebble Tower")), "Yes");
+    await kit.choose(row("Mossy Pebble Tower"), "save for it", 0);
     assert.deepEqual(sent("construction"), [{ id: "1", on: true }]);
 });
 
 test("a priority the game refuses goes back to the saved one and says why; the next save clears it", async () => {
     kit.fake.refuseNextUpdates = 1;
-    await kit.choose(row("Mossy Pebble Tower"), "priority", 0);
-    assert.equal(selected(row("Mossy Pebble Tower")), "Balanced");
+    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
+    assert.equal(selected(row("Mossy Pebble Tower")), "No");
     assert.match(text(row("Mossy Pebble Tower")), /the game is busy/);
-    await kit.choose(row("Mossy Pebble Tower"), "priority", 0);
-    assert.equal(selected(row("Mossy Pebble Tower")), "High");
+    await kit.choose(row("Mossy Pebble Tower"), "save for it", 1);
+    assert.equal(selected(row("Mossy Pebble Tower")), "Yes");
     assert.doesNotMatch(text(row("Mossy Pebble Tower")), /the game is busy/);
 });
 
 test("a stop-at saves on Enter beside the priority", async () => {
     await kit.type(row("Mossy Pebble Tower"), "30");
-    assert.deepEqual(sent("construction"), [{ id: "1", on: true, stopAt: 30, priority: 1 }]);
+    assert.deepEqual(sent("construction"), [{ id: "1", on: true, stopAt: 30, save: true }]);
 });
 
 test("Enable all switches every building on in one save; Disable all asks Click again, then keeps priorities", async () => {
@@ -98,5 +98,5 @@ test("Enable all switches every building on in one save; Disable all asks Click 
     assert.equal(sent("construction").filter(({ on }) => on).length, 27);
     await kit.clickTwice(tab, "Disable all");
     assert.ok(sent("construction").every(({ on }) => !on));
-    assert.equal(sent("construction").find(({ id }) => id === "1").priority, 1, "High stays");
+    assert.equal(sent("construction").find(({ id }) => id === "1").save, true, "High stays");
 });

@@ -1,6 +1,6 @@
 // Automation (#92): "automation grimoire" buys the switched-on Grimoire upgrades (the Death Bringer masterclass) with
 // bones every second, the way the Grimoire menu's click does: each bone type saves and buys on its own, cheapest
-// first with High / Low / Balanced and the saving % (decided with Lumi on 2026-11-10), up to each stop-at and max
+// first with "Save for it" and the saving % (decided with Lumi on 2026-11-10), up to each stop-at and max
 // level, only unlocked upgrades, only what the bones pay for, and only while a character is in its map.
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
@@ -11,8 +11,6 @@ const { gga, context, cheat, state } = await loadGame();
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-const HIGH = 1;
-const LOW = 2;
 const FEMUR = 330;
 const RIBCAGE = 331;
 
@@ -59,7 +57,7 @@ const run = async (items, saving) => {
 test("the Grimoire tab reads the bones, what each saves for, and every upgrade but the placeholders", () => {
     setGrimoireGame();
     setGrimoire([
-        { id: 1, on: true, priority: LOW },
+        { id: 1, on: true, save: true },
         { id: 2, on: true },
     ]);
     const { bones, upgrades } = readComputed("automation", "grimoire").value;
@@ -121,9 +119,9 @@ test("it stops at the stop-at and the max level, and never buys locked, switched
     gga.OptionsListAccount[RIBCAGE] = 1e9;
     await run([
         { id: 0, on: true, stopAt: 3 },
-        { id: 1, on: true, priority: LOW },
+        { id: 1, on: true, save: true },
         { id: 2, on: false, stopAt: 9 },
-        { id: 3, on: true, priority: LOW },
+        { id: 3, on: true, save: true },
         { id: 4, on: true },
     ]);
     assert.deepEqual(gga.Grimoire, [3, 2, 0, 0, 0]);
@@ -155,37 +153,37 @@ test("it pays exactly what the game charges and leaves at least 0.1 bones, like 
     assert.equal(gga.OptionsListAccount[FEMUR], 9.99);
 });
 
-test("a bone type saves for its cheapest High or Low upgrade; Balanced ones may spend up to saving % of it", async () => {
+test("a bone type saves for its cheapest saved-for upgrade; the others may spend up to saving % of it", async () => {
     setGrimoireGame();
     gga.OptionsListAccount[FEMUR] = 25;
-    // Row 3 (30, Low) is the goal; Balanced row 0 (10) is over 10% of 30, so it waits.
+    // Row 3 (30, saved for) is the goal; row 0 (10) is over 10% of 30, so it waits.
     unlocked = 4;
     await run([
         { id: 0, on: true },
-        { id: 3, on: true, priority: LOW },
+        { id: 3, on: true, save: true },
     ]);
     assert.deepEqual(gga.Grimoire, [0, 0, 0, 0, 0]);
     assert.equal(gga.OptionsListAccount[FEMUR], 25);
 
-    // At 50% Balanced may spend up to 15: row 0 buys once (10), then its 20 waits.
+    // At 50% the others may spend up to 15: row 0 buys once (10), then its 20 waits.
     await run(
         [
             { id: 0, on: true },
-            { id: 3, on: true, priority: LOW },
+            { id: 3, on: true, save: true },
         ],
         50
     );
     assert.deepEqual(gga.Grimoire, [1, 0, 0, 0, 0]);
     assert.equal(gga.OptionsListAccount[FEMUR], 15);
 
-    // An affordable High upgrade goes before a cheaper Balanced one; ribcage's goal doesn't hold femur back.
+    // An affordable saved-for upgrade goes before a cheaper one; ribcage's goal doesn't hold femur back.
     setGrimoireGame();
     gga.OptionsListAccount[FEMUR] = 15;
     gga.OptionsListAccount[RIBCAGE] = 0;
     await run([
         { id: 0, on: true },
-        { id: 1, on: true, priority: HIGH },
-        { id: 2, on: true, priority: LOW },
+        { id: 1, on: true, save: true },
+        { id: 2, on: true, save: true },
     ]);
     assert.deepEqual(gga.Grimoire, [0, 1, 0, 0, 0]);
 });

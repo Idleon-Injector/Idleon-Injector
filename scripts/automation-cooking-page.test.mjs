@@ -43,11 +43,11 @@ test("switching an upgrade on saves it, turns Cooking on now and at start, and s
 
 test("the priority choice saves High, Low and back to Balanced", async () => {
     const row = rowOf("Buy Kitchen 2 Speed");
-    await kit.choose(row, "priority", 0);
-    assert.deepEqual(sent("kitchens"), [{ id: "3", on: true, priority: 1 }]);
-    await kit.choose(row, "priority", 1);
-    assert.equal(sent("kitchens")[0].priority, 2);
-    await kit.choose(row, "priority", 2);
+    await kit.choose(row, "save for it", 1);
+    assert.deepEqual(sent("kitchens"), [{ id: "3", on: true, save: true }]);
+    await kit.choose(row, "save for it", 1);
+    assert.equal(sent("kitchens")[0].save, true);
+    await kit.choose(row, "save for it", 0);
     assert.deepEqual(sent("kitchens"), [{ id: "3", on: true }]);
 });
 

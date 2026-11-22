@@ -49,15 +49,15 @@ test("switching an upgrade on saves it, and turns Summoning on now and at start"
 });
 
 test("a priority saves with the upgrade, and the colour's line reads the game's new goal", async () => {
-    await kit.choose(pick("Familiar"), "priority", 1); // Low
-    assert.deepEqual(sent("summoning"), [{ id: "2", on: true, priority: 2 }]);
-    assert.equal(selected(pick("Familiar")), "Low");
+    await kit.choose(pick("Familiar"), "save for it", 1); // Low
+    assert.deepEqual(sent("summoning"), [{ id: "2", on: true, save: true }]);
+    assert.equal(selected(pick("Familiar")), "Yes");
     await until(
         () => /^Saving for Familiar \(/.test(statusOf("WHITE")),
         () => statusOf("WHITE")
     );
     assert.equal(statusOf("GREEN"), "Nothing switched on", "another colour's goal is its own");
-    await kit.choose(pick("Familiar"), "priority", 2); // Balanced
+    await kit.choose(pick("Familiar"), "save for it", 0); // Balanced
     assert.deepEqual(sent("summoning"), [{ id: "2", on: true }]);
     await until(
         () => statusOf("WHITE") === "Buying cheapest first",
@@ -76,8 +76,8 @@ test("a colour's saving % saves its own place in the list and refuses what isn't
 
 test("a priority the game refuses goes back to what the game holds, and says why at the row", async () => {
     kit.fake.refuseNextUpdates = 1;
-    await kit.choose(pick("Familiar"), "priority", 0);
-    assert.equal(selected(pick("Familiar")), "Balanced");
+    await kit.choose(pick("Familiar"), "save for it", 1);
+    assert.equal(selected(pick("Familiar")), "No");
     assert.match(text(pick("Familiar")), /the game is busy/);
 });
 

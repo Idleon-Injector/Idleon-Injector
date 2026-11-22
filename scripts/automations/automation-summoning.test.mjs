@@ -1,5 +1,5 @@
 // Automation (#92): "automation summoning" buys the switched-on W6 summoning board upgrades with essence, the way a
-// click on the board does, each essence colour saving and buying on its own (High / Low / Balanced and saving %,
+// click on the board does, each essence colour saving and buying on its own ("Save for it" and saving %,
 // decided with Lumi on 2026-11-10 and 2026-11-17), up to the stop-at and the max level, paused while the board is open.
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
@@ -10,8 +10,6 @@ const { gga, context, cheat, state } = await loadGame();
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-const HIGH = 1;
-const LOW = 2;
 const WHITE = 0;
 const GREEN = 1;
 
@@ -97,7 +95,7 @@ test("the tab reads each colour's essence and every upgrade, with its lock, bonu
     setBoard();
     gga.Summon[4][0] = 4;
     gga.Summon[4][2] = 1;
-    setPicks([{ id: "1", on: true, priority: LOW }]);
+    setPicks([{ id: "1", on: true, save: true }]);
     const { waiting, essences, upgrades } = readComputed("automation", "summoning").value;
     assert.equal(waiting, null);
     assert.equal(essences.length, 8);
@@ -180,12 +178,12 @@ test("the buy keeps the board's books: quest steps and the cached total level", 
     await cheat("automation summoning", false);
 });
 
-test("an affordable High upgrade goes first; a Low goal makes Balanced ones save, per colour's saving %", async () => {
+test("an affordable saved-for upgrade goes first; a goal makes the others save, per colour's saving %", async () => {
     setBoard();
     gga.Summon[2][WHITE] = 60;
-    // Familiar (100) is the Low goal; at 10%, Balanced may only buy up to 10 meanwhile.
+    // Familiar (100) is the goal; at 10%, the others may only buy up to 10 meanwhile.
     setPicks([
-        { id: "2", on: true, priority: LOW },
+        { id: "2", on: true, save: true },
         { id: "1", on: true, stopAt: 4 },
         { id: "3", on: true },
     ]);
@@ -196,12 +194,12 @@ test("an affordable High upgrade goes first; a Low goal makes Balanced ones save
     assert.equal(gga.Summon[2][WHITE], 60 - 15 - 15);
     assert.deepEqual(readComputed("automation", "summoning").value.essences[0].goal, { id: 2, cost: 100 });
 
-    // At 0% saving Balanced waits for the goal entirely.
+    // At 0% saving the others wait for the goal entirely.
     setBoard();
     gga.Summon[2][WHITE] = 60;
     setPicks(
         [
-            { id: "2", on: true, priority: LOW },
+            { id: "2", on: true, save: true },
             { id: "1", on: true },
         ],
         { white: 0 }
@@ -215,9 +213,9 @@ test("an affordable High upgrade goes first; a Low goal makes Balanced ones save
     gga.Summon[2][GREEN] = 3;
     setPicks(
         [
-            { id: "9", on: true, priority: LOW },
+            { id: "9", on: true, save: true },
             { id: "10", on: true },
-            { id: "2", on: true, priority: LOW },
+            { id: "2", on: true, save: true },
             { id: "1", on: true },
         ],
         { white: 0, green: 100 }
@@ -225,12 +223,12 @@ test("an affordable High upgrade goes first; a Low goal makes Balanced ones save
     second();
     assert.deepEqual([gga.Summon[0][1], gga.Summon[0][10]], [0, 1]);
 
-    // A High upgrade buys before a cheaper Balanced one once affordable.
+    // A saved-for upgrade buys before a cheaper one once affordable.
     setBoard();
     gga.Summon[2][WHITE] = 6;
     setPicks(
         [
-            { id: "3", on: true, priority: HIGH },
+            { id: "3", on: true, save: true },
             { id: "1", on: true },
         ],
         { white: 0 }

@@ -1,11 +1,11 @@
 /**
- * W6 Sneaking, Ninja Knowledge: switched-on upgrades are bought with jade coins by the shared rule (High / Low /
- * Balanced, saving %), each up to its stop-at. They have no max level.
+ * W6 Sneaking, Ninja Knowledge: switched-on upgrades are bought with jade coins by the shared rule ("Save for
+ * it", saving %), each up to its stop-at. They have no max level.
  *
  * Jade is Ninja[102][1], levels Ninja[103][i], rows cList.NinjaUpg (row 9 is a placeholder). The game has no callable
  * buy, so a buy repeats the Knowledge panel's click (minus its "i" tree redraw, which draws art on screen).
- * Settings: cheatConfig.automation.sneaking, one { id: "i", on, stopAt, priority } per upgrade, and
- * cheatConfig.automation.sneakingSaving, how much of what it saves for Balanced upgrades may cost, in %.
+ * Settings: cheatConfig.automation.sneaking, one { id: "i", on, stopAt, save } per upgrade, and
+ * cheatConfig.automation.sneakingSaving, how much of what it saves for the other upgrades may cost, in %.
  *
  * Like a player, it waits for the sneaking tutorial to open Ninja Knowledge: the panel's button takes no click while
  * the tutorial step Ninja[100][0] is below 0.08, the step that asks for the first Knowledge level.
@@ -45,7 +45,7 @@ function buyable() {
         const entry = settings.get(String(i));
         // Row 9, the placeholder, is its own parent, so it never unlocks.
         if (!entry?.on || !isUnlocked(i) || !belowStopAt(gga.Ninja[103][i], entry.stopAt)) return [];
-        return [{ id: i, cost: ninja("JadeUpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
+        return [{ id: i, cost: ninja("JadeUpgCost", i, 0), save: Boolean(entry.save), buy: () => buy(i) }];
     });
 }
 

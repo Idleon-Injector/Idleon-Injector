@@ -687,14 +687,16 @@ const nameWithDetail = (name, detail) =>
               div({ class: "automation-pick__detail" }, detail)
           );
 
-/** The High / Low / Balanced pick for PickRow's `selects`; the engine reads 1 as High and 2 as Low. */
+/**
+ * The "Save for it" pick for PickRow's `selects` (#205): the engine saves for the cheapest item with it on and buys the
+ * rest with what's left. Off is the default, left out of the config.
+ */
 export const PRIORITY = {
-    field: "priority",
-    title: "Priority",
+    field: "save",
+    title: "Save for it",
     options: [
-        { value: 1, label: "High" },
-        { value: 2, label: "Low" },
-        { value: null, label: "Balanced" },
+        { value: null, label: "No" },
+        { value: true, label: "Yes" },
     ],
 };
 

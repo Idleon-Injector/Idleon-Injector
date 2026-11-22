@@ -1,7 +1,7 @@
 // Automation (#92), World 2 › Alchemy: "automation bubbles" raises the switched-on alchemy bubbles every second with
 // the alchemy menu's own upgrade (BubbleHoldDown), paying what the game charges. Decided with Lumi on 2026-11-17: the
 // bubble with the lowest % of its max goes first, up to one page-wide target %; bubbles without a max need a stop-at,
-// which caps any bubble; no priority and no saving; a Particles row waits until the particle buy is open; buying pauses
+// which caps any bubble; no Save for it and no saving; a Particles row waits until the particle buy is open; buying pauses
 // while the alchemy menu is open or Bargain Tags are held; affordability is checked here, since the game's own check
 // only covers cost icons on screen; and the "+n" popup the buy spawns with the menu closed is taken away.
 // A fake alchemy menu stands in for the game, paying the way the game's event does with the menu closed: no check.
@@ -322,11 +322,11 @@ test("a Particles row waits until the particle buy is open, then pays particles,
     await cheat("automation bubbles", false);
 });
 
-test("bubbles have no priority: a priority in the config file doesn't move a bubble ahead", async () => {
+test("bubbles have no Save for it: one in the config file doesn't move a bubble ahead", async () => {
     setGame();
     setBubbles([
         { id: "0:0", on: true, stopAt: 11 },
-        { id: "0:1", on: true, stopAt: 41, priority: 1 },
+        { id: "0:1", on: true, stopAt: 41, save: true },
     ]);
     await cheat("automation bubbles", true);
     tick();
