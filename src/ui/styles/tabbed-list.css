@@ -543,6 +543,12 @@
     gap: 4px;
     min-width: 0;
 }
+/* A value that only supports the line's main one (a meal's amount): a step smaller and muted. */
+.viewport .value-cell--quiet .number-input-wrapper input {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
 .value-cell__label {
     position: absolute;
     width: 1px;

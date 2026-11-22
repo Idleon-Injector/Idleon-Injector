@@ -1,0 +1,4 @@
+/* Breeding › Pets: one pet per line with its DNA, Breedability and Shiny days, a table, so the wider measure. */
+.breeding-pets-tab {
+    --page-measure: 60rem;
+}

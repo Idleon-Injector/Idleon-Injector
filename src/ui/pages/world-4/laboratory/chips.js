@@ -1,197 +1,209 @@
+/**
+ * W4 - Laboratory › Chips
+ *
+ * Data sources:
+ *   gga.GetPlayersUsernames     - the characters, in the game's order
+ *   gga.Lab[1 + c][s]           - the chip in character c's slot s (-1: empty), seven slots each
+ *   gga.Lab[15][n]              - how many of chip n the account owns
+ *   cList.ChipDesc[n][0, 1]     - the chip's name and its bonus in the game's words
+ *
+ * The character is picked on the line under the title, like 3D Printer. One list: that character's seven slots, each
+ * slot's chip as its title (pressing it opens the chips in place, with a search, and a pick saves at once), then every
+ * chip the account owns, the bonus first.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { gga } from "../../../services/api.js";
+import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { EditableFieldsRow } from "../../../components/views/account/EditableFieldsRow.js";
-import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
+import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
     createIndexedStateGetter,
     createStaticRowReconciler,
-    getOrCreateState,
-    readLevelDefinitions,
     toInt,
-    writeChangedFields,
+    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, option, select, span } = van.tags;
+const { div } = van.tags;
 
-const CHIP_AMOUNTS_PATH = "Lab[15]";
-const PLAYER_CHIP_START = 1;
-const PLAYER_COUNT = 10;
-const CHIP_SLOT_COUNT = 7;
-
-const readChipEntries = () =>
-    readLevelDefinitions({
-        levelsPath: CHIP_AMOUNTS_PATH,
-        definitionsPath: "ChipDesc",
-        mapEntry: ({ index, definition, rawLevel }) => {
-            const rawName = String(definition[0] ?? "").trim();
-            if (!rawName) return null;
-
-            return {
-                index,
-                key: `chip:${index}:${rawName}`,
-                name: cleanName(rawName, `Chip ${index + 1}`),
-                path: `${CHIP_AMOUNTS_PATH}[${index}]`,
-                value: toInt(rawLevel, { min: 0 }),
-                formatted: false,
-            };
-        },
-    });
-
-const buildChipOptions = (chipEntries) => [
-    { value: -1, label: "Empty" },
-    ...chipEntries.map((entry) => ({ value: entry.index, label: entry.name })),
-];
-
-const buildPlayerChipEntries = (rawLab, chipOptions) =>
-    Array.from({ length: PLAYER_COUNT }, (_, index) => {
-        const playerIndex = PLAYER_CHIP_START + index;
-        const rawSlots = toIndexedArray(rawLab?.[playerIndex] ?? []);
-        const maxChipIndex = Math.max(-1, ...chipOptions.map((choice) => choice.value));
-        return {
-            playerNumber: index + 1,
-            key: `player:${index + 1}`,
-            optionSignature: chipOptions.map((choice) => `${choice.value}:${choice.label}`).join("|"),
-            fields: Array.from({ length: CHIP_SLOT_COUNT }, (_, slotIndex) => ({
-                key: `player:${index + 1}:slot:${slotIndex}`,
-                label: `Slot ${slotIndex + 1}`,
-                path: `Lab[${playerIndex}][${slotIndex}]`,
-                value: toInt(rawSlots[slotIndex], { min: -1 }),
-                fromGame: (raw) => toInt(raw, { min: -1 }),
-                min: -1,
-                max: maxChipIndex,
-                options: chipOptions,
-            })),
-        };
-    });
-
-const ChipSlotSelect = ({ field, draftStates }) =>
-    div(
-        { class: "account-stacked-field" },
-        span({ class: "account-stacked-field__label" }, field.label),
-        select(
-            {
-                class: "select-base",
-                onchange: (e) => (draftStates[field.key].val = Number(e.target.value)),
-            },
-            ...field.options.map((choice) =>
-                option(
-                    {
-                        value: choice.value,
-                        selected: () => Number(draftStates[field.key].val) === choice.value,
-                    },
-                    choice.label
-                )
-            )
-        )
-    );
-
-const PlayerChipsRow = ({ entry, fieldStates }) => {
-    const fields = entry.fields.map((field) => ({
-        ...field,
-        valueState: getOrCreateState(fieldStates, field.key),
-        toDraft: (value) => toInt(value, { min: field.min }),
-    }));
-
-    return EditableFieldsRow({
-        fields,
-        normalize: (rawValues) => {
-            const nextValues = {};
-            for (const field of fields) {
-                const nextValue = Math.min(field.max, toInt(rawValues[field.key], { min: field.min }));
-                if (Number.isNaN(nextValue)) return null;
-                nextValues[field.key] = nextValue;
-            }
-            return nextValues;
-        },
-        write: (nextValues) => writeChangedFields(fields, nextValues),
-        info: [
-            span({ class: "account-row__index" }, `#${entry.playerNumber}`),
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, `Player ${entry.playerNumber}`)
-            ),
-        ],
-        badge: () =>
-            `${entry.fields.filter((field) => toInt(getOrCreateState(fieldStates, field.key).val, { min: -1 }) >= 0).length} equipped`,
-        controlsClass: "account-row__controls--stack-action",
-        renderControls: ({ draftStates }) =>
-            div({ class: "account-stacked-fields" }, ...fields.map((field) => ChipSlotSelect({ field, draftStates }))),
-    });
-};
+const OWNED_PATH = "Lab[15]";
+const SLOT_COUNT = 7;
+const EMPTY = -1;
+const slotPath = (character, slot) => `Lab[${1 + character}][${slot}]`;
 
 const ChipsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Lab chips" });
-    const chipEntries = van.state([]);
-    const playerChipEntries = van.state([]);
-    const getChipState = createIndexedStateGetter(0);
-    const playerChipStates = new Map();
-    const chipRows = div({ class: "account-item-stack account-item-stack--dense" });
-    const playerChipRows = div({ class: "account-item-stack account-item-stack--dense" });
-    const reconcileChipRows = createStaticRowReconciler(chipRows);
-    const reconcilePlayerChipRows = createStaticRowReconciler(playerChipRows);
+    const chips = van.state([]);
+    const characters = van.state([]);
+    const selected = van.state(0);
+    const getOwnedState = createIndexedStateGetter(0);
+    // Each character's slots, made the first time that character shows; a read sets the chips in them.
+    const slotStates = new Map();
+    const slotsOf = (character) => {
+        if (!slotStates.has(character)) {
+            slotStates.set(
+                character,
+                Array.from({ length: SLOT_COUNT }, () => van.state(EMPTY))
+            );
+        }
+        return slotStates.get(character);
+    };
+    const slotNode = div();
+    const ownedNode = div();
+    const reconcileSlots = createStaticRowReconciler(slotNode);
+    const reconcileOwned = createStaticRowReconciler(ownedNode);
+    const uneditable = () => loading.val || Boolean(error.val);
 
-    const reconcileRows = () => {
-        reconcileChipRows(chipEntries.val.map((entry) => entry.key).join("|"), () =>
-            chipEntries.val.map((entry) => SimpleNumberRow({ entry, valueState: getChipState(entry.index) }))
-        );
-        reconcilePlayerChipRows(
-            playerChipEntries.val.map((entry) => `${entry.key}:${entry.optionSignature}`).join("|"),
-            () => playerChipEntries.val.map((entry) => PlayerChipsRow({ entry, fieldStates: playerChipStates }))
+    const chipOf = (id) => chips.val.find((chip) => chip.index === id);
+
+    const SlotRow = (character, slot) => {
+        const chipState = slotsOf(character)[slot];
+        const slotName = `Slot ${slot + 1}`;
+        let draft = EMPTY;
+        const write = useAutoSave({
+            capture: () => draft,
+            prepare: (next = draft) =>
+                next === chipState.val
+                    ? { unchanged: true }
+                    : {
+                          write: async () => {
+                              await writeVerified(slotPath(character, slot), next);
+                              chipState.val = next;
+                              return next;
+                          },
+                      },
+        });
+        const chipName = () =>
+            chipState.val === EMPTY ? "Empty" : (chipOf(chipState.val)?.name ?? `Chip ${chipState.val + 1}`);
+        // The slot's chip by what it does first, like every row with a bonus; an empty slot says so.
+        const chipBonus = () => (chipState.val === EMPTY ? "Empty" : (chipOf(chipState.val)?.short ?? chipName()));
+        const slotLine = () => (chipState.val === EMPTY ? slotName : `${slotName} · ${chipName()}`);
+        const pick = PickInPlace({
+            name: `${characters.val[character] ?? "Character"} ${slotName} chip`,
+            look: "row",
+            label: chipName,
+            opener: RowTitles({ bonus: chipBonus, name: slotLine }),
+            options: () => [
+                { id: String(EMPTY), label: "Empty" },
+                ...chips.val.map((chip) => ({ id: String(chip.index), label: chip.name, note: chip.bonus })),
+            ],
+            picked: () => String(chipState.val),
+            onPick: (id) => {
+                draft = Number(id);
+                void write.save();
+            },
+            search: true,
+            disabled: uneditable,
+            panelClass: "row-detail",
+        });
+        const row = AccountRow({
+            rowClass: () => `chip-slot-row ${saveStateClass(write.status.val, write.undo)}`,
+            rowProps: write.handlers,
+            info: pick.opener,
+            controls: SaveState(write),
+        });
+        row.append(pick.panel);
+        return row;
+    };
+
+    const showCharacter = () => {
+        const character = selected.val;
+        reconcileSlots(`${character}:${characters.val[character] ?? ""}`, () =>
+            Array.from({ length: SLOT_COUNT }, (_, slot) => SlotRow(character, slot))
         );
     };
 
+    const characterSelector = createCharacterSelector({
+        id: "chips-character",
+        selected,
+        getValue: (_name, index) => index,
+        disabled: () => loading.val,
+        onChange: (event) => {
+            selected.val = Number(event.target.value);
+            showCharacter();
+        },
+    });
+
     const load = async () =>
         run(async () => {
-            const [rawLab, chips] = await Promise.all([gga("Lab"), readChipEntries()]);
-            const chipOptions = buildChipOptions(chips);
+            const [rawNames, rawLab, rawChips] = await Promise.all([
+                gga("GetPlayersUsernames"),
+                gga("Lab"),
+                readCList("ChipDesc"),
+            ]);
+            const lab = toIndexedArray(rawLab ?? []);
+            const names = toIndexedArray(rawNames ?? []).map(String);
+            const owned = toIndexedArray(lab[15] ?? []);
+            const nextChips = toIndexedArray(rawChips ?? [])
+                .map((raw, index) => {
+                    const def = toIndexedArray(raw ?? []);
+                    const rawName = String(def[0] ?? "").trim();
+                    if (!rawName) return null;
+                    const bonus = bonusText(def[1]);
+                    // "*Can Only Equip 1 per player*" stays in the pick's list, where it matters; the row keeps the bonus.
+                    const short = bonus.replace(/\s*\*[^*]*\*\s*/g, " ").trim();
+                    return { index, name: cleanName(rawName, `Chip ${index + 1}`), bonus, short };
+                })
+                .filter(Boolean);
 
-            chipEntries.val = chips;
-            playerChipEntries.val = buildPlayerChipEntries(rawLab, chipOptions);
-            reconcileRows();
+            chips.val = nextChips;
+            characters.val = names;
+            characterSelector.setCharacters(names);
+            if (selected.val >= names.length) selected.val = 0;
+            names.forEach((_, character) => {
+                const slots = toIndexedArray(lab[1 + character] ?? []);
+                slotsOf(character).forEach((state, slot) => (state.val = toInt(slots[slot] ?? EMPTY, { min: EMPTY })));
+            });
+            showCharacter();
 
-            for (const entry of chipEntries.val) getChipState(entry.index).val = entry.value;
-            for (const entry of playerChipEntries.val) {
-                for (const field of entry.fields) {
-                    getOrCreateState(playerChipStates, field.key).val = field.value;
-                }
-            }
+            reconcileOwned(nextChips.map((chip) => `${chip.index}:${chip.name}`).join("|"), () =>
+                nextChips.map((chip) =>
+                    ClampedLevelRow({
+                        valueState: getOwnedState(chip.index),
+                        writePath: `${OWNED_PATH}[${chip.index}]`,
+                        max: Infinity,
+                        integerMode: "trunc",
+                        name: chip.name,
+                        renderInfo: () => RowTitles({ bonus: chip.short, name: chip.name }),
+                    })
+                )
+            );
+            nextChips.forEach((chip) => (getOwnedState(chip.index).val = toInt(owned[chip.index], { min: 0 })));
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "CHIPS",
-            note: () => `${chipEntries.val.length} CHIP AMOUNTS FROM Lab[15]`,
-            body: chipRows,
-        }),
-        AccountSection({
-            title: "PLAYER CHIPS",
-            note: "Lab[1-10], seven equipped chip ids per player",
-            body: playerChipRows,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "LAB CHIPS",
-        description: "Edit W4 Lab chip amounts and equipped player chip ids.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Chips",
+        description: "Each character's chip slots, and the chips the account owns.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
+        toolbar: characterSelector.node,
         state: { loading, error },
-        loadingText: "READING LAB CHIPS",
-        errorTitle: "LAB CHIP READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the chips",
+        errorTitle: "Couldn't read the chips",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                body: [
+                    AccountSection({ title: "Slots", body: slotNode }),
+                    AccountSection({ title: "Owned", body: ownedNode }),
+                ],
+            })
+        ),
     });
 };
 
@@ -201,6 +213,6 @@ export default definePage({
     system: "Laboratory",
     tab: "Chips",
     description: "Lab chip amounts and the chips each character has equipped.",
-    keywords: ["Lab"],
+    keywords: ["Lab", "Chip slots"],
     component: ChipsTab,
 });

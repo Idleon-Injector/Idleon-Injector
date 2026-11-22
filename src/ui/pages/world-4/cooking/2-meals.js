@@ -1,136 +1,79 @@
+/**
+ * W4 - Cooking › Meals
+ *
+ * Data sources:
+ *   gga.Meals[0][n]          - meal n's level
+ *   gga.Meals[2][n]          - how many of meal n are cooked
+ *   gga.Ribbon[28 + n]       - meal n's ribbon
+ *   cList.MealINFO[n][0, 3]  - the meal's name and its bonus in the game's words
+ *
+ * One meal per line in the game's order, the bonus first, its Level, Amount and Ribbon in the table's columns. The
+ * Amount only supports the level, so it is the quiet column.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
     createStaticRowReconciler,
-    getOrCreateState,
-    largeFormatter,
-    resolveNumberInput,
     toInt,
-    writeChangedFields,
+    toNum,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
-const MEAL_LEVELS_PATH = "Meals[0]";
-const MEAL_AMOUNTS_PATH = "Meals[2]";
-const RIBBON_LEVELS_PATH = "Ribbon";
-const MEAL_RIBBON_OFFSET = 28;
-const MEAL_RIBBON_MAX_LEVEL = 25;
+const RIBBON_OFFSET = 28;
+const RIBBON_MAX = 25;
 
-const MEAL_FIELDS = [
-    {
-        key: "level",
-        label: "Level",
-        path: MEAL_LEVELS_PATH,
-        formatted: false,
-        fromGame: (raw) => toInt(raw, { min: 0 }),
-    },
-    {
-        key: "amount",
-        label: "Amount",
-        path: MEAL_AMOUNTS_PATH,
-        formatted: true,
-        float: true,
-        fromGame: (raw) => raw ?? 0,
-    },
-    {
-        key: "ribbon",
-        label: "Ribbon",
-        path: RIBBON_LEVELS_PATH,
-        formatted: false,
-        max: MEAL_RIBBON_MAX_LEVEL,
-        fromGame: (raw) => Math.min(MEAL_RIBBON_MAX_LEVEL, toInt(raw, { min: 0 })),
-    },
-];
-
-const buildMealEntries = (rawMealInfo, rawLevels, rawAmounts, rawRibbons) => {
-    const levels = toIndexedArray(rawLevels ?? []);
-    const amounts = toIndexedArray(rawAmounts ?? []);
-    const ribbons = toIndexedArray(rawRibbons ?? []);
-
-    return toIndexedArray(rawMealInfo ?? [])
-        .map((rawMeal, index) => {
-            const meal = toIndexedArray(rawMeal ?? []);
-            const rawName = String(meal[0] ?? "").trim();
-            if (!rawName) return null;
-
-            return {
-                index,
-                key: `meal:${index}:${rawName}`,
-                name: cleanName(rawName, `Meal ${index + 1}`),
-                fields: MEAL_FIELDS.map((field) => {
-                    const dataIndex = field.key === "ribbon" ? MEAL_RIBBON_OFFSET + index : index;
-                    const source = { level: levels, amount: amounts, ribbon: ribbons }[field.key];
-
-                    return {
-                        ...field,
-                        key: `meal:${index}:${field.key}`,
-                        path: `${field.path}[${dataIndex}]`,
-                        value: field.fromGame(source[dataIndex]),
-                    };
-                }),
-            };
-        })
-        .filter(Boolean);
-};
-
-const MealRow = ({ entry, fieldStates }) => {
-    const fields = entry.fields.map((field) => ({
-        ...field,
-        valueState: getOrCreateState(fieldStates, field.key),
-        toDraft: (value) => (field.formatted ? largeFormatter(value ?? 0) : String(value ?? 0)),
-    }));
-
-    return EditableFieldsRow({
-        fields,
-        normalize: (rawValues) => {
-            const nextValues = {};
-            for (const field of fields) {
-                const normalized = resolveNumberInput(rawValues[field.key], {
-                    formatted: field.formatted,
-                    float: field.float,
-                    min: 0,
-                    max: field.max ?? Infinity,
-                    fallback: null,
-                });
-                if (normalized === null || normalized === undefined || Number.isNaN(normalized)) return null;
-                nextValues[field.key] = normalized;
-            }
-            return nextValues;
-        },
-        write: (nextValues) => writeChangedFields(fields, nextValues),
-        info: [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        controlsClass: "account-row__controls--stack-action",
-        renderControls: ({ draftStates, resetDraft, setFieldFocused }) =>
-            div(
-                { class: "account-stacked-fields" },
-                ...fields.map((field) => StackedNumberField({ field, draftStates, setFieldFocused, resetDraft }))
-            ),
-    });
-};
+const paths = (index) => ({
+    level: `Meals[0][${index}]`,
+    amount: `Meals[2][${index}]`,
+    ribbon: `Ribbon[${RIBBON_OFFSET + index}]`,
+});
 
 const MealsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking meals" });
-    const mealEntries = van.state([]);
-    const mealFieldStates = new Map();
-    const mealRows = div({ class: "account-item-stack account-item-stack--dense" });
-    const reconcileMealRows = createStaticRowReconciler(mealRows);
+    const states = new Map();
+    const stateOf = (index) => {
+        if (!states.has(index)) states.set(index, { level: van.state(0), amount: van.state(0), ribbon: van.state(0) });
+        return states.get(index);
+    };
+    const listNode = div();
+    const reconcileRows = createStaticRowReconciler(listNode);
 
-    const reconcileRows = () =>
-        reconcileMealRows(mealEntries.val.map((entry) => entry.key).join("|"), () =>
-            mealEntries.val.map((entry) => MealRow({ entry, fieldStates: mealFieldStates }))
-        );
+    const MealRow = (meal) => {
+        const at = paths(meal.index);
+        const state = stateOf(meal.index);
+        return ValueTableRow({
+            name: meal.name,
+            info: RowTitles({ bonus: meal.bonus, name: meal.name }),
+            fields: [
+                { key: "level", label: "Level", valueState: state.level, paths: [at.level] },
+                {
+                    key: "amount",
+                    label: "Amount",
+                    valueState: state.amount,
+                    paths: [at.amount],
+                    formatted: true,
+                    quiet: true,
+                },
+                { key: "ribbon", label: "Ribbon", valueState: state.ribbon, paths: [at.ribbon], max: RIBBON_MAX },
+            ],
+            read: async () => {
+                const [level, amount, ribbon] = await Promise.all([gga(at.level), gga(at.amount), gga(at.ribbon)]);
+                return { level: toInt(level, { min: 0 }), amount: toNum(amount, 0), ribbon: toInt(ribbon, { min: 0 }) };
+            },
+        });
+    };
 
     const load = async () =>
         run(async () => {
@@ -139,40 +82,44 @@ const MealsTab = () => {
                 readCList("MealINFO"),
                 gga("Ribbon"),
             ]);
+            const levels = toIndexedArray(rawMeals?.[0] ?? []);
+            const amounts = toIndexedArray(rawMeals?.[2] ?? []);
+            const ribbons = toIndexedArray(rawRibbons ?? []);
+            const meals = toIndexedArray(rawMealInfo ?? [])
+                .map((raw, index) => {
+                    const info = toIndexedArray(raw ?? []);
+                    const rawName = String(info[0] ?? "").trim();
+                    if (!rawName) return null;
+                    return { index, name: cleanName(rawName, `Meal ${index + 1}`), bonus: bonusText(info[3]) };
+                })
+                .filter(Boolean);
 
-            mealEntries.val = buildMealEntries(rawMealInfo, rawMeals?.[0], rawMeals?.[2], rawRibbons);
-            reconcileRows();
-
-            for (const entry of mealEntries.val) {
-                for (const field of entry.fields) {
-                    getOrCreateState(mealFieldStates, field.key).val = field.value;
-                }
+            reconcileRows(meals.map((meal) => `${meal.index}:${meal.name}`).join("|"), () => meals.map(MealRow));
+            for (const { index } of meals) {
+                const state = stateOf(index);
+                state.level.val = toInt(levels[index], { min: 0 });
+                state.amount.val = toNum(amounts[index], 0);
+                state.ribbon.val = toInt(ribbons[RIBBON_OFFSET + index], { min: 0 });
             }
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "MEALS",
-            note: () => `${mealEntries.val.length} NAMED MEALS FROM MealINFO`,
-            body: mealRows,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "COOKING MEALS",
-        description: "Edit W4 Cooking meal levels, amounts, and ribbon levels.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container meals-tab",
+        title: "Meals",
+        description: "Each meal's level, how many are cooked, and its ribbon.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING COOKING MEALS",
-        errorTitle: "COOKING MEAL READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the meals",
+        errorTitle: "Couldn't read the meals",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: [ValueTableHead({ name: "Meal", columns: ["Level", "Amount", "Ribbon"] }), listNode],
+            })
+        ),
     });
 };
 

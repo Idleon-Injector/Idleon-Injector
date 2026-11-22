@@ -31,11 +31,11 @@ test("the tab lists each kitchen's Speed, Fire and Luck, and each meal, with wha
     assert.match(text(rowOf("Buy Kitchen 2 Luck")), /1\.25x · paid with Stinky Sewers Spice/);
     assert.equal(value(rowOf("Buy Kitchen 2 Luck"), "Next level"), "311");
     assert.match(text(rowOf("Buy Kitchen 5 Speed")), /Kitchen not bought yet/);
-    assert.equal(text(byClass(rowOf("Buy Mossy Pebble Pie"), "account-row__bonus")[0]), "+30.49% Ember Bramble");
-    assert.match(text(rowOf("Buy Mossy Pebble Pie")), /1\.23K held/);
-    assert.equal(value(rowOf("Buy Mossy Pebble Pie"), "Level"), "14 / 90");
-    assert.equal(value(rowOf("Buy Mossy Pebble Pie"), "Next level"), "600");
-    assert.match(text(rowOf("Buy Ember Bramble Pie")), /Not discovered yet/);
+    assert.equal(text(byClass(rowOf("Buy Egg"), "account-row__bonus")[0]), "+138.60% Meal Cooking Speed");
+    assert.match(text(rowOf("Buy Egg")), /535K held/);
+    assert.equal(value(rowOf("Buy Egg"), "Level"), "14 / 90");
+    assert.equal(value(rowOf("Buy Egg"), "Next level"), "600");
+    assert.match(text(rowOf("Buy Pie")), /Not discovered yet/);
     assert.match(text(tab), /No kitchen upgrade is switched on/);
     assert.equal(shownSavings().length, 0, "no spice is in use yet");
 });

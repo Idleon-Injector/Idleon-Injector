@@ -1,122 +1,62 @@
+/**
+ * W4 - Breeding › Territory
+ *
+ * Data source:
+ *   gga.OptionsListAccount[85] - how many territories are unlocked, out of the 26 the game has
+ *
+ * One value in the shared panel; its cap is the game's territory count.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { readGgaEntries } from "../../../services/api.js";
-import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
-import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { toInt } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
 const TERRITORY_UNLOCK_PATH = "OptionsListAccount[85]";
-
-const TERRITORY_NAMES = [
-    "Grasslands",
-    "Jungle",
-    "Encroaching Forest",
-    "Tree Interior",
-    "Stinky Sewers",
-    "Desert Oasis",
-    "Beach Docks",
-    "Coarse Mountains",
-    "Twilight Desert",
-    "The Crypt",
-    "Frosty Peaks",
-    "Tundra Outback",
-    "Crystal Caverns",
-    "Pristalle Lake",
-    "Nebulon Mantle",
-    "Starfield Skies",
-    "Shores of Eternity",
-    "Molten Bay",
-    "Smokey Lake",
-    "Wurm Catacombs",
-    "Spirit Fields",
-    "Bamboo Forest",
-    "Lullaby Airways",
-    "Dharma Mesa",
-    "Shallow Shoals",
-    "Murky Trenches",
-];
-
-// Territory spice rows are temporarily hidden; keep this tab focused on unlocks only.
-// const TERRITORY_SPICES_INDEX = 4;
-// const buildTerritoryEntries = (rawTerritory) => {
-//     const territory = toIndexedArray(rawTerritory ?? []);
-//     return TERRITORY_NAMES.map((name, index) => {
-//         const row = toIndexedArray(territory[index] ?? []);
-//         return {
-//             index,
-//             key: `territory:${index}`,
-//             name,
-//             path: `Territory[${index}][${TERRITORY_SPICES_INDEX}]`,
-//             value: resolveNumberInput(row[TERRITORY_SPICES_INDEX] ?? 0, {
-//                 formatted: true,
-//                 float: true,
-//                 min: 0,
-//                 fallback: 0,
-//             }),
-//             formatted: true,
-//             float: true,
-//             badge: (currentValue) => largeFormatter(currentValue ?? 0),
-//         };
-//     });
-// };
+// Grasslands to Murky Trenches.
+const TERRITORY_COUNT = 26;
 
 const TerritoryTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Breeding territory" });
-    const territoryUnlockState = van.state(0);
+    const unlockedState = van.state(0);
 
     const load = async () =>
         run(async () => {
-            const rawOptions = await readGgaEntries("OptionsListAccount", ["85"]);
-            territoryUnlockState.val = toInt(rawOptions["85"], { min: 0 });
+            const options = await readGgaEntries("OptionsListAccount", ["85"]);
+            unlockedState.val = toInt(options["85"], { min: 0 });
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "TERRITORY UNLOCK",
-            note: "OptionsListAccount[85]",
-            body: div(
-                { class: "account-item-stack" },
-                SimpleNumberRow({
-                    entry: {
-                        index: 85,
-                        name: "Territories Unlocked",
-                        path: TERRITORY_UNLOCK_PATH,
-                        max: TERRITORY_NAMES.length,
-                        formatted: false,
-                        cap: TERRITORY_NAMES.length,
-                    },
-                    valueState: territoryUnlockState,
-                })
-            ),
-        })
-        // AccountSection({
-        //     title: "TERRITORY",
-        //     note: () => `${territoryEntries.val.length} TERRITORIES`,
-        //     body: territoryRows,
-        // })
-    );
-
     return PersistentAccountListPage({
-        title: "BREEDING TERRITORY",
-        description: "Edit W4 Breeding territory unlocks and spice amounts.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
-        topNotices: WarningBanner("Changing territories unlocked may require a cloudsave before the game applies it."),
+        rootClass: "tab-container scroll-container",
+        title: "Territory",
+        description: "Territories unlocked. The game may need a cloud save to show a change.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING BREEDING TERRITORY",
-        errorTitle: "BREEDING TERRITORY READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the territories",
+        errorTitle: "Couldn't read the territories",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: ClampedLevelRow({
+                    valueState: unlockedState,
+                    writePath: TERRITORY_UNLOCK_PATH,
+                    max: TERRITORY_COUNT,
+                    integerMode: "trunc",
+                    name: "Territories unlocked",
+                    maxAction: true,
+                }),
+            })
+        ),
     });
 };
 
@@ -125,7 +65,7 @@ export default definePage({
     world: 4,
     system: "Breeding",
     tab: "Territory",
-    description: "Territory unlocks and their spice amounts.",
+    description: "Territories unlocked.",
     keywords: ["Territories"],
     component: TerritoryTab,
 });

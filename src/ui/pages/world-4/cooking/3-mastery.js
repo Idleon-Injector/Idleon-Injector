@@ -1,3 +1,16 @@
+/**
+ * W4 - Cooking › Mastery
+ *
+ * Data sources:
+ *   gga.CookMaster[1]        - [rank - 1, mastery EXP, daily respec used, lifetime ladles]
+ *   gga.CookMaster[2][n]     - mastery upgrade n's level; cList.RandoListo2[9][n] its name, [8][n] its number
+ *   gga.CookMaster[0][n]     - meal n's mastery level; cList.MealINFO[n][0] the meal's name
+ *   PtsLeftCook_P / _Y       - the points left for the upgrades and for the meals (the game works them out)
+ *
+ * One list in three groups, like Anvil: the rank, the upgrades (the bonus first) and each meal's mastery. Each group
+ * of points says how many are left beside its name.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList, readComputed, readComputedMany } from "../../../services/api.js";
@@ -7,23 +20,23 @@ import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
+    normalCase,
     createStaticRowReconciler,
     getOrCreateState,
-    largeFormatter,
     toInt,
     toNum,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
 const RANK_PATH = "CookMaster[1][0]";
 const EXP_PATH = "CookMaster[1][1]";
-const RESPEC_PATH = "CookMaster[1][2]";
 const LADLES_PATH = "CookMaster[1][3]";
 const PURPLE_PATH = "CookMaster[2]";
 const MEAL_MASTERY_PATH = "CookMaster[0]";
@@ -49,8 +62,8 @@ const buildPurpleEntries = (rawNames, rawCoefficients, rawRequirements, rawLevel
         return {
             key: `cooking-mastery-purple-${index}`,
             index,
-            name: cleanName(rawName, `Purple Upgrade ${index + 1}`),
-            subLabel: `RANK ${requiredStoredRank + 1} · ${PURPLE_EFFECTS[index]?.(coefficient) ?? `${coefficient} per level`}`,
+            name: `${normalCase(cleanName(rawName, `Upgrade ${index + 1}`))} · from rank ${requiredStoredRank + 1}`,
+            bonus: PURPLE_EFFECTS[index]?.(coefficient) ?? `${coefficient} per level`,
             path: `${PURPLE_PATH}[${index}]`,
             value: toInt(levels[index], { min: 0 }),
             formatted: false,
@@ -58,9 +71,8 @@ const buildPurpleEntries = (rawNames, rawCoefficients, rawRequirements, rawLevel
     });
 };
 
-const buildMealEntries = (rawMealInfo, rawAllocations, rawMealLevels) => {
+const buildMealEntries = (rawMealInfo, rawAllocations) => {
     const allocations = toIndexedArray(rawAllocations ?? []);
-    const mealLevels = toIndexedArray(rawMealLevels ?? []);
 
     return toIndexedArray(rawMealInfo ?? [])
         .slice(0, allocations.length)
@@ -73,15 +85,8 @@ const buildMealEntries = (rawMealInfo, rawAllocations, rawMealLevels) => {
                 key: `cooking-mastery-meal-${index}`,
                 index,
                 name: cleanName(rawName, `Meal ${index + 1}`),
-                subLabel: `Current meal level: ${toInt(mealLevels[index], { min: 0 })}`,
                 path: `${MEAL_MASTERY_PATH}[${index}]`,
                 value: toInt(allocations[index], { min: 0 }),
-                formatted: false,
-                // The level is in the field; the badge adds the bonus it gives.
-                badge: (currentValue) => {
-                    const level = toInt(currentValue, { min: 0 });
-                    return `${(1 + level / (level + 5)).toFixed(2)}x`;
-                },
             };
         })
         .filter(Boolean);
@@ -98,10 +103,7 @@ const MasteryRankRow = ({ rankState, refreshPointsAfterWrite }) =>
             await refreshPointsAfterWrite();
             return displayedRank;
         },
-        indexLabel: "#0",
-        name: "Mastery Rank",
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
+        name: "Mastery rank",
     });
 
 const MasteryAllocationRow = ({ entry, valueState, refreshPointsAfterWrite }) =>
@@ -115,30 +117,15 @@ const MasteryAllocationRow = ({ entry, valueState, refreshPointsAfterWrite }) =>
             await refreshPointsAfterWrite();
             return verified;
         },
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, entry.name),
-                span({ class: "account-row__sub-label" }, entry.subLabel)
-            ),
-        ],
-        renderBadge: entry.badge,
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
+        name: entry.name,
+        renderInfo: entry.bonus ? () => RowTitles({ bonus: entry.bonus, name: entry.name }) : null,
     });
 
+// The game sets the daily respec itself, so the row only says where it stands.
 const RespecStatusRow = ({ respecState }) =>
     AccountRow({
-        info: [
-            span({ class: "account-row__index" }, "#2"),
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, "Daily Respec"),
-                span({ class: "account-row__sub-label" }, `${RESPEC_PATH} is managed by the game`)
-            ),
-        ],
-        badge: () => (respecState.val === 0 ? "Ready" : "Used"),
+        info: span({ class: "account-row__name" }, "Daily respec"),
+        badge: () => (respecState.val === 0 ? "Ready" : "Used today"),
     });
 
 const MasteryTab = () => {
@@ -154,8 +141,8 @@ const MasteryTab = () => {
     const mealEntries = van.state([]);
     const purpleStates = new Map();
     const mealStates = new Map();
-    const purpleNode = div({ class: "account-item-stack" });
-    const mealNode = div({ class: "account-item-stack account-item-stack--dense" });
+    const purpleNode = div();
+    const mealNode = div();
     const reconcilePurpleRows = createStaticRowReconciler(purpleNode);
     const reconcileMealRows = createStaticRowReconciler(mealNode);
 
@@ -178,34 +165,27 @@ const MasteryTab = () => {
             if (read === pointsRead) pointsOff.val = true;
         }
     };
-    const pointsNote = (points) => (pointsOff.val ? "Points may be off. Refresh." : `${points} POINTS AVAILABLE`);
-
-    const expRequirement = () => {
-        const storedRank = Math.max(0, toInt(rankState.val, { min: 1 }) - 1);
-        const required = 100 * 2.5 ** storedRank * 5 ** Math.max(0, storedRank - 40);
-        return Number.isFinite(required) ? largeFormatter(required) : "UNAVAILABLE";
-    };
+    const pointsNote = (points) =>
+        pointsOff.val ? "Points may be off. Refresh." : `${points} point${points === 1 ? "" : "s"} left`;
 
     const load = async () =>
         run(async () => {
-            const [rawCookMaster, rawMeals, rawMealInfo, rawPurpleNames, rawPurpleCoefficients, computed] =
-                await Promise.all([
-                    gga("CookMaster"),
-                    gga("Meals[0]"),
-                    readCList("MealINFO"),
-                    readCList("RandoListo2[9]"),
-                    readCList("RandoListo2[8]"),
-                    Promise.all([
-                        readComputed("cookingMastery", "isMasteryUnlocked"),
-                        readComputed("cookingMastery", "PtsLeftCook_P"),
-                        readComputed("cookingMastery", "PtsLeftCook_Y"),
-                        readComputedMany(
-                            "cookingMastery",
-                            "RankREQcook",
-                            Array.from({ length: 6 }, (_, index) => [index, 0])
-                        ),
-                    ]),
-                ]);
+            const [rawCookMaster, rawMealInfo, rawPurpleNames, rawPurpleCoefficients, computed] = await Promise.all([
+                gga("CookMaster"),
+                readCList("MealINFO"),
+                readCList("RandoListo2[9]"),
+                readCList("RandoListo2[8]"),
+                Promise.all([
+                    readComputed("cookingMastery", "isMasteryUnlocked"),
+                    readComputed("cookingMastery", "PtsLeftCook_P"),
+                    readComputed("cookingMastery", "PtsLeftCook_Y"),
+                    readComputedMany(
+                        "cookingMastery",
+                        "RankREQcook",
+                        Array.from({ length: 6 }, (_, index) => [index, 0])
+                    ),
+                ]),
+            ]);
             const cookMaster = toIndexedArray(rawCookMaster ?? []);
             const progress = toIndexedArray(cookMaster[1] ?? []);
             const purpleLevels = toIndexedArray(cookMaster[2] ?? []);
@@ -217,7 +197,7 @@ const MasteryTab = () => {
             ladlesState.val = toNum(progress[3], 0);
             unlockedState.val = toNum(computed[0], 0) > 0;
             purpleEntries.val = buildPurpleEntries(rawPurpleNames, rawPurpleCoefficients, computed[3], purpleLevels);
-            mealEntries.val = buildMealEntries(rawMealInfo, mealAllocations, rawMeals);
+            mealEntries.val = buildMealEntries(rawMealInfo, mealAllocations);
 
             reconcilePurpleRows(purpleEntries.val.map((entry) => `${entry.key}:${entry.name}`).join("|"), () =>
                 purpleEntries.val.map((entry) =>
@@ -228,16 +208,14 @@ const MasteryTab = () => {
                     })
                 )
             );
-            reconcileMealRows(
-                mealEntries.val.map((entry) => `${entry.key}:${entry.name}:${entry.subLabel}`).join("|"),
-                () =>
-                    mealEntries.val.map((entry) =>
-                        MasteryAllocationRow({
-                            entry,
-                            valueState: getOrCreateState(mealStates, entry.key),
-                            refreshPointsAfterWrite,
-                        })
-                    )
+            reconcileMealRows(mealEntries.val.map((entry) => `${entry.key}:${entry.name}`).join("|"), () =>
+                mealEntries.val.map((entry) =>
+                    MasteryAllocationRow({
+                        entry,
+                        valueState: getOrCreateState(mealStates, entry.key),
+                        refreshPointsAfterWrite,
+                    })
+                )
             );
 
             for (const entry of purpleEntries.val) getOrCreateState(purpleStates, entry.key).val = entry.value;
@@ -255,55 +233,58 @@ const MasteryTab = () => {
     const progressEntries = [
         {
             key: "cooking-mastery-exp",
-            index: 1,
-            name: "Current Mastery EXP",
+            name: "Mastery EXP",
             path: EXP_PATH,
-            formatted: true,
             float: true,
+            showIndex: false,
         },
         {
             key: "cooking-mastery-ladles",
-            index: 3,
-            name: "Lifetime Ladles Used",
+            name: "Lifetime ladles used",
             path: LADLES_PATH,
-            formatted: true,
+            showIndex: false,
         },
     ];
 
     return PersistentAccountListPage({
-        title: "COOKING MASTERY",
-        description: "Edit Cooking Mastery rank, EXP, perk levels, and per-meal mastery allocations from CookMaster.",
+        rootClass: "tab-container scroll-container",
+        title: "Mastery",
+        description: "Cooking Mastery: rank, upgrades and each meal's mastery.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING COOKING MASTERY",
-        errorTitle: "COOKING MASTERY READ FAILED",
-        initialWrapperClass: "scrollable-panel",
+        loadingText: "Reading cooking mastery",
+        errorTitle: "Couldn't read cooking mastery",
+        initialWrapperClass: "account-list",
         body: div(
-            { class: "scrollable-panel content-stack" },
-            AccountSection({
-                title: "PROGRESS",
-                note: () => `${unlockedState.val ? "UNLOCKED" : "LOCKED"} · NEXT RANK ${expRequirement()} EXP`,
-                body: div(
-                    { class: "account-item-stack" },
-                    MasteryRankRow({ rankState, refreshPointsAfterWrite }),
-                    ...progressEntries.map((entry) =>
-                        SimpleNumberRow({
-                            entry,
-                            valueState: entry.key.endsWith("exp") ? expState : ladlesState,
-                        })
-                    ),
-                    RespecStatusRow({ respecState })
-                ),
-            }),
-            AccountSection({
-                title: "PURPLE UPGRADES",
-                note: () => pointsNote(purplePointsState.val),
-                body: purpleNode,
-            }),
-            AccountSection({
-                title: "MEAL MASTERY",
-                note: () => `${pointsNote(yellowPointsState.val)} · ${mealEntries.val.length} MEALS`,
-                body: mealNode,
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                body: [
+                    AccountSection({
+                        title: "Rank",
+                        note: () => (unlockedState.val ? "" : "Not unlocked yet"),
+                        body: [
+                            MasteryRankRow({ rankState, refreshPointsAfterWrite }),
+                            ...progressEntries.map((entry) =>
+                                SimpleNumberRow({
+                                    entry,
+                                    valueState: entry.key.endsWith("exp") ? expState : ladlesState,
+                                })
+                            ),
+                            RespecStatusRow({ respecState }),
+                        ],
+                    }),
+                    AccountSection({
+                        title: "Upgrades",
+                        note: () => pointsNote(purplePointsState.val),
+                        body: purpleNode,
+                    }),
+                    AccountSection({
+                        title: "Meals",
+                        note: () => pointsNote(yellowPointsState.val),
+                        body: mealNode,
+                    }),
+                ],
             })
         ),
     });

@@ -1,0 +1,6 @@
+/* Cooking: Tables and Meals are tables (a kitchen's Speed, Fire and Luck; a meal's Level, Amount and Ribbon), so they
+   take the wider measure. */
+.kitchen-tables-tab,
+.meals-tab {
+    --page-measure: 60rem;
+}
