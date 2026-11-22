@@ -240,6 +240,9 @@ const CogsTab = () => {
     const slotCaps = Array.from({ length: MAIN_SLOT_COUNT }, () => van.state(0));
     const flaggedSlots = van.state(new Set());
     const flagsRaw = van.state([]);
+    // Lock and Unlock wait for a read of the board that worked: before it, every slot reads as locked and no flag is
+    // known, so an Unlock would leave the slot's flag behind.
+    const loaded = van.state(false);
     const cogOrders = Array.from({ length: TOTAL_SLOT_COUNT }, () => van.state("Blank"));
     const cogMapStats = Array.from({ length: TOTAL_SLOT_COUNT }, () => van.state({}));
     const activeCogName = van.state("Blank");
@@ -343,6 +346,7 @@ const CogsTab = () => {
 
             flaggedSlots.val = nextFlaggedSlots;
             flagsRaw.val = nextFlagsRaw;
+            loaded.val = true;
             if (activeSlot.val !== null) {
                 void refreshActiveCogName(activeSlot.val);
                 syncTinyInputsFromSlot(activeSlot.val);
@@ -698,6 +702,7 @@ const CogsTab = () => {
                     disabled: () => {
                         const index = getActiveIndex();
                         return (
+                            !loaded.val ||
                             lockStatus.val === "loading" ||
                             getSlotState(slotValues[index].val) === "locked" ||
                             getSlotCogId(index) !== "Blank"
@@ -711,6 +716,7 @@ const CogsTab = () => {
                     disabled: () => {
                         const index = getActiveIndex();
                         return (
+                            !loaded.val ||
                             lockStatus.val === "loading" ||
                             getSlotState(slotValues[index].val) === "unlocked" ||
                             PREMIUM_COG_IDS.has(getSlotCogId(index))

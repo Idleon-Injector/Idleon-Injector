@@ -105,6 +105,8 @@ const AtomColliderTab = () => {
 
     const setLevels = async (entries, targetOf) => {
         const result = await bulk.run(async () => {
+            // What each row shows before the read: a row saved while it runs keeps its save.
+            const shownBefore = entries.map(({ index }) => getLevelState(index).val);
             const fresh = toIndexedArray(await gga("Atoms"));
             await runBulkSet({
                 entries,
@@ -113,9 +115,9 @@ const AtomColliderTab = () => {
                 getPath: (atom) => `Atoms[${atom.index}]`,
                 // Planned from the game, not the fields: a level bought there since the page read it is reset too,
                 // and a row the game already holds at the target shows it.
-                shouldWrite: ({ entry, targetValue, valueState }) => {
+                shouldWrite: ({ entry, index, targetValue, valueState }) => {
                     if (Number(fresh[entry.index] ?? 0) !== targetValue) return true;
-                    valueState.val = targetValue;
+                    if (valueState.val === shownBefore[index]) valueState.val = targetValue;
                     return false;
                 },
             });

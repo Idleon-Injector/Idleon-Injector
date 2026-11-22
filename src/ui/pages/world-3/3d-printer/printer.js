@@ -82,10 +82,12 @@ const PrinterTab = () => {
     const cannotWrite = () => loading.val || Boolean(error.val) || !snapshot.val || pending.val;
     // A slot's drafts: the picked item, the quantity as typed, and the stored quantity the field showed then (its
     // rounded form, "16.2K", stands for exactly that one, even once a save in between has changed what's stored).
+    // `edits` counts the player's own changes, so a reread that moves a clean row isn't taken for one.
     const draftsOf = (state) => ({
         item: state.item.val,
         rawQty: getNumberInputLiveRaw(state.quantity) ?? state.quantity.val,
         shownQty: state.baseline.qty,
+        edits: state.edits,
     });
     const showsQty = ({ rawQty, shownQty }) => rawQty === String(shownQty) || rawQty === largeFormatter(shownQty);
     const isDirty = (state, drafts = draftsOf(state)) => {
@@ -229,6 +231,7 @@ const PrinterTab = () => {
                             item: van.state("Blank"),
                             quantity: van.state("0"),
                             dirty: van.state(0),
+                            edits: 0,
                         });
                         const created = rows.get(key);
                         // The item and quantity save together on Enter or on leaving the row.
@@ -331,7 +334,7 @@ const PrinterTab = () => {
                 );
             }
             const now = draftsOf(state);
-            if (committed && (now.item !== committed.item || now.rawQty !== committed.rawQty)) {
+            if (committed && now.edits !== committed.edits) {
                 // Typed while this save waited: the newer draft stays, for its own Enter to save.
                 state.saved.val = { item, qty };
                 state.baseline = { item, qty };
@@ -376,6 +379,7 @@ const PrinterTab = () => {
             picked: () => state.item.val,
             onPick: (id) => {
                 state.item.val = id;
+                state.edits++;
                 state.dirty.val++;
                 // A pick is a change made: it saves at once, with the amount the field shows.
                 void state.write.save();
@@ -404,18 +408,21 @@ const PrinterTab = () => {
                         "aria-label": `${name} ${slotName} quantity`,
                         disabled: () => uneditable() || lockedSlot(),
                         oninput: () => {
+                            state.edits++;
                             state.dirty.val++;
                         },
                         onDecrement: () => {
                             if (uneditable() || lockedSlot()) return;
                             const raw = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
                             state.quantity.val = String(adjustFormattedIntInput(raw, -1, 0, { min: 0 }));
+                            state.edits++;
                             state.dirty.val++;
                         },
                         onIncrement: () => {
                             if (uneditable() || lockedSlot()) return;
                             const raw = getNumberInputLiveRaw(state.quantity) ?? state.quantity.val;
                             state.quantity.val = String(adjustFormattedIntInput(raw, 1, 0, { min: 0 }));
+                            state.edits++;
                             state.dirty.val++;
                         },
                     }),

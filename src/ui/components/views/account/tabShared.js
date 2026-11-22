@@ -98,7 +98,15 @@ let listCount = 0;
  * @param {() => boolean} [opts.busy] true while the page saves: a question's Yes waits, so it can't start a second save
  * @returns {HTMLElement}
  */
-export const TabbedList = ({ name, tabs, tools = null, toolsLabel = null, toolsOn = null, onTab = null, busy = null }) => {
+export const TabbedList = ({
+    name,
+    tabs,
+    tools = null,
+    toolsLabel = null,
+    toolsOn = null,
+    onTab = null,
+    busy = null,
+}) => {
     const activeId = van.state(pickedTabs.get(name) ?? tabs[0].id);
     const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.

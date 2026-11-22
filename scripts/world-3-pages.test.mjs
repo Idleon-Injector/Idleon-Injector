@@ -706,6 +706,42 @@ test("Cogs: a Lock's result shows on the slot it was for, not on the slot opened
     assert.ok(!isDisabled(lock), "slot 8 can be locked now");
 });
 
+// Review of #207: after a failed first read every slot read as locked with no flags, so Unlock on a slot with a flag
+// left the flag behind.
+test("Cogs: Lock and Unlock wait for a read of the board that works", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/read") && String(options?.body).includes("CogOrder")
+            ? new Response(JSON.stringify({ error: "the game refused" }), {
+                  status: 500,
+                  headers: { "content-type": "application/json" },
+              })
+            : realFetch(url, options);
+    let root;
+    try {
+        root = await quietly(() => openPage(COGS, (r) => byClass(r, "account-row").length > 0));
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    const popup = byClass(globalThis.document.body, "cogs-popup").at(-1);
+    const lock = buttonIn(popup, "Lock");
+    const unlock = buttonIn(popup, "Unlock");
+    click(buttonIn(root, "Cogs"));
+    const flagged = gga.FlagsPlaced[0];
+    byClass(root, "cogs-slot")
+        .find((node) => {
+            const title = node.attributes.title;
+            return String(typeof title === "function" ? title() : title).endsWith(`(Index ${flagged})`);
+        })
+        .listeners.click({ clientX: 10, clientY: 10 });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.ok(isDisabled(lock) && isDisabled(unlock), "no Lock or Unlock on a board that wasn't read");
+
+    click(buttonIn(root, "Refresh"));
+    await until(() => !isDisabled(unlock), "a read that works to free Unlock");
+    assert.ok(!text(root).includes("Couldn't read the cog board"), "the board's failure clears");
+});
+
 test("Cogs: a Lock that fails while another slot is open shows when its slot is opened again", async () => {
     for (const index of [4, 9]) {
         gga.FlagUnlock[index] = -11;
