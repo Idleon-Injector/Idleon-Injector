@@ -19,15 +19,15 @@ export const configDescriptions = {
     "cheatConfig.automation.orion":
         'Automation: Orion upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.orionSaving":
-        "Automation: while Orion saves for an upgrade, the others may cost up to this % of it.",
+        "Automation: while Orion saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.",
     "cheatConfig.automation.poppy":
         'Automation: Poppy upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.poppySaving":
-        "Automation: while Poppy saves for an upgrade, the others may cost up to this % of it.",
+        "Automation: while Poppy saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.",
     "cheatConfig.automation.tarpit":
         'Automation: Tar Pit upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.tarpitSaving":
-        "Automation: while the Tar Pit saves for an upgrade, the others may cost up to this % of it.",
+        "Automation: while the Tar Pit saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.",
     "cheatConfig.automation.bubbles":
         'Automation: alchemy bubbles to raise, { id: "cauldron:bubble", on, stopAt, pay }; stopAt is a level, pay is "particles" or left out for materials.',
     "cheatConfig.automation.bubblesTarget":
@@ -37,25 +37,25 @@ export const configDescriptions = {
     "cheatConfig.automation.kitchens":
         'Automation: kitchen upgrades to level, { id: 3 * kitchen + slot (0 Speed, 1 Fire, 2 Luck), on, stopAt, save }; save true is "Save for it".',
     "cheatConfig.automation.kitchenSaving":
-        "Automation: per spice, the % of what it saves for that the other kitchen upgrades may spend meanwhile.",
+        "Automation: per spice, while the kitchens save for an upgrade, they keep (100 − this)% of its cost, and only what is above that buys the other kitchen upgrades.",
     "cheatConfig.automation.meals":
         "Automation: meals to level with their own quantity, { id: meal index, on, stopAt }.",
     "cheatConfig.automation.sneaking":
         'Automation: Ninja Knowledge upgrades to buy with jade, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.sneakingSaving":
-        "Automation: while Sneaking saves for an upgrade, the others may cost up to this % of it.",
+        "Automation: while Sneaking saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.",
     "cheatConfig.automation.summoning":
         'Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.summoningSaving":
-        "Automation: per essence colour, the % of what it saves for that the other summoning upgrades may spend meanwhile.",
+        "Automation: per essence colour, while summoning saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other summoning upgrades.",
     "cheatConfig.automation.bubba":
         'Automation: Bubba upgrades to buy with meat, { id, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.bubbaSaving":
-        "Automation: while Bubba saves for an upgrade, the others may cost up to this % of it.",
+        "Automation: while Bubba saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.",
     "cheatConfig.automation.grimoire":
         'Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.grimoireSaving":
-        "Automation: while a bone type saves for an upgrade, the other upgrades may cost up to this % of it.",
+        "Automation: while a bone type saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",

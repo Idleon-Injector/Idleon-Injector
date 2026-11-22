@@ -196,7 +196,7 @@ test("Star Sweeping refreshes the daily revives as the click does", async () => 
     await turnOff();
 });
 
-test("a saved-for upgrade goes first when affordable; while saving the others buy only up to saving %", async () => {
+test("a saved-for upgrade goes first when affordable; while saving the others spend only what is above the kept part", async () => {
     // 16 costs 25000 (saved for), 13 costs 100, 12 costs 350, 15 costs 3650 (saved for).
     setGame({ jade: 4200, levels: { 13: 1, 14: 1, 15: 0 } });
     setItems(
@@ -206,15 +206,15 @@ test("a saved-for upgrade goes first when affordable; while saving the others bu
             { id: "13", on: true, stopAt: 2 },
             { id: "12", on: true, stopAt: 1 },
         ],
-        1
+        99
     );
     await turnOn();
     tick();
-    // Saved-for 15 first (3650 of 4200), which unlocks 16; the goal is then 16 at 25000. The others may spend 1% of
-    // it, 250: 13 (100) buys, and 12 (350) waits although the 450 left would pay for it.
+    // Saved-for 15 first (3650 of 4200), which unlocks 16; the goal is then 16 at 25000. Saving 99% keeps 1% of it,
+    // 250, so 300 of the 550 may go to the others: 13 (100) buys, and 12 (350) waits although the 450 left would pay.
     assert.equal(levels()[15], 1);
     assert.equal(levels()[13], 2);
-    assert.equal(levels()[12], 0, "350 is over 1% of the 25000 goal");
+    assert.equal(levels()[12], 0, "350 would leave less than the 250 kept for the 25000 goal");
     assert.equal(jade(), 4200 - 3650 - 100);
     assert.equal(sneaking().status, "Saving for Upgrade 16 (25000 jade); 2 levels bought since it started");
     gga.Ninja[102][1] = 25000;

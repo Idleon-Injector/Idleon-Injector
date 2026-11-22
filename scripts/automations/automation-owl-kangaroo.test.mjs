@@ -201,22 +201,22 @@ test("a locked upgrade switched on ahead waits until the run has produced enough
     await cheat("automation orion", false);
 });
 
-test("saved-for upgrades are saved for cheapest first; the others may spend only saving % of the goal meanwhile", async () => {
+test("saved-for upgrades are saved for cheapest first; meanwhile the others spend only what's above (100 − saving)% of the goal", async () => {
     setGame();
     gga.OptionsListAccount[263] = 1e6;
-    gga.OptionsListAccount[253] = 300;
+    gga.OptionsListAccount[253] = 395;
     // Feather Restart (400) and Mega Reset (2000) are saved for; Feather Generation (10, 20, ...) is not.
     configure({ orion: [on(4, { save: true }), on(8, { save: true }), on(0)], orionSaving: 10 });
     await cheat("automation orion", true);
     mock.timers.tick(1000);
-    // Saving for the 400 restart: the others may cost up to 40, so 10, 20, 30, 40 buy and 50 waits.
-    assert.deepEqual(events, ["a0", "a0", "a0", "a0"]);
-    assert.equal(gga.OptionsListAccount[253], 200);
-    assert.equal(entry("orion").status, "Saving for Feather Restart (400); 4 levels bought since it started");
+    // Saving for the 400 restart keeps 360: of the 395, 35 may go to the others, so 10 and 20 buy and 30 waits.
+    assert.deepEqual(events, ["a0", "a0"]);
+    assert.equal(gga.OptionsListAccount[253], 365);
+    assert.equal(entry("orion").status, "Saving for Feather Restart (400); 2 levels bought since it started");
 
     gga.OptionsListAccount[253] = 400;
     mock.timers.tick(1000);
-    assert.equal(events.at(4), "a4", "the goal buys once affordable");
+    assert.equal(events.at(-1), "a4", "the goal buys once affordable");
     assert.equal(gga.OptionsListAccount[258], 1);
 
     events.length = 0;

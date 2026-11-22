@@ -128,7 +128,7 @@ test("each spice buys on its own, and an upgrade never takes another spice", asy
     await cheat("automation cooking", false);
 });
 
-test("a saved-for upgrade goes first when affordable; the others wait for the goal beyond saving %", async () => {
+test("a saved-for upgrade goes first when affordable; the others spend only what is above the kept part", async () => {
     setGame();
     gga.Meals[3][2] = 30;
     setPicks({
@@ -152,7 +152,7 @@ test("a saved-for upgrade goes first when affordable; the others wait for the go
         ],
     });
     tick();
-    assert.deepEqual(levels()[0][2], 0, "10 is over 10% of the 25 it saves for");
+    assert.deepEqual(levels()[0][2], 0, "10% saving keeps 22.5 of the 25 it saves for, more than the 20 held");
     assert.equal(
         readComputed("automation", "cooking").value.spices.find(({ spice }) => spice === 2).goal.id,
         3,
@@ -160,7 +160,7 @@ test("a saved-for upgrade goes first when affordable; the others wait for the go
     );
 
     const saving = Array(21).fill(10);
-    saving[2] = 50;
+    saving[2] = 60;
     setPicks({
         kitchens: [
             { id: "2", on: true },
@@ -169,7 +169,11 @@ test("a saved-for upgrade goes first when affordable; the others wait for the go
         saving,
     });
     tick();
-    assert.deepEqual(levels()[0][2], 1, "at 50% of 25, the 10 buys; the next 20 is over the 10 left");
+    assert.deepEqual(
+        levels()[0][2],
+        1,
+        "at 60% it keeps 10 of the 25: the 10 above it buys one level, the next 20 waits"
+    );
     assert.equal(gga.Meals[3][2], 10);
 
     gga.Meals[3][2] = 25;
