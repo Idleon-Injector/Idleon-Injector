@@ -110,12 +110,13 @@ const deadline = (onLate) => {
  */
 export const readWhileRunning = ({ nodes, running, busy, read }) => {
     let reading = false;
+    const wanted = () => running() && !document.hidden && nodes.some((node) => node.offsetParent);
     // ponytail: never cleared; a page's pane is kept for the session, and a hidden one skips every tick.
     setInterval(() => {
-        if (reading || busy() || !running() || document.hidden) return;
-        if (!nodes.some((node) => node.offsetParent)) return;
+        if (reading || busy() || !wanted()) return;
         reading = true;
-        void inTurn(read)
+        // Asked again when its turn comes: the page may have been left while a save held the queue.
+        void inTurn(() => (wanted() ? read() : undefined))
             .catch(() => {})
             .finally(() => (reading = false));
     }, steps.liveMs);
@@ -260,14 +261,13 @@ export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
                 async () => {
                     let failed = false;
                     try {
-                        await inTurn(
-                            () =>
-                                switchNow(cheat, on, entry).finally(() => {
-                                    known.clicks.splice(known.clicks.indexOf(click), 1);
-                                    redraw(entry);
-                                }),
-                            late.onLate
-                        );
+                        await inTurn(() => {
+                            known.why = null; // an item's save queued before this click may have set it again
+                            return switchNow(cheat, on, entry).finally(() => {
+                                known.clicks.splice(known.clicks.indexOf(click), 1);
+                                redraw(entry);
+                            });
+                        }, late.onLate);
                     } catch (error) {
                         failed = true;
                         throw error;
@@ -331,7 +331,7 @@ const sendToFile = (key, value) =>
 
 // A save before the first read of what the game holds would replace it with the page's empty start.
 const NOT_READ = "not read from the game yet: press Refresh";
-const GAME_NOT_READ = "the game didn't answer with its settings: press Refresh";
+export const GAME_NOT_READ = "the game didn't answer with its settings: press Refresh";
 
 // The page's own read at the end of a save step (direct reads only: it runs inside the step), so its levels, costs
 // and status lines follow the save. Its failure is the page's to say, even one thrown at once; the save's outcome
@@ -1123,7 +1123,11 @@ export const useAutomationTab = ({ label, cheats, read, switchColumn = null, sho
         nodes: [switches, ...shownIn],
         running: () => entries.some((entry) => entry.val?.on),
         busy: () => loading.val,
-        read: afterSave,
+        // Not afterSave's tolerant read: with no save to explain it, a game that didn't answer is said.
+        read: () =>
+            readTab().catch((caught) => {
+                error.val = caught.message;
+            }),
     });
     return {
         entries,

@@ -18,6 +18,7 @@ import {
     getOrCreateState,
 } from "../../../components/views/account/accountShared.js";
 import {
+    GAME_NOT_READ,
     AutomationPage,
     AutomationRow,
     PickRow,
@@ -74,8 +75,10 @@ const ShopsPage = () => {
             findShops(),
         ]);
         showAutomation(automation, found);
-        picks.sync(config.cheatConfig.automation.shops); // edits queued after this read still show
         atStart.val = (config.startupCheats ?? []).includes(CHEAT);
+        // Only the game's own answer is taken: the server's copy may hold an edit the game refused (see useAutomationTab).
+        if (!config.gameRead) throw new Error(GAME_NOT_READ);
+        picks.sync(config.cheatConfig.automation.shops); // edits queued after this read still show
         if (!switchNodes[0].firstChild && automation.val)
             for (const node of switchNodes)
                 node.append(AutomationRow({ entry: automation, onSwitched: readSwitch, column: COLUMNS.on }));
