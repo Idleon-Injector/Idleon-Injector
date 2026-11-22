@@ -121,8 +121,8 @@ const PoppyTab = () => {
 export default definePage({
     id: "account.poppy",
     world: "account",
-    system: "Poppy",
-    tab: "Upgrades",
+    system: "Clickers",
+    tab: "Poppy",
     description: "Poppy the kangaroo's fishing upgrades, Tar Pit and Spiral Upgrades.",
     keywords: ["Kangaroo", "Poppy", "Clicker", "Tar Pit", "Spiral", "Bluefin", "Megafish"],
     component: PoppyTab,

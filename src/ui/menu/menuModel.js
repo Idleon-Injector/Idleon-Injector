@@ -22,10 +22,8 @@ export const WORLDS = [
             "Card Search",
             "Bundles",
             "Task Board",
-            // IdleonToolbox's Clickers, side by side: the menu has no level for a group inside Account.
-            "Orion",
-            "Poppy",
-            "Bubba",
+            // IdleonToolbox's Clickers group: Orion, Poppy, Bubba and their Automation as its tabs.
+            "Clickers",
             "Event Shop",
             "Quests",
             "Automation",

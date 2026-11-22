@@ -68,7 +68,7 @@ function buyable() {
     });
 }
 
-/** Meat, the goal and every upgrade, for Account › Bubba › Automation. */
+/** Meat, the goal and every upgrade, for Account › Clickers › Automation › Bubba. */
 export function getAutomationBubba() {
     const wait = waiting();
     const goal = wait ? null : nextGoal(buyable());

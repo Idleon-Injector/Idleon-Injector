@@ -198,7 +198,7 @@ test("Undo of a Bubba upgrade level clears the game's cached upgrade total", asy
         gga.Bubba[1].reduce((sum, level, i) => sum + Number(level) + Number(gga.Bubba[2][i]), 0)
     );
     const name = String(gga.CustomLists.h.BubbaUpg[1][0]).replace(/_/g, " ");
-    const page = await openPage("src/ui/pages/account/bubba/1-upgrades.js", (root) => Boolean(findRow(root, name)));
+    const page = await openPage("src/ui/pages/account/clickers/3-bubba.js", (root) => Boolean(findRow(root, name)));
     const row = findRow(page, name);
     const before = gga.Bubba[1][1];
 
@@ -270,7 +270,7 @@ const failDeletes = (failing) => {
 
 const bubbaRow = async () => {
     const name = String(gga.CustomLists.h.BubbaUpg[1][0]).replace(/_/g, " ");
-    const page = await openPage("src/ui/pages/account/bubba/1-upgrades.js", (root) => Boolean(findRow(root, name)));
+    const page = await openPage("src/ui/pages/account/clickers/3-bubba.js", (root) => Boolean(findRow(root, name)));
     return findRow(page, name);
 };
 

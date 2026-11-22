@@ -98,9 +98,9 @@ const OrionTab = () => {
 export default definePage({
     id: "account.orion",
     world: "account",
-    system: "Orion",
-    tab: "Upgrades",
+    system: "Clickers",
+    tab: "Orion",
     description: "Orion the owl's feathers and upgrades.",
-    keywords: ["Owl", "Orion", "Great Horned Owl", "Feathers"],
+    keywords: ["Owl", "Orion", "Great Horned Owl", "Feathers", "Clicker"],
     component: OrionTab,
 });

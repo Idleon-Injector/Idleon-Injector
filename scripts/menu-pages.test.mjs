@@ -118,13 +118,16 @@ test("search finds systems, tabs, extra words and areas by their old names", () 
             page("w7.button", 7, "The Button", { keywords: ["Button"] }),
             page("w7.sushi.shop", 7, "Sushi Station", { tab: "Shop", keywords: ["Sushi shop"] }),
             page("w7.sushi.general", 7, "Sushi Station", { tab: "General" }),
-            page("account.poppy", "account", "Poppy", { keywords: ["Kangaroo"] }),
+            page("account.orion", "account", "Clickers", { tab: "Orion", keywords: ["Owl"] }),
+            page("account.poppy", "account", "Clickers", { tab: "Poppy", keywords: ["Kangaroo"] }),
         ])
     );
     const top = (q) => searchMenu(entries, q)[0];
 
     assert.deepEqual(top("button").target, { world: 7, page: "w7.button" });
     assert.deepEqual(top("kangaroo"), { ...top("kangaroo"), label: "Poppy", matched: "Kangaroo" });
+    assert.deepEqual(top("owl"), { ...top("owl"), label: "Orion", matched: "Owl" });
+    assert.equal(top("owl").where, "Account › Clickers");
     assert.deepEqual(top("shop").target, { world: 7, page: "w7.sushi.shop" });
     assert.equal(top("shop").where, "World 7 › Sushi Station");
     assert.deepEqual(top("sushi").target, { world: 7, page: "w7.sushi.shop" }, "a system opens on its first page");
