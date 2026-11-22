@@ -3,9 +3,10 @@
     --page-measure: 60rem;
 }
 
-/* A captain has five values (rarity, level, EXP and two bonuses): narrower columns so they share one line. */
+/* A captain has five values (rarity, level, EXP and two bonuses) on one line: each column holds its field with its
+   cap ("4 / 79") and its − / + at full size, a step narrower than the baseline's 9.5rem so the names keep room. */
 .sailing-captains {
-    --value-columns: repeat(5, 7rem);
+    --value-columns: repeat(5, 8.5rem);
 }
 
 /* Why a captain can't be removed (on a boat, the last one): a short amber line beside the button, like a row's warning. */

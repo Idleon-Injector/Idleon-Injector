@@ -588,9 +588,14 @@
     clip: rect(0 0 0 0);
     white-space: nowrap;
 }
-.viewport .value-cells .number-input-wrapper {
+/* A table's field fills its own column and no more, capped or not, also in a list that sets every field's width
+   (field-columns): with its − / + showing it never reaches into the next column. */
+.viewport .value-cells .number-input-wrapper,
+.viewport .account-row .account-row__controls .value-cells .number-input-wrapper.number-input-wrapper {
     width: 100%;
     min-width: 0;
+    max-width: none;
+    flex: none;
 }
 .viewport .value-cells .number-input-wrapper input {
     padding: 0 4px 0 12px;
