@@ -924,7 +924,8 @@ export const usePicksBulk = ({ targets, done, words, waiting, loading = () => fa
             label: "Disable all",
             variant: "danger",
             status: bulk.status,
-            disabled: () => loading() || busy() || !total() || (!count() && !behind()),
+            // No row on: nothing to switch off, unless a file save is still pending (even with every row hidden).
+            disabled: () => loading() || busy() || (!count() && !behind()),
             onClick: (e) => {
                 e.preventDefault();
                 const n = count();
@@ -944,7 +945,7 @@ export const usePicksBulk = ({ targets, done, words, waiting, loading = () => fa
             ActionButton({
                 label: "Enable all",
                 status: bulk.status,
-                disabled: () => loading() || busy() || !total() || (done(count(), total()) && !behind()),
+                disabled: () => loading() || busy() || (!total() && !behind()) || (done(count(), total()) && !behind()),
                 onClick: (e) => {
                     e.preventDefault();
                     void setAll(true);

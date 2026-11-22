@@ -521,3 +521,35 @@ test("a confirmed Disable all says its outcome for screen readers", async () => 
         assert.equal(said(), outcome);
     }
 });
+
+// CodeRabbit on #209: with every row hidden by the search, a pending file save still needs the buttons for its retry.
+test("with no row shown, Enable all and Disable all stay usable while a file save is pending", async () => {
+    const hidden = ui.createAutomationPicks("testHiddenGroup");
+    hidden.sync([{ id: "y", on: false }]);
+    const bulk = ui.usePicksBulk({
+        targets: () => [[hidden, []]],
+        done: () => false,
+        words: ["item", "items"],
+        waiting: ui.useStillWaiting(),
+    });
+    const { enable, disable, press } = trayOf(bulk);
+    assert.equal(enable.attributes.disabled, true, "nothing to do: no row and nothing pending");
+    assert.equal(disable.attributes.disabled, true);
+    fake.failSave = true;
+    try {
+        await hidden.set("y", { on: true }).catch(() => {});
+    } finally {
+        fake.failSave = false;
+    }
+    assert.equal(hidden.fileBehind(), true);
+    assert.equal(enable.attributes.disabled, false, "the retry needs Enable all");
+    assert.equal(disable.attributes.disabled, false, "and Disable all");
+    const since = updates.length;
+    await press(disable);
+    assert.ok(
+        updates.slice(since).some((body) => "testHiddenGroup" in body.cheatConfig.automation),
+        "saved again"
+    );
+    assert.equal(hidden.fileBehind(), false);
+    assert.equal(enable.attributes.disabled, true, "nothing pending any more");
+});
