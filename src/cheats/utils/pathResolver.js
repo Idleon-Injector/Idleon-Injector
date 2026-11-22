@@ -254,6 +254,7 @@ export function writePath(path, value) {
  * Non-atomic: each entry is attempted independently; earlier successful writes
  * are not rolled back if a later entry fails. Each written entry carries `value`, read back
  * in this same call (see writePath); callers verify against it before treating the batch as committed.
+ * One exception: an entry without `expect` is written only when every `expect` in the batch holds (#158).
  *
  * @param {Array<{ path: string, value: any, expect?: any }>} writes
  * @returns {{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> } | { error: string }}
@@ -263,6 +264,20 @@ export function writePaths(writes = []) {
         return { error: "writes must be a non-empty array" };
     }
 
+    const hasExpect = (entry) => Object.prototype.hasOwnProperty.call(entry ?? {}, "expect");
+    // An entry without `expect` was planned from the same read as the batch's guarded ones (Star Signs: the claims
+    // and their points balance, #158), so it is written only when every guard holds, checked before any write.
+    // A guarded entry still stands alone, so an undo puts back the values that didn't move.
+    const guardsHold = writes.every((entry) => {
+        if (!hasExpect(entry)) return true;
+        try {
+            const resolved = resolveValuePath(entry.path);
+            return !resolved.error && JSON.stringify(resolved.target[resolved.prop]) === JSON.stringify(entry.expect);
+        } catch {
+            return false;
+        }
+    });
+
     const results = writes.map((entry, index) => {
         const path = entry?.path;
         if (!path || typeof path !== "string") {
@@ -271,6 +286,7 @@ export function writePaths(writes = []) {
         if (!Object.prototype.hasOwnProperty.call(entry, "value")) {
             return { path, ok: false, error: `Missing value at index ${index}` };
         }
+        if (!guardsHold && !hasExpect(entry)) return { path, ok: false, error: "changed since" };
 
         try {
             const resolved = resolveValuePath(path);
@@ -280,7 +296,7 @@ export function writePaths(writes = []) {
             // `expect` (an undo's write): the value checked before; refused if the game changed it since, in this
             // same evaluation, so nothing can land between the check and the write.
             // ponytail: compares JSON, so a numeric-key object (the server reads it back as an array) always refuses.
-            if (Object.prototype.hasOwnProperty.call(entry, "expect")) {
+            if (hasExpect(entry)) {
                 if (JSON.stringify(target[prop]) !== JSON.stringify(entry.expect)) {
                     return { path, ok: false, error: "changed since" };
                 }
