@@ -561,6 +561,83 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
 
+// #216: the penguins from a past limited gem shop sale have their row on Equinox.
+test("Equinox: the Pingy penguins row saves the count the game reads", async (t) => {
+    const before = gga.OptionsListAccount[320];
+    t.after(() => (gga.OptionsListAccount[320] = before));
+    gga.OptionsListAccount[320] = 2;
+    const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
+    const root = await openPage("src/ui/pages/world-3/equinox/equinox.js", (r) =>
+        byClass(r, "account-row").some((row) => nameOf(row) === "Pingy penguins")
+    );
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === "Pingy penguins");
+    const shown = elements(row).find((node) => node.nodeName === "input").attributes.value;
+    assert.equal(String(typeof shown === "function" ? shown() : shown), "2");
+    await typeAndEnter(row, 7);
+    assert.match(classes(byClass(row, "save-state")[0]), /save-state--success/);
+    assert.equal(gga.OptionsListAccount[320], 7);
+});
+
+// CodeRabbit on #226: a count saved while the fill rate couldn't be read again said nothing, and the bar kept its old
+// rate; an odd value in the slot showed as 0.
+const EQUINOX = "src/ui/pages/world-3/equinox/equinox.js";
+const penguinRow = (root) => byClass(root, "account-row").find((r) => text(r).includes("Pingy penguins"));
+const rowWarning = (row) => {
+    const warning = byClass(row, "account-row__warning")[0];
+    return !warning || warning.attributes.hidden ? "" : text(warning).trim();
+};
+
+test("Equinox: a penguin count saved while the fill rate can't be read says so on its row, until a read works", async (t) => {
+    const before = gga.OptionsListAccount[320];
+    t.after(() => (gga.OptionsListAccount[320] = before));
+    gga.OptionsListAccount[320] = 0;
+    const root = await openPage(EQUINOX, penguinRow);
+    const row = penguinRow(root);
+    const realFetch = globalThis.fetch;
+    t.after(() => (globalThis.fetch = realFetch));
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/computed/read") && String(options?.body).includes("BarFillRate")
+            ? new Response(JSON.stringify({ error: "the game refused" }), {
+                  status: 500,
+                  headers: { "content-type": "application/json" },
+              })
+            : realFetch(url, options);
+    await quietly(() => typeAndEnter(row, 4));
+    assert.match(classes(byClass(row, "save-state")[0]), /save-state--success/, "the count itself saved");
+    assert.equal(gga.OptionsListAccount[320], 4);
+    await until(() => rowWarning(row) !== "", "the row to say the rate wasn't read");
+    globalThis.fetch = realFetch;
+    click(buttonIn(root, "Refresh"));
+    await until(() => rowWarning(row) === "", "a read that works to clear it");
+});
+
+for (const odd of ["broken", "", " ", true, false, -1, "-1", 1.5, "1.5"]) {
+    test(`Equinox: a penguin count of ${JSON.stringify(odd)} is a read error, not 0`, async (t) => {
+        const before = gga.OptionsListAccount[320];
+        t.after(() => (gga.OptionsListAccount[320] = before));
+        gga.OptionsListAccount[320] = odd;
+        const root = (await importRepo(EQUINOX)).default.component();
+        await quietly(() => until(() => text(root).includes("penguin count"), "the read to fail and say why"));
+    });
+}
+
+for (const [stored, shows] of [
+    [0, "0"],
+    [null, "0"],
+    [undefined, "0"],
+    ["0", "0"],
+    ["3", "3"],
+]) {
+    test(`Equinox: a penguin count of ${JSON.stringify(stored)} shows as ${shows}`, async (t) => {
+        const before = gga.OptionsListAccount[320];
+        t.after(() => (gga.OptionsListAccount[320] = before));
+        gga.OptionsListAccount[320] = stored;
+        const root = await openPage(EQUINOX, penguinRow);
+        const shown = elements(penguinRow(root)).find((node) => node.nodeName === "input").attributes.value;
+        assert.equal(String(typeof shown === "function" ? shown() : shown), shows);
+    });
+}
+
 const COGS = "src/ui/pages/world-3/construction/1-buildings.js";
 globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
 const openCogs = async () => {

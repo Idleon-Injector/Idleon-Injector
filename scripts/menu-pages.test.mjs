@@ -322,3 +322,17 @@ test("a name with every typed word ranks above one that has only some of them", 
     assert.equal(top("multiply dam"), "multiply damage", "while it's typed");
     assert.equal(top("tower damage"), "w3 towerdamage", "a name match still wins for the other cheat");
 });
+
+// #216: a past limited gem shop item is found on its own system's page by the shop's words and its own name.
+test("search finds the Equinox penguins by their names and the limited shop's words", async () => {
+    const pages = [];
+    for (const file of await collectPageModules(PAGES_DIR))
+        pages.push((await import(pathToFileURL(file).href)).default);
+    const entries = searchEntries(buildMenuTree(pages));
+    for (const words of ["penguin", "pengy", "pingy", "limited", "gem shop", "fomo"]) {
+        assert.ok(
+            searchMenu(entries, words).some((hit) => hit.target.page === "w3.equinox"),
+            `"${words}" finds Equinox`
+        );
+    }
+});
