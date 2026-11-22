@@ -42,6 +42,12 @@ export const App = () => {
     // Pages that fail to load show in the sidebar's status line (#77).
     loadPages();
 
+    // Field focus rings for the keyboard only (Lumi, 2026-11-22: nothing stays outlined after a click). A text field
+    // matches :focus-visible on a click too, so Tab marks keyboard use and any mouse or touch press clears it.
+    const root = document.documentElement;
+    document.addEventListener("keydown", (e) => e.key === "Tab" && root.setAttribute("data-keyboard", ""), true);
+    document.addEventListener("pointerdown", () => root.removeAttribute("data-keyboard"), true);
+
     // Global Keyboard Shortcuts
     document.addEventListener("keydown", (e) => {
         if (e.ctrlKey && (e.key === "k" || e.key === "K")) {

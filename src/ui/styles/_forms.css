@@ -26,6 +26,20 @@ textarea:focus {
     background: var(--c-panel-dark-dim);
 }
 
+/* A field reached with Tab shows a ring; a clicked one doesn't (App.js sets data-keyboard). A number field rings its
+   wrapper, not the input inside it. */
+[data-keyboard] input:focus,
+[data-keyboard] select:focus,
+[data-keyboard] textarea:focus,
+[data-keyboard] .number-input-wrapper:focus-within,
+[data-keyboard] .viewport .tabbed-list__tools .number-input-wrapper:focus-within {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+[data-keyboard] .number-input-wrapper input:focus {
+    outline: none;
+}
+
 .control-bar {
     align-items: center;
     padding: 15px;
