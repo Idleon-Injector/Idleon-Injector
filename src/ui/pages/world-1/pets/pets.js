@@ -412,13 +412,15 @@ const CompanionsTab = () => {
         if (isBusy()) return;
         const shown = isToken(companionId);
         if (shown && tier === "normal") return;
-        // A token the game gave the pet since the press: Pets+ on top shows the wrong bonus, and Off can't take it.
-        // Asked before the save and again after it, for a token given while it saved.
-        const refuseToken = () => {
-            if (!shown && isToken(companionId) && tier !== "normal") throw new Error("This pet has a token now.");
+        // A token the game gave the pet since the press: Pets+ on top shows the wrong bonus, and Off can't take it. A
+        // token shown at the press is the one the save takes back, so before the save only a new one is refused.
+        const refused = () => new Error("This pet has a token now.");
+        // After the save any token is one the game gave while it saved, the one it took back given again included.
+        const refuseLateToken = () => {
+            if (isToken(companionId) && tier !== "normal") throw refused();
         };
         await writeSelection(() => {
-            refuseToken();
+            if (!shown && isToken(companionId) && tier !== "normal") throw refused();
             const normal = new Set(normalIds.val);
             const plus = new Set(plusIds.val);
             normal.delete(companionId);
@@ -426,7 +428,7 @@ const CompanionsTab = () => {
             if (tier === "normal") normal.add(companionId);
             if (tier === "plus") plus.add(companionId);
             return { normal, plus, picks: shown ? withoutToken(companionId) : tokens.val.picks };
-        }, refuseToken);
+        }, refuseLateToken);
     };
 
     const handleToken = async (companionId) => {

@@ -900,6 +900,31 @@ test("pets: Pets+ on a pet the game gives a token after the save read the tokens
     }
 });
 
+// CodeRabbit on #213: the save takes a pet's token back for Pets+; the game giving it back while the tiers save is late
+// too, though the pet had a token at the press.
+test("pets: Pets+ on a token pet the game gives its token back during the save is taken back, and says why", async () => {
+    const { fetchConfig, updateSessionConfig } = await importRepo("src/ui/services/api.js");
+    const before = (await fetchConfig()).cheatConfig.w1.companion.companions;
+    await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: "5:0" } } } });
+    g.OptionsListAccount[606] = "2";
+    try {
+        const root = await openPage(PETS, (root) => petRow(root, 2) && tokenShown(root, 2));
+        // The token write took pet 2's token back; the game gives it again as the tiers are saved.
+        const restore = onRequest(/\/config\/save$/, () => tokenInGame(2));
+        try {
+            pickTier(root, 2, "Pets+"); // the pick saves in the background
+            await until(() => alertText(root) === "This pet has a token now.", "the reason");
+        } finally {
+            restore();
+        }
+        const saved = String((await fetchConfig()).cheatConfig.w1.companion.companions).split(",");
+        assert.ok(!saved.includes("2:1"), `pet 2 isn't left at Pets+ (saved: ${saved})`);
+    } finally {
+        await updateSessionConfig({ cheatConfig: { w1: { companion: { companions: before } } } });
+        g.OptionsListAccount[606] = "2,5";
+    }
+});
+
 // #126 (CodeRabbit on #208): a tray answer could start a second save while one ran, and the first one's failure then
 // put its message over the newer save's.
 const attr = (node, name) =>
