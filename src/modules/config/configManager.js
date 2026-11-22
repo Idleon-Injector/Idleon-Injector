@@ -50,6 +50,20 @@ function migrateAutomationPriority(cheats) {
 }
 
 /**
+ * The draft builds before #104 kept each automation list as { saving, target, items }; it is now the list itself, with
+ * the saving % beside it as `<key>Saving` (`kitchenSaving` for kitchens) and the bubbles target as `bubblesTarget`.
+ */
+function migrateAutomationShape(automation = {}) {
+    for (const [key, value] of Object.entries(automation)) {
+        if (!value || Array.isArray(value) || !Array.isArray(value.items)) continue;
+        automation[key] = value.items;
+        if (value.saving !== undefined)
+            automation[key === "kitchens" ? "kitchenSaving" : `${key}Saving`] = value.saving;
+        if (value.target !== undefined) automation[`${key}Target`] = value.target;
+    }
+}
+
+/**
  * Load and merge configuration from base config and custom config files
  * @returns {Object} The loaded configuration object
  */
@@ -106,6 +120,7 @@ function loadConfiguration() {
         injectorConfig = config.injectorConfig;
         startupCheats = config.startupCheats;
         cheatConfig = config.cheatConfig;
+        migrateAutomationShape(cheatConfig.automation);
         migrateAutomationPriority(cheatConfig);
 
         return config;
