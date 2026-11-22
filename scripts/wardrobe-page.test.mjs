@@ -58,9 +58,11 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     res.json(await saveToSession(router, body));
 });
 // What the page asks the game, in order: its Wardrobe reads ("wardrobe.preview"), the cheats it runs, and its writes.
-// `holdPreview`: a promise the next preview read waits on. `failPreviews`: how many of the next preview reads fail.
+// `holdPreview`: a promise the next preview read waits on. `holdPreviewAnswer`: the same, but the game works the plan
+// out first, so it answers with the plan from before. `failPreviews`: how many of the next preview reads fail.
 const log = [];
 let holdPreview = null;
+let holdPreviewAnswer = null;
 let failPreviews = 0;
 const computed = router.routes.POST.get("/api/game/computed/read");
 router.routes.POST.set("/api/game/computed/read", async (req, res) => {
@@ -70,6 +72,15 @@ router.routes.POST.set("/api/game/computed/read", async (req, res) => {
         const held = holdPreview;
         holdPreview = null;
         await held;
+    }
+    if (name === "preview" && holdPreviewAnswer) {
+        const held = holdPreviewAnswer;
+        holdPreviewAnswer = null;
+        const read = Object.create(res);
+        read.json = (body) => ((read.answer = body), read);
+        await computed(req, read);
+        await held;
+        return res.status(read.statusCode).json(read.answer);
     }
     if (name === "preview" && failPreviews > 0) {
         failPreviews--;
@@ -576,6 +587,40 @@ test("an undo during an Apply's recheck leaves the Apply saying what happened", 
     }
 });
 
+// #113 (CodeRabbit on #110): the recheck read the game before an undo landed, so its plan matched the preview, and
+// Apply wrote the plan from before the undo.
+test("an Apply whose recheck read the game before an undo writes nothing", async () => {
+    await settle();
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeManyVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    await withAction({ label: "level" }, () => writeManyVerified([{ path: "Lv0[0]", value: 700 }]));
+    const [action] = (await fetchChanges()).actions;
+    await click(button(page, "Refresh"));
+    await settle();
+    let release;
+    try {
+        holdPreviewAnswer = new Promise((resolve) => (release = resolve));
+        const apply = button(page, "Apply");
+        await click(apply);
+        const pressed = click(apply);
+        await until(() => holdPreviewAnswer === null, "the recheck to read the game and wait");
+        const previews = () => log.filter((entry) => entry === "wardrobe.preview").length;
+        const before = previews();
+        await undoAction(action.id);
+        await until(() => previews() > before, "the reload's preview");
+        const writes = log.filter((entry) => entry === "write-many").length;
+        release();
+        await pressed;
+        assert.equal(log.filter((entry) => entry === "write-many").length, writes, "nothing written");
+        assert.match(text(page), /changed since this preview/);
+    } finally {
+        release?.();
+        gga.Lv0[0] = 500;
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
 // CodeRabbit on #110: when the newer preview an undo started fails during an Apply's recheck, its failure stays said,
 // not replaced by "Apply again" with no preview to apply.
 test("a newer preview that failed during an Apply's recheck keeps its failure said", async () => {
@@ -630,6 +675,29 @@ test("Save is refused when another tab filled the list since the page read it", 
     }
 });
 
+// #113 (CodeRabbit on #110): the page read a full list, then another tab deleted one; Save counts the list as it is now.
+test("Save goes ahead when another tab deleted a loadout from the full list the page read", async () => {
+    await settle();
+    const full = Array.from({ length: 100 }, (_, i) => ({ id: `other-${i}`, name: `Other ${i}`, classes: [] }));
+    await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: full } } } });
+    try {
+        await click(button(page, "Refresh"));
+        await settle();
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: full.slice(1) } } } }); // another tab
+        const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
+        name.listeners.input({ target: { value: "One more" } });
+        await click(button(page, "Save"));
+        await until(() => /Saved One more from Lumi_Main/.test(text(page)), "the save");
+        assert.equal((await wardrobeConfig()).loadouts.length, 100);
+    } finally {
+        await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
+        await click(button(page, "Refresh"));
+        await settle();
+        pick(page, "rare-drops");
+        await previewShown();
+    }
+});
+
 // CodeRabbit on #103: a file save that failed leaves nothing in the session, so trying again saves it once.
 test("a loadout whose file save failed is saved once when Save is pressed again", async () => {
     await settle();
@@ -640,6 +708,8 @@ test("a loadout whose file save failed is saved once when Save is pressed again"
         await click(button(page, "Save"));
         await until(() => /The config file is locked/.test(text(page)), "the failure");
         await settle();
+        const unsaved = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Retry");
+        assert.equal(unsaved.length, 0, "the failed save left the session's list as it was");
         await click(button(page, "Save"));
         await until(() => /Saved Retry from Lumi_Main/.test(text(page)), "the retry");
         const retries = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Retry");
