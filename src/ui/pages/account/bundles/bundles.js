@@ -25,6 +25,13 @@ const BUY_POLL_INTERVAL_MS = 1000;
 const BUY_POLL_ATTEMPTS = 10;
 const BUY_ALL_WARNING = "Free up inventory space first, or items may be lost.";
 
+// A pack without the free inventory slots it needs is dropped by the game (`slots`, from the catalog).
+const notReceived = (bundle) =>
+    new Error(
+        bundle.slots
+            ? `Not received. Needs ${bundle.slots} free inventory slot${bundle.slots === 1 ? "" : "s"}.`
+            : `Timed out confirming ownership of ${bundle.code}.`
+    );
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isOwned = (owned) => Number(owned) === 1;
 const bundlePath = (code) => `${BUNDLES_RECEIVED_PATH}.${code}`;
@@ -274,7 +281,7 @@ const BundlesTab = () => {
                 try {
                     await executeCheatAction(`buy ${bundle.code}`);
                     const confirmed = await pollForOwnership(bundle.code, state);
-                    if (!confirmed) throw new Error(`Timed out confirming ownership of ${bundle.code}.`);
+                    if (!confirmed) throw notReceived(bundle);
                 } finally {
                     state.pending.val = false;
                 }
@@ -338,7 +345,7 @@ const BundlesTab = () => {
                 try {
                     const pending = await pollForOwnershipBatch(queued);
                     for (const entry of pending.values()) {
-                        entry.confirmation.reject(new Error(`Timed out confirming ownership of ${entry.bundle.code}.`));
+                        entry.confirmation.reject(notReceived(entry.bundle));
                     }
                 } catch (caughtError) {
                     console.error("[bundles] Ownership poll failed after Buy All:", caughtError);
