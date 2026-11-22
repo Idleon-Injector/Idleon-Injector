@@ -215,13 +215,18 @@ const BubblesTab = () => {
             const level = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
             if (level === null) return refuseSetAll(setAllInput);
             const c = cauldron();
-            const bubbles = bubblesOn(c);
-            const lowered = bubbles.filter((bubble) => Number(bubble.levelState.val) > level).length;
+            return askOrWrite(c, bubblesOn(c), level);
+        };
+        const askOrWrite = (c, bubbles, level) => {
+            const loweredOf = () => bubbles.filter((bubble) => Number(bubble.levelState.val) > level);
+            const lowered = loweredOf().length;
             if (!lowered) return writeLevels(c, bubbles, level);
             ask({
                 question: `Lower ${lowered} ${bubbleWord(c, lowered)} to level ${level}?`,
                 confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
                 from: setAllControl.querySelector(".account-btn"),
+                lowers: loweredOf,
+                again: () => askOrWrite(c, bubbles, level),
                 onConfirm: () => writeLevels(c, bubbles, level),
             });
             return undefined;

@@ -201,6 +201,19 @@ const BribesTab = () => {
     const setOf = (activeId) => sets.find((set) => set.label === activeId.val);
 
     const tools = (activeId, ask) => {
+        // A bribe enabled while it asks is one more to disable, so it asks again; with none left it does nothing.
+        const askDisable = (set) => {
+            const n = ownedIn(set).length;
+            if (!n) return;
+            ask({
+                question: `Disable ${n} ${bribeWord(n)} in ${set.label}?`,
+                confirmLabel: n === 1 ? "Disable it" : "Disable them",
+                from: disableButton,
+                lowers: () => ownedIn(set).map((entry) => entry.index),
+                again: () => askDisable(set),
+                onConfirm: () => setAll(false, set),
+            });
+        };
         const disableButton = ActionButton({
             label: "Disable all",
             status: bulk.status,
@@ -208,14 +221,7 @@ const BribesTab = () => {
             disabled: () => cannotWrite() || !ownedIn(setOf(activeId)).length,
             onClick: (e) => {
                 e.preventDefault();
-                const set = setOf(activeId);
-                const n = ownedIn(set).length;
-                ask({
-                    question: `Disable ${n} ${bribeWord(n)} in ${set.label}?`,
-                    confirmLabel: n === 1 ? "Disable it" : "Disable them",
-                    from: disableButton,
-                    onConfirm: () => setAll(false, set),
-                });
+                askDisable(setOf(activeId));
             },
         });
         return div(

@@ -893,3 +893,21 @@ test("star signs: a Reset all question is dropped when the page search changes",
         g.StarSignProg[2] = saved;
     }
 });
+
+// #204: a tray question checks again, when answered, what it takes away.
+test("stamps: a stamp exalted while Unexalt all asks is one more to take away, so it asks again", async () => {
+    g.Compass[4] = ["_1", "a0", "b4"];
+    const root = await openPage(STAMPS, (root) => rowNamed(root, "Mana Stamp"));
+    const unexalt = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Unexalt all");
+    unexalt.listeners.click({ preventDefault() {} });
+    await until(() => /^Unexalt 1 /.test(trayLabel(root)), "the question");
+    await flip(rowNamed(root, "Mana Stamp"), true);
+    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+    const before = writes();
+    await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+    await tick();
+    assert.match(trayLabel(root), /^Unexalt 2 /, "it asks again");
+    assert.equal(writes(), before, "nothing was written");
+    await byClass(root, "tabbed-list__yes")[0].listeners.click({});
+    await until(() => !g.Compass[4].some((code) => code.startsWith("_")), "the answer to unexalt both");
+});
