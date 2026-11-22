@@ -1,15 +1,15 @@
 /**
  * Bubba (W7): switched-on upgrades are bought with meat through Bubba's own buy event, by the shared rule
- * (High / Low / Balanced, saving %), each up to its stop-at.
+ * ("Save for it", saving %), each up to its stop-at.
  *
  * Bubba[0][0] is meat, Bubba[0][4] meat made this run, Bubba[1][i] upgrade levels; cList.BubbaUpg[i][4] is the max
- * level (999 is none). Settings: cheatConfig.automation.bubba, one { id, on, stopAt, priority } per upgrade, and
- * cheatConfig.automation.bubbaSaving, how much of what it saves for Balanced upgrades may cost, in %.
+ * level (999 is none). Settings: cheatConfig.automation.bubba, one { id, on, stopAt, save } per upgrade, and
+ * cheatConfig.automation.bubbaSaving, how much of what it saves for the other upgrades may cost, in %.
  */
 
 import { behavior, cList, events, gga } from "../../core/globals.js";
 import { cheatConfig } from "../../core/state.js";
-import { belowStopAt, buyCheapestFirst, inMap, nextGoal } from "./engine.js";
+import { belowStopAt, buyCheapestFirst, comma, inMap, nextGoal, notate } from "./engine.js";
 
 let bought = 0; // levels bought since the automation turned on
 
@@ -64,11 +64,28 @@ function buyable() {
         const entry = settings.get(String(i));
         const level = gga.Bubba[1][i];
         if (!entry?.on || !unlocked(i) || !belowStopAt(level, entry.stopAt) || level >= maxLevel(row)) return [];
-        return [{ id: i, cost: bubbastuff("UpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
+        return [{ id: i, cost: bubbastuff("UpgCost", i, 0), save: Boolean(entry.save), buy: () => buy(i) }];
     });
 }
 
 /** Meat, the goal and every upgrade, for Account › Clickers › Automation › Bubba. */
+// An upgrade's first line in Bubba's menu (BubbaUpg[i][7] up to its first "@" break), filled in as the menu does from
+// TotUpgBonus. A clause left with a mark the menu fills from elsewhere ($, ~) is cut at its comma.
+const BARGAINS = [4, 18, 26];
+function bonusOf(row, i) {
+    const total = bubbastuff("TotUpgBonus", i, 0);
+    const multiplier = parseFloat((1 + total / 100).toFixed(2));
+    let text = String(row[7]).split("_@_")[0];
+    text = text.split("{").join(total < 1e6 ? comma(total) : notate(total));
+    text = text.split("}").join(`${multiplier}x`);
+    if (BARGAINS.includes(i)) text = text.split("$").join(String(Math.floor(1e4 * (1 - 1 / (1 + total / 100))) / 100));
+    if (i === 5)
+        text = text.split("$").join(String(Math.round(100 * bubbastuff("DailyPet_HappinessFromUpg", 0, 0)) / 100));
+    const open = text.search(/[$~]/);
+    if (open >= 0 && text.lastIndexOf(",", open) > 0) text = text.slice(0, text.lastIndexOf(",", open));
+    return text.replace(/_/g, " ");
+}
+
 export function getAutomationBubba() {
     const wait = waiting();
     const goal = wait ? null : nextGoal(buyable());
@@ -84,6 +101,7 @@ export function getAutomationBubba() {
             cost: bubbastuff("UpgCost", i, 0),
             unlockAt: bubbastuff("MeatProdREQ", i, 0),
             unlocked: unlocked(i),
+            bonus: bonusOf(row, i),
         })),
     };
 }

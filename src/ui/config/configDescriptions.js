@@ -17,45 +17,45 @@ export const configDescriptions = {
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
     "cheatConfig.automation.orion":
-        "Automation: Orion upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.",
+        'Automation: Orion upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.orionSaving":
-        "Automation: while Orion saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
+        "Automation: while Orion saves for an upgrade, the others may cost up to this % of it.",
     "cheatConfig.automation.poppy":
-        "Automation: Poppy upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.",
+        'Automation: Poppy upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.poppySaving":
-        "Automation: while Poppy saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
+        "Automation: while Poppy saves for an upgrade, the others may cost up to this % of it.",
     "cheatConfig.automation.tarpit":
-        "Automation: Tar Pit upgrades to buy, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.",
+        'Automation: Tar Pit upgrades to buy, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.tarpitSaving":
-        "Automation: while the Tar Pit saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
+        "Automation: while the Tar Pit saves for an upgrade, the others may cost up to this % of it.",
     "cheatConfig.automation.bubbles":
         'Automation: alchemy bubbles to raise, { id: "cauldron:bubble", on, stopAt, pay }; stopAt is a level, pay is "particles" or left out for materials.',
     "cheatConfig.automation.bubblesTarget":
         "Automation: bubbles that have a max are raised to this % of it (0 to 99.9).",
     "cheatConfig.automation.construction":
-        "Automation: W3 buildings to build, { id, on, stopAt, priority }; id is the building (0-8 buildings, 9-17 towers, 18-26 shrines), priority 1 is High, 2 Low, none Balanced. Empty slots take High, Low, then Balanced buildings, the closest to done first, up to stopAt; the 8th slot stays free once it feeds the Menagerie jelly.",
+        'Automation: W3 buildings to build, { id, on, stopAt, save }; id is the building (0-8 buildings, 9-17 towers, 18-26 shrines), save true is "Save for it". Empty slots take saved-for buildings first, then the rest, the closest to done first, up to stopAt; the 8th slot stays free once it feeds the Menagerie jelly.',
     "cheatConfig.automation.kitchens":
-        "Automation: kitchen upgrades to level, { id: 3 * kitchen + slot (0 Speed, 1 Fire, 2 Luck), on, stopAt, priority }; priority 1 is High, 2 Low, none Balanced.",
+        'Automation: kitchen upgrades to level, { id: 3 * kitchen + slot (0 Speed, 1 Fire, 2 Luck), on, stopAt, save }; save true is "Save for it".',
     "cheatConfig.automation.kitchenSaving":
-        "Automation: per spice, the % of what it saves for that Balanced kitchen upgrades may spend meanwhile.",
+        "Automation: per spice, the % of what it saves for that the other kitchen upgrades may spend meanwhile.",
     "cheatConfig.automation.meals":
         "Automation: meals to level with their own quantity, { id: meal index, on, stopAt }.",
     "cheatConfig.automation.sneaking":
-        "Automation: Ninja Knowledge upgrades to buy with jade, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.",
+        'Automation: Ninja Knowledge upgrades to buy with jade, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.sneakingSaving":
-        "Automation: while Sneaking saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
+        "Automation: while Sneaking saves for an upgrade, the others may cost up to this % of it.",
     "cheatConfig.automation.summoning":
-        'Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.',
+        'Automation: summoning upgrades to buy, { id: "upgrade index", on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.summoningSaving":
-        "Automation: per essence colour, the % of what it saves for that Balanced summoning upgrades may spend meanwhile.",
+        "Automation: per essence colour, the % of what it saves for that the other summoning upgrades may spend meanwhile.",
     "cheatConfig.automation.bubba":
-        "Automation: Bubba upgrades to buy with meat, { id, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.",
+        'Automation: Bubba upgrades to buy with meat, { id, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.bubbaSaving":
-        "Automation: while Bubba saves for a High or Low upgrade, Balanced ones may cost up to this % of it.",
+        "Automation: while Bubba saves for an upgrade, the others may cost up to this % of it.",
     "cheatConfig.automation.grimoire":
-        "Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, priority }; stopAt is a level, priority 1 is High, 2 Low, none Balanced.",
+        'Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.grimoireSaving":
-        "Automation: while a bone type saves for its cheapest High or Low upgrade, Balanced upgrades may cost up to this % of it.",
+        "Automation: while a bone type saves for an upgrade, the other upgrades may cost up to this % of it.",
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",

@@ -34,6 +34,22 @@ const CDP_PORT = 32123;
 const WEB_PORT = 8080;
 
 /**
+ * Automation items used to carry a priority (1 High, 2 Low, none Balanced); they now carry one "Save for it" switch
+ * (#205). High and Low were both saved for, so they become `save: true`; Balanced becomes off, which is left out. The
+ * file keeps the old words until the next save writes the new ones.
+ */
+function migrateAutomationPriority(cheats) {
+    for (const items of Object.values(cheats?.automation ?? {})) {
+        if (!Array.isArray(items)) continue;
+        for (const item of items) {
+            if (!item || typeof item !== "object" || !("priority" in item)) continue;
+            if ((item.priority === 1 || item.priority === 2) && item.save === undefined) item.save = true;
+            delete item.priority;
+        }
+    }
+}
+
+/**
  * Load and merge configuration from base config and custom config files
  * @returns {Object} The loaded configuration object
  */
@@ -90,6 +106,7 @@ function loadConfiguration() {
         injectorConfig = config.injectorConfig;
         startupCheats = config.startupCheats;
         cheatConfig = config.cheatConfig;
+        migrateAutomationPriority(cheatConfig);
 
         return config;
     } catch (error) {

@@ -1,6 +1,6 @@
 // Automation (#92): Orion the owl, Poppy the kangaroo and her Tar Pit. "automation orion", "automation poppy" and
 // "automation tarpit" buy their switched-on upgrades every second through the owl menu's own buy event: cheapest
-// first, High / Low / Balanced with the saving %, up to each stop-at level, only unlocked rows, and Poppy's two only
+// first, "Save for it" with the saving %, up to each stop-at level, only unlocked rows, and Poppy's two only
 // while her menu is open (decided with Lumi on 2026-11-10 and 2026-11-11).
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
@@ -11,13 +11,22 @@ const { gga, context, cheat, state } = await loadGame();
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-// Owlz rows: 0-8 Orion, 9-20 Poppy, 21-28 the Tar Pit; [0] is the name ("_" and "|" for spaces), [3] what unlocks it.
+// Owlz rows: 0-8 Orion, 9-20 Poppy, 21-28 the Tar Pit; [0] is the name ("_" and "|" for spaces), [3] what unlocks it,
+// [5] the menu's line with its marks and [6] what a level adds there (Poppy and the Tar Pit).
 const ORION = ["Feather_Generation", "Bonuses_of_Orion", "Feather_Multiplier", "Feather_Cheapener"];
 const ORION_ROWS = [...ORION, "Feather|Restart", "Super_Feathers", "Shiny_Feathers", "Super_Cheapener"];
 const owlz = [
-    ...[...ORION_ROWS, "The_Great_Mega_Reset"].map((name, i) => [name, "0", "0", String(i * 100)]),
-    ...Array.from({ length: 12 }, (_, i) => [`Poppy_${i}`, "0", "0", String(i * 10)]),
-    ...Array.from({ length: 8 }, (_, i) => [`Tar_${i}`, "0", "0", "0"]),
+    ...[...ORION_ROWS, "The_Great_Mega_Reset"].map((name, i) => [
+        name,
+        "0",
+        "0",
+        String(i * 100),
+        "Nah",
+        "Boosts_feather_generation_by_+}%,_cheaper_by_@%",
+        "0",
+    ]),
+    ...Array.from({ length: 12 }, (_, i) => [`Poppy_${i}`, "0", "0", String(i * 10), "Nah", "Catch_+{_more_fish", "3"]),
+    ...Array.from({ length: 8 }, (_, i) => [`Tar_${i}`, "0", "0", "0", "Nah", "Catch_]x_faster", "50"]),
 ];
 // Each row's base price; a level costs base × (level + 1).
 const BASE = { a: [10, 30, 20, 50, 400, 60, 70, 80, 2000], b: [5, 7, 9, 11, 13, 15, 100, 17, 19, 21, 23, 200] };
@@ -60,6 +69,7 @@ const setGame = () => {
         RooCost: (i) => cost("b", i),
         RooCost_T: (i) => cost("h", i),
         OwlFeatherRate: () => 42,
+        OwlMegafeather: () => 0,
         RooTarOwned: () => 3,
     };
     context["scripts.ActorEvents_579"]._customBlock_Summoning = (name, i) => formulas[name](i);
@@ -94,13 +104,13 @@ test("the overview lists Orion, Poppy and the Tar Pit beside Shops", () => {
         );
 });
 
-test("Orion's preset keeps The Great Mega Reset High and Feather Restart Low, both switched off", () => {
+test("Orion's preset saves for The Great Mega Reset and Feather Restart, both switched off", () => {
     const { cheatConfig } = state;
     const defaults = (key) => cheatConfig.automation?.[key];
     // loadGame starts from config.js, before any test changes it.
     assert.deepEqual(defaults("orion"), [
-        { id: "8", on: false, priority: 1 },
-        { id: "4", on: false, priority: 2 },
+        { id: "8", on: false, save: true },
+        { id: "4", on: false, save: true },
     ]);
     assert.equal(defaults("orionSaving"), 10);
 });
@@ -119,7 +129,14 @@ test("each tab reads its currency and every upgrade, locked ones with what unloc
         cost: 90,
         unlockAt: 100,
         unlocked: true,
+        bonus: "Boosts feather generation by +0%, cheaper by 16.66%",
     });
+    // The menu's own line, filled in as the owl menu does: Feather Multiplier adds 5 a level, and "@" is 1 − 1/(1 + 10% × level).
+    gga.OptionsListAccount[256] = 4;
+    assert.equal(
+        readComputed("automation", "orion").value.upgrades[2].bonus,
+        "Boosts feather generation by +20%, cheaper by 28.57%"
+    );
     assert.equal(orion.upgrades[2].unlocked, false, "200 feathers produced unlock it; 150 so far");
     assert.equal(orion.upgrades[0].unlockAt, 0, "the first upgrade is always open");
 
@@ -184,15 +201,15 @@ test("a locked upgrade switched on ahead waits until the run has produced enough
     await cheat("automation orion", false);
 });
 
-test("High buys first, Low is saved for, and Balanced may spend only saving % of the goal meanwhile", async () => {
+test("saved-for upgrades are saved for cheapest first; the others may spend only saving % of the goal meanwhile", async () => {
     setGame();
     gga.OptionsListAccount[263] = 1e6;
     gga.OptionsListAccount[253] = 300;
-    // Feather Restart (400) Low, Mega Reset (2000) High, Feather Generation (10, 20, ...) Balanced.
-    configure({ orion: [on(4, { priority: 2 }), on(8, { priority: 1 }), on(0)], orionSaving: 10 });
+    // Feather Restart (400) and Mega Reset (2000) are saved for; Feather Generation (10, 20, ...) is not.
+    configure({ orion: [on(4, { save: true }), on(8, { save: true }), on(0)], orionSaving: 10 });
     await cheat("automation orion", true);
     mock.timers.tick(1000);
-    // Saving for the 400 restart: Balanced may cost up to 40, so 10, 20, 30, 40 buy and 50 waits.
+    // Saving for the 400 restart: the others may cost up to 40, so 10, 20, 30, 40 buy and 50 waits.
     assert.deepEqual(events, ["a0", "a0", "a0", "a0"]);
     assert.equal(gga.OptionsListAccount[253], 200);
     assert.equal(entry("orion").status, "Saving for Feather Restart (400); 4 levels bought since it started");
@@ -205,7 +222,7 @@ test("High buys first, Low is saved for, and Balanced may spend only saving % of
     events.length = 0;
     gga.OptionsListAccount[253] = 5000;
     mock.timers.tick(1000);
-    assert.equal(events[0], "a8", "an affordable High goes before cheaper upgrades");
+    assert.equal(events[0], "a4", "the cheapest saved-for upgrade goes before cheaper others");
 
     // The goal's cost reads the way the game writes numbers.
     gga.OptionsListAccount[253] = 0;
@@ -215,11 +232,11 @@ test("High buys first, Low is saved for, and Balanced may spend only saving % of
     await cheat("automation orion", false);
 });
 
-test("with saving 0 Balanced waits for the whole goal", async () => {
+test("with saving 0 the others wait for the whole goal", async () => {
     setGame();
     gga.OptionsListAccount[263] = 1e6;
     gga.OptionsListAccount[253] = 300;
-    configure({ orion: [on(4, { priority: 2 }), on(0)], orionSaving: 0 });
+    configure({ orion: [on(4, { save: true }), on(0)], orionSaving: 0 });
     await cheat("automation orion", true);
     mock.timers.tick(1000);
     assert.deepEqual(events, []);

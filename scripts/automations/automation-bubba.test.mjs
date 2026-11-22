@@ -1,5 +1,5 @@
 // Automation (#92): "automation bubba" buys switched-on Bubba upgrades (W7) with meat through Bubba's own buy event,
-// by the shared rule (High / Low / Balanced, saving %), each up to its stop-at and the upgrade's max level. It waits
+// by the shared rule ("Save for it", saving %), each up to its stop-at and the upgrade's max level. It waits
 // while Bubba is locked, while the run's gift isn't picked, and outside a character's map (decided with Lumi,
 // 2026-11-11; ported to 3.0 on 2026-11-20).
 import assert from "node:assert/strict";
@@ -11,15 +11,14 @@ const { gga, context, cheat, state } = await loadGame();
 const { getAutomations } = await importRepo("src/cheats/core/automations.js");
 const { readComputed } = await importRepo("src/cheats/api/stateAccessors.js");
 
-const HIGH = 1;
-const LOW = 2;
-// Five upgrades: [name, ..., max level (999 is none)].
+// Five upgrades: [name, ..., max level (999 is none), ..., the menu's line ("@" breaks it; its first part shows)].
+const LINE = "Boosts_Meat_Slice_production_by_+{%,_so_}_more_meat_@_Hold_down_to_buy_fast!";
 const UPGRADES = [
-    ["Meat_Slicer", 0, 0, 0, 999],
-    ["Big_Grill", 0, 0, 0, 999],
-    ["Spice_Rack", 0, 0, 0, 3],
-    ["Smoker", 0, 0, 0, 999],
-    ["Megaflesh", 0, 0, 0, 999],
+    ["Meat_Slicer", 0, 0, 0, 999, 0, 0, LINE],
+    ["Big_Grill", 0, 0, 0, 999, 0, 0, LINE],
+    ["Spice_Rack", 0, 0, 0, 3, 0, 0, LINE],
+    ["Smoker", 0, 0, 0, 999, 0, 0, LINE],
+    ["Megaflesh", 0, 0, 0, 999, 0, 0, LINE],
 ];
 const game = { costs: [], needs: [], unlocked: 1, gift: 0, totals: 0 };
 const removed = [];
@@ -49,6 +48,7 @@ const setBubbaGame = () => {
         if (name === "BubbaUnlocked") return game.unlocked;
         if (name === "DoWeNeedToSelectGift") return game.gift;
         if (name === "TotalQTYofLVs") return ++game.totals;
+        if (name === "TotUpgBonus") return 25 * i;
         return 0;
     };
     // Bubba's menu behavior. Like the game, its "Z<i>" event pays and levels without checking the meat (the menu does),
@@ -76,7 +76,7 @@ const levels = () => [...gga.Bubba[1]];
 
 test("the Bubba tab reads meat, the goal and every upgrade with its level, max, cost and unlock", () => {
     setBubbaGame();
-    setBubba([{ id: "3", on: true, priority: LOW }]);
+    setBubba([{ id: "3", on: true, save: true }]);
     const read = readComputed("automation", "bubba").value;
     assert.equal(read.meat, 1000);
     assert.equal(read.waiting, null);
@@ -89,6 +89,7 @@ test("the Bubba tab reads meat, the goal and every upgrade with its level, max, 
         cost: 30,
         unlockAt: 0,
         unlocked: true,
+        bonus: "Boosts Meat Slice production by +50%, so 1.5x more meat",
     });
     assert.equal(read.upgrades[0].max, null, "999 is no max");
     assert.equal(read.upgrades[4].unlocked, false, "Megaflesh needs 1e6 meat made");
@@ -149,30 +150,30 @@ test("a buy Bubba's event refuses isn't counted as bought", async () => {
     await cheat("automation bubba", false);
 });
 
-test("an affordable High upgrade goes first; while saving for a Low one, Balanced spends only up to saving %", async () => {
+test("an affordable saved-for upgrade goes first; while saving for one, the others spend only up to saving %", async () => {
     setBubbaGame();
     gga.Bubba[0][0] = 45;
-    // High: Smoker (40) beats the cheaper Balanced Meat Slicer (10).
+    // Saved for: Smoker (40) beats the cheaper Meat Slicer (10).
     setBubba([
         { id: "0", on: true },
-        { id: "3", on: true, priority: HIGH },
+        { id: "3", on: true, save: true },
     ]);
     await cheat("automation bubba", true);
     mock.timers.tick(1000);
-    assert.deepEqual(levels(), [0, 0, 0, 1, 0], "High first; the 5 left can't reach the 10");
+    assert.deepEqual(levels(), [0, 0, 0, 1, 0], "saved-for first; the 5 left can't reach the 10");
 
-    // Smoker is now Low at 80; with 70 meat and 10% saving, Balanced may spend only up to 8, so Meat Slicer (10) waits.
+    // Smoker is now 80; with 70 meat and 10% saving, the others may spend only up to 8, so Meat Slicer (10) waits.
     gga.Bubba[0][0] = 70;
     const items = [
         { id: "0", on: true },
-        { id: "3", on: true, priority: LOW },
+        { id: "3", on: true, save: true },
     ];
     setBubba(items, 10);
     mock.timers.tick(1000);
     assert.deepEqual(levels(), [0, 0, 0, 1, 0], "70 saves for the 80 goal");
     assert.equal(bubba().status, "Saving for Smoker; 1 level bought since it started");
 
-    // At 50% Balanced may spend up to 40 a level: Meat Slicer's 10, 20 and 30 buy, its 40 is over the 10 left.
+    // At 50% the others may spend up to 40 a level: Meat Slicer's 10, 20 and 30 buy, its 40 is over the 10 left.
     setBubba(items, 50);
     mock.timers.tick(1000);
     assert.deepEqual(levels(), [3, 0, 0, 1, 0]);

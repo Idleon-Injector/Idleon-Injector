@@ -5,7 +5,7 @@
  *
  * Summon[0][i] is upgrade i's level, Summon[2][c] colour c's essence, Summon[4][t] the familiars of tier t.
  * SummonUPG[i]: [2] colour, [3] name, [8] max level (9999 = none), [9] parent upgrade, [11] the board's text.
- * Settings: cheatConfig.automation.summoning, one { id: "i", on, stopAt, priority } per upgrade (stopAt is a level),
+ * Settings: cheatConfig.automation.summoning, one { id: "i", on, stopAt, save } per upgrade (stopAt is a level),
  * and cheatConfig.automation.summoningSaving, the saving % of each colour in ESSENCES order.
  */
 
@@ -100,7 +100,7 @@ function buyable(colour) {
         const entry = settings.get(String(i));
         if (!entry?.on || Number(row[2]) !== colour || !unlocked(i)) return [];
         if (level(i) >= max(i) || !belowStopAt(level(i), entry.stopAt)) return [];
-        return [{ id: i, cost: summoning("UpgCost", i, 0), priority: entry.priority, buy: () => buy(i) }];
+        return [{ id: i, cost: summoning("UpgCost", i, 0), save: Boolean(entry.save), buy: () => buy(i) }];
     });
 }
 
