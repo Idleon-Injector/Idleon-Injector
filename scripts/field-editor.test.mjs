@@ -231,22 +231,22 @@ test("a focused choice shows the tier Set all gave it", async () => {
     const tiers = game.gga.CauldronP2W[4];
     tiers[1] = 0;
     const root = (await importRepo("src/ui/pages/world-2/sigils/sigils.js")).default.component();
-    const card = () => byClass(root, "tier-card").find((node) => text(byClass(node, "tier-card__index")[0]) === "#0");
-    await until(() => card() && text(byClass(card(), "tier-card__badge")[0]) === "UNLOCKED", "the sigils to load");
-    const choice = elements(card()).find((node) => node.nodeName === "select");
-    const chosen = () => {
-        const picked = elements(choice).find((node) => {
-            const selected = node.attributes.selected;
-            return node.nodeName === "option" && (typeof selected === "function" ? selected() : selected);
-        });
-        return picked ? text(picked) : null;
-    };
-    focus(choice);
-    byClass(root, "account-setall-row__select")[0].listeners.change({ target: { value: "4" } });
-    const setAll = elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Set all");
-    await setAll.listeners.click({ target: setAll, preventDefault() {} });
-    await until(() => tiers[1] === 4, "Set all to save");
-    await until(() => chosen() === "ECLECTIC", "the focused choice to show ECLECTIC");
+    const attr = (node, name) =>
+        typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
+    const row = () =>
+        byClass(root, "account-row").find((node) => text(byClass(node, "account-row__index")[0]) === "#0");
+    const chosen = () =>
+        text(
+            elements(row()).find((node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true") ??
+                ""
+        );
+    await until(() => row() && chosen() === "Unlocked", "the sigils to load");
+    focus(elements(row()).find((node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true"));
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const eclectic = elements(tray).find((node) => node.nodeName === "button" && text(node).trim() === "Eclectic");
+    await eclectic.listeners.click({ target: eclectic, preventDefault() {} });
+    await until(() => tiers[1] === 4, "the tier for all to save");
+    await until(() => chosen() === "Eclectic", "the focused choice to show Eclectic");
 });
 
 // A field that shows a rounded value ("1.23M") keeps the exact value behind it when you leave it unedited, also when

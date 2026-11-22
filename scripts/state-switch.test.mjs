@@ -158,8 +158,8 @@ test("killroy: a save the game doesn't keep says why on the switch, and the next
     let restore = () => {};
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         restore = refuseWrites(ola, 115);
         await flip(row, true);
         restore();
@@ -227,7 +227,8 @@ test("weekly bosses: a skin switch flipped while another skin saves still saves"
     const weekly = game.gga.WeeklyBoss.h;
     const locked = Object.keys(weekly).filter((key) => key.startsWith("UI_") && Number(weekly[key]) === 0);
     try {
-        await twoFlipsLand("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Locked", "Unlocked", () =>
+        // A locked skin's switch says nothing; an unlocked one says so.
+        await twoFlipsLand("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "", "Unlocked", () =>
             locked.slice(0, 2).every((key) => Number(weekly[key]) === 1)
         );
     } finally {
@@ -395,8 +396,8 @@ test("killroy: while a later flip waits, the box shows that flip, not the state 
     const writes = holdEachWrite();
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         const save = flip(row, true);
         await until(() => writes.held() === 1, "the On save to reach the game");
         void flip(row, false); // asked for while On saves
@@ -418,8 +419,8 @@ test("killroy: an old failure goes once the game holds something else, and stays
     let restore = () => {};
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         restore = refuseWrites(ola, 115);
         await flip(row, true);
         restore();
@@ -432,7 +433,7 @@ test("killroy: an old failure goes once the game holds something else, and stays
         ola[115] = 0; // and back
         await click(refresh);
         await until(() => wordsOf(row) !== "On", "the second refresh");
-        assert.equal(wordsOf(row), "Off", "the old failure stays gone");
+        assert.equal(wordsOf(row), "", "the old failure stays gone (off says nothing)");
     } finally {
         restore();
         ola[115] = 0;
@@ -1029,16 +1030,16 @@ test("killroy: a failed flip the player already took back isn't said", async () 
     let restore = () => {};
     try {
         ola[115] = 0;
-        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "AIRHORN RESET"));
-        const row = rowNamed(root, "AIRHORN RESET");
+        const root = await openPage(KILLROY, (root) => pageRead(root) && rowNamed(root, "Airhorn reset"));
+        const row = rowNamed(root, "Airhorn reset");
         restore = refuseWrites(ola, 115);
         const save = flip(row, true);
         await until(() => writes.held() === 1, "On to reach the game");
         void flip(row, false); // taken back while On saves; the game keeps Off
         writes.all();
         await save;
-        await until(() => ["Off", "game kept old value"].includes(wordsOf(row)), "the save to end");
-        assert.equal(wordsOf(row), "Off", "the game holds what was asked last");
+        await until(() => ["", "game kept old value"].includes(wordsOf(row)), "the save to end");
+        assert.equal(wordsOf(row), "", "the game holds what was asked last (off says nothing)");
     } finally {
         writes.all();
         restore();
@@ -1257,7 +1258,7 @@ test("weekly bosses: a skin flipped while trophies save waits and saves", async 
         field.listeners.input({ target: field });
         trophyRow.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
         await until(requests.held, "the trophy write to reach the game");
-        const skin = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Locked");
+        const skin = byClass(root, "account-row").find((row) => switchOf(row) && !switchOf(row).checked);
         const flipped = requests.track(flip(skin, true));
         requests.release();
         await flipped;
@@ -1376,7 +1377,7 @@ test("weekly bosses: a skin switch reads out saving and saved", async () => {
             "src/ui/pages/world-2/weekly-bosses/weekly-bosses.js",
             (root) => pageRead(root) && byClass(root, "state-switch").length > 1
         );
-        const row = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Locked");
+        const row = byClass(root, "account-row").find((row) => switchOf(row) && !switchOf(row).checked);
         const save = flip(row, true);
         await until(() => writes.held() === 1, "the save to reach the game");
         await until(() => switchStatusOf(row) === "Saving…", "the switch to say it is saving");

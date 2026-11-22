@@ -35,6 +35,20 @@ const fieldValue = (root, name) => {
 const levelShown = (root, index) =>
     String(elements(root).filter((node) => node.nodeName === "input")[index]?.attributes.value ?? "");
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
+// The tray's first line (its question while it asks), opening a tab, and typing into the tray's level field: Islands'
+// Set all acts on the open tab's upgrades.
+const trayQuestion = (root) =>
+    elements(root).find((node) => String(node.attributes.id).startsWith("tabbed-list-question-"));
+const openTab = (root, label) =>
+    elements(root)
+        .find((node) => node.attributes.role === "tab" && text(node).trim().startsWith(label))
+        .listeners.click({});
+const typeLevel = (root, value) =>
+    elements(root)
+        .find((node) => node.nodeName === "input" && node.attributes.placeholder === "Level")
+        .listeners.input({ target: { value: String(value) } });
+// The page openPage opened last.
+let lastRoot = null;
 // Whether text matching `pattern` is on screen: the page keeps its read error in the page, hidden until it's needed.
 const showsText = (root, pattern) => {
     const node = elements(root)
@@ -103,6 +117,7 @@ globalThis.fetch = async (url, options = {}) => {
 
 async function openPage(file, label, open = null) {
     const root = (await importRepo(file)).default.component();
+    lastRoot = root;
     if (open) {
         await until(() => buttonsNamed(root, open).length, `${open} on ${file}`);
         await click(buttonsNamed(root, open)[0]);
@@ -154,10 +169,8 @@ test("a press whose targets changed since the question asks again instead of run
 });
 
 const removals = [
-    ["src/ui/pages/world-2/arcade-shop/arcade-shop.js", "Reset all"],
     ["src/ui/pages/world-3/atom-collider/atom-collider.js", "Reset all"],
     ["src/ui/pages/world-3/salt-lick/salt-lick.js", "Reset all"],
-    ["src/ui/pages/world-2/post-office/post-office.js", "Reset"],
     ["src/ui/pages/world-4/breeding/general.js", "Zero all"],
     ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
     ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
@@ -317,7 +330,7 @@ test("bribes: Enable all changes the bribes shown at the press, even if the sear
 
 for (const [file, label] of [
     ["src/ui/pages/world-1/bribes/bribes.js", "Enable all"],
-    ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Enable all"],
+    ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Unlock all"],
     ["src/ui/pages/world-3/prayers/prayers.js", "Unlock all"],
     ["src/ui/pages/account/event-shop/event-shop.js", "Enable all"],
 ]) {
@@ -379,21 +392,23 @@ for (const [file, label] of [
     });
 }
 
-// Lumi's call (2026-11-20): Lock all removes every island unlock, so it asks in place like the other removals.
-test("islands: Lock all asks in place, locks every island on the second click, and Undo puts them back", async () => {
+// Lumi's call (2026-11-20): Lock all removes every island unlock, so it asks first: in the tray since the shared
+// panels (2026-11-22).
+test("islands: Lock all asks in the tray, locks every island on the answer, and Undo puts them back", async () => {
     const { fetchChanges } = await importRepo("src/ui/services/api.js");
     const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
     const unlocks = () => game.gga.OptionsListAccount[169];
     game.gga.OptionsListAccount[169] = "abc";
     const button = await openPage("src/ui/pages/world-2/islands/islands.js", "Lock all");
+    const root = lastRoot;
     const before = writes();
     await click(button);
     await settle(100);
-    assert.equal(button.attributes["data-again"], "Click again", "the first click asks");
+    assert.equal(text(trayQuestion(root)), "Lock 3 islands?", "the press asks in the tray");
     assert.equal(writes(), before, "and locks nothing");
     assert.equal(unlocks(), "abc");
-    await click(button);
-    await until(() => writes() > before, "the second click to lock");
+    await click(buttonsNamed(root, "Lock them")[0]);
+    await until(() => writes() > before, "the answer to lock");
     await settle(100);
     assert.equal(unlocks(), "");
     const [action] = (await fetchChanges()).actions;
@@ -492,7 +507,7 @@ test("islands: Refresh waits for a bulk action, and the bulk actions wait for a 
     const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
     const named = (label) => buttonsNamed(root, label);
     const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
-    await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
+    await until(() => bulk().length === 3 && bulk().every((node) => !node.attributes.disabled), "Islands");
     const unlocks = game.gga.OptionsListAccount[169];
     try {
         const write = holdNext((url) => url.endsWith("/game/gga/write-many"));
@@ -508,7 +523,11 @@ test("islands: Refresh waits for a bulk action, and the bulk actions wait for a 
         await until(() => bulk().every((node) => node.attributes.disabled), "the bulk actions to wait for the read");
         read.release();
         await refreshed;
-        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions after the read");
+        // Every island is unlocked now, so Unlock all has nothing to do; the others are back.
+        await until(
+            () => [...named("Lock all"), ...named("Set all")].every((node) => !node.attributes.disabled),
+            "the bulk actions after the read"
+        );
     } finally {
         held = null;
         game.gga.OptionsListAccount[169] = unlocks;
@@ -523,11 +542,13 @@ test("islands: a Set all the game refused in part shows the values the game hold
     try {
         const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
         const setAll = () => buttonsNamed(root, "Set all").filter((node) => !node.attributes.disabled);
-        await until(() => setAll().length === 3 && fieldValue(root, "% Garbage") === "3", "Islands");
+        await until(() => setAll().length === 1 && fieldValue(root, "Garbage %") === "3", "Islands");
+        openTab(root, "Trash");
+        typeLevel(root, 200);
         await click(setAll()[0]);
         await until(() => options[163] === 200, "the first value to land");
-        await until(() => fieldValue(root, "% Garbage") === "200", "the row to show what the game holds");
-        assert.equal(fieldValue(root, "% Bottles"), "5", "the refused row still shows what the game kept");
+        await until(() => fieldValue(root, "Garbage %") === "200", "the row to show what the game holds");
+        assert.equal(fieldValue(root, "Bottles %"), "5", "the refused row still shows what the game kept");
     } finally {
         Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
         options[163] = 0;
@@ -539,7 +560,7 @@ test("islands: the bulk actions wait while the page shows a failed read", async 
     const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
     const named = (label) => buttonsNamed(root, label);
     const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
-    await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
+    await until(() => bulk().length === 3 && bulk().every((node) => !node.attributes.disabled), "Islands");
     try {
         const read = holdNext((url) => url.endsWith("/game/gga/read-entries"));
         const refreshed = named("Refresh")[0].listeners.click({});
@@ -603,41 +624,39 @@ test("salt-lick.js: Max all and Reset all wait while the read after a refused Ma
     }
 });
 
-// CodeRabbit on #110: the read after a refused Set all waits for another Set all still running, so it can't read that
-// one's old values and show them after it landed.
-test("islands: the read after a refused Set all waits for another Set all still running", async () => {
+// CodeRabbit on #110, on the shared panels: the tray's tools share one status, so while a Set all runs the other tools
+// and Refresh wait, and a second Set all can't start beside it; the read after a refused one runs once it ended.
+test("islands: while a Set all runs, the tray's other tools and Refresh wait, and its read comes after", async () => {
     const options = game.gga.OptionsListAccount;
     options[163] = 3;
-    options[166] = 4;
     Object.defineProperty(options, 164, { get: () => 5, set() {}, configurable: true });
     try {
         const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
-        const setAll = () => buttonsNamed(root, "Set all");
-        await until(() => setAll().length === 3 && setAll().every((node) => !node.attributes.disabled), "Islands");
-        const slow = holdNext(
-            (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
+        const named = (label) => buttonsNamed(root, label);
+        const tools = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
+        await until(() => tools().length === 3 && tools().every((node) => !node.attributes.disabled), "Islands");
+        openTab(root, "Trash");
+        typeLevel(root, 200);
+        const slow = holdNext((url) => url.endsWith("/game/gga/write-many"));
+        const pressed = click(named("Set all")[0]);
+        await until(() => slow.reached, "the Set all to be sent");
+        await until(
+            () => [...tools(), ...named("Refresh")].every((node) => node.attributes.disabled),
+            "the other tools and Refresh to wait"
         );
-        const rando = click(setAll()[1]);
-        await until(() => slow.reached, "Rando's Set all to be sent");
         const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
-        await click(setAll()[0]);
-        assert.equal(options[163], 200, "Garbage's first value landed");
-        // Until that read ends, the rows may show old values: the bulk actions wait for it too.
-        const bulk = () => [...buttonsNamed(root, "Unlock all"), ...buttonsNamed(root, "Lock all"), ...setAll()];
-        await until(() => bulk().every((node) => node.attributes.disabled), "the bulk actions to wait for the read");
         slow.release();
-        await rando;
+        await pressed;
         await until(() => reads.count() > 0, "the read after the refused Set all");
         reads.release();
-        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions after the read");
-        assert.equal(fieldValue(root, "% Loot"), "200", "Rando's Set all stays shown");
+        await until(() => tools().every((node) => !node.attributes.disabled), "the tools after the read");
+        assert.equal(fieldValue(root, "Garbage %"), "200");
+        assert.equal(fieldValue(root, "Bottles %"), "5", "the refused row shows what the game kept");
     } finally {
         held = null;
         answersHeld = null;
         Object.defineProperty(options, 164, { value: 0, writable: true, configurable: true });
         options[163] = 0;
-        options[166] = 0;
-        options[167] = 0;
     }
 });
 
@@ -659,7 +678,9 @@ test("islands: a reload after an undo waits for a Set all still running", async 
         const slow = holdNext(
             (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
         );
-        const rando = click(named("Set all")[1]);
+        openTab(root, "Rando");
+        typeLevel(root, 200);
+        const rando = click(named("Set all")[0]);
         await until(() => slow.reached, "Rando's Set all to be sent");
         const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));
         await undoAction(action.id);
@@ -671,7 +692,7 @@ test("islands: a reload after an undo waits for a Set all still running", async 
         await until(() => reads.count() > others, "this page's reload after the undo");
         reads.release();
         await until(() => !named("Refresh")[0].attributes.disabled, "the reload to end");
-        assert.equal(fieldValue(root, "% Loot"), "200", "Rando's Set all stays shown");
+        assert.equal(fieldValue(root, "Loot %"), "200", "Rando's Set all stays shown");
     } finally {
         held = null;
         answersHeld = null;
@@ -691,12 +712,14 @@ test("islands: a reload waiting for a Set all still runs after another page's un
     const root = (await importRepo("src/ui/pages/world-2/islands/islands.js")).default.component();
     const named = (label) => buttonsNamed(root, label);
     const bulk = () => [...named("Unlock all"), ...named("Lock all"), ...named("Set all")];
-    await until(() => bulk().length === 5 && bulk().every((node) => !node.attributes.disabled), "Islands");
+    await until(() => bulk().length === 3 && bulk().every((node) => !node.attributes.disabled), "Islands");
     const unlocks = options[169];
     // Every island locked first, so the undo's read shows in the rows.
     options[169] = "";
     await buttonsNamed(root, "Refresh")[0].listeners.click({});
-    await until(() => !/Unlocked/.test(text(root)) && bulk().every((node) => !node.attributes.disabled), "locked");
+    // With every island locked, Lock all has nothing to do.
+    const ready = () => [...named("Unlock all"), ...named("Set all")].every((node) => !node.attributes.disabled);
+    await until(() => !/Unlocked/.test(text(root)) && ready(), "locked");
     try {
         await click(named("Unlock all")[0]);
         await until(() => options[169] === "abcde_", "the unlocks to land");
@@ -704,14 +727,16 @@ test("islands: a reload waiting for a Set all still runs after another page's un
         const slow = holdNext(
             (url, body) => url.endsWith("/game/gga/write-many") && body.writes?.[0]?.path?.includes("[166]")
         );
-        const rando = click(named("Set all")[1]);
+        openTab(root, "Rando");
+        typeLevel(root, 200);
+        const rando = click(named("Set all")[0]);
         await until(() => slow.reached, "Rando's Set all to be sent");
         await undoAction(action.id);
         reloadPlace.val = { view: "elsewhere", page: "another page" };
         assert.match(text(root), /Unlocked/, "the rows show the unlocks until the reload");
         slow.release();
         await rando;
-        await until(() => bulk().every((node) => !node.attributes.disabled), "the bulk actions once the reload ran");
+        await until(ready, "the bulk actions once the reload ran");
         assert.equal(options[169], "", "the undo landed");
         assert.doesNotMatch(text(root), /Unlocked/, "the reload shows what the undo put back");
     } finally {

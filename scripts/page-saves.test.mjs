@@ -66,7 +66,7 @@ async function setRow(root, label, value) {
 
 const ROW_PAGES = [
     { file: "src/ui/pages/world-1/owl/1-orion.js", label: "Feather Generation", index: 254 },
-    { file: "src/ui/pages/world-2/kangaroo/1-poppy.js", label: "Fisheroo Reset Level", index: 274 },
+    { file: "src/ui/pages/world-2/kangaroo/1-poppy.js", label: "Fisheroo Reset", index: 274 },
     { file: "src/ui/pages/world-7/clam-work/clam-work.js", label: "Clam Comrades", index: 456 },
 ];
 
