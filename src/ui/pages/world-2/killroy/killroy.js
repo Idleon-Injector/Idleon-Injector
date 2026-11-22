@@ -63,7 +63,7 @@ const META_FIELDS = [
     { index: 228, label: "ARTIFACT FIND TIMES BOUGHT" },
     { index: 229, label: "CROP EVOLUTION TIMES BOUGHT" },
     { index: 230, label: "JADE GAIN TIMES BOUGHT" },
-    { index: 467, label: "GALLERY TIMES BOUGHT" },
+    { index: 467, label: "GALLERY ITEMS GOT" },
     { index: 468, label: "MASTERCLASS TIMES BOUGHT" },
     { index: 469, label: "W7 SKILL XP TIMES BOUGHT" },
     { index: 470, label: "W7 DAILY CORAL TIMES BOUGHT" },

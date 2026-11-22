@@ -164,6 +164,18 @@ test("general.js: the spice claims field shows and saves a count below 0, and ha
     ola[100] = 0;
 });
 
+test("general.js: a spice claims value that isn't a number is refused, not shown as 0", async () => {
+    ola[100] = "invalid";
+    try {
+        const root = await openPage("src/ui/pages/world-4/breeding/general.js", (r) =>
+            text(r).includes("Couldn't read the spice claims")
+        );
+        assert.ok(text(root).includes("Couldn't read the spice claims"));
+    } finally {
+        ola[100] = 0;
+    }
+});
+
 // Pets: the token list in OptionsListAccount[606] and the missing token sources.
 const petRow = (root, id) =>
     byClass(root, "pet-row").find((row) => String(row.attributes["data-pet-id"]) === String(id));

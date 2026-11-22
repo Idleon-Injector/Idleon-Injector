@@ -141,8 +141,13 @@ const GeneralTab = () => {
             petUpgradeDnaState.val = toInt(petUpgradeDna, { min: 0 });
             arenaRoundState.val = toInt(rawOptions["89"], { min: 0 });
             arenaCrucibleRoundState.val = toInt(rawOptions["628"], { min: 0 });
-            // The daily reset takes 25 off for each Trasher pet, so it can be below 0.
-            spiceClaimState.val = toInt(rawOptions["100"]);
+            // The daily reset takes 25 off for each Trasher pet, so it can be below 0. Empty means none yet; anything
+            // else that isn't a number is refused, not shown as 0.
+            const spiceClaims = rawOptions["100"] ?? 0;
+            if (!Number.isFinite(Number(spiceClaims)) || String(spiceClaims).trim() === "") {
+                throw new Error("Couldn't read the spice claims. Refresh to try again.");
+            }
+            spiceClaimState.val = toInt(spiceClaims);
             reconcileRows();
 
             for (const entry of eggEntries.val) getEggState(entry.index).val = entry.value;
