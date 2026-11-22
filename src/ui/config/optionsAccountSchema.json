@@ -3579,123 +3579,125 @@
     },
     "586": {
         "name": "Gaming Auto-Harvest Filter - Blossom",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Blossoms, 1=skip them",
+        "description": "1 = Harvest All skips Blossoms (the 4th mutation). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "587": {
         "name": "Gaming Auto-Harvest Filter - Voraci",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Voraci Sprouts, 1=skip them",
+        "description": "1 = Harvest All skips Voraci plants (the 5th mutation). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "588": {
-        "name": "Gaming Auto-Harvest Filter - Dreadlo",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Dreadlo, 1=skip them",
+        "name": "Gaming Auto-Harvest Filter - 6th Mutation",
+        "description": "1 = Harvest All skips the 6th mutation (the one that gives 7x more ₣ and 3x gaming exp). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "589": {
-        "name": "Gaming Auto-Harvest Filter - Evergreen",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Evergreen, 1=skip them",
+        "name": "Gaming Auto-Harvest Filter - 7th Mutation",
+        "description": "1 = Harvest All skips the 7th mutation (the one that gives up to 100x ₣ at random). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "590": {
         "name": "Gaming Auto-Harvest Filter - Chemical Plant",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Chemical Plants, 1=skip them",
+        "description": "1 = Harvest All skips Chemical Plants (the 8th mutation). The game turned this on once for everyone in an update. Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "591": {
-        "name": "Gaming Auto-Harvest Filter - Royale Sprout/King Rat",
-        "description": "Harvest-All mutation filter; 0=auto-harvest Royale Sprouts, 1=skip them",
+        "name": "Gaming Auto-Harvest Filter - Royale Sprout",
+        "description": "1 = Harvest All skips Royale Sprouts (the 9th mutation, from the King Rat). Set by clicking it in Gaming's Mutation tab while the Enable Harvest-All Toggle option is on.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "592": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "593": {
         "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "description": "Not read or written by the game.",
         "type": "number",
-        "AI": true
+        "unused": true,
+        "verified": true
     },
     "594": {
-        "name": "The Button Total Presses",
-        "description": "Total number of completed World 7 Button presses",
+        "name": "The Button - Presses",
+        "description": "How many times The Button (W7, Mantaray map) has been pressed. Sets the next task, its requirement and the Button bonuses.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "595": {
-        "name": "The Button Remaining Charges",
-        "description": "Available World 7 Button press charges",
+        "name": "The Button - Insta Skips",
+        "description": "Insta Skips left: each one presses The Button without meeting the current demand. Refilled weekly, with a daily chance for +1, from a Research grid bonus.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "596": {
-        "name": "Summoning Perfect Wins",
-        "description": "Total Summoning matches won without taking portal damage",
+        "name": "Depth Charge - Instant Bombs Hit",
+        "description": "How many times you hit a Depth Charge before dealing any damage in Mr. Minehead's Depth Charge game. Counts for two Equinox dream goals.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "597": {
-        "name": "Glimbo Swap Meet Discovered Flag",
-        "description": "One-time flag marking Glimbo's Swap Meet as discovered",
+        "name": "New Player Offer Shown",
+        "description": "1 once the new-player offer menu has opened by itself (it opens once, the first time the offer badge shows in town).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "598": {
-        "name": "Arcane Weapon Drop Filter",
-        "description": "Controls Arcane weapon drops; 0=allow, 1=block",
+        "name": "Arcanist - Wand Drops Off",
+        "description": "1 = monsters stop dropping Arcanist wands. Toggled with the switch on the Wand Drops arcane upgrade.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "599": {
-        "name": "Arcane Ring Drop Filter",
-        "description": "Controls Arcane ring drops; 0=allow, 1=block",
+        "name": "Arcanist - Ring Drops Off",
+        "description": "1 = monsters stop dropping Arcanist rings. Toggled with the switch on the Ring Drops arcane upgrade.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "600": {
-        "name": "Divinity Altar Details Visibility",
-        "description": "Controls Divinity Altar detail indicators; 0=show, 1=hide",
+        "name": "The Slab - Hide Greenstack Marks",
+        "description": "1 = The Slab stops showing the green Greenstack mark on items. Toggled by the button on the left of The Slab.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "601": {
-        "name": "Fountain Rubber Duckies",
-        "description": "Number of Rubber Duckies found through the Green Water Fountain",
+        "name": "Fountain - Rubber Duckies",
+        "description": "Rubber Ducky stacks from the Fountain's duck bar. Each one makes the next rarer and multiplies all Fountain coin values.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "602": {
-        "name": "6-Star Cardifier Count",
-        "description": "Number of Cardifiers available for upgrading cards beyond their standard maximum",
+        "name": "6-Star Cardifiers",
+        "description": "6-Star Cardifiers you can still use. Each one raises a 6-star card to 7 stars.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "603": {
-        "name": "Tier 7 Card IDs",
-        "description": "Comma-separated IDs of cards upgraded to tier 7",
+        "name": "7-Star Card IDs",
+        "description": "Comma-separated IDs of cards raised to 7 stars with a 6-Star Cardifier. Those cards count as level 7.",
         "type": "string",
-        "AI": true
+        "verified": true
     },
     "604": {
-        "name": "Daily Cglunko Upgrade Purchases",
-        "description": "Cglunko Cove upgrades purchased today; resets daily",
+        "name": "Crystal Cove - Upgrades Bought Today",
+        "description": "Cglunko (Crystal Cove) upgrades bought today. While it is below a Bolaia study bonus, upgrades cost 15% less. Resets daily.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "605": {
-        "name": "Pet Bonus Token Owned Flag",
-        "description": "Whether the Pet Bonus Token has been obtained",
+        "name": "Pet Bonus Token 1",
+        "description": "1 once a monster has dropped your first Pet Bonus Token. Counts as one of the two tokens (slot 615 is the other).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "606": {
         "name": "Claimed Companion Bonus IDs",
@@ -3704,118 +3706,118 @@
         "AI": true
     },
     "607": {
-        "name": "Farming Sticker Pity Counter",
-        "description": "Plant harvests since the last Farming sticker drop",
+        "name": "Doggie Sticker - Days Without Sticker",
+        "description": "Days since your last Farming sticker, with the Doggie Sticker owned. Each day doubles sticker odds (up to 12 days, then +1500x per day). Back to 0 when a sticker is found.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "608": {
-        "name": "Monthly Supernova Pack Purchases",
-        "description": "Supernova Gem Packs purchased during the current calendar month",
+        "name": "Supernova Packs Bought This Month",
+        "description": "Supernova gem packs (6,501 gems) bought this month. The shop shows stock minus this; resets with slot 609.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "609": {
-        "name": "Supernova Pack Month Index",
-        "description": "Calendar month index used to reset the monthly Supernova Pack purchase count",
+        "name": "Supernova Pack Month",
+        "description": "Which shop month the Supernova count in slot 608 belongs to. Months are 30.44-day blocks counted from 1 July 2026.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "610": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Tournament Raid - Last Result Day",
+        "description": "The last raid day whose result you opened. While it differs from the current raid day, the Tournament shows the raid result button.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "611": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Tournament Raid - Registered Day",
+        "description": "The raid day (+1) you last registered for. Set when you register for a raid.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "612": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Tournament Raid - Registration Stamp",
+        "description": "Set to your tournament registration count + 1 when you register for a raid on a new day. Nothing in the game reads it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "613": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Tournament Raid - Fetch Tracker",
+        "description": "The last raid day the game fetched raid data for. When the day changes, opening the Tournament fetches it again.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "614": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Tournament Background",
+        "description": "Which Tournament background you picked (0 Blunder Hills Meadow, 1 Smolderin' Plateau Ridge, 2 Shimmerfin Shallow Shores). Also changes some map platforms.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "615": {
-        "name": "Unused",
-        "description": "No identifiable direct or computed reference in current build",
+        "name": "Pet Bonus Token 2",
+        "description": "1 = you own the second Pet Bonus Token. The game only reads it; nothing in the game sets it.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "616": {
         "name": "Coral Kid - Singularity Transmute Level",
-        "description": "Unlocks transmuting Divinity PTS into Singularity Spirals; boosts Divinity PTS gain",
+        "description": "Level of Coral Kid upgrade 7 (Coral Kid page 2 (Singularity Spirals)): unlocks transmuting Divinity PTS into Singularity Spirals, and gives +100% Divinity PTS per level.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "617": {
-        "name": "Coral Kid - Singularity Transmute Base Value Level",
-        "description": "Multiplies base Singularity Spiral yield from Transmuting Divinity PTS",
+        "name": "Coral Kid - Transmute Base Value Level",
+        "description": "Level of Coral Kid upgrade 8 (Coral Kid page 2 (Singularity Spirals)): the Transmute's base value (from your Divinity PTS) is +10% higher per level.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "618": {
-        "name": "Coral Kid - Singularity Divinity EXP Level",
-        "description": "Multiplies Divinity EXP gained across all characters",
+        "name": "Coral Kid - Divinity EXP Level",
+        "description": "Level of Coral Kid upgrade 9 (Coral Kid page 2 (Singularity Spirals)): +50% Divinity EXP for all characters per level.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "619": {
-        "name": "Coral Kid - Singularity Universal Time Elapsed Level",
-        "description": "Allows non-Divinity AFK claims to accumulate Time Elapsed towards Coral Kid Transmute",
+        "name": "Coral Kid - Any AFK Time Elapsed Level",
+        "description": "Level of Coral Kid upgrade 10 (Coral Kid page 2 (Singularity Spirals)): any AFK claim adds Time Elapsed for the Transmute, at 125*L/(L+100)% of the hours.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "620": {
-        "name": "Coral Kid - Singularity Lumi Gain Level",
-        "description": "Multiplies hourly Lumi production in the Luminous Menagerie",
+        "name": "Coral Kid - Lumi Gain Level",
+        "description": "Level of Coral Kid upgrade 11 (Coral Kid page 2 (Singularity Spirals)): +5% hourly Lumi in the Luminous Menagerie per level.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "621": {
-        "name": "Coral Kid - Singularity God Rank DMG Level",
-        "description": "Multiplies Total Damage for all characters per God Rank above 25",
+        "name": "Coral Kid - God Rank DMG Level",
+        "description": "Level of Coral Kid upgrade 12 (Coral Kid page 2 (Singularity Spirals)): each God Rank above 25 gives (1 + level/100)x damage to all characters.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "622": {
-        "name": "Coral Kid - Upgrade Page Toggle",
-        "description": "Toggles Coral Kid UI page: 0 = Standard Divinity Upgrades (427-432), 1 = Singularity Upgrades (616-621)",
+        "name": "Coral Kid - Upgrade Page",
+        "description": "Which Coral Kid upgrade page is open: 0 = Divinity PTS upgrades (slots 427 to 432), 1 = Singularity Spiral upgrades (slots 616 to 621).",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "623": {
-        "name": "Coral Kid - Singularity Transmute Kills",
-        "description": "Active monster kills accumulated towards Singularity Spiral Transmutation yield multiplier",
+        "name": "Coral Kid - Transmute Kills",
+        "description": "Kills since your last Transmute (with the Menagerie unlock). More kills raise the Transmute's kill multiplier. Back to 0 on Transmute.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "624": {
-        "name": "Coral Kid - Singularity Transmute Hours",
-        "description": "AFK hours accumulated towards Singularity Spiral Transmutation yield multiplier",
+        "name": "Coral Kid - Transmute Hours",
+        "description": "AFK hours (Time Elapsed) since your last Transmute. Divinity AFK claims count in full, other AFK claims count with upgrade 10. Back to 0 on Transmute.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "625": {
-        "name": "Arcade - Omega Balls Owned",
-        "description": "Current count of Omega Arcade Balls available to upgrade Lv 101 Arcade bonuses to Lv 102",
+        "name": "Arcade - Omega Balls",
+        "description": "Omega Arcade Balls you have. Spent to raise a Lv 101 Arcade Shop bonus to Lv 102.",
         "type": "number",
-        "AI": true
+        "verified": true
     },
     "626": {
         "name": "Arcade - Omega Balls Total Dropped",
