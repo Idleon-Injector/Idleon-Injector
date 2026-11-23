@@ -26,7 +26,11 @@
     padding: 0 10px;
 }
 
-/* On a phone the six share the row's width, a step smaller, and the tray's tier tool tightens to fit. */
+/*
+ * On a phone and in the narrow overlay the six tiers fold into one shape of two lines, three to a line: each row's
+ * picker and the tray's tier tool (without its "Tier for all" label) alike. A row's fold always shows, with a mouse
+ * too, so nothing under the pointer grows and moves the rows below.
+ */
 @media (max-width: 760px) {
     .viewport .sigils-tab .account-row {
         grid-template-columns: minmax(0, 1fr);
@@ -37,16 +41,7 @@
         width: 100%;
     }
 
-    .viewport .sigil-tiers {
-        width: 100%;
-    }
-
-    .viewport .sigil-tiers .step-picker__step {
-        padding: 0 2px;
-        font-size: 0.8125rem;
-    }
-
-    /* The tray's six tiers fold into one shape of two lines, three to a line, without the "Tier for all" label. */
+    .viewport .sigil-tiers,
     .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -54,37 +49,80 @@
         height: auto;
     }
 
+    .viewport .sigil-tiers .step-picker__step,
     .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn {
         min-width: 0;
+        height: 36px;
         padding: 0 4px;
+        border-left: 1px solid var(--c-btn-edge);
         border-radius: 0;
     }
 
-    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(3n + 2) {
+    .viewport .sigil-tiers .step-picker__step:nth-of-type(3n + 1),
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-of-type(3n + 1) {
         border-left: 0;
     }
 
-    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(n + 5) {
+    .viewport .sigil-tiers .step-picker__step:nth-of-type(n + 4),
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-of-type(n + 4) {
         border-top: 1px solid var(--c-btn-edge);
     }
 
-    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(2) {
+    .viewport .sigil-tiers .step-picker__step:nth-of-type(1),
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-of-type(1) {
         border-radius: 10px 0 0;
     }
 
-    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(4) {
+    .viewport .sigil-tiers .step-picker__step:nth-of-type(3),
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-of-type(3) {
         border-radius: 0 10px 0 0;
     }
 
-    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-child(5) {
+    .viewport .sigil-tiers .step-picker__step:nth-of-type(4),
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-of-type(4) {
         border-radius: 0 0 0 10px;
     }
 
-    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:last-child {
+    .viewport .sigil-tiers .step-picker__step:nth-of-type(6),
+    .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-group .account-btn:nth-of-type(6) {
         border-radius: 0 0 10px;
     }
 
     .viewport .sigils-tab .tabbed-list__tools .tabbed-list__tool-label {
         display: none;
+    }
+
+    /* A row at rest keeps its fold (tabbed-list.css hides a quiet picker's other steps under a mouse). */
+    .viewport .sigils-tab .tabbed-list__body .account-row:not(:hover):not(:focus-within) .sigil-tiers {
+        background: var(--c-panel-dim);
+    }
+
+    .viewport
+        .sigils-tab
+        .tabbed-list__body
+        .account-row:not(:hover):not(:focus-within)
+        .sigil-tiers
+        .step-picker__step {
+        display: block;
+        padding: 0 4px;
+        border-left: 1px solid var(--c-btn-edge);
+    }
+
+    .viewport
+        .sigils-tab
+        .tabbed-list__body
+        .account-row:not(:hover):not(:focus-within)
+        .sigil-tiers
+        .step-picker__step:nth-of-type(3n + 1) {
+        border-left: 0;
+    }
+
+    .viewport
+        .sigils-tab
+        .tabbed-list__body
+        .account-row:not(:hover):not(:focus-within)
+        .sigil-tiers
+        .step-picker__step.is-picked {
+        background: var(--c-well-hover);
     }
 }

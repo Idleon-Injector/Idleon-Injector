@@ -48,6 +48,8 @@ test("API setup retains every endpoint and does not evaluate the game during reg
             "GET /api/config",
             "GET /api/devtools-url",
             "GET /api/game/bundles",
+            "GET /api/game/pet-frames",
+            "GET /api/game/pet-picture",
             "GET /api/heartbeat",
             "GET /api/save-copies",
             "GET /api/search/keys",
@@ -142,6 +144,84 @@ test("game routes preserve Haxe array normalization, batch failures, and write v
         ["readGamePaths", [["Lv0", "missing"]]],
         ["writeGamePaths", [writes]],
     ]);
+});
+
+test("pet pictures come from the game as PNG bytes, one at a time, and are 404 without a game or picture", async () => {
+    const router = new TinyRouter();
+    const calls = [];
+    let running = 0;
+    let overlap = false;
+    const png = Buffer.from("png-bytes");
+    const answers = {
+        0: { value: { png: `data:image/png;base64,${png.toString("base64")}`, width: 2, height: 3, durations: [100] } },
+        1: { value: null }, // the game has no picture
+        2: { error: { text: "ReferenceError: getPetPicture is not defined" } }, // a game without the helper
+    };
+    setupGameRoutes(router, {
+        callHelper: async (name, args) => {
+            calls.push([name, ...args]);
+            overlap ||= running > 0;
+            running++;
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            running--;
+            if (args[0] === 3) throw new Error("game closed");
+            return answers[args[0]];
+        },
+    });
+    const get = (url) => {
+        const response = {
+            statusCode: 200,
+            headers: {},
+            status(code) {
+                this.statusCode = code;
+                return this;
+            },
+            json(value) {
+                this.body = value;
+            },
+            setHeader(name, value) {
+                this.headers[name] = value;
+            },
+            end(bytes) {
+                this.body = bytes;
+            },
+        };
+        return router.routes.GET.get(url.split("?")[0])({ url, headers: { host: "localhost" } }, response).then(
+            () => response
+        );
+    };
+
+    const [still, none, noHelper, closed, bad, frames, noFrames] = await Promise.all([
+        get("/api/game/pet-picture?id=0"),
+        get("/api/game/pet-picture?id=1"),
+        get("/api/game/pet-picture?id=2"),
+        get("/api/game/pet-picture?id=3"),
+        get("/api/game/pet-picture?id=x"),
+        get("/api/game/pet-frames?id=0"),
+        get("/api/game/pet-frames?id=1"),
+    ]);
+    assert.equal(still.statusCode, 200);
+    assert.equal(still.headers["Content-Type"], "image/png");
+    assert.deepEqual(still.body, png);
+    assert.deepEqual(
+        [none, noHelper, closed, bad].map((response) => response.statusCode),
+        [404, 404, 404, 404]
+    );
+    assert.equal(frames.body.width, 2);
+    assert.deepEqual(frames.body.durations, [100]);
+    // The frames route answers null instead, so the page can ask it without a 404 in the browser's console.
+    assert.equal(noFrames.statusCode, 200);
+    assert.equal(noFrames.body, null);
+    // The bad id never reaches the game; the rest go one at a time.
+    assert.deepEqual(calls, [
+        ["getPetPicture", 0, false],
+        ["getPetPicture", 1, false],
+        ["getPetPicture", 2, false],
+        ["getPetPicture", 3, false],
+        ["getPetPicture", 0, true],
+        ["getPetPicture", 1, true],
+    ]);
+    assert.equal(overlap, false);
 });
 
 test("write-many hands the game the character a write is for, and answers its refusal with 409", async () => {

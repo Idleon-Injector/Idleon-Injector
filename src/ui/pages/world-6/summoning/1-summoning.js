@@ -265,6 +265,8 @@ const SummoningTab = () => {
                 name: "Summoning",
                 page: "w6.summoning",
                 tabs: TABS.map((tab) => ({ id: tab.id, label: tab.label, content: parts.get(tab.id).content })),
+                // A tab whose numbers include one without a max has Set all.
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
             })
         ),
     });

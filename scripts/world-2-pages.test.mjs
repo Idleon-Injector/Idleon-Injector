@@ -390,7 +390,7 @@ test("islands: Set all asks before it lowers an upgrade, and an empty field writ
 
     typeInto(input, "200");
     await click(button);
-    assert.equal(trayLabel(root), "Lower 2 trash upgrades to 200?", "lowering asks");
+    assert.equal(trayLabel(root), "Lower 2 trash upgrades to level 200?", "lowering asks");
     assert.equal(writes(), before);
     await yes(root);
     await until(() => ola[163] === 200 && ola[164] === 200, "the answer to lower them");
@@ -802,13 +802,13 @@ test("islands: a row saved while Set all asks changes what gets lowered, so it a
     typeInto(input, "5");
     await until(() => notBusy(button), "Set all to be ready");
     await click(button);
-    assert.equal(trayLabel(root), "Lower 1 trash upgrade to 5?");
+    assert.equal(trayLabel(root), "Lower 1 trash upgrade to level 5?");
     const bottles = rowNamed(root, "Bottles %");
     enter(bottles, 9);
     await until(() => stateOf(bottles) === "success", "the row's save");
     const before = writes();
     await yes(root);
-    assert.equal(trayLabel(root), "Lower 2 trash upgrades to 5?", "it asks again");
+    assert.equal(trayLabel(root), "Lower 2 trash upgrades to level 5?", "it asks again");
     assert.equal(writes(), before, "nothing was written");
     assert.equal(ola[164], 9);
     await yes(root);

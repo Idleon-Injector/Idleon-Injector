@@ -11,6 +11,8 @@ await loadUi(router);
 const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
 const { TabbedList, ListPanel } = await importRepo("src/ui/components/views/account/tabShared.js");
 const { ClampedLevelRow } = await importRepo("src/ui/components/views/account/ClampedLevelRow.js");
+const { SetAllTool } = await importRepo("src/ui/components/views/account/BulkActionBar.js");
+const { ValueTableRow } = await importRepo("src/ui/components/views/account/EditableFieldsRow.js");
 const { AccountSection } = await importRepo("src/ui/components/views/account/components/AccountSection.js");
 const { AccountTabHeader } = await importRepo("src/ui/components/views/account/components/AccountTabHeader.js");
 const { div, span, button, input, select, label } = van.tags;
@@ -248,6 +250,93 @@ test("Bulk tools: a tool that asks, then writes after an await without the answe
     ];
     const node = page("Stamps", ListPanel({ body: level("Heart Stamp"), tools, toolsLabel: () => "All 12 stamps" }));
     assert.deepEqual(await bulkBreaks(node, () => written), [`Bulk tools: "Reset all" wrote before the answer`]);
+});
+
+// The shared Set all on a list's lines, and one drawn by hand that does `press(value, ask, from)` on a press.
+const setAllTool = (lines) => (_, ask) => SetAllTool({ ask, lines, word: (n) => `stamp${n === 1 ? "" : "s"}` });
+const handSetAll = (press) => (_, ask) => {
+    const field = input({ type: "text", placeholder: "Level" });
+    return div(
+        { class: "account-setall-row" },
+        div({ class: "number-input-wrapper" }, field),
+        button({ class: "account-btn btn-quiet", onclick: (e) => press(field.value, ask, e.currentTarget) }, "Set all")
+    );
+};
+const levels = (...caps) => {
+    const rows = caps.map((cap, i) => level(`Stamp ${i}`, cap));
+    return { rows, lines: () => rows.map((row) => ({ row, valueState: { val: 3 }, max: caps[rows.indexOf(row)] })) };
+};
+
+test("Set all: a list with lines without a max needs Set all; a list where every line has a max doesn't", async () => {
+    const mixed = levels(15, null);
+    assert.deepEqual(await bulkBreaks(page("Stamps", ListPanel({ body: mixed.rows })), () => 0), [
+        "Set all: lines without a max but no Set all",
+    ]);
+    const capped = levels(15, 15);
+    assert.deepEqual(await bulkBreaks(page("Stamps", ListPanel({ body: capped.rows })), () => 0), []);
+    const tabbed = TabbedList({
+        name: "Stamps",
+        tabs: [
+            { id: "combat", label: "Combat", content: div(...levels(null, null).rows) },
+            { id: "skills", label: "Skills", content: div(...levels(15, 15).rows) },
+        ],
+    });
+    assert.deepEqual(await bulkBreaks(page("Stamps", tabbed), () => 0), [
+        "Set all: Combat: lines without a max but no Set all",
+    ]);
+});
+
+test("Set all: the shared tool asks before it goes past a max or lowers, and otherwise runs on one press", async () => {
+    const mixed = levels(15, null);
+    const node = page(
+        "Stamps",
+        ListPanel({ body: mixed.rows, tools: setAllTool(mixed.lines), toolsLabel: () => "All 2 stamps" })
+    );
+    assert.deepEqual(await bulkBreaks(node, () => 0), []);
+    const open = levels(null, null);
+    const raising = page(
+        "Stamps",
+        ListPanel({ body: open.rows, tools: setAllTool(open.lines), toolsLabel: () => "All 2 stamps" })
+    );
+    assert.deepEqual(await bulkBreaks(raising, () => 0), []);
+});
+
+test("Set all: one that writes past a max or lowers without asking, or asks when it only raises, is a break", async () => {
+    let written = 0;
+    const mixed = levels(15, null);
+    const writesAtOnce = handSetAll((value) => value !== "" && written++);
+    const node = page("Stamps", ListPanel({ body: mixed.rows, tools: writesAtOnce, toolsLabel: () => "All 2 stamps" }));
+    assert.deepEqual(await bulkBreaks(node, () => written), [
+        "Set all: lowers without asking in the tray",
+        `Set all: goes past a max without asking "Stop at max" or "Go past"`,
+    ]);
+    const open = levels(null, null);
+    const alwaysAsks = handSetAll((_value, ask, from) =>
+        ask({ question: "Set 2 stamps?", confirmLabel: "Set them", from, onConfirm() {} })
+    );
+    const raising = page("Stamps", ListPanel({ body: open.rows, tools: alwaysAsks, toolsLabel: () => "All 2 stamps" }));
+    assert.deepEqual(await bulkBreaks(raising, () => written), [
+        "Set all: an empty field isn't refused",
+        "Set all: asks when nothing goes past a max or down",
+    ]);
+});
+
+test("Set all: in a table, the column its field names counts, so a capped column has to ask too", async () => {
+    let written = 0;
+    const row = (name) =>
+        ValueTableRow({
+            name,
+            info: span({ class: "account-row__name" }, name),
+            fields: [{ key: "level", label: "Level", valueState: van.state(3), paths: [`${name}[0]`], max: 15 }],
+            read: async () => ({ level: 3 }),
+        });
+    const rows = [row("Heart"), row("Mana")];
+    const tools = handSetAll((value) => value !== "" && written++);
+    const node = page("Stamps", ListPanel({ body: rows, tools, toolsLabel: () => "All 2 stamps" }));
+    assert.deepEqual(await bulkBreaks(node, () => written), [
+        "Set all: lowers without asking in the tray",
+        `Set all: goes past a max without asking "Stop at max" or "Go past"`,
+    ]);
 });
 
 test("Clicks: a :focus outline or accent ring is a break; :focus-visible and [data-keyboard] are the keyboard's", () => {

@@ -762,6 +762,8 @@ const SailingTab = () => {
                 ),
                 toolsOn: (id) => Boolean(partOf(id).tools),
                 toolsLabel: (activeId) => partOf(activeId.val).toolsLabel?.() ?? "",
+                // A tab whose numbers include one without a max has Set all.
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
             })
         ),
     });

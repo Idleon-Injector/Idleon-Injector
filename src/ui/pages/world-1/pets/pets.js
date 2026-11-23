@@ -18,7 +18,9 @@ import {
     executeCheatAction,
     fetchCheatStates,
     fetchConfig,
+    fetchPetFrames,
     gga,
+    petPictureUrl,
     readCList,
     readComputed,
     readGgaEntries,
@@ -41,7 +43,7 @@ import {
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span, label, input } = van.tags;
+const { div, span, label, input, img } = van.tags;
 
 const COMPANION_CHEAT = "w1 companion";
 const TOKEN_PATH = "OptionsListAccount[606]";
@@ -163,11 +165,161 @@ const TIERS = [
 ];
 const TIER_RANK = { off: 0, normal: 1, plus: 2 };
 
+// Each pet's idle frames, kept while the menu runs, so a pet hovered again doesn't ask the game twice.
+const petFrames = new Map();
+
+const loadFrames = (id) => {
+    if (!petFrames.has(id)) {
+        const frames = fetchPetFrames(id).then(async (strip) => {
+            if (!strip) throw new Error("No picture");
+            const image = new Image();
+            image.src = strip.png;
+            await image.decode();
+            return { ...strip, image };
+        });
+        // A failed read is asked again on the next hover (the game may be back).
+        frames.catch(() => petFrames.delete(id));
+        petFrames.set(id, frames);
+    }
+    return petFrames.get(id).catch(() => null);
+};
+
+// How big a pet looks: each one is drawn with the area of a PET_SIZE-px square (√(width × height) = PET_SIZE, from its
+// trimmed frame 0), so flat and wide pets look as big as tall ones; the longest side still fits the 56 px box.
+// A tuning dial, set by eye on the real Pets tab: at 42 about one pet in five is held back by the box (wide ones);
+// at 44 it's one in three, and those wide pets start to look bigger than the rest.
+const PET_SIZE = 42;
+
+// The part of a picture the pet fills (alpha above 8), from the menu's own copy of frame 0.
+const trimmedSize = (image) => {
+    const copy = document.createElement("canvas");
+    copy.width = image.naturalWidth;
+    copy.height = image.naturalHeight;
+    const pen = copy.getContext("2d");
+    pen.drawImage(image, 0, 0);
+    const pixels = pen.getImageData(0, 0, copy.width, copy.height).data;
+    let left = copy.width;
+    let top = copy.height;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < copy.height; y++) {
+        for (let x = 0; x < copy.width; x++) {
+            if (pixels[(y * copy.width + x) * 4 + 3] <= 8) continue;
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            bottom = y;
+        }
+    }
+    return right < 0
+        ? { width: copy.width, height: copy.height }
+        : { width: right - left + 1, height: bottom - top + 1 };
+};
+
+/**
+ * One frame of a picture (frame `index` of a strip of `width`-wide frames) drawn at the canvas's size: grown by the
+ * smallest whole step that reaches it with no smoothing, then shrunk smoothly to the exact size, so the pixels stay
+ * crisp at any size.
+ */
+const paintFrame = (canvas, source, index, width, height) => {
+    const step = Math.max(1, Math.ceil(Math.max(canvas.width / width, canvas.height / height)));
+    const grown = document.createElement("canvas");
+    grown.width = width * step;
+    grown.height = height * step;
+    const grow = grown.getContext("2d");
+    grow.imageSmoothingEnabled = false;
+    grow.drawImage(source, index * width, 0, width, height, 0, 0, grown.width, grown.height);
+    const pen = canvas.getContext("2d");
+    pen.imageSmoothingEnabled = true;
+    pen.imageSmoothingQuality = "high";
+    pen.clearRect(0, 0, canvas.width, canvas.height);
+    pen.drawImage(grown, 0, 0, canvas.width, canvas.height);
+};
+
+/**
+ * A pet's picture from the running game, in the same box on every row and at an even size (PET_SIZE). Frame 0 stands
+ * still; `play` loops the pet's idle frames at the same size while the pointer is on its row (never with reduced
+ * motion), `stop` puts frame 0 back. With no picture the box goes away and the row shows the name as it always did.
+ */
+const PetPicture = (id) => {
+    const box = span({ class: "pet-picture", "aria-hidden": "true" });
+    // Loads frame 0 lazily; once it's in, the canvas takes its place.
+    const still = img({ class: "pet-picture__art", src: petPictureUrl(id), alt: "", loading: "lazy" });
+    const canvas = van.tags.canvas({ class: "pet-picture__art" });
+    // The idle frames, each painted once at the pet's size, after the first hover.
+    let painted = null;
+    let timer = 0;
+    let hovered = false;
+
+    still.onload = () => {
+        const { naturalWidth: width, naturalHeight: height } = still;
+        const pet = trimmedSize(still);
+        // The box's side comes from pets.css (read from the style: a tab switched away mid-load has no layout). The
+        // picture holds every idle frame, so it's what has to fit; frame 0's trimmed pet sets the size.
+        const side = parseFloat(getComputedStyle(box).width);
+        const scale = Math.min(PET_SIZE / Math.sqrt(pet.width * pet.height), side / Math.max(width, height));
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.round(width * scale * ratio));
+        canvas.height = Math.max(1, Math.round(height * scale * ratio));
+        box.style.setProperty("--pet-w", `${canvas.width / ratio}px`);
+        box.style.setProperty("--pet-h", `${canvas.height / ratio}px`);
+        paintFrame(canvas, still, 0, width, height);
+        still.replaceWith(canvas);
+    };
+    still.onerror = () => (box.hidden = true);
+    box.append(still);
+    // Refresh asks the game again for a picture that failed (the game may be back); the rest stay as they are.
+    const retry = () => {
+        if (!box.hidden) return;
+        box.hidden = false;
+        still.src = petPictureUrl(id);
+    };
+
+    const show = (frame) => {
+        const pen = canvas.getContext("2d");
+        pen.clearRect(0, 0, canvas.width, canvas.height);
+        pen.drawImage(painted[frame], 0, 0);
+    };
+
+    const play = async () => {
+        hovered = true;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !canvas.isConnected) return;
+        const strip = await loadFrames(id);
+        // Left again while the frames came, already playing, or a pet with one idle frame: it stays still.
+        if (!strip || !hovered || timer || strip.durations.length < 2) return;
+        painted ??= strip.durations.map((_, index) => {
+            const frame = document.createElement("canvas");
+            frame.width = canvas.width;
+            frame.height = canvas.height;
+            paintFrame(frame, strip.image, index, strip.width, strip.height);
+            return frame;
+        });
+        let frame = 0;
+        const next = () => {
+            // A row taken off the page gets no mouseleave: its loop ends here.
+            if (!box.isConnected) return stop();
+            frame = (frame + 1) % painted.length;
+            show(frame);
+            timer = setTimeout(next, strip.durations[frame]);
+        };
+        timer = setTimeout(next, strip.durations[0]);
+    };
+
+    const stop = () => {
+        hovered = false;
+        clearTimeout(timer);
+        timer = 0;
+        if (painted) show(0);
+    };
+
+    return { box, play, stop, retry };
+};
+
 /**
  * One pet: its bonus first (the Pets+ one when that tier applies), its name under it; then whether the game already
  * owns it, its tier, and its token. The row is the pet's only control, so the same row works for clicks and keys.
  */
-const PetRow = ({ companion, tierOf, onTier, isToken, tokenRefused, ownedPet, isBusy, onToken, isShown }) => {
+const PetRow = ({ companion, tierOf, onTier, isToken, tokenRefused, ownedPet, isBusy, onToken, isShown, picture }) => {
     const { id } = companion;
     // Pets+ in the game: picked here, or the game's own Pets+ pet left Off here.
     const isPlusInGame = () => tierOf(id) === "plus" || (ownedPet(id)?.plus && tierOf(id) === "off");
@@ -177,9 +329,13 @@ const PetRow = ({ companion, tierOf, onTier, isToken, tokenRefused, ownedPet, is
         return owned ? (owned.plus ? "Owned · Pets+" : "Owned") : "";
     };
     return AccountRow({
-        rowClass: () => joinClasses("pet-row", !isShown(companion) && "is-filtered-out"),
-        rowProps: { "data-pet-id": String(id) },
+        rowClass: () => joinClasses("pet-row", picture && "pet-row--picture", !isShown(companion) && "is-filtered-out"),
+        // The pet moves while the pointer is on its row, the same moment the row shows its controls.
+        rowProps: picture
+            ? { "data-pet-id": String(id), onmouseenter: picture.play, onmouseleave: picture.stop }
+            : { "data-pet-id": String(id) },
         info: [
+            picture?.box,
             RowTitles({
                 bonus,
                 name: companion.name,
@@ -232,6 +388,8 @@ const CompanionsTab = () => {
     // Pets the game doesn't really have yet stay out of the way until asked for.
     const showUnavailable = van.state(false);
     const tokens = van.state({ owned: 0, missing: [], picks: [], blacklist: [], ownedPets: [] });
+    // Whether the game hands pet pictures over. Without them (no game, a canvas it won't share) rows show names only.
+    let pictures = false;
 
     const isPlus = (id) => plusIds.val.has(id);
     const isToken = (id) => tokens.val.picks.includes(id);
@@ -312,6 +470,14 @@ const CompanionsTab = () => {
 
             companions.val = nextCompanions;
             sections.val = buildSections(nextCompanions, rawSetsInfo);
+            // Asked once before the rows are built, so a row never gains its box later and moves. Pictures that start
+            // working on a Refresh rebuild the rows.
+            const firstPet = nextCompanions.find((companion) => !companion.isUnused);
+            if (!pictures && firstPet && (await fetchPetFrames(firstPet.id).catch(() => null))) {
+                pictures = true;
+                panelKey = "";
+            }
+            pictureOf.forEach((picture) => picture.retry());
 
             tokens.val = await readComputed("companions", "petTokens");
             await readSelection();
@@ -476,6 +642,7 @@ const CompanionsTab = () => {
     const companionsIn = (section) =>
         (section?.ids ?? []).map((id) => companions.val.find((companion) => companion.id === id)).filter(Boolean);
     const rowOf = new Map();
+    const pictureOf = new Map();
     const inView = (pet) => isShown(pet) && shownBySearch(rowOf.get(pet.id));
     const petWord = (n) => `pet${n === 1 ? "" : "s"}`;
 
@@ -599,6 +766,8 @@ const CompanionsTab = () => {
                     content: [
                         columnHead(),
                         ...companionsIn(section).map((companion) => {
+                            const picture = pictures ? PetPicture(companion.id) : null;
+                            if (picture) pictureOf.set(companion.id, picture);
                             const row = PetRow({
                                 companion,
                                 tierOf,
@@ -609,6 +778,7 @@ const CompanionsTab = () => {
                                 isBusy,
                                 onToken: handleToken,
                                 isShown,
+                                picture,
                             });
                             rowOf.set(companion.id, row);
                             return row;

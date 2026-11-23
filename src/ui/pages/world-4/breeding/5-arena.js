@@ -68,6 +68,7 @@ const ArenaTab = () => {
         body: div(
             { class: "account-list account-list--tabbed" },
             ListPanel({
+                setAll: { word: (n) => (n === 1 ? "record" : "records"), placeholder: "Round" },
                 body: RECORDS.map((record, i) =>
                     SimpleNumberRow({
                         entry: {

@@ -30,7 +30,47 @@ async function writeGamePaths(gameBridge, writes, character) {
     return data;
 }
 
+// The game makes one picture at a time, a frame apart: a page asking for many at once (all 177 at once stalls the
+// game for about 0.2 s) costs it a millisecond or two a frame instead.
+const PICTURE_GAP_MS = 16;
+let pictureTurn = Promise.resolve();
+
+/**
+ * A pet's picture from the running game (see getPetPicture), or null: no game, no picture, or a bad id.
+ * Pictures only ever come from the game on the player's PC; nothing is written to disk.
+ */
+function readPetPicture(gameBridge, req, idle) {
+    const id = Number(new URL(req.url, "http://localhost").searchParams.get("id"));
+    if (!Number.isInteger(id) || id < 0) return Promise.resolve(null);
+    const read = pictureTurn.then(async () => {
+        try {
+            const result = await gameBridge.callHelper("getPetPicture", [id, idle]);
+            return result.error ? null : (result.value ?? null);
+        } catch {
+            return null; // the game closed
+        }
+    });
+    pictureTurn = read.then(() => new Promise((resolve) => setTimeout(resolve, PICTURE_GAP_MS)));
+    return read;
+}
+
 function setupGameRoutes(app, gameBridge) {
+    // Frame 0 as a PNG for <img>. The menu falls back to the pet's name on a 404.
+    app.get("/api/game/pet-picture", async (req, res) => {
+        const picture = await readPetPicture(gameBridge, req, false);
+        if (!picture) return res.status(404).json({ error: "No picture" });
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        res.end(Buffer.from(picture.png.slice(picture.png.indexOf(",") + 1), "base64"));
+    });
+
+    // The idle frames in one strip, for the hover animation; null without a game or picture. The menu also asks it
+    // whether pictures work at all, which a 404 would log as an error in the browser.
+    app.get("/api/game/pet-frames", async (req, res) => {
+        res.json(await readPetPicture(gameBridge, req, true));
+    });
+
     app.get("/api/game/bundles", async (req, res) => {
         try {
             const catalogResult = await gameBridge.callHelper("getBundleCatalog");

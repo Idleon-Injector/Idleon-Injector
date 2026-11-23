@@ -100,5 +100,7 @@ export const ClampedLevelRow = ({
         maxAction: resolvedMaxAction,
         renderExtraActions,
         unset,
+        // A line its list's Set all acts on; a level that lives in one place saves with the others in one write.
+        setAll: { min, path: typeof write === "function" ? null : writePath },
     });
 };

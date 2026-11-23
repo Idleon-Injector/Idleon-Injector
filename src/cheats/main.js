@@ -39,6 +39,7 @@ import {
 import { getAutoCompleteSuggestions } from "./api/suggestions.js";
 import { searchGga, getGgaKeys } from "./api/search.js";
 import { getBundleCatalog } from "./helpers/bundles.js";
+import { getPetPicture } from "./helpers/petPictures.js";
 import { monitor } from "./core/valueMonitor.js";
 import { getHookFailures, installEarlyHooks } from "./core/hooks.js";
 // Every hook file in src/cheats/hooks/, found by the build (rollup.config.mjs)
@@ -87,6 +88,7 @@ window.readCheatConfig = readCheatConfig;
 window.getAutoCompleteSuggestions = getAutoCompleteSuggestions;
 window.cheatStateList = getcheatStateList;
 window.getBundleCatalog = getBundleCatalog;
+window.getPetPicture = getPetPicture;
 window.getHookFailures = getHookFailures;
 window.getAutomations = getAutomations;
 

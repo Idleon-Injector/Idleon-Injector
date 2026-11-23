@@ -24,6 +24,36 @@
     max-width: 30rem;
 }
 
+/*
+ * A pet's picture, straight from the running game: the same box on every row, the pet centred in it. No tile and no
+ * frame: the pet stands on the row itself. pets.js paints each pet at an even size, crisp at any scale, and sets
+ * --pet-w / --pet-h.
+ */
+.viewport .pet-row--picture .account-row__info {
+    align-items: center;
+    gap: 12px;
+}
+
+.pet-picture {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    /* Into the row's padding, so a row grows by less than the picture. */
+    margin-block: -4px;
+}
+
+.pet-picture[hidden] {
+    display: none;
+}
+
+.pet-picture__art {
+    width: var(--pet-w);
+    height: var(--pet-h);
+}
+
 .pet-row__state {
     padding-left: 12px;
     font-size: 0.8125rem;
