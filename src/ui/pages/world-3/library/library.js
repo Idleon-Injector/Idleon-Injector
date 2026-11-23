@@ -232,8 +232,10 @@ const LibraryTab = () => {
                         ].join("|")
                     )
                     .join("||"),
-            () =>
-                TabbedList({
+            () => {
+                const isSpecialTab = (tabId) =>
+                    groups.some((group) => String(group.classId) === tabId && group.isSpecial);
+                return TabbedList({
                     // Named for the class, so another class's page doesn't come back on a tab it hasn't got.
                     name: `Library ${activeClassName}`,
                     tabs: groups.map((group) => ({
@@ -258,8 +260,11 @@ const LibraryTab = () => {
                             })
                         ),
                     })),
-                    toolsOn: (tabId) => groups.some((group) => String(group.classId) === tabId && !group.isSpecial),
+                    toolsOn: (tabId) => !isSpecialTab(tabId),
+                    // The special talents have no max: their tab has Set all, and its tray says what that acts on.
+                    setAll: { word: (n) => `talent${n === 1 ? "" : "s"}` },
                     toolsLabel: (activeId) => {
+                        if (isSpecialTab(activeId.val)) return "";
                         const n = booksShown(activeId.val).length;
                         const left = getAvailablePointsState(activeId.val).val;
                         const books = isSearching() ? `${n} matching ${talentWord(n)}` : `All ${n} ${talentWord(n)}`;
@@ -267,7 +272,7 @@ const LibraryTab = () => {
                     },
                     tools: (activeId) =>
                         div(
-                            { class: "tabbed-list__tool-group" },
+                            { class: "tabbed-list__tool-group", hidden: () => isSpecialTab(activeId.val) },
                             ActionButton({
                                 label: "Max books",
                                 status: bulkStatus,
@@ -278,7 +283,8 @@ const LibraryTab = () => {
                                 },
                             })
                         ),
-                })
+                });
+            }
         );
     };
 

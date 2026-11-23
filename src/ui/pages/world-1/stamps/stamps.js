@@ -37,11 +37,10 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { ListPanel, TabbedList } from "../../../components/views/account/tabShared.js";
 import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
+import { SetAllTool } from "../../../components/views/account/BulkActionBar.js";
 import {
     cleanName,
     oneAtATime,
-    resolveNumberInput,
     runBulkSet,
     sortPrefixedNumericCodes,
     useWriteStatus,
@@ -206,8 +205,6 @@ const StampsTab = () => {
     // The open tab's tools. They share one status, so a bulk write runs alone; each reads its tab when pressed, and a
     // question asked on one tab is asked again on another.
     const bulk = useWriteStatus();
-    const setAllInput = van.state("");
-    const typedLevel = () => resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
 
     const pageOf = (activeId) => PAGES.find((p) => p.section === activeId.val);
     // A tab's stamps the tools act on: all of them, or the ones the top bar's search shows.
@@ -225,48 +222,40 @@ const StampsTab = () => {
         const exaltedCodesOn = (p) => codesOn(p).filter((code) => exaltedCodes.val.has(code));
         const exaltedOn = (p) => exaltedCodesOn(p).length;
 
-        const writeLevels = (p, level) =>
-            bulk.run(() =>
+        // A level for all: stamps have no max, so it asks only before it lowers. Each stamp's max level goes with it.
+        const setAllControl = SetAllTool({
+            ask,
+            bulk,
+            lines: () => {
+                const p = page();
+                return stampsOn(p).map((stamp) => ({ p, stamp, row: stamp.row }));
+            },
+            word: (n) => stampWord(page(), n),
+            stateOf: (line) => line.stamp.levelState,
+            maxOf: () => null,
+            write: (plan) =>
                 runBulkSet({
-                    entries: stampsOn(p),
-                    getTargetValue: () => level,
-                    getValueState: (stamp) => stamp.levelState,
-                    getWrites: ({ entry, currentValue, targetValue }) =>
-                        Number(currentValue) === targetValue
+                    entries: plan,
+                    getTargetValue: (step) => step.value,
+                    getValueState: (step) => step.line.stamp.levelState,
+                    getWrites: ({ entry, currentValue, targetValue }) => {
+                        const { p, stamp } = entry.line;
+                        return Number(currentValue) === targetValue
                             ? []
                             : [
-                                  { path: `StampLevel[${p.id}][${entry.order}]`, value: targetValue },
+                                  { path: `StampLevel[${p.id}][${stamp.order}]`, value: targetValue },
                                   {
-                                      path: `StampLevelMAX[${p.id}][${entry.order}]`,
-                                      value: maxLevelFor(entry.step, targetValue),
+                                      path: `StampLevelMAX[${p.id}][${stamp.order}]`,
+                                      value: maxLevelFor(stamp.step, targetValue),
                                   },
-                              ],
-                    applyLocal: (stamp, _, target) => {
-                        stamp.levelState.val = target;
-                        stamp.maxLevelState.val = maxLevelFor(stamp.step, target);
+                              ];
                     },
-                })
-            );
-        // Lowering takes levels away, so it asks first (in the tray); raising runs on one click.
-        const setAll = () => {
-            const level = typedLevel();
-            if (level === null) return refuseSetAll(setAllInput);
-            return askOrWrite(page(), level);
-        };
-        const askOrWrite = (p, level) => {
-            const loweredOf = () => stampsOn(p).filter((stamp) => Number(stamp.levelState.val) > level);
-            const lowered = loweredOf().length;
-            if (!lowered) return writeLevels(p, level);
-            ask({
-                question: `Lower ${lowered} ${stampWord(p, lowered)} to level ${level}?`,
-                confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
-                from: setAllControl.querySelector(".account-btn"),
-                lowers: loweredOf,
-                again: () => askOrWrite(p, level),
-                onConfirm: () => writeLevels(p, level),
-            });
-            return undefined;
-        };
+                    applyLocal: (step, _, target) => {
+                        step.line.stamp.levelState.val = target;
+                        step.line.stamp.maxLevelState.val = maxLevelFor(step.line.stamp.step, target);
+                    },
+                }),
+        });
 
         // Every exalt lives in one list: the tab's codes go in (or out) in one write, in turn with the rows' switches.
         const exaltAll = (exalted) => {
@@ -277,13 +266,6 @@ const StampsTab = () => {
             );
         };
 
-        const setAllControl = SetAllNumberControl({
-            label: "",
-            placeholder: "Level",
-            value: setAllInput,
-            status: bulk.status,
-            onApply: setAll,
-        });
         // Taking exalts away asks first, in the tray; once none is left to take, it does nothing.
         const askUnexalt = (p) => {
             const n = exaltedOn(p);

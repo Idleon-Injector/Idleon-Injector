@@ -4,6 +4,7 @@ import { replay } from "../../inPlace.js";
 import { labelOf, withAction } from "../../../services/changeLog.js";
 import { searchHits } from "../../../menu/pageSearch.js";
 import { tabRequest } from "../../../menu/pageRegistry.js";
+import { SetAllTool, setAllLines, trayLabel } from "./BulkActionBar.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -102,6 +103,8 @@ let listCount = 0;
  *   instead of scrolling sideways
  * @param {{val: string}} [opts.activeId] the open tab's id, when the page shows something of it outside the list (the
  *   stats beside its title)
+ * @param {object} [opts.setAll] the open tab's Set all on its rows (see withSetAll): SetAllTool's options, `word` at
+ *   least; the tray then shows on a tab whose rows need it, and says what it acts on unless `toolsLabel` does
  * @returns {HTMLElement}
  */
 /**
@@ -115,6 +118,24 @@ export const toolsPerTab = (byTab) => (activeId, ask) =>
     Object.entries(byTab).map(([id, tools]) =>
         div({ class: "tabbed-list__tab-tools", hidden: () => activeId.val !== id }, tools(ask))
     );
+
+/**
+ * A list's Set all (TabbedList's and ListPanel's `setAll`): the shared tool on the list's own lines, first in its
+ * tray, shown only where the list has two lines or more and one without a max. `setAll` is SetAllTool's options
+ * without `lines` (`word`, `placeholder`, `bulk`, ...); its `word(n, tabId)` also gets the open tab.
+ */
+const hasSetAll = (lines) => lines.length >= 2 && lines.some((line) => line.max === null);
+const withSetAll = (setAll, linesOf, tools, toolsLabel) => ({
+    tools: (activeId, ask) => {
+        const word = (n) => setAll.word(n, activeId.val);
+        const tool = SetAllTool({ ...setAll, ask, word, lines: () => linesOf(activeId.val) });
+        van.derive(() => (tool.hidden = !hasSetAll(linesOf(activeId.val))));
+        return [tool, ...toNodes(tools?.(activeId, ask))];
+    },
+    // The page's own words where it has them for the open tab; else what Set all acts on.
+    toolsLabel: (activeId) =>
+        toolsLabel?.(activeId) || trayLabel(linesOf(activeId.val).length, (n) => setAll.word(n, activeId.val)),
+});
 
 /**
  * Loads every part of a tabbed page and waits for all of them, so a read that is still running can't land after the
@@ -139,6 +160,7 @@ export const TabbedList = ({
     activeId: sharedId = null,
     wrap = false,
     page = null,
+    setAll = null,
 }) => {
     const activeId = sharedId ?? van.state(tabs[0].id);
     activeId.val = pickedTabs.get(name) ?? activeId.val;
@@ -148,7 +170,9 @@ export const TabbedList = ({
             const asked = tabRequest.val;
             if (asked?.page === page && tabs.some((tab) => tab.id === asked.tab)) activeId.val = asked.tab;
         });
-    const showsTools = () => Boolean(tools) && (!toolsOn || toolsOn(activeId.val));
+    const showsTools = () =>
+        (Boolean(tools) && (!toolsOn || toolsOn(activeId.val))) ||
+        (Boolean(setAll) && hasSetAll(linesOf(activeId.val)));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
     const key = `tabbed-list-${++listCount}`;
     const tabId = (tab) => `${key}-tab-${tabs.indexOf(tab)}`;
@@ -193,7 +217,10 @@ export const TabbedList = ({
     const resized = new ResizeObserver(placePill);
     [nav, ...buttons].forEach((node) => resized.observe(node));
 
-    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId, busy }) : null;
+    // A tab's lines, for its Set all: the rows in its pane.
+    const linesOf = (id) => setAllLines(body.childNodes[tabs.findIndex((tab) => tab.id === id)]);
+    const trayTools = setAll ? withSetAll(setAll, linesOf, tools, toolsLabel) : { tools, toolsLabel };
+    const tray = trayTools.tools ? ToolsTray({ ...trayTools, activeId, busy }) : null;
     if (tray) van.derive(() => (tray.node.hidden = !showsTools()));
 
     let first = true;
@@ -236,31 +263,45 @@ export const TabbedList = ({
 const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
     const asking = van.state(null);
     const questionId = `tabbed-list-question-${++listCount}`;
-    const answer = (yes) => {
+    // `pick`: the answer's run (onConfirm, or the second answer's), or null for Cancel.
+    const answer = (pick) => {
         const question = asking.val;
         if (!question) return;
         asking.val = null;
         // A keyboard player goes back to the button that asked, once it shows again (the next frame).
         if (question.byKeyboard) requestAnimationFrame(() => question.from?.focus({ preventScroll: true }));
-        if (!yes) return;
+        if (!pick) return;
         // A row saved while the question was open can change what the answer takes away: then the tool asks again.
         const now = question.lowers?.();
         const changed =
             now && (now.length !== question.lowered.length || now.some((item, i) => item !== question.lowered[i]));
         // The change is the asking button's: its Undo all comes up beside it.
         withAction({ label: labelOf(question.from), anchor: question.from }, () =>
-            changed ? question.again() : question.onConfirm()
+            changed ? question.again() : pick(question)()
         );
     };
+    // An answer that only raises (Set all's "Stop at max", "Go past") is quiet; one that lowers or takes away is red.
+    const answerClass = (name) => () => `account-btn btn-sm ${asking.val?.quiet ? "btn-quiet" : "btn-danger"} ${name}`;
     const yesButton = button(
         {
             type: "button",
-            class: "account-btn btn-danger btn-sm tabbed-list__yes",
+            class: answerClass("tabbed-list__yes"),
             "aria-describedby": questionId,
             disabled: () => Boolean(busy?.()),
-            onclick: () => answer(true),
+            onclick: () => answer((q) => q.onConfirm),
         },
         () => asking.val?.confirmLabel ?? ""
+    );
+    const otherButton = button(
+        {
+            type: "button",
+            class: answerClass("tabbed-list__other"),
+            "aria-describedby": questionId,
+            hidden: () => !asking.val?.other,
+            disabled: () => Boolean(busy?.()),
+            onclick: () => answer((q) => q.other.onConfirm),
+        },
+        () => asking.val?.other?.label ?? ""
     );
     const noButton = button(
         { type: "button", class: "account-btn btn-quiet btn-sm", onclick: () => answer(false) },
@@ -268,12 +309,33 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
     );
     /** Ask before `onConfirm` runs: `question` ("Lower 30 combat stamps to level 47?"), `confirmLabel` ("Lower
      *  them"), and `from`, the button that asked. `lowers`, when given, lists what the answer takes away (ids or
-     *  rows); if that list is different when Yes is pressed, `again` runs instead of `onConfirm`, to ask again. */
-    const ask = ({ question, confirmLabel, from, onConfirm, lowers = null, again = null }) => {
+     *  rows); if that list is different when an answer is pressed, `again` runs instead, to ask again. `other`
+     *  ({ label, onConfirm }) is a second answer beside the first; `quiet` says neither answer lowers anything. */
+    const ask = ({
+        question,
+        confirmLabel,
+        from,
+        onConfirm,
+        lowers = null,
+        again = null,
+        other = null,
+        quiet = false,
+    }) => {
         // Pressed from the keyboard, the asking button holds focus: the answer takes it. A click leaves focus alone,
         // so nothing is ringed that the pointer didn't touch.
         const byKeyboard = document.activeElement === from;
-        asking.val = { question, confirmLabel, from, onConfirm, lowers, again, lowered: lowers?.(), byKeyboard };
+        asking.val = {
+            question,
+            confirmLabel,
+            from,
+            onConfirm,
+            lowers,
+            again,
+            other,
+            quiet,
+            lowered: lowers?.(),
+            byKeyboard,
+        };
         if (byKeyboard) requestAnimationFrame(() => yesButton.focus({ preventScroll: true }));
     };
     van.derive(() => {
@@ -290,7 +352,12 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
             { class: "tabbed-list__tools-row", "data-undo-at-end": "", hidden: () => !!asking.val },
             ...toNodes(tools(activeId, ask))
         ),
-        div({ class: "tabbed-list__tools-row tabbed-list__answer", hidden: () => !asking.val }, yesButton, noButton)
+        div(
+            { class: "tabbed-list__tools-row tabbed-list__answer", hidden: () => !asking.val },
+            yesButton,
+            otherButton,
+            noButton
+        )
     );
     // Escape drops the question wherever focus is (a click on a tool left it outside the tray), but only on the page
     // showing: a page left open in the background keeps its question, and leaves Escape to the one on screen.
@@ -311,14 +378,17 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
  * @param {(activeId: *, ask: Function) => *} [opts.tools]
  * @param {() => string} [opts.toolsLabel]
  * @param {string} [opts.className]
+ * @param {object} [opts.setAll] Set all on the list's rows, as TabbedList's
  * @returns {HTMLElement}
  */
-export const ListPanel = ({ body, tools = null, toolsLabel = null, className = "" }) => {
-    const tray = tools ? ToolsTray({ tools, toolsLabel, activeId: van.state("") }) : null;
+export const ListPanel = ({ body, tools = null, toolsLabel = null, className = "", setAll = null }) => {
+    const rows = div({ class: "tabbed-list__body" }, ...toNodes(body));
+    const trayTools = setAll ? withSetAll(setAll, () => setAllLines(rows), tools, toolsLabel) : { tools, toolsLabel };
+    const tray = trayTools.tools ? ToolsTray({ ...trayTools, activeId: van.state("") }) : null;
     return div(
-        { class: joinClasses("tabbed-list no-tabs", tools && "has-tools", className) },
+        { class: joinClasses("tabbed-list no-tabs", trayTools.tools && "has-tools", className) },
         tray ? div({ class: "tabbed-list__head" }, tray.node) : null,
-        div({ class: "tabbed-list__body" }, ...toNodes(body))
+        rows
     );
 };
 

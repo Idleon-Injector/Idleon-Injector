@@ -522,6 +522,7 @@ const CavernsTab = () => {
                 name: "Caverns",
                 page: "w5.hole.caverns",
                 wrap: true,
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
                 tabs: CAVERNS.map((cavern, i) => ({
                     id: cavern.id,
                     label: cavern.label,

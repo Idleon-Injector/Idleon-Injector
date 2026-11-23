@@ -20,10 +20,17 @@ A world joins the checks when its pages move to the shared pieces (`ON_STANDARDS
 more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list only shrinks.
 
 - **Max:** every line whose value has a cap ("2 / 15") has a Max button, and only those; a line without a cap in the
-  same list keeps Max's room empty (`field-columns`), so the fields line up. The shared rows do both. _test, shots_
+  same list keeps Max's room empty (`field-columns`), so the fields line up. The shared rows do both. A table's line
+  (several values under column names: Statues, Pay 2 Win's cauldrons, Tesseract's map kills) has no Max of its own,
+  even where a value is capped: the tray's Max all and Set all cover tables. _test, shots_
 - **Bulk tools:** Max all and tools that only raise run on one press, and Max all also lowers a value above the max. A
-  tool that lowers or takes away asks first, in the tray or in place, never in a popup; Set all asks only when it
-  lowers. _test (takers ask, Max all doesn't); each page's tests (lowering, Set all)_
+  tool that lowers or takes away asks first, in the tray or in place, never in a popup. _test (takers ask, Max all
+  doesn't); each page's tests (lowering)_
+- **Set all:** every list with a line without a max has Set all in its tray (`SetAllTool`, the one tool all pages
+  use); a list where every line has a max keeps only Max all. The typed number goes to every line. When some line's
+  max is lower, the tray asks first, "Stop at max" or "Go past"; when the number would lower a line, it asks first
+  too, and one question covers both. Otherwise it runs on one press; an empty field is refused, never written as 0. A
+  table's capped column counts as a capped line. _test_
 - **Automation:** every Automation page is its own sidebar entry under its system (`tab: "Automation"`, as Alchemy and
   Cooking have it), never a tab. _test_
 - **Tabs:** only for a system's own game screens and groups; a tab never holds tabs, its parts are headed groups.

@@ -188,6 +188,8 @@ const TomeEditableRow = ({ entry, valueState }) =>
         adjustInput: (rawValue, delta, currentValue) => adjustFormattedIntInput(rawValue, delta, currentValue ?? 0),
         inputMode: "float",
         inputProps: { formatter: largeFormatter, parser: largeParser },
+        // Its write takes the value as the field shows it, so Set all saves through it.
+        setAll: {},
     });
 
 // A record only the game counts: its value as plain text where a field would be.
@@ -234,7 +236,11 @@ const TomeTab = () => {
         initialWrapperClass: "account-list",
         body: div(
             { class: "account-list account-list--tabbed" },
-            ListPanel({ className: "field-columns tome-list", body: listNode })
+            ListPanel({
+                setAll: { word: (n) => (n === 1 ? "record" : "records"), placeholder: "Value" },
+                className: "field-columns tome-list",
+                body: listNode,
+            })
         ),
     });
 };

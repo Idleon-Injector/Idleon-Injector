@@ -74,6 +74,8 @@ const AnvilRow = ({ category, valueState, getCharacter, onWriteApplied }) =>
         },
         maxAction: category.max !== null ? { value: category.max } : null,
         resetAction: category.max === null ? {} : null,
+        // Set all saves through the row's own write: the character in play's, then the points left read again.
+        setAll: {},
     });
 
 const AnvilTab = () => {
@@ -146,6 +148,7 @@ const AnvilTab = () => {
         { class: "account-list account-list--tabbed" },
         ListPanel({
             className: "field-columns",
+            setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value", askedFor: getCharacter },
             body: [
                 AccountSection({ title: "Points", body: rows(true) }),
                 AccountSection({ title: "Spent on", body: rows(false) }),

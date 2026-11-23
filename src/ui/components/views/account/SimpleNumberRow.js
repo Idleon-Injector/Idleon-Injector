@@ -77,5 +77,6 @@ export const SimpleNumberRow = ({ entry, valueState, renderExtraActions = null }
         controlsClass: entry.controlsClass ?? "account-row__controls--xl",
         inputMode: entry.inputMode ?? (float ? "float" : "int"),
         inputProps: formatted ? { formatter: largeFormatter, parser: largeParser } : {},
+        setAll: { min, path: entry.path },
     });
 };

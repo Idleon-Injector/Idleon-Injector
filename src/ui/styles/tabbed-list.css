@@ -391,12 +391,16 @@
     border-radius: 10px;
     background: var(--c-panel-dim);
 }
-.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.tabbed-list__yes {
+.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.btn-danger {
     background: rgba(255, 138, 128, 0.14);
     color: var(--c-danger-soft-text);
 }
-.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.tabbed-list__yes:hover {
+.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.btn-danger:hover {
     background: rgba(255, 138, 128, 0.24);
+}
+/* An answer that only raises (Set all's "Stop at max" and "Go past") reads in the main text; Cancel stays muted. */
+.viewport .tabbed-list__tools .tabbed-list__answer .account-btn.btn-quiet:not(:last-child) {
+    color: var(--c-text-main);
 }
 .viewport .tabbed-list__tools .tabbed-list__answer .account-btn.btn-quiet:hover {
     background: var(--c-well-hover);

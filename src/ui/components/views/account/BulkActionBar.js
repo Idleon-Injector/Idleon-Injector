@@ -2,9 +2,11 @@ import van from "../../../vendor/van-1.6.0.js";
 import { NumberInput } from "../../NumberInput.js";
 import { ActionButton } from "./components/ActionButton.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
-import { resolveNumberInput, resolveValue, toNodes } from "./accountShared.js";
+import { resolveNumberInput, resolveValue, runBulkSet, toNodes, useWriteStatus } from "./accountShared.js";
+import { linesIn } from "./EditableNumberRow.js";
 import { announce, replay } from "../../inPlace.js";
 import { hideTooltip, showTooltip } from "../../Tooltip.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 
 const { div, span, select, option } = van.tags;
 
@@ -140,3 +142,130 @@ export const SetAllSelectControl = ({
         ),
         SetAllApplyButton({ label: applyLabel, status, onApply, confirm })
     );
+
+/** What a list's tray says it acts on: "All 30 combat stamps", or "3 matching combat stamps" while the top bar searches. */
+export const trayLabel = (n, word) => (isSearching() ? `${n} matching ${word(n)}` : `All ${n} ${word(n)}`);
+
+/** The lines in a list (a tab's pane, a ListPanel's rows) that Set all acts on: the ones the top bar's search shows. */
+export const setAllLines = (container) => linesIn(container, shownBySearch);
+
+/**
+ * Set all (DESIGN.md's Page standards), the one tool every list with a line without a max has: the number typed in its
+ * field goes to every line. A line without a max gets it, and so does a line whose max is that number or more. When a
+ * line's max is lower, the tray asks first: "Stop at max" (those lines get their max) or "Go past" (they get the
+ * number too). When the number would lower a line, it asks first too; both in one question. Otherwise it runs on one
+ * press. An empty field is refused, never written as 0.
+ *
+ * @param {object} opts
+ * @param {Function} opts.ask the tray's question (TabbedList, ListPanel)
+ * @param {() => Array} opts.lines the lines it acts on now: `setAllLines(pane)`, or the page's own
+ * @param {(n: number) => string} opts.word what the lines are, for the question ("combat stamps")
+ * @param {(plan: {line: *, value: number}[]) => Promise} [opts.write] writes the plan; by default each line's
+ *   `path` in one write, or its own `write` when it has none
+ * @param {object} [opts.bulk] the page's useWriteStatus, when its other tools share it (a bulk write runs alone)
+ * @param {(line: *) => {val: *}} [opts.stateOf] a line's value state
+ * @param {(line: *) => number|null} [opts.maxOf] a line's max, null for none
+ * @param {(result: object) => void} [opts.onDone] called with how the write went (useWriteStatus' run result)
+ * @param {() => *} [opts.askedFor] what else the question is about (the character in play): when it differs at the
+ *   answer, the tool asks again
+ */
+export const SetAllTool = ({
+    ask,
+    lines,
+    word,
+    write = null,
+    bulk = useWriteStatus(),
+    placeholder = "Level",
+    disabled = false,
+    stateOf = (line) => line.valueState,
+    maxOf = (line) => line.max,
+    minOf = (line) => line.min ?? 0,
+    askedFor = () => null,
+    onDone = null,
+}) => {
+    const typed = van.state("");
+    const maxUnder = (line, n) => {
+        const max = maxOf(line);
+        return max !== null && max !== undefined && Number.isFinite(Number(max)) && Number(max) < n;
+    };
+    const targetOf = (line, n, stop) => Math.max(minOf(line), stop && maxUnder(line, n) ? Number(maxOf(line)) : n);
+
+    // Each line's path in one write; a line without one saves through its own row's write, one after another.
+    const writeLines = async (plan) => {
+        await runBulkSet({
+            entries: plan.filter(({ line }) => line.path),
+            getTargetValue: (step) => step.value,
+            getValueState: (step) => stateOf(step.line),
+            getPath: (step) => step.line.path,
+        });
+        let failed = null;
+        for (const { line, value } of plan.filter((step) => !step.line.path)) {
+            const state = stateOf(line);
+            if (Number(state.val) === value) continue;
+            const before = state.val;
+            try {
+                const verified = await line.write(value);
+                // A row saved meanwhile keeps what it saved.
+                if (!verified?.cancelled && state.val === before) state.val = verified;
+            } catch (error) {
+                failed ??= error;
+            }
+        }
+        if (failed) throw failed;
+    };
+    const run = (all, n, stop) => async () => {
+        const result = await bulk.run(() =>
+            (write ?? writeLines)(all.map((line) => ({ line, value: targetOf(line, n, stop) })))
+        );
+        onDone?.(result);
+        return result;
+    };
+
+    const askOrWrite = (n) => {
+        const all = lines();
+        const keyOf = (line) => line.row ?? line;
+        const over = () => all.filter((line) => maxUnder(line, n));
+        const lowered = () => all.filter((line) => Number(stateOf(line).val) > targetOf(line, n, false));
+        const o = over().length;
+        const l = lowered().length;
+        if (!o && !l) return run(all, n, false)();
+        const number = n.toLocaleString("en-US");
+        const asked = {
+            from: button(),
+            lowers: () => [askedFor(), ...over().map(keyOf), ...lowered().map(keyOf)],
+            again: () => askOrWrite(n),
+        };
+        if (!o)
+            return ask({
+                ...asked,
+                question: `Lower ${l} ${word(l)} to ${placeholder === "Level" ? `level ${number}` : number}?`,
+                confirmLabel: l === 1 ? "Lower it" : "Lower them",
+                onConfirm: run(all, n, false),
+            });
+        // Some lines stop at a lower max: one question says that, and what goes down, and asks which way.
+        return ask({
+            ...asked,
+            question: `${o} ${word(o)} ${o === 1 ? "has" : "have"} a max under ${number}.${
+                l ? ` ${l} ${l === 1 ? "goes" : "go"} down.` : ""
+            }`,
+            confirmLabel: "Stop at max",
+            onConfirm: run(all, n, true),
+            other: { label: "Go past", onConfirm: run(all, n, false) },
+            quiet: !l,
+        });
+    };
+
+    const control = SetAllNumberControl({
+        label: "",
+        placeholder,
+        value: typed,
+        status: bulk.status,
+        disabled,
+        onApply: () => {
+            const n = resolveNumberInput(typed.val, { min: 0, fallback: null });
+            return n === null ? refuseSetAll(typed) : askOrWrite(n);
+        },
+    });
+    const button = () => [...control.childNodes].find((node) => node.nodeName?.toLowerCase() === "button");
+    return control;
+};

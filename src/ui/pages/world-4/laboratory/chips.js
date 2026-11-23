@@ -205,6 +205,7 @@ const ChipsTab = () => {
         body: div(
             { class: "account-list account-list--tabbed" },
             ListPanel({
+                setAll: { word: (n) => (n === 1 ? "chip" : "chips"), placeholder: "Amount" },
                 className: "field-columns",
                 body: [
                     AccountSection({ title: "Slots", body: slotNode }),

@@ -20,7 +20,7 @@ import { StateSwitch } from "../../../components/views/account/components/StateS
 import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
-import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
+import { SetAllTool } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
@@ -31,7 +31,6 @@ import {
     largeFormatter,
     readCharacterInPlay,
     resolveFormattedIntInput,
-    resolveNumberInput,
     runBulkSet,
     toInt,
     useWriteStatus,
@@ -308,7 +307,6 @@ const StatuesTab = () => {
 
     // The tray's tools act on the statues shown. They share one status, so a bulk write runs alone; lowering asks first.
     const bulk = useWriteStatus();
-    const setAllInput = van.state("");
     const statueWord = (n) => `statue${n === 1 ? "" : "s"}`;
     const writeAll = (pathOf, states, target) =>
         bulk.run(() =>
@@ -342,21 +340,25 @@ const StatuesTab = () => {
             });
         };
 
-        const levelControl = SetAllNumberControl({
-            label: "",
-            placeholder: "Level",
-            value: setAllInput,
-            status: bulk.status,
-            onApply: () => {
-                const level = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
-                if (level === null) return refuseSetAll(setAllInput);
-                return askOrRun({
-                    lowered: () => above(levelStates, level),
-                    question: (n) => `Lower ${n} ${statueWord(n)} to level ${level}?`,
-                    from: levelControl.querySelector(".account-btn"),
-                    change: () => writeAll((index) => `StatueLevels[${index}][0]`, levelStates, level),
-                });
-            },
+        // Statue levels have no max, so Set all asks only before it lowers.
+        const levelControl = SetAllTool({
+            ask,
+            bulk,
+            lines: shownIndices,
+            word: statueWord,
+            stateOf: (index) => levelStates.get(index),
+            maxOf: () => null,
+            askedFor: () => character,
+            write: (plan) =>
+                runBulkSet({
+                    // StatueLevels is the character in play's own, as in a row's save.
+                    character: getCharacter(),
+                    shownCharacter: () => character,
+                    entries: plan,
+                    getTargetValue: (step) => step.value,
+                    getValueState: (step) => levelStates.get(step.line),
+                    getPath: (step) => `StatueLevels[${step.line}][0]`,
+                }),
         });
 
         const tierButtons = TIERS.map((tier) => {
