@@ -437,3 +437,5 @@ World 6 uses the World 5 pieces and the Page standards; a few grew, and are now 
 - **A row's own question** (Emperor's Reset) puts its answer beside the row's name and keeps the button's room, so
   nothing moves while it asks.
 - **Names keep the game's short words:** a tier's Roman numeral (Sproutluck III), GMO and OG.
+- **World 6's five systems have their drawings** (Lumi: "put all five in"): a sprout for Farming, a ninja's hooded
+  head for Sneaking, a slime familiar for Summoning, the beanstalk, and the Emperor's crown.
