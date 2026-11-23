@@ -36,10 +36,13 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
 - **Search:** old page names stay as search words; the tabs a page declares (`tabs` in `definePage`) are its real tabs;
   a limited gem shop buy sits in a quiet "Gem shop" group on its system's page, found by "gem shop", "limited" and
   "fomo". _test (tabs, gem shop words), review (old names)_
+- **Fields:** a value is typed into the shared field (`NumberInput`, through the shared rows), never one drawn by
+  hand, so its cap, Max, − / + and saving come with it. _test_
 - **Picks:** a pick out of a list opens in place (`PickInPlace`), never a dropdown. _test_
 - **Layout:** down a list the fields, switches, a table's columns and opening rows' arrows each line up; − / + sit
   inside their field and a field inside its column; nothing lies over a control or a name; nothing moves when a row's
-  controls show; nothing scrolls sideways at 400 px. _shots_
+  controls show; nothing scrolls sideways at 400 px. _shots; a PR fails its summary check on a break on a page it
+  touches, and the summary comment names each one_
 - **Saving:** on Enter or on leaving the field, said by the row's `SaveState`; no Set or Save buttons. _test_
 - **Feedback:** no toasts and no `confirm()` popup; no "Coming soon"; no hover popup explains a row's button; no
   outline or ring left after a click (`:focus-visible` only). _test, no-toasts test_

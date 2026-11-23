@@ -28,9 +28,9 @@ export const ON_STANDARDS = [
  * on any other break, and on one listed here that is gone, so the list only shrinks. New pages never go on it.
  */
 export const KNOWN_BREAKS = {
-    // Liquid and Pay 2 Win stacked as two pages, each with its own title and Refresh.
+    // #236: Liquid and Pay 2 Win stacked as two pages, each with its own title and Refresh.
     "world-2/alchemy/2-cauldrons.js": [`Title: the page says "Liquid", its sidebar entry "Cauldrons"`],
-    // The characters' skins are native dropdowns.
+    // #236: the characters' skins are native dropdowns.
     "world-2/weekly-bosses/weekly-bosses.js": ["Picks: a dropdown; pick in place (PickInPlace)"],
 };
 
@@ -230,6 +230,22 @@ export function pageBreaks(node, page, title) {
             (el) => el.nodeName === "button" && el.handlers?.mouseenter?.length && !has(el, "save-state__undo")
         ))
             breaks.push(`Buttons: "${words(button)}" on "${rowName(row)}" explains itself in a hover popup`);
+
+    // Fields: a value is typed into the shared field (NumberInput, which EditableNumberRow, ClampedLevelRow and the
+    // tables use), so its cap, Max, − / + and saving come with it. A field drawn by hand drops out of all of them.
+    const within = (el, name) => {
+        for (let at = el.parentNode; at && at !== node; at = at.parentNode) if (has(at, name)) return true;
+        return false;
+    };
+    for (const field of elements(node).filter(
+        (el) => el.nodeName === "input" && !["checkbox", "radio", "hidden"].includes(attr(el, "type"))
+    ))
+        if (!within(field, "number-input-wrapper") && !within(field, "pick-in-place")) {
+            const row = rows.find((r) => elements(r).includes(field));
+            breaks.push(
+                `Fields: ${row ? `"${rowName(row)}" has` : "the page has"} a field drawn by hand; use NumberInput`
+            );
+        }
 
     // Picks: a pick out of a list opens in place (PickInPlace), never a dropdown.
     if (elements(node).some((el) => el.nodeName === "select"))

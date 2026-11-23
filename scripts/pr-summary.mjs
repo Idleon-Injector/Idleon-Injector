@@ -4,8 +4,11 @@
  *   node scripts/pr-summary.mjs collect [--base REF] [--out DIR] [--shots]
  *       Stage 1 (the summary job in check.yml: the PR's code, a read-only token). Compares HEAD with its merge base
  *       with REF (default HEAD^1, which is master in a pull_request merge commit) and writes DIR/summary.json: the
- *       pages, hooks and game names the PR touches. --shots also screenshots the touched pages' areas into DIR/shots.
- *       PR_NUMBER and HEAD_SHA name the PR.
+ *       pages, hooks and game names the PR touches. --shots also screenshots the touched pages into DIR/shots and
+ *       adds the layout rules they break (DESIGN.md's Page standards, page-shots/layout.mjs). PR_NUMBER and HEAD_SHA
+ *       name the PR.
+ *   node scripts/pr-summary.mjs gate DIR
+ *       Stage 1, after the artifacts are uploaded: fails when a touched page breaks a layout rule, naming each break.
  *   node scripts/pr-summary.mjs post DIR
  *       Stage 2 (pr-summary.yml: master's code, can comment). DIR/summary.json is untrusted: it is size-capped,
  *       validated and matched against the workflow run that made it. The kind and rules come from the API, not from
@@ -24,7 +27,7 @@ import { checkPr, githubApi, readCorePaths } from "./pr-rules.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export const MARKER = "<!-- pr-summary -->";
-export const LIMITS = { bytes: 64 * 1024, pages: 100, hooks: 200, names: 300 };
+export const LIMITS = { bytes: 64 * 1024, pages: 100, hooks: 200, names: 300, layout: 50, line: 300 };
 const CHANGES = ["new", "changed", "removed"];
 const ID = /^(?=.{1,300}$)[\w.$-]+(?:, ?[\w.$-]+)*$/;
 const MEMBER = /^[\w$]{0,80}$/;
@@ -109,7 +112,6 @@ export function summaryData({ pr, headSha, files, head, base, pageTexts, namesHe
             hooks: hooks.slice(0, LIMITS.hooks),
             names: names.slice(0, LIMITS.names),
         },
-        areas: [...new Set(folders.map((folder) => folder.split("/")[3]))],
     };
 }
 
@@ -146,13 +148,35 @@ export function validateSummary(text, run) {
         list(d.names, LIMITS.names, (n) => typeof n === "string" && NAME.test(n)),
         "names isn't a list of game names"
     );
+    // A break carries the page's own words (a row's name), so it shows only in a code span, its backticks taken out.
+    need(
+        d.layout === undefined ||
+            d.layout === null ||
+            list(d.layout, LIMITS.layout, (b) => typeof b === "string" && b.length <= LIMITS.line && !/[\r\n]/.test(b)),
+        "layout isn't a list of layout breaks"
+    );
     return {
         pr: d.pr,
         headSha: d.headSha,
         pages: [...d.pages],
         hooks: d.hooks.map(({ id, on, change }) => ({ id, on, change })),
         names: [...d.names],
+        layout: d.layout ? d.layout.map((b) => b.replace(/`/g, "'")) : null,
     };
+}
+
+/**
+ * The layout breaks in a page-shots report.json (DESIGN.md's Page standards, page-shots/layout.mjs), each after its
+ * shot's name: every layout rule broken, said once when it holds at rest and with the controls showing, and every box
+ * too wide for the window.
+ */
+export function layoutOf(report) {
+    const breaks = (report.shots ?? []).flatMap((shot) => {
+        const rules = (shot.layout ?? []).map((b) => b.replace(/ \((at rest|controls showing)\)$/, ""));
+        const wide = (shot.overflow?.boxes ?? []).map(({ box, by }) => `${box} is ${by}px too wide for the window`);
+        return [...new Set([...rules, ...wide])].map((b) => `${shot.name}: ${b}`);
+    });
+    return breaks.slice(0, LIMITS.layout).map((b) => b.slice(0, LIMITS.line));
 }
 
 // The PR the artifact names must be the one the run was for: same head commit, from the same repository.
@@ -183,6 +207,15 @@ export function renderComment({ data, rules, check, runUrl, shotsUrl }) {
         `- Game names it newly uses: ${items(data.names)}.`,
     ];
     if (data.pages.length) {
+        const layout = data.layout;
+        const count = `${layout?.length === LIMITS.layout ? "at least " : ""}${layout?.length}`;
+        if (!layout) lines.push("- Layout of the touched pages: not measured, see the run.");
+        else if (!layout.length) lines.push("- Layout of the touched pages: follows the page standards.");
+        else
+            lines.push(
+                `- Layout of the touched pages: ${count} break${layout.length === 1 ? "" : "s"} of the page standards:`,
+                ...layout.map((b) => `  - \`${b}\``)
+            );
         lines.push(
             shotsUrl
                 ? `- Screenshots of the touched pages: [page-shots](${shotsUrl}) (a zip; GitHub asks you to sign in).`
@@ -238,7 +271,7 @@ function collect({ base: baseRef, out, shots }) {
                       .filter((f) => f.endsWith(".js"))
                       .map((f) => fs.readFileSync(path.join(root, folder, f), "utf8"))
                 : [];
-        const { data, areas } = summaryData({
+        const { data } = summaryData({
             pr: Number(process.env.PR_NUMBER ?? 0),
             headSha: process.env.HEAD_SHA ?? git("rev-parse", "HEAD").trim(),
             files,
@@ -248,16 +281,21 @@ function collect({ base: baseRef, out, shots }) {
             namesHead: collectNames(root),
             namesBase: collectNames(baseDir),
         });
+        // The touched pages' shots, and the layout rules they break. A flagged run still leaves its report; one that
+        // didn't finish leaves none, and the layout stays unmeasured (null).
+        data.layout = null;
+        if (shots && data.pages.length) {
+            const dir = path.join(out, "shots");
+            const shoot = path.join(root, "scripts/page-shots/shoot.mjs");
+            spawnSync(process.execPath, [shoot, `--pages=${data.pages.join(",")}`, `--out=${dir}`], {
+                stdio: "inherit",
+            });
+            const report = path.join(dir, "report.json");
+            if (fs.existsSync(report)) data.layout = layoutOf(JSON.parse(fs.readFileSync(report, "utf8")));
+        }
         fs.mkdirSync(out, { recursive: true });
         fs.writeFileSync(path.join(out, "summary.json"), JSON.stringify(data, null, 2));
         console.log(JSON.stringify(data, null, 2));
-        // A flagged or failed screenshot run still leaves the shots it took; the summary doesn't depend on it.
-        for (const area of shots ? areas : []) {
-            const shoot = path.join(root, "scripts/page-shots/shoot.mjs");
-            spawnSync(process.execPath, [shoot, `--only=${area}`, `--out=${path.join(out, "shots", area)}`], {
-                stdio: "inherit",
-            });
-        }
     } finally {
         git("worktree", "remove", "--force", baseDir);
     }
@@ -274,7 +312,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     });
     const [command, dir] = positionals;
     if (command === "collect") collect(values);
-    else if (command === "post") {
+    else if (command === "gate") {
+        const { layout } = JSON.parse(fs.readFileSync(path.join(dir, "summary.json"), "utf8"));
+        if (layout?.length) {
+            console.error(
+                `The touched pages break the page standards' layout rules (DESIGN.md):\n${layout.join("\n")}`
+            );
+            process.exitCode = 1;
+        } else console.log(layout ? "The touched pages follow the layout rules." : "No touched page was measured.");
+    } else if (command === "post") {
         const run = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8")).workflow_run;
         const repo = process.env.GITHUB_REPOSITORY;
         const result = await post({
@@ -286,7 +332,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         });
         console.log(result.posted ? result.body : `Not posting: ${result.reason}`);
     } else {
-        console.error("usage: node scripts/pr-summary.mjs collect [--base REF] [--out DIR] [--shots] | post DIR");
+        console.error(
+            "usage: node scripts/pr-summary.mjs collect [--base REF] [--out DIR] [--shots] | gate DIR | post DIR"
+        );
         process.exitCode = 2;
     }
 }

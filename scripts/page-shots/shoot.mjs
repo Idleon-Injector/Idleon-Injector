@@ -6,6 +6,7 @@
  *   npm run page-shots                      run, compare with the baseline, print the flagged shots
  *   npm run page-shots -- --update-baseline  then make this run the new baseline (after the release check)
  *   npm run page-shots -- --only world-1     only the areas whose name contains "world-1"
+ *   npm run page-shots -- --pages w1.anvil,w5.gaming   only these pages (a PR's summary shoots the pages it touches)
  *
  * Screenshots go to .scratch/page-shots/current (with report.json and, for changed shots, a diff image);
  * the baseline is .scratch/page-shots/baseline. Both stay outside git. Needs Chrome, Edge or Chromium
@@ -52,6 +53,7 @@ const { values: args } = parseArgs({
         baseline: { type: "string", default: join(root, ".scratch/page-shots/baseline") },
         "update-baseline": { type: "boolean", default: false },
         only: { type: "string" },
+        pages: { type: "string" },
         threshold: { type: "string", default: String(DIFF_THRESHOLD) },
     },
 });
@@ -223,6 +225,7 @@ async function listPngs(dir) {
 async function main() {
     if (args.only && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --only.");
     const threshold = Number(args.threshold);
+    const picked = args.pages ? new Set(args.pages.split(",").map((id) => id.trim())) : null;
     if (!(threshold >= 0 && threshold < 1)) throw new Error("--threshold is a share of pixels, like 0.001.");
     const api = await startFakeApi();
     const { client, close } = await launchBrowser();
@@ -319,7 +322,10 @@ async function main() {
                 { name: "devtools", open: { view: "DEVTOOLS" } },
                 { name: "account-options", open: { view: "ACCOUNT_OPTIONS" } },
                 ...worlds,
-            ].filter((area) => !args.only || area.name.includes(args.only));
+            ]
+                .filter((area) => !args.only || area.name.includes(args.only))
+                .map((area) => (picked ? { ...area, pages: (area.pages ?? []).filter((p) => picked.has(p.id)) } : area))
+                .filter((area) => !picked || area.pages.length);
 
             const shoot = async (path) => {
                 let name = `${width}/${path.join("/")}`;

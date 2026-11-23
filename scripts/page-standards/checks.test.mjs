@@ -147,6 +147,23 @@ test("Saving: a field without a save state, and a Save button, are breaks", () =
     ]);
 });
 
+test("Fields: a field drawn by hand is a break, so a page can't leave the shared field (and its Max) out", () => {
+    const capped = div({ class: "number-input-wrapper number-input-wrapper--capped" }, input({ type: "text" }));
+    const node = page(
+        "Stamps",
+        ListPanel({
+            body: [
+                level("Heart Stamp"),
+                line("Book Stamp", input({ type: "text", value: "3 / 15" })),
+                line("Mana Stamp", capped),
+            ],
+        })
+    );
+    assert.deepEqual(only(breaksOf(node), "Fields"), [
+        `Fields: "Book Stamp" has a field drawn by hand; use NumberInput`,
+    ]);
+});
+
 test("Buttons, Picks and Feedback: a hover popup on a row button, a dropdown and 'Coming soon' are breaks", () => {
     const explained = button("Relock");
     explained.addEventListener("mouseenter", () => {});
