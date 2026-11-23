@@ -14,9 +14,11 @@ import {
     LIVE_TO_SAVED,
     SAVED_TO_LIVE,
     changesVersion,
+    isPracticeAction,
     parseSavedPath,
     reloadPlace,
     rootKey,
+    undoPractice,
 } from "../../../services/changeLog.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { NO_CHARACTER, readCharacterInPlay, writeManyVerified } from "./accountShared.js";
@@ -88,6 +90,8 @@ export const TOTALS_NOT_CLEARED = "Undone. Totals may be off. Refresh.";
  * was made on reads the game again, even when the rest is refused.
  */
 export const undoAction = async (id) => {
+    // The tour's practice saves never reached the game; they are put back in the menu.
+    if (isPracticeAction(id)) return undoPractice(id);
     const { actions } = await fetchChanges();
     const action = actions.find((entry) => entry.id === id);
     if (!action) throw new Error("no longer in History");

@@ -1,0 +1,152 @@
+/**
+ * The first-start tour (#200, tour/Tour.js): one short line beside what it points at, on the menu's raised surface
+ * (the bar's buttons' body and edge), a notch toward its target, the step dots and Skip. It rises in once per line
+ * and otherwise follows its target without moving on its own.
+ */
+
+.tour-line {
+    position: fixed;
+    /* Over the sidebar and the page, under the update dialog and the rail's labels. */
+    z-index: 2500;
+    left: var(--tour-x, -9999px);
+    top: var(--tour-y, -9999px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    box-sizing: border-box;
+    max-width: min(27rem, calc(100vw - 28px));
+    padding: 9px 10px 9px 16px;
+    border: 1px solid var(--c-btn-edge);
+    border-radius: 12px;
+    background: var(--c-btn);
+    box-shadow: 0 12px 26px var(--c-black-45);
+    color: var(--c-text-body);
+    font-family: var(--font-display);
+    font-size: var(--size-body);
+    line-height: 1.4;
+}
+
+.tour-line[hidden],
+.tour-line__skip[hidden] {
+    display: none;
+}
+
+.tour-line.is-new {
+    animation: tour-line-in 280ms var(--ease-soft);
+}
+
+@keyframes tour-line-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
+.tour-line__notch {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--c-btn-edge);
+    background: var(--c-btn);
+    transform: rotate(45deg);
+}
+
+.tour-line[data-side="below"] .tour-line__notch {
+    top: -6px;
+    left: calc(clamp(16px, var(--tour-notch), calc(100% - 16px)) - 6px);
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+}
+
+.tour-line[data-side="above"] .tour-line__notch {
+    bottom: -6px;
+    left: calc(clamp(16px, var(--tour-notch), calc(100% - 16px)) - 6px);
+    border-top-color: transparent;
+    border-left-color: transparent;
+}
+
+.tour-line[data-side="right"] .tour-line__notch {
+    left: -6px;
+    top: calc(clamp(14px, var(--tour-notch), calc(100% - 14px)) - 6px);
+    border-top-color: transparent;
+    border-right-color: transparent;
+}
+
+.tour-line[data-side="docked"] .tour-line__notch {
+    display: none;
+}
+
+.tour-line__words {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tour-word {
+    color: var(--c-text-main);
+    font-weight: 600;
+}
+
+/* The keys look like the top bar's own "Ctrl K". */
+.tour-key {
+    display: inline-block;
+    margin: 0 1px;
+    padding: 1px 7px;
+    border: 1px solid var(--c-btn-edge);
+    border-radius: 6px;
+    background: var(--c-void-soft);
+    color: var(--c-text-main);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    vertical-align: 1px;
+}
+
+.tour-line__foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.tour-line__dots {
+    display: flex;
+    gap: 5px;
+}
+
+.tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--c-border-strong);
+    transition: background-color 280ms var(--ease-soft);
+}
+
+.tour-dot.is-done {
+    background: var(--c-accent-40);
+}
+
+.tour-dot.is-now {
+    background: var(--c-accent);
+}
+
+.tour-line__skip {
+    margin-right: -2px;
+}
+
+/* Settings' "Show the tour again": a settings row, apart from the settings under it. */
+.tour-again.config-item {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tour-line.is-new {
+        animation: none;
+    }
+
+    .tour-dot {
+        transition: none;
+    }
+}

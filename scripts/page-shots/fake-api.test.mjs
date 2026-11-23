@@ -40,6 +40,8 @@ const EXAMPLES = {
     "/save-copies/restore": ["POST", { id: "2026-11-20T00-00-00-000Z_Lumi_Main", select: "all" }, 404],
     "/changes": ["GET"],
     "/changes/undone": ["POST", { id: "no-such-action", indexes: [0] }, 404],
+    // The fake API counts the first-start tour as done, so it stays out of the pages' shots.
+    "/tour": ["GET"],
 };
 
 const uiRoutes = [

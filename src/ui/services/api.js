@@ -554,3 +554,17 @@ export async function markChangesUndone(id, indexes) {
         body: JSON.stringify({ id, indexes }),
     });
 }
+
+/** Whether the first-start tour was finished or skipped: { done }. */
+export async function fetchTour() {
+    return _request("/tour");
+}
+
+/** Remember the tour as done (finished or skipped), or not (Show the tour again). */
+export async function saveTour(done) {
+    return _request("/tour", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done }),
+    });
+}

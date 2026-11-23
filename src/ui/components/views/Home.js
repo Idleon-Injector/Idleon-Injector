@@ -101,7 +101,10 @@ export const Home = () =>
                 { class: "home-body" },
                 () =>
                     menuTree.val
-                        ? div({ class: "home-contents" }, ...menuTree.val.map(WorldEntry))
+                        ? div(
+                              { class: "home-contents" },
+                              ...menuTree.val.filter((world) => !world.tour).map(WorldEntry)
+                          )
                         : div({ class: "account-loader" }, Loader({ text: "Loading pages" })),
                 AccountSection({
                     title: "Cheats that are on",

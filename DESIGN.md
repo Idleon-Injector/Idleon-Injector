@@ -439,3 +439,26 @@ World 6 uses the World 5 pieces and the Page standards; a few grew, and are now 
 - **Names keep the game's short words:** a tier's Roman numeral (Sproutluck III), GMO and OG.
 - **World 6's five systems have their drawings** (Lumi: "put all five in"): a sprout for Farming, a ninja's hooded
   head for Sneaking, a slime familiar for Summoning, the beanstalk, and the Emperor's crown.
+
+### First-start tour (decided with Lumi, 2026-11-22, #200)
+
+The player learns the menu by doing it, like Wispr Flow's first start: little text, every step a real action.
+
+- **It starts by itself** the first time the menu opens. Skip sits on every line, and Skip or Escape ends it at once,
+  with no "are you sure". Settings has one row, "Show the tour again".
+- **One short line beside the thing it points at,** under it (or to the right of a sidebar entry), with a notch toward
+  it, on the menu's raised surface (the bar's buttons' body and edge). The tour waits for the player to do it and
+  moves on by itself; there is no Next button. Keys show as the top bar's own key look; the word to type or press is
+  bold. The line never covers the field the player types in, and steps aside while the search's results show.
+- **Small dots,** one per step: the step now in lavender, the ones done in a faint lavender.
+- **A quiet finish:** the real ✓ on each save, and "You're set." under "Show the tour again" at the end. No confetti,
+  no popups.
+- **Everything is practised on the Practice page,** which is in the menu only while the tour runs: the real page
+  layout and rows, a write that stays in the menu. History lists its saves as "Practice only" until the tour ends;
+  nothing reaches the game, so the tour works with the game closed. Undo stays beside a save until it's clicked
+  while the tour runs.
+- **In the narrow overlay** the sidebar step points at the icon rail ("Tap W1"), then at the line above the page that
+  opens the world's list. Lines wrap inside the width.
+- **Motion:** a line rises in once (280 ms, the soft ease); off for players who ask for less motion.
+- **Steps:** search for Practice, filter it, open a world, change a value with Enter, Undo, History and Settings.
+  Set all in the tray joins once the shared Set all lands, and a config pick with #198.

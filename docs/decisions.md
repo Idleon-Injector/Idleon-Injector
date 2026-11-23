@@ -429,3 +429,19 @@ back. #2 also put the vanilla prayers back when `w3 prayer` turned off, by redef
 rules forbid that, so applying the loadout again with the cheat off (or Undo) does it.
 
 Source: [Wardrobe planner](../src/cheats/helpers/wardrobe/planner.js).
+
+## Keep the first-start tour's answer on the server
+
+Decision: whether the first-start tour (#200) was finished or skipped is a file next to the injector (`tour.json`,
+`/api/tour`), not the browser's storage. The tour's practice saves are logged in the menu only (`logPractice`), never
+sent to the game or the server's change log, and go when the tour ends.
+
+Why: the browser menu and the in-game overlay keep separate browser storage (the overlay runs in the game's own
+browser, which web mode starts with a fresh profile each time), so storage alone would show the tour again. The
+practice saves go through the real rows, ✓ and Undo, so the tour can't drift from how the menu works, and real History
+stays real.
+
+Trade-off: two menus open at once both show the tour until one ends it; the other ends its tour when it next gets
+focus or within 15 seconds.
+
+Source: [tour route](../src/modules/server/routes/tour.js), [tour](../src/ui/tour/Tour.js).

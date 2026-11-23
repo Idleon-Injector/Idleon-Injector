@@ -22,6 +22,9 @@ import { pageNow, worldNow } from "./views/Pages.js";
 
 const { div, input, span, button, kbd } = van.tags;
 
+/** Where the bar searches on a page with rows: "page" (its rows) or "everywhere" (the menu). The tour follows it. */
+export const searchScope = van.state("page");
+
 export const MenuSearch = () => {
     const query = van.state("");
     const open = van.state(false);
@@ -42,7 +45,7 @@ export const MenuSearch = () => {
         store.app.activeTab === VIEWS.PAGES.id && menuTree.val ? (pageNow(worldNow(menuTree.val)) ?? null) : null
     );
     const pageSearch = createPageSearch();
-    const mode = van.state("page");
+    const mode = searchScope;
     const searchingPage = () => pageSearch.hasRows.val && mode.val === "page";
     const results = van.derive(() => (command.val || searchingPage() ? [] : searchMenu(entries.val, query.val)));
     // Another page starts fresh, on its own rows; the page left behind shows all of them again.
