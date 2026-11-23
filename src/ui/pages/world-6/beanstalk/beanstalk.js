@@ -1,3 +1,13 @@
+/**
+ * W6 - Beanstalk
+ *
+ * The gold foods on the Beanstalk behind the ninja castle, in the game's order, each with its level (0 to 3).
+ *
+ * Data sources:
+ *   gga.Ninja[104][f]        - gold food f's level on the Beanstalk
+ *   cList.NinjaInfo[29]      - the foods, three entries each, the item id last; names from ItemDefinitionsGET
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
@@ -5,105 +15,64 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import {
     cleanName,
+    createIndexedStateGetter,
     createStaticRowReconciler,
-    getOrCreateState,
     resolveNumberInput,
-    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
-const BEANSTACK_PATH = "Ninja[104]";
-const BEANSTACK_MAX_LEVEL = 3;
+const LEVELS_PATH = "Ninja[104]";
+const MAX_LEVEL = 3;
 
-const BeanstackRow = ({ entry, levelState }) =>
-    ClampedLevelRow({
-        valueState: levelState,
-        max: BEANSTACK_MAX_LEVEL,
-        integerMode: "round",
-        write: (nextLevel) => writeVerified(`${BEANSTACK_PATH}[${entry.index}]`, nextLevel),
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, entry.name),
-                span({ class: "account-row__sub-label" }, entry.itemId)
-            ),
-        ],
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
-        maxAction: {
-            label: "Max",
-            value: BEANSTACK_MAX_LEVEL,
-            tooltip: `Set this Beanstack food to ${BEANSTACK_MAX_LEVEL}`,
-        },
-    });
-
-const buildItemEntries = async (rawLevels, rawFoodInfo) => {
-    const levels = toIndexedArray(rawLevels ?? []);
-    const itemIds = toIndexedArray(rawFoodInfo ?? []).filter((_, index) => index % 3 === 2);
-    const definitions = itemIds.length ? await readGgaEntries("ItemDefinitionsGET.h", itemIds, ["displayName"]) : {};
-
-    return itemIds.map((itemId, index) => ({
-        index,
-        itemId,
-        name: cleanName(definitions[itemId]?.displayName, itemId),
-        level: resolveNumberInput(levels[index], { min: 0, fallback: 0 }),
-    }));
-};
-
-const BeanstackTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Beanstack" });
-    const entries = van.state([]);
-    const levelStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
+const BeanstalkTab = () => {
+    const { loading, error, run } = useAccountLoad({ label: "Beanstalk" });
+    const getLevelState = createIndexedStateGetter(0);
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
-    const load = async () =>
-        run(async () => {
-            const [rawLevels, rawFoodInfo] = await Promise.all([gga(BEANSTACK_PATH), readCList("NinjaInfo[29]")]);
-            entries.val = await buildItemEntries(rawLevels, rawFoodInfo);
-            reconcileRows(entries.val.map((entry) => entry.itemId).join("|"), () =>
-                entries.val.map((entry) =>
-                    BeanstackRow({
-                        entry,
-                        levelState: getOrCreateState(levelStates, entry.index),
-                    })
-                )
-            );
+    const FoodRow = (food) =>
+        ClampedLevelRow({
+            valueState: getLevelState(food.n),
+            writePath: `${LEVELS_PATH}[${food.n}]`,
+            max: MAX_LEVEL,
+            integerMode: "round",
+            name: food.name,
+            maxAction: true,
+        });
 
-            for (const entry of entries.val) {
-                getOrCreateState(levelStates, entry.index).val = entry.level;
-            }
+    const load = () =>
+        run(async () => {
+            const [rawLevels, rawFoods] = await Promise.all([gga(LEVELS_PATH), readCList("NinjaInfo[29]")]);
+            const ids = toIndexedArray(rawFoods ?? []).filter((_, i) => i % 3 === 2);
+            const names = ids.length ? await readGgaEntries("ItemDefinitionsGET.h", ids, ["displayName"]) : {};
+            const levels = toIndexedArray(rawLevels ?? []);
+            const foods = ids.map((id, n) => ({ n, id, name: cleanName(names[id]?.displayName, id) }));
+            reconcileRows(foods.map((food) => food.id).join("|"), () => foods.map(FoodRow));
+            foods.forEach(
+                (food) => (getLevelState(food.n).val = resolveNumberInput(levels[food.n], { min: 0, fallback: 0 }))
+            );
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "GOLD FOOD",
-            note: () => `${entries.val.length} GOLD FOODS FROM Ninja[104]`,
-            body: listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "BEANSTACK",
-        description: "Edit Beanstack gold food levels from Ninja[104]. Names resolve through ItemDefinitionsGET.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Beanstalk",
+        description: "Gold foods added to the Beanstalk.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING BEANSTACK",
-        errorTitle: "BEANSTACK READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the beanstalk",
+        errorTitle: "Couldn't read the beanstalk",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({ body: div({ class: "field-columns" }, listNode) })
+        ),
     });
 };
 
@@ -111,7 +80,7 @@ export default definePage({
     id: "w6.beanstalk",
     world: 6,
     system: "Beanstalk",
-    description: "Gold food levels on the Beanstalk.",
-    keywords: ["Beanstack", "Gold Food"],
-    component: BeanstackTab,
+    description: "Gold foods added to the Beanstalk.",
+    keywords: ["Beanstack", "Gold Food", "Golden Food"],
+    component: BeanstalkTab,
 });

@@ -364,4 +364,38 @@ const SYSTEM_ICONS = {
     ],
     // The Slab: a cut stone tablet with its lines, on a base.
     Slab: ["M6 20.5V6l2.5-2.5h7L18 6v14.5", "M4.5 20.5h15", "M9 9h6M9 12.5h6M9 16h4"],
+    // World 6 (Lumi: "put all five in", 2026-11-23).
+    // A sprout on a tilled plot: two leaves on a stem, the soil's mound under it.
+    Farming: [
+        "M4.5 20.5c1.6-1.9 4.1-2.8 7.5-2.8s5.9.9 7.5 2.8",
+        "M12 17.7V11",
+        "M12 13.2c-3.1.3-5.3-1.2-6-4.3 3.1-.3 5.3 1.2 6 4.3z",
+        "M12 11c.3-3.2 2.3-5.1 5.5-5.2-.3 3.2-2.3 5.1-5.5 5.2z",
+    ],
+    // A ninja's hooded head: the opening for the eyes with the eyes in it, the headband's two tails behind.
+    Sneaking: [
+        [12, 12.5, 7.5],
+        "M8 10.5h8a2 2 0 0 1 0 4H8a2 2 0 0 1 0-4z",
+        [10, 12.5, 0.7],
+        [14, 12.5, 0.7],
+        "M19.2 9.2l2.3-1.6M19.5 11l2.6.2",
+    ],
+    // A slime familiar, called up: the blob with its two eyes, a trail of sparks over it.
+    Summoning: [
+        "M4.5 18.3c0-4.7 3.3-8.6 7.5-8.6s7.5 3.9 7.5 8.6a2.2 2.2 0 0 1-2.2 2.2H6.7a2.2 2.2 0 0 1-2.2-2.2z",
+        [9.6, 15.2, 0.9],
+        [14.4, 15.2, 0.9],
+        [8.6, 6.4, 0.6],
+        [12, 4.6, 0.6],
+        [15.4, 6.4, 0.6],
+    ],
+    // The beanstalk: a stalk winding straight up, a leaf each way, on the ground.
+    Beanstalk: [
+        "M8 20.5h8",
+        "M12 20.5c-2.2-2.4-2.2-4.6 0-7s2.2-4.6 0-7",
+        "M11.2 15.5c-2.4.5-4.4-.4-5.4-2.6 2.4-.5 4.4.4 5.4 2.6z",
+        "M12.8 9.5c2.4.5 4.4-.4 5.4-2.6-2.4-.5-4.4.4-5.4 2.6z",
+    ],
+    // The emperor's crown: three soft points over a band.
+    Emperor: ["M5 17 3.8 8.2l4.6 3.6L12 5.5l3.6 6.3 4.6-3.6L19 17z", "M5 20.5h14", [12, 13.6, 0.9]],
 };

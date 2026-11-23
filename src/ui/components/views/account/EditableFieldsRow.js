@@ -136,8 +136,22 @@ export const ValueTableHead = ({ name, columns }) =>
  * @param {*} [opts.badge] the line's state in a plain word ("Polymer"), before its values
  * @param {(changed: string[]) => *} [opts.afterWrite] runs once a save is read back, with the keys it changed (a cache
  *   the game rebuilds from them)
+ * @param {*} [opts.action] the line's own button after its values (Ninja Knowledge's Omni Jade), in the table's last
+ *   column (the head names it with ""), so the columns before it line up with the head
+ * A `blank` field (`{ key, blank: true }`) keeps its column empty on a line that hasn't that value, so the columns after
+ * it stay in line.
  */
-export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, badge = null, afterWrite = null }) => {
+export const ValueTableRow = ({
+    name,
+    info,
+    fields: allFields,
+    read,
+    writeOptions = {},
+    badge = null,
+    afterWrite = null,
+    action = null,
+}) => {
+    const fields = allFields.filter((field) => !field.blank);
     const maxOf = (field) => {
         const max = Number(resolveValue(field.max));
         return max > 0 ? max : Infinity;
@@ -189,45 +203,48 @@ export const ValueTableRow = ({ name, info, fields, read, writeOptions = {}, bad
         renderControls: ({ draftStates, getDraftValue, setFieldFocused, applyValue }) =>
             div(
                 { class: "value-cells" },
-                ...fields.map((field) =>
-                    field.steps
-                        ? // A pick saves on the press, like − / +.
-                          div(
-                              { class: "value-cell value-cell--steps" },
-                              span({ class: "value-cell__label" }, field.label),
-                              StepPicker({
-                                  name: `${name} ${field.label.toLowerCase()}`,
-                                  steps: field.steps,
-                                  picked: () => toInt(draftStates[field.key].val, { min: 0 }),
-                                  onPick: (value) => void applyValue({ [field.key]: value }),
-                              })
-                          )
-                        : StackedNumberField({
-                              field: {
-                                  key: field.key,
-                                  label: field.label,
-                                  rootClass: field.quiet ? "value-cell value-cell--quiet" : "value-cell",
-                                  labelClass: "value-cell__label",
-                                  formatted: field.formatted,
-                                  // + leaves a value the game holds above the cap; − takes one off it.
-                                  adjustDraft: (raw, delta) => {
-                                      if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
-                                      const value = toInt(raw, { min: 0 });
-                                      if (value > maxOf(field)) return delta > 0 ? value : value - 1;
-                                      return Math.max(0, Math.min(maxOf(field), value + delta));
-                                  },
-                                  inputProps: {
-                                      "aria-label": `${name} ${field.label.toLowerCase()}`,
-                                      ...(field.max !== undefined
-                                          ? { cap: () => (maxOf(field) < Infinity ? maxOf(field) : null) }
-                                          : {}),
-                                  },
-                              },
-                              draftStates,
-                              getDraftValue,
-                              setFieldFocused,
-                          })
-                )
+                ...allFields.map((field) =>
+                    field.blank
+                        ? div({ class: "value-cell value-cell--empty", "aria-hidden": "true" })
+                        : field.steps
+                          ? // A pick saves on the press, like − / +.
+                            div(
+                                { class: "value-cell value-cell--steps" },
+                                span({ class: "value-cell__label" }, field.label),
+                                StepPicker({
+                                    name: `${name} ${field.label.toLowerCase()}`,
+                                    steps: field.steps,
+                                    picked: () => toInt(draftStates[field.key].val, { min: 0 }),
+                                    onPick: (value) => void applyValue({ [field.key]: value }),
+                                })
+                            )
+                          : StackedNumberField({
+                                field: {
+                                    key: field.key,
+                                    label: field.label,
+                                    rootClass: field.quiet ? "value-cell value-cell--quiet" : "value-cell",
+                                    labelClass: "value-cell__label",
+                                    formatted: field.formatted,
+                                    // + leaves a value the game holds above the cap; − takes one off it.
+                                    adjustDraft: (raw, delta) => {
+                                        if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
+                                        const value = toInt(raw, { min: 0 });
+                                        if (value > maxOf(field)) return delta > 0 ? value : value - 1;
+                                        return Math.max(0, Math.min(maxOf(field), value + delta));
+                                    },
+                                    inputProps: {
+                                        "aria-label": `${name} ${field.label.toLowerCase()}`,
+                                        ...(field.max !== undefined
+                                            ? { cap: () => (maxOf(field) < Infinity ? maxOf(field) : null) }
+                                            : {}),
+                                    },
+                                },
+                                draftStates,
+                                getDraftValue,
+                                setFieldFocused,
+                            })
+                ),
+                action ? div({ class: "value-cell value-cell--action" }, action) : null
             ),
     });
 };

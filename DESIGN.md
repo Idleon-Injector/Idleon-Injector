@@ -424,3 +424,25 @@ World 5 uses the same pieces; two shared pages moved onto them:
   down into the list from the last row; on a row above, it is a block rounded all round.
 - **A limited gem shop buy sits on its system's page** in a quiet "Gem shop" group: Davey Jones Training on Boats,
   Rupie Slugs on The Jars, both found by "gem shop", "limited" and "fomo".
+
+### World 6 on the same pieces (draft, 2026-11-23)
+
+World 6 uses the World 5 pieces and the Page standards; a few grew, and are now shared:
+
+- **The menu follows the game's screens:** Farming (Plots, Crop Depot, Market, Exotic Market, Land Rank, Stickers),
+  Sneaking (Ninja Knowledge, Jade Emporium, Charms) and Summoning (Upgrades, Essence, Battles) are one page each with
+  tabs, and Sneaking and Summoning keep Automation as their own sidebar entry (Lumi: "i obviously wanted automation to
+  be its own menu point like w4 and before"). Beanstalk and Emperor are one list each. The Day and Night Market are
+  groups in one Market tab, the board's colours and the opponents' colours groups in their tabs.
+- **A setting that switches per line is a button on that line** (`row-toggle`): Organic on Exotic Market, Omni Jade on
+  Ninja Knowledge (Lumi: "it's the same as ninja knowledge and can just be implemented with a button to enable it").
+  It is lavender while on. In a table it takes the last column (`ValueTableRow`'s `action`), and a line that can't have
+  it keeps that column empty, as a line without a value keeps its own (`blank`).
+- **A save that the game caches** clears the cache after it (and Undo does too): Endless wins and the opponents won
+  clear `DNSM.h.SummWinBonus`, so the win bonuses follow at once.
+- **The game's placeholders stay out** (NAME_MAGNI, UNDER_CONSTRUCTION, Nonexistent_Sticker, "something World 7ish").
+- **A row's own question** (Emperor's Reset) puts its answer beside the row's name and keeps the button's room, so
+  nothing moves while it asks.
+- **Names keep the game's short words:** a tier's Roman numeral (Sproutluck III), GMO and OG.
+- **World 6's five systems have their drawings** (Lumi: "put all five in"): a sprout for Farming, a ninja's hooded
+  head for Sneaking, a slime familiar for Summoning, the beanstalk, and the Emperor's crown.

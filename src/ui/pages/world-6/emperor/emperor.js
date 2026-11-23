@@ -3,26 +3,32 @@ import { definePage } from "../../../menu/menuModel.js";
 import { fetchCheatStates, gga, readCList, readComputed } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { NumberInput } from "../../../components/NumberInput.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
-import { askAtField, clickAgain } from "../../../components/inPlace.js";
-import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { askAtField } from "../../../components/inPlace.js";
+import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 const PROGRESS_PATH = "OptionsListAccount[369]";
 const ENTRIES_PATH = "OptionsListAccount[370]";
 const CACHE_PATH = "DNSM.h.EmperorBon";
+// Emperor tries from the gem shop (a past limited buy): each is +1 try a day and +6 to the tries saved up.
+const TRIES_PATH = "OptionsListAccount[382]";
 // Above 1617 completed showdowns, the next fight's base HP becomes Infinity.
 const PROGRESS_LIMIT = 1617;
+// The game's placeholder rewards ("+{%_something_World_7ish").
+const isPlaceholder = (description) => cleanName(description).includes("something World 7ish");
 
 const baseRewards = (progress, metadata) => {
     const totals = metadata.amounts.map(() => 0);
@@ -61,11 +67,11 @@ const EmperorTab = () => {
     const message = van.state("");
     const progressDraft = van.state("0");
     const entriesDraft = van.state("0");
-    // Typed values save on Enter or on leaving the field (useAutoSave); RESET and REFILL save at once.
+    // Typed values save on Enter or on leaving the field (useAutoSave); Reset (once asked) and Max save at once.
     const progressWrite = useAutoSave({
         // The draft as it was at the commit, so a later one (made after Reset, say) can't save in its place.
         capture: () => progressDraft.val,
-        prepare: (draft = progressDraft.val) => ({ write: () => saveProgress(false, null, draft) }),
+        prepare: (draft = progressDraft.val) => ({ write: () => saveProgress(false, draft) }),
         revert: () => (progressDraft.val = String(snapshot.val?.progress ?? progressDraft.val)),
     });
     const entriesWrite = useAutoSave({
@@ -73,7 +79,9 @@ const EmperorTab = () => {
         prepare: (draft = entriesDraft.val) => ({ write: () => saveEntries(false, draft) }),
         revert: () => (entriesDraft.val = String(snapshot.val?.remaining ?? entriesDraft.val)),
     });
-    let resetting = false;
+    // Reset asks in place first: the row's name becomes the question and its buttons the answer.
+    const askingReset = van.state(false);
+    const triesState = van.state(0);
     const rewardList = div({ class: "account-item-stack" });
     const reconcileRewards = createStaticRowReconciler(rewardList);
 
@@ -87,15 +95,17 @@ const EmperorTab = () => {
         current.baseRewards.every((value, index) => current.cache[index] === value);
 
     const readSnapshot = async () => {
-        const [rawProgress, rawCounter, rawMetadata, rawCapacity, rawDaily, cheats, rawCache] = await Promise.all([
-            gga(PROGRESS_PATH),
-            gga(ENTRIES_PATH),
-            readCList("EmperorBon"),
-            readComputed("thingies", "MaxEmperorAttemptStack", [0, 0]),
-            readComputed("thingies", "DailyEmperorTries", [0, 0]),
-            fetchCheatStates(),
-            gga(CACHE_PATH),
-        ]);
+        const [rawProgress, rawCounter, rawMetadata, rawCapacity, rawDaily, cheats, rawCache, rawTries] =
+            await Promise.all([
+                gga(PROGRESS_PATH),
+                gga(ENTRIES_PATH),
+                readCList("EmperorBon"),
+                readComputed("thingies", "MaxEmperorAttemptStack", [0, 0]),
+                readComputed("thingies", "DailyEmperorTries", [0, 0]),
+                fetchCheatStates(),
+                gga(CACHE_PATH),
+                gga(TRIES_PATH),
+            ]);
         const progress = Number(rawProgress);
         const counter = Number(rawCounter);
         const capacity = Number(rawCapacity) + 1;
@@ -113,7 +123,7 @@ const EmperorTab = () => {
             !Number.isSafeInteger(progress) ||
             progress < 0
         ) {
-            throw new Error("Completed showdowns is unavailable or invalid. Refresh to retry.");
+            throw new Error("Couldn't read the showdowns won. Refresh to try again.");
         }
         if (
             [rawCounter, rawCapacity, rawDaily].some(
@@ -126,9 +136,7 @@ const EmperorTab = () => {
             daily < 0 ||
             typeof cheats?.data?.w6?.emperor !== "boolean"
         ) {
-            throw new Error(
-                "Emperor entries, natural capacity, replenishment or cheat state is unavailable. Refresh to retry."
-            );
+            throw new Error("Couldn't read the entries. Refresh to try again.");
         }
         if (
             metadata.descriptions.length !== 12 ||
@@ -138,7 +146,7 @@ const EmperorTab = () => {
             metadata.mapping.length !== 48 ||
             metadata.mapping.some((value) => !Number.isInteger(value) || value < 0 || value >= 12)
         ) {
-            throw new Error("Emperor reward definitions are unavailable or invalid. Refresh to retry.");
+            throw new Error("Couldn't read the rewards. Refresh to try again.");
         }
         const rewards = baseRewards(progress, metadata);
         return {
@@ -151,11 +159,13 @@ const EmperorTab = () => {
             metadata,
             baseRewards: rewards,
             cache: toIndexedArray(rawCache).map(Number),
+            tries: Math.max(0, Math.floor(Number(rawTries) || 0)),
         };
     };
 
     const showSnapshot = (current, syncInputs = false, savedRow = null) => {
         snapshot.val = current;
+        triesState.val = current.tries;
         if (savedRow === "progress") progressDraft.val = String(current.progress);
         if (savedRow === "entries") entriesDraft.val = String(current.remaining);
         if (syncInputs) {
@@ -163,32 +173,17 @@ const EmperorTab = () => {
             if (!entriesInput.contains(document.activeElement)) entriesDraft.val = String(current.remaining);
         }
         reconcileRewards(JSON.stringify(current.metadata), () =>
-            current.metadata.descriptions.map((description, index) =>
-                AccountRow({
-                    info: div(
-                        { class: "account-row__name-group" },
-                        span(
-                            { class: "account-row__name" },
-                            cleanName(description).replace(/^(\}x|\$%|\+\{%?)\s*/, "")
-                        ),
-                        span(
-                            { class: "account-row__sub-label" },
-                            cleanName(description).includes("something World 7ish")
-                                ? `World 7 placeholder, slot ${index + 1}`
-                                : index === 11
-                                  ? "Listed in reward metadata; effect unconfirmed"
-                                  : "Base reward before external modifiers"
-                        )
-                    ),
-                    badge: () => {
-                        const active = snapshot.val;
-                        if (!active) return "—";
-                        const match = cleanName(description).match(/^(\}x|\$%|\+\{%?)/);
-                        return match
-                            ? rewardText(match[1], active.baseRewards[index])
-                            : `+${active.baseRewards[index]}`;
-                    },
-                })
+            current.metadata.descriptions.flatMap((description, index) =>
+                isPlaceholder(description)
+                    ? []
+                    : [
+                          // The reward with what the showdowns won so far add up to ("1.30x Ninja Stealth").
+                          AccountRow({
+                              info: span({ class: "account-row__name" }, () =>
+                                  snapshot.val ? rewardText(description, snapshot.val.baseRewards[index]) : ""
+                              ),
+                          }),
+                      ]
             )
         );
     };
@@ -198,12 +193,12 @@ const EmperorTab = () => {
             const actual = await readSnapshot();
             showSnapshot(actual);
             message.val = writesStarted
-                ? `${label} was not fully verified. Current progress: ${actual.progress}; entries: ${actual.cheatEnabled ? "masked by the cheat, stored count unavailable" : `${actual.remaining}/${actual.capacity}`}; base reward cache ${cacheMatches(actual) ? "matches progress" : "is out of sync"}. Some changes may have applied. ${caughtError.message}`
+                ? `${label} may not have saved fully. The fields show what the game holds now.`
                 : caughtError.message;
         } catch (readError) {
             error.val = readError.message;
             message.val = writesStarted
-                ? `${label} may have partially applied. Current values could not be read. Refresh before another edit. ${caughtError.message}`
+                ? `${label} may not have saved fully, and the game couldn't be read. Refresh before you try again.`
                 : caughtError.message;
         }
     };
@@ -212,9 +207,9 @@ const EmperorTab = () => {
     // and Enter again within a few seconds saves it.
     const askAtProgress = askAtField(() => progressInput);
 
-    // Each save returns { cancelled: true } when there's nothing to write, and throws when it fails.
-    // `button`: RESET, which asks in place with "Click again".
-    const saveProgress = async (reset = false, button = null, draft = progressDraft.val) => {
+    // Each save returns { cancelled: true } when there's nothing to write, and throws when it fails. `reset` was asked
+    // in place already (its row's question), so it doesn't ask again.
+    const saveProgress = async (reset = false, draft = progressDraft.val) => {
         if (cannotWrite()) return { cancelled: true };
         busy.val = true;
         message.val = "";
@@ -231,9 +226,8 @@ const EmperorTab = () => {
                 progressDraft.val = String(before.progress);
                 return { cancelled: true };
             }
-            const question = `lower completed showdowns from ${before.progress} to ${next}. This removes the base rewards from ${before.progress - next} showdowns and makes them eligible again. It grants no fight loot.`;
-            if (next < before.progress && !(button ? clickAgain(button, question) : askAtProgress(question)))
-                return { cancelled: true };
+            const question = `lower showdowns won from ${before.progress} to ${next}: their base rewards go too`;
+            if (next < before.progress && !reset && !askAtProgress(question)) return { cancelled: true };
             if (next < before.progress) {
                 fresh = await readSnapshot();
                 showSnapshot(fresh);
@@ -242,9 +236,7 @@ const EmperorTab = () => {
                 fresh.progress !== before.progress ||
                 JSON.stringify(fresh.metadata) !== JSON.stringify(before.metadata)
             ) {
-                throw new Error(
-                    "Emperor progress or reward definitions changed during this edit. Review the fresh values and retry."
-                );
+                throw new Error("The showdowns changed in the game. Try again.");
             }
             const totals = baseRewards(next, fresh.metadata);
             writesStarted = true;
@@ -253,12 +245,12 @@ const EmperorTab = () => {
             const actual = await readSnapshot();
             if (actual.progress !== next || !cacheMatches(actual)) {
                 showSnapshot(actual);
-                throw new Error("Progress or base rewards changed while saving. Refresh and retry.");
+                throw new Error("The showdowns changed while saving. Try again.");
             }
             showSnapshot(actual, false, "progress");
         } catch (caughtError) {
             // Asking again is said beside the field, before anything was written.
-            if (!caughtError.askAgain) await recoverWrite(caughtError, writesStarted, "Progress and base rewards");
+            if (!caughtError.askAgain) await recoverWrite(caughtError, writesStarted, "Showdowns won");
             throw caughtError;
         } finally {
             busy.val = false;
@@ -273,11 +265,11 @@ const EmperorTab = () => {
         try {
             const fresh = await readSnapshot();
             showSnapshot(fresh);
-            if (fresh.cheatEnabled) throw new Error("Disable the w6 emperor cheat before editing stored entries.");
+            if (fresh.cheatEnabled) throw new Error("Turn off the w6 emperor cheat first.");
             if (!refill && String(raw).trim() !== "" && Number(raw) === fresh.remaining) return { cancelled: true };
             const next = refill ? fresh.capacity : wholeNumber(raw, fresh.capacity);
             if (refill && fresh.remaining >= fresh.capacity) {
-                message.val = "Entries are already at or above natural capacity.";
+                message.val = "Entries are full already.";
                 return { cancelled: true };
             }
             if (next === fresh.remaining) return { cancelled: true };
@@ -286,11 +278,11 @@ const EmperorTab = () => {
             const actual = await readSnapshot();
             if (actual.cheatEnabled || actual.remaining !== next || actual.capacity !== fresh.capacity) {
                 showSnapshot(actual);
-                throw new Error("Entries, capacity or the cheat state changed while saving. Refresh and retry.");
+                throw new Error("The entries changed while saving. Try again.");
             }
             showSnapshot(actual, false, "entries");
         } catch (caughtError) {
-            await recoverWrite(caughtError, writesStarted, "Stored entries");
+            await recoverWrite(caughtError, writesStarted, "Entries");
             throw caughtError;
         } finally {
             busy.val = false;
@@ -330,52 +322,64 @@ const EmperorTab = () => {
         });
         return control;
     };
-    const progressInput = numberControl(progressDraft, () => PROGRESS_LIMIT, cannotWrite, "Completed showdowns");
-    const entriesInput = numberControl(
-        entriesDraft,
-        () => snapshot.val.capacity,
-        cannotWriteEntries,
-        "Remaining Emperor entries",
-        true
-    );
+    const progressInput = numberControl(progressDraft, () => PROGRESS_LIMIT, cannotWrite, "Showdowns won");
+    const entriesInput = numberControl(entriesDraft, () => snapshot.val.capacity, cannotWriteEntries, "Entries", true);
 
+    // Reset asks in place: the row's name becomes the question with its answer beside it, and Reset keeps its room
+    // (unseen while it asks), so nothing in the row or under it moves.
+    const resetButton = ActionButton({
+        label: "Reset",
+        variant: "danger",
+        className: () => (askingReset.val ? "is-asking" : ""),
+        disabled: () => cannotEdit() || !snapshot.val.progress,
+        buttonProps: { "aria-hidden": () => String(askingReset.val) },
+        onClick: () => (askingReset.val = true),
+    });
+    const resetAnswer = span(
+        { class: "emperor-answer", hidden: () => !askingReset.val },
+        ActionButton({
+            label: "Reset them",
+            variant: "danger",
+            onClick: () => {
+                askingReset.val = false;
+                return progressWrite.run(() => saveProgress(true));
+            },
+        }),
+        ActionButton({ label: "Cancel", onClick: () => (askingReset.val = false) })
+    );
     const progressRow = AccountRow({
-        rowClass: () => `account-row--wide-controls ${saveStateClass(progressWrite.status.val, progressWrite.undo)}`,
+        rowClass: () => `account-row--value ${saveStateClass(progressWrite.status.val, progressWrite.undo)}`,
         rowProps: progressWrite.handlers,
         info: div(
-            { class: "account-row__name-group" },
-            span({ class: "account-row__name" }, "Completed showdowns"),
-            span({ class: "account-row__sub-label" }, `0–${PROGRESS_LIMIT}, numeric safety ceiling`)
+            { class: "emperor-ask" },
+            span({ class: "account-row__name" }, () =>
+                askingReset.val ? `Reset ${snapshot.val?.progress ?? 0} showdowns won to 0?` : "Showdowns won"
+            ),
+            resetAnswer
         ),
-        controls: [
-            SaveState(progressWrite),
-            progressInput,
-            ActionButton({
-                label: "Reset",
-                variant: "danger",
-                disabled: cannotEdit,
-                onClick: (e) => {
-                    // A click while a reset waits or runs isn't an answer to the "Click again" that one may ask: it
-                    // was made before the question showed (a double-click), so it's ignored.
-                    if (resetting) return;
-                    resetting = true;
-                    const resetButton = e.currentTarget;
-                    return progressWrite.run(() => saveProgress(true, resetButton)).finally(() => (resetting = false));
-                },
-            }),
-        ],
+        controls: [SaveState(progressWrite), progressInput, resetButton],
+    });
+    // The gem shop's Emperor tries. The game sets no max. A save reads the game again, so the entries' cap and the
+    // tries a day follow.
+    const triesRow = ClampedLevelRow({
+        valueState: triesState,
+        integerMode: "floor",
+        write: async (count) => {
+            const verified = await writeVerified(TRIES_PATH, count);
+            await load();
+            return verified;
+        },
+        renderInfo: () => RowTitles({ bonus: "+1 try a day and +6 saved-up tries each", name: "Emperor tries" }),
     });
     const entriesRow = AccountRow({
-        rowClass: () => `account-row--wide-controls ${saveStateClass(entriesWrite.status.val, entriesWrite.undo)}`,
+        rowClass: () => `account-row--value ${saveStateClass(entriesWrite.status.val, entriesWrite.undo)}`,
         rowProps: entriesWrite.handlers,
         info: div(
             { class: "account-row__name-group" },
-            span({ class: "account-row__name" }, "Remaining entries"),
-            span({ class: "account-row__sub-label" }, () =>
-                snapshot.val ? `Base daily replenishment ${snapshot.val.daily}` : ""
-            )
+            span({ class: "account-row__name" }, "Entries"),
+            span({ class: "emperor-daily" }, () => (snapshot.val ? `+${snapshot.val.daily} a day` : ""))
         ),
-        badge: () => (snapshot.val?.cheatEnabled ? "Cheat active" : ""),
+        badge: () => (snapshot.val?.cheatEnabled ? "Cheat on" : ""),
         controls: [
             SaveState(entriesWrite),
             entriesInput,
@@ -388,57 +392,66 @@ const EmperorTab = () => {
                     : "";
             }),
             ActionButton({
-                label: "Refill",
+                label: "Max",
+                // The shared Max's class: the list keeps Max's room on the lines without one.
+                className: "account-row__max",
                 disabled: () =>
                     cannotEdit() || snapshot.val.cheatEnabled || snapshot.val.remaining >= snapshot.val.capacity,
                 onClick: () => entriesWrite.run(() => saveEntries(true)),
             }),
         ],
     });
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        div({ class: "write-status write-status--error", role: "alert" }, () => message.val),
-        div({ class: "account-item-stack" }, progressRow, entriesRow),
-        div({ class: "write-status", role: "status" }, () => {
-            const current = snapshot.val;
-            if (!current) return "";
-            return current.cheatEnabled
-                ? "The w6 emperor cheat masks the stored entry count and forces the disabled input value. Disable it to read and edit stored entries. Progress remains editable."
-                : current.progress > PROGRESS_LIMIT
-                  ? `Completed showdowns exceed the numeric safety ceiling of ${PROGRESS_LIMIT}. Edits must stay within the safety ceiling.`
-                  : "";
-        }),
-        div({ class: "write-status", role: "status" }, () =>
-            snapshot.val && !cacheMatches(snapshot.val)
-                ? "Base reward cache is out of sync or missing. Rewards below are calculated from progress. Enter the completed showdowns again to reconcile the cache."
-                : ""
-        ),
-        div({ class: "write-status" }, () => {
-            const current = snapshot.val;
-            if (!current) return "";
-            const index = current.metadata.mapping[current.progress % current.metadata.mapping.length];
-            const note = cleanName(current.metadata.descriptions[index]).includes("something World 7ish")
-                ? " World 7 placeholder."
-                : index === 11
-                  ? " Effect unconfirmed."
-                  : "";
-            return `Next showdown ${current.progress + 1}: base reward ${rewardText(current.metadata.descriptions[index], current.metadata.amounts[index])}.${note}`;
-        }),
-        AccountSection({ title: "BASE REWARDS", note: "Before external modifiers", body: rewardList })
-    );
+    // One short line under the title while something is off: a failure, the cheat, or a count the page can't keep to.
+    const notice = () => {
+        const current = snapshot.val;
+        if (!current) return "";
+        if (current.cheatEnabled) return "The w6 emperor cheat is on. Turn it off to edit entries.";
+        if (current.progress > PROGRESS_LIMIT) return `Showdowns won can be set to ${PROGRESS_LIMIT} at most.`;
+        if (!cacheMatches(current))
+            return "The game's reward total is out of date. Enter the showdowns again to fix it.";
+        return "";
+    };
+    const nextReward = () => {
+        const current = snapshot.val;
+        if (!current) return "";
+        const index = current.metadata.mapping[current.progress % current.metadata.mapping.length];
+        const description = current.metadata.descriptions[index];
+        return isPlaceholder(description)
+            ? ""
+            : `Next showdown: ${rewardText(description, current.metadata.amounts[index])}`;
+    };
     const refreshButton = RefreshButton({ onRefresh: load, disabled: isBusy });
     refreshButton.onmousedown = (event) => event.preventDefault();
     load();
     return PersistentAccountListPage({
-        rootClass: "emperor-tab tab-container",
-        title: "EMPEROR",
-        description:
-            "Edit account progress and stored entries directly, including before fight entry unlocks. No fight loot is granted. Existing entries above natural capacity are preserved. New entry edits must stay within natural capacity.",
+        rootClass: "emperor-tab tab-container scroll-container",
+        title: "Emperor",
+        description: "Showdowns won, entries and their rewards. No fight loot is given.",
         actions: refreshButton,
+        // A failure, or a warning only while its trouble is real.
+        topNotices: () =>
+            div(
+                message.val ? WarningBanner(span({ role: "alert" }, message.val)) : null,
+                notice() ? WarningBanner(span({ role: "status" }, notice())) : null
+            ),
         state: { loading, error },
-        loadingText: "READING EMPEROR",
-        errorTitle: "EMPEROR READ FAILED",
-        body,
+        loadingText: "Reading the emperor",
+        errorTitle: "Couldn't read the emperor",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: [
+                    // One column of fields across the groups, so Emperor tries lines up with Showdowns won and Entries.
+                    div(
+                        { class: "field-columns" },
+                        AccountSection({ title: "Gem shop", body: triesRow }),
+                        AccountSection({ title: "Showdowns", body: [progressRow, entriesRow] }),
+                        AccountSection({ title: "Rewards", meta: span(nextReward), body: rewardList })
+                    ),
+                ],
+            })
+        ),
     });
 };
 
@@ -446,7 +459,7 @@ export default definePage({
     id: "w6.emperor",
     world: 6,
     system: "Emperor",
-    description: "Emperor account progress and stored fight entries, with the base rewards.",
-    keywords: ["Emperor Fights", "Emperor Entries"],
+    description: "Showdowns won, entries and their rewards.",
+    keywords: ["Emperor Fights", "Emperor Entries", "Emperor tries", "FOMO Tickets", "Limited", "Gem shop", "FOMO"],
     component: EmperorTab,
 });

@@ -10,7 +10,7 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, sent, status, until } = kit;
-const tab = (await importRepo("src/ui/pages/world-6/summoning/4-automation.js")).default.component();
+const tab = (await importRepo("src/ui/pages/world-6/summoning/2-automation.js")).default.component();
 const sections = () => byClass(tab, "account-section");
 const section = (colour) =>
     sections().find((node) => text(byClass(node, "account-section__title")[0]) === `${colour} essence`);

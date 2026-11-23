@@ -1,5 +1,27 @@
-.emperor-tab .account-row--wide-controls .account-row__sub-label {
-    white-space: normal;
-    overflow: visible;
-    overflow-wrap: anywhere;
+/* Emperor: how many entries come back a day, small and muted under the row's name. */
+.emperor-daily {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+/* Reset's question: the answer sits beside the row's name, and Reset keeps its room unseen, so nothing moves. */
+.emperor-ask {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+}
+
+.emperor-answer {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.emperor-answer[hidden] {
+    display: none;
+}
+
+.viewport .emperor-tab .account-btn.is-asking {
+    visibility: hidden;
 }
