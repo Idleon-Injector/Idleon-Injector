@@ -115,6 +115,8 @@ const KnowledgePart = () => {
             },
             // A line without Omni Jade keeps the button's column empty.
             action: hasOmni ? OmniButton(upgrade) : span(),
+            // Set all sets each upgrade's level; its Omni Jade levels stay its own.
+            setAll: "level",
         });
     };
 
@@ -354,6 +356,7 @@ const SneakingTab = () => {
                 ),
                 toolsOn: (id) => Boolean(parts.get(id).tools),
                 toolsLabel: (open) => parts.get(open.val).toolsLabel?.() ?? "",
+                setAll: { word: (n, tab) => `${tab === "knowledge" ? "upgrade" : "line"}${n === 1 ? "" : "s"}` },
             })
         ),
     });

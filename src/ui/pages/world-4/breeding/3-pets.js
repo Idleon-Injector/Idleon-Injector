@@ -57,6 +57,8 @@ const PetsTab = () => {
                 const values = await Promise.all(FIELDS.map((field) => gga(at(field))));
                 return Object.fromEntries(FIELDS.map((field, i) => [field.key, toNum(values[i], 0)]));
             },
+            // Set all sets each pet's DNA; its breedability and shiny days stay its own.
+            setAll: "dna",
         });
     };
 
@@ -102,6 +104,7 @@ const PetsTab = () => {
             { class: "account-list account-list--tabbed" },
             TabbedList({
                 name: "Breeding pets",
+                setAll: { word: (n) => `pet${n === 1 ? "" : "s"}`, placeholder: "DNA" },
                 tabs: WORLDS.map((world, w) => ({
                     id: `w${world}`,
                     label: `World ${world}`,

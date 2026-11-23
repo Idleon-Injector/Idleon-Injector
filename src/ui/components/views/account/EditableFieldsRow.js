@@ -141,8 +141,9 @@ export const ValueTableHead = ({ name, columns }) =>
  *   column (the head names it with ""), so the columns before it line up with the head
  * A `blank` field (`{ key, blank: true }`) keeps its column empty on a line that hasn't that value, so the columns after
  * it stay in line.
- * @param {string} [opts.setAll] the key of the column its list's Set all sets (Farming's plot Rank): the line then
- *   counts as one of that list's lines, and saves there like a typed value, through writeManyVerified
+ * @param {string|{val: string}} [opts.setAll] the key of the column its list's Set all sets (Farming's plot Rank), or
+ *   the state of the column picked in the tray (Cooking's Speed, Fire, Luck): the line then counts as one of that
+ *   list's lines, and saves there like a typed value, through writeManyVerified
  */
 export const ValueTableRow = ({
     name,
@@ -252,18 +253,34 @@ export const ValueTableRow = ({
                 action ? div({ class: "value-cell value-cell--action" }, action) : null
             ),
     });
-    const line = setAll && fields.find((field) => field.key === setAll);
-    if (line)
+    // The column Set all sets now: a fixed one, or the one picked in the tray (a state).
+    const lineField = () => fields.find((field) => field.key === resolveValue(setAll));
+    if (setAll && lineField())
         registerSetAllLine(row, {
             row,
-            valueState: line.valueState,
-            cap: () => (line.max !== undefined && maxOf(line) < Infinity ? maxOf(line) : null),
+            // Read when Set all takes its lines, so a run keeps the column it was pressed for.
+            get column() {
+                return lineField().key;
+            },
+            get valueState() {
+                return lineField().valueState;
+            },
+            cap: () => {
+                const line = lineField();
+                return line.max !== undefined && maxOf(line) < Infinity ? maxOf(line) : null;
+            },
             min: () => 0,
             // One place, saved for no one character and with nothing to run after: it goes in Set all's one write.
-            path: () => (line.paths.length === 1 && !writeOptions.character && !afterWrite ? line.paths[0] : null),
-            write: async (value) => {
-                const next = Object.fromEntries(fields.map((field) => [field.key, field.valueState.val]));
-                return (await write({ ...next, [line.key]: value }))[line.key];
+            path: () => {
+                const line = lineField();
+                return line.paths.length === 1 && !writeOptions.character && !afterWrite ? line.paths[0] : null;
+            },
+            get write() {
+                const { key } = lineField();
+                return async (value) => {
+                    const next = Object.fromEntries(fields.map((field) => [field.key, field.valueState.val]));
+                    return (await write({ ...next, [key]: value }))[key];
+                };
             },
             unset: null,
             disabled: () => false,

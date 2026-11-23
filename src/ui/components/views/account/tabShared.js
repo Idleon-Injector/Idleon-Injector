@@ -5,6 +5,7 @@ import { labelOf, withAction } from "../../../services/changeLog.js";
 import { searchHits } from "../../../menu/pageSearch.js";
 import { tabRequest } from "../../../menu/pageRegistry.js";
 import { SetAllTool, setAllLines, trayLabel } from "./BulkActionBar.js";
+import { StepPicker } from "./components/StepPicker.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -124,26 +125,56 @@ export const toolsPerTab = (byTab) => (activeId, ask) =>
  * tray, shown only where the list has two lines or more and one without a max. `setAll` is SetAllTool's options
  * without `lines` (`word`, `placeholder`, `bulk`, ...); its `word(n, tabId)` also gets the open tab, and so does a
  * `placeholder(tabId)` given as a function (a table's column on one tab: Farming's "Rank").
+ *
+ * A table whose columns are equal (Cooking's Speed, Fire, Luck) has a pick of them before the field: `columns` (the
+ * steps, `{ value: key, label }`, or `(tabId) => steps` for a tab that has them, null for one that hasn't) and
+ * `column`, the picked key's state, which the table's rows get as their `setAll`. The field is then named by the
+ * picked column, and Set all acts on that column's lines only.
  */
 const hasSetAll = (lines) => lines.length >= 2 && lines.some((line) => line.max === null);
-const withSetAll = (setAll, linesOf, tools, toolsLabel) => ({
-    tools: (activeId, ask) => {
-        const word = (n) => setAll.word(n, activeId.val);
-        const { placeholder } = setAll;
-        const tool = SetAllTool({
-            ...setAll,
-            ask,
-            word,
-            placeholder: typeof placeholder === "function" ? () => placeholder(activeId.val) : placeholder,
-            lines: () => linesOf(activeId.val),
-        });
-        van.derive(() => (tool.hidden = !hasSetAll(linesOf(activeId.val))));
-        return [tool, ...toNodes(tools?.(activeId, ask))];
-    },
-    // The page's own words where it has them for the open tab; else what Set all acts on.
-    toolsLabel: (activeId) =>
-        toolsLabel?.(activeId) || trayLabel(linesOf(activeId.val).length, (n) => setAll.word(n, activeId.val)),
-});
+const withSetAll = (setAll, allLinesOf, tools, toolsLabel) => {
+    const columnsOf = (tab) => (typeof setAll.columns === "function" ? setAll.columns(tab) : setAll.columns) ?? null;
+    const linesOf = (tab) =>
+        columnsOf(tab) ? allLinesOf(tab).filter((line) => line.column === setAll.column.val) : allLinesOf(tab);
+    return {
+        linesOf,
+        tools: (activeId, ask) => {
+            const word = (n) => setAll.word(n, activeId.val);
+            const { placeholder } = setAll;
+            const picked = () => columnsOf(activeId.val)?.find((step) => step.value === setAll.column.val);
+            const tool = SetAllTool({
+                ...setAll,
+                ask,
+                word,
+                // SetAllTool's own default ("Level") when the page names none.
+                placeholder: () =>
+                    picked()?.label ??
+                    (typeof placeholder === "function" ? placeholder(activeId.val) : (placeholder ?? "Level")),
+                lines: () => linesOf(activeId.val),
+            });
+            // The column pick, rebuilt only when the open tab's columns change (a tab without them shows none).
+            const pick = div({ class: "tabbed-list__column-pick" }, () => {
+                const columns = columnsOf(activeId.val);
+                return columns
+                    ? StepPicker({
+                          name: "Column",
+                          steps: columns,
+                          picked: () => setAll.column.val,
+                          onPick: (value) => (setAll.column.val = value),
+                      })
+                    : span();
+            });
+            van.derive(() => {
+                tool.hidden = !hasSetAll(linesOf(activeId.val));
+                pick.hidden = tool.hidden || !columnsOf(activeId.val);
+            });
+            return [pick, tool, ...toNodes(tools?.(activeId, ask))];
+        },
+        // The page's own words where it has them for the open tab; else what Set all acts on.
+        toolsLabel: (activeId) =>
+            toolsLabel?.(activeId) || trayLabel(linesOf(activeId.val).length, (n) => setAll.word(n, activeId.val)),
+    };
+};
 
 /**
  * Loads every part of a tabbed page and waits for all of them, so a read that is still running can't land after the
@@ -180,7 +211,7 @@ export const TabbedList = ({
         });
     const showsTools = () =>
         (Boolean(tools) && (!toolsOn || toolsOn(activeId.val))) ||
-        (Boolean(setAll) && hasSetAll(linesOf(activeId.val)));
+        (Boolean(trayTools.linesOf) && hasSetAll(trayTools.linesOf(activeId.val)));
     // Each tab names the pane it opens and each pane its tab, for assistive technology.
     const key = `tabbed-list-${++listCount}`;
     const tabId = (tab) => `${key}-tab-${tabs.indexOf(tab)}`;

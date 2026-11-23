@@ -124,6 +124,80 @@ test("Traps refuses a save or Finish once another character is in play, and writ
     await until(() => saidIn(root) === "", "a Finish all that worked to clear its reason");
 });
 
+test("Traps' Set all sets the picked column of the picked character's traps, and nothing else (#245)", async (t) => {
+    const first = gga.UserInfo[0];
+    const other = gga.GetPlayersUsernames.find((name) => name !== first);
+    const before = {
+        live: structuredClone(gga.PlacedTraps),
+        first: structuredClone(db[first].h.PldTraps),
+        other: structuredClone(db[other].h.PldTraps),
+    };
+    t.after(() => {
+        gga.PlacedTraps = before.live;
+        db[first].h.PldTraps = before.first;
+        db[other].h.PldTraps = before.other;
+    });
+    const root = await openPage("src/ui/pages/world-3/traps/traps.js", (r) => byClass(r, "trap-row").length > 1);
+    const pick = byClass(root, "pick-in-place__option").find((option) => text(option).includes(other));
+    pick.listeners.click({ preventDefault() {}, currentTarget: pick });
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const setAll = (value) => {
+        type(inputs(byClass(tray, "account-setall-row")[0])[0], value);
+        const press = button(tray, "Set all");
+        press.listeners.click({ preventDefault() {}, currentTarget: press });
+    };
+    const column = (index) => db[other].h.PldTraps.filter((trap) => trap[0] !== -1).map((trap) => trap[index]);
+
+    // Qty first: the other character's traps get it; EXP and Rare, and the first character's traps, stay.
+    setAll(50);
+    await until(() => column(4).every((qty) => qty === 50), "Qty to reach every trap");
+    assert.deepEqual(
+        column(7),
+        before.other.filter((trap) => trap[0] !== -1).map((trap) => trap[7])
+    );
+    assert.deepEqual(gga.PlacedTraps, before.live, `${first}'s traps in play are untouched`);
+    assert.deepEqual(db[first].h.PldTraps, before.first);
+
+    // EXP picked: only EXP changes.
+    const exp = elements(tray).find((node) => node.attributes.role === "radio" && text(node) === "EXP");
+    exp.listeners.click({ preventDefault() {}, currentTarget: exp });
+    setAll(77);
+    await until(() => column(7).every((value) => value === 77), "EXP to reach every trap");
+    assert.deepEqual(column(4), [50, 50, 50], "Qty stays as it was set");
+    assert.deepEqual(gga.PlacedTraps, before.live);
+});
+
+test("Traps' Set all asks again when another character is picked while it asks (#256)", async (t) => {
+    const first = gga.UserInfo[0];
+    const [other, third] = gga.GetPlayersUsernames.filter((name) => name !== first);
+    const before = structuredClone([db[other].h.PldTraps, db[third].h.PldTraps]);
+    t.after(() => ([db[other].h.PldTraps, db[third].h.PldTraps] = before));
+    const root = await openPage("src/ui/pages/world-3/traps/traps.js", (r) => byClass(r, "trap-row").length > 1);
+    const pick = (name) => {
+        const option = byClass(root, "pick-in-place__option").find((node) => text(node).includes(name));
+        option.listeners.click({ preventDefault() {}, currentTarget: option });
+    };
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const question = () => text(byClass(tray, "tabbed-list__tools-label")[0]);
+    pick(other);
+    type(inputs(byClass(tray, "account-setall-row")[0])[0], 3);
+    const press = button(tray, "Set all");
+    press.listeners.click({ preventDefault() {}, currentTarget: press });
+    await until(() => /^Lower/.test(question()), "Set all to ask about lowering");
+
+    // Another character picked, then the answer: the first character's traps stay, and it asks about the new pick's.
+    pick(third);
+    const yes = byClass(tray, "tabbed-list__yes")[0];
+    yes.listeners.click({ preventDefault() {}, currentTarget: yes });
+    // Long enough for a write to land, and for the tray to show what it says now.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.match(question(), /^Lower/, "it asks again");
+    assert.deepEqual(db[other].h.PldTraps, before[0], `${other}'s traps are untouched`);
+    assert.deepEqual(db[third].h.PldTraps, before[1], `${third}'s traps wait for the new answer`);
+    const cancel = button(tray, "Cancel");
+    cancel.listeners.click({ preventDefault() {}, currentTarget: cancel });
+});
+
 test("Worship refuses a charge save once another character is in play, and writes nothing", async (t) => {
     const first = gga.UserInfo[0];
     t.after(() => switchTo(first));

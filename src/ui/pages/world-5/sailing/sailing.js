@@ -74,6 +74,8 @@ const BOAT_FIELDS = [
     { key: "loot", label: "Loot Value", index: 3 },
     { key: "speed", label: "Speed", index: 5 },
 ];
+// The boat columns Set all can set, picked in the tray.
+const BOAT_COLUMNS = BOAT_FIELDS.map((field) => ({ value: field.key, label: field.label }));
 
 const BoatsPart = () => {
     const states = new Map();
@@ -83,6 +85,7 @@ const BoatsPart = () => {
         return states.get(index);
     };
     const daveyState = van.state(0);
+    const column = van.state(BOAT_FIELDS[0].key);
     const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
@@ -101,6 +104,7 @@ const BoatsPart = () => {
                 const values = await Promise.all(BOAT_FIELDS.map((field) => gga(at(field))));
                 return Object.fromEntries(BOAT_FIELDS.map((field, i) => [field.key, toInt(values[i], { min: 0 })]));
             },
+            setAll: column,
         });
     };
     const daveyRow = ClampedLevelRow({
@@ -117,6 +121,7 @@ const BoatsPart = () => {
     });
 
     return {
+        column,
         content: [
             AccountSection({ title: "Gem shop", body: daveyRow }),
             AccountSection({
@@ -354,6 +359,8 @@ const CaptainsPart = ({ pending, reload }) => {
                     ])
                 );
             },
+            // Set all sets each captain's level; its EXP stays its own.
+            setAll: "level",
         });
         row.append(
             div(
@@ -763,7 +770,13 @@ const SailingTab = () => {
                 toolsOn: (id) => Boolean(partOf(id).tools),
                 toolsLabel: (activeId) => partOf(activeId.val).toolsLabel?.() ?? "",
                 // A tab whose numbers include one without a max has Set all.
-                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
+                // Boats: the picked column's (Loot Value or Speed). Captains: their level.
+                setAll: {
+                    word: (n, tab) => `${{ boats: "boat", captains: "captain" }[tab] ?? "line"}${n === 1 ? "" : "s"}`,
+                    placeholder: (tab) => (tab === "captains" ? "Level" : "Value"),
+                    columns: (tab) => (tab === "boats" ? BOAT_COLUMNS : null),
+                    column: partOf("boats").column,
+                },
             })
         ),
     });

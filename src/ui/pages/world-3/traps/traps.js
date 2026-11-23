@@ -35,6 +35,7 @@ import {
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { registerSetAllLine } from "../../../components/views/account/EditableNumberRow.js";
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
@@ -56,6 +57,14 @@ import {
 } from "../../../components/views/account/accountShared.js";
 
 const { div, p, span } = van.tags;
+
+// The columns Set all can set, picked in the tray, and where each lives in a trap.
+const COLUMNS = [
+    { value: "qty", label: "Qty" },
+    { value: "exp", label: "EXP" },
+    { value: "rare", label: "Rare" },
+];
+const FIELD_INDEX = { qty: 4, exp: 7, rare: 8 };
 
 const trapStateKey = (playerName, trapIndex, field) => `${playerName}:${trapIndex}:${field}`;
 const trapBasePath = (playerName, trapIndex) => `PlayerDATABASE.h[${playerName}].h.PldTraps[${trapIndex}]`;
@@ -114,7 +123,7 @@ const parseTrapRows = (rawTraps) =>
         })
         .filter(Boolean);
 
-const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap }) => {
+const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap, column, picked }) => {
     const qtyValue = getValueState(playerName, trap.trapIndex, "qty", toInt(trap.qty));
     const expValue = getValueState(playerName, trap.trapIndex, "exp", toInt(trap.exp));
     const rareValue = getValueState(playerName, trap.trapIndex, "rare", toInt(trap.rareChance));
@@ -124,7 +133,7 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap
     // Why a Finish failed (another character in play, say) stays beside it until the next Finish works.
     const finishSaid = useSaid();
 
-    return EditableFieldsRow({
+    const row = EditableFieldsRow({
         fields: [
             { key: "qty", valueState: qtyValue },
             { key: "exp", valueState: expValue },
@@ -215,6 +224,28 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap
         // Why a Finish failed (another character in play, say) stays beside the line until the next Finish works.
         renderExtraActions: () => Said({ said: finishSaid.said, kinds: ["failed"] }),
     });
+    // A line of the picked character's Set all, in the column picked in the tray.
+    const values = { qty: qtyValue, exp: expValue, rare: rareValue };
+    registerSetAllLine(row, {
+        row,
+        get column() {
+            return column.val;
+        },
+        get valueState() {
+            return values[column.val];
+        },
+        cap: () => null,
+        min: () => 0,
+        // The character in play keeps a live copy too: each trap saves through its own write.
+        path: () => null,
+        get write() {
+            const index = FIELD_INDEX[column.val];
+            return (value) => onWriteField(playerName, trap.trapIndex, index, value);
+        },
+        unset: null,
+        disabled: () => picked.val !== playerName,
+    });
+    return row;
 };
 
 const TrappingTab = () => {
@@ -225,6 +256,7 @@ const TrappingTab = () => {
     const critterNameById = new Map();
     const playersNode = div();
     const selected = van.state("");
+    const column = van.state(COLUMNS[0].value);
     const characterSelector = createCharacterSelector({
         id: "traps-character",
         selected,
@@ -281,6 +313,8 @@ const TrappingTab = () => {
                                       getValueState,
                                       onWriteField,
                                       finishTrap,
+                                      column,
+                                      picked: selected,
                                   });
                                   rowOf.set(`${player.playerName}:${trap.trapIndex}`, row);
                                   return row;
@@ -434,6 +468,8 @@ const TrappingTab = () => {
                     const n = trapsShown(selected.val).length;
                     return isSearching() ? `${n} matching ${trapWord(n)}` : `All ${n} ${trapWord(n)}`;
                 },
+                // A question is about the picked character's traps: another pick asks again.
+                setAll: { word: trapWord, columns: COLUMNS, column, askedFor: () => selected.val },
             })
         ),
     });
