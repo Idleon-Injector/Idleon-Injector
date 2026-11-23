@@ -140,12 +140,14 @@ export const UpgradesPart = ({
     const setLevels = async (entries, targetOf) => {
         const result = await bulk.run(async () => {
             // Nothing to change (every upgrade shown already at its max): no write, and no cache to clear.
-            const tried = entries.filter((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade));
-            if (!tried.length) return { cancelled: true };
+            const toChange = () => entries.filter((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade));
+            if (!toChange().length) return { cancelled: true };
             const before = afterBulk ? await readLevels() : null;
+            // Taken after the read, so a row saved meanwhile is in the writes and the hook alike.
+            const tried = toChange();
             try {
                 await runBulkSet({
-                    entries,
+                    entries: tried,
                     getTargetValue: targetOf,
                     getValueState: (upgrade) => getLevel(upgrade.n),
                     getPath: pathOf,
