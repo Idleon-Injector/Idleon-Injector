@@ -153,6 +153,8 @@ export const resetRoyalGuardUnitsToVanilla = async () => {
         readCList("Research[43]"),
     ]);
     const royalG = toIndexedArray(rawRoyalG ?? []);
+    // The units come from the shelf levels: without them (a read with no value), nothing is written.
+    if (royalG[2] === null || royalG[2] === undefined) throw new Error("Couldn't read the upgrade levels. Try again.");
     const royalMaps = toIndexedArray(rawRoyalMaps ?? []);
     const { rebuilt } = buildVanillaUnitArrays(royalG, rawOrder);
     const writes = [];

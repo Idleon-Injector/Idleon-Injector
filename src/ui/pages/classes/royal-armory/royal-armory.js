@@ -674,6 +674,18 @@ const OutpostsTab = ({ pending, reload }) => {
             afterWrite: async (changed) => {
                 if (changed.includes("barracks")) await syncSlots(toNum(await gga(at(0)), 0));
             },
+            // A failed save may still have changed the Barracks: the slots follow the level the game kept, and the
+            // save's own failure is the one said.
+            runWrite: async (task) => {
+                try {
+                    return await task();
+                } catch (error) {
+                    await gga(at(0))
+                        .then((barracks) => syncSlots(toNum(barracks, 0)))
+                        .catch(() => {});
+                    throw error;
+                }
+            },
         });
         row.append(
             div(
@@ -797,7 +809,13 @@ const OutpostsTab = ({ pending, reload }) => {
                             e.preventDefault();
                             said.clear();
                             const result = await build.run(() =>
-                                mapWrites(() => writeVerified(`RoyalMaps[${mapId}]`, [...DEFAULT_OUTPOST]))
+                                mapWrites(async () => {
+                                    // A second press, or a game that built it meanwhile: the outpost stays as it is.
+                                    const record = await gga(`RoyalMaps[${mapId}]`);
+                                    if (Array.isArray(record) && record.length >= BUILT_OUTPOST_LENGTH)
+                                        throw new Error("Already built. Refresh.");
+                                    await writeVerified(`RoyalMaps[${mapId}]`, [...DEFAULT_OUTPOST]);
+                                })
                             );
                             if (!result.ok) said.say("failed", `Not built: ${saveFailureReason(result.error)}`);
                             // The row turns into the outpost, or stays with the reason.

@@ -800,6 +800,30 @@ test("outposts: Add waits for a unit shelf's rebuild, then adds to the rebuilt l
     }
 });
 
+// Review of #239 round 5: a Barracks save that landed but failed still locks the slots it no longer opens.
+test("outposts: a failed Barracks save that landed still locks the slots", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    gga.RoyalMaps[1][0] = 1;
+    gga.RoyalMaps[1][11] = 241111111;
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        return String(url).includes("/write") && String(options?.body ?? "").includes("RoyalMaps[1][0]")
+            ? new Response(JSON.stringify({ error: "the connection dropped" }), { status: 500 })
+            : response;
+    };
+    try {
+        typeAndEnter(outpost, 0);
+        await until(() => gga.RoyalMaps[1][0] === 0, "the Barracks save to land");
+        await until(() => gga.RoyalMaps[1][11] === 211111111, "slot 2 locked again");
+    } finally {
+        globalThis.fetch = realFetch;
+        gga.RoyalMaps[1] = before;
+    }
+});
+
 // Review of #239: the slots followed the Barracks level from before the save.
 test("outposts: Barracks opens and locks the slots with the level just saved", async () => {
     const before = copy(gga.RoyalMaps[1]);
@@ -1005,6 +1029,50 @@ test("outposts: Reset to the game's asks in the tray first", async () => {
     assert.equal(trayLine(root), "Put every map unit back where the game puts it?");
     assert.equal(writes(), before);
     click(buttonNamed(root, "Cancel"));
+});
+
+// Review of #239 round 5: Reset builds the units from the shelf levels; a read without them writes nothing.
+test("outposts: Reset with no upgrade levels read back writes nothing", async () => {
+    const saved = unitArrays();
+    const { root } = await openOutposts();
+    armoryUnits();
+    const placed = unitArrays();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/gga/read") && JSON.parse(options?.body ?? "{}").path === "gga.RoyalG"
+            ? new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } })
+            : realFetch(url, options);
+    try {
+        const before = writes();
+        click(buttonNamed(root, "Reset to the game's"));
+        await tick();
+        await yes(root);
+        await until(() => /upgrade levels/.test(trayLine(root) + text(root)), "the reason");
+        assert.equal(writes(), before, "nothing written");
+        assert.deepEqual(unitArrays(), placed, "the units stay");
+    } finally {
+        globalThis.fetch = realFetch;
+        putUnitArrays(saved);
+    }
+});
+
+// Review of #239 round 5: a Build pressed again on the old row leaves the built outpost alone.
+test("outposts: Build on a map built meanwhile leaves the outpost as it is", async () => {
+    const before = copy(gga.RoyalMaps[3]);
+    const { pane } = await openOutposts();
+    const row = opened(rowNamed(pane, "Grassy Ridge"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const build = buttonNamed(row, "Build");
+    try {
+        await click(build);
+        await until(() => gga.RoyalMaps[3].length > 1, "the outpost built");
+        gga.RoyalMaps[3][0] = 7;
+        await click(build);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        assert.equal(gga.RoyalMaps[3][0], 7, "the Barracks level stays");
+    } finally {
+        gga.RoyalMaps[3] = before;
+    }
 });
 
 test("outposts: a refused Glorified flip says why on the outpost", async () => {
