@@ -178,6 +178,7 @@ const CaptainsPart = ({ pending, reload }) => {
     const poolNode = div();
     const reconcileOwned = createStaticRowReconciler(ownedNode);
     const reconcilePool = createStaticRowReconciler(poolNode);
+    const rowOf = new Map();
     // A kind in a word or two ("Boat Speed"): the title holds two of them.
     const kindLabel = (index) => kinds.val[index]?.short ?? `Bonus ${index + 1}`;
     // A low-rarity captain has one bonus: the game keeps -1 for the other ("None" on its picker, left off the title).
@@ -390,8 +391,15 @@ const CaptainsPart = ({ pending, reload }) => {
                 .filter((c) => toNum(c.captain[0], -1) >= 0);
             const owned = hired.filter((c) => c.slot < OWNED_SLOTS);
             const pool = hired.filter((c) => c.slot >= OWNED_SLOTS);
-            reconcileOwned(owned.map((c) => c.slot).join("|"), () => owned.map((c) => CaptainRow(c.slot)));
-            reconcilePool(pool.map((c) => c.slot).join("|"), () => pool.map((c) => CaptainRow(c.slot)));
+            // A captain still hired keeps its row through a reload (its Remove's answer stays on the page); a slot that
+            // emptied drops its row, so a captain hired there later gets a new one.
+            for (const slot of rowOf.keys()) if (!hired.some((c) => c.slot === slot)) rowOf.delete(slot);
+            const rowFor = ({ slot }) => {
+                if (!rowOf.has(slot)) rowOf.set(slot, CaptainRow(slot));
+                return rowOf.get(slot);
+            };
+            reconcileOwned(owned.map((c) => c.slot).join("|"), () => owned.map(rowFor));
+            reconcilePool(pool.map((c) => c.slot).join("|"), () => pool.map(rowFor));
             poolCount.val = pool.length;
             for (const { slot, captain } of hired) {
                 const state = stateOf(slot);

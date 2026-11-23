@@ -610,8 +610,13 @@ test("Captains: two quick Removes of your last two captains keep one", async (t)
     } finally {
         held();
     }
-    await until(() => refusalOf(nine) !== "", "the second Remove's answer");
-    assert.equal(refusalOf(nine), "Can't remove your last captain.");
+    // Read from the page as it is now: the first Remove's reload redrew the list.
+    const shownAnswer = () => {
+        const row = rowNamed(pane, "Captain 9");
+        return row ? refusalOf(rowNamed(row, "Remove captain")) : "";
+    };
+    await until(() => !rowNamed(pane, "Captain 8") && shownAnswer() !== "", "the second Remove's answer on the page");
+    assert.equal(shownAnswer(), "Can't remove your last captain.");
     assert.equal(gga.Captains[7][0], -1);
     assert.equal(gga.Captains[8][0], before[8][0], "the last captain stays");
 });
