@@ -694,7 +694,15 @@ const TABS = [
         id: "captains",
         label: "Captains",
         part: CaptainsPart,
-        keywords: ["Recruitment", "Captain bonus", "Artifact Find"],
+        keywords: [
+            "Recruitment",
+            "Captain bonus",
+            "Captain level",
+            "Captain EXP",
+            "Captain rarity",
+            "Remove captain",
+            "Artifact Find",
+        ],
     },
     { id: "islands", label: "Islands", part: IslandsPart, keywords: ["Clouds", "Sailing map"] },
     {
