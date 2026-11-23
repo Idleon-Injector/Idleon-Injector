@@ -3,7 +3,7 @@ import store from "../state/store.js";
 import { VIEWS, IS_ELECTRON } from "../state/constants.js";
 import { Icons } from "../assets/icons.js";
 import { withTooltip } from "./Tooltip.js";
-import { WORLDS, AREAS, worldClass } from "../menu/menuModel.js";
+import { WORLDS, AREAS, findWorld, worldClass } from "../menu/menuModel.js";
 import { menuError, menuTree } from "../menu/pageRegistry.js";
 import { isRail, menuLevel, levelHead, LevelItems, DRILL_AREAS } from "./MenuLevels.js";
 import { Said, plainReason, replay, useSaid } from "./inPlace.js";
@@ -59,12 +59,27 @@ let focusBackTo = null; // going back returns focus to the entry the list was op
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 // Opening a list doesn't open a page: the page stays until an entry is picked (Lumi: switching quickly around was a
-// lot on the eyes). In the icon rail there is no list to slide to, so a world opens there as before.
+// lot on the eyes). In the icon rail there is no list to slide to, so a world opens there as before. A section with a
+// home (Automation) lands on it, or stays on its page that is open.
 const drillInto = (key, target) => {
     if (isRail()) return store.openMenu(target);
     focusFirst = true;
-    menuLevel.val = key;
+    if (!findWorld(key)?.home) return (menuLevel.val = key);
+    const page = store.app.activeTab === VIEWS.PAGES.id && store.app.menuWorld === key ? store.app.menuPage : "";
+    store.openMenu({ world: key, page });
 };
+
+const WorldBtn = (world) =>
+    MenuBtn({
+        code: world.code,
+        label: world.label.toUpperCase(),
+        colorClass: worldClass(world),
+        key: world.id,
+        drill: true,
+        active: () => store.app.activeTab === VIEWS.PAGES.id && store.app.menuWorld === world.id,
+        onclick: () => drillInto(world.id, { world: world.id }),
+    });
+const sep = () => div({ class: "menu-nav-sep", role: "separator" });
 
 const TopList = () =>
     div(
@@ -75,18 +90,12 @@ const TopList = () =>
             active: () => store.app.activeTab === VIEWS.HOME.id,
             onclick: () => store.openMenu({ view: "HOME" }),
         }),
-        ...WORLDS.map((world) =>
-            MenuBtn({
-                code: world.code,
-                label: world.label.toUpperCase(),
-                colorClass: worldClass(world),
-                key: world.id,
-                drill: true,
-                active: () => store.app.activeTab === VIEWS.PAGES.id && store.app.menuWorld === world.id,
-                onclick: () => drillInto(world.id, { world: world.id }),
-            })
-        ),
-        div({ class: "menu-nav-sep", role: "separator" }),
+        ...WORLDS.filter((world) => !world.home).map(WorldBtn),
+        // Automation is its own place, between the game's places and the injector's: a player who only wants
+        // automation finds it without crossing a cheat page (#249).
+        sep(),
+        ...WORLDS.filter((world) => world.home).map(WorldBtn),
+        sep(),
         ...AREAS.map((area) => {
             const drill = DRILL_AREAS.includes(area);
             const target = { view: area.view || area.tabs[0].view };

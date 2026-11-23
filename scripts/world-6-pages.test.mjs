@@ -9,8 +9,8 @@ import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 const FARMING = "src/ui/pages/world-6/farming/farming.js";
 const SNEAKING = "src/ui/pages/world-6/sneaking/1-sneaking.js";
 const SUMMONING = "src/ui/pages/world-6/summoning/1-summoning.js";
-const SNEAKING_AUTOMATION = "src/ui/pages/world-6/sneaking/2-automation.js";
-const SUMMONING_AUTOMATION = "src/ui/pages/world-6/summoning/2-automation.js";
+const SNEAKING_AUTOMATION = "src/ui/pages/automation/sneaking/sneaking.js";
+const SUMMONING_AUTOMATION = "src/ui/pages/automation/summoning/summoning.js";
 const BEANSTALK = "src/ui/pages/world-6/beanstalk/beanstalk.js";
 const EMPEROR = "src/ui/pages/world-6/emperor/emperor.js";
 
@@ -131,23 +131,28 @@ const hold = (route) => {
 
 // ---- The menu ----------------------------------------------------------------------------------------------------
 
-test("World 6 has five systems; Sneaking and Summoning keep Automation as their own sidebar entry", async () => {
+test("World 6 has five systems; Sneaking's and Summoning's automation are in the Automation section", async () => {
     const { buildMenuTree, pageTitle } = await importRepo("src/ui/menu/menuModel.js");
     const pages = await Promise.all(
         [FARMING, SNEAKING, SNEAKING_AUTOMATION, SUMMONING, SUMMONING_AUTOMATION, BEANSTALK, EMPEROR].map(
             async (file) => (await importRepo(file)).default
         )
     );
-    const world = buildMenuTree(pages).find((entry) => entry.id === 6);
+    const tree = buildMenuTree(pages);
+    const world = tree.find((entry) => entry.id === 6);
     assert.deepEqual(
         world.systems.map((system) => [system.name, system.pages.map((page) => pageTitle(page, system))]),
         [
             ["Farming", ["Farming"]],
-            ["Sneaking", ["Sneaking", "Automation"]],
-            ["Summoning", ["Summoning", "Automation"]],
+            ["Sneaking", ["Sneaking"]],
+            ["Summoning", ["Summoning"]],
             ["Beanstalk", ["Beanstalk"]],
             ["Emperor", ["Emperor"]],
         ]
+    );
+    assert.deepEqual(
+        tree.find((entry) => entry.id === "automation").systems.map((system) => system.name),
+        ["Sneaking", "Summoning"]
     );
     const tabsOf = (file) => pages.find((page) => page.id === file).tabs.map((tab) => tab.label);
     assert.deepEqual(tabsOf("w6.farming"), ["Plots", "Crop Depot", "Market", "Exotic Market", "Land Rank", "Stickers"]);

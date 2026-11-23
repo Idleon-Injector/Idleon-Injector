@@ -258,6 +258,7 @@ const BubblesTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Bubbles",
+        automation: { page: "automation.alchemy" },
         description: "Bubble levels and prisma bubbles in all four cauldrons.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },

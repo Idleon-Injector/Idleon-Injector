@@ -8,7 +8,7 @@
     --page-measure: 60rem;
 }
 
-/* What each automation is doing, under its name (Account › Automation, and the switch row of every page). */
+/* What each automation is doing, under its name (Automation › Overview, and the switch row of every page). */
 .automation-row__status {
     color: var(--c-text-muted);
     font-size: 0.875rem;

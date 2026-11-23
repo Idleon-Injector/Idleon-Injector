@@ -1,5 +1,5 @@
 /**
- * World 3 › Construction › Automation: which buildings the construction automation builds. Empty slots take a
+ * Automation › Construction: which buildings the construction automation builds. Empty slots take a
  * saved-for building first, then the rest, the one closest to done first; a finished build is completed at once and
  * paid as soon as its salt is there. Buildings queued by hand are completed and paid, never removed.
  *
@@ -149,6 +149,8 @@ const ConstructionAutomationTab = () => {
     tab.load();
 
     return AutomationPage({
+        title: "Construction",
+        page: "automation.construction",
         description: "Builds switched-on buildings in free slots, then completes and pays them.",
         total: AutomationStats(() => (queue.val ? queueStats(queue.val) : [])),
         columns: COLUMNS,
@@ -163,10 +165,9 @@ const ConstructionAutomationTab = () => {
 };
 
 export default definePage({
-    id: "w3.construction.automation",
-    world: 3,
+    id: "automation.construction",
+    world: "automation",
     system: "Construction",
-    tab: "Automation",
     description: "Buildings, towers and shrines built, completed and paid with salt, each up to its stop-at.",
     keywords: ["Construction", "Automation", "Auto build", "Salt", "Stop at", "Save for it", "Priority"],
     component: ConstructionAutomationTab,

@@ -115,6 +115,11 @@
     min-width: 0;
 }
 
+/* Knowledge XP alone on the Tools page keeps the measure it had beside Auto Play. */
+.sushi-knowledge {
+    max-width: 26rem;
+}
+
 /* Plain sections (#26): no inset box inside the page. */
 .sushi-automation-controls {
     gap: 14px;
@@ -211,5 +216,16 @@
 @media (max-width: 900px) {
     .sushi-tools-layout {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* In the narrow overlay a sushi's three fields go on the line under its name, like every value row's field. */
+@media (max-width: 760px) {
+    .viewport .account-row.sushi-knowledge-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .viewport .account-row.sushi-knowledge-row > .account-row__controls {
+        grid-column: 1 / -1;
+        justify-self: end;
     }
 }

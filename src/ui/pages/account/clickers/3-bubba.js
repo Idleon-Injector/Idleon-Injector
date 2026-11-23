@@ -235,6 +235,7 @@ const BubbaTab = () => {
     load();
     return PersistentAccountListPage({
         title: "BUBBA",
+        automation: { page: "automation.clickers", tab: "bubba" },
         description: "Set Bubba resources, upgrades, and progress.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         topNotices: div(

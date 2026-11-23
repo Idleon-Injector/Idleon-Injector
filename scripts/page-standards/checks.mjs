@@ -19,11 +19,18 @@ export const ON_STANDARDS = [
     "world-4/",
     "world-5/",
     "world-6/",
-    // The pages already on the shared pieces in Account: the clickers (Bubba not yet) and the automation pages.
+    // The pages already on the shared pieces in Account: the clickers (Bubba not yet).
     "account/clickers/1-orion.js",
     "account/clickers/2-poppy.js",
-    "account/clickers/4-automation.js",
-    "account/automation/2-shops.js",
+    // The automation pages that were on them before they moved into the Automation section (#249). Overview, Sushi
+    // Station and Grimoire weren't yet.
+    "automation/alchemy/",
+    "automation/construction/",
+    "automation/cooking/",
+    "automation/sneaking/",
+    "automation/summoning/",
+    "automation/clickers/",
+    "automation/shops/",
 ];
 
 /**
@@ -180,13 +187,13 @@ export function pageBreaks(node, page, title) {
         if (field && !hasCap && maxed) breaks.push(`Max: "${rowName(row)}" has Max but no cap to fill up to`);
     }
 
-    // Automation: its own sidebar entry, never a tab.
+    // Automation: its own page in the Automation section, never a tab.
     for (const tab of [...tabsOf(node).map(words), ...(page.tabs ?? []).map((tab) => tab.label)])
         if (/^automation\b/i.test(tab))
-            breaks.push(`Automation: "${tab}" is a tab; make it its own page with tab "Automation"`);
-    if (byClass(node, "automation-rows").length && page.tab !== "Automation" && page.system !== "Automation")
+            breaks.push(`Automation: "${tab}" is a tab; make it its own page in the Automation section`);
+    if (byClass(node, "automation-rows").length && page.world !== "automation")
         breaks.push(
-            `Automation: the automation list sits on "${title}"; it goes on its own page with tab "Automation"`
+            `Automation: the automation list sits on "${title}"; it goes on its own page in the Automation section`
         );
 
     // Tabs: a tab never holds tabs.

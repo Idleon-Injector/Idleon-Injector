@@ -115,7 +115,7 @@ async function type(node, value) {
 }
 
 // The page: a tab per clicker on one list, every tab mounted; Orion's is open first.
-const page = (await importRepo("src/ui/pages/account/clickers/4-automation.js")).ClickersAutomation();
+const page = (await importRepo("src/ui/pages/automation/clickers/clickers.js")).ClickersAutomation();
 const owl = page;
 // A tab's own table (0 Orion, 1 Poppy, 2 Bubba) and its own tray tools.
 const pane = (i) => byClass(page, "automation-rows")[i];

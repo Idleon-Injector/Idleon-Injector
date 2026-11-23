@@ -1,5 +1,5 @@
 /**
- * Building blocks for Account › Automation and each system's automation tab.
+ * Building blocks for the Automation section: its Overview and each system's automation page.
  *
  * An automation is an "automation <system>" toggle cheat; its picks are cheatConfig.automation[system]. The game
  * lists them in readComputed("automation", "list"): { id, cheat, label, on, error, status }.
@@ -1080,10 +1080,12 @@ export const AutomationStats = (parts) =>
  * bulk failure).
  *
  * With `tabs` ([{ id, label, columns, bulk, body }]) the list is a TabbedList instead: each tab is its own table with
- * its own tools in the tray, and `activeId` (the open tab) lets the title's stats and line follow it.
+ * its own tools in the tray, and `activeId` (the open tab) lets the title's stats and line follow it. `page` (the page's
+ * id) lets a link from a system's page open it on one tab (AutomationLink).
  */
 export const AutomationPage = ({
     title = "Automation",
+    page = null,
     description,
     total = null,
     subNav = null,
@@ -1102,8 +1104,9 @@ export const AutomationPage = ({
         div({ class: "automation-rows", style: `--value-columns: ${cols.widths}` }, ...toNodes(rows));
     const list = tabs
         ? TabbedList({
-              name: `${title}: ${what}`,
+              name: `Automation: ${what}`,
               activeId,
+              page,
               tabs: tabs.map((tab) => ({ id: tab.id, label: tab.label, content: table(tab.columns, tab.body) })),
               // Every tab's tools are made once; only the open tab's show.
               tools: (open, ask) =>

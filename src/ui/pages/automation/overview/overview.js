@@ -1,7 +1,7 @@
 /**
- * Account › Automation › Overview: every automation (an "automation …" toggle) with its switch and what it is doing,
+ * Automation › Overview, the section's home: every automation (an "automation …" toggle) with its switch and what it is doing,
  * so everything running can be seen and stopped in one place. A new system shows here by declaring its automation;
- * this page needs no edit. Each one's own tab says what it buys.
+ * this page needs no edit. Each one's own page says what it buys.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -26,7 +26,7 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 
 const { div } = van.tags;
 
-const PAGE_ID = "account.automation.overview";
+const PAGE_ID = "automation.overview";
 
 const OverviewPage = () => {
     const entries = new Map(); // cheat -> state of its entry
@@ -79,7 +79,7 @@ const OverviewPage = () => {
     const running = () => behind(false).length;
 
     load();
-    // Shown again (back from a system's own tab, which may have switched its automation since): read again.
+    // Shown again (back from a system's own page, which may have switched its automation since): read again.
     whenShown(PAGE_ID, load);
     // While one runs, the statuses follow the game; a failed read is said as the page's read error until one works.
     readWhileRunning({
@@ -90,9 +90,9 @@ const OverviewPage = () => {
     });
 
     return PersistentAccountListPage({
-        title: "AUTOMATION",
+        title: "Overview",
         description:
-            "Everything the injector buys for you, with the game's own prices and currency. A switch turns an automation on now and at every start; its own tab picks what it buys.",
+            "Does what you'd do by hand, with your own resources. A switch turns one on now and at every start.",
         actions: BulkActionBar({
             actions: [
                 {
@@ -127,11 +127,10 @@ const OverviewPage = () => {
 };
 
 export default definePage({
-    id: PAGE_ID,
-    world: "account",
-    system: "Automation",
-    tab: "Overview",
+    id: "automation.overview",
+    world: "automation",
+    system: "Overview",
     description: "Every automation with its switch and what it is doing, to see and stop them in one place.",
-    keywords: ["Autobuy", "Auto buy", "Enable all", "Disable all"],
+    keywords: ["Automation", "Autobuy", "Auto buy", "Enable all", "Disable all"],
     component: OverviewPage,
 });

@@ -113,6 +113,10 @@ export const Icons = {
     Plus: (props) =>
         SvgBase(path({ d: "M12 7.5v9M7.5 12h9", "stroke-width": "2.4" }), { "aria-hidden": "true", ...props }),
 
+    /** Goes to another place (a system's page to its automation page): the plus's weight, a soft head. */
+    Arrow: (props) =>
+        SvgBase(path({ d: "M7 12h10M13 8l4 4-4 4", "stroke-width": "2.2" }), { "aria-hidden": "true", ...props }),
+
     /** One soft bend for a group that opens and closes; `dir` turns it ("down", "right", "up", "left"). */
     Chevron: ({ dir = "down", ...props } = {}) =>
         SvgBase(

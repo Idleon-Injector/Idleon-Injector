@@ -38,7 +38,7 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Appearance          | The attire (outfit) a character wears, in its equipment's attire slot.                               |
 | Loadout             | Gear, tools, food, cards, prayers, chips and obols set at once on the Wardrobe page.                 |
 | Perfect Equipped    | The gear in play rebuilt with the stones of the world reached and the account's crafting bonuses.    |
-| Automation          | Work that repeats while its toggle is on (`defineAutomation`). Account › Automation lists buyers.    |
+| Automation          | Work that repeats while its toggle is on (`defineAutomation`). The Automation section lists them.    |
 | Stop-at             | The level, or for a shop item the chest count, at which an automation stops buying an item.          |
 | Priority            | High, Low or Balanced: saving for the cheapest High or Low item, Balanced may spend its saving %.    |
 

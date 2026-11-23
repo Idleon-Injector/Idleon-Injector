@@ -51,6 +51,24 @@
     gap: 2px 16px;
 }
 
+/* The way to a system's automation page (#249): muted words on the title's line, bare until pointed at (then the
+   quiet button's fill), so it never reads as one of the page's actions. It takes no height of its own, so a title
+   with it sits where one without it does. */
+.automation-link.btn-quiet,
+.viewport .automation-link.btn-quiet {
+    /* Its words, not its hover fill, keep the line's gap, and start the line's left edge when it wraps. */
+    margin: -6px 0 -6px -8px;
+    padding-inline: 8px;
+    gap: 4px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--c-text-muted);
+}
+.automation-link__arrow {
+    width: 15px;
+    height: 15px;
+}
+
 /* A read-only amount still to spend: plain words, the number a step brighter. */
 .amount-left {
     font-size: 0.875rem;

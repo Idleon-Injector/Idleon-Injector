@@ -2,7 +2,8 @@
  * W6 - Summoning
  *
  * One page, the game's summoning screens as its tabs: Upgrades (the board, a group per essence colour), Essence and
- * Battles. One read of the game fills every tab. The summoning automation is its own page (2-automation.js).
+ * Battles. One read of the game fills every tab. The summoning automation is its own page in the
+ * Automation section (automation/summoning).
  *
  * Data sources:
  *   gga.Summon[0][n]               - board upgrade n's level (cList.SummonUPG: [2] colour, [3] name, [8] max level, 9999
@@ -253,6 +254,7 @@ const SummoningTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container summoning-tab",
         title: "Summoning",
+        automation: { page: "automation.summoning" },
         description: "The board's upgrades, essence and battles.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
@@ -276,8 +278,6 @@ export default definePage({
     id: "w6.summoning",
     world: 6,
     system: "Summoning",
-    // Its system has two sidebar entries: this page and Automation (2-automation.js).
-    tab: "Summoning",
     description: "The board's upgrades, essence and battles.",
     // Each tab is found by its own name and words (tabs), and opens there.
     tabs: TABS.map(({ id, label, keywords }) => ({ id, label, keywords })),

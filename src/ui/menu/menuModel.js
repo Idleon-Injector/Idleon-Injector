@@ -22,11 +22,10 @@ export const WORLDS = [
             "Card Search",
             "Bundles",
             "Task Board",
-            // IdleonToolbox's Clickers group: Orion, Poppy, Bubba and their Automation as its tabs.
+            // IdleonToolbox's Clickers group: Orion, Poppy and Bubba as its tabs.
             "Clickers",
             "Event Shop",
             "Quests",
-            "Automation",
         ],
     },
     {
@@ -122,7 +121,45 @@ export const WORLDS = [
         folder: "classes",
         systems: ["Grimoire", "Compass", "Tesseract", "Royal Armory"],
     },
+    // Every automation page, for players who only want automation: they never cross a cheat page (#249). Overview is
+    // its home, the page picking it in the sidebar opens (`home`); then the systems by world, then the account ones.
+    {
+        id: "automation",
+        code: "AUT",
+        label: "Automation",
+        name: "Does what you'd do by hand, with your own resources.",
+        folder: "automation",
+        home: true,
+        systems: [
+            "Overview",
+            "Alchemy",
+            "Construction",
+            "Cooking",
+            "Sneaking",
+            "Summoning",
+            "Sushi Station",
+            "Clickers",
+            "Grimoire",
+            "Shops",
+        ],
+    },
 ];
+
+/**
+ * Page ids from before the automation pages moved into the Automation section (#249), so a remembered place and a
+ * History entry still find their page.
+ */
+export const MOVED_PAGES = {
+    "account.automation.overview": "automation.overview",
+    "account.automation.shops": "automation.shops",
+    "w2.bubbles.automation": "automation.alchemy",
+    "w3.construction.automation": "automation.construction",
+    "w4.cooking.automation": "automation.cooking",
+    "w6.sneaking.automation": "automation.sneaking",
+    "w6.summoning.automation": "automation.summoning",
+    "account.clickers.automation": "automation.clickers",
+    "classes.grimoire.automation": "automation.grimoire",
+};
 
 /** The areas next to the worlds. `view` names a key of VIEWS; `words` are the names search also knows. */
 export const AREAS = [
@@ -477,6 +514,11 @@ export const searchMenu = (entries, query) => {
                 score = wordScore;
                 matched = word;
             }
+        }
+        // Every typed word in its name, place or words, in any order: "bubble automation", "automation cooking".
+        if (!score && q.includes(" ")) {
+            const all = [entry.label, entry.where, ...(entry.words || [])].join(" ").toLowerCase();
+            if (q.split(/\s+/).every((part) => all.includes(part))) score = 30;
         }
         if (!score && entry.description && entry.description.toLowerCase().includes(q)) score = 25;
         if (score > 0) hits.push({ ...entry, matched, score: BY_NAME + 200 + score });

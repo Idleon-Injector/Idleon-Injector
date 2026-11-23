@@ -446,3 +446,19 @@ stalls the game for about a second. The server asks the game for one picture a f
 second or two instead of stalling the game (all 177 at once does, for about 0.2 s).
 
 Source: [game side](../src/cheats/helpers/petPictures.js), [routes](../src/modules/server/routes/game.js).
+
+## Give automation its own menu section
+
+Decision: every automation page lives in one sidebar section, Automation (`world: "automation"`), never as a tab or
+page inside a system's cheat pages. A system page links one way to its automation page. Old page ids are mapped to the
+new ones (`MOVED_PAGES`), so a remembered place and History entries still find their page.
+
+Why: players who only want automation (what they'd do by hand, with their own resources) share the menu with players
+who cheat. A section of its own lets them find it without crossing a cheat page (#249).
+
+Alternative: keep each automation as a tab or sidebar entry under its system, or merge it into the system's list
+(two concepts for Bubbles, both rejected by the maintainer).
+
+Trade-off: a system's automation sits away from its cheat page, so the cheat page carries a link to it.
+
+Source: [menu model](../src/ui/menu/menuModel.js), [pages](../src/ui/pages/automation/).

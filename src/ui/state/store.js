@@ -4,7 +4,7 @@ import { VIEWS } from "./constants.js";
 import { getCheatConfigPath, configPathExists } from "../utils/index.js";
 import { formatDisplayValue } from "../components/views/search/valueUtils.js";
 import { createLiveMonitor } from "./liveMonitor.js";
-import { findWorld } from "../menu/menuModel.js";
+import { findWorld, MOVED_PAGES } from "../menu/menuModel.js";
 import { tabRequest } from "../menu/pageRegistry.js";
 import {
     initWebSocket,
@@ -32,6 +32,8 @@ const safeParseJSON = (key, fallback = []) => {
 // The menu opens where the player left it; the very first start shows Home.
 const MENU_LAST_KEY = "menuLast";
 const savedMenu = safeParseJSON(MENU_LAST_KEY, null) || {};
+// A page that moved into the Automation section (#249) opens where it is now.
+if (MOVED_PAGES[savedMenu.page]) Object.assign(savedMenu, { world: "automation", page: MOVED_PAGES[savedMenu.page] });
 const isKnownView = (id) =>
     Object.values(VIEWS).some((view) => view.id === id) && (id !== VIEWS.PAGES.id || findWorld(savedMenu.world));
 
