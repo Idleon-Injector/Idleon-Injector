@@ -561,6 +561,31 @@ test("Buildings: a level save the game doesn't take leaves the level and its pen
     assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10]);
 });
 
+test("Buildings: after the game keeps the old pending copy, the same level saves again into both (#126)", async () => {
+    gga.TowerInfo[0] = 3;
+    gga.TowerInfo[27] = 3;
+    const first = gga.CustomLists.h.TowerInfo[0][0].replace(/_/g, " ");
+    const nameOf = (r) => text(byClass(r, "account-row__name")[0]);
+    const root = await openPage("src/ui/pages/world-3/construction/1-buildings.js", (r) =>
+        byClass(r, "account-row").some((row) => nameOf(row) === first)
+    );
+    const row = byClass(root, "account-row").find((r) => nameOf(r) === first);
+
+    // The game takes the level and keeps its old pending copy, so the two copies are left apart.
+    Object.defineProperty(gga.TowerInfo, 27, { get: () => 3, set() {}, configurable: true, enumerable: true });
+    try {
+        await quietly(() => typeAndEnter(row, 10));
+    } finally {
+        Object.defineProperty(gga.TowerInfo, 27, { value: 3, writable: true, configurable: true, enumerable: true });
+    }
+    assert.match(classes(byClass(row, "save-state")[0]), /save-state--error/);
+    assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 3], "the copies are apart");
+
+    await typeAndEnter(row, 10);
+    await until(() => classes(byClass(row, "save-state")[0]).includes("save-state--success"), "the retry to land");
+    assert.deepEqual([gga.TowerInfo[0], gga.TowerInfo[27]], [10, 10], "the retry writes both");
+});
+
 // #216: the penguins from a past limited gem shop sale have their row on Equinox.
 test("Equinox: the Pingy penguins row saves the count the game reads", async (t) => {
     const before = gga.OptionsListAccount[320];
