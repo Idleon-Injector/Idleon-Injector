@@ -241,7 +241,7 @@ test("slab: an item switch flipped while another item saves still saves", async 
     try {
         await twoFlipsLand(
             "src/ui/pages/world-5/slab/slab.js",
-            "Missing",
+            "",
             "Registered",
             () => game.gga.Cards[1].length === before.length + 2
         );
@@ -329,7 +329,7 @@ test("bribes: Enable all keeps its button's click even when another control is c
 
 for (const [name, file, list, index, off] of [
     ["event shop", "src/ui/pages/account/event-shop/event-shop.js", () => ola, 311, "Not owned"],
-    ["slab", "src/ui/pages/world-5/slab/slab.js", () => game.gga.Cards, 1, "Missing"],
+    ["slab", "src/ui/pages/world-5/slab/slab.js", () => game.gga.Cards, 1, ""],
 ]) {
     test(`${name}: a refused row save is said once, on the switch`, async () => {
         let restore = () => {};
@@ -1071,10 +1071,10 @@ test("slab: a registration whose answer was lost, but which the game kept, isn't
             "src/ui/pages/world-5/slab/slab.js",
             (root) => pageRead(root) && byClass(root, "state-switch").length > 1
         );
-        const row = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "Missing");
+        const row = byClass(root, "account-row").find((row) => switchOf(row) && wordsOf(row) === "");
         restore = loseAnswers("Cards[1]");
         await flip(row, true);
-        await until(() => wordsOf(row) !== "Missing", "the save to end");
+        await until(() => wordsOf(row) !== "", "the save to end");
         assert.equal(restore.lost(), 1, "the write's answer was lost");
         assert.equal(game.gga.Cards[1].length, before.length + 1, "the game kept it");
         assert.equal(wordsOf(row), "Registered", "read back, not said as failed");

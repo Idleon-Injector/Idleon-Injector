@@ -1,57 +1,47 @@
 import van from "../../../vendor/van-1.6.0.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
-import { debounce, toIndexedArray } from "../../../utils/index.js";
-import { BulkActionBar } from "./BulkActionBar.js";
-import { useAccountLoad } from "./accountLoadPolicy.js";
+import { toIndexedArray } from "../../../utils/index.js";
 import { cleanName, createStaticRowReconciler, oneAtATime, useWriteStatus, writeVerified } from "./accountShared.js";
 import { AccountRow } from "./components/AccountRow.js";
+import { ActionButton } from "./components/ActionButton.js";
 import { StateSwitch } from "./components/StateSwitch.js";
 import { EmptyState } from "../../EmptyState.js";
-import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
-import { clickAgain } from "../../inPlace.js";
 
-const { div, input, option, select, span } = van.tags;
+const { div, input, label: labelTag, span } = van.tags;
 
-/** Shared catalog editor for the independent Slab and Greenstack histories. */
-export const ItemRegistrationTab = ({ label, historyPath, description }) => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label });
-    const busy = van.state(false);
-    const message = van.state("");
-    const query = van.state("");
-    const filter = van.state("all");
-    const normalizedQuery = van.derive(() => query.val.trim().toLowerCase());
-    const entries = van.state([]);
-    const historyCount = van.state(0);
+/**
+ * One of the Slab page's tabs (the Slab's registrations, the Greenstacks): every item of the game's catalogue in its
+ * order, each with a switch. The top bar's search finds items by name; "Missing only" (off at the start), its filter,
+ * hides the ones already in. Its tools act on the items shown: adding runs on one press, taking away asks.
+ *
+ * @param {object} opts
+ * @param {string} opts.label "Slab" or "Greenstack", for the load's messages
+ * @param {string} opts.historyPath the game's list of items in (Cards[1], GreenStacks)
+ * @param {() => boolean} opts.pending true while the page reads the game, or after a read that failed
+ * @param {() => Promise<*>} opts.reload reads the whole page again
+ * @returns {{content: *, filter: *, load: () => Promise<void>, busy: () => boolean, tools: Function,
+ *   toolsLabel: () => string}}
+ */
+export const ItemRegistrationPart = ({ label, historyPath, pending, reload }) => {
     const bulk = useWriteStatus();
+    const entries = van.state([]);
+    const missingOnly = van.state(false);
     const rowStates = new Map();
-    const listNode = div({ class: "account-item-stack account-item-stack--dense" });
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
-    let searchInputEl = null;
 
-    // The game's words for an item's state, and what the switch does.
+    // The game's words for an item's state, and for the tools.
     const greenstack = historyPath === "GreenStacks";
-    const onWords = greenstack ? ["Greenstacked", "Not greenstacked"] : ["Registered", "Missing"];
-    const [onVerb, offVerb] = greenstack ? ["Greenstack", "Remove the greenstack of"] : ["Register", "Unregister"];
+    const onWord = greenstack ? "Greenstacked" : "Registered";
+    const [addAll, removeAll, removeVerb] = greenstack
+        ? ["Greenstack all", "Clear all", "Clear"]
+        : ["Register all", "Unregister all", "Unregister"];
 
-    const onSearchInput = debounce((value) => {
-        query.val = value;
-    }, 150);
-
-    const isBusy = () => loading.val || busy.val;
-    const cannotWrite = () => isBusy() || Boolean(error.val) || !entries.val.length;
-
-    const matches = (itemId, search = normalizedQuery.val, status = filter.val) => {
-        const state = rowStates.get(itemId);
-        if (!state) return false;
-        return (
-            (status === "all" || state.registered.val === (status === "registered")) &&
-            (!search || Boolean(state.searchKey?.includes(search)))
-        );
-    };
+    const readPending = () => pending() || !entries.val.length;
 
     const updateHistory = (history) => {
         const registered = new Set(history);
-        historyCount.val = history.length;
         for (const itemId of entries.val) {
             const state = rowStates.get(itemId);
             if (state) state.registered.val = registered.has(itemId);
@@ -60,18 +50,13 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
 
     const readHistory = async () => {
         const raw = await gga(historyPath);
-        if (raw === null || raw === undefined) {
-            throw new Error(`${label} registration history is unavailable. Refresh to try again.`);
-        }
-        if (historyPath === "GreenStacks" && !Array.isArray(raw)) {
-            throw new Error("Greenstack registration history is invalid. Refresh to try again.");
-        }
-        const history =
-            historyPath === "GreenStacks"
-                ? raw
-                : toIndexedArray(raw)
-                      .map((itemId) => String(itemId ?? "").trim())
-                      .filter((itemId) => itemId.length > 0);
+        if (raw === null || raw === undefined) throw new Error(`Couldn't read the ${label} list. Refresh.`);
+        if (greenstack && !Array.isArray(raw)) throw new Error("The Greenstack list looks wrong. Refresh.");
+        const history = greenstack
+            ? raw
+            : toIndexedArray(raw)
+                  .map((itemId) => String(itemId ?? "").trim())
+                  .filter((itemId) => itemId.length > 0);
         updateHistory(history);
         return history;
     };
@@ -88,13 +73,7 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
             updateHistory(next);
         } catch (caughtError) {
             // One value (the whole history): it landed or it didn't, and reading it again says which.
-            let now;
-            try {
-                now = new Set(await readHistory());
-            } catch (readError) {
-                error.val = readError.message;
-                throw new Error("not checked, refresh");
-            }
+            const now = new Set(await readHistory().catch(() => Promise.reject(new Error("Not checked. Refresh."))));
             if (targets.every((itemId) => now.has(itemId) === registered)) return undefined;
             throw caughtError;
         }
@@ -102,90 +81,19 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
 
     // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
     const inTurn = oneAtATime();
-
-    // Returns the row's save outcome, so the switch can say why a save failed.
     const setItem = (itemId, registered) =>
-        inTurn(async () => {
-            if (cannotWrite()) return;
-            busy.val = true;
-            message.val = "";
-            try {
-                return await rowStates
-                    .get(itemId)
-                    // The switch says why a row's save failed.
-                    .write.run(async () => applyHistory(await readHistory(), [itemId], registered));
-            } finally {
-                busy.val = false;
-            }
-        });
+        inTurn(() =>
+            rowStates.get(itemId).write.run(async () => applyHistory(await readHistory(), [itemId], registered))
+        );
 
-    // `button`: the bulk button clicked, which asks in place (#77).
-    const setShown = (registered, button) =>
-        inTurn(async () => {
-            if (cannotWrite()) return;
-            const search = (searchInputEl?.value ?? query.val).trim().toLowerCase();
-            if (searchInputEl && searchInputEl.value !== query.val) {
-                query.val = searchInputEl.value;
-            }
-            busy.val = true;
-            message.val = "";
-            const status = filter.val;
-            const getTargets = () =>
-                entries.val.filter(
-                    (itemId) => matches(itemId, search, status) && rowStates.get(itemId)?.registered.val !== registered
-                );
-            try {
-                await bulk.run(
-                    async () => {
-                        const read = await readHistory();
-                        const targets = getTargets();
-                        if (!targets.length) {
-                            message.val = "No matching items need this change.";
-                            return { cancelled: true };
-                        }
-                        // Registering adds, so it runs on one press; only unregistering asks in place.
-                        if (registered) return applyHistory(read, targets, true);
-                        const detail =
-                            historyPath === "Cards[1]"
-                                ? " Removes all history occurrences for these items. Owned items may register again in W5 town."
-                                : "";
-                        if (
-                            !clickAgain(button, `unregister ${targets.length} shown ${label} items.${detail}`, {
-                                targets,
-                            })
-                        ) {
-                            return { cancelled: true };
-                        }
-                        const history = await readHistory();
-                        const currentTargets = getTargets();
-                        if (
-                            targets.length !== currentTargets.length ||
-                            !targets.every((id, idx) => id === currentTargets[idx])
-                        ) {
-                            message.val = `${label} targets changed while confirming. Bulk change cancelled; review and try again.`;
-                            return { cancelled: true };
-                        }
-                        return applyHistory(history, targets, registered);
-                    },
-                    {
-                        onError: (caughtError) => (message.val = caughtError.message),
-                    }
-                );
-            } finally {
-                busy.val = false;
-            }
-        });
+    // What the list shows: every item, or the missing ones with Missing only. The top bar's search does the rest.
+    const isShown = (itemId) => !missingOnly.val || !rowStates.get(itemId)?.registered.val;
 
     const createRow = (itemId, state) => {
         const row = AccountRow({
             rowClass: "item-registration-row",
             status: state.write.status,
-            info: div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, () => state.name.val),
-                span({ class: "account-row__sub-label" }, itemId)
-            ),
-            // One switch with the game's words (#26); the status words are for screen readers.
+            info: span({ class: "account-row__name" }, () => state.name.val),
             controls: [
                 // Saving and saved, for screen readers; the switch says why a save failed.
                 span({ class: "account-write-feedback", role: "status", "aria-live": "polite" }, () => {
@@ -194,166 +102,127 @@ export const ItemRegistrationTab = ({ label, historyPath, description }) => {
                 }),
                 StateSwitch({
                     checked: state.registered,
-                    words: onWords,
+                    words: [onWord, ""],
                     name: () => state.name.val,
-                    disabled: () => loading.val || Boolean(error.val) || !entries.val.length,
-                    title: () => `${state.registered.val ? offVerb : onVerb} ${state.name.val}`,
+                    disabled: readPending,
                     onFlip: (registered) => setItem(itemId, registered),
                 }),
             ],
         });
-        return div(
-            {
-                "data-item-id": itemId,
-                class: () => (matches(itemId) || state.write.status.val ? "" : "hidden"),
-            },
-            row
-        );
+        state.row = row;
+        // A row saving stays put while Missing only would hide it, so its ✓ and Undo can show.
+        return div({ hidden: () => !isShown(itemId) && !state.write.status.val }, row);
     };
 
     const load = async () => {
-        if (busy.val) return;
-        busy.val = true;
-        try {
-            await runLoad(async () => {
-                const rawCatalog = await readCList("SlabItemSort");
-                const catalog = toIndexedArray(rawCatalog ?? [])
-                    .map((itemId) => String(itemId ?? "").trim())
-                    .filter((itemId) => itemId.length > 0);
-                if (!catalog.length) {
-                    throw new Error(`${label} catalog is unavailable or invalid.`);
-                }
-                const itemIds = [...new Set(catalog)];
-                const definitions = await readGgaEntries("ItemDefinitionsGET.h", itemIds, ["displayName"]);
-                for (const itemId of itemIds) {
-                    const displayName = cleanName(definitions[itemId]?.displayName, itemId);
-                    const searchKey = `${itemId} ${displayName}`.toLowerCase();
-                    if (!rowStates.has(itemId)) {
-                        rowStates.set(itemId, {
-                            name: van.state(displayName),
-                            searchKey,
-                            registered: van.state(false),
-                            write: useWriteStatus(),
-                            node: null,
-                        });
-                    } else {
-                        const state = rowStates.get(itemId);
-                        state.name.val = displayName;
-                        state.searchKey = searchKey;
-                    }
-                }
-                entries.val = itemIds;
-                await readHistory();
-                reconcileRows(itemIds.join("|"), () =>
-                    itemIds.map((itemId) => {
-                        const state = rowStates.get(itemId);
-                        if (!state.node) state.node = createRow(itemId, state);
-                        return state.node;
-                    })
-                );
-                const catalogIds = new Set(itemIds);
-                for (const [itemId, state] of rowStates) {
-                    if (!catalogIds.has(itemId)) {
-                        state.write.clearStatus();
-                        rowStates.delete(itemId);
-                    }
-                }
-                message.val = "";
-            });
-        } finally {
-            busy.val = false;
+        const catalog = toIndexedArray((await readCList("SlabItemSort")) ?? [])
+            .map((itemId) => String(itemId ?? "").trim())
+            .filter((itemId) => itemId.length > 0);
+        if (!catalog.length) throw new Error(`Couldn't read the ${label} items.`);
+        const itemIds = [...new Set(catalog)];
+        const definitions = await readGgaEntries("ItemDefinitionsGET.h", itemIds, ["displayName"]);
+        for (const itemId of itemIds) {
+            const name = cleanName(definitions[itemId]?.displayName, itemId);
+            if (!rowStates.has(itemId))
+                rowStates.set(itemId, {
+                    name: van.state(name),
+                    registered: van.state(false),
+                    write: useWriteStatus(),
+                    node: null,
+                });
+            else rowStates.get(itemId).name.val = name;
+        }
+        entries.val = itemIds;
+        await readHistory();
+        reconcileRows(itemIds.join("|"), () =>
+            itemIds.map((itemId) => {
+                const state = rowStates.get(itemId);
+                if (!state.node) state.node = createRow(itemId, state);
+                return state.node;
+            })
+        );
+        const catalogIds = new Set(itemIds);
+        for (const [itemId, state] of rowStates) {
+            if (!catalogIds.has(itemId)) {
+                state.write.clearStatus();
+                rowStates.delete(itemId);
+            }
         }
     };
 
-    load();
+    // The items the tools act on: the ones the list shows now.
+    const shown = () => entries.val.filter((itemId) => isShown(itemId) && shownBySearch(rowStates.get(itemId)?.row));
+    const itemWord = (n) => `item${n === 1 ? "" : "s"}`;
 
-    searchInputEl = input({
-        class: "item-registration-search",
-        type: "search",
-        placeholder: "Search name or item ID",
-        "aria-label": `Search ${label} by name or item ID`,
-        value: query,
-        oninput: (event) => onSearchInput(event.target.value),
-    });
-
-    return PersistentAccountListPage({
-        rootClass: "item-registration-tab tab-container",
-        title: label.toUpperCase(),
-        description,
-        wrapActions: false,
-        actions: div(
-            { class: "item-registration-actions" },
-            BulkActionBar({
-                actions: [
-                    {
-                        label: "Register shown",
-                        status: bulk.status,
-                        disabled: cannotWrite,
-                        onClick: (e) => setShown(true, e.currentTarget),
-                    },
-                    {
-                        label: "Unregister shown",
-                        variant: "danger",
-                        status: bulk.status,
-                        disabled: cannotWrite,
-                        onClick: (e) => setShown(false, e.currentTarget),
-                    },
-                ],
-                refresh: { onClick: load, disabled: isBusy },
-            }),
-            span({ class: "account-row__sub-label", role: "status", "aria-live": "polite" }, () => {
-                const status = bulk.status.val;
-                return status === "loading"
-                    ? "Saving"
-                    : status === "success"
-                      ? "Saved"
-                      : status === "error"
-                        ? "Failed"
-                        : "";
+    const setShown = async (targets, registered) => {
+        const result = await bulk.run(() =>
+            inTurn(async () => {
+                const history = await readHistory();
+                const need = targets.filter((itemId) => rowStates.get(itemId)?.registered.val !== registered);
+                return need.length ? applyHistory(history, need, registered) : { cancelled: true };
             })
-        ),
-        toolbar: [
-            searchInputEl,
-            select(
-                {
-                    class: "select-base",
-                    "aria-label": `${label} registration filter`,
-                    value: filter,
-                    onchange: (event) => (filter.val = event.target.value),
+        );
+        if (!result.ok && !result.cancelled) await reload();
+    };
+
+    const tools = (ask) => {
+        const remove = ActionButton({
+            label: removeAll,
+            status: bulk.status,
+            variant: "danger",
+            disabled: () => readPending() || !shown().some((itemId) => rowStates.get(itemId).registered.val),
+            onClick: (e) => {
+                e.preventDefault();
+                const targets = shown().filter((itemId) => rowStates.get(itemId).registered.val);
+                const n = targets.length;
+                ask({
+                    question: `${removeVerb} ${n} ${itemWord(n)}?`,
+                    confirmLabel: n === 1 ? `${removeVerb} it` : `${removeVerb} them`,
+                    from: remove,
+                    onConfirm: () => setShown(targets, false),
+                });
+            },
+        });
+        return div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: addAll,
+                status: bulk.status,
+                disabled: () => readPending() || !shown().some((itemId) => !rowStates.get(itemId).registered.val),
+                onClick: (e) => {
+                    e.preventDefault();
+                    return setShown(shown(), true);
                 },
-                option({ value: "all" }, "All"),
-                option({ value: "registered" }, onWords[0]),
-                option({ value: "missing" }, onWords[1])
-            ),
-        ],
-        state: { loading, error },
-        loadingText: `READING ${label.toUpperCase()}`,
-        errorTitle: `${label.toUpperCase()} READ FAILED`,
-        body: div(
-            { class: "scrollable-panel content-stack" },
-            div({ class: "account-section__note item-registration-summary", role: "status" }, () => {
-                const search = normalizedQuery.val;
-                const status = filter.val;
-                let registered = 0;
-                let matching = 0;
-                for (const itemId of entries.val) {
-                    const state = rowStates.get(itemId);
-                    if (!state) continue;
-                    if (state.registered.val) registered++;
-                    if (matches(itemId, search, status)) matching++;
-                }
-                return `${registered} registered / ${entries.val.length - registered} missing catalog items · ${historyCount.val} total history entries · ${matching} matching`;
             }),
-            div({ class: "write-status write-status--error", role: "alert" }, () => message.val),
+            remove
+        );
+    };
+
+    return {
+        content: [
             listNode,
             div(
-                {
-                    hidden: () =>
-                        !entries.val.length ||
-                        entries.val.some((itemId) => matches(itemId, normalizedQuery.val, filter.val)),
-                },
-                EmptyState({ title: "NO MATCHING ITEMS", subtitle: "No items matched your search and filter." })
-            )
+                { hidden: () => !entries.val.length || entries.val.some(isShown) },
+                EmptyState({ title: "Nothing missing", subtitle: "Every item is in." })
+            ),
+        ],
+        // The tab's filter, for the line under the page's title.
+        filter: labelTag(
+            { class: "toggle-switch account-toggle" },
+            input({
+                type: "checkbox",
+                checked: () => missingOnly.val,
+                onchange: (e) => (missingOnly.val = e.target.checked),
+            }),
+            span({ class: "slider" }),
+            span({ class: "label" }, "Missing only")
         ),
-    });
+        load,
+        busy: () => bulk.status.val === "loading",
+        tools,
+        toolsLabel: () => {
+            const n = shown().length;
+            return isSearching() || missingOnly.val ? `${n} shown ${itemWord(n)}` : `All ${n} ${itemWord(n)}`;
+        },
+    };
 };

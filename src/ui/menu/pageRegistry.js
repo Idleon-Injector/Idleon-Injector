@@ -6,6 +6,8 @@ import { buildMenuTree, searchEntries } from "./menuModel.js";
 export const menuTree = van.state(null);
 /** Why the pages could not load, or "". */
 export const menuError = van.state("");
+/** The tab a search hit asked a page to open on ({ page, tab }), or null; a page's TabbedList with that page opens it. */
+export const tabRequest = van.state(null);
 /** Flat search entries for the menu search. */
 export const menuSearchEntries = van.derive(() => (menuTree.val ? searchEntries(menuTree.val) : []));
 

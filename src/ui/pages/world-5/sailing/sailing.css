@@ -1,0 +1,17 @@
+/* Sailing: its Captains tab is a table (five values a captain), so the page takes the wider measure. */
+.sailing-tab {
+    --page-measure: 60rem;
+}
+
+/* A captain has five values (rarity, level, EXP and two bonuses) on one line: each column holds its field with its
+   cap ("4 / 79") and its − / + at full size, a step narrower than the baseline's 9.5rem so the names keep room. */
+.sailing-captains {
+    --value-columns: repeat(5, 8.5rem);
+}
+
+/* Why a captain can't be removed (on a boat, the last one): a short amber line beside the button, like a row's warning. */
+.captain-remove__refusal {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c-warning);
+}

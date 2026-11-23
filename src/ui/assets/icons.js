@@ -343,4 +343,25 @@ const SYSTEM_ICONS = {
         "M11 12.6c-3 .6-5.6-.6-6.5-3.6 3-.6 5.6.6 6.5 3.6z",
         "M15.2 7.8c.4-3 2.4-4.6 5.3-4.5-.4 3-2.4 4.6-5.3 4.5z",
     ],
+    // World 5 (Lumi: "Put all five in", 2026-11-22).
+    // A sailboat: mast, mainsail, jib, and the hull on the water line.
+    Sailing: ["M12 3.5v12", "M12.5 4.5l5.5 9.5h-5.5", "M10.5 7.5 6.5 14h4", "M3.5 16h17l-2.6 4H6.1z"],
+    // A god: a halo over a head and shoulders.
+    Divinity: ["M8 4.6a4 1.6 0 1 0 8 0 4 1.6 0 1 0-8 0z", [12, 11, 2.8], "M6 20.5a6 6 0 0 1 12 0"],
+    // A game controller.
+    Gaming: [
+        "M7.2 8.5h9.6a4 4 0 0 1 3.9 4.8l-.9 4.2a2.1 2.1 0 0 1-3.6 1l-2.2-2.5h-4l-2.2 2.5a2.1 2.1 0 0 1-3.6-1l-.9-4.2a4 4 0 0 1 3.9-4.8z",
+        "M8 11.3v3.4M6.3 13h3.4",
+        [15.6, 12.1, 0.55],
+        [17.4, 13.9, 0.55],
+    ],
+    // The Hole: a cave mouth with a ladder going down.
+    Hole: [
+        "M3.5 20.5h17",
+        "M5.5 20.5V13a6.5 6.5 0 0 1 13 0v7.5",
+        "M10.2 20.5v-7M13.8 20.5v-7",
+        "M10.2 15.2h3.6M10.2 18h3.6",
+    ],
+    // The Slab: a cut stone tablet with its lines, on a base.
+    Slab: ["M6 20.5V6l2.5-2.5h7L18 6v14.5", "M4.5 20.5h15", "M9 9h6M9 12.5h6M9 16h4"],
 };

@@ -36,6 +36,8 @@ export const SimpleNumberRow = ({ entry, valueState, renderExtraActions = null }
             }),
         write: (nextValue) => writeVerified(entry.path, nextValue),
         renderInfo: () => {
+            // A row with a bonus brings its own title (RowTitles: the bonus, the name under it).
+            if (entry.info) return entry.info;
             const indexLabel =
                 entry.indexLabel ?? (entry.index === null || entry.index === undefined ? null : `#${entry.index}`);
             const info = [];

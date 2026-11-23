@@ -45,6 +45,31 @@
     scrollbar-width: none;
 }
 
+/*
+ * Many tabs (a tab per Hole cavern) wrap onto rows that fill the panel's width. The open tab runs down into the list
+ * from the last row; on a row above, its block is rounded all round, with no feet (TabbedList sets pill-floats).
+ */
+.viewport .tabbed-list .tabbed-list__tabs--wrap {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    overflow: visible;
+}
+.tabbed-list__tabs.pill-floats .tabbed-list__pill {
+    border-radius: 10px;
+}
+.tabbed-list__tabs.pill-floats .tabbed-list__pill::before,
+.tabbed-list__tabs.pill-floats .tabbed-list__pill::after {
+    display: none;
+}
+
+/* A tab's own tools (toolsPerTab): laid out as if the tray held them directly; another tab's stay out of sight. */
+.tabbed-list__tab-tools {
+    display: contents;
+}
+.tabbed-list__tab-tools[hidden] {
+    display: none;
+}
+
 /* The block is drawn once and glides to the open tab (placed from the tab's box by TabbedList). Its feet curve out into
    the tray, so the tab and the tray read as one shape. */
 .tabbed-list__pill {
@@ -55,7 +80,7 @@
     height: 40px;
     border-radius: 10px 10px 0 0;
     background: var(--tab-open-fill);
-    transform: translateX(var(--pill-x, 0));
+    transform: translate(var(--pill-x, 0), var(--pill-y, 0));
     opacity: 0;
     pointer-events: none;
 }
@@ -549,6 +574,12 @@
     font-weight: 500;
     color: var(--c-text-muted);
 }
+/* A pick in a table column (ValueTableRow's `steps`): its words start where the column's name starts. */
+.viewport .value-cell--steps {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
 .value-cell__label {
     position: absolute;
     width: 1px;
@@ -557,9 +588,14 @@
     clip: rect(0 0 0 0);
     white-space: nowrap;
 }
-.viewport .value-cells .number-input-wrapper {
+/* A table's field fills its own column and no more, capped or not, also in a list that sets every field's width
+   (field-columns): with its − / + showing it never reaches into the next column. */
+.viewport .value-cells .number-input-wrapper,
+.viewport .account-row .account-row__controls .value-cells .number-input-wrapper.number-input-wrapper {
     width: 100%;
     min-width: 0;
+    max-width: none;
+    flex: none;
 }
 .viewport .value-cells .number-input-wrapper input {
     padding: 0 4px 0 12px;
@@ -622,6 +658,12 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         width: 100%;
     }
+    /* A pick's column on a phone: its name over it, like a number's. */
+    .viewport .value-cell--steps {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
     .value-cell__label {
         position: static;
         width: auto;
@@ -662,9 +704,11 @@
 }
 
 /*
- * A row that holds a list (a Death Note mob's characters, a trap set's traps): its name is the opener, plain text that
- * reads like any row, with the focus ring when keyed to. What it opens spans the row, under it; the rows in it sit a
- * step in, on the page's own ground, with no lines of their own.
+ * A row that holds a list (a Death Note mob's characters, a star sign's players, a captain's bonuses): its name is the
+ * opener, plain text that reads like any row, with the focus ring when keyed to. Its arrow has one place in every row,
+ * the end of the name's column, centred on the name's lines, so it never moves with the name's length and lines up
+ * down the list (Lumi: the arrow after the text looked misplaced). What it opens spans the row, under it; the rows in
+ * it sit a step in, on the page's own ground, with no lines of their own.
  */
 .row-opener {
     display: flex;
@@ -682,12 +726,16 @@
     text-align: left;
     cursor: pointer;
 }
+.row-opener > * {
+    min-width: 0;
+}
 .row-opener::after {
     content: "";
     flex: none;
     width: 6px;
     height: 6px;
-    margin-left: 2px;
+    margin-left: auto;
+    margin-right: 14px;
     border-right: 1.5px solid var(--c-text-muted);
     border-bottom: 1.5px solid var(--c-text-muted);
     transform: translateY(-2px) rotate(45deg);

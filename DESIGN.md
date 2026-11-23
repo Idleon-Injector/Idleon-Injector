@@ -349,3 +349,34 @@ Every automation page is `AutomationPage` in `automation.js`: a table at the wid
 - **On a phone** an item's own switch stays at the end of its name's line; its other cells fold two to a line.
 - **The automation's switch row says why it is on** when an item's switch turned it on ("On, since an upgrade was
   switched on"), and an open page follows a running automation every few seconds, without Refresh (#214).
+
+### World 5 on the same pieces (draft, 2026-11-22)
+
+World 5 uses the same pieces; two shared pages moved onto them:
+
+- **A list of numbers** (a Hole cavern, a villager's screen) is `NumberList`: its rows under quiet section headings,
+  each with its bonus first where the game has one, and a table where a row has several values.
+- **The Slab and the Greenstack** (`ItemRegistrationTab`) are one list with a switch each, searched from the top bar.
+  "Missing only" (off at the start) is their filter on the line under the title; Register all runs on one press,
+  Unregister all asks in the tray.
+- **The menu follows the game's screens:** Sailing and Gaming are one page each, the game's screens as tabs (Sailing:
+  Boats, Captains, Islands, Artifacts, Loot Pile; Gaming: Garden, Imports, Rat King, Superbits, Palette), not entries in
+  the sidebar (Lumi: "gaming needs subtabs instead of the submenus"). A tab keeps what its page had, its tools show on
+  it only, and search finds each tab by its old name and words (`tabs` in `definePage`) and opens the page on it. A
+  tab's own parts (Superbits' boards) are groups in its list. The Hole is two pages, like the game's village on top and caverns below:
+  Villagers (tabs Villagers, Opals, Engineer, Conjuror, Measurer, Librarian) and Caverns (a tab per cavern, in the
+  game's order). A cavern with parts of its own (Fountain) shows them as groups in its list, never tabs in a tab.
+- **The Slab holds the Greenstacks** as its second tab (the game shows them on the Slab); each tab keeps its list, its
+  "Missing only" filter and its tools. A captain's opened row can remove it, asking in place first; it does what the
+  game's discard does and, like the game, refuses a captain on a boat or the last one.
+- **A row that opens has its arrow in one place:** the end of its name's column, centred on the name's lines, the
+  same in every opening row (Star Signs, Death Note, the 3D Printer, Captains, the Rat King's plants), so it never
+  moves with the name's length (Lumi: the arrow after the text looked misplaced). World 5's five systems have their
+  drawings (Lumi: "Put all five in").
+- **A pick in a table gets its own column** (`ValueTableRow`'s `steps` field): Palette is a table, a colour's Level and
+  Black Stars under their heads, so nothing in a line moves with its neighbour's width (Lumi: "it looks off, not
+  aligned"). A number beside a control (the Rat King's "3 / 10") keeps one width for the same reason.
+- **Many tabs wrap** (`TabbedList`'s `wrap`, Caverns' 18): the rows of tabs fill the panel's width. The open tab runs
+  down into the list from the last row; on a row above, it is a block rounded all round.
+- **A limited gem shop buy sits on its system's page** in a quiet "Gem shop" group: Davey Jones Training on Boats,
+  Rupie Slugs on The Jars, both found by "gem shop", "limited" and "fomo".

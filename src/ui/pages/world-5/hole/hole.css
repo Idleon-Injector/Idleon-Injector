@@ -1,0 +1,4 @@
+/* Hole › Caverns: a cavern's list can hold tables (Fountain's upgrades: a long bonus and two values), so the wider measure. */
+.hole-caverns-tab {
+    --page-measure: 60rem;
+}

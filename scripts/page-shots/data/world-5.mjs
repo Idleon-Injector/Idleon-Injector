@@ -1,83 +1,140 @@
 /** World 5: sailing, divinity, gaming, the hole, slab, greenstack. */
-import { fakeName, level, list, upgradeDefs } from "./helpers.mjs";
+import { fakeName, h, level, list } from "./helpers.mjs";
 import { ITEMS } from "./shared.mjs";
+import {
+    ARTIFACTS,
+    CAPTAIN_BONUSES,
+    COSMO_UPGRADES,
+    FOUNTAIN_UPGRADES,
+    GAMING_UPGRADES,
+    GODS,
+    HOLES_BUILDINGS,
+    HOLES_INFO,
+    ISLANDS,
+    LAMP_WISHES,
+    PALETTE,
+    RANDO_LISTO_2,
+    SUPERBITS,
+} from "./world-5-game.mjs";
 
-const ISLANDS = 12;
-const ARTIFACTS = 24;
-const BOATS = 8;
-const CAPTAINS = 10;
-const GODS = 10;
-const PALETTE = 37;
-const SUPERBITS = 40;
+const BOATS = 13;
+const CAPTAIN_SLOTS = 34;
+const HIRED = 12;
+const TREASURES = 1 + ISLANDS.length * 2;
+// The game's letters for its superbits run past the alphabet; the base data stops at "z".
+const LETTERS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&()*+,-./:;<=>?@[]^`{|}~";
+
+// The client's code doesn't name the cove shapes (the game fills them in later): stand-ins.
+const itemNames = {
+    ...Object.fromEntries(
+        list(12, (s) => [`HoleGshape${s}`, h({ displayName: `${s < 6 ? "Blue" : "Purple"}_${fakeName(s + 3)}` })])
+    ),
+};
+
+const holes = () => {
+    const parts = list(40, () => []);
+    parts[1] = [12, 9, 7, 5, 3, 1, 0, 0];
+    parts[2] = parts[1].map((lv) => lv * 1234.5);
+    parts[3] = parts[1].map((lv) => Math.floor(lv / 2));
+    parts[4] = list(9, (i) => level(i, 5));
+    parts[5] = list(12, (i) => level(i + 1, 10));
+    parts[6] = list(12, (i) => level(i + 2, 3));
+    parts[7] = list(20, (i) => (i < 18 ? (i * 7) % 13 : 0));
+    parts[8] = list(10, (i) => (i * 3) % 8);
+    parts[9] = list(40, (i) => (i < 10 ? 25000 * (10 - i) ** 2 : 40 * i + 0.5));
+    parts[11] = list(90, (i) => (i * 37) % 500);
+    parts[11][24] = 7;
+    parts[11][80] = 1;
+    parts[11][84] = 9;
+    parts[13] = list(HOLES_BUILDINGS.length, (i) => (i % 3 === 0 ? 1 : 0));
+    parts[14] = [140, 0, 96, 0, 30, 0];
+    parts[15] = list(30, (i) => level(i, 20));
+    parts[16] = list(6, (i) => level(i, 30));
+    parts[17] = list(7, (i) => level(i + 3, 15));
+    parts[19] = list(12, (i) => (i % 2 ? 120.5 * i : level(i, 40)));
+    parts[21] = list(LAMP_WISHES.length, (i) => i % 4);
+    parts[22] = list(17, (i) => level(i, 25));
+    parts[24] = list(40, (i) => (i % 5 === 4 ? 0 : 1 + (i % 6)));
+    parts[26] = list(20, (i) => (i < 12 ? level(i, 8) : 0));
+    parts[30] = list(9, (c) => (c < 5 ? c * 2 : -1));
+    parts[31] = list(3, (w) => list(FOUNTAIN_UPGRADES[w].length, (n) => level(n + w, 12)));
+    parts[32] = list(3, (w) => list(FOUNTAIN_UPGRADES[w].length, (n) => (n + w) % 4));
+    parts[33] = [0.62, 0.18, 0];
+    return parts;
+};
 
 export default () => ({
     gga: {
-        // [0] islands unlocked, [1] loot per island, [3] artifact tiers.
+        // [0] islands' cloud progress (-1 once unlocked), [1] treasures, [3] artifact tiers.
         Sailing: [
-            list(ISLANDS, (i) => (i < 8 ? 1 : 0)),
-            list(ISLANDS, (i) => i * 3500),
+            list(ISLANDS.length, (i) => (i < 9 ? -1 : i === 9 ? 1200 : 0)),
+            list(TREASURES, (n) => (n === 0 ? 48213 : n < 20 ? 1500 * (20 - n) + 0.4 : 0)),
             [],
-            list(ARTIFACTS, (i) => i % 5),
+            list(ARTIFACTS.length, (i) => (i < 30 ? [1, 2, 3, 4, 5, 2, 1][i % 7] : 0)),
         ],
-        Boats: list(BOATS, (b) => [b % 4, b * 10 + 5, 20 + b * 3, 15 + b * 2, 0, 0, 0, 0]),
-        Captains: list(CAPTAINS, (c) => [c % 6, c % 4, (c + 1) % 4, 30 + c * 4, 12.5 + c, 8 + c, 0]),
-        // [25] progress toward the next god, [28..37] god levels.
-        Divinity: list(40, (i) => (i === 25 ? 640 : i >= 28 && i < 38 ? level(i, 10) : (i * 3) % 12)),
-        // [11] log book plants, [12] superbits unlocked (as letters), the rest numbers.
-        Gaming: list(14, (i) => (i === 11 ? "jjjhhe" : i === 12 ? "_abcfgk" : 1000 * (i + 1) + i * 37.5)),
-        // [33] rat king levels; the rest import slots.
-        GamingSprout: list(34, (i) => (i === 33 ? [0, 12, 7, 3] : [i % 5, i * 10, i % 3, 0])),
-        Research: { 11: list(10, (i) => i % 4) },
-        // [9] palette levels, [49] palette stars.
-        Spelunk: { 9: list(PALETTE, (i) => level(i, 25)), 49: list(PALETTE, (i) => i % 3) },
-        // The hole keeps one long array per system.
-        Holes: list(40, (system) => list(100, (j) => (system * 7 + j * 3) % 25)),
+        // [0] captain (the first six sail; the rest wait on the dock), [1] island, [3] Loot Value level, [5] Speed level.
+        Boats: list(BOATS, (b) => [b % 6, b % 9, 0, 40 + b * 13, 0, 25 + b * 9, 0, 0]),
+        // Slots 0-29 are hired (rarity -1: empty), 30 and up the Recruitment pool.
+        Captains: list(CAPTAIN_SLOTS, (c) =>
+            c < HIRED || c >= 30
+                ? // A rarity-0 captain has one bonus; the game keeps -1 for the other.
+                  [
+                      c % 7,
+                      c % 5,
+                      c % 7 === 0 ? -1 : (c + 2) % 5,
+                      20 + ((c * 9) % 60),
+                      1800.5 * (c + 1),
+                      3 + (c % 4),
+                      2 + (c % 3),
+                  ]
+                : [-1, 0, 0, 0, 0, 0, 0]
+        ),
+        GemItemsPurchased: { 8: 3 },
+        // [25] gods unlocked, [28..37] blessing levels.
+        // [39] particles (Alchemy automation reads it).
+        Divinity: list(40, (i) => (i === 25 ? 8 : i >= 28 && i < 38 ? level(i, 60) : (i * 3) % 12)),
+        // [11] Log Book (a letter per plant), [12] superbits unlocked (as letters), the rest numbers.
+        Gaming: list(15, (i) =>
+            i === 11 ? "jjjhhe" : i === 12 ? "_abcfgkmnqABCH" : i === 4 ? 6 : 1000 * (i + 1) + i * 37.5
+        ),
+        // [25 + n] import n, [33] the King Rat's upgrades.
+        GamingSprout: list(34, (i) =>
+            i === 33 ? [0, 12, 7, 3] : i >= 25 ? [level(i, 30), 0, 0, 0] : [i % 5, i * 10, i % 3, 0]
+        ),
+        Number2Letter: LETTERS.split(""),
+        // [11] reclaimed Rat King crowns.
+        Research: { 11: ["0_", "0a", "0b", "1_", "1a", "2_", "3_", "3a", "3b", "3c"] },
+        // [9] palette levels, [49] Black Stars.
+        Spelunk: { 9: list(PALETTE.length, (i) => level(i, 25)), 49: list(PALETTE.length, (i) => i % 3) },
+        Holes: holes(),
         GreenStacks: Object.keys(ITEMS).slice(0, 12),
-        OptionsListAccount: { 192: 77 },
+        OptionsListAccount: {
+            192: 77,
+            355: 2,
+            601: 14,
+            604: 3,
+            ...Object.fromEntries(list(24, (n) => [630 + n, level(n, 10)])),
+            ...Object.fromEntries(list(12, (s) => [654 + s, 1200 * (s + 1) + 0.5])),
+            666: 2,
+            667: 0,
+            668: 18400,
+        },
+        ItemDefinitionsGET: { h: itemNames },
         CustomLists: {
             h: {
-                // [0] name, ..., [?] loot per island.
-                IslandInfo: list(ISLANDS, (i) => [`${fakeName(i + 4)}_Island`, "1", "10", "100", "5", "desc"]),
-                ArtifactInfo: list(ARTIFACTS, (i) => [
-                    `${fakeName(i)}_Relic`,
-                    "1",
-                    "10",
-                    `+{%_${fakeName(i + 9)}`,
-                    "0",
-                    "0",
-                ]),
-                // [3]: bonus text.
-                CaptainBonuses: list(8, (i) => ["0", "1", "10", `+{%_${fakeName(i + 2)}_speed`]),
-                GodsInfo: list(GODS, (i) => [`${fakeName(i + 21)}_God`, "1", "1", `+{%_${fakeName(i)}`, "0"]),
-                Spelunky: { 25: list(10, (i) => `+{%_${fakeName(i + 13)}_bonus`) },
-                GamingUpgrades: upgradeDefs(6, 3),
-                RandoListo2: {
-                    1: list(10, (i) => `${fakeName(i + 25)}_Import`),
-                    11: upgradeDefs(8, 2),
-                    12: list(8, (i) => String(10 * (i + 1))),
-                },
-                GamingPalette: list(PALETTE, (i) => [
-                    `${fakeName(i + 2)}_Hue`,
-                    "1",
-                    "10",
-                    `+{%_${fakeName(i + 3)}`,
-                    "0",
-                ]),
-                GamingUpg: list(SUPERBITS, (i) => [
-                    `${fakeName(i + 6)}_Bit`,
-                    String(i * 10),
-                    `+{%_${fakeName(i)}`,
-                    "0",
-                ]),
-                HolesInfo: list(70, (i) =>
-                    i === 67
-                        ? list(12, (g) => `${fakeName(g)}_Gem|a|b|A_shiny_gem`)
-                        : list(30, (j) => `${fakeName(i + j)}_Thing`)
-                ),
-                HolesBuildings: upgradeDefs(20, 1),
-                CosmoUpgrades: list(3, (s) => upgradeDefs(12, s)),
-                HoleFountUPG: list(3, (s) => upgradeDefs(10, s + 4)),
-                LampWishes: list(12, (i) => [`${fakeName(i + 8)}_Wish`, "1", "5", `+{%_${fakeName(i)}`]),
+                IslandInfo: ISLANDS,
+                ArtifactInfo: ARTIFACTS,
+                CaptainBonuses: CAPTAIN_BONUSES,
+                GodsInfo: GODS,
+                GamingUpgrades: GAMING_UPGRADES,
+                RandoListo2: { 1: RANDO_LISTO_2[1], 11: RANDO_LISTO_2[11], 12: RANDO_LISTO_2[12] },
+                GamingPalette: PALETTE,
+                GamingUpg: SUPERBITS,
+                HolesInfo: HOLES_INFO,
+                HolesBuildings: HOLES_BUILDINGS,
+                CosmoUpgrades: COSMO_UPGRADES,
+                HoleFountUPG: FOUNTAIN_UPGRADES,
+                LampWishes: LAMP_WISHES,
                 SlabItemSort: Object.keys(ITEMS),
             },
         },

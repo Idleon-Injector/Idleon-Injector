@@ -1,128 +1,103 @@
+/**
+ * W5 - Divinity
+ *
+ * Data sources:
+ *   gga.Divinity[25]        - how many gods are unlocked (up to 10); above 10 it counts God Rank
+ *   gga.Divinity[28 + g]    - god g's blessing level (_customBlock_Divinity "BlesssBonus")
+ *   cList.GodsInfo[g][0]    - the god's name; [6] its blessing bonus in the game's words
+ *
+ * One list: gods unlocked first, then each god's blessing, its bonus first.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
-import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
-import {
-    cleanName,
-    createStaticRowReconciler,
-    getOrCreateState,
-    resolveNumberInput,
-    toInt,
-    writeVerified,
-} from "../../../components/views/account/accountShared.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import {
+    bonusText,
+    cleanName,
+    createIndexedStateGetter,
+    createStaticRowReconciler,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
-const GOD_PROGRESS_PATH = "Divinity[25]";
-const GOD_LEVEL_START = 28;
-const GOD_LEVEL_COUNT = 10;
+const UNLOCKED_PATH = "Divinity[25]";
+const BLESSING_START = 28;
+const GOD_COUNT = 10;
 
-const GodLevelRow = ({ entry, levelState }) =>
-    SimpleNumberRow({
-        entry,
-        valueState: levelState,
-    });
-
-const GodProgressRow = ({ valueState }) =>
-    EditableNumberRow({
-        valueState,
-        normalize: (rawValue) =>
-            resolveNumberInput(rawValue, {
-                min: 0,
-                fallback: null,
-            }),
-        write: (nextValue) => writeVerified(GOD_PROGRESS_PATH, nextValue),
-        renderInfo: () =>
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, "God Unlock Count / Rank"),
-                span({ class: "account-row__sub-label" }, "0-10 unlocks gods. Values above 10 are the God Rank level.")
-            ),
-        // The number is in the field; the word says which it is.
-        renderBadge: (currentValue) => (toInt(currentValue, { min: 0 }) <= 10 ? "Gods unlocked" : "God rank"),
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
-    });
-
-const buildGodEntries = (rawLevels, rawGodsInfo) => {
-    const levels = toIndexedArray(rawLevels ?? []);
-    return toIndexedArray(rawGodsInfo ?? [])
-        .slice(0, GOD_LEVEL_COUNT)
-        .map((rawGod, index) => {
-            const god = toIndexedArray(rawGod ?? []);
-            const pathIndex = GOD_LEVEL_START + index;
-            return {
-                index: index + 1,
-                pathIndex,
-                path: `Divinity[${pathIndex}]`,
-                rawName: String(god[0] ?? `God_${index}`).trim(),
-                name: cleanName(god[0], `God ${index + 1}`),
-                level: toInt(levels[pathIndex], { min: 0 }),
-            };
-        });
-};
-
-const GodTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Divinity Gods" });
-    const entries = van.state([]);
-    const progressState = van.state(0);
-    const levelStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
+const DivinityTab = () => {
+    const { loading, error, run } = useAccountLoad({ label: "Divinity" });
+    const unlockedState = van.state(0);
+    const getBlessingState = createIndexedStateGetter(0);
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
+
+    const unlockedRow = ClampedLevelRow({
+        valueState: unlockedState,
+        writePath: UNLOCKED_PATH,
+        integerMode: "trunc",
+        name: "Gods unlocked",
+        // The number is in the field; the word says which it is.
+        renderBadge: (value) => (toInt(value, { min: 0 }) > GOD_COUNT ? "God Rank" : ""),
+    });
 
     const load = async () =>
         run(async () => {
-            const [rawDivinity, rawGodsInfo] = await Promise.all([gga("Divinity"), readCList("GodsInfo")]);
-            progressState.val = toInt(rawDivinity?.[25], { min: 0 });
-            entries.val = buildGodEntries(rawDivinity, rawGodsInfo);
-            reconcileRows(entries.val.map((entry) => entry.rawName).join("|"), () =>
-                entries.val.map((entry) =>
-                    GodLevelRow({
-                        entry,
-                        levelState: getOrCreateState(levelStates, entry.index),
+            const [rawDivinity, rawGods] = await Promise.all([gga("Divinity"), readCList("GodsInfo")]);
+            const divinity = toIndexedArray(rawDivinity ?? []);
+            const gods = toIndexedArray(rawGods ?? [])
+                .slice(0, GOD_COUNT)
+                .map((raw, index) => {
+                    const god = toIndexedArray(raw ?? []);
+                    return { index, name: cleanName(god[0], `God ${index + 1}`), bonus: bonusText(god[6]) };
+                });
+            reconcileRows(gods.map((god) => god.name).join("|"), () =>
+                gods.map((god) =>
+                    ClampedLevelRow({
+                        valueState: getBlessingState(god.index),
+                        writePath: `Divinity[${BLESSING_START + god.index}]`,
+                        integerMode: "trunc",
+                        name: god.name,
+                        renderInfo: () => RowTitles({ bonus: god.bonus, name: god.name }),
                     })
                 )
             );
-
-            for (const entry of entries.val) {
-                getOrCreateState(levelStates, entry.index).val = entry.level;
-            }
+            unlockedState.val = toInt(divinity[25], { min: 0 });
+            gods.forEach(
+                (god) => (getBlessingState(god.index).val = toInt(divinity[BLESSING_START + god.index], { min: 0 }))
+            );
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "GOD PROGRESS",
-            note: "Divinity[25]",
-            body: div({ class: "account-item-stack" }, GodProgressRow({ valueState: progressState })),
-        }),
-        AccountSection({
-            title: "GOD LEVELS",
-            note: () => `${entries.val.length} GODS FROM Divinity[28-37]`,
-            body: listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "GOD",
-        description: "Edit Divinity god unlock/rank value and god levels. God names come from GodsInfo.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Divinity",
+        description: "Which gods you have (past 10 it counts your God Rank), and each god's blessing.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING DIVINITY GODS",
-        errorTitle: "DIVINITY GODS READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading divinity",
+        errorTitle: "Couldn't read divinity",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                body: [
+                    AccountSection({ title: "Gods", body: unlockedRow }),
+                    AccountSection({ title: "Blessings", body: listNode }),
+                ],
+            })
+        ),
     });
 };
 
@@ -130,7 +105,7 @@ export default definePage({
     id: "w5.divinity",
     world: 5,
     system: "Divinity",
-    description: "Divinity god unlocks, rank and god levels.",
-    keywords: ["God", "Gods"],
-    component: GodTab,
+    description: "Gods unlocked, God Rank and each god's blessing level.",
+    keywords: ["God", "Gods", "Blessing", "God Rank"],
+    component: DivinityTab,
 });

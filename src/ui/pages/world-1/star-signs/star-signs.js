@@ -300,7 +300,8 @@ const StarSignRow = ({ index, signOf, isOpen, onOpen, onUnlock, detailFor }) => 
         info: button(
             {
                 type: "button",
-                class: "starsign-row__open",
+                // The shared opener (its arrow in the one place every opening row has it).
+                class: "row-opener starsign-row__open",
                 "aria-expanded": () => String(isOpen()),
                 onclick: onOpen,
             },

@@ -64,6 +64,7 @@ const CACHES = [
     [/^Bubba\[[12]\](\[|$)/, "DNSM.h.Bubba_LVzAll"],
     [/^Research\[16\](\[|$)/, "DNSM.h.CellLV_tot"],
     [/^Research\[17\](\[[89]\])?$/, "DNSM.h.JellySlotz"],
+    [/^Spelunk\[49\](\[|$)/, "DNSM.h.PaletteBonz"],
 ];
 // Resolves to false when the game didn't clear one: the values are back by then, so that is a warning, not a
 // failure, and nothing is tried again (a Refresh reads the totals the game holds).

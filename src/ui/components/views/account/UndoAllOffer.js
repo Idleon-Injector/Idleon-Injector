@@ -46,6 +46,8 @@ const onLineWith = (anchor, element) =>
  * free space on the left; the right neighbour's box; free space on the right. Returns whether it covers a box.
  */
 const place = (node, anchor) => {
+    // A control out of sight (in a list that closed, a step picker's hidden step) has nothing to place beside.
+    if (!node.offsetParent) return false;
     const natural = node.offsetWidth;
     const container = node.offsetParent.clientWidth;
     // A switch: the offer lies over the switch's words (Owned, Locked), on the surface they sit on.

@@ -5,6 +5,7 @@ import { getCheatConfigPath, configPathExists } from "../utils/index.js";
 import { formatDisplayValue } from "../components/views/search/valueUtils.js";
 import { createLiveMonitor } from "./liveMonitor.js";
 import { findWorld } from "../menu/menuModel.js";
+import { tabRequest } from "../menu/pageRegistry.js";
 import {
     initWebSocket,
     onStateUpdate,
@@ -473,6 +474,8 @@ const store = {
         }
         appState.menuWorld = target.world;
         appState.menuPage = target.page || "";
+        // A search hit on a page's own tab opens the page there; any other way in leaves the page as it was.
+        tabRequest.val = target.tab ? { page: target.page, tab: target.tab } : null;
         appState.activeTab = VIEWS.PAGES.id;
     },
 
