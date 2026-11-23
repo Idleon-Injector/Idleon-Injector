@@ -611,6 +611,57 @@ test("Equinox: a penguin count saved while the fill rate can't be read says so o
     await until(() => rowWarning(row) === "", "a read that works to clear it");
 });
 
+// #228: a Refresh read the count and rate, then waited for the upgrades; a save that finished meanwhile lost its count
+// and rate to that older read, until the load read again.
+test("Equinox: a penguin count saved while a Refresh reads keeps its count and rate on screen", async (t) => {
+    const before = gga.OptionsListAccount[320];
+    t.after(() => (gga.OptionsListAccount[320] = before));
+    gga.OptionsListAccount[320] = 2;
+    const realFetch = globalThis.fetch;
+    t.after(() => (globalThis.fetch = realFetch));
+    // The rate follows the count, as in the game; a load's upgrade reads wait for `gate` while it is set.
+    let gate = null;
+    let reached = 0;
+    globalThis.fetch = async (url, options) => {
+        const body = String(options?.body ?? "");
+        if (String(url).includes("/computed/read-many") && body.includes("UpgMaxLV") && gate) {
+            reached++;
+            await gate;
+        }
+        if (String(url).endsWith("/computed/read") && body.includes("BarFillRate"))
+            return new Response(JSON.stringify({ value: 35 + 10 * Number(gga.OptionsListAccount[320]) }), {
+                headers: { "content-type": "application/json" },
+            });
+        return realFetch(url, options);
+    };
+    const root = await openPage(EQUINOX, penguinRow);
+    const row = penguinRow(root);
+    const shownCount = () => {
+        // The fake DOM keeps the typed text on the property; what the page binds since is the attribute.
+        const value = elements(row).find((node) => node.nodeName === "input").attributes.value;
+        return String(typeof value === "function" ? value() : value);
+    };
+    let releaseFirst;
+    let releaseSecond;
+    gate = new Promise((resolve) => (releaseFirst = resolve));
+    click(buttonIn(root, "Refresh"));
+    await until(() => reached === 1, "the Refresh to read the count and wait for the upgrades");
+    gate = new Promise((resolve) => (releaseSecond = resolve));
+    await typeAndEnter(row, 7);
+    assert.match(classes(byClass(row, "save-state")[0]), /save-state--success/);
+    assert.equal(shownCount(), "7");
+    releaseFirst();
+    // The load reads again, as a save landed while it ran; meanwhile the page shows what it put on screen.
+    await until(() => reached === 2, "the load to read again");
+    assert.equal(shownCount(), "7", "the saved count, not the one the Refresh read before the save");
+    assert.match(text(root), /Fills 105 an hour/, "the rate read after the save");
+    gate = null;
+    releaseSecond();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(shownCount(), "7");
+    assert.match(text(root), /Fills 105 an hour/);
+});
+
 for (const odd of ["broken", "", " ", true, false, -1, "-1", 1.5, "1.5"]) {
     test(`Equinox: a penguin count of ${JSON.stringify(odd)} is a read error, not 0`, async (t) => {
         const before = gga.OptionsListAccount[320];
