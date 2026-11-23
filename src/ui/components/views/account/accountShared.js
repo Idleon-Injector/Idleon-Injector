@@ -266,6 +266,7 @@ export const renderAccountError = (message) => EmptyState({ failed: true, title:
  * the page's own writeVerified inside it does.
  */
 export const writeVerified = (path, value, { write = gga, character, readBack = write === gga } = {}) => {
+    countSave(path);
     if (character !== undefined) return writeManyVerified([{ path, value }], { character }).then(() => value);
     // Claimed now, while the caller's code runs, so the save joins the user action that made it. A custom writer
     // (a row handing the write to its page) saves through writeVerified itself, so only the game write logs.
@@ -290,6 +291,15 @@ export const writeVerified = (path, value, { write = gga, character, readBack = 
 };
 
 const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
+
+// How many saves each path has had, counted as they start: a bulk set sees a row saved while it ran, even back to the
+// value it had. ponytail: one count per path ever saved, kept for the session.
+const savesByPath = new Map();
+const countSave = (path) => {
+    const key = normalizeGgaPath(path);
+    savesByPath.set(key, (savesByPath.get(key) ?? 0) + 1);
+};
+const savesOf = (path) => savesByPath.get(normalizeGgaPath(path)) ?? 0;
 
 /**
  * What a page says when the game has another character in play than the one it shows, so it refuses the save. Every
@@ -326,6 +336,7 @@ export const readCharacterInPlay = (expected) =>
  * @returns {Promise<any>}
  */
 export const writeManyVerified = (writes, { log = true, character } = {}) => {
+    writes.forEach((entry) => countSave(entry.path));
     if (!writes.length) return Promise.resolve({ ok: true, results: [] });
     const change = log ? startChange(writes.map((entry) => entry.path)) : null;
     return writeManyLogged(writes, change, character);
@@ -408,8 +419,8 @@ export const runBulkSet = async ({
 }) => {
     const resolvedEntries = typeof entries === "function" ? entries() : (entries ?? []);
     // Only the entries written take the target afterwards: a skipped row saved meanwhile keeps what it saved.
-    // Each written row's value as the writes start: a row whose value changed by the end (its own save, which may
-    // have landed after these writes) keeps it.
+    // Each written row's value and paths as the writes start: a row saved since (its save may have landed after these
+    // writes, even back to the value it had) or whose value changed keeps what it shows.
     const targets = new Map();
     const writes = [];
 
@@ -420,22 +431,32 @@ export const runBulkSet = async ({
 
         if (typeof getWrites === "function") {
             const entryWrites = toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState }));
-            if (entryWrites.length) targets.set(index, { targetValue, before: resolveValue(valueState) });
+            if (entryWrites.length)
+                targets.set(index, {
+                    targetValue,
+                    before: resolveValue(valueState),
+                    paths: entryWrites.map((write) => write.path),
+                });
             writes.push(...entryWrites);
             return;
         }
 
         if (!shouldWrite({ entry, index, currentValue, targetValue, valueState })) return;
-        targets.set(index, { targetValue, before: resolveValue(valueState) });
-        writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
+        const path = getPath(entry, index, targetValue);
+        targets.set(index, { targetValue, before: resolveValue(valueState), paths: [path] });
+        writes.push({ path, value: targetValue });
     });
 
-    await writeManyVerified(writes, { character });
+    const written = writeManyVerified(writes, { character });
+    // Counted after this bulk's own saves.
+    targets.forEach((target) => (target.saves = target.paths.map(savesOf)));
+    await written;
     if (shownCharacter && shownCharacter() !== character) return;
 
     resolvedEntries.forEach((entry, index) => {
         if (!targets.has(index)) return;
-        const { targetValue, before } = targets.get(index);
+        const { targetValue, before, paths, saves } = targets.get(index);
+        if (paths.some((path, i) => savesOf(path) !== saves[i])) return;
         if (!Object.is(resolveValue(getValueState(entry, index)), before)) return;
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);

@@ -421,12 +421,14 @@ test("Eggs: Max all raises every egg in one press; Reset all asks in the tray fi
     await until(() => gga.Breeding[0].every((egg) => egg === 0), "the eggs at 0");
 });
 
-test("an egg saved while Max all is answered keeps showing the rarity it saved (#222)", async (t) => {
+test("an egg saved while Max all is answered keeps showing the rarity it saved, even back to its old one (#222)", async (t) => {
     const before = [...gga.Breeding[0]];
     t.after(() => (gga.Breeding[0] = before));
     gga.Breeding[0] = gga.Breeding[0].map(() => 0);
     const root = await openPage("src/ui/pages/world-4/breeding/1-eggs.js");
-    // Max all's writes land in the game, but its answer waits until the egg's own save has landed and finished.
+    // The fake DOM keeps the typed text on the property; what the page binds since is the attribute.
+    const bound = (name) => String(byTag(rowNamed(root, name), "input")[0].attributes.value);
+    // Max all's writes land in the game, but its answer waits until the egg's own saves have landed and finished.
     const realFetch = globalThis.fetch;
     let release;
     const held = new Promise((resolve) => (release = resolve));
@@ -439,26 +441,28 @@ test("an egg saved while Max all is answered keeps showing the rarity it saved (
         }
         return answer;
     };
+    let maxAll;
     try {
-        click(buttonNamed(root, "Max all"));
+        maxAll = click(buttonNamed(root, "Max all"));
         await until(() => landed, "Max all's writes to land");
         const row = rowNamed(root, "Egg 1");
         typeAndEnter(row, byTag(row, "input")[0], 5);
-        await settled(row);
-        assert.equal(gga.Breeding[0][0], 5, "the egg's save landed after Max all's");
+        await until(() => gga.Breeding[0][0] === 5 && bound("Egg 1") === "5", "the egg's save of 5");
+        // Back to the rarity it had when Max all started: its value alone can't tell it was saved.
+        typeAndEnter(row, byTag(row, "input")[0], 0);
+        await until(
+            () => gga.Breeding[0][0] === 0 && bound("Egg 1") === "0" && stateOf(row) === "success",
+            "the egg's save of 0"
+        );
     } finally {
         globalThis.fetch = realFetch;
         release();
     }
-    await until(() => gga.Breeding[0][1] === 11 && !byClass(root, "is-loading").length, "Max all to finish");
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    // The fake DOM keeps the typed text on the property; what the page binds since is the attribute.
-    assert.equal(
-        String(byTag(rowNamed(root, "Egg 1"), "input")[0].attributes.value),
-        "5",
-        "the row shows what the game holds"
-    );
-    assert.equal(shown(byTag(rowNamed(root, "Egg 2"), "input")[0]), "11", "the others show Max all's rarity");
+    await maxAll;
+    await until(() => bound("Egg 2") === "11", "the others to show Max all's rarity");
+    assert.equal(gga.Breeding[0][1], 11);
+    assert.equal(gga.Breeding[0][0], 0, "the game holds the egg's own save");
+    assert.equal(bound("Egg 1"), "0", "the row shows what the game holds");
 });
 
 test("Upgrades: bonus first, the filler slot's bonus is Breeding EXP, and Max all brings one above its max down", async (t) => {
