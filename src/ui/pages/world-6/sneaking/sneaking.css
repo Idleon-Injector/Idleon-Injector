@@ -1,5 +1,5 @@
-/* Sneaking: its Automation tab is a table (an upgrade's level, next cost, stop-at and switches), so the page takes the
-   wider measure. */
+/* Sneaking: its Ninja Knowledge tab is a table (an upgrade's level, its Omni Jade levels and the Omni Jade button), so
+   the page takes the wider measure. */
 .sneaking-tab {
     --page-measure: 60rem;
 }

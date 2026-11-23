@@ -348,7 +348,7 @@ const EmperorTab = () => {
         ActionButton({ label: "Cancel", onClick: () => (askingReset.val = false) })
     );
     const progressRow = AccountRow({
-        rowClass: () => `account-row--wide-controls ${saveStateClass(progressWrite.status.val, progressWrite.undo)}`,
+        rowClass: () => `account-row--value ${saveStateClass(progressWrite.status.val, progressWrite.undo)}`,
         rowProps: progressWrite.handlers,
         info: div(
             { class: "emperor-ask" },
@@ -372,7 +372,7 @@ const EmperorTab = () => {
         renderInfo: () => RowTitles({ bonus: "+1 try a day and +6 saved-up tries each", name: "Emperor tries" }),
     });
     const entriesRow = AccountRow({
-        rowClass: () => `account-row--wide-controls ${saveStateClass(entriesWrite.status.val, entriesWrite.undo)}`,
+        rowClass: () => `account-row--value ${saveStateClass(entriesWrite.status.val, entriesWrite.undo)}`,
         rowProps: entriesWrite.handlers,
         info: div(
             { class: "account-row__name-group" },
@@ -393,6 +393,8 @@ const EmperorTab = () => {
             }),
             ActionButton({
                 label: "Max",
+                // The shared Max's class: the list keeps Max's room on the lines without one.
+                className: "account-row__max",
                 disabled: () =>
                     cannotEdit() || snapshot.val.cheatEnabled || snapshot.val.remaining >= snapshot.val.capacity,
                 onClick: () => entriesWrite.run(() => saveEntries(true)),
@@ -440,12 +442,13 @@ const EmperorTab = () => {
             { class: "account-list account-list--tabbed" },
             ListPanel({
                 body: [
-                    AccountSection({ title: "Gem shop", body: div({ class: "field-columns" }, triesRow) }),
-                    AccountSection({
-                        title: "Showdowns",
-                        body: div({ class: "field-columns" }, progressRow, entriesRow),
-                    }),
-                    AccountSection({ title: "Rewards", meta: span(nextReward), body: rewardList }),
+                    // One column of fields across the groups, so Emperor tries lines up with Showdowns won and Entries.
+                    div(
+                        { class: "field-columns" },
+                        AccountSection({ title: "Gem shop", body: triesRow }),
+                        AccountSection({ title: "Showdowns", body: [progressRow, entriesRow] }),
+                        AccountSection({ title: "Rewards", meta: span(nextReward), body: rewardList })
+                    ),
                 ],
             })
         ),

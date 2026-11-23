@@ -1073,31 +1073,6 @@ export const AutomationPage = ({
 };
 
 /**
- * An automation as the last tab of its system's page (Sneaking, Summoning): the same table and tray tools as
- * AutomationPage, as a part for TabbedList. `tab` is its useAutomationTab: the page loads it with its other parts
- * (`load`), and folds its `loading` and `error` into the page's. `total` shows beside the page's title while the tab
- * is open (`shown`), and the automation's line (`said`: a wait, a bulk failure) under it only while there is something
- * to say, so switching tabs never moves the list.
- */
-export const automationPart = ({ tab, columns, bulk, body, total = null, said = null }) => ({
-    content: div({ class: "automation-rows", style: `--value-columns: ${columns.widths}` }, ...toNodes(body)),
-    tools: (ask) => bulk.tools(ask),
-    toolsLabel: () => bulk.label(),
-    busy: () => bulk.busy(),
-    load: () => tab.load(),
-    loading: tab.loading,
-    error: tab.error,
-    total: (shown) => (total ? span({ class: "automation-part__total", hidden: () => !shown() }, total) : null),
-    notices: (shown) =>
-        said
-            ? div(
-                  { class: "automation-part__said", hidden: () => !shown() || !said.val },
-                  Said({ said, className: "said--line" })
-              )
-            : null,
-});
-
-/**
  * What every system's automation tab shares: the entries of its automations (`cheats`, one state each, in `entries`)
  * with their switch rows in `switches`, and the tab's read as a step. `read(automation)` is the tab's own direct
  * reads, handed the read of cheatConfig.automation (sync its picks and settings there). `load()` queues the read (the

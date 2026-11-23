@@ -34,7 +34,12 @@ export const SimpleNumberRow = ({ entry, valueState, renderExtraActions = null }
                 fallback: null,
                 strict: true,
             }),
-        write: (nextValue) => writeVerified(entry.path, nextValue),
+        // `afterWrite` runs once the value is read back (a cache the game rebuilds from it: Endless wins' bonuses).
+        write: async (nextValue) => {
+            const saved = await writeVerified(entry.path, nextValue);
+            if (entry.afterWrite) await entry.afterWrite(saved);
+            return saved;
+        },
         renderInfo: () => {
             // A row with a bonus brings its own title (RowTitles: the bonus, the name under it).
             if (entry.info) return entry.info;

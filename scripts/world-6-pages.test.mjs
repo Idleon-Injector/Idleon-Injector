@@ -7,8 +7,10 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
 const FARMING = "src/ui/pages/world-6/farming/farming.js";
-const SNEAKING = "src/ui/pages/world-6/sneaking/sneaking.js";
-const SUMMONING = "src/ui/pages/world-6/summoning/summoning.js";
+const SNEAKING = "src/ui/pages/world-6/sneaking/1-sneaking.js";
+const SUMMONING = "src/ui/pages/world-6/summoning/1-summoning.js";
+const SNEAKING_AUTOMATION = "src/ui/pages/world-6/sneaking/2-automation.js";
+const SUMMONING_AUTOMATION = "src/ui/pages/world-6/summoning/2-automation.js";
 const BEANSTALK = "src/ui/pages/world-6/beanstalk/beanstalk.js";
 const EMPEROR = "src/ui/pages/world-6/emperor/emperor.js";
 
@@ -129,26 +131,28 @@ const hold = (route) => {
 
 // ---- The menu ----------------------------------------------------------------------------------------------------
 
-test("World 6 is five sidebar entries; Farming, Sneaking and Summoning hold the game's screens as tabs", async () => {
-    const { buildMenuTree } = await importRepo("src/ui/menu/menuModel.js");
+test("World 6 has five systems; Sneaking and Summoning keep Automation as their own sidebar entry", async () => {
+    const { buildMenuTree, pageTitle } = await importRepo("src/ui/menu/menuModel.js");
     const pages = await Promise.all(
-        [FARMING, SNEAKING, SUMMONING, BEANSTALK, EMPEROR].map(async (file) => (await importRepo(file)).default)
+        [FARMING, SNEAKING, SNEAKING_AUTOMATION, SUMMONING, SUMMONING_AUTOMATION, BEANSTALK, EMPEROR].map(
+            async (file) => (await importRepo(file)).default
+        )
     );
     const world = buildMenuTree(pages).find((entry) => entry.id === 6);
     assert.deepEqual(
-        world.systems.map((system) => [system.name, system.pages.length]),
+        world.systems.map((system) => [system.name, system.pages.map((page) => pageTitle(page, system))]),
         [
-            ["Farming", 1],
-            ["Sneaking", 1],
-            ["Summoning", 1],
-            ["Beanstalk", 1],
-            ["Emperor", 1],
+            ["Farming", ["Farming"]],
+            ["Sneaking", ["Sneaking", "Automation"]],
+            ["Summoning", ["Summoning", "Automation"]],
+            ["Beanstalk", ["Beanstalk"]],
+            ["Emperor", ["Emperor"]],
         ]
     );
     const tabsOf = (file) => pages.find((page) => page.id === file).tabs.map((tab) => tab.label);
     assert.deepEqual(tabsOf("w6.farming"), ["Plots", "Crop Depot", "Market", "Exotic Market", "Land Rank", "Stickers"]);
-    assert.deepEqual(tabsOf("w6.sneaking"), ["Ninja Knowledge", "Jade Emporium", "Charms", "Omni Jade", "Automation"]);
-    assert.deepEqual(tabsOf("w6.summoning"), ["Upgrades", "Essence", "Battles", "Automation"]);
+    assert.deepEqual(tabsOf("w6.sneaking"), ["Ninja Knowledge", "Jade Emporium", "Charms"]);
+    assert.deepEqual(tabsOf("w6.summoning"), ["Upgrades", "Essence", "Battles"]);
 });
 
 test("search finds each tab by its name and the old page names, and a hit opens the page on that tab", async () => {
@@ -164,7 +168,7 @@ test("search finds each tab by its name and the old page names, and a hit opens 
         ["land rank database", "Land Rank", "w6.farming", "rank"],
         ["sneaking upgrades", "Ninja Knowledge", "w6.sneaking", "knowledge"],
         ["pristine charms", "Charms", "w6.sneaking", "charms"],
-        ["omnijade", "Omni Jade", "w6.sneaking", "omnijade"],
+        ["omnijade", "Ninja Knowledge", "w6.sneaking", "knowledge"],
         ["endless", "Battles", "w6.summoning", "battles"],
     ]) {
         const hit = searchMenu(entries, query)[0];
@@ -343,20 +347,26 @@ test("Exotic Market: a label the game refuses is said beside its button", async 
     };
     try {
         await click(buttonNamed(row, "Organic"));
-        await until(() => text(byClass(row, "organic-label__failure")[0]) !== "", "the reason");
+        await until(() => text(byClass(row, "row-toggle__failure")[0]) !== "", "the reason");
     } finally {
         globalThis.fetch = realFetch;
     }
     assert.deepEqual(gga.Spelunk[50], before);
     await click(buttonNamed(row, "Organic"));
     await until(() => gga.Spelunk[50].includes(1), "the label on a second try");
-    assert.equal(text(byClass(row, "organic-label__failure")[0]), "", "the next success clears it");
+    assert.equal(text(byClass(row, "row-toggle__failure")[0]), "", "the next success clears it");
 });
 
 test("Land Rank: only the 5th column has a max; a level over it is refused, any other saves", async () => {
     const { pane } = await openPane(FARMING, "Land Rank");
     const capped = rowNamed(pane, "Seed Of Stealth");
     assert.equal(capOf(capped), "/ 50");
+    assert.ok(buttonNamed(capped, "Max"), "a capped line has Max");
+    assert.equal(
+        buttonNamed(rowNamed(pane, "Evolution Boost"), "Max"),
+        undefined,
+        "an uncapped one keeps its room empty"
+    );
     assert.equal(capOf(rowNamed(pane, "Evolution Boost")), "");
     typeAndEnter(capped, 51);
     await until(() => stateOf(capped) === "error", "51 to be refused");
@@ -423,42 +433,49 @@ test("Charms: a switch unlocks one; Lock all asks in the tray first, Unlock all 
     await until(() => gga.Ninja[107].every((on) => on === 1), "every charm unlocked");
 });
 
-test("Omni Jade: a node's bonus levels and its switch save on the same line", async (t) => {
+test("Ninja Knowledge: Omni Jade is a button on the lines that can have it, its levels on the same line", async (t) => {
     const before = structuredClone(gga.Menagerie);
     t.after(() => gga.Menagerie.splice(0, gga.Menagerie.length, ...before));
-    const { pane } = await openPane(SNEAKING, "Omni Jade");
+    const { root, pane } = await openPane(SNEAKING, "Ninja Knowledge");
+    assert.ok(!tabNamed(root, "Omni Jade"), "no Omni Jade tab");
     const row = rowNamed(pane, "Way of Bargain");
-    typeAndEnter(row, 33);
-    await settled(row);
-    assert.equal(gga.Menagerie[7][1], 33);
-    const on = Number(gga.Menagerie[6][1]) >= 1;
-    await flip(row, !on);
-    await until(() => Number(gga.Menagerie[6][1]) >= 1 === !on, "the switch to save");
-    assert.equal(gga.Menagerie[7][1], 33, "switching keeps the levels it earned");
+    const omni = buttonNamed(row, "Omni Jade");
+    const on = attr(omni, "aria-pressed") === "true";
+    await click(omni);
+    await until(() => Number(gga.Menagerie[6][1]) >= 1 === !on, "the button to save");
+    assert.equal(attr(omni, "aria-pressed"), String(!on));
+    // Its levels are the line's second field.
+    const [, levels] = byTag(row, "input");
+    typeAndEnter(row, 33, levels);
+    await until(() => gga.Menagerie[7][1] === 33 && stateOf(row) === "success", "the Omni Jade levels to save");
+    // Upgrades past the first 17 can't have Omni Jade: no button and no levels.
+    const late = rowNamed(pane, "Strange Symbols");
+    assert.equal(buttonNamed(late, "Omni Jade"), undefined);
+    assert.equal(byTag(late, "input").length, 1);
 });
 
-test("Omni Jade: a switch flipped while another saves still saves", async (t) => {
+test("Ninja Knowledge: an Omni Jade the game refuses is said beside its button, and the next press clears it", async (t) => {
     const before = structuredClone(gga.Menagerie);
     t.after(() => gga.Menagerie.splice(0, gga.Menagerie.length, ...before));
-    const { pane } = await openPane(SNEAKING, "Omni Jade");
-    const [first, second] = rowsIn(pane).filter((row) => wordsOf(row) === "");
-    const writes = hold("/write");
-    const flips = [flip(first, true), flip(second, true)];
-    await until(writes.reached, "the first write");
-    writes.release();
-    await Promise.all(flips);
-    await until(() => wordsOf(first) === "On" && wordsOf(second) === "On", "both rows to show their saves");
-});
-
-test("Sneaking: the jade beside the title shows only on the Automation tab", async () => {
-    const root = await openPage(SNEAKING);
-    const total = byClass(root, "automation-part__total")[0];
-    assert.equal(attr(total, "hidden"), true, "hidden on Ninja Knowledge");
-    tabNamed(root, "Automation").listeners.click({});
-    await until(() => attr(total, "hidden") === false, "the jade on the Automation tab");
-    assert.match(text(total), /jade/);
-    // With nothing to say, the automation's line takes no room, so the list doesn't move with the tab.
-    assert.equal(attr(byClass(root, "automation-part__said")[0], "hidden"), true);
+    const { pane } = await openPane(SNEAKING, "Ninja Knowledge");
+    const row = rowNamed(pane, "Centurion Lineage");
+    const omni = buttonNamed(row, "Omni Jade");
+    const was = Number(gga.Menagerie[6][0]);
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) throw new Error("Connection lost");
+        return realFetch(url, options);
+    };
+    try {
+        await click(omni);
+        await until(() => text(byClass(row, "row-toggle__failure")[0]) !== "", "the reason");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.equal(Number(gga.Menagerie[6][0]), was);
+    await click(omni);
+    await until(() => Number(gga.Menagerie[6][0]) !== was, "the second press to save");
+    assert.equal(text(byClass(row, "row-toggle__failure")[0]), "");
 });
 
 // ---- Summoning ---------------------------------------------------------------------------------------------------
@@ -474,7 +491,7 @@ test("Summoning: the board's upgrades are groups per colour; a capped one refuse
     await until(() => gga.Summon[0][2] === 30 && stateOf(row) === "success", "30 to save");
 });
 
-test("Summoning: an essence and the Endless wins save where the game keeps them", async () => {
+test("Summoning: an essence saves where the game keeps it", async () => {
     const essence = await openPane(SUMMONING, "Essence");
     assert.deepEqual(names(essence.pane), [
         "White Essence",
@@ -490,11 +507,78 @@ test("Summoning: an essence and the Endless wins save where the game keeps them"
     typeAndEnter(row, 1234);
     await settled(row);
     assert.equal(gga.Summon[2][3], 1234);
-    const battles = await openPane(SUMMONING, "Battles");
-    const endless = rowNamed(battles.pane, "Endless wins");
-    typeAndEnter(endless, 55);
+});
+
+test("Battles: Endless wins save and clear the game's win bonuses, so they follow at once", async (t) => {
+    const before = gga.OptionsListAccount[319];
+    t.after(() => (gga.OptionsListAccount[319] = before));
+    gga.DNSM.h.SummWinBonus = [8, 7, 6];
+    const { pane } = await openPane(SUMMONING, "Battles");
+    const endless = rowNamed(pane, "Endless wins");
+    typeAndEnter(endless, 200);
     await settled(endless);
-    assert.equal(gga.OptionsListAccount[319], 55);
+    assert.equal(stateOf(endless), "success");
+    assert.equal(gga.OptionsListAccount[319], 200);
+    assert.equal("SummWinBonus" in gga.DNSM.h, false, "the cache is cleared");
+});
+
+test("Battles: the opponents are grouped by colour, and a win's switch saves it and clears the win bonuses", async (t) => {
+    const before = [...gga.Summon[1]];
+    t.after(() => (gga.Summon[1] = before));
+    const { pane } = await openPane(SUMMONING, "Battles");
+    const groups = byClass(pane, "account-section").map((section) => [
+        text(byClass(section, "account-section__title")[0]),
+        rowsIn(section).length,
+    ]);
+    assert.deepEqual(groups, [
+        ["White", 9],
+        ["Green", 15],
+        ["Yellow", 11],
+        ["Blue", 14],
+        ["Purple", 13],
+        ["Red", 13],
+        ["Cyan", 14],
+        ["Teal", 18],
+    ]);
+    const jonesy = rowNamed(pane, "Jonesy and his Lil Mushies");
+    assert.equal(wordsOf(jonesy), "Won", "mushG is beaten on the practice data");
+    const karen = rowNamed(pane, "Walter and his Lil Shrooms");
+    assert.equal(wordsOf(karen), "");
+    gga.DNSM.h.SummWinBonus = [8, 7, 6];
+    await flip(karen, true);
+    await until(() => gga.Summon[1].includes("mushR") && wordsOf(karen) === "Won", "the win to save");
+    assert.equal("SummWinBonus" in gga.DNSM.h, false, "the cache is cleared");
+    await flip(jonesy, false);
+    await until(() => !gga.Summon[1].includes("mushG"), "the win to come off");
+});
+
+test("Battles: two wins switched on at once both land (the wins are one list in the game)", async (t) => {
+    const before = [...gga.Summon[1]];
+    t.after(() => (gga.Summon[1] = before));
+    const { pane } = await openPane(SUMMONING, "Battles");
+    const [first, second] = rowsIn(pane).filter((row) => switchOf(row) && wordsOf(row) === "");
+    const writes = hold("/write");
+    const flips = [flip(first, true), flip(second, true)];
+    await until(writes.reached, "the first write");
+    writes.release();
+    await Promise.all(flips);
+    await until(() => wordsOf(first) === "Won" && wordsOf(second) === "Won", "both to save");
+    assert.equal(gga.Summon[1].length, before.length + 2);
+});
+
+test("Undo of an Endless wins save clears the game's win bonuses too", async () => {
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const old = Number(gga.OptionsListAccount[319]);
+    await withAction({ label: "endless" }, () => writeVerified("OptionsListAccount[319]", old + 5));
+    const { actions } = await fetchChanges();
+    const action = actions.find((entry) => entry.entries.some((change) => change.path === "OptionsListAccount[319]"));
+    gga.DNSM.h.SummWinBonus = [1, 2, 3];
+    await undoAction(action.id);
+    assert.equal(Number(gga.OptionsListAccount[319]), old);
+    assert.equal("SummWinBonus" in gga.DNSM.h, false, "the bonuses are cleared");
 });
 
 // ---- Beanstalk ---------------------------------------------------------------------------------------------------

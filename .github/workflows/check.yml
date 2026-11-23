@@ -69,3 +69,8 @@ jobs:
                   path: pr-summary/shots/
                   if-no-files-found: ignore
                   retention-days: 14
+
+            # After the uploads, so the comment and the shots still come: a touched page that breaks a layout rule of
+            # DESIGN.md's Page standards fails this job, and the comment names each break.
+            - name: Check the touched pages' layout
+              run: node scripts/pr-summary.mjs gate pr-summary

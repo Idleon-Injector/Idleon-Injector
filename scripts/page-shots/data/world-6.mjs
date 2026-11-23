@@ -13,6 +13,7 @@ import {
     MARKET,
     SEEDS,
     STICKERS,
+    SUMMON_ENEMIES,
 } from "./world-6-game.mjs";
 
 // Crops: the last seed's last crop is the depot's last index.
@@ -57,7 +58,6 @@ const KNOWLEDGE = [
 ];
 const KNOWLEDGE_LEVELS = { 13: 40, 14: 35, 12: 30, 15: 25, 8: 20, 16: 3, 7: 12, 2: 10, 11: 4 };
 const knowledgeLevel = (i) => KNOWLEDGE_LEVELS[i] ?? 0;
-const ROUNDS = 30;
 const GOLD_FOOD_IDS = GOLD_FOODS.filter((_, i) => i % 3 === 2);
 // The gold foods' names: stand-ins (the item names aren't in the game's code), close to what the game calls them.
 const GOLD_FOOD_NAMES = [
@@ -159,7 +159,7 @@ export default () => ({
         // [4] familiars per tier.
         Summon: [
             [...SUMMON_LEVELS], // its own copy: a test that levels an upgrade leaves the next fixture's start alone
-            list(12, (i) => `enemy${i}`),
+            ["Pet1", "Pet2", "mushG", "frogG", "beanG", "poopSmall", "slimeG", "jarSand"],
             list(9, (i) => (i < 6 ? Math.round(4.2e6 / (i + 1) ** 2) : 0)),
             [0, 0, 0, 0],
             [6, 3, 1, 0, 0, 0, 0, 0],
@@ -171,7 +171,8 @@ export default () => ({
             // Pristine charms: [?, index, name, ?, how to add it, bonus].
             h: { NjEQ: h(Object.fromEntries(CHARMS.map((charm, i) => [`NjTrP${i}`, charm]))) },
         },
-        DNSM: { h: { EmperorBon: list(12, (i) => i * 3) } },
+        // The game's caches: the Emperor's reward totals, the summoning win bonuses.
+        DNSM: { h: { EmperorBon: list(12, (i) => i * 3), SummWinBonus: list(32, (i) => (i < 3 ? 8 - i : 0)) } },
         // [319] Endless Summoning wins, [369] showdowns won, [370] 1 minus the Emperor entries, [382] gem shop Emperor tries.
         OptionsListAccount: { 319: 40, 369: 37, 370: 0, 382: 2 },
         ItemDefinitionsGET: {
@@ -201,18 +202,8 @@ export default () => ({
                     "0",
                 ]),
                 SummonUPG: SUMMON_UPG,
-                // Columns: [0] enemy ids, [4] names, [8] round order.
-                SummonEnemies: list(9, (column) =>
-                    list(ROUNDS, (i) =>
-                        column === 0
-                            ? `enemy${i}`
-                            : column === 4
-                              ? `${fakeName(i + 2)}_Summon`
-                              : column === 8
-                                ? String(i + 1)
-                                : "0"
-                    )
-                ),
+                // [0] ids, [4] names, [5] the bonus slot a win adds to, [6] the bonuses' words, [8] the ladder's step.
+                SummonEnemies: SUMMON_ENEMIES,
                 EmperorBon: EMPEROR,
             },
         },

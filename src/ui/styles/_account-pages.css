@@ -888,6 +888,7 @@
 .field-columns {
     --field-columns-width: 10.25rem;
     --field-columns-cap: 3rem; /* "/ 700"; a list with longer caps sets more */
+    --field-columns-action: 4.5rem; /* the row's own button (Max, Reset); a list with a longer one sets more */
 }
 
 .field-columns .account-row__controls .number-input-wrapper {
@@ -912,7 +913,20 @@
 
 .field-columns .account-row__controls > .btn-quiet:last-child,
 .field-columns .account-row__controls > .btn-danger:last-child {
-    min-width: 4.5rem;
+    min-width: var(--field-columns-action);
+}
+
+/* Max's room on a line without a cap (EditableNumberRow), kept empty so the fields of a mixed list line up, in a list
+   where some line has Max (`has-max`, set by the rows). */
+.account-row__max-slot,
+.viewport .account-row__controls > .account-row__max[hidden] {
+    display: none;
+}
+
+.field-columns.has-max .account-row__controls > .account-row__max-slot:not([hidden]) {
+    display: block;
+    flex: none;
+    width: var(--field-columns-action);
 }
 
 .account-row__controls--stack {
@@ -1876,4 +1890,29 @@
     .viewport .account-section__header {
         padding: 22px 14px 8px;
     }
+}
+
+/* A setting that switches per line is a button on that line (Organic, Omni Jade; DESIGN.md, Page standards): a quiet
+   one that keeps its lavender word on a faint lavender wash while it's on (what is on). Why a press didn't save is said
+   before the button in the warning's amber, like a row's warning. */
+.row-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewport .account-btn.row-toggle__button[aria-pressed="true"] {
+    border-color: var(--c-accent-25);
+    background: var(--c-accent-dim);
+    color: var(--c-accent);
+}
+
+.row-toggle__failure {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c-warning);
+}
+
+.row-toggle__failure:empty {
+    display: none;
 }
