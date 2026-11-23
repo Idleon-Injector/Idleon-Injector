@@ -17,38 +17,11 @@ import { RefreshButton } from "../../../components/views/account/components/Acco
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { createIndexedStateGetter } from "../../../components/views/account/accountShared.js";
+import { SPICE_NAMES } from "../../../components/views/account/spiceNames.js";
 
 const { div } = van.tags;
 
 const SPICE_AMOUNTS_PATH = "Meals[3]";
-export const SPICE_NAMES = [
-    "Grasslands Spice",
-    "Jungle Spice",
-    "Encroaching Forest Spice",
-    "Tree Interior Spice",
-    "Stinky Sewers Spice",
-    "Desert Oasis Spice",
-    "Beach Docks Spice",
-    "Coarse Mountains Spice",
-    "Twilight Desert Spice",
-    "The Crypt Spice",
-    "Frosty Peaks Spice",
-    "Tundra Outback Spice",
-    "Crystal Caverns Spice",
-    "Pristalle Lake Spice",
-    "Nebulon Mantle Spice",
-    "Starfield Skies Spice",
-    "Shores of Eternity Spice",
-    "Molten Bay Spice",
-    "Smokey Lake Spice",
-    "Wurm Catacombs Spice",
-    "Spirit Fields Spice",
-    "Bamboo Forest Spice",
-    "Lullaby Airways Spice",
-    "Dharma Mesa Spice",
-    "Shallow Shoals Spice",
-    "Murky Trenches Spice",
-];
 
 const SpicesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking spices" });
