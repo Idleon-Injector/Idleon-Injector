@@ -80,8 +80,9 @@ const UpgradesTab = ({ pending, reload, bulk }) =>
         definitions: "ArmoryUpg",
         orderPath: "Research[43]",
         words: ["upgrade", "upgrades"],
-        afterSave: (upgrade) => (rebuildsUnits([upgrade]) ? resetRoyalGuardUnitsToVanilla() : null),
-        afterBulk: (upgrades) => (rebuildsUnits(upgrades) ? resetRoyalGuardUnitsToVanilla() : null),
+        // In the outposts' unit queue, so a rebuild and an outpost's unit change never interleave.
+        afterSave: (upgrade) => (rebuildsUnits([upgrade]) ? unitWrites(resetRoyalGuardUnitsToVanilla) : null),
+        afterBulk: (upgrades) => (rebuildsUnits(upgrades) ? unitWrites(resetRoyalGuardUnitsToVanilla) : null),
         pending,
         reload,
         bulk,
@@ -450,6 +451,10 @@ const PickLine = ({ name, label = name, steps, state, write, said, onFailed = nu
     });
 };
 
+// The map unit lists are shared by every outpost of a world, and an upgrade shelf rebuilds them: each change to them
+// runs after the last one ended.
+const unitWrites = oneAtATime();
+
 // A change to the map unit lists, then the game's unit totals per map (DNSM TotUnitzAllMapz) go, so it counts them
 // again, as Reset to the game's does. A failed change may have landed, so they go then too.
 const withUnitTotals = (task) => async () => {
@@ -467,8 +472,6 @@ const OutpostsTab = ({ pending, reload }) => {
     const read = van.state({ outposts: [], royalG: [], builtByWorld: {} });
     // mapId -> { kind, node, update }: a reload keeps each row, and what is typed or said in it.
     const rows = new Map();
-    // The map unit lists are shared by every outpost of a world: each change to them runs after the last one ended.
-    const unitWrites = oneAtATime();
     const worldNodes = Array.from({ length: WORLDS }, () => ({ built: div(), kills: div({ class: "outpost-kills" }) }));
     const reconcilers = worldNodes.map(({ built, kills }) => ({
         built: createStaticRowReconciler(built),
@@ -518,7 +521,10 @@ const OutpostsTab = ({ pending, reload }) => {
                 // One at a time, each from what the game holds then, so a pick made while another saves keeps both.
                 write: (kind) =>
                     slotWrites(async () => {
-                        const next = decodeSlots(await gga(at(11)));
+                        // A Barracks lowered since the pick may have locked the slot: the pick goes no further.
+                        const [raw, barracks] = await Promise.all([gga(at(11)), gga(at(0))]);
+                        if (slot >= unlockedSlotCount(toNum(barracks, 0))) throw new Error(`Opens at Barracks ${slot}`);
+                        const next = decodeSlots(raw);
                         next[slot] = String(kind);
                         const value = encodeSlots(next);
                         try {
@@ -735,6 +741,7 @@ const OutpostsTab = ({ pending, reload }) => {
         const kills = van.state(0);
         const said = useSaid();
         const build = useWriteStatus();
+        const mapWrites = oneAtATime();
         const isOpen = () => openMap.val === mapId;
         const path = `RoyalMaps[${mapId}][0]`;
         const node = ValueTableRow({
@@ -759,6 +766,14 @@ const OutpostsTab = ({ pending, reload }) => {
                 },
             ],
             read: async () => ({ kills: toInt(await gga(path), { min: 0 }) }),
+            // A kills save and Build take turns; once built, [0] is the Barracks level, so a kills save stops.
+            runWrite: (task) =>
+                mapWrites(async () => {
+                    const record = await gga(`RoyalMaps[${mapId}]`);
+                    if (Array.isArray(record) && record.length >= BUILT_OUTPOST_LENGTH)
+                        throw new Error("Built here now. Refresh.");
+                    return task();
+                }),
         });
         node.append(
             div(
@@ -778,7 +793,7 @@ const OutpostsTab = ({ pending, reload }) => {
                             e.preventDefault();
                             said.clear();
                             const result = await build.run(() =>
-                                writeVerified(`RoyalMaps[${mapId}]`, [...DEFAULT_OUTPOST])
+                                mapWrites(() => writeVerified(`RoyalMaps[${mapId}]`, [...DEFAULT_OUTPOST]))
                             );
                             if (!result.ok) said.say("failed", `Not built: ${saveFailureReason(result.error)}`);
                             // The row turns into the outpost, or stays with the reason.

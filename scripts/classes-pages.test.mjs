@@ -137,6 +137,33 @@ const failRoute = (route) => {
             : realFetch(url, options);
     return () => (globalThis.fetch = realFetch);
 };
+// Writes whose request matches `match` (url, body) wait until released; `reads` logs the reads made meanwhile.
+const holdWritesTo = (match) => {
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = 0;
+    const reads = [];
+    const bodies = [];
+    globalThis.fetch = async (url, options) => {
+        const body = String(options?.body ?? "");
+        if (String(url).includes("/write") && match(String(url), body)) {
+            held++;
+            bodies.push(body);
+            await gate;
+        } else if (held && String(url).includes("/read")) reads.push(body);
+        return realFetch(url, options);
+    };
+    return {
+        held: () => held,
+        reads,
+        bodies,
+        release: () => {
+            globalThis.fetch = realFetch;
+            release();
+        },
+    };
+};
 // Counts the times a node is taken out of the page, even to be put back: a browser then drops its focus and blurs it.
 const watchTakenOut = (node) => {
     let count = 0;
@@ -447,6 +474,7 @@ test("royal armory: a failed save that still changed a unit shelf builds the uni
 });
 
 test("royal armory: Max all leaves the units where they are when no unit shelf changes", async () => {
+    const { UNIT_REBUILD_DISPLAY_SHELVES } = await importRepo("src/ui/components/views/account/royalGuardDomain.js");
     const saved = unitArrays();
     const levels = copy(gga.RoyalG[2]);
     const order = gga.CustomLists.h.Research[43];
@@ -454,7 +482,7 @@ test("royal armory: Max all leaves the units where they are when no unit shelf c
     try {
         order.forEach((n) => maxOf(n) < 999999 && (gga.RoyalG[2][n] = maxOf(n)));
         const lowered = order.find(
-            (n, position) => position + 1 !== REBUILD_SHELF && maxOf(n) > 1 && maxOf(n) < 999999
+            (n, position) => !UNIT_REBUILD_DISPLAY_SHELVES.has(position + 1) && maxOf(n) > 1 && maxOf(n) < 999999
         );
         gga.RoyalG[2][lowered] = 0;
         const { root } = await openPane(ROYAL_ARMORY, "Upgrades");
@@ -710,6 +738,68 @@ test("outposts: a slot pick whose answer is lost shows what the game holds, not 
     }
 });
 
+// Review of #239 round 4: a slot picked while a lower Barracks locks it is refused, not written past the lock.
+test("outposts: a slot picked while the Barracks goes down stays locked", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    gga.RoyalMaps[1][0] = 1;
+    gga.RoyalMaps[1][11] = 221111111;
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const hold = holdWritesTo((url, body) => body.includes("RoyalMaps[1][11]"));
+    try {
+        typeAndEnter(outpost, 0);
+        await until(() => hold.held() === 1, "the slot fix for Barracks 0 to start");
+        const picking = click(stepNamed(lineIn(outpost, "Slot 2"), "Guard"));
+        await tick();
+        hold.release();
+        await picking;
+        await until(() => /Opens at Barracks 1/.test(says(outpost)), "the pick refused");
+        assert.equal(gga.RoyalMaps[1][11], 211111111, "slot 2 stays locked");
+    } finally {
+        hold.release();
+        gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239 round 4: a unit shelf's rebuild and an outpost's unit change take turns.
+test("outposts: Add waits for a unit shelf's rebuild, then adds to the rebuilt lists", async () => {
+    const saved = unitArrays();
+    const maps = copy(gga.RoyalMaps);
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const level = gga.RoyalG[2][n];
+    const hold = holdWritesTo((url, body) => url.endsWith("/write-many") && body.includes("RoyalG["));
+    try {
+        const { root, pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        armoryUnits(); // a placement the rebuild changes, so a stale copy would show
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        typeAndEnter(row, Number(level ?? 0) + 1);
+        await until(() => hold.held() === 1, "the rebuild to start");
+        tabNamed(root, "Outposts").listeners.click({});
+        const outpost = opened(outpostRow(paneOf(root, "Outposts"), "Grassy Hollow"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const adding = click(buttonNamed(lineIn(outpost, "Add a unit"), "Knight"));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        hold.release();
+        await adding;
+        await settled(row);
+        // Each list ends as the rebuild wrote it, and the two Add changed have its Knight (6) on Grassy Hollow (2) last.
+        const listOf = (path) => gga.RoyalG[Number(/RoyalG\[(\d+)\]$/.exec(path)[1])];
+        const rebuilt = JSON.parse(hold.bodies[0]).writes.filter(({ path }) => /RoyalG\[\d+\]$/.test(path));
+        const grownNow = () => rebuilt.filter(({ path, value }) => listOf(path).length === value.length + 1);
+        await until(() => grownNow().length === 2, "Add's two lists: the rebuilt ones with one more unit");
+        const grown = grownNow();
+        grown.forEach(({ path, value }) =>
+            assert.deepEqual([...listOf(path)].slice(0, -1), value, `${path} keeps what the rebuild wrote`)
+        );
+        assert.deepEqual(grown.map(({ path }) => listOf(path).at(-1)).sort(), [2, 6], "the Knight on Grassy Hollow");
+    } finally {
+        hold.release();
+        gga.RoyalG[2][n] = level;
+        gga.RoyalMaps = maps;
+        putUnitArrays(saved);
+    }
+});
+
 // Review of #239: the slots followed the Barracks level from before the save.
 test("outposts: Barracks opens and locks the slots with the level just saved", async () => {
     const before = copy(gga.RoyalMaps[1]);
@@ -926,6 +1016,29 @@ test("outposts: a refused Glorified flip says why on the outpost", async () => {
         await until(() => /Glorified not saved: game kept old value/.test(says(outpost)), "the reason");
     } finally {
         restore();
+    }
+});
+
+// Review of #239 round 4: a kills save waits for Build, then stops, as [0] is the Barracks level now.
+test("outposts: a kills save made while Build saves never lands on the Barracks", async () => {
+    const before = copy(gga.RoyalMaps[3]);
+    const { pane } = await openOutposts();
+    const row = opened(rowNamed(pane, "Grassy Ridge"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const hold = holdWritesTo((url, body) => body.includes("RoyalMaps[3]"));
+    try {
+        const building = click(buttonNamed(row, "Build"));
+        await until(() => hold.held() === 1, "Build to start");
+        typeAndEnter(row, 100);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        hold.release();
+        await building;
+        await until(() => gga.RoyalMaps[3].length > 1, "the outpost built");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        assert.equal(gga.RoyalMaps[3][0], 0, "the Barracks level stays 0");
+    } finally {
+        hold.release();
+        gga.RoyalMaps[3] = before;
     }
 });
 

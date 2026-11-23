@@ -136,6 +136,8 @@ export const ValueTableHead = ({ name, columns }) =>
  * @param {*} [opts.badge] the line's state in a plain word ("Polymer"), before its values
  * @param {(changed: string[]) => *} [opts.afterWrite] runs once a save is read back, with the keys it changed (a cache
  *   the game rebuilds from them)
+ * @param {(task: () => Promise) => Promise} [opts.runWrite] runs each save, the line's write and read back (a queue the
+ *   line shares with another write to the same record)
  * @param {*} [opts.action] the line's own button after its values (Ninja Knowledge's Omni Jade), in the table's last
  *   column (the head names it with ""), so the columns before it line up with the head
  * A `blank` field (`{ key, blank: true }`) keeps its column empty on a line that hasn't that value, so the columns after
@@ -149,6 +151,7 @@ export const ValueTableRow = ({
     writeOptions = {},
     badge = null,
     afterWrite = null,
+    runWrite = (task) => task(),
     action = null,
 }) => {
     const fields = allFields.filter((field) => !field.blank);
@@ -184,19 +187,22 @@ export const ValueTableRow = ({
             }
             return next;
         },
-        write: async (next) => {
-            const changed = fields.filter((field) => next[field.key] !== field.valueState.val);
-            const writes = changed.flatMap((field) => field.paths.map((path) => ({ path, value: next[field.key] })));
-            try {
-                await writeManyVerified(writes, writeOptions);
-            } catch (error) {
-                await showRead().catch(() => {});
-                throw error;
-            }
-            // The write was read back, so it saved: a read after it that fails leaves the line on the saved values.
-            if (afterWrite && changed.length) await afterWrite(changed.map((field) => field.key));
-            return read().catch(() => next);
-        },
+        write: (next) =>
+            runWrite(async () => {
+                const changed = fields.filter((field) => next[field.key] !== field.valueState.val);
+                const writes = changed.flatMap((field) =>
+                    field.paths.map((path) => ({ path, value: next[field.key] }))
+                );
+                try {
+                    await writeManyVerified(writes, writeOptions);
+                } catch (error) {
+                    await showRead().catch(() => {});
+                    throw error;
+                }
+                // The write was read back, so it saved: a read after it that fails leaves the line on the saved values.
+                if (afterWrite && changed.length) await afterWrite(changed.map((field) => field.key));
+                return read().catch(() => next);
+            }),
         rowClass: "value-row",
         info,
         badge,

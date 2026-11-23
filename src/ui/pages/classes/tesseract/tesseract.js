@@ -30,7 +30,6 @@ import {
     resolveFormattedIntInput,
     toInt,
     toNum,
-    useWriteStatus,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 
@@ -104,8 +103,8 @@ const setAllButton = (node) =>
         ? node
         : ([...node.childNodes].map(setAllButton).find(Boolean) ?? null);
 
-const MapBonusesTab = ({ pending, reload }) => {
-    const bulk = useWriteStatus();
+// `bulk` is the page's, so a map Set all and the Upgrades' Max all never run at once.
+const MapBonusesTab = ({ pending, reload, bulk }) => {
     const killsInput = van.state("");
     const maps = van.state([]);
     const states = new Map();
@@ -159,9 +158,12 @@ const MapBonusesTab = ({ pending, reload }) => {
             // The lines show what the game holds now, not the number typed.
             const maps = [...new Set(writes.map(({ map }) => map))];
             const values = await Promise.all(maps.map((map) => gga(`MapBon[${map.m}]`)));
+            // A map the game doesn't answer for shows the kills its write was read back with.
             maps.forEach((map, i) => {
-                const now = toIndexedArray(values[i] ?? []);
-                CRYSTALS.forEach((crystal, c) => (stateOf(map.m, crystal.key).val = toInt(now[c], { min: 0 })));
+                const now = values[i] === null || values[i] === undefined ? null : toIndexedArray(values[i]);
+                CRYSTALS.forEach(
+                    (crystal, c) => (stateOf(map.m, crystal.key).val = now ? toInt(now[c], { min: 0 }) : kills)
+                );
             });
         });
         // Some of it may have landed: the rows show what the game holds.

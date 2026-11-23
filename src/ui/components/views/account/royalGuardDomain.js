@@ -168,7 +168,13 @@ export const resetRoyalGuardUnitsToVanilla = async () => {
         if (nextSlots !== row[11]) writes.push({ path: `RoyalMaps[${mapId}][11]`, value: nextSlots });
     });
 
-    await writeManyVerified(writes);
+    try {
+        await writeManyVerified(writes);
+    } catch (error) {
+        // A failed batch may have replaced some lists: the game's unit totals go too.
+        await refreshRoyalGuardUnitCaches().catch(() => {});
+        throw error;
+    }
     await refreshRoyalGuardUnitCaches();
 };
 
