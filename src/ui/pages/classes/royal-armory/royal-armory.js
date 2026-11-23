@@ -456,7 +456,7 @@ const OutpostsTab = ({ pending, reload }) => {
     const rows = new Map();
     // The map unit lists are shared by every outpost of a world: each change to them runs after the last one ended.
     const unitWrites = oneAtATime();
-    const worldNodes = Array.from({ length: WORLDS }, () => ({ built: div(), kills: div() }));
+    const worldNodes = Array.from({ length: WORLDS }, () => ({ built: div(), kills: div({ class: "outpost-kills" }) }));
     const reconcilers = worldNodes.map(({ built, kills }) => ({
         built: createStaticRowReconciler(built),
         kills: createStaticRowReconciler(kills),

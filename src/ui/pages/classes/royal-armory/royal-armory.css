@@ -40,3 +40,11 @@
     grid-column: 3;
     justify-items: end;
 }
+
+/* A map still to clear has one field, its kills with the game's requirement as the cap ("550 / 4.42K"). On a phone
+   half a line is too narrow for the number, a long cap and its − / +: it takes the whole line. */
+@media (max-width: 760px) {
+    .viewport .outpost-kills .value-cells {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
