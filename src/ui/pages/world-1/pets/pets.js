@@ -184,31 +184,88 @@ const loadFrames = (id) => {
     return petFrames.get(id).catch(() => null);
 };
 
+// How big a pet looks: each one is drawn with the area of a PET_SIZE-px square (√(width × height) = PET_SIZE, from its
+// trimmed frame 0), so flat and wide pets look as big as tall ones; the longest side still fits the 56 px box.
+// A tuning dial, set by eye on the real Pets tab: at 42 about one pet in five is held back by the box (wide ones);
+// at 44 it's one in three, and those wide pets start to look bigger than the rest.
+const PET_SIZE = 42;
+
+// The part of a picture the pet fills (alpha above 8), from the menu's own copy of frame 0.
+const trimmedSize = (image) => {
+    const copy = document.createElement("canvas");
+    copy.width = image.naturalWidth;
+    copy.height = image.naturalHeight;
+    const pen = copy.getContext("2d");
+    pen.drawImage(image, 0, 0);
+    const pixels = pen.getImageData(0, 0, copy.width, copy.height).data;
+    let left = copy.width;
+    let top = copy.height;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < copy.height; y++) {
+        for (let x = 0; x < copy.width; x++) {
+            if (pixels[(y * copy.width + x) * 4 + 3] <= 8) continue;
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            bottom = y;
+        }
+    }
+    return right < 0
+        ? { width: copy.width, height: copy.height }
+        : { width: right - left + 1, height: bottom - top + 1 };
+};
+
 /**
- * A pet's picture from the running game, in the same box on every row. It grows in whole device-pixel steps so the
- * pixel art stays crisp, and a pet bigger than the box shrinks to fit. Frame 0 stands still; `play` loops the pet's
- * idle frames while the pointer is on its row (never with reduced motion), `stop` puts frame 0 back. With no picture
- * the box goes away and the row shows the name as it always did.
+ * One frame of a picture (frame `index` of a strip of `width`-wide frames) drawn at the canvas's size: grown by the
+ * smallest whole step that reaches it with no smoothing, then shrunk smoothly to the exact size, so the pixels stay
+ * crisp at any size.
+ */
+const paintFrame = (canvas, source, index, width, height) => {
+    const step = Math.max(1, Math.ceil(Math.max(canvas.width / width, canvas.height / height)));
+    const grown = document.createElement("canvas");
+    grown.width = width * step;
+    grown.height = height * step;
+    const grow = grown.getContext("2d");
+    grow.imageSmoothingEnabled = false;
+    grow.drawImage(source, index * width, 0, width, height, 0, 0, grown.width, grown.height);
+    const pen = canvas.getContext("2d");
+    pen.imageSmoothingEnabled = true;
+    pen.imageSmoothingQuality = "high";
+    pen.clearRect(0, 0, canvas.width, canvas.height);
+    pen.drawImage(grown, 0, 0, canvas.width, canvas.height);
+};
+
+/**
+ * A pet's picture from the running game, in the same box on every row and at an even size (PET_SIZE). Frame 0 stands
+ * still; `play` loops the pet's idle frames at the same size while the pointer is on its row (never with reduced
+ * motion), `stop` puts frame 0 back. With no picture the box goes away and the row shows the name as it always did.
  */
 const PetPicture = (id) => {
     const box = span({ class: "pet-picture", "aria-hidden": "true" });
+    // Loads frame 0 lazily; once it's in, the canvas takes its place.
     const still = img({ class: "pet-picture__art", src: petPictureUrl(id), alt: "", loading: "lazy" });
-    // The idle frames and the canvas they're drawn on, once the pet has been hovered.
-    let strip = null;
-    let canvas = null;
+    const canvas = van.tags.canvas({ class: "pet-picture__art" });
+    // The idle frames, each painted once at the pet's size, after the first hover.
+    let painted = null;
     let timer = 0;
     let hovered = false;
 
-    const fit = (width, height) => {
+    still.onload = () => {
+        const { naturalWidth: width, naturalHeight: height } = still;
+        const pet = trimmedSize(still);
+        // The box's side comes from pets.css (read from the style: a tab switched away mid-load has no layout). The
+        // picture holds every idle frame, so it's what has to fit; frame 0's trimmed pet sets the size.
+        const side = parseFloat(getComputedStyle(box).width);
+        const scale = Math.min(PET_SIZE / Math.sqrt(pet.width * pet.height), side / Math.max(width, height));
         const ratio = window.devicePixelRatio || 1;
-        // The box's side comes from pets.css (read from the style: a tab switched away mid-load has no layout).
-        const room = (parseFloat(getComputedStyle(box).width) * ratio) / Math.max(width, height);
-        const scale = (room >= 1 ? Math.floor(room) : room) / ratio;
-        box.style.setProperty("--pet-w", `${width * scale}px`);
-        box.style.setProperty("--pet-h", `${height * scale}px`);
-        box.classList.toggle("is-shrunk", room < 1);
+        canvas.width = Math.max(1, Math.round(width * scale * ratio));
+        canvas.height = Math.max(1, Math.round(height * scale * ratio));
+        box.style.setProperty("--pet-w", `${canvas.width / ratio}px`);
+        box.style.setProperty("--pet-h", `${canvas.height / ratio}px`);
+        paintFrame(canvas, still, 0, width, height);
+        still.replaceWith(canvas);
     };
-    still.onload = () => fit(still.naturalWidth, still.naturalHeight);
     still.onerror = () => (box.hidden = true);
     box.append(still);
     // Refresh asks the game again for a picture that failed (the game may be back); the rest stay as they are.
@@ -218,31 +275,31 @@ const PetPicture = (id) => {
         still.src = petPictureUrl(id);
     };
 
-    // One frame of the strip, copied at the game's own size; CSS scales the canvas like the still.
-    const draw = (frame) => {
+    const show = (frame) => {
         const pen = canvas.getContext("2d");
-        pen.clearRect(0, 0, strip.width, strip.height);
-        pen.drawImage(strip.image, frame * strip.width, 0, strip.width, strip.height, 0, 0, strip.width, strip.height);
+        pen.clearRect(0, 0, canvas.width, canvas.height);
+        pen.drawImage(painted[frame], 0, 0);
     };
 
     const play = async () => {
         hovered = true;
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || box.hidden || !still.naturalWidth) return;
-        const frames = await loadFrames(id);
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !canvas.isConnected) return;
+        const strip = await loadFrames(id);
         // Left again while the frames came, already playing, or a pet with one idle frame: it stays still.
-        if (!frames || !hovered || timer || frames.durations.length < 2) return;
-        if (!canvas) {
-            strip = frames;
-            canvas = van.tags.canvas({ class: "pet-picture__art", width: strip.width, height: strip.height });
-            draw(0);
-            still.replaceWith(canvas);
-        }
+        if (!strip || !hovered || timer || strip.durations.length < 2) return;
+        painted ??= strip.durations.map((_, index) => {
+            const frame = document.createElement("canvas");
+            frame.width = canvas.width;
+            frame.height = canvas.height;
+            paintFrame(frame, strip.image, index, strip.width, strip.height);
+            return frame;
+        });
         let frame = 0;
         const next = () => {
             // A row taken off the page gets no mouseleave: its loop ends here.
             if (!box.isConnected) return stop();
-            frame = (frame + 1) % strip.durations.length;
-            draw(frame);
+            frame = (frame + 1) % painted.length;
+            show(frame);
             timer = setTimeout(next, strip.durations[frame]);
         };
         timer = setTimeout(next, strip.durations[0]);
@@ -252,7 +309,7 @@ const PetPicture = (id) => {
         hovered = false;
         clearTimeout(timer);
         timer = 0;
-        if (canvas) draw(0);
+        if (painted) show(0);
     };
 
     return { box, play, stop, retry };

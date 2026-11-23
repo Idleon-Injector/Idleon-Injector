@@ -26,8 +26,8 @@
 
 /*
  * A pet's picture, straight from the running game: the same box on every row, the pet centred in it. No tile and no
- * frame: the pet stands on the row itself. Pixel art stays square-pixelled where it grows;
- * a pet bigger than the box is shrunk smoothly (--pet-w / --pet-h come from pets.js).
+ * frame: the pet stands on the row itself. pets.js paints each pet at an even size, crisp at any scale, and sets
+ * --pet-w / --pet-h.
  */
 .viewport .pet-row--picture .account-row__info {
     align-items: center;
@@ -52,11 +52,6 @@
 .pet-picture__art {
     width: var(--pet-w);
     height: var(--pet-h);
-    image-rendering: pixelated;
-}
-
-.pet-picture.is-shrunk .pet-picture__art {
-    image-rendering: auto;
 }
 
 .pet-row__state {
