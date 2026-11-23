@@ -153,6 +153,8 @@ export const resetRoyalGuardUnitsToVanilla = async () => {
         readCList("Research[43]"),
     ]);
     const royalG = toIndexedArray(rawRoyalG ?? []);
+    // The units come from the shelf levels: without them (a read with no value), nothing is written.
+    if (royalG[2] === null || royalG[2] === undefined) throw new Error("Couldn't read the upgrade levels. Try again.");
     const royalMaps = toIndexedArray(rawRoyalMaps ?? []);
     const { rebuilt } = buildVanillaUnitArrays(royalG, rawOrder);
     const writes = [];
@@ -168,7 +170,13 @@ export const resetRoyalGuardUnitsToVanilla = async () => {
         if (nextSlots !== row[11]) writes.push({ path: `RoyalMaps[${mapId}][11]`, value: nextSlots });
     });
 
-    await writeManyVerified(writes);
+    try {
+        await writeManyVerified(writes);
+    } catch (error) {
+        // A failed batch may have replaced some lists: the game's unit totals go too.
+        await refreshRoyalGuardUnitCaches().catch(() => {});
+        throw error;
+    }
     await refreshRoyalGuardUnitCaches();
 };
 

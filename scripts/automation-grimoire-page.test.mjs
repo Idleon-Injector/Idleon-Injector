@@ -18,8 +18,11 @@ const pick = (id) =>
     row(
         game.upgrades
             .find((upgrade) => upgrade.id === id)
-            .name.replace(/_/g, " ")
+            // The game's name before its mark ("Knockout!_(#)_製"), as the row shows it.
+            .name.replace(/製.*$/, "")
+            .replace(/_/g, " ")
             .replace(/[{}]/g, "")
+            .trim()
     );
 const boneLine = (name) => text(byClass(row(name), "automation-row__status")[0]);
 const detail = (node) => text(byClass(node, "automation-pick__detail")[0]);

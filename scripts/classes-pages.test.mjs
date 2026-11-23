@@ -1,19 +1,27 @@
-// The Classes pages (review sweep): Outposts keeps every pick and press, says why one failed, and keeps its rows
-// across a reload; Map Bonuses shows what the game holds after a bulk save fails partway; a masterclass search by
-// index finds the row with that number.
+// The Classes pages on the fake game (the game's real masterclass lists, classes-game.mjs), driven the way the player
+// drives them: each masterclass is one sidebar entry with the game's screens as tabs, every save lands where the game
+// keeps it, and a tool that takes things away asks in the tray first.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
+import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
-// The tooltip that says "Click again to …" places itself on the next frame.
-globalThis.requestAnimationFrame = () => {};
-const { router, game } = await createFakeApi();
+const GRIMOIRE = "src/ui/pages/classes/grimoire/1-grimoire.js";
+const GRIMOIRE_AUTOMATION = "src/ui/pages/automation/grimoire/grimoire.js";
+const COMPASS = "src/ui/pages/classes/compass/compass.js";
+const TESSERACT = "src/ui/pages/classes/tesseract/tesseract.js";
+const ROYAL_ARMORY = "src/ui/pages/classes/royal-armory/royal-armory.js";
+
+// The automation tab reads the game again every few seconds while one runs; that timer mustn't keep the file running.
+const setIntervalReal = globalThis.setInterval;
+globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
+const { router, game } = await createFakeApi(fakeGameData());
 const { requests } = await loadUi(router);
-// A press's result is read out from a live region on the page.
 globalThis.document.body = globalThis.document.createElement("body");
 globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
-
+const gga = game.gga;
+const { requestLimit } = await importRepo("src/ui/services/api.js");
 const unhandled = [];
 process.on("unhandledRejection", (error) => unhandled.push(String(error?.message ?? error)));
 
@@ -27,35 +35,84 @@ const elements = (node, out = []) => {
 };
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
-const buttonsNamed = (root, label) =>
-    elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === label);
-const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const byTag = (root, tag) => elements(root).filter((node) => node.nodeName === tag);
+const attr = (node, name) =>
+    typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
+const hidden = (node) => {
+    for (let at = node; at; at = at.parentNode) if (at.attributes && attr(at, "hidden") === true) return true;
+    return false;
+};
 const writes = () => requests.filter((entry) => /write/.test(entry)).length;
+const copy = (value) => JSON.parse(JSON.stringify(value));
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function until(check, what) {
-    for (let i = 0; i < 600; i++) {
+    for (let i = 0; i < 500; i++) {
         if (check()) return;
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
     assert.fail(`timed out waiting for ${what}`);
 }
 
-const click = (button) =>
-    button.listeners.click({ preventDefault() {}, stopPropagation() {}, currentTarget: button, target: button });
-// The browser reports a pick after the select already shows it.
-const choose = (select, value) => {
-    select.value = value;
-    return select.listeners.change({ target: select });
+const pageRead = (root) =>
+    byClass(root, "account-row").length > 0 &&
+    !byClass(root, "account-page-shell__body").some((node) =>
+        String(node.attributes.class).includes("is-hidden-until-ready")
+    );
+const tabNamed = (root, label) =>
+    elements(root).find((node) => node.attributes.role === "tab" && text(node).trim().startsWith(label));
+const paneOf = (root, label) =>
+    elements(root).find((node) => node.attributes.id === tabNamed(root, label).attributes["aria-controls"]);
+const rowsIn = (pane) => byClass(pane, "account-row").filter((row) => !classes(row).includes("account-row--head"));
+// A page opened on one of its tabs: the tab's own rows are its pane's.
+const openPane = async (file, label) => {
+    const root = (await importRepo(file)).default.component();
+    await until(() => pageRead(root), `${file} to load`);
+    tabNamed(root, label).listeners.click({});
+    await until(() => rowsIn(paneOf(root, label)).length > 0, `the ${label} tab`);
+    return { root, pane: paneOf(root, label) };
 };
-const typeInto = (input, value) => {
-    input.listeners.focus?.({ target: input });
+// A row by its name, or by its main line (the bonus) when it has one.
+const rowNamed = (root, name) =>
+    rowsIn(root).find((row) =>
+        [byClass(row, "account-row__name")[0], byClass(row, "account-row__bonus")[0]].some(
+            (node) => node && text(node).trim() === name
+        )
+    );
+const names = (pane) => rowsIn(pane).map((row) => text(byClass(row, "account-row__name")[0]).trim());
+const click = (node) =>
+    (node.listeners.click ?? node.onclick)({ preventDefault() {}, currentTarget: node, target: node, detail: 1 });
+const buttonNamed = (root, label) =>
+    elements(root).find((node) => node.nodeName === "button" && text(node).trim() === label && !hidden(node));
+const switchOf = (row) => elements(row).find((node) => node.nodeName === "input" && node.attributes.role === "switch");
+const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on } });
+const trayLine = (root) => text(byClass(root, "tabbed-list__tools-label").find((node) => !hidden(node)));
+const yes = (root) => click(byClass(root, "tabbed-list__yes").find((node) => !hidden(node)));
+const stateOf = (row) => /save-state--(\w+)/.exec(classes(byClass(row, "save-state")[0] ?? { attributes: {} }))?.[1];
+const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
+// What a field shows now (a big number short, as the row writes it: "20M").
+const showing = (input) => String(input.value ?? attr(input, "value"));
+const fieldsOf = (row) => byTag(row, "input").filter((node) => node.attributes.role !== "switch");
+const focus = (input) => input.listeners.focus?.({ target: input });
+const typeAndEnter = (row, value, input = fieldsOf(row)[0]) => {
+    focus(input);
     input.value = String(value);
     input.listeners.input({ target: input });
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
 };
+// A step picker's step by its word.
+const stepNamed = (row, label) =>
+    elements(row).find((node) => node.attributes.role === "radio" && text(node).trim() === label);
+const picked = (row) =>
+    text(
+        elements(row).find((node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true")
+    ).trim();
 // The game keeps the old value whatever is written there.
-const refuseWrites = (list, index) => {
-    const kept = list[index];
-    Object.defineProperty(list, index, { get: () => kept, set() {}, configurable: true });
+// With `landing`, a write lands as landing(value) instead: the level changes, but not to what was asked.
+const refuseWrites = (list, index, landing = null) => {
+    let kept = list[index];
+    const set = (value) => landing && (kept = landing(value));
+    Object.defineProperty(list, index, { get: () => kept, set, configurable: true });
     return () => Object.defineProperty(list, index, { value: kept, writable: true, configurable: true });
 };
 // Hold the game's writes until released, to act while a save runs.
@@ -72,9 +129,56 @@ const holdWrites = () => {
         release();
     };
 };
-const pageRead = (root) =>
-    !byClass(root, "account-page-shell__body").some((node) => classes(node).includes("is-hidden-until-ready"));
-const copy = (value) => JSON.parse(JSON.stringify(value));
+// Reads of one game path come back with no value, until restored.
+const emptyReadsOf = (path) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/gga/read") && JSON.parse(options?.body ?? "{}").path === `gga.${path}`
+            ? new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } })
+            : realFetch(url, options);
+    return () => (globalThis.fetch = realFetch);
+};
+// The requests to one route fail, until restored.
+const failRoute = (route) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes(route)
+            ? new Response(JSON.stringify({ error: "the game refused" }), { status: 500 })
+            : realFetch(url, options);
+    return () => (globalThis.fetch = realFetch);
+};
+// Writes whose request matches `match` (url, body) wait until released; `reads` logs the reads made meanwhile.
+// While held, no request times out: on a busy machine a long hold would fail the held write while it still lands, and
+// the page then goes on as if it hadn't, which is what the request limit is for in the game, not here.
+const holdWritesTo = (match) => {
+    const realFetch = globalThis.fetch;
+    const limit = requestLimit.timeoutMs;
+    requestLimit.timeoutMs = 0;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = 0;
+    const reads = [];
+    const bodies = [];
+    globalThis.fetch = async (url, options) => {
+        const body = String(options?.body ?? "");
+        if (String(url).includes("/write") && match(String(url), body)) {
+            held++;
+            bodies.push(body);
+            await gate;
+        } else if (held && String(url).includes("/read")) reads.push(body);
+        return realFetch(url, options);
+    };
+    return {
+        held: () => held,
+        reads,
+        bodies,
+        release: () => {
+            globalThis.fetch = realFetch;
+            requestLimit.timeoutMs = limit;
+            release();
+        },
+    };
+};
 // Counts the times a node is taken out of the page, even to be put back: a browser then drops its focus and blurs it.
 const watchTakenOut = (node) => {
     let count = 0;
@@ -88,77 +192,569 @@ const watchTakenOut = (node) => {
     return () => count;
 };
 
-const OUTPOSTS = "src/ui/pages/classes/royal-armory/4-outposts.js";
-const openOutposts = async () => {
-    const root = (await importRepo(OUTPOSTS)).default.component();
-    await until(() => pageRead(root) && byClass(root, "outpost-card--built").length, "the outposts to load");
-    return root;
+// ---- The menu ----------------------------------------------------------------------------------------------------
+
+test("Classes is four systems, each with the game's screens as tabs; the Grimoire automation is in Automation", async () => {
+    const { buildMenuTree } = await importRepo("src/ui/menu/menuModel.js");
+    const pages = await Promise.all(
+        [GRIMOIRE, GRIMOIRE_AUTOMATION, COMPASS, TESSERACT, ROYAL_ARMORY].map(
+            async (file) => (await importRepo(file)).default
+        )
+    );
+    const classesEntry = buildMenuTree(pages).find((entry) => entry.id === "classes");
+    assert.deepEqual(
+        classesEntry.systems.map((system) => [system.name, system.pages.length]),
+        [
+            ["Grimoire", 1],
+            ["Compass", 1],
+            ["Tesseract", 1],
+            ["Royal Armory", 1],
+        ]
+    );
+    const tabsOf = (id) => pages.find((page) => page.id === id).tabs.map((tab) => tab.label);
+    assert.deepEqual(tabsOf("classes.grimoire"), ["Upgrades", "Bones"]);
+    const automation = pages.find((page) => page.id === "automation.grimoire");
+    assert.equal(automation.world, "automation", "the Grimoire automation lives in the Automation section");
+    assert.deepEqual(tabsOf("classes.compass"), [
+        "Elemental",
+        "Fighter",
+        "Survival",
+        "Nomadic",
+        "Abominations",
+        "Dust",
+    ]);
+    assert.deepEqual(tabsOf("classes.tesseract"), ["Upgrades", "Tachyons", "Map Bonuses"]);
+    assert.deepEqual(tabsOf("classes.royalarmory"), [
+        "Upgrades",
+        "Resources",
+        "Nodes",
+        "Royal Statues",
+        "Outposts",
+        "Lil' Orblet Shop",
+    ]);
+    // The old page names still find the tab that holds them now.
+    const words = (id, label) => pages.find((page) => page.id === id).tabs.find((tab) => tab.label === label).keywords;
+    assert.ok(words("classes.tesseract", "Map Bonuses").includes("Map Crystals"));
+    assert.ok(words("classes.royalarmory", "Nodes").includes("Resource nodes"));
+    assert.ok(words("classes.royalarmory", "Lil' Orblet Shop").includes("Orblet Market"));
+});
+
+// ---- Upgrades ----------------------------------------------------------------------------------------------------
+
+test("grimoire: the upgrades in the game's order, the bonus first, without the game's ripped pages", async () => {
+    const { root, pane } = await openPane(GRIMOIRE, "Upgrades");
+    const real = gga.CustomLists.h.GrimoireUpg.filter((def) => def[0] !== "Ripped_Page");
+    assert.equal(rowsIn(pane).length, real.length);
+    assert.ok(!names(pane).includes("Ripped Page"));
+    const first = rowsIn(pane)[0];
+    assert.equal(text(byClass(first, "account-row__bonus")[0]), "Base Damage in Wraith Form");
+    assert.equal(text(byClass(first, "account-row__name")[0]), "Wraith Damage");
+    assert.equal(trayLine(root), `All ${real.length} upgrades`);
+});
+
+test("grimoire: a level saves to the game and the game counts its levels again", async () => {
+    const { pane } = await openPane(GRIMOIRE, "Upgrades");
+    gga.DNSM.h.GrimoireTotLV = 1234;
+    const row = rowNamed(pane, "Wraith Accuracy");
+    typeAndEnter(row, 77);
+    await settled(row);
+    assert.equal(stateOf(row), "success");
+    assert.equal(gga.Grimoire[1], 77);
+    assert.equal(gga.DNSM.h.GrimoireTotLV, undefined, "the game's sum is gone, so it counts again");
+});
+
+// Lumi's call (2026-11-20): Max all brings a value above its max down to it, on one press. An upgrade without a max
+// (999999 in the game's list) is left as it is.
+test("grimoire: Max all fills the upgrades that have a max, lowers one above it, and leaves the rest", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root, pane } = await openPane(GRIMOIRE, "Upgrades");
+        gga.Grimoire[4] = 9; // Ribbon Shelf, max 1
+        gga.Grimoire[5] = 3; // Ribbon Winning, max 50
+        gga.Grimoire[0] = 12; // Wraith Damage, no max
+        await click(buttonNamed(root, "Refresh"));
+        await until(
+            () => showing(fieldsOf(rowNamed(pane, "Ribbon Shelf"))[0]) === "9",
+            "Ribbon Shelf to show the 9 the game holds"
+        );
+        const before = writes();
+        await click(buttonNamed(root, "Max all"));
+        await until(() => gga.Grimoire[5] === 50, "Ribbon Winning to its max");
+        assert.ok(writes() > before);
+        assert.equal(gga.Grimoire[4], 1, "brought down to its max");
+        assert.equal(gga.Grimoire[0], 12, "no max: left as it is");
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+// Review of #239: a failed save that still changed the level clears the game's level total; one that changed
+// nothing leaves it.
+test("grimoire: a refused level save says why, and the game counts its levels again only if it changed", async () => {
+    const { pane } = await openPane(GRIMOIRE, "Upgrades");
+    const row = rowNamed(pane, "Wraith Accuracy");
+    const level = gga.Grimoire[1];
+    gga.DNSM.h.GrimoireTotLV = 1234;
+    let restore = refuseWrites(gga.Grimoire, 1);
+    try {
+        typeAndEnter(row, 66);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, 1234, "nothing changed: the total stays");
+        restore();
+        restore = refuseWrites(gga.Grimoire, 1, (value) => value + 1);
+        typeAndEnter(row, 67);
+        await until(() => gga.Grimoire[1] === 68, "the save to land as 68");
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(
+            gga.DNSM.h.GrimoireTotLV,
+            undefined,
+            "the level changed: the total is gone though the save failed"
+        );
+    } finally {
+        restore();
+        gga.Grimoire[1] = level;
+    }
+});
+
+// Master's Set all (#240) on a masterclass list: each line saves through its row, so the game's total goes too.
+test("grimoire: Set all gives the lines without a max the number, Stop at max the capped ones their max", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root } = await openPane(GRIMOIRE, "Upgrades");
+        gga.DNSM.h.GrimoireTotLV = 1234;
+        const row = byClass(root, "account-setall-row").find((node) => !attr(node, "hidden"));
+        const field = elements(row).find((node) => node.nodeName === "input");
+        field.value = "70";
+        field.listeners.input({ target: field });
+        await click(buttonNamed(row, "Set all"));
+        await click(buttonNamed(root, "Stop at max"));
+        await until(() => gga.Grimoire[0] === 70, "Wraith Damage (no max) to 70");
+        assert.equal(gga.Grimoire[4], 1, "Ribbon Shelf stops at its max");
+        assert.equal(gga.Grimoire[5], 50, "Ribbon Winning stops at its max");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, undefined, "the game counts its levels again");
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+// Review of #239 round 3: a read back with no value is one that can't be read, not level 0, so the total goes.
+test("grimoire: a refused save whose level can't be read back still clears the game's total", async () => {
+    const level = gga.Grimoire[1];
+    gga.Grimoire[1] = 0;
+    const { pane } = await openPane(GRIMOIRE, "Upgrades");
+    const row = rowNamed(pane, "Wraith Accuracy");
+    await until(() => showing(fieldsOf(row)[0]) === "0", "the level the game holds");
+    gga.DNSM.h.GrimoireTotLV = 1234;
+    const restore = refuseWrites(gga.Grimoire, 1);
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/gga/read") && JSON.parse(options?.body ?? "{}").path === "gga.Grimoire"
+            ? new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } })
+            : realFetch(url, options);
+    try {
+        typeAndEnter(row, 5);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, undefined, "unknown level: the total goes");
+    } finally {
+        globalThis.fetch = realFetch;
+        restore();
+        gga.Grimoire[1] = level;
+    }
+});
+
+// Review of #239: a Max all with nothing to change writes nothing and leaves the game's total alone.
+test("grimoire: Max all with every upgrade at its max writes nothing", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root } = await openPane(GRIMOIRE, "Upgrades");
+        await click(buttonNamed(root, "Max all"));
+        await until(() => gga.Grimoire[5] === 50, "the first Max all");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        gga.DNSM.h.GrimoireTotLV = 77;
+        const before = writes();
+        await click(buttonNamed(root, "Max all"));
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        assert.equal(writes(), before, "nothing written");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, 77, "the game's total stays");
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+test("grimoire: Reset all asks in the tray, writes nothing until the answer, then resets", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root } = await openPane(GRIMOIRE, "Upgrades");
+        const before = writes();
+        click(buttonNamed(root, "Reset all"));
+        await tick();
+        assert.match(trayLine(root), /^Reset \d+ upgrades to 0\?$/);
+        assert.equal(writes(), before, "the press only asks");
+        await yes(root);
+        // The game's ripped pages (the last three) aren't on the page.
+        await until(() => gga.Grimoire.slice(0, 52).every((level) => level === 0), "every level at 0");
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+test("grimoire: AFK Bones is a switch that saves", async () => {
+    const { pane } = await openPane(GRIMOIRE, "Bones");
+    assert.deepEqual(names(pane), ["Femur", "Ribcage", "Cranium", "Bovinae", "Bones collected", "AFK Bones"]);
+    const row = rowNamed(pane, "AFK Bones");
+    try {
+        await flip(row, false);
+        await until(() => gga.OptionsListAccount[367] === 0, "AFK Bones off in the game");
+    } finally {
+        gga.OptionsListAccount[367] = 1;
+    }
+});
+
+test("compass: each path is its tab, and the abominations still to come stay out", async () => {
+    const { root, pane } = await openPane(COMPASS, "Fighter");
+    const fighter = gga.CustomLists.h.CompassUpg.filter((def) => def[10] === "1");
+    assert.equal(rowsIn(pane).length, fighter.length);
+    assert.ok(names(pane).includes("Fighter Path"));
+    tabNamed(root, "Abominations").listeners.click({});
+    const abominations = paneOf(root, "Abominations");
+    await until(() => rowsIn(abominations).length, "the abominations");
+    assert.equal(rowsIn(abominations).length, 35, "XXXVI to XLVI are the game's placeholders");
+    assert.equal(text(byClass(rowsIn(abominations)[2], "account-row__bonus")[0]), "Tempest Move Speed %");
+});
+
+test("royal armory: the upgrades on the game's shelves, and the Lil' Orblet Shop in normal case", async () => {
+    const { root, pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+    const order = gga.CustomLists.h.Research[43];
+    assert.equal(rowsIn(pane).length, order.length);
+    assert.equal(names(pane)[0], "Collect Resources Tool", "shelf 1 is ArmoryUpg 30");
+    tabNamed(root, "Lil' Orblet Shop").listeners.click({});
+    const shop = paneOf(root, "Lil' Orblet Shop");
+    await until(() => rowsIn(shop).length, "the shop");
+    assert.ok(names(shop).includes("Full Clear"));
+    assert.ok(names(shop).includes("Stronk Rank"));
+});
+
+// Review of #239 round 2: a shelf that adds map units (28) rebuilds them only when its level changed.
+const REBUILD_SHELF = 28;
+const armoryUnits = () => {
+    gga.RoyalG[6] = [...gga.RoyalG[6], 4];
+    gga.RoyalG[7] = [...gga.RoyalG[7], 1];
+    return unitArrays();
 };
-const card = (root, mapId) =>
-    byClass(root, "outpost-card--built").find((node) => text(byClass(node, "account-row__index")[0]) === `M${mapId}`);
-const slotSelects = (node) => byClass(node, "outpost-slot-select");
-const cardSays = (node) => text(byClass(node, "outpost-card__said")[0]);
-const openUnits = async (root) => {
-    await click(buttonsNamed(root, "UNITS")[0]);
-    await until(() => byClass(root, "outpost-vanilla-units__row").length, "the units preview");
+
+test("royal armory: a refused save on a unit shelf leaves the units where they are", async () => {
+    const saved = unitArrays();
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const restore = refuseWrites(gga.RoyalG[2], n);
+    try {
+        const { pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        const placed = armoryUnits();
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        typeAndEnter(row, Number(gga.RoyalG[2][n] ?? 0) === 0 ? 1 : 0);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.deepEqual(unitArrays(), placed, "the units stay as placed");
+    } finally {
+        restore();
+        putUnitArrays(saved);
+    }
+});
+
+test("royal armory: a failed save that still changed a unit shelf builds the units again", async () => {
+    const saved = unitArrays();
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const level = gga.RoyalG[2][n];
+    const maps = copy(gga.RoyalMaps); // the rebuild also sets the slots each Barracks opens
+    const restore = refuseWrites(gga.RoyalG[2], n, (value) => value + 1);
+    try {
+        const { pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        const placed = armoryUnits();
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        typeAndEnter(row, 1);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        await until(() => JSON.stringify(unitArrays()) !== JSON.stringify(placed), "the units built again");
+    } finally {
+        restore();
+        gga.RoyalG[2][n] = level;
+        gga.RoyalMaps = maps;
+        putUnitArrays(saved);
+    }
+});
+
+// Review of #239 round 6: "changed" is measured against the game's level just before the save, not the one shown.
+test("royal armory: a refused save on a unit shelf the game moved meanwhile leaves the units", async () => {
+    const saved = unitArrays();
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const level = Number(gga.RoyalG[2][n] ?? 0);
+    try {
+        const { pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        gga.RoyalG[2][n] = level + 1; // the game moved it; the page still shows the old level
+        const restore = refuseWrites(gga.RoyalG[2], n);
+        const placed = armoryUnits();
+        try {
+            typeAndEnter(row, level + 2);
+            await settled(row);
+            assert.equal(stateOf(row), "error");
+            assert.deepEqual(unitArrays(), placed, "the refused save changed nothing: the units stay");
+        } finally {
+            restore();
+        }
+    } finally {
+        gga.RoyalG[2][n] = level;
+        putUnitArrays(saved);
+    }
+});
+
+test("royal armory: Max all leaves the units where they are when no unit shelf changes", async () => {
+    const { UNIT_REBUILD_DISPLAY_SHELVES } = await importRepo("src/ui/components/views/account/royalGuardDomain.js");
+    const saved = unitArrays();
+    const levels = copy(gga.RoyalG[2]);
+    const order = gga.CustomLists.h.Research[43];
+    const maxOf = (n) => Number(gga.CustomLists.h.ArmoryUpg[n][4]);
+    try {
+        order.forEach((n) => maxOf(n) < 999999 && (gga.RoyalG[2][n] = maxOf(n)));
+        const lowered = order.find(
+            (n, position) => !UNIT_REBUILD_DISPLAY_SHELVES.has(position + 1) && maxOf(n) > 1 && maxOf(n) < 999999
+        );
+        gga.RoyalG[2][lowered] = 0;
+        const { root } = await openPane(ROYAL_ARMORY, "Upgrades");
+        await click(buttonNamed(root, "Refresh"));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const placed = armoryUnits();
+        await click(buttonNamed(root, "Max all"));
+        await until(() => gga.RoyalG[2][lowered] === maxOf(lowered), "the lowered upgrade to its max");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        assert.deepEqual(unitArrays(), placed, "the units stay as placed");
+    } finally {
+        gga.RoyalG[2] = levels;
+        putUnitArrays(saved);
+    }
+});
+
+// ---- Tesseract › Map Bonuses -------------------------------------------------------------------------------------
+
+const killsSetAll = (root) =>
+    byClass(root, "account-setall-row").find((node) => byTag(node, "input")[0]?.attributes?.placeholder === "Kills");
+const mapRow = (pane, m) => rowNamed(pane, gga.CustomLists.h.MapDispName[m].replace(/_/g, " "));
+
+test("map bonuses: a crystal's kills save to the map, and the game works its sums out again", async () => {
+    const before = copy(gga.MapBon[1]);
+    try {
+        const { pane } = await openPane(TESSERACT, "Map Bonuses");
+        gga.DNSM.h.ArcMultBon = [75];
+        const row = mapRow(pane, 1);
+        typeAndEnter(row, 4000, fieldsOf(row)[1]);
+        await settled(row);
+        assert.equal(gga.MapBon[1][1], 4000);
+        assert.equal(gga.DNSM.h.ArcMultBon, undefined);
+    } finally {
+        gga.MapBon[1] = before;
+    }
+});
+
+// Review of #239: a save that can't clear the game's crystal sums fails, and the line says so.
+test("map bonuses: a save whose sums the game can't clear says so on its line", async () => {
+    const before = copy(gga.MapBon[1]);
+    const { pane } = await openPane(TESSERACT, "Map Bonuses");
+    const row = mapRow(pane, 1);
+    const restore = failRoute("/gga/delete");
+    try {
+        typeAndEnter(row, 4321, fieldsOf(row)[2]);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(gga.MapBon[1][2], 4321, "the kills saved; only the sums didn't clear");
+    } finally {
+        restore();
+        gga.MapBon[1] = before;
+    }
+});
+
+test("map bonuses: Set all raising runs on one press; lowering asks in the tray first", async () => {
+    const saved = copy(gga.MapBon);
+    try {
+        const { root } = await openPane(TESSERACT, "Map Bonuses");
+        // The map bonuses' own Set all (three kills a line); the shared one stays hidden on this tab.
+        const kills = killsSetAll(root);
+        const setAll = () => click(buttonNamed(kills, "Set all"));
+        const input = byTag(kills, "input")[0];
+        input.value = "99000000";
+        input.listeners.input({ target: input });
+        await setAll();
+        await until(() => gga.MapBon[1][0] === 99000000, "every crystal raised");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        input.value = "5";
+        input.listeners.input({ target: input });
+        const before = writes();
+        setAll();
+        await tick();
+        assert.match(trayLine(root), /^Lower the kills on \d+ maps\?$/);
+        assert.equal(writes(), before, "nothing lowered yet");
+        await yes(root);
+        await until(() => gga.MapBon[1][2] === 5, "lowered on the answer");
+    } finally {
+        saved.forEach((entry, m) => (gga.MapBon[m] = entry));
+    }
+});
+
+test("map bonuses: a Set all that fails partway shows what the game holds", async () => {
+    const saved = copy(gga.MapBon);
+    const { root, pane } = await openPane(TESSERACT, "Map Bonuses");
+    const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const shown = () => fieldsOf(mapRow(pane, 1)).map(showing);
+    const realFetch = globalThis.fetch;
+    let batches = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).endsWith("/game/gga/write-many") && ++batches === 2)
+            return new Response(JSON.stringify({ error: "the game refused" }), { status: 500 });
+        return realFetch(url, options);
+    };
+    try {
+        const kills = killsSetAll(root);
+        const input = byTag(kills, "input")[0];
+        input.value = "20000000";
+        input.listeners.input({ target: input });
+        await click(buttonNamed(kills, "Set all"));
+        assert.equal(batches, 2, "the second batch was refused");
+        assert.deepEqual([...gga.MapBon[1]], [20000000, 20000000, 20000000], "the first batch landed");
+        await until(
+            () => JSON.stringify(shown()) === JSON.stringify([...gga.MapBon[1]].map(largeFormatter)),
+            "map 1 to show the three kills the game holds"
+        );
+    } finally {
+        globalThis.fetch = realFetch;
+        saved.forEach((entry, m) => (gga.MapBon[m] = entry));
+    }
+});
+
+test("map bonuses: a reload leaves the rows in the page", async () => {
+    const { root, pane } = await openPane(TESSERACT, "Map Bonuses");
+    const row = mapRow(pane, 1);
+    const takenOut = watchTakenOut(row);
+    await click(buttonNamed(root, "Refresh"));
+    await until(() => pageRead(root), "the reload");
+    assert.ok(mapRow(pane, 1) === row, "the row is the same row");
+    assert.equal(takenOut(), 0, "the row was not taken out and put back");
+});
+
+// ---- Royal Armory ------------------------------------------------------------------------------------------------
+
+test("royal statues: the four statues by their bonus, the game's placeholders left out", async () => {
+    const { pane } = await openPane(ROYAL_ARMORY, "Royal Statues");
+    assert.deepEqual(names(pane), ["Total Damage", "Drop Rate", "Extra Kills", "Class EXP"]);
+    assert.equal(text(byClass(rowNamed(pane, "Extra Kills"), "account-row__badge")[0]).trim(), "Locked");
+});
+
+test("resources: only the kinds the nodes give, by world", async () => {
+    const { pane } = await openPane(ROYAL_ARMORY, "Resources");
+    const kinds = new Set(gga.CustomLists.h.RoyalResources.map((node) => node[3]).filter((r) => r >= 0));
+    assert.equal(rowsIn(pane).length, kinds.size);
+    const row = rowsIn(pane)[0];
+    typeAndEnter(row, 4321);
+    await settled(row);
+    assert.equal(gga.RoyalG[1][0], 4321);
+});
+
+test("nodes: Empty all asks in the tray; Refill all runs on one press; a typed amount fills an empty node", async () => {
+    const saved = copy(gga.RoyalG[4]);
+    try {
+        const { root, pane } = await openPane(ROYAL_ARMORY, "Nodes");
+        const first = rowsIn(pane)[0];
+        assert.equal(text(byClass(first, "account-row__badge")[0]).trim(), "Empty", "node 1 is empty (-1)");
+        typeAndEnter(first, 10, fieldsOf(first)[1]);
+        await settled(first);
+        assert.equal(gga.RoyalG[4][0], 10);
+        assert.equal(text(byClass(first, "account-row__badge")[0]).trim(), "");
+
+        await click(buttonNamed(root, "Refill all"));
+        await until(() => gga.RoyalG[4].slice(0, 16).every((amount) => amount === 0), "W1's nodes full");
+        const before = writes();
+        click(buttonNamed(root, "Empty all"));
+        await tick();
+        assert.match(trayLine(root), /^Empty \d+ nodes\?$/);
+        assert.equal(writes(), before);
+        await yes(root);
+        await until(() => gga.RoyalG[4][0] === -1, "emptied on the answer");
+    } finally {
+        saved.forEach((amount, i) => (gga.RoyalG[4][i] = amount));
+    }
+});
+
+// ---- Royal Armory › Outposts -------------------------------------------------------------------------------------
+
+const unitArrays = () => copy([6, 7, 8, 9, 10, 11, 12, 13].map((index) => gga.RoyalG[index]));
+const putUnitArrays = (saved) => [6, 7, 8, 9, 10, 11, 12, 13].forEach((index, i) => (gga.RoyalG[index] = saved[i]));
+const openOutposts = () => openPane(ROYAL_ARMORY, "Outposts");
+// A built outpost's line (its opener names the map), with what opens under it.
+const outpostRow = (pane, name) =>
+    byClass(pane, "account-row").find((row) => {
+        const opener = byClass(row, "row-opener")[0];
+        return opener && row.parentNode && text(byClass(opener, "account-row__bonus")[0] ?? opener).trim() === name;
+    });
+const lineIn = (row, label) =>
+    byClass(byClass(row, "row-detail")[0], "account-row").find(
+        (node) => text(byClass(node, "account-row__name")[0]).trim() === label
+    );
+const says = (row) => text(byClass(row, "said")[0]);
+// Opens a line's detail (an outpost's, a map's Build), so its buttons are on the page.
+const opened = (row) => {
+    const opener = byClass(row, "row-opener")[0];
+    if (attr(opener, "aria-expanded") !== "true") click(opener);
+    return row;
 };
-const unitArrays = () => copy([6, 7, 8, 9, 10, 11, 12, 13].map((index) => game.gga.RoyalG[index]));
-const putUnitArrays = (saved) =>
-    [6, 7, 8, 9, 10, 11, 12, 13].forEach((index, i) => (game.gga.RoyalG[index] = saved[i]));
 
 test("outposts: a slot picked while another slot saves keeps both picks", async () => {
-    const before = game.gga.RoyalMaps[1][11];
-    const root = await openOutposts();
-    const [first, second] = slotSelects(card(root, 1));
+    const before = gga.RoyalMaps[1][11];
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
     const release = holdWrites();
     try {
-        const picks = [choose(first, "3")];
+        const picks = [click(stepNamed(lineIn(outpost, "Slot 1"), "Trader"))];
         await tick();
-        picks.push(choose(second, "4"));
+        picks.push(click(stepNamed(lineIn(outpost, "Slot 2"), "Guard")));
         await tick();
         release();
         await Promise.all(picks);
-        await until(() => game.gga.RoyalMaps[1][11] === 342211111, "both picks in the game");
-        assert.equal(first.value, "3");
-        assert.equal(second.value, "4");
+        await until(() => gga.RoyalMaps[1][11] === 342211111, "both picks in the game");
+        assert.equal(picked(lineIn(outpost, "Slot 1")), "Trader");
+        assert.equal(picked(lineIn(outpost, "Slot 2")), "Guard");
     } finally {
         release();
-        game.gga.RoyalMaps[1][11] = before;
+        gga.RoyalMaps[1][11] = before;
     }
 });
 
-test("outposts: a refused slot or TYPE pick goes back to what the game holds and says why", async () => {
-    const root = await openOutposts();
-    const outpost = card(root, 1);
-    const slot = slotSelects(outpost)[0];
-    let restore = refuseWrites(game.gga.RoyalMaps[1], 11);
+test("outposts: a refused slot or type pick goes back to what the game holds and says why", async () => {
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    let restore = refuseWrites(gga.RoyalMaps[1], 11);
     try {
-        await choose(slot, "5");
-        assert.equal(slot.value, "2", "the slot shows the Worker the game kept");
-        assert.match(cardSays(outpost), /Slot 1 not saved: game kept old value/);
+        click(stepNamed(lineIn(outpost, "Slot 1"), "Surveyor"));
+        await until(() => /Slot 1 not saved: game kept old value/.test(says(outpost)), "the reason");
+        assert.equal(picked(lineIn(outpost, "Slot 1")), "Worker", "the slot shows the Worker the game kept");
     } finally {
         restore();
     }
-
-    const type = byClass(outpost, "outpost-select-field__select")[0];
-    restore = refuseWrites(game.gga.RoyalMaps[1], 10);
+    restore = refuseWrites(gga.RoyalMaps[1], 10);
     try {
-        await choose(type, "2");
-        assert.equal(type.value, "1", "TYPE shows the Support Camp the game kept");
-        assert.match(cardSays(outpost), /TYPE not saved: game kept old value/);
+        await click(stepNamed(lineIn(outpost, "Type"), "Savage"));
+        await until(() => picked(lineIn(outpost, "Type")) === "Support Camp", "the type the game kept");
+        assert.match(says(outpost), /Type not saved: game kept old value/);
     } finally {
         restore();
     }
 });
 
-// Review of #120: a failed pick put back the remembered type, though the game may have taken the pick.
 // #191: the save reads the game again, so a pick the game took isn't said as failed.
 test("outposts: a slot pick whose answer is lost shows what the game holds, not said as failed", async () => {
-    const before = game.gga.RoyalMaps[1][11];
-    const root = await openOutposts();
-    const slot = slotSelects(card(root, 1))[0];
+    const before = gga.RoyalMaps[1][11];
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
     const realFetch = globalThis.fetch;
-    // The game takes the write, but its answer is lost on the way back.
     globalThis.fetch = async (url, options) => {
         const response = await realFetch(url, options);
         if (!String(url).includes("/write")) return response;
@@ -168,165 +764,314 @@ test("outposts: a slot pick whose answer is lost shows what the game holds, not 
         });
     };
     try {
-        await choose(slot, "5");
-        assert.equal(String(game.gga.RoyalMaps[1][11])[0], "5", "the game took it");
-        assert.equal(slot.value, "5", "the slot shows what the game holds");
-        assert.doesNotMatch(cardSays(card(root, 1)), /not saved/);
+        click(stepNamed(lineIn(outpost, "Slot 1"), "Surveyor"));
+        await until(() => String(gga.RoyalMaps[1][11])[0] === "5", "the game to take it");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.equal(picked(lineIn(outpost, "Slot 1")), "Surveyor");
+        assert.doesNotMatch(says(outpost), /not saved/);
     } finally {
         globalThis.fetch = realFetch;
-        game.gga.RoyalMaps[1][11] = before;
+        gga.RoyalMaps[1][11] = before;
     }
 });
 
-// Review of #120: Add unit read NEW UNIT when its turn came, so a pick made while it waited was the one added.
-test("outposts: Add unit adds the unit picked at the press, though it waits behind another change", async () => {
-    const saved = unitArrays();
-    game.gga.RoyalG[6] = [4];
-    game.gga.RoyalG[7] = [1];
-    const root = await openOutposts();
-    const outpost = card(root, 1);
-    const newUnit = byClass(byClass(outpost, "outpost-map-unit-add")[0], "outpost-select-field__select")[0];
-    const release = holdWrites();
+// Review of #239 round 4: a slot picked while a lower Barracks locks it is refused, not written past the lock.
+test("outposts: a slot picked while the Barracks goes down stays locked", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    gga.RoyalMaps[1][0] = 1;
+    gga.RoyalMaps[1][11] = 221111111;
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const hold = holdWritesTo((url, body) => body.includes("RoyalMaps[1][11]"));
     try {
-        choose(newUnit, "2");
-        const removing = click(buttonsNamed(outpost, "Remove")[0]);
+        typeAndEnter(outpost, 0);
+        await until(() => hold.held() === 1, "the slot fix for Barracks 0 to start");
+        const picking = click(stepNamed(lineIn(outpost, "Slot 2"), "Guard"));
         await tick();
-        const adding = click(buttonsNamed(outpost, "Add unit")[0]);
-        await tick();
-        choose(newUnit, "3");
-        release();
-        await Promise.all([removing, adding]);
-        assert.deepEqual([...game.gga.RoyalG[6]], [2], "the Remove, then the unit picked at the press");
+        hold.release();
+        await picking;
+        await until(() => /Opens at Barracks 1/.test(says(outpost)), "the pick refused");
+        assert.equal(gga.RoyalMaps[1][11], 211111111, "slot 2 stays locked");
     } finally {
-        release();
+        hold.release();
+        gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239 round 4: a unit shelf's rebuild and an outpost's unit change take turns.
+test("outposts: Add waits for a unit shelf's rebuild, then adds to the rebuilt lists", async () => {
+    const saved = unitArrays();
+    const maps = copy(gga.RoyalMaps);
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const level = gga.RoyalG[2][n];
+    const hold = holdWritesTo((url, body) => url.endsWith("/write-many") && body.includes("RoyalG["));
+    try {
+        const { root, pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        armoryUnits(); // a placement the rebuild changes, so a stale copy would show
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        typeAndEnter(row, Number(level ?? 0) + 1);
+        await until(() => hold.held() === 1, "the rebuild to start");
+        tabNamed(root, "Outposts").listeners.click({});
+        const outpost = opened(outpostRow(paneOf(root, "Outposts"), "Grassy Hollow"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const adding = click(buttonNamed(lineIn(outpost, "Add a unit"), "Knight"));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        hold.release();
+        await adding;
+        await settled(row);
+        // Each list ends as the rebuild wrote it, and the two Add changed have its Knight (6) on Grassy Hollow (2) last.
+        const listOf = (path) => gga.RoyalG[Number(/RoyalG\[(\d+)\]$/.exec(path)[1])];
+        const rebuilt = JSON.parse(hold.bodies[0]).writes.filter(({ path }) => /RoyalG\[\d+\]$/.test(path));
+        const grownNow = () => rebuilt.filter(({ path, value }) => listOf(path).length === value.length + 1);
+        await until(() => grownNow().length === 2, "Add's two lists: the rebuilt ones with one more unit");
+        const grown = grownNow();
+        grown.forEach(({ path, value }) =>
+            assert.deepEqual([...listOf(path)].slice(0, -1), value, `${path} keeps what the rebuild wrote`)
+        );
+        assert.deepEqual(grown.map(({ path }) => listOf(path).at(-1)).sort(), [2, 6], "the Knight on Grassy Hollow");
+    } finally {
+        hold.release();
+        gga.RoyalG[2][n] = level;
+        gga.RoyalMaps = maps;
+        putUnitArrays(saved);
+    }
+});
+
+// Review of #239 round 5: a Barracks save that landed but failed still locks the slots it no longer opens.
+test("outposts: a failed Barracks save that landed still locks the slots", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    gga.RoyalMaps[1][0] = 1;
+    gga.RoyalMaps[1][11] = 241111111;
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        const response = await realFetch(url, options);
+        return String(url).includes("/write") && String(options?.body ?? "").includes("RoyalMaps[1][0]")
+            ? new Response(JSON.stringify({ error: "the connection dropped" }), { status: 500 })
+            : response;
+    };
+    try {
+        typeAndEnter(outpost, 0);
+        await until(() => gga.RoyalMaps[1][0] === 0, "the Barracks save to land");
+        await until(() => gga.RoyalMaps[1][11] === 211111111, "slot 2 locked again");
+    } finally {
+        globalThis.fetch = realFetch;
+        gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239 round 6: a Barracks read with no value never locks slots.
+test("outposts: a Barracks save whose level can't be read back leaves the slots", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    gga.RoyalMaps[1][0] = 1;
+    gga.RoyalMaps[1][11] = 241111111;
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const restore = emptyReadsOf("RoyalMaps[1][0]");
+    try {
+        typeAndEnter(outpost, 2);
+        await until(() => gga.RoyalMaps[1][0] === 2, "Barracks 2 saved");
+        await settled(outpost);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        assert.equal(String(gga.RoyalMaps[1][11])[1], "4", "slot 2 keeps its Guard");
+    } finally {
+        restore();
+        gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239 round 6: Add changes the unit lists only when both read back.
+test("outposts: Add with a unit list that can't be read writes nothing", async () => {
+    const saved = unitArrays();
+    try {
+        const { pane } = await openOutposts();
+        const outpost = opened(outpostRow(pane, "Grassy Hollow"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const before = unitArrays();
+        const restore = emptyReadsOf("RoyalG[6]");
+        try {
+            await click(buttonNamed(lineIn(outpost, "Add a unit"), "Knight"));
+            await until(() => /Couldn't read the units/.test(says(outpost)), "the reason");
+            assert.deepEqual(unitArrays(), before, "both lists stay as they were");
+        } finally {
+            restore();
+        }
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+// Review of #239: the slots followed the Barracks level from before the save.
+test("outposts: Barracks opens and locks the slots with the level just saved", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    try {
+        const { pane } = await openOutposts();
+        const outpost = opened(outpostRow(pane, "Grassy Path"));
+        typeAndEnter(outpost, 5);
+        await until(() => gga.RoyalMaps[1][11] === 222222111, "Barracks 5 to open six slots");
+        await settled(outpost);
+        await new Promise((resolve) => setTimeout(resolve, 1300));
+        typeAndEnter(outpost, 0);
+        await until(() => gga.RoyalMaps[1][11] === 211111111, "Barracks 0 to lock all but the first");
+        assert.equal(gga.RoyalMaps[1][0], 0);
+    } finally {
+        gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239: the game keeps its unit totals per map; a unit change clears them so it counts again.
+test("outposts: adding or removing a unit clears the game's unit totals", async () => {
+    const saved = unitArrays();
+    try {
+        const { pane } = await openOutposts();
+        const outpost = opened(outpostRow(pane, "Grassy Hollow"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        gga.DNSM.h.TotUnitzAllMapz = { h: { 2: [1, 0, 0, 0] } };
+        await click(buttonNamed(lineIn(outpost, "Add a unit"), "Knight"));
+        await until(() => gga.DNSM.h.TotUnitzAllMapz === undefined, "the totals to go after Add");
+        gga.DNSM.h.TotUnitzAllMapz = { h: { 2: [1, 0, 0, 0] } };
+        await until(() => lineIn(outpost, "Unit 2"), "the added unit");
+        await click(buttonNamed(lineIn(outpost, "Unit 2"), "Remove"));
+        await until(() => gga.DNSM.h.TotUnitzAllMapz === undefined, "the totals to go after Remove");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+test("outposts: a slot the barracks hasn't opened says so in its place", async () => {
+    const { pane } = await openOutposts();
+    const slot = lineIn(opened(outpostRow(pane, "Grassy Path")), "Slot 4");
+    assert.equal(text(byClass(slot, "outpost-pick__locked")[0]), "Opens at Barracks 3");
+});
+
+test("outposts: an add waits behind a remove on the same map, and adds the kind pressed", async () => {
+    const saved = unitArrays();
+    gga.RoyalG[6] = [4];
+    gga.RoyalG[7] = [1];
+    try {
+        const { root, pane } = await openOutposts();
+        click(buttonNamed(root, "Refresh"));
+        // Opened once: the line stays the same line through the reloads.
+        const path = opened(outpostRow(pane, "Grassy Path"));
+        const outpost = () => path;
+        await until(() => lineIn(outpost(), "Unit 1") && !lineIn(outpost(), "Unit 2"), "one unit on Grassy Path");
+        const release = holdWrites();
+        try {
+            const removing = click(buttonNamed(lineIn(outpost(), "Unit 1"), "Remove"));
+            await tick();
+            const adding = click(buttonNamed(lineIn(outpost(), "Add a unit"), "Knight"));
+            await tick();
+            release();
+            await Promise.all([removing, adding]);
+            assert.deepEqual([...gga.RoyalG[6]], [6], "the Remove, then the Knight");
+        } finally {
+            release();
+        }
+    } finally {
         putUnitArrays(saved);
     }
 });
 
 test("outposts: two quick Removes on one map remove both of its units, not another map's", async () => {
     const saved = unitArrays();
-    game.gga.RoyalG[6] = [4, 4, 5];
-    game.gga.RoyalG[7] = [1, 1, 2];
-    const root = await openOutposts();
-    const removes = buttonsNamed(card(root, 1), "Remove");
-    assert.equal(removes.length, 2);
-    const release = holdWrites();
+    gga.RoyalG[6] = [4, 4, 5];
+    gga.RoyalG[7] = [1, 1, 2];
     try {
-        const presses = [click(removes[0])];
-        await tick();
-        presses.push(click(removes[1]));
-        await tick();
-        release();
-        await Promise.all(presses);
-        await until(() => JSON.stringify(game.gga.RoyalG[6]) === "[5]", "both M1 militia removed");
-        assert.deepEqual([...game.gga.RoyalG[7]], [2], "M2's commander stays");
+        const { root, pane } = await openOutposts();
+        click(buttonNamed(root, "Refresh"));
+        const outpost = opened(outpostRow(pane, "Grassy Path"));
+        await until(() => lineIn(outpost, "Unit 2"), "two units on Grassy Path");
+        const release = holdWrites();
+        try {
+            const presses = [click(buttonNamed(lineIn(outpost, "Unit 1"), "Remove"))];
+            await tick();
+            presses.push(click(buttonNamed(lineIn(outpost, "Unit 2"), "Remove")));
+            await tick();
+            release();
+            await Promise.all(presses);
+            await until(() => JSON.stringify(gga.RoyalG[6]) === "[5]", "both militia removed");
+            assert.deepEqual([...gga.RoyalG[7]], [2], "Grassy Hollow's commander stays");
+        } finally {
+            release();
+        }
     } finally {
-        release();
         putUnitArrays(saved);
     }
 });
 
-const unitTypeSelect = (root) =>
-    byClass(byClass(card(root, 1), "outpost-map-unit")[0], "outpost-select-field__select")[0];
-// A select shows what was picked in it, or else the value it was built with.
-const selectShows = (select) => String(select.value ?? select.attributes.value);
-
-test("outposts: after a unit TYPE pick and an undo, the unit shows what the game holds and its Remove works", async () => {
+test("outposts: a unit's kind saves on the pick, and the line follows the game after a reload", async () => {
     const saved = unitArrays();
-    game.gga.RoyalG[6] = [4];
-    game.gga.RoyalG[7] = [1];
-    const root = await openOutposts();
+    gga.RoyalG[6] = [4];
+    gga.RoyalG[7] = [1];
     try {
-        const picked = unitTypeSelect(root);
-        await choose(picked, "5");
-        assert.deepEqual([...game.gga.RoyalG[6]], [5], "the pick landed");
-        // ok(a === b): a failed equal on page nodes would print the whole page.
-        assert.ok(unitTypeSelect(root) === picked, "the picked unit's row stays in place");
+        const { root, pane } = await openOutposts();
+        click(buttonNamed(root, "Refresh"));
+        const outpost = opened(outpostRow(pane, "Grassy Path"));
+        await until(() => lineIn(outpost, "Unit 1") && !lineIn(outpost, "Unit 2"), "one unit");
+        await click(stepNamed(lineIn(outpost, "Unit 1"), "Commander"));
+        await until(() => gga.RoyalG[6][0] === 5, "the pick landed");
         // What History's Undo does: the old value goes back, then the page reads the game again.
-        game.gga.RoyalG[6] = [4];
-        await click(buttonsNamed(root, "Refresh")[0]);
-        await until(() => selectShows(unitTypeSelect(root)) === "4", "the unit to show the Militia the game holds");
-        await click(buttonsNamed(card(root, 1), "Remove")[0]);
-        await until(() => game.gga.RoyalG[6].length === 0, "the unit removed");
-        assert.equal(cardSays(card(root, 1)), "");
+        gga.RoyalG[6] = [4];
+        await click(buttonNamed(root, "Refresh"));
+        await until(
+            () => picked(lineIn(outpost, "Unit 1")) === "Militia",
+            "the unit to show the Militia the game holds"
+        );
     } finally {
         putUnitArrays(saved);
     }
 });
 
-test("outposts: Populate after a unit TYPE pick asks Click again when the pick makes it remove units", async () => {
+test("outposts: a reload after a unit change keeps the other outposts and what is typed in them", async () => {
     const saved = unitArrays();
-    // 10 Militia and 8 Knights on M1: Populate's default counts keep all 18. One more Knight is one too many.
-    game.gga.RoyalG[6] = [...Array(10).fill(4), ...Array(8).fill(6)];
-    game.gga.RoyalG[7] = Array(18).fill(1);
-    const root = await openOutposts();
     try {
-        await choose(unitTypeSelect(root), "6");
-        assert.equal(game.gga.RoyalG[6].filter((type) => type === 6).length, 9, "the pick landed");
-        await openUnits(root);
-        const populate = buttonsNamed(root, "Populate outposts")[0];
+        const { pane } = await openOutposts();
+        const first = opened(outpostRow(pane, "Grassy Path"));
+        const input = fieldsOf(first)[0];
+        const takenOut = watchTakenOut(first);
+        const hollowRow = opened(outpostRow(pane, "Grassy Hollow"));
+        const hollow = () => hollowRow;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const unitsBefore = byClass(byClass(hollow(), "row-detail")[0], "outpost-pick").length;
+        focus(input);
+        input.value = "4";
+        input.listeners.input({ target: input });
+        await click(buttonNamed(lineIn(hollow(), "Add a unit"), "Priest"));
+        await until(
+            () => byClass(byClass(hollow(), "row-detail")[0], "outpost-pick").length === unitsBefore + 1,
+            "the added unit"
+        );
+        assert.ok(outpostRow(pane, "Grassy Path") === first, "Grassy Path's line is the same line");
+        assert.equal(takenOut(), 0, "it stayed in the page");
+        assert.equal(input.value, "4", "with what is typed in it");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+test("outposts: Populate adds on one press; when it would remove units it asks in the tray first", async () => {
+    const saved = unitArrays();
+    try {
+        gga.RoyalG[6] = [];
+        gga.RoyalG[7] = [];
+        const { root } = await openOutposts();
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
+        await click(buttonNamed(root, "Populate"));
+        await until(() => gga.RoyalG[6].length === 22, "W1's two outposts populated");
+
+        gga.RoyalG[6] = Array(30).fill(4);
+        gga.RoyalG[7] = Array(30).fill(1);
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
         const before = writes();
-        await click(populate);
+        click(buttonNamed(root, "Populate"));
         await tick();
-        assert.equal(populate.attributes["data-again"], "Click again");
-        assert.equal(writes(), before, "the first press writes nothing");
-    } finally {
-        putUnitArrays(saved);
-    }
-});
-
-test("outposts: a reload after a unit change keeps the other cards and what is typed in them", async () => {
-    const saved = unitArrays();
-    const root = await openOutposts();
-    const first = card(root, 1);
-    const input = elements(byClass(first, "outpost-field")[3]).find((node) => node.nodeName === "input");
-    const unitsBefore = buttonsNamed(card(root, 2), "Remove").length;
-    const takenOut = watchTakenOut(first);
-    try {
-        typeInto(input, "999");
-        await click(buttonsNamed(card(root, 2), "Add unit")[0]);
-        await until(() => buttonsNamed(card(root, 2), "Remove").length === unitsBefore + 1, "the added unit");
-        assert.equal(card(root, 1), first, "M1's card is the same card");
-        assert.equal(takenOut(), 0, "M1's card stayed in the page");
-        assert.ok(elements(root).includes(input), "the field being typed in is still on the page");
-        assert.equal(input.value, "999");
-    } finally {
-        putUnitArrays(saved);
-    }
-});
-
-test("outposts: the UNITS tab previews and populates W1-W4 when outposts exist past W4", async () => {
-    assert.ok(
-        game.gga.RoyalMaps.some((row, mapId) => mapId >= 200 && row.length >= 13),
-        "the fake game has outposts past W4"
-    );
-    const saved = unitArrays();
-    const root = await openOutposts();
-    try {
-        await openUnits(root);
-        assert.equal(byClass(root, "outpost-vanilla-units__row").length, 4, "a preview row for each of W1-W4");
-        await click(buttonsNamed(root, "Populate outposts")[0]);
-        await until(() => game.gga.RoyalG[6].length === 22, "W1's two outposts populated");
-    } finally {
-        putUnitArrays(saved);
-    }
-});
-
-test("outposts: Populate asks Click again when it would remove units, and runs on the second press", async () => {
-    const saved = unitArrays();
-    game.gga.RoyalG[6] = Array(30).fill(4);
-    game.gga.RoyalG[7] = Array(30).fill(1);
-    const root = await openOutposts();
-    try {
-        await openUnits(root);
-        const populate = buttonsNamed(root, "Populate outposts")[0];
-        const before = writes();
-        await click(populate);
-        await tick();
-        assert.equal(writes(), before, "the first press writes nothing");
-        assert.equal(populate.attributes["data-again"], "Click again");
-        await click(populate);
-        await until(() => game.gga.RoyalG[6].length === 22, "the second press populates");
+        assert.match(trayLine(root), /^Populate removes \d+ map units\. Go on\?$/);
+        assert.equal(writes(), before, "the press only asks");
+        await yes(root);
+        await until(() => gga.RoyalG[6].length === 22, "populated on the answer");
     } finally {
         putUnitArrays(saved);
     }
@@ -335,179 +1080,131 @@ test("outposts: Populate asks Click again when it would remove units, and runs o
 // Review of #120: Populate asked about the units it last read, then removed the ones the game added since unasked.
 test("outposts: Populate removes no units the game added since the page read them, unasked", async () => {
     const saved = unitArrays();
-    game.gga.RoyalG[6] = [...Array(10).fill(4), ...Array(8).fill(6)];
-    game.gga.RoyalG[7] = Array(18).fill(1);
-    const root = await openOutposts();
+    gga.RoyalG[6] = [...Array(10).fill(4), ...Array(8).fill(6)];
+    gga.RoyalG[7] = Array(18).fill(1);
     try {
-        await openUnits(root);
+        const { root } = await openOutposts();
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
         // Units added in game: Populate's counts no longer keep them all.
-        game.gga.RoyalG[6] = Array(30).fill(4);
-        game.gga.RoyalG[7] = Array(30).fill(1);
-        const populate = buttonsNamed(root, "Populate outposts")[0];
+        gga.RoyalG[6] = Array(30).fill(4);
+        gga.RoyalG[7] = Array(30).fill(1);
+        const populate = buttonNamed(root, "Populate");
         await click(populate);
         await until(() => /account-btn--(success|error)/.test(classes(populate)), "Populate to finish");
-        assert.equal(game.gga.RoyalG[6].length, 30, "no unit is taken away");
+        assert.equal(gga.RoyalG[6].length, 30, "no unit is taken away");
         assert.match(classes(populate), /account-btn--error/);
-        // The page read the game again, so the next press asks about the units it would take away.
-        await click(populate);
-        await tick();
-        assert.equal(populate.attributes["data-again"], "Click again");
     } finally {
         putUnitArrays(saved);
     }
 });
 
-test("outposts: a refused GLORIFIED press says why; a press while it saves stays enabled and sends no second write", async () => {
-    const root = await openOutposts();
-    const outpost = card(root, 1);
-    const glorified = byClass(outpost, "outpost-glorified-button")[0];
-    const restore = refuseWrites(game.gga.RoyalMaps[1], 12);
-    try {
-        await click(glorified);
-        assert.match(cardSays(outpost), /GLORIFIED not saved: game kept old value/);
-        await until(() => classes(glorified).includes("account-btn--error"), "the button to show it failed");
-    } finally {
-        restore();
-    }
+test("outposts: Reset to the game's asks in the tray first", async () => {
+    const { root } = await openOutposts();
+    const before = writes();
+    click(buttonNamed(root, "Reset to the game's"));
+    await tick();
+    assert.equal(trayLine(root), "Put every map unit back where the game puts it?");
+    assert.equal(writes(), before);
+    click(buttonNamed(root, "Cancel"));
+});
 
-    const release = holdWrites();
+// Review of #239 round 5: Reset builds the units from the shelf levels; a read without them writes nothing.
+test("outposts: Reset with no upgrade levels read back writes nothing", async () => {
+    const saved = unitArrays();
+    const { root } = await openOutposts();
+    armoryUnits();
+    const placed = unitArrays();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/gga/read") && JSON.parse(options?.body ?? "{}").path === "gga.RoyalG"
+            ? new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } })
+            : realFetch(url, options);
     try {
         const before = writes();
-        const press = click(glorified);
-        await until(() => classes(glorified).includes("account-btn--loading"), "the button to say it saves");
-        // Enabled, so focus stays on it (AGENTS.md); the press meanwhile does nothing.
-        assert.ok(!glorified.attributes.disabled, "it stays enabled while it saves");
-        await click(glorified);
-        release();
-        await press;
+        click(buttonNamed(root, "Reset to the game's"));
         await tick();
-        assert.equal(writes(), before + 1, "only the first press wrote");
-        assert.equal(game.gga.RoyalMaps[1][12], 0);
-        assert.equal(cardSays(outpost), "", "the next press cleared the failure");
+        await yes(root);
+        await until(() => /upgrade levels/.test(trayLine(root) + text(root)), "the reason");
+        assert.equal(writes(), before, "nothing written");
+        assert.deepEqual(unitArrays(), placed, "the units stay");
     } finally {
-        release();
-        game.gga.RoyalMaps[1][12] = 1;
+        globalThis.fetch = realFetch;
+        putUnitArrays(saved);
     }
 });
 
-test("outposts: a refused Make outpost says why on its row", async () => {
-    const root = await openOutposts();
-    const row = byClass(root, "outpost-row--kills").find(
-        (node) => text(byClass(node, "account-row__index")[0]) === "M3"
-    );
-    const restore = refuseWrites(game.gga.RoyalMaps, 3);
+// Review of #239 round 5: a Build pressed again on the old row leaves the built outpost alone.
+test("outposts: Build on a map built meanwhile leaves the outpost as it is", async () => {
+    const before = copy(gga.RoyalMaps[3]);
+    const { pane } = await openOutposts();
+    const row = opened(rowNamed(pane, "Grassy Ridge"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const build = buttonNamed(row, "Build");
     try {
-        await click(buttonsNamed(row, "Make outpost")[0]);
-        assert.match(text(byClass(row, "save-state__label")[0]), /game kept old value/);
-        assert.deepEqual(unhandled, []);
+        await click(build);
+        await until(() => gga.RoyalMaps[3].length > 1, "the outpost built");
+        gga.RoyalMaps[3][0] = 7;
+        await click(build);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        assert.equal(gga.RoyalMaps[3][0], 7, "the Barracks level stays");
+    } finally {
+        gga.RoyalMaps[3] = before;
+    }
+});
+
+test("outposts: a refused Glorified flip says why on the outpost", async () => {
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const restore = refuseWrites(gga.RoyalMaps[1], 12);
+    try {
+        await flip(lineIn(outpost, "Glorified"), false);
+        await until(() => /Glorified not saved: game kept old value/.test(says(outpost)), "the reason");
     } finally {
         restore();
     }
 });
 
-test("outposts: a kill-counter save updates its Kills done", async () => {
-    const before = copy(game.gga.RoyalMaps[3]);
-    const root = await openOutposts();
-    const row = byClass(root, "outpost-row--kills").find(
-        (node) => text(byClass(node, "account-row__index")[0]) === "M3"
-    );
-    const meta = () => text(byClass(row, "outpost-row__meta")[0]);
-    assert.equal(meta(), "Kills done 33 / 207");
-    const input = elements(row).find((node) => node.nodeName === "input");
+// Review of #239 round 4: a kills save waits for Build, then stops, as [0] is the Barracks level now.
+test("outposts: a kills save made while Build saves never lands on the Barracks", async () => {
+    const before = copy(gga.RoyalMaps[3]);
+    const { pane } = await openOutposts();
+    const row = opened(rowNamed(pane, "Grassy Ridge"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const hold = holdWritesTo((url, body) => body.includes("RoyalMaps[3]"));
     try {
-        typeInto(input, "0");
-        row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
-        await until(() => meta() === "Kills done 207 / 207", "the kills done to follow the save");
+        const building = click(buttonNamed(row, "Build"));
+        await until(() => hold.held() === 1, "Build to start");
+        typeAndEnter(row, 100);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        hold.release();
+        await building;
+        await until(() => gga.RoyalMaps[3].length > 1, "the outpost built");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        assert.equal(gga.RoyalMaps[3][0], 0, "the Barracks level stays 0");
     } finally {
-        game.gga.RoyalMaps[3] = before;
+        hold.release();
+        gga.RoyalMaps[3] = before;
     }
 });
 
-test("resource nodes: a reload leaves the rows in the page", async () => {
-    const root = (await importRepo("src/ui/pages/classes/royal-armory/3-resources.js")).default.component();
-    await until(() => pageRead(root) && byClass(root, "resource-node-row").length, "the resource nodes to load");
-    const row = byClass(root, "resource-node-row")[0];
-    const takenOut = watchTakenOut(row);
-    await click(buttonsNamed(root, "Refresh")[0]);
-    assert.equal(byClass(root, "resource-node-row")[0], row);
-    assert.equal(takenOut(), 0, "the row was not taken out and put back");
-});
-
-test("map bonuses: a bulk 10M that fails partway shows what the game holds", async () => {
-    const saved = copy(game.gga.MapBon);
-    const root = (await importRepo("src/ui/pages/classes/tesseract/2-map-bonuses.js")).default.component();
-    const row = (mapIndex) =>
-        byClass(root, "map-crystal-row").find(
-            (node) => text(byClass(node, "account-row__index")[0]) === `#${mapIndex}`
-        );
-    await until(() => pageRead(root) && row(1), "the map bonuses to load");
-    const shown = () =>
-        elements(row(1))
-            .filter((node) => node.nodeName === "input")
-            .map((node) => node.value);
-    const shownBefore = shown();
-    const realFetch = globalThis.fetch;
-    let batches = 0;
-    globalThis.fetch = async (url, options) => {
-        if (String(url).endsWith("/game/gga/write-many") && ++batches === 2)
-            return new Response(JSON.stringify({ error: "the game refused" }), { status: 500 });
-        return realFetch(url, options);
-    };
+test("outposts: a map's kills save toward building, and a refused Build says why", async () => {
+    const before = copy(gga.RoyalMaps[3]);
+    const { pane } = await openOutposts();
+    const row = opened(rowNamed(pane, "Grassy Ridge"));
     try {
-        await click(buttonsNamed(root, "Set all to 10M")[0]);
-        assert.equal(batches, 2, "the second batch was refused");
-        assert.deepEqual([...game.gga.MapBon[1]], [10000000, 10000000, 10000000], "the first batch landed");
-        await until(() => shown().join() !== shownBefore.join(), "map #1 to show the kills it now holds");
-        assert.deepEqual(shown(), Array(3).fill(shown()[0]));
+        typeAndEnter(row, 100);
+        await settled(row);
+        assert.deepEqual([...gga.RoyalMaps[3]], [100]);
+        const restore = refuseWrites(gga.RoyalMaps, 3);
+        try {
+            await click(buttonNamed(row, "Build"));
+            await until(() => /Not built: game kept old value/.test(says(row)), "the reason");
+            assert.deepEqual(unhandled, []);
+        } finally {
+            restore();
+        }
     } finally {
-        globalThis.fetch = realFetch;
-        saved.forEach((entry, index) => (game.gga.MapBon[index] = entry));
-    }
-});
-
-test("map bonuses: a reload leaves the rows in the page", async () => {
-    const root = (await importRepo("src/ui/pages/classes/tesseract/2-map-bonuses.js")).default.component();
-    await until(() => pageRead(root) && byClass(root, "map-crystal-row").length, "the map bonuses to load");
-    const row = byClass(root, "map-crystal-row")[0];
-    const list = row.parentNode;
-    const takenOut = watchTakenOut(row);
-    await click(buttonsNamed(root, "Refresh")[0]);
-    // ok(a === b): a failed equal on page nodes would print the whole page.
-    assert.ok(byClass(root, "map-crystal-row")[0] === row, "the row is the same row");
-    assert.ok(row.parentNode === list, "the row stayed in its list");
-    assert.ok(elements(root).includes(list), "the list stayed in the page");
-    assert.equal(takenOut(), 0, "the row was not taken out and put back");
-});
-
-test("masterclass pages: a reload leaves the rows in the page", async () => {
-    const root = (await importRepo("src/ui/pages/classes/grimoire/1-grimoire.js")).default.component();
-    await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
-    const row = byClass(root, "masterclass-upgrade-row")[0];
-    const takenOut = watchTakenOut(row);
-    await click(buttonsNamed(root, "Refresh")[0]);
-    assert.equal(byClass(root, "masterclass-upgrade-row")[0], row);
-    assert.equal(takenOut(), 0, "the row was not taken out and put back");
-});
-
-test("masterclass pages: a search by index finds the row with that number", async () => {
-    const root = (await importRepo("src/ui/pages/classes/grimoire/1-grimoire.js")).default.component();
-    await until(() => pageRead(root) && byClass(root, "masterclass-upgrade-row").length, "the grimoire to load");
-    const search = elements(root).find(
-        (node) => node.nodeName === "input" && String(node.attributes.placeholder ?? "").includes("OR INDEX")
-    );
-    const shown = () =>
-        byClass(root, "masterclass-upgrade-row").map((row) => text(byClass(row, "account-row__index")[0]));
-    for (const [query, first] of [
-        ["#5", "#5"],
-        ["#1", "#1"],
-        ["5", "#5"],
-    ]) {
-        search.value = query;
-        search.listeners.input({ target: search });
-        await until(() => shown()[0] === first, `"${query}" to show ${first} first`);
-        assert.ok(
-            shown().every((label) => label.includes(query.replace("#", ""))),
-            `"${query}" shows only matching rows`
-        );
+        gga.RoyalMaps[3] = before;
     }
 });

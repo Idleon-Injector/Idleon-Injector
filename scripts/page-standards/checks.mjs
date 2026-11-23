@@ -19,11 +19,12 @@ export const ON_STANDARDS = [
     "world-4/",
     "world-5/",
     "world-6/",
+    "classes/",
     // The pages already on the shared pieces in Account: the clickers (Bubba not yet).
     "account/clickers/1-orion.js",
     "account/clickers/2-poppy.js",
-    // The automation pages that were on them before they moved into the Automation section (#249). Overview, Sushi
-    // Station and Grimoire weren't yet.
+    // The automation pages that were on them before they moved into the Automation section (#249), and Grimoire's,
+    // on them with the Classes pages (#239). Overview and Sushi Station aren't yet.
     "automation/alchemy/",
     "automation/construction/",
     "automation/cooking/",
@@ -31,6 +32,7 @@ export const ON_STANDARDS = [
     "automation/summoning/",
     "automation/clickers/",
     "automation/shops/",
+    "automation/grimoire/",
 ];
 
 /**

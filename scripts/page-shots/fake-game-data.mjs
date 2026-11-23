@@ -17,6 +17,7 @@ import world4 from "./data/world-4.mjs";
 import world5 from "./data/world-5.mjs";
 import world6 from "./data/world-6.mjs";
 import world7 from "./data/world-7.mjs";
+import classes from "./data/classes.mjs";
 
 const isObject = (value) => value !== null && typeof value === "object";
 
@@ -64,7 +65,7 @@ const base = () => ({
 });
 
 export const fakeGameData = () =>
-    [shared, account, world1, world2, world3, world4, world5, world6, world7].reduce(
+    [shared, account, world1, world2, world3, world4, world5, world6, world7, classes].reduce(
         (data, part) => merge(data, part()),
         base()
     );

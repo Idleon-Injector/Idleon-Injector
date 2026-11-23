@@ -1,0 +1,49 @@
+/* An opened outpost reads as a band under its line, edge to edge, so its fields stay in the list's columns. */
+.viewport .tabbed-list .account-row > .row-detail.outpost-detail {
+    margin-right: -16px;
+    margin-left: -16px;
+    border-radius: 0;
+}
+/* Every line in it sits on the band's ground, a hairline between them. */
+.viewport .tabbed-list .outpost-detail .account-row {
+    border-width: 0;
+    background: transparent;
+}
+.viewport .tabbed-list .outpost-detail .account-row + .account-row {
+    border-top: 1px solid var(--c-hairline);
+}
+
+/* A pick starts in the first column and may run across the others; a word saying why it can't be picked yet sits in
+   its place. */
+.outpost-pick__cell {
+    grid-column: 1 / -1;
+}
+.outpost-pick__locked {
+    padding-left: 12px;
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+}
+.outpost-add {
+    gap: 6px;
+}
+/* A unit's Remove keeps the last column, so the pick still starts in the first. */
+.outpost-pick__cell--short {
+    grid-column: 1 / 3;
+}
+.outpost-pick__extra {
+    grid-column: 3;
+    justify-items: end;
+}
+
+/* A map still to clear has one field, its kills with the game's requirement as the cap ("550 / 4.42K"). On a phone
+   half a line is too narrow for the number, a long cap and its − / +: it takes the whole line. */
+@media (max-width: 760px) {
+    .viewport .outpost-kills .value-cells {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Populate's fields in the tray: one label width, so the numbers line up when the tray stacks them on a phone. */
+.viewport .tabbed-list__tools .outpost-kind .account-setall-row__label {
+    min-width: 6.5rem;
+}
