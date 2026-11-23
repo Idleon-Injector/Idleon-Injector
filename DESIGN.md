@@ -288,7 +288,8 @@ words that keep one width (Page layout).
 - **A table page takes the wider measure** (60rem); a list page stays compact (48rem).
 - **Rows are quiet until touched** (every list and table): at rest a value is a plain number with no box and no − / +,
   and a step picker shows only its pick (a tier as its coloured word). The row under the pointer, or with focus in it,
-  shows the controls in place; nothing moves. Touch screens always show them.
+  shows the controls in place; nothing moves. Touch screens always show them. A step picker too wide for a narrow row
+  (Sigils' six tiers) folds into lines of three, like the tray's tier tool, and always shows, with a mouse too.
 - **Every value starts where its column's name starts** (12px into the column), quiet or touched, so a column reads
   straight down. A capped value keeps its cap right after it ("1 / 4").
 - **One main number a row:** a value that only supports another (Deposited, progress toward the next level) is a step
