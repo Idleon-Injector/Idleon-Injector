@@ -206,7 +206,8 @@ game's.
 - **Search keeps the old names** (Owl, Kangaroo, Liquid, Pay 2 Win), as extra words on the page that holds them now.
 - **Cauldrons has a tab per cauldron** (Lumi, 2026-11-23), like Bubbles: Power, Quicc, High-IQ and Kazam hold each
   cauldron's Pay 2 Win upgrades; Liquids holds the four liquids and their Pay 2 Win upgrades with the Draconic count;
-  Vials and player holds the Pay 2 Win upgrades that belong to no cauldron. Each tab's tray has Max all.
+  Vials and player holds the Pay 2 Win upgrades that belong to no cauldron. Each tab's tray has Max all; Liquids
+  also has Set all for the liquids' amounts.
 
 ## Page layout
 

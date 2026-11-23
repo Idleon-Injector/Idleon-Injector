@@ -38,6 +38,7 @@ import { runBulkSet, useWriteStatus, writeVerified } from "../../../components/v
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { SetAllTool } from "../../../components/views/account/BulkActionBar.js";
 
 const { div, span } = van.tags;
 
@@ -272,11 +273,12 @@ const CauldronsTab = () => {
         const cauldron = CAULDRONS.find((c) => c.id === tabId);
         return `${cauldron ? `${cauldron.label} ` : ""}upgrade${n === 1 ? "" : "s"}`;
     };
+    // The Liquids tab's tools act on its liquids (their amounts and upgrades), so its line counts the liquids.
     const toolsLabel = (activeId) => {
-        const n = shownUpgrades(activeId.val).length;
-        return isSearching()
-            ? `${n} matching ${upgradeWord(activeId.val, n)}`
-            : `All ${n} ${upgradeWord(activeId.val, n)}`;
+        const liquids = activeId.val === "liquids";
+        const n = liquids ? liquidRows.filter((row) => shownBySearch(row)).length : shownUpgrades(activeId.val).length;
+        const word = liquids ? `liquid${n === 1 ? "" : "s"}` : upgradeWord(activeId.val, n);
+        return isSearching() ? `${n} matching ${word}` : `All ${n} ${word}`;
     };
 
     // A list's Pay 2 Win rows, each an upgrade of `tabId`.
@@ -305,6 +307,22 @@ const CauldronsTab = () => {
 
     // The liquids: each one's amount and its cauldron's two upgrades, then their Pay 2 Win upgrades and the Draconic
     // count, which is the liquid cauldrons' own.
+    // The liquids' amounts have no max: the Liquids tab's Set all fills them, asking before it lowers one.
+    const liquidRows = [];
+    const amountAll = (ask) =>
+        SetAllTool({
+            ask,
+            bulk,
+            placeholder: "Amount",
+            word: (n) => `liquid${n === 1 ? "" : "s"}`,
+            lines: () =>
+                LIQUIDS.map((liquid, i) => ({
+                    row: liquidRows[i],
+                    valueState: liquidStates[i].amount,
+                    max: null,
+                    path: `CauldronInfo[6][${liquid.index}]`,
+                })).filter(({ row }) => row && shownBySearch(row)),
+        });
     const liquidPane = () => {
         const p2wLine = (liquid, l) => {
             const at = (column) => column + LIQUID_P2W.stride * l;
@@ -338,7 +356,7 @@ const CauldronsTab = () => {
         return div(
             { class: "account-page-pane" },
             ValueTableHead({ name: "Liquid", columns: ["Amount", "Cap upgrade", "Rate upgrade"] }),
-            ...LIQUIDS.map((liquid, i) => LiquidRow({ liquid, states: liquidStates[i] })),
+            ...LIQUIDS.map((liquid, i) => (liquidRows[i] = LiquidRow({ liquid, states: liquidStates[i] }))),
             AccountSection({
                 title: "Pay 2 Win",
                 body: [
@@ -393,7 +411,14 @@ const CauldronsTab = () => {
                 wrap: true,
                 busy: () => bulk.status.val === "loading",
                 tabs: TABS.map((tab) => ({ id: tab.id, label: tab.label, content: content[tab.id] })),
-                tools: toolsPerTab(Object.fromEntries(TABS.map((tab) => [tab.id, () => maxAll(tab.id)]))),
+                tools: toolsPerTab(
+                    Object.fromEntries(
+                        TABS.map((tab) => [
+                            tab.id,
+                            (ask) => (tab.id === "liquids" ? [amountAll(ask), maxAll(tab.id)] : maxAll(tab.id)),
+                        ])
+                    )
+                ),
                 toolsLabel,
             })
         ),

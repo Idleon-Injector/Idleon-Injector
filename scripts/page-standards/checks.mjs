@@ -483,12 +483,12 @@ export async function bulkBreaks(node, writes) {
                 const press = elements(tool).find((el) => el.nodeName === "button" && words(el) === "Set all");
                 if (!input || !press || attr(press, "disabled")) continue;
                 const column = attr(input, "placeholder");
-                const own = list ? linesOf(list) : [];
-                const lines = own.length
-                    ? own
-                    : (list ? rowsIn(list).filter(shown) : [])
-                          .map((row) => ({ row, field: columnOf(row, column) }))
-                          .filter(({ field }) => field);
+                // The table's column the field names, when the list has one ("Amount" beside a lone Draconic line);
+                // else the list's own lines.
+                const inColumn = (list ? rowsIn(list).filter(shown) : [])
+                    .map((row) => ({ row, field: columnOf(row, column) }))
+                    .filter(({ field }) => field);
+                const lines = inColumn.length ? inColumn : list ? linesOf(list) : [];
                 const shows = ({ field }) => inputOf(field).value ?? attr(inputOf(field), "value");
                 const values = lines.map((line) => number(shows(line)));
                 const caps = lines
