@@ -619,7 +619,8 @@ const PalettePart = ({ pending }) => {
                             getPath: (colour) => `${STARS_PATH}[${colour.index}]`,
                         });
                     } finally {
-                        await deleteGga("DNSM.h.PaletteBonz").catch(() => {});
+                        // A clean-up that fails is said like a failed write: the game may keep the old bonuses.
+                        await deleteGga("DNSM.h.PaletteBonz");
                     }
                 },
             }),

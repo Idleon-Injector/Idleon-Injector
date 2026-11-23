@@ -697,7 +697,8 @@ const CogsTab = () => {
         });
         const step = (delta) => {
             if (readOnly) return;
-            setNumberInputValue(value, String(Math.max(0, toNum(typed(), 0) + delta)));
+            // A short form typed and not yet left ("1K") steps from what it means.
+            setNumberInputValue(value, String(Math.max(0, (parseNumber(String(typed()).trim()) ?? 0) + delta)));
             void save.save();
         };
         return row(
