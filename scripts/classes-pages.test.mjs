@@ -7,7 +7,8 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
-const GRIMOIRE = "src/ui/pages/classes/grimoire/grimoire.js";
+const GRIMOIRE = "src/ui/pages/classes/grimoire/1-grimoire.js";
+const GRIMOIRE_AUTOMATION = "src/ui/pages/classes/grimoire/2-automation.js";
 const COMPASS = "src/ui/pages/classes/compass/compass.js";
 const TESSERACT = "src/ui/pages/classes/tesseract/tesseract.js";
 const ROYAL_ARMORY = "src/ui/pages/classes/royal-armory/royal-armory.js";
@@ -138,23 +139,30 @@ const watchTakenOut = (node) => {
 
 // ---- The menu ----------------------------------------------------------------------------------------------------
 
-test("Classes is four sidebar entries, each with the game's screens as tabs", async () => {
+test("Classes is four systems, each with the game's screens as tabs; the Grimoire automation is its own entry", async () => {
     const { buildMenuTree } = await importRepo("src/ui/menu/menuModel.js");
     const pages = await Promise.all(
-        [GRIMOIRE, COMPASS, TESSERACT, ROYAL_ARMORY].map(async (file) => (await importRepo(file)).default)
+        [GRIMOIRE, GRIMOIRE_AUTOMATION, COMPASS, TESSERACT, ROYAL_ARMORY].map(
+            async (file) => (await importRepo(file)).default
+        )
     );
     const classesEntry = buildMenuTree(pages).find((entry) => entry.id === "classes");
     assert.deepEqual(
         classesEntry.systems.map((system) => [system.name, system.pages.length]),
         [
-            ["Grimoire", 1],
+            ["Grimoire", 2],
             ["Compass", 1],
             ["Tesseract", 1],
             ["Royal Armory", 1],
         ]
     );
     const tabsOf = (id) => pages.find((page) => page.id === id).tabs.map((tab) => tab.label);
-    assert.deepEqual(tabsOf("classes.grimoire"), ["Upgrades", "Bones", "Automation"]);
+    assert.deepEqual(tabsOf("classes.grimoire"), ["Upgrades", "Bones"]);
+    const grimoire = classesEntry.systems.find((system) => system.name === "Grimoire");
+    assert.deepEqual(
+        grimoire.pages.map((page) => page.tab),
+        ["Grimoire", "Automation"]
+    );
     assert.deepEqual(tabsOf("classes.compass"), [
         "Elemental",
         "Fighter",

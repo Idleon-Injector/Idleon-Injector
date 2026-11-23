@@ -1,9 +1,3 @@
-/* Royal Armory › Outposts: the units table has four columns of the same width, so its last three line up with
-   Barracks, Logistics and Education. */
-.outpost-units {
-    --value-columns: repeat(4, 9.5rem);
-}
-
 /* An opened outpost reads as a band under its line, edge to edge, so its fields stay in the list's columns. */
 .viewport .tabbed-list .account-row > .row-detail.outpost-detail {
     margin-right: -16px;
@@ -47,4 +41,9 @@
     .viewport .outpost-kills .value-cells {
         grid-template-columns: minmax(0, 1fr);
     }
+}
+
+/* Populate's fields in the tray: one label width, so the numbers line up when the tray stacks them on a phone. */
+.viewport .tabbed-list__tools .outpost-kind .account-setall-row__label {
+    min-width: 6.5rem;
 }

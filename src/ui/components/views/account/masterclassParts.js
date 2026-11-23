@@ -204,8 +204,7 @@ export const UpgradesPart = ({
 
 /**
  * A masterclass page: one sidebar entry, the game's screens as `tabs` ({ id, label, part }), each part built with
- * `{ pending, reload }`. One read of the game fills every tab; an automation tab (`automationPart`) reads on its own and
- * puts its stats beside the title while it is open.
+ * `{ pending, reload }`. One read of the game fills every tab.
  */
 export const MasterclassPage = ({ name, page, description, tabs, wrap = false }) => {
     const parts = new Map();
@@ -213,14 +212,10 @@ export const MasterclassPage = ({ name, page, description, tabs, wrap = false })
     const busy = () => [...parts.values()].some((part) => part.busy?.());
     const own = useAccountLoad({ label: name, busy });
     for (const tab of tabs) parts.set(tab.id, tab.part({ pending: () => pending(), reload: () => load() }));
-    const automation = parts.get("automation");
-    // The automation reads on its own; the page says its loading and failure with the rest.
-    const loading = automation ? van.derive(() => own.loading.val || automation.loading.val) : own.loading;
-    const error = automation ? van.derive(() => own.error.val ?? automation.error.val) : own.error;
+    const { loading, error } = own;
     // After a read that failed, what the tabs show may be old: their tools wait for one that works.
     const pending = () => loading.val || Boolean(error.val);
     const load = () => own.run(() => loadParts(parts));
-    const onAutomation = () => activeId.val === "automation";
 
     load();
 
@@ -228,9 +223,7 @@ export const MasterclassPage = ({ name, page, description, tabs, wrap = false })
         rootClass: "tab-container scroll-container",
         title: name,
         description,
-        total: automation ? automation.total(onAutomation) : null,
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy() }),
-        topNotices: automation ? automation.notices(onAutomation) : null,
         state: { loading, error },
         loadingText: `Reading the ${name}`,
         errorTitle: `Couldn't read the ${name}`,

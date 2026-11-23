@@ -440,16 +440,18 @@ World 6 uses the World 5 pieces and the Page standards; a few grew, and are now 
 
 ### Classes on the same pieces (draft, 2026-11-23)
 
-The masterclasses use the World 6 pieces; one page builder is new, for their four pages (`masterclassParts.js`):
+The masterclasses use the World 6 pieces and the Page standards; one page builder is new, for their four pages
+(`masterclassParts.js`):
 
-- **Each masterclass is one sidebar entry, its screens as tabs:** Grimoire (Upgrades, Bones, Automation), Compass (a
-  tab per path: Elemental, Fighter, Survival, Nomadic, Abominations; then Dust), Tesseract (Upgrades, Tachyons, Map
-  Bonuses) and Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop).
+- **Each masterclass is one sidebar entry, its screens as tabs:** Grimoire (Upgrades, Bones), Compass (a tab per path:
+  Elemental, Fighter, Survival, Nomadic, Abominations; then Dust), Tesseract (Upgrades, Tachyons, Map Bonuses) and
+  Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop). The Grimoire automation is its
+  own entry under Grimoire, which names its main entry Grimoire, as World 6's Sneaking does.
 - **An upgrade list is the game's list in its order,** the bonus first, without the game's placeholders. An upgrade
-  without a real max (999,999 in the game) shows its level alone; Max all fills only the ones with a max.
+  without a real max (999,999 in the game) shows its level alone and has no Max; Max all fills only the ones with a max.
 - **An outpost opens as a band under its line,** edge to edge, so its rank EXP, type, slots and units sit in the
   list's columns; a pick starts in the first column. A slot the barracks hasn't opened says so in its place ("Opens at
   Barracks 3").
-- **A table with more than three columns** (units per kind) keeps the column width, so its last columns line up with
-  the three-column tables around it. A table tab doesn't take `field-columns`: it would pull the values off their
-  column names.
+- **A tool's own numbers sit in the tray with it:** Populate's units per outpost are its fields there, one per kind,
+  so the list holds only what saves to the game.
+- **A table tab doesn't take `field-columns`:** it would pull the values off their column names.

@@ -17,6 +17,7 @@ export const ON_STANDARDS = [
     "world-4/",
     "world-5/",
     "world-6/",
+    "classes/",
     // The pages already on the shared pieces in Account: the clickers (Bubba not yet) and the automation pages.
     "account/clickers/1-orion.js",
     "account/clickers/2-poppy.js",

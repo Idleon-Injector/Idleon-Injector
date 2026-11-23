@@ -774,19 +774,14 @@ const OutpostsTab = ({ pending, reload }) => {
         return { node, update };
     };
 
-    // ---- Units: how many of each kind Populate puts on every outpost of W1-W4.
-    const counts4 = new Map();
-    const countOf = (world, type) => {
-        const key = `${world}:${type}`;
-        if (!counts4.has(key)) counts4.set(key, van.state(String(DEFAULT_UNITS[type] ?? 0)));
-        return counts4.get(key);
-    };
+    // ---- Units: how many of each kind Populate puts on every outpost of W1-W4: Populate's own fields, in the tray.
+    const countOf = new Map(MAP_UNIT_ORDER.map((type) => [type, van.state(String(DEFAULT_UNITS[type] ?? 0))]));
     const unitWorlds = Object.keys(MAP_UNIT_ARRAYS).map(Number);
     const wanted = () =>
         Object.fromEntries(
             unitWorlds.map((world) => [
                 world,
-                Object.fromEntries(MAP_UNIT_ORDER.map((type) => [type, toInt(countOf(world, type).val, { min: 0 })])),
+                Object.fromEntries(MAP_UNIT_ORDER.map((type) => [type, toInt(countOf.get(type).val, { min: 0 })])),
             ])
         );
     const builtIn = (builtByWorld) =>
@@ -800,31 +795,6 @@ const OutpostsTab = ({ pending, reload }) => {
                 summary.movedExisting,
             0
         );
-    const unitCountRow = (world) =>
-        AccountRow({
-            rowClass: "value-row outpost-counts",
-            info: span({ class: "account-row__name" }, `World ${world}`),
-            controls: div(
-                { class: "value-cells" },
-                ...MAP_UNIT_ORDER.map((type) => {
-                    const value = countOf(world, type);
-                    const step = (delta) => (value.val = String(Math.max(0, toInt(value.val, { min: 0 }) + delta)));
-                    return div(
-                        { class: "value-cell" },
-                        span({ class: "value-cell__label" }, unitLabel(type)),
-                        NumberInput({
-                            value,
-                            mode: "int",
-                            "aria-label": `World ${world} ${unitLabel(type).toLowerCase()} per outpost`,
-                            oninput: (e) => (value.val = e.target.value),
-                            onDecrement: () => step(-1),
-                            onIncrement: () => step(1),
-                        })
-                    );
-                })
-            ),
-        });
-
     const unitsBulk = useWriteStatus();
     const populate = async (confirmed) => {
         // The counts and the removal as pressed, while the save waits its turn.
@@ -861,17 +831,6 @@ const OutpostsTab = ({ pending, reload }) => {
     return {
         content: div(
             { class: "royal-outposts" },
-            // What the tray's Populate fills: first, beside its tools.
-            div(
-                { class: "outpost-units" },
-                AccountSection({
-                    title: "Units per outpost",
-                    body: [
-                        ValueTableHead({ name: "World", columns: MAP_UNIT_ORDER.map(unitLabel) }),
-                        ...unitWorlds.map(unitCountRow),
-                    ],
-                })
-            ),
             ...worldNodes.map(({ built, kills }, w) =>
                 div(
                     { hidden: () => !counts[w].built.val && !counts[w].kills.val },
@@ -915,7 +874,7 @@ const OutpostsTab = ({ pending, reload }) => {
             });
             read.val = next;
         },
-        toolsLabel: () => "Units on the outposts of World 1 to 4",
+        toolsLabel: () => "Units on each outpost of World 1 to 4",
         tools: (ask) => {
             const reset = ActionButton({
                 label: "Reset to the game's",
@@ -950,7 +909,27 @@ const OutpostsTab = ({ pending, reload }) => {
                     return undefined;
                 },
             });
-            return div({ class: "tabbed-list__tool-group" }, populateButton, reset);
+            // How many of each kind, a field each, then Populate | Reset: the tray wraps them on a narrow screen.
+            const kindField = (type) => {
+                const value = countOf.get(type);
+                const step = (delta) => (value.val = String(Math.max(0, toInt(value.val, { min: 0 }) + delta)));
+                return div(
+                    { class: "account-setall-row outpost-kind" },
+                    span({ class: "account-setall-row__label" }, unitLabel(type)),
+                    div(
+                        { class: "account-setall-row__input" },
+                        NumberInput({
+                            value,
+                            mode: "int",
+                            "aria-label": `${unitLabel(type)} per outpost`,
+                            oninput: (e) => (value.val = e.target.value),
+                            onDecrement: () => step(-1),
+                            onIncrement: () => step(1),
+                        })
+                    )
+                );
+            };
+            return [...MAP_UNIT_ORDER.map(kindField), div({ class: "tabbed-list__tool-group" }, populateButton, reset)];
         },
     };
 };
@@ -980,7 +959,12 @@ const TABS = [
         part: OutpostsTab,
         keywords: ["Units", "Kingdom", "Barracks", "Slots", "Glorified", "Militia", "Populate"],
     },
-    { id: "orblets", label: "Lil' Orblet Shop", part: OrbletTab, keywords: ["Orblet Market", "Orblets"] },
+    {
+        id: "orblets",
+        label: "Lil' Orblet Shop",
+        part: OrbletTab,
+        keywords: ["Orblet Market", "Lil Orblet Shop", "Orblets"],
+    },
 ];
 
 export default definePage({
