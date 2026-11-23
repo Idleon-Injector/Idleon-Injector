@@ -121,8 +121,8 @@ const ResourcesTab = () => {
 
 const EMPTY = -1;
 
-const NodesTab = ({ pending, reload }) => {
-    const bulk = useWriteStatus();
+// `bulk` is the page's, so the nodes' tools and Set all never write at once.
+const NodesTab = ({ pending, reload, bulk }) => {
     const nodes = van.state([]);
     const states = new Map();
     const stateOf = (i, key) => getOrCreateState(states, `${i}:${key}`);
@@ -138,6 +138,8 @@ const NodesTab = ({ pending, reload }) => {
             name: node.name,
             info: RowTitles({ bonus: resourceName(node.resource), name: node.name }),
             badge: () => (stateOf(node.i, "empty").val ? "Empty" : ""),
+            // Set all sets every node's grade; what was collected stays each node's own (Refill all, Empty all).
+            setAll: "grade",
             fields: [
                 { key: "grade", label: "Grade", valueState: stateOf(node.i, "grade"), paths: [`RoyalG[5][${node.i}]`] },
                 {
@@ -229,6 +231,8 @@ const NodesTab = ({ pending, reload }) => {
             const n = shown().length;
             return isSearching() ? `${n} matching ${word[n === 1 ? 0 : 1]}` : `All ${plural(n, word)}`;
         },
+        setAllWord: (n) => word[n === 1 ? 0 : 1],
+        setAllPlaceholder: "Grade",
         tools: (ask) => {
             const emptyAll = ActionButton({
                 label: "Empty all",

@@ -272,7 +272,12 @@ export const MasterclassPage = ({ name, page, description, tabs, wrap = false })
                 ),
                 toolsOn: (id) => Boolean(parts.get(id).tools),
                 toolsLabel: (open) => parts.get(open.val).toolsLabel?.() ?? "",
-                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value", bulk },
+                // A part names what its Set all sets (the Nodes' "Grade"); else it's the tab's lines.
+                setAll: {
+                    word: (n, tab) => parts.get(tab).setAllWord?.(n) ?? (n === 1 ? "line" : "lines"),
+                    placeholder: (tab) => parts.get(tab).setAllPlaceholder ?? "Value",
+                    bulk,
+                },
             })
         ),
     });
