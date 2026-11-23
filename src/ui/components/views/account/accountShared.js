@@ -284,12 +284,23 @@ export const writeVerified = (path, value, { write = gga, character, readBack = 
             ok = true;
         }
         if (!ok) throw new Error(`Write mismatch at ${path}`);
+        countSave(path);
         if (before) await finishChange(before, [value]);
         return value;
     })();
 };
 
 const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
+
+// How many saves landed at each path: a bulk set sees a row saved while it ran, even back to the value it had. A save
+// that failed isn't counted, so its row takes the bulk value the game holds. ponytail: one count per path ever saved,
+// kept for the session.
+const savesByPath = new Map();
+const countSave = (path) => {
+    const key = normalizeGgaPath(path);
+    savesByPath.set(key, (savesByPath.get(key) ?? 0) + 1);
+};
+const savesOf = (path) => savesByPath.get(normalizeGgaPath(path)) ?? 0;
 
 /**
  * What a page says when the game has another character in play than the one it shows, so it refuses the save. Every
@@ -334,6 +345,7 @@ export const writeManyVerified = (writes, { log = true, character } = {}) => {
 const writeManyLogged = async (writes, change, character) => {
     if (change) await change;
     const result = await ggaMany(writes, { character });
+    result.results.forEach((entry, i) => entry.ok && countSave(writes[i].path));
     if (change)
         await finishChange(
             await change,
@@ -408,6 +420,8 @@ export const runBulkSet = async ({
 }) => {
     const resolvedEntries = typeof entries === "function" ? entries() : (entries ?? []);
     // Only the entries written take the target afterwards: a skipped row saved meanwhile keeps what it saved.
+    // Each written row's value and paths as the writes start: a row saved since (its save may have landed after these
+    // writes, even back to the value it had) or whose value changed keeps what it shows.
     const targets = new Map();
     const writes = [];
 
@@ -418,22 +432,32 @@ export const runBulkSet = async ({
 
         if (typeof getWrites === "function") {
             const entryWrites = toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState }));
-            if (entryWrites.length) targets.set(index, targetValue);
+            if (entryWrites.length)
+                targets.set(index, {
+                    targetValue,
+                    before: resolveValue(valueState),
+                    paths: entryWrites.map((write) => write.path),
+                });
             writes.push(...entryWrites);
             return;
         }
 
         if (!shouldWrite({ entry, index, currentValue, targetValue, valueState })) return;
-        targets.set(index, targetValue);
-        writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
+        const path = getPath(entry, index, targetValue);
+        targets.set(index, { targetValue, before: resolveValue(valueState), paths: [path] });
+        writes.push({ path, value: targetValue });
     });
 
+    targets.forEach((target) => (target.saves = target.paths.map(savesOf)));
     await writeManyVerified(writes, { character });
     if (shownCharacter && shownCharacter() !== character) return;
 
     resolvedEntries.forEach((entry, index) => {
         if (!targets.has(index)) return;
-        const targetValue = targets.get(index);
+        const { targetValue, before, paths, saves } = targets.get(index);
+        // Each path once more: this bulk's own save.
+        if (paths.some((path, i) => savesOf(path) !== saves[i] + 1)) return;
+        if (!Object.is(resolveValue(getValueState(entry, index)), before)) return;
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);
             return;
