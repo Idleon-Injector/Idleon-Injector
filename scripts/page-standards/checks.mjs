@@ -114,10 +114,9 @@ const rowName = (row) =>
 const tabsOf = (node) => elements(node).filter((el) => attr(el, "role") === "tab");
 const panelsOf = (node) => elements(node).filter((el) => attr(el, "role") === "tabpanel");
 
-// Normal case: a label written all in capitals ("AUTOMATION", "THICC_SKIN"). The game's short capitals inside a name
-// stay (EXP, STR, RIP Tide, Talent III).
-const shouts = (label) =>
-    /[A-Z]{2,}_[A-Z]/.test(label) || (/[A-Z]{4}/.test(label.replace(/[^A-Za-z]/g, "")) && !/[a-z]/.test(label));
+// Normal case: a label written all in capitals ("AUTOMATION", "THICC_SKIN"). The game's short capitals stay, in a name
+// or on their own (EXP, STR, RIP Tide, Talent III, EXP GMO).
+const shouts = (label) => /[A-Z]{2,}_[A-Z]/.test(label) || (/\b[A-Z]{4,}\b/.test(label) && !/[a-z]/.test(label));
 
 /**
  * The breaks a page shows, by the rules a rendered page can show. `page` is its definePage declaration; `title` its

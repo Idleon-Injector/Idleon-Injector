@@ -367,7 +367,7 @@ const EquinoxTab = () => {
     const content = div(
         { class: "account-list account-list--tabbed" },
         ListPanel({
-            className: "field-columns",
+            className: "field-columns equinox-list",
             body: [
                 BarRow({ barFillState, barFillReqState, barFillRateState, fillBarStatus, doFillBar }),
                 PenguinRow({ valueState: penguinState, onAfterSet: refreshFillRate, rateError }),

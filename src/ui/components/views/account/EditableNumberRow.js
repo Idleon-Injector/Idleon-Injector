@@ -20,7 +20,8 @@ const { div, span } = van.tags;
  * - `cap` (a number or a function returning one) shows muted inside the field after the value: "2 / 15". Only a
  *   real cap, the value Max fills up to; a number that isn't a limit never gets the slash. A row with a cap has Max
  *   (DESIGN.md's Page standards), filling up to the cap, unless `maxAction` names its own; a row with no button of
- *   its own keeps Max's room empty in a list of mixed fields (`field-columns`), so the fields line up.
+ *   its own keeps Max's room empty in a list of mixed fields (`field-columns`) where some line has Max, so the fields
+ *   line up.
  * - `renderBadge(value)` is a state (Equipped, Locked), a plain muted word just before the field.
  * - `unset` is a stored value that means "not set" (a locked talent's -1); the field shows it empty, and leaving the
  *   empty field untouched saves nothing.
@@ -115,7 +116,7 @@ export const EditableNumberRow = ({
             ? toNodes(renderExtraActions({ status: null, run, inputValue, applyValue }))
             : [];
 
-    return div(
+    const row = div(
         {
             class: () =>
                 joinClasses(
@@ -180,4 +181,14 @@ export const EditableNumberRow = ({
             ...extraActions
         )
     );
+    // Max's room is kept only in a list where some line shows Max: the closest list of mixed fields says so (`has-max`)
+    // once this row is laid out, and again whenever its Max comes or goes.
+    van.derive(() => {
+        max?.hidden?.();
+        requestAnimationFrame(() => {
+            const list = row.closest?.(".field-columns");
+            list?.classList.toggle("has-max", Boolean(list.querySelector(".account-row__max:not([hidden])")));
+        });
+    });
+    return row;
 };

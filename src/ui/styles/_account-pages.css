@@ -888,6 +888,7 @@
 .field-columns {
     --field-columns-width: 10.25rem;
     --field-columns-cap: 3rem; /* "/ 700"; a list with longer caps sets more */
+    --field-columns-action: 4.5rem; /* the row's own button (Max, Reset); a list with a longer one sets more */
 }
 
 .field-columns .account-row__controls .number-input-wrapper {
@@ -912,18 +913,20 @@
 
 .field-columns .account-row__controls > .btn-quiet:last-child,
 .field-columns .account-row__controls > .btn-danger:last-child {
-    min-width: 4.5rem;
+    min-width: var(--field-columns-action);
 }
 
-/* Max's room on a line without a cap (EditableNumberRow), kept empty so the fields of a mixed list line up. */
-.account-row__max-slot {
+/* Max's room on a line without a cap (EditableNumberRow), kept empty so the fields of a mixed list line up, in a list
+   where some line has Max (`has-max`, set by the rows). */
+.account-row__max-slot,
+.viewport .account-row__controls > .account-row__max[hidden] {
     display: none;
 }
 
-.field-columns .account-row__controls > .account-row__max-slot:not([hidden]) {
+.field-columns.has-max .account-row__controls > .account-row__max-slot:not([hidden]) {
     display: block;
     flex: none;
-    width: 4.5rem;
+    width: var(--field-columns-action);
 }
 
 .account-row__controls--stack {

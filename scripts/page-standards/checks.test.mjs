@@ -114,13 +114,13 @@ test("Row switches: a tab that lists some of another tab's lines again with a sw
 test("Names: a name or label in capitals is a break; the game's short capitals in a name stay", () => {
     const node = page(
         "STAMPS",
-        ListPanel({ body: [level("THICC_SKIN"), level("Base STR"), level("RIP Tide")] }),
-        button("MAX ALL")
+        ListPanel({ body: [level("THICC_SKIN"), level("Base STR"), level("RIP Tide"), level("EXP GMO")] }),
+        button("UNLOCK ALL")
     );
     assert.deepEqual(only(breaksOf(node, declared(), "STAMPS"), "Names"), [
         `Names: "THICC_SKIN" is in capitals; show it in normal case`,
         `Names: "STAMPS" is in capitals; write it in normal case`,
-        `Names: "MAX ALL" is in capitals; write it in normal case`,
+        `Names: "UNLOCK ALL" is in capitals; write it in normal case`,
     ]);
 });
 

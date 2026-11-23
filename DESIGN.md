@@ -19,8 +19,8 @@ every row's controls showing, and fails the run on a break (`scripts/page-shots/
 A world joins the checks when its pages move to the shared pieces (`ON_STANDARDS` in `checks.mjs`); a break that needs
 more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list only shrinks.
 
-- **Max:** every line whose value has a cap ("2 / 15") has a Max button; a line without one in the same list keeps
-  Max's room empty (`field-columns`), so the fields line up. The shared rows do both. _test, shots_
+- **Max:** every line whose value has a cap ("2 / 15") has a Max button, and only those; a line without a cap in the
+  same list keeps Max's room empty (`field-columns`), so the fields line up. The shared rows do both. _test, shots_
 - **Bulk tools:** Max all and tools that only raise run on one press, and Max all also lowers a value above the max. A
   tool that lowers or takes away asks first, in the tray or in place, never in a popup; Set all asks only when it
   lowers. _test (takers ask, Max all doesn't); each page's tests (lowering, Set all)_

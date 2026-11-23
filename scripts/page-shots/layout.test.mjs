@@ -147,7 +147,7 @@ const el = (classes, rect, children = [], text = "") => {
     return node;
 };
 const at = (left, right, top = 0, bottom = 36) => ({ left, right, top, bottom });
-const valueRow = (name, y, fieldLeft, max) =>
+const valueRow = (name, y, fieldLeft, max, capped = true) =>
     el("account-row account-row--value", at(0, 800, y, y + 54), [
         el("account-row__info", at(16, 400, y, y + 54), [
             el("account-row__name", at(16, 200, y + 10, y + 30), [], name),
@@ -156,10 +156,14 @@ const valueRow = (name, y, fieldLeft, max) =>
             "account-row__controls",
             at(420, 784, y, y + 54),
             [
-                el("number-input-wrapper number-input-wrapper--capped", at(fieldLeft, fieldLeft + 164, y + 9, y + 45), [
-                    el("number-input-btn", at(fieldLeft + 110, fieldLeft + 134, y + 13, y + 41)),
-                    el("number-input-btn", at(fieldLeft + 134, fieldLeft + 158, y + 13, y + 41)),
-                ]),
+                el(
+                    `number-input-wrapper${capped ? " number-input-wrapper--capped" : ""}`,
+                    at(fieldLeft, fieldLeft + 164, y + 9, y + 45),
+                    [
+                        el("number-input-btn", at(fieldLeft + 110, fieldLeft + 134, y + 13, y + 41)),
+                        el("number-input-btn", at(fieldLeft + 134, fieldLeft + 158, y + 13, y + 41)),
+                    ]
+                ),
                 max ? el("account-btn account-row__max", at(712, 784, y + 13, y + 41), [], "Max") : null,
             ].filter(Boolean)
         ),
@@ -188,4 +192,20 @@ test("collectLayout reads a laid-out page, and a line missing Max's room is caug
         valueRow("Capacity", 108, 540, true),
     ]);
     assert.deepEqual(layoutBreaks(collectLayout(fixed), collectLayout(fixed)), []);
+});
+
+test("a Max showing beside a field without a cap is caught", () => {
+    const page = {
+        body: el("body", at(0, 1440, 0, 900), [
+            el("tabbed-list__body", at(0, 800, 0, 600), [
+                valueRow("Money Points", 0, 540, true),
+                valueRow("Pingy penguins", 54, 540, true, false),
+            ]),
+        ]),
+    };
+    const layout = collectLayout(page);
+    assert.deepEqual(layoutBreaks(layout, layout), [
+        `"Pingy penguins": Max shows on a line without a cap (at rest)`,
+        `"Pingy penguins": Max shows on a line without a cap (controls showing)`,
+    ]);
 });

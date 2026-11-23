@@ -77,6 +77,12 @@ export function collectLayout(doc) {
                     // A table's cells count one by one (`cells`), not as their row.
                     parts: own.filter((c) => !is(c, "save-state") && !is(c, "sr-only") && c !== cellsNode).map(box),
                     field: single ? field(single) : null,
+                    // A Max showing beside a field without a cap: Max fills up to the cap, so it has nothing to fill.
+                    uncappedMax:
+                        Boolean(single) &&
+                        is(single, "number-input-wrapper") &&
+                        !is(single, "number-input-wrapper--capped") &&
+                        own.some((c) => is(c, "account-row__max")),
                     toggle: toggle ? box(first(toggle, "slider") ?? toggle) : null,
                     opener: opener ? box(opener) : null,
                     cells: cellsNode
@@ -145,6 +151,7 @@ function listBreaks(list, state) {
     }
     for (const row of rows) {
         const where = `${at}"${row.name}"`;
+        if (row.uncappedMax) breaks.push(`${where}: Max shows on a line without a cap`);
         const fields = [row.field, ...row.cells.map((cell) => cell.field)].filter(Boolean);
         for (const f of fields)
             if (f.steppers.some((s) => !inside(s, f))) breaks.push(`${where}: its − / + stick out of their field`);
