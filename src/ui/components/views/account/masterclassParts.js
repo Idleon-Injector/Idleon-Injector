@@ -65,8 +65,10 @@ const upgradeBonus = (line) => {
  * @param {string} [opts.orderPath] a game list of indexes, the order the game shows them in (the Royal Armory's)
  * @param {(def: Array) => boolean} [opts.only] the upgrades of this tab (a Compass path)
  * @param {[string, string]} opts.words what the tray's line counts ("upgrade", "upgrades")
- * @param {(upgrade: object) => *} [opts.afterSave] after a level saved (a cache the game rebuilds from it)
- * @param {(upgrades: object[]) => *} [opts.afterBulk] after Max all or Reset all, worked or not
+ * @param {(upgrade: object) => *} [opts.afterSave] after a level saved, or a refused save that changed it (a cache the
+ *   game rebuilds from it)
+ * @param {(upgrades: object[]) => *} [opts.afterBulk] after Max all or Reset all, worked or not, with the upgrades
+ *   whose level changed (or can't be read)
  * @param {() => boolean} opts.pending true while the page reads, or after a read that failed
  * @param {() => *} opts.reload reads the page again
  */
@@ -89,6 +91,15 @@ export const UpgradesPart = ({
     const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
     const pathOf = (upgrade) => `${levelsPath}[${upgrade.n}]`;
+    // Of the upgrades a save tried, those whose level the game holds now isn't the one shown before it; all of them when
+    // the game can't be read. A refused save may still have landed; one that didn't leaves the caches as they are.
+    const changedOf = async (tried, before) => {
+        const now = await gga(levelsPath).then(
+            (raw) => toIndexedArray(raw ?? []),
+            () => null
+        );
+        return now ? tried.filter((upgrade) => Number(now[upgrade.n] ?? 0) !== Number(before.get(upgrade.n))) : tried;
+    };
 
     const UpgradeRow = (upgrade) => {
         const row = ClampedLevelRow({
@@ -100,11 +111,13 @@ export const UpgradesPart = ({
             writePath: afterSave ? null : pathOf(upgrade),
             write: afterSave
                 ? async (level) => {
+                      const before = new Map([[upgrade.n, getLevel(upgrade.n).val]]);
                       try {
                           await writeVerified(pathOf(upgrade), level);
                       } catch (error) {
-                          // A failed save may still have changed the game: its cache goes too, and the failure is said.
-                          await Promise.resolve(afterSave(upgrade)).catch(() => {});
+                          // A failed save that still changed the level: its cache goes too, and the failure is said.
+                          if ((await changedOf([upgrade], before)).length)
+                              await Promise.resolve(afterSave(upgrade)).catch(() => {});
                           throw error;
                       }
                       await afterSave(upgrade);
@@ -121,7 +134,9 @@ export const UpgradesPart = ({
     const setLevels = async (entries, targetOf) => {
         const result = await bulk.run(async () => {
             // Nothing to change (every upgrade shown already at its max): no write, and no cache to clear.
-            if (!entries.some((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade))) return { cancelled: true };
+            const tried = entries.filter((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade));
+            if (!tried.length) return { cancelled: true };
+            const before = new Map(tried.map((upgrade) => [upgrade.n, getLevel(upgrade.n).val]));
             try {
                 await runBulkSet({
                     entries,
@@ -130,7 +145,9 @@ export const UpgradesPart = ({
                     getPath: pathOf,
                 });
             } finally {
-                if (afterBulk) await afterBulk(entries);
+                // Worked or not, the upgrades whose level changed (or can't be read) go to the hook, and only those.
+                const changed = afterBulk ? await changedOf(tried, before) : [];
+                if (changed.length) await afterBulk(changed);
             }
         });
         // Some of it may have landed: the rows show what the game holds.

@@ -107,9 +107,11 @@ const picked = (row) =>
         elements(row).find((node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true")
     ).trim();
 // The game keeps the old value whatever is written there.
-const refuseWrites = (list, index) => {
-    const kept = list[index];
-    Object.defineProperty(list, index, { get: () => kept, set() {}, configurable: true });
+// With `landing`, a write lands as landing(value) instead: the level changes, but not to what was asked.
+const refuseWrites = (list, index, landing = null) => {
+    let kept = list[index];
+    const set = (value) => landing && (kept = landing(value));
+    Object.defineProperty(list, index, { get: () => kept, set, configurable: true });
     return () => Object.defineProperty(list, index, { value: kept, writable: true, configurable: true });
 };
 // Hold the game's writes until released, to act while a save runs.
@@ -247,19 +249,33 @@ test("grimoire: Max all fills the upgrades that have a max, lowers one above it,
     }
 });
 
-// Review of #239: a failed save may still have changed the level, so the game's level total goes then too.
-test("grimoire: a refused level save says why, and the game counts its levels again", async () => {
+// Review of #239: a failed save that still changed the level clears the game's level total; one that changed
+// nothing leaves it.
+test("grimoire: a refused level save says why, and the game counts its levels again only if it changed", async () => {
     const { pane } = await openPane(GRIMOIRE, "Upgrades");
     const row = rowNamed(pane, "Wraith Accuracy");
+    const level = gga.Grimoire[1];
     gga.DNSM.h.GrimoireTotLV = 1234;
-    const restore = refuseWrites(gga.Grimoire, 1);
+    let restore = refuseWrites(gga.Grimoire, 1);
     try {
         typeAndEnter(row, 66);
         await settled(row);
         assert.equal(stateOf(row), "error");
-        assert.equal(gga.DNSM.h.GrimoireTotLV, undefined, "the total is gone though the save failed");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, 1234, "nothing changed: the total stays");
+        restore();
+        restore = refuseWrites(gga.Grimoire, 1, (value) => value + 1);
+        typeAndEnter(row, 67);
+        await until(() => gga.Grimoire[1] === 68, "the save to land as 68");
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(
+            gga.DNSM.h.GrimoireTotLV,
+            undefined,
+            "the level changed: the total is gone though the save failed"
+        );
     } finally {
         restore();
+        gga.Grimoire[1] = level;
     }
 });
 
@@ -333,6 +349,79 @@ test("royal armory: the upgrades on the game's shelves, and the Lil' Orblet Shop
     await until(() => rowsIn(shop).length, "the shop");
     assert.ok(names(shop).includes("Full Clear"));
     assert.ok(names(shop).includes("Stronk Rank"));
+});
+
+// Review of #239 round 2: a shelf that adds map units (28) rebuilds them only when its level changed.
+const REBUILD_SHELF = 28;
+const armoryUnits = () => {
+    gga.RoyalG[6] = [...gga.RoyalG[6], 4];
+    gga.RoyalG[7] = [...gga.RoyalG[7], 1];
+    return unitArrays();
+};
+
+test("royal armory: a refused save on a unit shelf leaves the units where they are", async () => {
+    const saved = unitArrays();
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const restore = refuseWrites(gga.RoyalG[2], n);
+    try {
+        const { pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        const placed = armoryUnits();
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        typeAndEnter(row, Number(gga.RoyalG[2][n] ?? 0) === 0 ? 1 : 0);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.deepEqual(unitArrays(), placed, "the units stay as placed");
+    } finally {
+        restore();
+        putUnitArrays(saved);
+    }
+});
+
+test("royal armory: a failed save that still changed a unit shelf builds the units again", async () => {
+    const saved = unitArrays();
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const level = gga.RoyalG[2][n];
+    const maps = copy(gga.RoyalMaps); // the rebuild also sets the slots each Barracks opens
+    const restore = refuseWrites(gga.RoyalG[2], n, (value) => value + 1);
+    try {
+        const { pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        const placed = armoryUnits();
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        typeAndEnter(row, 1);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        await until(() => JSON.stringify(unitArrays()) !== JSON.stringify(placed), "the units built again");
+    } finally {
+        restore();
+        gga.RoyalG[2][n] = level;
+        gga.RoyalMaps = maps;
+        putUnitArrays(saved);
+    }
+});
+
+test("royal armory: Max all leaves the units where they are when no unit shelf changes", async () => {
+    const saved = unitArrays();
+    const levels = copy(gga.RoyalG[2]);
+    const order = gga.CustomLists.h.Research[43];
+    const maxOf = (n) => Number(gga.CustomLists.h.ArmoryUpg[n][4]);
+    try {
+        order.forEach((n) => maxOf(n) < 999999 && (gga.RoyalG[2][n] = maxOf(n)));
+        const lowered = order.find(
+            (n, position) => position + 1 !== REBUILD_SHELF && maxOf(n) > 1 && maxOf(n) < 999999
+        );
+        gga.RoyalG[2][lowered] = 0;
+        const { root } = await openPane(ROYAL_ARMORY, "Upgrades");
+        await click(buttonNamed(root, "Refresh"));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const placed = armoryUnits();
+        await click(buttonNamed(root, "Max all"));
+        await until(() => gga.RoyalG[2][lowered] === maxOf(lowered), "the lowered upgrade to its max");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        assert.deepEqual(unitArrays(), placed, "the units stay as placed");
+    } finally {
+        gga.RoyalG[2] = levels;
+        putUnitArrays(saved);
+    }
 });
 
 // ---- Tesseract › Map Bonuses -------------------------------------------------------------------------------------
