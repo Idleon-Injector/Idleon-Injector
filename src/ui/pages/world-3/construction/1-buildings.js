@@ -751,6 +751,53 @@ const CogsTab = () => {
         return `${getSlotName(getActiveIndex())} · ${!name || name === "Blank" ? "Empty" : name}`;
     };
 
+    // Lock or Unlock: a save that works hides the pressed one and shows the other. Focus still on the pressed one (or
+    // dropped with it) goes to the one shown now; focus the player moved meanwhile stays where they put it.
+    const lockAndHandOver = async (unlock) => {
+        const index = getActiveIndex();
+        const [from, to] = unlock ? [unlockButton, lockButton] : [lockButton, unlockButton];
+        await setSlotLockState(index, unlock);
+        if (activeSlot.val !== index || (getSlotState(slotValues[index].val) === "unlocked") !== unlock) return;
+        // After VanJS shows the other one: its update was queued first. One that can't be pressed (a cog sits in the
+        // slot) leaves focus on the editor.
+        setTimeout(() => {
+            const at = document.activeElement;
+            if (at === from || at === document.body) (to.disabled ? editor : to).focus();
+        });
+    };
+    const lockButton = ActionButton({
+        label: "Lock",
+        status: shownLockStatus,
+        variant: "danger",
+        // Only the change the slot can take shows: Lock on an unlocked slot, Unlock on the others.
+        buttonProps: { hidden: () => getSlotState(slotValues[getActiveIndex()].val) !== "unlocked" },
+        disabled: () => {
+            const index = getActiveIndex();
+            return (
+                !loaded.val ||
+                lockStatus.val === "loading" ||
+                getSlotState(slotValues[index].val) === "locked" ||
+                getSlotCogId(index) !== "Blank"
+            );
+        },
+        onClick: () => lockAndHandOver(false),
+    });
+    const unlockButton = ActionButton({
+        label: "Unlock",
+        status: shownLockStatus,
+        buttonProps: { hidden: () => getSlotState(slotValues[getActiveIndex()].val) === "unlocked" },
+        disabled: () => {
+            const index = getActiveIndex();
+            return (
+                !loaded.val ||
+                lockStatus.val === "loading" ||
+                getSlotState(slotValues[index].val) === "unlocked" ||
+                PREMIUM_COG_IDS.has(getSlotCogId(index))
+            );
+        },
+        onClick: () => lockAndHandOver(true),
+    });
+
     // The editor opens in place, under the board, as one group of the page's value rows: the slot and its cog on the
     // group's line with Lock and Unlock at its end, then a row for each of the cog's values.
     const editor = div(
@@ -780,38 +827,8 @@ const CogsTab = () => {
                     success: "Saved",
                     error: "Couldn't save",
                 }),
-                ActionButton({
-                    label: "Lock",
-                    status: shownLockStatus,
-                    variant: "danger",
-                    // Only the change the slot can take shows: Lock on an unlocked slot, Unlock on the others.
-                    buttonProps: { hidden: () => getSlotState(slotValues[getActiveIndex()].val) !== "unlocked" },
-                    disabled: () => {
-                        const index = getActiveIndex();
-                        return (
-                            !loaded.val ||
-                            lockStatus.val === "loading" ||
-                            getSlotState(slotValues[index].val) === "locked" ||
-                            getSlotCogId(index) !== "Blank"
-                        );
-                    },
-                    onClick: () => setSlotLockState(getActiveIndex(), false),
-                }),
-                ActionButton({
-                    label: "Unlock",
-                    status: shownLockStatus,
-                    buttonProps: { hidden: () => getSlotState(slotValues[getActiveIndex()].val) === "unlocked" },
-                    disabled: () => {
-                        const index = getActiveIndex();
-                        return (
-                            !loaded.val ||
-                            lockStatus.val === "loading" ||
-                            getSlotState(slotValues[index].val) === "unlocked" ||
-                            PREMIUM_COG_IDS.has(getSlotCogId(index))
-                        );
-                    },
-                    onClick: () => setSlotLockState(getActiveIndex(), true),
-                }),
+                lockButton,
+                unlockButton,
             ],
             body: editorHost,
         })

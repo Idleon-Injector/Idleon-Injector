@@ -1205,6 +1205,37 @@ test("Cogs: the editor's status line says the Lock is saved", async () => {
     }
 });
 
+// CodeRabbit on #254: a Lock or Unlock that works hides the pressed button, which took keyboard focus out of the editor.
+test("Cogs: after Lock and Unlock, focus goes to the button shown now", async () => {
+    const before = [gga.FlagUnlock[6], gga.CogOrder[6]];
+    gga.FlagUnlock[6] = -11;
+    gga.CogOrder[6] = "Blank";
+    try {
+        const { popup, open } = await openCogs();
+        open(6);
+        const lock = buttonIn(popup, "Lock");
+        const unlock = buttonIn(popup, "Unlock");
+        await until(() => !isDisabled(lock), "slot 6's Lock");
+        lock.focus();
+        click(lock);
+        await until(() => gga.FlagUnlock[6] === 0 && globalThis.document.activeElement === unlock, "focus on Unlock");
+        click(unlock);
+        await until(() => gga.FlagUnlock[6] === -11 && globalThis.document.activeElement === lock, "focus on Lock");
+        // Focus the player moved while it saved stays there.
+        const cog = byClass(popup.parentNode, "cogs-slot")[0];
+        const hold = holdWrites();
+        click(lock);
+        await until(() => hold.held() === 1, "the Lock to reach the game");
+        cog.focus();
+        hold.release();
+        await until(() => gga.FlagUnlock[6] === 0, "the Lock to save");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.equal(globalThis.document.activeElement, cog);
+    } finally {
+        [gga.FlagUnlock[6], gga.CogOrder[6]] = before;
+    }
+});
+
 // Review of #207: Unlock wrote the slot before its flag, so a flag the game didn't take stayed on an unlocked slot, and
 // Unlock couldn't be pressed again.
 test("Cogs: Unlock takes the flag off first, and either half failing leaves Unlock to try again", async () => {
