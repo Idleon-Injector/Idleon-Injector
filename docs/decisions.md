@@ -429,3 +429,20 @@ back. #2 also put the vanilla prayers back when `w3 prayer` turned off, by redef
 rules forbid that, so applying the loadout again with the cheat off (or Undo) does it.
 
 Source: [Wardrobe planner](../src/cheats/helpers/wardrobe/planner.js).
+
+## Show game pictures only from the running game
+
+Decision: a pet's picture is read from the game's own sprite in the page (`getPetPicture`) and handed to the menu by
+the server: frame 0 as a PNG for the card, its idle frames as one strip for the hover. Nothing is written to disk, and
+no game picture goes into the repo, CI, the page shots or a PR. Without a picture (no game, the fake game, the game's
+monsters not loaded yet at character select, an unreadable canvas) a pet shows its name as before.
+
+Why: the art belongs to the game. Taking it from the game on the player's PC means the injector ships none of it.
+
+Alternative: a picture set kept in the repo or downloaded from a wiki, which would ship the game's art.
+
+Trade-off: no pictures without a running game, and none at character select, since loading the monster sprite there
+stalls the game for about a second. The server asks the game for one picture a frame, so a long list fills in over a
+second or two instead of stalling the game (all 177 at once does, for about 0.2 s).
+
+Source: [game side](../src/cheats/helpers/petPictures.js), [routes](../src/modules/server/routes/game.js).

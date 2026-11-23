@@ -71,6 +71,17 @@ export async function fetchCheatsData() {
     return _request("/cheats");
 }
 
+/** A pet's still picture (PNG) from the running game, for an <img>. It answers 404 with no game or no picture. */
+export const petPictureUrl = (id) => `${API_BASE}/game/pet-picture?id=${id}`;
+
+/**
+ * A pet's idle frames from the running game: `{ png, width, height, durations }`, the frames side by side; null with no
+ * game, no picture, or a canvas the game won't hand over.
+ */
+export async function fetchPetFrames(id) {
+    return _request(`/game/pet-frames?id=${id}`);
+}
+
 /** Fetch bundle names, codes, and live ownership flags from the injected runtime. */
 export async function fetchBundleCatalog() {
     const data = await _request("/game/bundles");

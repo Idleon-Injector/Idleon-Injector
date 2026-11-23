@@ -18,7 +18,9 @@ import {
     executeCheatAction,
     fetchCheatStates,
     fetchConfig,
+    fetchPetFrames,
     gga,
+    petPictureUrl,
     readCList,
     readComputed,
     readGgaEntries,
@@ -41,7 +43,7 @@ import {
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span, label, input } = van.tags;
+const { div, span, label, input, img } = van.tags;
 
 const COMPANION_CHEAT = "w1 companion";
 const TOKEN_PATH = "OptionsListAccount[606]";
@@ -163,11 +165,96 @@ const TIERS = [
 ];
 const TIER_RANK = { off: 0, normal: 1, plus: 2 };
 
+// Each pet's idle frames, kept while the menu runs, so a pet hovered again doesn't ask the game twice.
+const petFrames = new Map();
+
+const loadFrames = (id) => {
+    if (!petFrames.has(id)) {
+        const frames = fetchPetFrames(id).then(async (strip) => {
+            if (!strip) throw new Error("No picture");
+            const image = new Image();
+            image.src = strip.png;
+            await image.decode();
+            return { ...strip, image };
+        });
+        // A failed read is asked again on the next hover (the game may be back).
+        frames.catch(() => petFrames.delete(id));
+        petFrames.set(id, frames);
+    }
+    return petFrames.get(id).catch(() => null);
+};
+
+/**
+ * A pet's picture from the running game, in the same box on every row. It grows in whole device-pixel steps so the
+ * pixel art stays crisp, and a pet bigger than the box shrinks to fit. Frame 0 stands still; `play` loops the pet's
+ * idle frames while the pointer is on its row (never with reduced motion), `stop` puts frame 0 back. With no picture
+ * the box goes away and the row shows the name as it always did.
+ */
+const PetPicture = (id) => {
+    const box = span({ class: "pet-picture", "aria-hidden": "true" });
+    const still = img({ class: "pet-picture__art", src: petPictureUrl(id), alt: "", loading: "lazy" });
+    // The idle frames and the canvas they're drawn on, once the pet has been hovered.
+    let strip = null;
+    let canvas = null;
+    let timer = 0;
+    let hovered = false;
+
+    const fit = (width, height) => {
+        const ratio = window.devicePixelRatio || 1;
+        // The box's side comes from pets.css (read from the style: a tab switched away mid-load has no layout).
+        const room = (parseFloat(getComputedStyle(box).width) * ratio) / Math.max(width, height);
+        const scale = (room >= 1 ? Math.floor(room) : room) / ratio;
+        box.style.setProperty("--pet-w", `${width * scale}px`);
+        box.style.setProperty("--pet-h", `${height * scale}px`);
+        box.classList.toggle("is-shrunk", room < 1);
+    };
+    still.onload = () => fit(still.naturalWidth, still.naturalHeight);
+    still.onerror = () => (box.hidden = true);
+    box.append(still);
+
+    // One frame of the strip, copied at the game's own size; CSS scales the canvas like the still.
+    const draw = (frame) => {
+        const pen = canvas.getContext("2d");
+        pen.clearRect(0, 0, strip.width, strip.height);
+        pen.drawImage(strip.image, frame * strip.width, 0, strip.width, strip.height, 0, 0, strip.width, strip.height);
+    };
+
+    const play = async () => {
+        hovered = true;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || box.hidden || !still.naturalWidth) return;
+        const frames = await loadFrames(id);
+        // Left again while the frames came, already playing, or a pet with one idle frame: it stays still.
+        if (!frames || !hovered || timer || frames.durations.length < 2) return;
+        if (!canvas) {
+            strip = frames;
+            canvas = van.tags.canvas({ class: "pet-picture__art", width: strip.width, height: strip.height });
+            draw(0);
+            still.replaceWith(canvas);
+        }
+        let frame = 0;
+        const next = () => {
+            frame = (frame + 1) % strip.durations.length;
+            draw(frame);
+            timer = setTimeout(next, strip.durations[frame]);
+        };
+        timer = setTimeout(next, strip.durations[0]);
+    };
+
+    const stop = () => {
+        hovered = false;
+        clearTimeout(timer);
+        timer = 0;
+        if (canvas) draw(0);
+    };
+
+    return { box, play, stop };
+};
+
 /**
  * One pet: its bonus first (the Pets+ one when that tier applies), its name under it; then whether the game already
  * owns it, its tier, and its token. The row is the pet's only control, so the same row works for clicks and keys.
  */
-const PetRow = ({ companion, tierOf, onTier, isToken, tokenRefused, ownedPet, isBusy, onToken, isShown }) => {
+const PetRow = ({ companion, tierOf, onTier, isToken, tokenRefused, ownedPet, isBusy, onToken, isShown, picture }) => {
     const { id } = companion;
     // Pets+ in the game: picked here, or the game's own Pets+ pet left Off here.
     const isPlusInGame = () => tierOf(id) === "plus" || (ownedPet(id)?.plus && tierOf(id) === "off");
@@ -177,9 +264,13 @@ const PetRow = ({ companion, tierOf, onTier, isToken, tokenRefused, ownedPet, is
         return owned ? (owned.plus ? "Owned · Pets+" : "Owned") : "";
     };
     return AccountRow({
-        rowClass: () => joinClasses("pet-row", !isShown(companion) && "is-filtered-out"),
-        rowProps: { "data-pet-id": String(id) },
+        rowClass: () => joinClasses("pet-row", picture && "pet-row--picture", !isShown(companion) && "is-filtered-out"),
+        // The pet moves while the pointer is on its row, the same moment the row shows its controls.
+        rowProps: picture
+            ? { "data-pet-id": String(id), onmouseenter: picture.play, onmouseleave: picture.stop }
+            : { "data-pet-id": String(id) },
         info: [
+            picture?.box,
             RowTitles({
                 bonus,
                 name: companion.name,
@@ -232,6 +323,8 @@ const CompanionsTab = () => {
     // Pets the game doesn't really have yet stay out of the way until asked for.
     const showUnavailable = van.state(false);
     const tokens = van.state({ owned: 0, missing: [], picks: [], blacklist: [], ownedPets: [] });
+    // Whether the game hands pet pictures over. Without them (no game, a canvas it won't share) rows show names only.
+    let pictures = false;
 
     const isPlus = (id) => plusIds.val.has(id);
     const isToken = (id) => tokens.val.picks.includes(id);
@@ -312,6 +405,13 @@ const CompanionsTab = () => {
 
             companions.val = nextCompanions;
             sections.val = buildSections(nextCompanions, rawSetsInfo);
+            // Asked once before the rows are built, so a row never gains its box later and moves. Pictures that start
+            // working on a Refresh rebuild the rows.
+            const firstPet = nextCompanions.find((companion) => !companion.isUnused);
+            if (!pictures && firstPet && (await fetchPetFrames(firstPet.id).catch(() => null))) {
+                pictures = true;
+                panelKey = "";
+            }
 
             tokens.val = await readComputed("companions", "petTokens");
             await readSelection();
@@ -609,6 +709,7 @@ const CompanionsTab = () => {
                                 isBusy,
                                 onToken: handleToken,
                                 isShown,
+                                picture: pictures ? PetPicture(companion.id) : null,
                             });
                             rowOf.set(companion.id, row);
                             return row;
