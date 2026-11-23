@@ -23,14 +23,19 @@ menuTree.val = buildMenuTree([page("w2.bubbles", 2, "Alchemy"), page("automation
 const find = (node, test) => (test(node) ? [node] : (node.childNodes ?? []).flatMap((child) => find(child, test)));
 const entry = (sidebar, key) => find(sidebar, (node) => node.attributes?.["data-key"] === String(key))[0];
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+const text = (node) => (typeof node === "string" ? node : (node.data ?? (node.childNodes ?? []).map(text).join("")));
 const place = () => ({ tab: store.app.activeTab, world: store.app.menuWorld, page: store.app.menuPage });
 
-for (const key of [2, "automation"]) {
+for (const [key, first] of [
+    [2, "Alchemy"],
+    ["automation", "Overview"],
+]) {
     test(`picking ${key === 2 ? "World 2" : "Automation"} opens its list and leaves the open page as it was`, async () => {
         store.openMenu({ view: "HOME" });
         await settle();
         menuLevel.val = null;
         const before = place();
+        globalThis.document.activeElement = null; // not left from the test before
         // The list renders all the way: a render that throws is only logged.
         const errors = [];
         const log = console.error;
@@ -44,11 +49,9 @@ for (const key of [2, "automation"]) {
         assert.deepEqual(errors, []);
         assert.equal(menuLevel.val, key, "its list shows");
         assert.deepEqual(place(), before, "no page opened");
-        assert.match(
-            globalThis.document.activeElement.className ?? globalThis.document.activeElement.attributes.class,
-            /drill-item/,
-            "focus on its first entry"
-        );
+        const focused = globalThis.document.activeElement;
+        assert.match(focused.className ?? focused.attributes.class, /drill-item/, "focus on an entry of the list");
+        assert.equal(text(focused), first, "its first entry");
     });
 }
 
