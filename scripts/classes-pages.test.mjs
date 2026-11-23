@@ -185,7 +185,7 @@ const watchTakenOut = (node) => {
 
 // ---- The menu ----------------------------------------------------------------------------------------------------
 
-test("Classes is four systems, each with the game's screens as tabs; the Grimoire automation is its own entry", async () => {
+test("Classes is four systems, each with the game's screens as tabs; the Grimoire automation is in Automation", async () => {
     const { buildMenuTree } = await importRepo("src/ui/menu/menuModel.js");
     const pages = await Promise.all(
         [GRIMOIRE, GRIMOIRE_AUTOMATION, COMPASS, TESSERACT, ROYAL_ARMORY].map(
@@ -196,7 +196,7 @@ test("Classes is four systems, each with the game's screens as tabs; the Grimoir
     assert.deepEqual(
         classesEntry.systems.map((system) => [system.name, system.pages.length]),
         [
-            ["Grimoire", 2],
+            ["Grimoire", 1],
             ["Compass", 1],
             ["Tesseract", 1],
             ["Royal Armory", 1],
@@ -204,11 +204,8 @@ test("Classes is four systems, each with the game's screens as tabs; the Grimoir
     );
     const tabsOf = (id) => pages.find((page) => page.id === id).tabs.map((tab) => tab.label);
     assert.deepEqual(tabsOf("classes.grimoire"), ["Upgrades", "Bones"]);
-    const grimoire = classesEntry.systems.find((system) => system.name === "Grimoire");
-    assert.deepEqual(
-        grimoire.pages.map((page) => page.tab),
-        ["Grimoire", "Automation"]
-    );
+    const automation = pages.find((page) => page.id === "automation.grimoire");
+    assert.equal(automation.world, "automation", "the Grimoire automation lives in the Automation section");
     assert.deepEqual(tabsOf("classes.compass"), [
         "Elemental",
         "Fighter",
