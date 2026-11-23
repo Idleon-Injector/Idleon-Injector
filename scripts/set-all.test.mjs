@@ -121,3 +121,58 @@ test("a line saved while the question is open changes what it asks about, so it 
     assert.equal(tool.question(), "1 stamp has a max under 20. 1 goes down.");
     assert.deepEqual(tool.plans, []);
 });
+
+test("a line above its max that Stop at max lowers counts as going down, and the answers are red", async () => {
+    const tool = list([3, null], [20, 15]);
+    await tool.press(25);
+    assert.equal(tool.question(), "1 stamp has a max under 25. 1 goes down.");
+    assert.match(tool.answerClass("Stop at max"), /btn-danger/);
+    await tool.answer("Stop at max");
+    assert.deepEqual(tool.plans, [[25, 15]]);
+});
+
+test("lines saving one by one stop when the character changes on the way", async () => {
+    let character = 0;
+    const written = [];
+    const line = (id) => ({
+        id,
+        valueState: van.state(1),
+        max: null,
+        write: async (value) => {
+            written.push([id, character, value]);
+            character = 1; // the page reads another character while this save runs
+            return value;
+        },
+    });
+    const entries = [line("a"), line("b")];
+    const node = ListPanel({
+        body: [],
+        tools: (_, ask) =>
+            SetAllTool({
+                ask,
+                lines: () => entries,
+                word: (n) => `line${n === 1 ? "" : "s"}`,
+                askedFor: () => character,
+            }),
+        toolsLabel: () => "All 2 lines",
+    });
+    const tray = byClass(node, "tabbed-list__tools")[0];
+    const field = elements(tray).find((el) => el.nodeName === "input");
+    const setAll = elements(tray).find((el) => el.nodeName === "button" && text(el) === "Set all");
+    field.value = "5";
+    field.listeners.input({ target: field });
+    setAll.listeners.click({ preventDefault() {}, currentTarget: setAll });
+    await settle();
+    assert.deepEqual(written, [["a", 0, 5]], "the second line isn't written to the new character");
+    assert.match(String(attr(setAll, "class")), /account-btn--error/, "the run says it failed where it was pressed");
+});
+
+test("a row with afterWrite saves through its own write in a Set all, so its cache follows", async () => {
+    const { SimpleNumberRow } = await importRepo("src/ui/components/views/account/SimpleNumberRow.js");
+    const { linesIn } = await importRepo("src/ui/components/views/account/EditableNumberRow.js");
+    const row = (entry) => SimpleNumberRow({ entry: { name: "Wins", ...entry }, valueState: van.state(1) });
+    const plain = row({ path: "OptionsListAccount[1]" });
+    const cached = row({ path: "OptionsListAccount[319]", afterWrite: () => {} });
+    assert.equal(linesIn({ childNodes: [plain] })[0].path, "OptionsListAccount[1]");
+    assert.equal(linesIn({ childNodes: [cached] })[0].path, null, "no path, so it isn't in the one bulk write");
+});

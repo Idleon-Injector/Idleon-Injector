@@ -2,7 +2,14 @@ import van from "../../../vendor/van-1.6.0.js";
 import { NumberInput } from "../../NumberInput.js";
 import { ActionButton } from "./components/ActionButton.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
-import { resolveNumberInput, resolveValue, runBulkSet, toNodes, useWriteStatus } from "./accountShared.js";
+import {
+    CHARACTER_CHANGED,
+    resolveNumberInput,
+    resolveValue,
+    runBulkSet,
+    toNodes,
+    useWriteStatus,
+} from "./accountShared.js";
 import { linesIn } from "./EditableNumberRow.js";
 import { announce, replay } from "../../inPlace.js";
 import { hideTooltip, showTooltip } from "../../Tooltip.js";
@@ -190,8 +197,9 @@ export const SetAllTool = ({
     };
     const targetOf = (line, n, stop) => Math.max(minOf(line), stop && maxUnder(line, n) ? Number(maxOf(line)) : n);
 
-    // Each line's path in one write; a line without one saves through its own row's write, one after another.
-    const writeLines = async (plan) => {
+    // Each line's path in one write; a line without one saves through its own row's write, one after another, and
+    // stops if what was asked about (the character) changes on the way.
+    const writeLines = async (plan, asked = askedFor()) => {
         await runBulkSet({
             entries: plan.filter(({ line }) => line.path),
             getTargetValue: (step) => step.value,
@@ -202,6 +210,7 @@ export const SetAllTool = ({
         for (const { line, value } of plan.filter((step) => !step.line.path)) {
             const state = stateOf(line);
             if (Number(state.val) === value) continue;
+            if (askedFor() !== asked) throw new Error(CHARACTER_CHANGED);
             const before = state.val;
             try {
                 const verified = await line.write(value);
@@ -225,7 +234,8 @@ export const SetAllTool = ({
         const all = lines();
         const keyOf = (line) => line.row ?? line;
         const over = () => all.filter((line) => maxUnder(line, n));
-        const lowered = () => all.filter((line) => Number(stateOf(line).val) > targetOf(line, n, false));
+        // "Stop at max" can lower a line already above its max, so what goes down counts that answer too.
+        const lowered = () => all.filter((line) => Number(stateOf(line).val) > targetOf(line, n, true));
         const o = over().length;
         const l = lowered().length;
         if (!o && !l) return run(all, n, false)();
