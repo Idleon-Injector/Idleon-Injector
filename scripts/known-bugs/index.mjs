@@ -307,6 +307,10 @@ export async function loadUi(router) {
         }
         // Nothing scrolls here; the menu's tab rows call it (Pages.js).
         scrollIntoView() {}
+        // Focus is only where it went last (the cog board gives it back to the cog its editor was for).
+        focus() {
+            globalThis.document.activeElement = this;
+        }
     }
     // A page always has a body: the UI's one live region (inPlace's announce) goes there.
     const body = new Element("body");

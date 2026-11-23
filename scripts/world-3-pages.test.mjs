@@ -716,20 +716,22 @@ for (const [stored, shows] of [
 
 const COGS = "src/ui/pages/world-3/construction/1-buildings.js";
 globalThis.window = Object.assign(globalThis.window ?? {}, { innerWidth: 1280, innerHeight: 720 });
+const attr = (node, name) => {
+    const value = node?.attributes?.[name];
+    return typeof value === "function" ? value() : value;
+};
 const openCogs = async () => {
     const root = await openPage(COGS, (r) => byClass(r, "cogs-slot").length > 0);
-    const popup = byClass(globalThis.document.body, "cogs-popup").at(-1);
+    // The editor opens in place, under the board.
+    const popup = byClass(root, "cogs-editor")[0];
     const slot = (index) =>
-        byClass(root, "cogs-slot").find((node) =>
-            String(
-                typeof node.attributes.title === "function" ? node.attributes.title() : node.attributes.title
-            ).endsWith(`(Index ${index})`)
-        );
-    const open = (index) => slot(index).listeners.click({ clientX: 10, clientY: 10 });
-    return { root, popup, open };
+        byClass(root, "cogs-slot").find((node) => String(attr(node, "title")).endsWith(`(Index ${index})`));
+    // `detail` 0 is a press from the keyboard; a mouse press counts its clicks.
+    const open = (index, detail = 1) => slot(index).listeners.click({ clientX: 10, clientY: 10, detail });
+    return { root, popup, open, slot };
 };
-const statRow = (popup, code) =>
-    byClass(popup, "cogs-cog-stat-row").find((row) => text(byClass(row, "cogs-cog-stat-row__code")[0]) === code);
+const editorShut = (editor) => Boolean(attr(editor, "hidden"));
+const statRow = (popup, code) => byClass(popup, "account-row").find((row) => row.attributes["data-stat"] === code);
 const enterStat = async (row, value) => {
     const input = elements(row).find((node) => node.nodeName === "input");
     input.listeners.focus?.({ target: input });
@@ -764,7 +766,101 @@ test("Cogs: a stat that is a number refuses text that isn't one; the pattern is 
     click(options.find((option) => text(option) === "Ring"));
     await until(() => /save-state--success/.test(classes(byClass(shape, "save-state")[0])), "the pick to save");
     assert.equal(gga.CogMap[1].h.h, "ring");
-    assert.equal(byClass(globalThis.document.body, "select").length, 0);
+    assert.equal(byClass(popup, "select").length, 0);
+});
+
+// #251: the editor opens in place under the board, as one group of the page's value rows, never over the page.
+test("Cogs: a cog opens its editor in place under the board; the same cog again closes it", async () => {
+    const before = new Set(globalThis.document.body.childNodes);
+    const { root, popup, open, slot } = await openCogs();
+    assert.deepEqual(
+        globalThis.document.body.childNodes.filter((node) => !before.has(node)),
+        [],
+        "nothing is put on the page's body"
+    );
+    const tab = byClass(root, "cogs-tab")[0];
+    const board = byClass(tab, "cogs-scroll")[0];
+    assert.deepEqual([tab.childNodes.indexOf(board), tab.childNodes.indexOf(popup)], [0, 1], "the board, then it");
+    assert.ok(editorShut(popup), "shut until a cog is pressed");
+
+    open(1);
+    await until(() => !editorShut(popup) && statRow(popup, "a"), "the editor to open");
+    assert.equal(attr(slot(1), "aria-expanded"), "true");
+    assert.equal(byClass(popup, "account-section").length, 1, "one group of rows");
+    assert.ok(byClass(popup, "account-row--value").includes(statRow(popup, "a")), "a stat is a value row");
+    open(1);
+    await until(() => editorShut(popup), "the same cog to close it");
+    assert.equal(attr(slot(1), "aria-expanded"), "false");
+});
+
+test("Cogs: a slot's state is plain words, and only the change it can take shows", async (t) => {
+    const flagged = gga.FlagsPlaced[0];
+    const before = [gga.FlagUnlock[flagged], gga.CogOrder[flagged]];
+    t.after(() => ([gga.FlagUnlock[flagged], gga.CogOrder[flagged]] = before));
+    gga.FlagUnlock[flagged] = 2000;
+    gga.CogOrder[flagged] = "Blank";
+    const { popup, open } = await openCogs();
+    const words = () => text(byClass(popup, "cogs-editor__state")[0]);
+    open(flagged);
+    await until(() => words().startsWith("Unlocking"), "the slot's state");
+    assert.match(words(), /^Unlocking 2K \/ \S+ · Flag placed$/);
+    assert.ok(attr(buttonIn(popup, "Lock"), "hidden") && !attr(buttonIn(popup, "Unlock"), "hidden"), "only Unlock");
+    assert.equal(byClass(popup, "account-row").length, 0, "no stats on a slot that isn't unlocked");
+    assert.equal(byClass(popup, "cogs-selection-state").length, 0, "no badge");
+});
+
+test("Cogs: a player's cog shows its fields and pick off and says it can't be changed", async (t) => {
+    keepCog(t);
+    const unlock = gga.FlagUnlock[1];
+    t.after(() => (gga.FlagUnlock[1] = unlock));
+    gga.FlagUnlock[1] = -11;
+    gga.CogOrder[1] = "Player_Lumi";
+    gga.CogMap[1].h = { a: 11, h: "row" };
+    const { popup, open } = await openCogs();
+    open(1);
+    await until(() => statRow(popup, "a") && statRow(popup, "h"), "the cog's stats");
+    const field = elements(statRow(popup, "a")).find((node) => node.nodeName === "input");
+    assert.ok(attr(field, "disabled"), "the stat's field is off");
+    assert.ok(attr(byClass(statRow(popup, "h"), "pick-in-place__opener")[0], "disabled"), "the pattern's pick is off");
+    assert.ok(attr(buttonIn(popup, "Lock"), "disabled"), "Lock is off");
+    assert.match(text(byClass(popup, "cogs-editor__state")[0]), /Can't be changed/);
+});
+
+test("Cogs: from the keyboard, Enter takes focus into the editor and Escape gives it back to the cog", async (t) => {
+    keepCog(t);
+    gga.CogOrder[1] = "Cog2B01";
+    gga.CogMap[1].h = { a: 11, b: 1 };
+    const { root, popup, open, slot } = await openCogs();
+    const tab = byClass(root, "cogs-tab")[0];
+    const escape = (target, row = null) => {
+        const event = {
+            key: "Escape",
+            target,
+            defaultPrevented: false,
+            preventDefault: () => (event.defaultPrevented = true),
+        };
+        // As the browser runs them: the tab's capture, the row's own Escape, then the tab's.
+        const [capture, bubble] = tab.handlers.keydown;
+        capture(event);
+        row?.listeners.keydown(event);
+        bubble(event);
+        return event;
+    };
+    open(1, 0);
+    await until(() => globalThis.document.activeElement === popup, "focus to go to the editor");
+
+    // Escape on a draft puts the game's value back and keeps the editor; the next Escape closes it.
+    const row = statRow(popup, "a");
+    const field = elements(row).find((node) => node.nodeName === "input");
+    field.listeners.focus?.({ target: field });
+    field.value = "50";
+    field.listeners.input?.({ target: field });
+    escape(field, row);
+    assert.equal(field.value, "11", "the draft goes");
+    assert.ok(!editorShut(popup), "the editor stays");
+    escape(field, row);
+    await until(() => editorShut(popup), "Escape to close the editor");
+    assert.equal(globalThis.document.activeElement, slot(1), "focus is back on the cog");
 });
 
 // Review of #207: one tab's failed read hid the whole Workbench, the other tab's rows with it.
@@ -818,9 +914,8 @@ test("Cogs: a Refresh while a stat is typed keeps the field and its draft; the o
 });
 
 test("Workbench: leaving the Cogs tab closes the cog editor", async () => {
-    const { root, open } = await openCogs();
-    const overlay = byClass(globalThis.document.body, "cogs-popup-overlay").at(-1);
-    const shut = () => classes(overlay).includes("cogs-popup-overlay--hidden");
+    const { root, popup, open } = await openCogs();
+    const shut = () => editorShut(popup);
     click(buttonIn(root, "Cogs"));
     open(1);
     await until(() => !shut(), "the editor to open");
@@ -932,7 +1027,8 @@ test("Cogs: a read back to the shown stat clears text the game caught up with an
     assert.equal(gga.CogMap[1].h.a, 11, "Enter has nothing to save");
 });
 
-// #217: the editor sits on the page's body, so opening another page from the menu left it over that page.
+// #217: the editor sat on the page's body, so opening another page from the menu left it over that page. It opens in
+// the page now (#251), and leaving the page still closes it.
 test("Workbench: opening another page from the menu closes the cog editor", async () => {
     const store = (await importRepo("src/ui/state/store.js")).default;
     const { menuTree } = await importRepo("src/ui/menu/pageRegistry.js");
@@ -947,8 +1043,8 @@ test("Workbench: opening another page from the menu closes the cog editor", asyn
     const view = Pages();
     store.openMenu({ world: 3, page: "w3.construction.buildings" });
     await until(() => byClass(view, "cogs-slot").length > 0, "the Workbench to show");
-    const overlay = byClass(globalThis.document.body, "cogs-popup-overlay").at(-1);
-    const shut = () => classes(overlay).includes("cogs-popup-overlay--hidden");
+    const editor = byClass(view, "cogs-editor")[0];
+    const shut = () => editorShut(editor);
     click(buttonIn(view, "Cogs"));
     byClass(view, "cogs-slot")[1].listeners.click({ clientX: 10, clientY: 10 });
     await until(() => !shut(), "the editor to open");
@@ -1039,7 +1135,7 @@ test("Cogs: Lock and Unlock wait for a read of the board that works", async () =
     } finally {
         globalThis.fetch = realFetch;
     }
-    const popup = byClass(globalThis.document.body, "cogs-popup").at(-1);
+    const popup = byClass(root, "cogs-editor")[0];
     const lock = buttonIn(popup, "Lock");
     const unlock = buttonIn(popup, "Unlock");
     click(buttonIn(root, "Cogs"));

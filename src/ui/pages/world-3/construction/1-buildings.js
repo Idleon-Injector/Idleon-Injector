@@ -51,13 +51,14 @@ import { ActionButton } from "../../../components/views/account/components/Actio
 import { TabbedList } from "../../../components/views/account/tabShared.js";
 import { EmptyState } from "../../../components/EmptyState.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
-import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
     bonusText,
     cleanName,
+    joinClasses,
     createStaticRowReconciler,
     largeFormatter,
     largeParser,
@@ -79,7 +80,7 @@ import { NumberInput, getNumberInputLiveRaw, setNumberInputValue } from "../../.
 import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
 import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
 
-const { div, button, span, h3 } = van.tags;
+const { div, button, span } = van.tags;
 
 const MAIN_COLS = 12;
 const MAIN_ROWS = 8;
@@ -92,10 +93,6 @@ const TOTAL_SLOT_COUNT = MAIN_SLOT_COUNT + SIDE_SLOT_COUNT * 2; // 120
 const UNLOCKED_SENTINEL = -11;
 // CogOrder[228..251] = tiny cog slots (24 slots), mapped to side-rail UI indices 96..119
 const COGORDER_SIDE_START = 228;
-
-const POPOVER_WIDTH = 420;
-const POPOVER_HEIGHT = 520;
-const POPOVER_GAP = 4;
 
 const PREMIUM_COG_IDS = new Set(["CogY", "CogZA00", "CogZA01", "CogZA02", "CogZA03"]);
 const COG_MAP_FIELD_ORDER = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"];
@@ -210,42 +207,22 @@ const renderWriteStatus = (statusState, labels) =>
         () => labels[statusState.val] ?? ""
     );
 
-const cogsUiStore = {
-    popupHost: null,
-};
-
-const ensureCogsPopupHost = () => {
-    if (!cogsUiStore.popupHost) {
-        // One fixed popup host is reused across Cogs mounts to preserve popover positioning.
-        const host = document.createElement("div");
-        host.className = "cogs-popup-host";
-        document.body.appendChild(host);
-        cogsUiStore.popupHost = host;
-    }
-    return cogsUiStore.popupHost;
-};
-
-/** `save` (a useAutoSave) saves this row on its own; `state` only shows one that a group of rows shares. */
-const CogsEditorRow = ({ code, name, meaning, inputNode, save = null, state = save }) =>
-    div(
-        {
-            class: () => `cogs-cog-stat-row ${state ? saveStateClass(state.status.val, state.undo) : ""}`,
-            ...(save?.handlers ?? {}),
-        },
-        div({ class: "cogs-cog-stat-row__code" }, code),
-        div(
-            { class: "cogs-cog-stat-row__text" },
-            div({ class: "cogs-cog-stat-row__name" }, name),
-            div({ class: "cogs-cog-stat-row__meaning" }, meaning)
-        ),
-        div({ class: "cogs-cog-stat-row__edit" }, state ? SaveState(state) : null, inputNode)
-    );
+/**
+ * One of the cog's values as the shared value row: what it is, what it means under it, and its field or pick.
+ * `save` (a useAutoSave) saves this row on its own; `state` only shows one that a group of rows shares.
+ */
+const CogsEditorRow = ({ stat, name, meaning, inputNode, save = null, state = save }) =>
+    AccountRow({
+        rowClass: () => joinClasses("account-row--value", state && saveStateClass(state.status.val, state.undo)),
+        rowProps: { "data-stat": stat, ...(save?.handlers ?? {}) },
+        info: RowTitles({ bonus: name, name: meaning }),
+        controls: [state ? SaveState(state) : null, inputNode],
+    });
 
 const CogsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cogs" });
 
     const activeSlot = van.state(null);
-    const popupPos = van.state({ left: 24, top: 24, maxHeight: POPOVER_HEIGHT });
     const slotValues = Array.from({ length: TOTAL_SLOT_COUNT }, () => van.state(0));
     const slotCaps = Array.from({ length: MAIN_SLOT_COUNT }, () => van.state(0));
     const flaggedSlots = van.state(new Set());
@@ -424,7 +401,11 @@ const CogsTab = () => {
                     },
                 };
             },
-            revert: () => syncTinyInputsFromSlot(index),
+            // Escape: the field shows the slot's tier at once, so the same Escape doesn't also close the editor.
+            revert: () => {
+                syncTinyInputsFromSlot(index);
+                setNumberInputValue(tinyTierInput, tinyTierInput.rawVal);
+            },
         });
 
     const tinySaves = new Map();
@@ -463,7 +444,7 @@ const CogsTab = () => {
             },
 
             CogsEditorRow({
-                code: "t",
+                stat: "type",
                 name: "Tiny type",
                 meaning: "What the tiny cog adds to",
                 inputNode: StepPicker({
@@ -480,7 +461,7 @@ const CogsTab = () => {
                 }),
             }),
             CogsEditorRow({
-                code: "lvl",
+                stat: "tier",
                 name: "Tiny tier",
                 meaning: `1 to ${TINY_COG_MAX_TIER}`,
                 inputNode: NumberInput({
@@ -496,36 +477,23 @@ const CogsTab = () => {
         );
     };
 
-    const computePopupPos = (mouseX, mouseY) => {
-        const vw = window.innerWidth || 1280;
-        const vh = window.innerHeight || 720;
+    // The cog buttons by slot, so Escape can give focus back to the cog it opened.
+    const slotButtons = [];
 
-        let left = mouseX + POPOVER_GAP;
-        if (left + POPOVER_WIDTH > vw) {
-            left = Math.max(0, mouseX - POPOVER_WIDTH - POPOVER_GAP);
-        }
-
-        const MIN_VISIBLE = 200;
-        let top = mouseY + POPOVER_GAP;
-        const maxAllowedTop = Math.max(0, vh - MIN_VISIBLE);
-        if (top > maxAllowedTop) top = maxAllowedTop;
-
-        const maxHeight = Math.max(MIN_VISIBLE, vh - top - POPOVER_GAP);
-
-        return { left, top, maxHeight };
-    };
-
-    const openSlotPopup = (index, event) => {
-        const mouseX = event?.clientX ?? 0;
-        const mouseY = event?.clientY ?? 0;
-        popupPos.val = computePopupPos(mouseX, mouseY);
+    const openSlot = (index, event) => {
         activeSlot.val = index;
         syncTinyInputsFromSlot(index);
         void refreshActiveCogName(index);
+        // Pressed from the keyboard (a click with no pointer), focus goes to the editor, so Tab reaches its fields
+        // next instead of the rest of the board. A mouse press scrolls nothing: the next cog stays under the pointer.
+        // After VanJS shows it: its update was queued first.
+        if (event?.detail === 0) setTimeout(() => editor.focus());
     };
 
-    const closeSlotPopup = () => {
+    const closeSlot = (backToCog = false) => {
+        const index = activeSlot.val;
         activeSlot.val = null;
+        if (backToCog && index !== null) slotButtons[index].focus({ preventScroll: true });
     };
 
     const renderCogOverlay = (index) => {
@@ -546,7 +514,7 @@ const CogsTab = () => {
     };
 
     const renderSlot = (index, sizeClass) =>
-        button(
+        (slotButtons[index] = button(
             {
                 type: "button",
                 class: () => {
@@ -560,9 +528,10 @@ const CogsTab = () => {
                         .filter(Boolean)
                         .join(" ");
                 },
-                // The slot opens its editor beside it; pressed again, it closes it.
+                // The slot opens its editor under the board; pressed again, it closes it.
                 "aria-expanded": () => String(activeSlot.val === index),
-                onclick: (e) => (activeSlot.val === index ? closeSlotPopup() : openSlotPopup(index, e)),
+                "aria-controls": "cogs-editor",
+                onclick: (e) => (activeSlot.val === index ? closeSlot() : openSlot(index, e)),
                 title: () => `${getSlotName(index)} (Index ${index})`,
             },
             () => renderSlotBackground(index),
@@ -571,7 +540,7 @@ const CogsTab = () => {
                 flaggedSlots.val.has(index)
                     ? renderCogSvg(isMainSlot(index) ? "CogFLflag" : "CogFLflagS1", "cogs-slot-flag")
                     : new Text("")
-        );
+        ));
 
     const leftRail = div(
         { class: "cogs-side-grid cogs-side-grid--left" },
@@ -598,12 +567,13 @@ const CogsTab = () => {
 
     // What the editor is built from: the slot, whether it's unlocked, whether its cog can be edited and which stats it
     // has. A read that changes only the values keeps the editor, and each stat field follows the game on its own.
+    const statKeys = (stats) =>
+        COG_MAP_FIELD_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(stats ?? {}, key));
     const editorShape = van.derive(() => {
         const index = getActiveIndex();
-        const stats = cogMapStats[index].val ?? {};
         // rawVal: saving a tiny cog changes this id, and building the editor again would drop its focus.
         const cogId = String(cogOrders[index].rawVal ?? "Blank");
-        const keys = COG_MAP_FIELD_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(stats, key));
+        const keys = statKeys(cogMapStats[index].val);
         return [index, getSlotState(slotValues[index].val), isReadOnlyCog(cogId), keys.join("")].join("|");
     });
 
@@ -615,7 +585,7 @@ const CogsTab = () => {
         const label = COG_MAP_FIELD_META[key]?.keyName ?? key;
         const row = (inputNode, save) =>
             CogsEditorRow({
-                code: key,
+                stat: key,
                 name: label,
                 meaning: COG_MAP_FIELD_META[key]?.meaning ?? "Unknown field",
                 inputNode,
@@ -655,8 +625,12 @@ const CogsTab = () => {
                 },
                 disabled: readOnly,
                 search: true,
+                // The patterns open under the row, as a character's skin does on Weekly Bosses.
+                panelClass: "row-detail pick-in-place--columns",
             });
-            return div(row(pick.opener, save), pick.panel);
+            const patternRow = row(pick.opener, save);
+            patternRow.append(pick.panel);
+            return patternRow;
         }
 
         const value = van.state(String(toNum(held(), 0)));
@@ -731,98 +705,82 @@ const CogsTab = () => {
         );
     };
 
-    // Reads rawVal only: editorShape says when to build it again.
+    // Reads rawVal only: editorShape says when to build it again. The rows go straight into the editor's group.
     const renderEditor = (index) => {
-        if (getSlotState(slotValues[index].rawVal) !== "unlocked") return span({ hidden: true });
-        if (!isMainSlot(index)) return renderTinyEditor();
+        if (getSlotState(slotValues[index].rawVal) !== "unlocked") return [];
+        if (!isMainSlot(index)) return [renderTinyEditor()];
         const stats = cogMapStats[index].rawVal ?? {};
         const readOnly = isReadOnlyCog(String(cogOrders[index].rawVal ?? "Blank"));
-        const presentKeys = COG_MAP_FIELD_ORDER.filter((key) => Object.prototype.hasOwnProperty.call(stats, key));
-        return div(
-            { class: "cogs-modal-details" },
-            div(
-                { class: "cogs-cog-stats" },
-                div({ class: "cogs-cog-stats__warning" }, "Base values. In the game, the cogs around it change them."),
-                div({ class: "cogs-cog-stats__list" }, ...presentKeys.map((key) => renderStatRow(index, key, readOnly)))
-            )
-        );
+        return statKeys(stats).map((key) => renderStatRow(index, key, readOnly));
     };
 
     // The editor is built outside VanJS's dependency capture: a field's state, which NumberInput reads as it starts,
     // would otherwise build the editor again on every − / + and save, with the value from before the save.
-    const editorHost = div({ class: "cogs-editor-host" });
+    const editorHost = div({ class: "cogs-editor__rows" });
     van.derive(() => {
         editorShape.val;
         const index = activeSlot.rawVal ?? 0;
-        queueMicrotask(() => editorHost.replaceChildren(renderEditor(index)));
+        queueMicrotask(() => editorHost.replaceChildren(...renderEditor(index)));
     });
 
-    const popupCard = div(
+    // The slot's state in plain words: "Unlocked", "Unlocking 1,200 / 5,000", with "Flag placed" and "Can't be
+    // changed" after it when they're true. No badge and no colour of its own.
+    const stateWords = () => {
+        const index = getActiveIndex();
+        const state = getSlotState(slotValues[index].val);
+        const charge =
+            state === "unlocked"
+                ? ""
+                : ` ${isMainSlot(index) ? formatMainCharge(slotValues[index].val, slotCaps[index].val) : formatSideCharge(slotValues[index].val, index)}`;
+        return [
+            `${stateLabel(state)}${charge}`,
+            flaggedSlots.val.has(index) && "Flag placed",
+            state === "unlocked" && isReadOnlyCog(getSlotCogId(index)) && "Can't be changed",
+        ]
+            .filter(Boolean)
+            .join(" · ");
+    };
+
+    const cogTitle = () => {
+        const name = activeCogNameStatus.val === "loading" ? "…" : activeCogName.val;
+        return `${getSlotName(getActiveIndex())} · ${!name || name === "Blank" ? "Empty" : name}`;
+    };
+
+    // The editor opens in place, under the board, as one group of the page's value rows: the slot and its cog on the
+    // group's line with Lock and Unlock at its end, then a row for each of the cog's values.
+    const editor = div(
         {
-            class: "cogs-popup",
-            onclick: (e) => e.stopPropagation(),
+            id: "cogs-editor",
+            class: "cogs-editor",
+            role: "region",
+            "aria-label": () => `Cog ${getSlotName(getActiveIndex())}`,
+            tabindex: "-1",
+            hidden: () => activeSlot.val === null,
         },
-        div(
-            { class: "cogs-modal-header" },
-            div(
-                { class: "cogs-modal-header-left" },
-                h3({}, () => getSlotName(getActiveIndex())),
-                span(
-                    {
-                        class: () => {
-                            const status = activeCogNameStatus.val;
-                            const name = activeCogName.val;
-                            const hidden = status !== "loading" && (!name || name === "Blank");
-                            return `cogs-modal-cog-name${hidden ? " cogs-modal-cog-name--hidden" : ""}`;
-                        },
-                    },
-                    () => (activeCogNameStatus.val === "loading" ? "..." : activeCogName.val || "")
-                )
-            ),
-            span(
-                {
-                    class: () =>
-                        `cogs-selection-state cogs-selection-state--${getSlotState(slotValues[getActiveIndex()].val)}`,
-                },
-                () => stateLabel(getSlotState(slotValues[getActiveIndex()].val))
-            )
-        ),
-        div(
-            { class: "cogs-modal-body" },
-            // The charge and the flag follow each read on their own lines; the editor below is built again only when
-            // the slot, its lock or its cog's kind of stats change, so a field being typed in stays.
-            () => {
+        AccountSection({
+            title: cogTitle,
+            // Said only over a main cog's stats.
+            note: () => {
                 const index = getActiveIndex();
-                if (getSlotState(slotValues[index].val) === "unlocked") return span({ hidden: true });
-                return div(
-                    { class: "cogs-selection-charge" },
-                    span({ class: "cogs-selection-charge__label" }, "Charge"),
-                    span(
-                        { class: "cogs-selection-charge__value" },
-                        isMainSlot(index)
-                            ? formatMainCharge(slotValues[index].val, slotCaps[index].val)
-                            : formatSideCharge(slotValues[index].val, index)
-                    )
-                );
+                return isMainSlot(index) &&
+                    getSlotState(slotValues[index].val) === "unlocked" &&
+                    statKeys(cogMapStats[index].val).length
+                    ? "Base values. In the game, the cogs around it change them."
+                    : "";
             },
-            () =>
-                flaggedSlots.val.has(getActiveIndex())
-                    ? div(
-                          { class: "cogs-flag-indicator" },
-                          Cogs.FlagIcon({ class: "cogs-flag-indicator__icon", width: "14", height: "14" }),
-                          span("Flag placed")
-                      )
-                    : span({ hidden: true }),
-            editorHost
-        ),
-        div(
-            { class: "cogs-modal-footer" },
-            div(
-                { class: "cogs-selection-actions" },
+            meta: [
+                span({ class: "cogs-editor__state" }, stateWords),
+                renderWriteStatus(shownLockStatus, {
+                    loading: "Saving…",
+                    success: "Saved",
+                    error: "Couldn't save",
+                }),
                 ActionButton({
                     label: "Lock",
                     status: shownLockStatus,
                     variant: "danger",
+                    // Only the change the slot can take shows: Lock on an unlocked slot, Unlock on the others.
+                    buttonProps: { hidden: () => getSlotState(slotValues[getActiveIndex()].val) !== "unlocked" },
                     disabled: () => {
                         const index = getActiveIndex();
                         return (
@@ -837,6 +795,7 @@ const CogsTab = () => {
                 ActionButton({
                     label: "Unlock",
                     status: shownLockStatus,
+                    buttonProps: { hidden: () => getSlotState(slotValues[getActiveIndex()].val) === "unlocked" },
                     disabled: () => {
                         const index = getActiveIndex();
                         return (
@@ -847,44 +806,29 @@ const CogsTab = () => {
                         );
                     },
                     onClick: () => setSlotLockState(getActiveIndex(), true),
-                })
-            ),
-            div(
-                { class: "cogs-modal-footer-right" },
-                renderWriteStatus(shownLockStatus, {
-                    loading: "Saving…",
-                    success: "Saved",
-                    error: "Couldn't save",
                 }),
-                button({ type: "button", class: "btn-quiet btn-sm", onclick: closeSlotPopup }, "Close")
-            )
-        )
+            ],
+            body: editorHost,
+        })
     );
 
-    const popup = div(
-        {
-            class: () => `cogs-popup-overlay ${activeSlot.val === null ? "cogs-popup-overlay--hidden" : ""}`,
-            onclick: (e) => {
-                if (e.target === e.currentTarget) closeSlotPopup();
-            },
-        },
-        popupCard
-    );
-
-    van.derive(() => {
-        popupCard.style.setProperty("--cogs-popup-left", `${popupPos.val.left}px`);
-        popupCard.style.setProperty("--cogs-popup-top", `${popupPos.val.top}px`);
-        popupCard.style.setProperty("--cogs-popup-max-height", `${popupPos.val.maxHeight}px`);
+    const node = div({ class: "cogs-tab" }, boardPane, editor);
+    // Escape closes the editor and gives focus back to its cog. Escape in a field holding a draft only puts the
+    // game's value back (the row does that), and an open pick closes itself first.
+    // The field's text as Escape reached the tab, before its row put the game's value back.
+    let escapeFrom;
+    node.addEventListener("keydown", (e) => (escapeFrom = e.target.value), true);
+    node.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape" || e.defaultPrevented || activeSlot.val === null || e.target.value !== escapeFrom)
+            return;
+        e.preventDefault();
+        closeSlot(true);
     });
 
     load();
 
-    const popupHost = ensureCogsPopupHost();
-    popupHost.replaceChildren();
-    van.add(popupHost, popup);
-
-    // The board as the Cogs tab's content; the Workbench page reads it with the buildings.
-    return { node: boardPane, load, loading, error, close: closeSlotPopup };
+    // The board and its editor as the Cogs tab's content; the Workbench page reads it with the buildings.
+    return { node, load, loading, error, close: () => closeSlot() };
 };
 
 const BUILDING_COUNT = 27;
@@ -1077,7 +1021,7 @@ const PAGE_ID = "w3.construction.buildings";
 const WorkbenchTab = () => {
     const buildings = ConstructionBuildingsTab();
     const cogs = CogsTab();
-    // The cog editor sits on the page's body, not in its pane: leaving the page closes it.
+    // Leaving the page closes the cog editor, so it opens again on the board as left.
     whenLeft(PAGE_ID, cogs.close);
     const loading = van.derive(() => buildings.loading.val || cogs.loading.val);
     // The page fails only when both reads do; one that fails says so in its own tab, and the other tab still works.
