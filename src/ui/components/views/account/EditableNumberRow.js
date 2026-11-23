@@ -27,13 +27,23 @@ const { div, span } = van.tags;
  *   empty field untouched saves nothing.
  * - `setAll` makes the row a line its list's Set all acts on (`linesIn`): `{ min, path }`, where `path` (the one place
  *   the value lives) lets many lines save in one write; without it each line saves through `write`. Only for a row
- *   whose `write` takes the value as the field shows it.
+ *   whose `write` takes the value as the field shows it. `refuse(value)`, when given, names a value `write` can't take
+ *   (Set all then writes nothing).
  */
 
 // The rows a Set all can act on, by row (see `setAll` above). `linesMade` goes up as rows are made, so a tray that
 // counts its list's lines counts again once a page shows new rows.
 const setAllLines = new WeakMap();
 const linesMade = van.state(0);
+
+/**
+ * Make `row` a line its list's Set all acts on: `{ row, valueState, cap(), min(), path(), write, unset, disabled(),
+ * refuse? }` (see `setAll` above; a table's line registers the one column Set all sets, ValueTableRow's `setAll`).
+ */
+export const registerSetAllLine = (row, line) => {
+    linesMade.val++;
+    setAllLines.set(row, line);
+};
 
 /**
  * The lines in `container` a Set all acts on: its rows with `setAll` that the top bar's search shows, without the
@@ -211,9 +221,8 @@ export const EditableNumberRow = ({
             ...extraActions
         )
     );
-    if (setAll) linesMade.val++;
     if (setAll)
-        setAllLines.set(row, {
+        registerSetAllLine(row, {
             row,
             valueState,
             cap: capNow,
@@ -222,6 +231,7 @@ export const EditableNumberRow = ({
             write,
             unset,
             disabled: isDisabled,
+            refuse: setAll.refuse,
         });
     // Max's room is kept only in a list where some line shows Max: the closest list of mixed fields says so (`has-max`)
     // once this row is laid out, and again whenever its Max comes or goes.

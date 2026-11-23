@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 
-const { router } = await createFakeApi();
+const { router, game } = await createFakeApi();
 await loadUi(router);
 const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
 const { ListPanel } = await importRepo("src/ui/components/views/account/tabShared.js");
@@ -21,6 +21,8 @@ const elements = (node, out = []) => {
 const attr = (node, name) =>
     typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
 const byClass = (root, name) => elements(root).filter((node) => String(attr(node, "class")).split(" ").includes(name));
+// What screen readers were last told (inPlace's one live region).
+const spoken = () => byClass(globalThis.document.body, "sr-only").at(-1)?.textContent;
 const settle = async () => {
     for (let i = 0; i < 10; i++) await new Promise((resolve) => setTimeout(resolve, 2));
 };
@@ -165,6 +167,90 @@ test("lines saving one by one stop when the character changes on the way", async
     await settle();
     assert.deepEqual(written, [["a", 0, 5]], "the second line isn't written to the new character");
     assert.match(String(attr(setAll, "class")), /account-btn--error/, "the run says it failed where it was pressed");
+
+    // #241: the tray's line says why, in its failure look, and screen readers hear it.
+    const label = byClass(tray, "tabbed-list__tools-label")[0];
+    assert.equal(text(label), "Character changed. Refresh.");
+    assert.match(String(attr(label, "class")), /is-failure/);
+    assert.equal(spoken(), "Set all: Character changed. Refresh.");
+    // It stays until that tool's next try, and a try that works puts the tray's own line back.
+    await new Promise((resolve) => setTimeout(resolve, 1300)); // the button's red has cleared by now
+    assert.equal(text(label), "Character changed. Refresh.");
+    setAll.listeners.click({ preventDefault() {}, currentTarget: setAll });
+    await settle();
+    assert.deepEqual(written.at(-1), ["b", 1, 5], "the next try saves for the character now read");
+    assert.equal(text(label), "All 2 lines");
+    assert.doesNotMatch(String(attr(label, "class")), /is-failure/);
+});
+
+test("a line whose writer can't take the number stops Set all before anything is written, and says which (#241)", async () => {
+    const tool = list([3, null], [3, null], [3, null]);
+    tool.entries[1].refuse = (value) => (value === 0 ? "Fastest kill can't be 0." : null);
+    await tool.press(0);
+    await tool.answer("Lower them");
+    assert.deepEqual(tool.plans, [], "no line is written, not even the ones before it");
+    assert.equal(tool.question(), "Fastest kill can't be 0.");
+    await tool.press(4);
+    assert.deepEqual(tool.plans, [[4, 4, 4]], "a number it can take runs as usual");
+    assert.equal(tool.question(), "All 3 stamps");
+});
+
+test("a table line Set all acts on saves its one column, through the game's write (#241)", async () => {
+    const { ValueTableRow } = await importRepo("src/ui/components/views/account/EditableFieldsRow.js");
+    const { linesIn } = await importRepo("src/ui/components/views/account/EditableNumberRow.js");
+    const ola = game.gga.OptionsListAccount;
+    const saved = [ola[500], ola[501], ola[502]];
+    try {
+        ola[500] = ola[501] = 2;
+        ola[502] = 9;
+        const states = { rank: van.state(2), exp: van.state(9) };
+        const row = (extra = {}) =>
+            ValueTableRow({
+                name: "Plot 1",
+                info: "Plot 1",
+                fields: [
+                    // A value the game keeps in two places, and one beside it Set all leaves alone.
+                    {
+                        key: "rank",
+                        label: "Rank",
+                        valueState: states.rank,
+                        paths: ["OptionsListAccount[500]", "OptionsListAccount[501]"],
+                    },
+                    { key: "exp", label: "Rank EXP", valueState: states.exp, paths: ["OptionsListAccount[502]"] },
+                ],
+                read: async () => ({ rank: ola[500], exp: ola[502] }),
+                setAll: "rank",
+                ...extra,
+            });
+        const [line] = linesIn({ childNodes: [row()] });
+        assert.equal(line.valueState, states.rank);
+        assert.equal(line.max, null);
+        assert.equal(line.path, null, "two places, so it saves through its own write");
+        assert.equal(await line.write(7), 7);
+        assert.deepEqual([ola[500], ola[501], ola[502]], [7, 7, 9], "both copies, and nothing else");
+
+        const single = ValueTableRow({
+            name: "Plot 2",
+            info: "Plot 2",
+            fields: [{ key: "rank", label: "Rank", valueState: van.state(0), paths: ["FarmRank[0][1]"] }],
+            read: async () => ({ rank: 0 }),
+            setAll: "rank",
+        });
+        assert.equal(linesIn({ childNodes: [single] })[0].path, "FarmRank[0][1]", "one place: in Set all's one write");
+        const forOne = ValueTableRow({
+            name: "Plot 3",
+            info: "Plot 3",
+            fields: [{ key: "rank", label: "Rank", valueState: van.state(0), paths: ["FarmRank[0][2]"] }],
+            read: async () => ({ rank: 0 }),
+            writeOptions: { character: "Main" },
+            setAll: "rank",
+        });
+        assert.equal(linesIn({ childNodes: [forOne] })[0].path, null, "one character's: through its own write");
+        const without = ValueTableRow({ name: "Plot 4", info: "Plot 4", fields: [], read: async () => ({}) });
+        assert.deepEqual(linesIn({ childNodes: [without] }), [], "a table line without setAll isn't a line");
+    } finally {
+        [ola[500], ola[501], ola[502]] = saved;
+    }
 });
 
 test("a row with afterWrite saves through its own write in a Set all, so its cache follows", async () => {

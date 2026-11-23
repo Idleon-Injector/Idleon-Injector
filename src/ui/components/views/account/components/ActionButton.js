@@ -21,12 +21,14 @@ const sayResult = async (name, pending, status, before, runsBefore, pressed) => 
         () => (settled = true)
     );
     let started = false;
-    const say = (outcome) => announce(`${name}: ${outcome === "success" ? "done" : "failed"}`);
+    // A failure says why when the run knows (the same words the tray shows).
+    const say = (outcome, reason = null) =>
+        announce(`${name}: ${outcome === "success" ? "done" : (reason ?? "failed")}`);
     for (let i = 0; i < 1200; i++) {
         const now = resolveValue(status);
         if (Array.isArray(status.ended)) {
             const own = status.ended.find((run) => run.id > (runsBefore ?? 0) && run.by === pressed);
-            if (own) return own.outcome === "cancelled" ? undefined : say(own.outcome);
+            if (own) return own.outcome === "cancelled" ? undefined : say(own.outcome, own.reason);
         } else {
             if (now === "loading" || status.runs !== runsBefore) started = true;
             if ((now === "success" || now === "error") && (started || now !== before)) return say(now);

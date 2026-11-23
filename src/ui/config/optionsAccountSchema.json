@@ -1950,7 +1950,7 @@
     },
     "321": {
         "name": "Summoning High Performance",
-        "description": "High Performance switch in the summoning battle screen, shown once you have more than 15 summoning wins. 1 hides the damage numbers that pop up when you click enemies.",
+        "description": "High Performance switch in the summoning battle screen, shown once you have more than 15 summoning wins. 1 hides the damage numbers and hit splats when your units hit enemies.",
         "type": "number",
         "verified": true
     },
@@ -4049,13 +4049,13 @@
     },
     "663": {
         "name": "Cglunko Quartz Octergon",
-        "description": "Quartz Octergon shapes (purple) you have to spend on the Cglunko upgrades Rich Get Rich and DeEmGe. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "description": "Quartz Octergon shapes (purple) you have to spend on the Cglunko upgrades Rich Get Rich and DeEmGe, the 4th column on The Cove's purple page. The menu spells it Octagogon. 0.1 means found but none left. Big values like 5e30 are fine.",
         "type": "number",
         "verified": true
     },
     "664": {
         "name": "Cglunko Quartz Nullagon",
-        "description": "Quartz Nullagon shapes (purple) you have to spend on the Cglunko upgrades Grandioso and Slop Drop++. 0.1 means found but none left. Big values like 5e30 are fine.",
+        "description": "Quartz Nullagon shapes (purple) you have to spend on the Cglunko upgrades Grandioso and Slop Drop++, the 5th column on The Cove's purple page. The menu spells it Noragon. 0.1 means found but none left. Big values like 5e30 are fine.",
         "type": "number",
         "verified": true
     },

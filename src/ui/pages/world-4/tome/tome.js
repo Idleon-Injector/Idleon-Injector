@@ -170,9 +170,15 @@ const normalizeEditableValue = (rawValue, editor) => {
     return typeof editor.normalize === "function" ? editor.normalize(normalized) : normalized;
 };
 
+// What the game keeps for a shown value, or null when the record can't hold it (0 in a 1 / x record).
+const gameValueOf = (editor, value) => {
+    const writeValue = typeof editor.toWrite === "function" ? editor.toWrite(value) : value;
+    return writeValue === undefined || Number.isNaN(writeValue) ? null : writeValue;
+};
+
 const writeEditableValue = async (editor, nextValue) => {
-    const writeValue = typeof editor.toWrite === "function" ? editor.toWrite(nextValue) : nextValue;
-    if (writeValue === null || writeValue === undefined || Number.isNaN(writeValue)) {
+    const writeValue = gameValueOf(editor, nextValue);
+    if (writeValue === null) {
         throw new Error(`Invalid Tome write value for ${editor.path}`);
     }
     await writeVerified(editor.path, writeValue);
@@ -188,8 +194,11 @@ const TomeEditableRow = ({ entry, valueState }) =>
         adjustInput: (rawValue, delta, currentValue) => adjustFormattedIntInput(rawValue, delta, currentValue ?? 0),
         inputMode: "float",
         inputProps: { formatter: largeFormatter, parser: largeParser },
-        // Its write takes the value as the field shows it, so Set all saves through it.
-        setAll: {},
+        // Its write takes the value as the field shows it, so Set all saves through it; a value its record can't hold
+        // (0 in a 1 / x or 2 ^ x record) stops Set all before anything is written.
+        setAll: {
+            refuse: (value) => (gameValueOf(entry.editor, value) === null ? `${entry.name} can't be ${value}.` : null),
+        },
     });
 
 // A record only the game counts: its value as plain text where a field would be.
