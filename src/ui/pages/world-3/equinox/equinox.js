@@ -173,6 +173,8 @@ const EquinoxTab = () => {
     const cloudCountState = van.state(0);
     const penguinState = van.state(0);
     const rateError = van.state(false);
+    // Penguin counts saved: a load that read the count and rate before a save landed leaves the saved ones shown.
+    let penguinSaves = 0;
 
     const cloudProgressStates = new Map();
     const cloudRequiredStates = new Map();
@@ -276,6 +278,7 @@ const EquinoxTab = () => {
     // The penguins change how fast the bar fills: read the rate again.
     // The count is saved either way; a failed read says so on the penguins' row.
     const refreshFillRate = async () => {
+        penguinSaves++;
         try {
             barFillRateState.val = toInt(await readComputed("dream", "BarFillRate", [0]), { mode: "floor" });
             rateError.val = false;
@@ -296,6 +299,7 @@ const EquinoxTab = () => {
 
     const load = async () =>
         run(async () => {
+            const penguinSavesBefore = penguinSaves;
             if (!staticMeta) staticMeta = await buildStaticMeta();
 
             const [rawDream, rawWeeklyBoss, barFillReq, barFillRate, upgUnlocked, rawPenguins] = await Promise.all([
@@ -337,7 +341,6 @@ const EquinoxTab = () => {
 
             barFillState.val = toInt(dreamArr[0], { mode: "floor" });
             barFillReqState.val = toInt(barFillReq, { mode: "floor" });
-            barFillRateState.val = toInt(barFillRate, { mode: "floor" });
             // An account that never bought one holds 0 or nothing. A count may be text ("3"), as the game reads the
             // slot through its number conversion; anything but a whole count from 0 is a broken read.
             const stored = rawPenguins ?? 0;
@@ -349,8 +352,11 @@ const EquinoxTab = () => {
                 penguins < 0
             )
                 throw new Error(`Unexpected Pingy penguin count: ${JSON.stringify(rawPenguins)}`);
-            penguinState.val = penguins;
-            rateError.val = false;
+            if (penguinSaves === penguinSavesBefore) {
+                barFillRateState.val = toInt(barFillRate, { mode: "floor" });
+                penguinState.val = penguins;
+                rateError.val = false;
+            }
             updateUpgradeRows(upgrades);
             updateCloudRows(visibleIndexes, weeklyBossMap, staticMeta.dreamChallengeArr);
         });
