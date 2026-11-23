@@ -331,18 +331,22 @@ test("Palette: after the clean-up of the game's bonuses fails, All to's step sta
             .flatMap((group) => elements(group))
             .find((node) => node.nodeName === "button" && text(node).trim() === "★★");
     const realFetch = globalThis.fetch;
+    let refused = 0;
     globalThis.fetch = async (url, options) =>
         String(url).endsWith("/game/gga/delete")
-            ? new Response(JSON.stringify({ error: "the game refused" }), { status: 500 })
+            ? (refused++, new Response(JSON.stringify({ error: "the game refused" }), { status: 500 }))
             : realFetch(url, options);
     try {
         gga.DNSM.h.PaletteBonz = [1, 2, 3];
         click(toTwo());
         await until(() => gga.Spelunk[49][0] === 2, "every colour to get two Black Stars");
-        await until(() => !toTwo().attributes.disabled, "All to ★★ to stay pressable for the clean-up");
+        // The press has ended (its clean-up refused), not just started: a press while it runs does nothing.
+        await until(() => refused === 1 && toTwo().attributes["aria-busy"] === "false", "All to to end");
     } finally {
         globalThis.fetch = realFetch;
     }
+    assert.ok(!toTwo().attributes.disabled, "All to ★★ stays pressable for the clean-up");
+    assert.equal(toTwo().attributes["aria-disabled"], "false");
     click(toTwo());
     await until(() => !("PaletteBonz" in gga.DNSM.h), "the bonuses to be cleared");
     await until(() => toTwo().attributes.disabled, "nothing left to do");

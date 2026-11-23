@@ -482,15 +482,16 @@ export const runBulkSet = async ({
         // Some writes landed (the batch has results): every row only this bulk wrote shows what the game holds now,
         // landed or not; unread, it keeps what it shows. A batch that never reached the game wrote nothing.
         if (error.results) {
-            const own = [...targets].filter(
-                ([index, { before, paths, saves, fails }]) =>
-                    sameValue(index, before) &&
-                    paths.every((path, i) => savesOf(path) + failsOf(path) === saves[i] + fails[i] + 1)
-            );
+            // Only this bulk wrote it, and its value is as the bulk found it; checked again after the read, so a row
+            // saved while the read ran keeps what its own save shows.
+            const ownOnly = ([index, { before, paths, saves, fails }]) =>
+                sameValue(index, before) &&
+                paths.every((path, i) => savesOf(path) + failsOf(path) === saves[i] + fails[i] + 1);
+            const own = [...targets].filter(ownOnly);
             const reads = own.length ? await readGgaMany(own.map(([, { paths }]) => paths[0])).catch(() => []) : [];
             if (!shownCharacter || shownCharacter() === character)
-                own.forEach(([index, { before }], i) => {
-                    if (reads[i]?.ok && sameValue(index, before)) show(index, reads[i].value);
+                own.forEach((target, i) => {
+                    if (reads[i]?.ok && ownOnly(target)) show(target[0], reads[i].value);
                 });
         }
         throw error;
