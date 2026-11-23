@@ -593,20 +593,23 @@ const CogsTab = () => {
             });
 
         if (typeof held() === "string") {
-            let picked = held();
+            // A pick waiting to be saved, or null. Only a pick saves: leaving the list's search field after a Refresh
+            // changed the pattern has nothing to save, so the old pattern isn't written back.
+            let picked = null;
             const save = useAutoSave({
                 prepare: () => {
-                    if (readOnly || picked === held()) return { unchanged: true };
+                    if (readOnly || picked === null || picked === held()) return { unchanged: true };
                     const next = picked;
                     return {
                         write: async () => {
                             await writeVerified(path, next);
+                            if (picked === next) picked = null;
                             cogMapStats[index].rawVal[key] = next;
                             cogMapStats[index].val = { ...cogMapStats[index].rawVal };
                         },
                     };
                 },
-                revert: () => (picked = held()),
+                revert: () => (picked = null),
             });
             const pick = PickInPlace({
                 name: label,

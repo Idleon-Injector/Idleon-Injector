@@ -769,6 +769,26 @@ test("Cogs: a stat that is a number refuses text that isn't one; the pattern is 
     assert.equal(byClass(popup, "select").length, 0);
 });
 
+// CodeRabbit on #254: the pattern's list sits in its row, so leaving its search field saved the row: after a Refresh
+// changed the pattern, that wrote the old one back.
+test("Cogs: leaving the pattern's search after a Refresh changed the pattern writes nothing", async (t) => {
+    keepCog(t);
+    gga.CogOrder[1] = "Cog2B01";
+    gga.CogMap[1].h = { a: 11, h: "pattern" };
+    const { root, popup, open } = await openCogs();
+    open(1);
+    await until(() => statRow(popup, "h"), "the pattern's row");
+    const row = statRow(popup, "h");
+    click(byClass(row, "pick-in-place__opener")[0]);
+    gga.CogMap[1].h = { a: 11, h: "ring" }; // the game moves on
+    click(buttonIn(root, "Refresh"));
+    await until(() => text(byClass(row, "pick-in-place__opener")[0]) === "Ring", "the read to show the new pattern");
+    const search = byClass(row, "pick-in-place__search")[0];
+    row.listeners.focusout({ target: search, currentTarget: row, relatedTarget: null });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(gga.CogMap[1].h.h, "ring");
+});
+
 // #251: the editor opens in place under the board, as one group of the page's value rows, never over the page.
 test("Cogs: a cog opens its editor in place under the board; the same cog again closes it", async () => {
     const before = new Set(globalThis.document.body.childNodes);

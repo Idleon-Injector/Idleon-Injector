@@ -112,8 +112,12 @@
 /* The cog editor opens in place under the board: one group of the page's value rows (AccountSection), its line
    carrying the slot, its state in plain words, and Lock and Unlock. Its rows and the tiny cog's two rows sit straight
    in the group. */
-.cogs-editor:focus {
-    outline: none;
+/* Focus lands on the editor when a cog is opened from the keyboard: the menu's focus ring, round like the group. */
+.cogs-editor:focus-visible {
+    outline: 2px solid var(--c-accent);
+    /* Inside its edge: the list scrolls, and would cut a ring drawn outside it. */
+    outline-offset: -2px;
+    border-radius: 10px;
 }
 
 .cogs-editor__rows,
