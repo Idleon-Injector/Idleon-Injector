@@ -1,0 +1,5 @@
+/* Summoning: its Automation tab is a table (an upgrade's level, next cost, stop-at and switches), so the page takes
+   the wider measure. */
+.summoning-tab {
+    --page-measure: 60rem;
+}

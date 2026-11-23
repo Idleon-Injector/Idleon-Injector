@@ -172,12 +172,16 @@ export const cleanNameEffect = (raw, fallback = "") =>
         fallback
     );
 
-/** A name the game writes in capitals (ROID_RAGIN) in normal case ("Roid Ragin"), keeping EXP as the game writes it. */
+/**
+ * A name the game writes in capitals (ROID_RAGIN) in normal case ("Roid Ragin"), keeping EXP and a numbered tier's
+ * Roman numeral (SPROUTLUCK_III: "Sproutluck III") as the game writes them.
+ */
 export const normalCase = (text) =>
     cleanName(text)
         .toLowerCase()
         .replace(/(^|\s)\S/g, (start) => start.toUpperCase())
-        .replace(/\bExp\b/g, "EXP");
+        .replace(/\bExp\b/g, "EXP")
+        .replace(/\s(Ii|Iii|Iv|Vi|Vii|Viii|Ix)$/, (numeral) => numeral.toUpperCase());
 
 // The number's place in a game description: "+{", "{%", "+{%", "-{%", "}x".
 const BONUS_NUMBER = /[+-]?\{%?\}?%?/g;
@@ -201,6 +205,10 @@ export const bonusText = (template = "") => {
     const words = raw
         .replace(lead, "")
         .replace(tail, "")
+        // A number in the middle goes with its "by" or "to" ("chance by +{% per rank": "chance per rank"), and a
+        // multiplier's mark with it ("costs }x less": "costs less").
+        .replace(/\s+(?:by|to)\s+(?=[+-]?\{|\}x)/gi, " ")
+        .replace(/\}x\b/g, "")
         .replace(BONUS_NUMBER, "")
         // A second number's mark ("up to } monsters") goes the same way.
         .replace(/[|@$^{}]/g, " ")

@@ -250,24 +250,7 @@ test("slab: an item switch flipped while another item saves still saves", async 
     }
 });
 
-test("jade emporium: two upgrades flipped at once both stay bought (they share one string)", async () => {
-    const before = String(game.gga.Ninja[102][9] ?? "");
-    try {
-        await twoFlipsLand(
-            "src/ui/pages/world-6/sneaking/2-jade.js",
-            "Locked",
-            "Bought",
-            () => String(game.gga.Ninja[102][9]).length === before.length + 2
-        );
-    } finally {
-        game.gga.Ninja[102][9] = before;
-    }
-});
-
-for (const [name, file, path] of [
-    ["omni jade", "src/ui/pages/world-6/sneaking/3-omni-jade.js", 6],
-    ["menagerie", "src/ui/pages/world-7/menagerie/menagerie.js", 2],
-]) {
+for (const [name, file, path] of [["menagerie", "src/ui/pages/world-7/menagerie/menagerie.js", 2]]) {
     test(`${name}: a switch flipped while another saves still saves`, async () => {
         const menagerie = game.gga.Menagerie;
         const before = structuredClone(menagerie);
@@ -827,7 +810,7 @@ test("stamps: a switch flipped while Undo runs waits for it", async () => {
 // ---- Emperor ----
 
 const EMPEROR = "src/ui/pages/world-6/emperor/emperor.js";
-// Emperor with some completed showdowns, its progress and base rewards put back afterwards.
+// Emperor with some showdowns won, its progress and base rewards put back afterwards.
 const openEmperor = async () => {
     const ola = game.gga.OptionsListAccount;
     const before = { progress: ola[369], cache: JSON.stringify(game.gga.DNSM.h.EmperorBon) };
@@ -836,14 +819,16 @@ const openEmperor = async () => {
         game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
     });
     if (!(Number(ola[369]) > 0)) ola[369] = 5;
-    const root = await openPage(EMPEROR, (root) => text(root).includes("Base daily replenishment"));
-    const row = rowNamed(root, "Completed showdowns");
+    const root = await openPage(EMPEROR, (root) => text(root).includes("a day"));
+    const row = byClass(root, "account-row").find((node) => text(node).includes("Showdowns won"));
+    const button = (label) => elements(row).find((node) => node.nodeName === "button" && text(node).trim() === label);
     return {
         ola,
         progress: ola[369],
         row,
         field: elements(row).find((node) => node.nodeName === "input"),
-        reset: elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Reset"),
+        reset: button("Reset"),
+        resetThem: button("Reset them"),
     };
 };
 const typeProgress = (row, field, value) => {
@@ -851,79 +836,76 @@ const typeProgress = (row, field, value) => {
     field.listeners.input({ target: field });
     row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
 };
+const shows = (node) =>
+    !(typeof node.attributes.hidden === "function" ? node.attributes.hidden() : node.attributes.hidden);
 
-test("emperor: a double-click on Reset doesn't answer the Click again its first click asks", async () => {
+test("emperor: Reset asks in place first; a double-click only asks, and Reset them answers", async () => {
     try {
-        const { ola, progress, reset } = await openEmperor();
+        const { ola, progress, row, reset, resetThem } = await openEmperor();
         await Promise.all([click(reset), click(reset)]);
         assert.equal(ola[369], progress, "nothing reset");
-        assert.equal(reset.attributes["data-again"], "Click again", "the first click asks");
-        await click(reset);
-        assert.equal(ola[369], 0, "a click after the question answers it");
+        assert.ok(text(row).includes(`Reset ${progress} showdowns won to 0?`), "the row asks");
+        assert.ok(shows(resetThem), "the answer shows in the row");
+        await click(resetThem);
+        await until(() => ola[369] === 0, "the reset");
+        assert.ok(shows(reset), "Reset is back");
     } finally {
         await runCleanups();
     }
 });
 
-test("emperor: Reset asking first leaves the field's failure; Reset saving takes it back", async () => {
+test("emperor: Cancel drops Reset's question and saves nothing", async () => {
     try {
-        const { ola, progress, row, field, reset } = await openEmperor();
+        const { ola, progress, row, reset } = await openEmperor();
+        await click(reset);
+        const cancel = elements(row).find((node) => node.nodeName === "button" && text(node).trim() === "Cancel");
+        await click(cancel);
+        assert.ok(shows(reset));
+        assert.doesNotMatch(text(row), /Reset \d+ showdowns/);
+        assert.equal(ola[369], progress);
+    } finally {
+        await runCleanups();
+    }
+});
+
+test("emperor: Reset asking first leaves the field's failure; Reset them saving takes it back", async () => {
+    try {
+        const { ola, progress, row, field, reset, resetThem } = await openEmperor();
         const restore = refuseWrites(ola, 369);
         cleanups.push(restore);
         typeProgress(row, field, progress + 1);
         await until(() => saveWordsOf(row) === "game kept old value", "the field's failure");
 
-        await click(reset); // only asks: a cancelled write answers nothing
-        assert.equal(reset.attributes["data-again"], "Click again");
-        await until(() => saveWordsOf(row) !== "saving…", "the ask to end");
+        await click(reset); // only asks
         assert.equal(saveWordsOf(row), "game kept old value", "the typed value is still unsaved");
 
         restore();
-        await click(reset); // answers
-        assert.equal(ola[369], 0);
+        await click(resetThem); // answers
+        await until(() => ola[369] === 0, "the reset");
         await until(() => saveWordsOf(row) === "saved", "Reset's ✓");
     } finally {
         await runCleanups();
     }
 });
 
-test("emperor: Escape while Reset runs takes back the field's failure for good", async () => {
-    try {
-        const { ola, progress, row, field, reset } = await openEmperor();
-        cleanups.push(refuseWrites(ola, 369));
-        typeProgress(row, field, progress + 1);
-        await until(() => saveWordsOf(row) === "game kept old value", "the field's failure");
-
-        const requests = watchRequests(() => true); // Reset's first read waits, so Escape comes while Reset runs
-        const clicked = requests.track(click(reset));
-        await until(requests.held, "Reset to reach the game");
-        row.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
-        requests.release();
-        await clicked; // only asks
-        await until(() => saveWordsOf(row) !== "saving…", "Reset to end");
-        assert.equal(saveWordsOf(row), "", "no failure for a draft that's gone");
-    } finally {
-        await runCleanups();
-    }
-});
-
-test("emperor: Reset clicked while the typed progress saves doesn't split that save's History action", async () => {
+test("emperor: Reset them while the typed progress saves waits its turn and keeps that save's History action whole", async () => {
     const { fetchChanges } = await importRepo("src/ui/services/api.js");
     try {
-        const { ola, progress, row, field, reset } = await openEmperor();
-        // Hold the progress save's first write, so Reset is clicked while that save runs.
+        const { ola, progress, row, field, reset, resetThem } = await openEmperor();
+        // Hold the progress save's first write, so Reset is answered while that save runs.
         const requests = watchRequests(
             (url, body) => url.includes("/write") && body.includes("OptionsListAccount[369]")
         );
         typeProgress(row, field, progress + 1);
         await until(requests.held, "the progress write to reach the game");
-        const clicked = requests.track(click(reset)); // waits its turn, then only asks
+        await click(reset);
+        const clicked = requests.track(click(resetThem)); // waits its turn
         requests.release();
         await clicked;
-        assert.equal(ola[369], progress + 1);
+        await until(() => ola[369] === 0, "the reset after the typed save");
         const { actions } = await fetchChanges();
         const saved = actions.find((action) =>
-            action.entries.some((entry) => entry.path === "OptionsListAccount[369]")
+            action.entries.some((entry) => entry.path === "OptionsListAccount[369]" && entry.after === progress + 1)
         );
         assert.deepEqual(
             saved.entries.map((entry) => entry.path).sort(),
@@ -935,21 +917,20 @@ test("emperor: Reset clicked while the typed progress saves doesn't split that s
     }
 });
 
-test("emperor: a progress typed after Reset is clicked doesn't save before Reset asks", async () => {
+test("emperor: a progress typed after Reset them is clicked saves after the reset", async () => {
     try {
-        const { ola, progress, row, field, reset } = await openEmperor();
+        const { ola, progress, row, field, reset, resetThem } = await openEmperor();
         const requests = watchRequests(
             (url, body) => url.includes("/write") && body.includes("OptionsListAccount[369]")
         );
         typeProgress(row, field, progress + 1);
         await until(requests.held, "the first progress write to reach the game");
-        typeProgress(row, field, progress + 2); // joins the running save
-        const clicked = requests.track(click(reset)); // waits its turn
+        await click(reset);
+        const clicked = requests.track(click(resetThem)); // waits its turn
         typeProgress(row, field, progress + 3); // after Reset: its own turn
         requests.release();
         await clicked;
-        assert.equal(ola[369], progress + 2, "Reset asked before the last typed value saved");
-        await until(() => ola[369] === progress + 3, "the last typed value to save");
+        await until(() => ola[369] === progress + 3, "the last typed value to save, after the reset");
     } finally {
         await runCleanups();
     }

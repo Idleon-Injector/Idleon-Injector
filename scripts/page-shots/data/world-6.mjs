@@ -1,15 +1,26 @@
 /** World 6: farming, sneaking, summoning, beanstalk, emperor. */
-import { fakeName, h, level, list, upgradeDefs, upgradeLevels } from "./helpers.mjs";
-import { ITEMS } from "./shared.mjs";
+import { fakeName, h, level, list, upgradeLevels } from "./helpers.mjs";
+import {
+    CHARMS,
+    EMPEROR,
+    EXOTIC,
+    GOLD_FOODS,
+    JADE,
+    JADE_ORDER,
+    KNOWLEDGE as KNOWLEDGE_ROWS,
+    LAND_RANK_BONUSES,
+    LAND_RANK_NAMES,
+    MARKET,
+    SEEDS,
+    STICKERS,
+} from "./world-6-game.mjs";
 
-const SEEDS = 6;
-const CROPS_PER_SEED = 5;
-const PLOTS = 12;
-const STICKERS = 10;
-const CHARMS = 23;
-const JADE = 30;
+// Crops: the last seed's last crop is the depot's last index.
+const CROPS = Number(SEEDS[SEEDS.length - 1][3]) + 1;
+const PLOTS = 36;
 // Ninja Knowledge rows (cList.NinjaUpg): [name, bonus per level, base cost, cost scale, parent]; row 9 is the
-// game's placeholder. Rows 17+ unlock with the Coral Reef level Spelunk[13][3] instead of a parent.
+// game's placeholder. Rows 17+ unlock with the Coral Reef level Spelunk[13][3] instead of a parent. The costs are the
+// automation's test numbers; the names and bonus texts are the game's (world-6-game.mjs).
 const KNOWLEDGE = [
     ["Centurion_Lineage", 5, 2, 1.31, 0],
     ["Way_of_Bargain", 1, 1e8, 1.13, 0],
@@ -47,7 +58,27 @@ const KNOWLEDGE = [
 const KNOWLEDGE_LEVELS = { 13: 40, 14: 35, 12: 30, 15: 25, 8: 20, 16: 3, 7: 12, 2: 10, 11: 4 };
 const knowledgeLevel = (i) => KNOWLEDGE_LEVELS[i] ?? 0;
 const ROUNDS = 30;
-const BEANSTALK_FOODS = 8;
+const GOLD_FOOD_IDS = GOLD_FOODS.filter((_, i) => i % 3 === 2);
+// The gold foods' names: stand-ins (the item names aren't in the game's code), close to what the game calls them.
+const GOLD_FOOD_NAMES = [
+    "Golden_Peanut",
+    "Butter_Bar",
+    "Golden_Jam",
+    "Golden_Kebabs",
+    "Golden_Meat_Pie",
+    "Golden_Nomwich",
+    "Golden_Ham",
+    "Golden_Bread",
+    "Golden_Ribs",
+    "Golden_Cheese",
+    "Golden_Grilled_Cheese_Nomwich",
+    "Golden_Hampter_Gummy_Candy",
+    "Golden_Nigiri",
+    "Golden_Dumpling",
+    "Golden_Cake",
+    "Golden_Sushi",
+    "Golden_Pancake",
+];
 const SUMMON_UPGRADES = 32; // four per essence colour
 
 // Summoning board rows as the game splits them: [x, y, colour, name, base cost, cost growth, bonus per level, 0,
@@ -72,7 +103,8 @@ const SUMMON_LEVELS = list(SUMMON_UPGRADES, (i) => (i % 5 === 3 || i >= 24 ? 0 :
 // Shared by every fakeGameData() call, so two calls compare equal.
 const computed = {
     _customBlock_FarmingStuffs: {
-        MarketMaxLV: (mode, i) => 20 + mode * 10 + i,
+        // The Day Market's caps, then the Night Market's.
+        MarketMaxLV: (mode, i) => [20, 50, 60, 40, 25, 50, 30, 20][i] * (mode + 1),
         LandRank5thColumnMaxLV: 50,
         ExoticBonusQTY: 12,
     },
@@ -99,30 +131,36 @@ const computed = {
 
 export default () => ({
     gga: {
-        // Crops stored, by crop index.
-        FarmCrop: h(Object.fromEntries(list(SEEDS * CROPS_PER_SEED, (i) => [i, i % 4 === 3 ? 0 : (i + 1) * 4321]))),
-        // [0] plot levels, [1] plot exp, [2] land rank upgrades.
-        FarmRank: [list(PLOTS, (i) => level(i, 30)), list(PLOTS, (i) => i * 120), upgradeLevels(20, 3)],
-        // Markets (day [0..7], night [8..15]), exotic from [20].
-        FarmUpg: list(80, (i) => level(i, 50)),
-        Research: { 9: list(STICKERS, (i) => i * 3) },
+        // Crops stored, by crop index: the early seeds' crops found, the last ones not yet.
+        FarmCrop: h(
+            Object.fromEntries(list(CROPS, (i) => [i, i > 240 || i % 9 === 4 ? 0 : Math.round(9.5e7 / (i + 3))]))
+        ),
+        // [0] plot ranks, [1] plot rank EXP, [2] Land Rank Database levels.
+        FarmRank: [
+            list(PLOTS, (i) => (i < 24 ? level(i, 30) : 0)),
+            list(PLOTS, (i) => (i < 24 ? i * 1250.5 : 0)),
+            upgradeLevels(20, 3),
+        ],
+        // Day Market [2..9], Night Market [10..17], Exotic Market from [20].
+        FarmUpg: list(100, (i) => (i < 20 ? level(i, 20) : i < 80 ? (i * 17) % 60 : 0)),
+        Research: { 9: list(STICKERS.length, (i) => (i < 7 ? (i * 3) % 8 : 0)) },
         // [50] exotic upgrades given organic labels. ([13][3], the Coral Reef level that opens Knowledge rows 17+,
         // comes from world-7.mjs.)
         Spelunk: { 50: [2, 5, 9] },
         // [102][1] jade, [102][9] Jade upgrades bought (letters), [103] Ninja Knowledge levels, [104] beanstalk,
         // [107] charms unlocked.
         Ninja: {
-            102: list(10, (i) => (i === 9 ? "_acdhk" : i === 1 ? 42500000 : 0)),
+            102: list(10, (i) => (i === 9 ? "_acdhkmqx" : i === 1 ? 42500000 : 0)),
             103: list(KNOWLEDGE.length, knowledgeLevel),
-            104: list(BEANSTALK_FOODS, (i) => i % 3),
-            107: list(CHARMS, (i) => (i % 3 === 0 ? 1 : 0)),
+            104: list(GOLD_FOOD_IDS.length, (i) => (i < 9 ? 1 + (i % 3) : 0)),
+            107: list(CHARMS.length, (i) => (i % 3 === 0 ? 1 : 0)),
         },
         // [0] summoning upgrades, [1] normal rounds won (enemy ids), [2] essence per colour, [3] shop timers,
         // [4] familiars per tier.
         Summon: [
             [...SUMMON_LEVELS], // its own copy: a test that levels an upgrade leaves the next fixture's start alone
             list(12, (i) => `enemy${i}`),
-            list(8, (i) => (i < 6 ? Math.round(4.2e6 / (i + 1) ** 2) : 0)),
+            list(9, (i) => (i < 6 ? Math.round(4.2e6 / (i + 1) ** 2) : 0)),
             [0, 0, 0, 0],
             [6, 3, 1, 0, 0, 0, 0, 0],
         ],
@@ -130,34 +168,22 @@ export default () => ({
         PixelHelperActor: { 24: { behaviors: { getBehavior: summoningBoard } } },
         TimeAway: { h: { ShopRestock: 43200 } },
         CustomMaps: {
-            h: {
-                // Pristine charms: [?, ?, name].
-                NjEQ: h(
-                    Object.fromEntries(list(CHARMS, (i) => [`NjTrP${i}`, ["0", "1", `${fakeName(i + 17)}_Charm`]]))
-                ),
-            },
+            // Pristine charms: [?, index, name, ?, how to add it, bonus].
+            h: { NjEQ: h(Object.fromEntries(CHARMS.map((charm, i) => [`NjTrP${i}`, charm]))) },
         },
         DNSM: { h: { EmperorBon: list(12, (i) => i * 3) } },
         OptionsListAccount: { 319: 40, 369: 37, 370: 0 },
+        ItemDefinitionsGET: {
+            h: Object.fromEntries(GOLD_FOOD_IDS.map((id, i) => [id, h({ displayName: GOLD_FOOD_NAMES[i] ?? id })])),
+        },
         CustomLists: {
             h: {
-                // [name, ?, first crop, last crop]
-                SeedInfo: list(SEEDS, (s) => [
-                    `${fakeName(s + 1)}_Seed`,
-                    "1",
-                    String(s * CROPS_PER_SEED),
-                    String(s * CROPS_PER_SEED + CROPS_PER_SEED - 1),
-                ]),
-                MarketInfo: upgradeDefs(16, 2),
-                MarketExoticInfo: upgradeDefs(60, 5),
-                Research: { 23: list(STICKERS, (i) => `${fakeName(i + 3)}_Sticker`) },
-                NinjaInfo: {
-                    24: list(JADE, (i) => (i * 7) % JADE),
-                    // Beanstalk foods: triples ending in the item id.
-                    29: list(BEANSTALK_FOODS, (i) => ["0", "0", Object.keys(ITEMS)[i]]).flat(),
-                    34: list(20, (i) => `${fakeName(i + 5)}_Rank_Upgrade`),
-                },
-                JadeUpg: upgradeDefs(JADE, 7),
+                SeedInfo: SEEDS,
+                MarketInfo: MARKET,
+                MarketExoticInfo: EXOTIC,
+                Research: { 23: STICKERS },
+                NinjaInfo: { 24: JADE_ORDER, 29: GOLD_FOODS, 34: LAND_RANK_NAMES, 35: LAND_RANK_BONUSES },
+                JadeUpg: JADE,
                 // [lineX, lineY, lineW, lineH, name, bonus per level, description, base cost, scale, parent, x, y]
                 NinjaUpg: KNOWLEDGE.map(([name, bonus, cost, scale, parent], i) => [
                     "0",
@@ -166,7 +192,7 @@ export default () => ({
                     "0",
                     name,
                     String(bonus),
-                    `+{%_${fakeName(i + 3)}_bonus#`,
+                    KNOWLEDGE_ROWS[i][6],
                     String(cost),
                     String(scale),
                     String(parent),
@@ -186,12 +212,7 @@ export default () => ({
                                 : "0"
                     )
                 ),
-                // [0] reward texts, [1] amounts, [2] which reward each showdown gives.
-                EmperorBon: [
-                    list(12, (i) => `+{%_${fakeName(i + 4)}_bonus`),
-                    list(12, (i) => String(5 + i)),
-                    list(48, (i) => String(i % 12)),
-                ],
+                EmperorBon: EMPEROR,
             },
         },
     },
