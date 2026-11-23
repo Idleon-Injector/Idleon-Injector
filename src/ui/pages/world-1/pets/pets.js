@@ -211,6 +211,12 @@ const PetPicture = (id) => {
     still.onload = () => fit(still.naturalWidth, still.naturalHeight);
     still.onerror = () => (box.hidden = true);
     box.append(still);
+    // Refresh asks the game again for a picture that failed (the game may be back); the rest stay as they are.
+    const retry = () => {
+        if (!box.hidden) return;
+        box.hidden = false;
+        still.src = petPictureUrl(id);
+    };
 
     // One frame of the strip, copied at the game's own size; CSS scales the canvas like the still.
     const draw = (frame) => {
@@ -233,6 +239,8 @@ const PetPicture = (id) => {
         }
         let frame = 0;
         const next = () => {
+            // A row taken off the page gets no mouseleave: its loop ends here.
+            if (!box.isConnected) return stop();
             frame = (frame + 1) % strip.durations.length;
             draw(frame);
             timer = setTimeout(next, strip.durations[frame]);
@@ -247,7 +255,7 @@ const PetPicture = (id) => {
         if (canvas) draw(0);
     };
 
-    return { box, play, stop };
+    return { box, play, stop, retry };
 };
 
 /**
@@ -412,6 +420,7 @@ const CompanionsTab = () => {
                 pictures = true;
                 panelKey = "";
             }
+            pictureOf.forEach((picture) => picture.retry());
 
             tokens.val = await readComputed("companions", "petTokens");
             await readSelection();
@@ -576,6 +585,7 @@ const CompanionsTab = () => {
     const companionsIn = (section) =>
         (section?.ids ?? []).map((id) => companions.val.find((companion) => companion.id === id)).filter(Boolean);
     const rowOf = new Map();
+    const pictureOf = new Map();
     const inView = (pet) => isShown(pet) && shownBySearch(rowOf.get(pet.id));
     const petWord = (n) => `pet${n === 1 ? "" : "s"}`;
 
@@ -699,6 +709,8 @@ const CompanionsTab = () => {
                     content: [
                         columnHead(),
                         ...companionsIn(section).map((companion) => {
+                            const picture = pictures ? PetPicture(companion.id) : null;
+                            if (picture) pictureOf.set(companion.id, picture);
                             const row = PetRow({
                                 companion,
                                 tierOf,
@@ -709,7 +721,7 @@ const CompanionsTab = () => {
                                 isBusy,
                                 onToken: handleToken,
                                 isShown,
-                                picture: pictures ? PetPicture(companion.id) : null,
+                                picture,
                             });
                             rowOf.set(companion.id, row);
                             return row;
