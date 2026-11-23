@@ -420,6 +420,60 @@ test("Tome: Set all with a number a record can't hold writes no record, and the 
     assert.match(trayLine(root), /^.+ can't be 0\.$/);
 });
 
+// #247: record 94 is Round(Min(12, x) + 1), so it shows 1 to 13; Set all wrote 12 for 20 and the row kept 20.
+const MEMORY = "Best Pure Memory Round Reached";
+const fieldOf = (row) => byTag(row, "input")[0];
+test("Tome: record 94 shows its cap of 13, and Max writes it", async (t) => {
+    const before = gga.OptionsListAccount[353];
+    t.after(() => (gga.OptionsListAccount[353] = before));
+    gga.OptionsListAccount[353] = 3;
+    const root = await openPage("src/ui/pages/world-4/tome/tome.js");
+    const row = rowNamed(root, MEMORY);
+    assert.match(text(byClass(row, "number-input__cap")[0]), /13/);
+    click(buttonNamed(row, "Max"));
+    await until(() => gga.OptionsListAccount[353] === 12, "Max to write 12 (the game shows 13)");
+    await until(() => fieldOf(row).value === "13", "the row to show 13");
+});
+
+for (const answer of ["Stop at max", "Go past"])
+    test(`Tome: Set all over 13 asks first; ${answer} leaves record 94 showing 13, as the game does`, async (t) => {
+        // Set all writes every record with a field: each place they live is put back.
+        const places = [
+            "OptionsListAccount",
+            "Divinity",
+            "Gaming",
+            "GamingSprout",
+            "Tasks",
+            "Rift",
+            "Sailing",
+            "Bubba",
+            "Research",
+            "Holes",
+        ];
+        const before = places.map((key) => structuredClone(gga[key]));
+        t.after(() => places.forEach((key, i) => (gga[key] = before[i])));
+        const root = await openPage("src/ui/pages/world-4/tome/tome.js");
+        const setAll = byClass(root, "account-setall-row")[0];
+        const field = byTag(setAll, "input")[0];
+        field.value = "1000000000";
+        field.listeners.input({ target: field });
+        click(buttonNamed(setAll, "Set all"));
+        await until(() => /^1 record has a max under 1,000,000,000\./.test(trayLine(root)), "the question");
+        click(buttonNamed(root, answer));
+        await until(() => gga.OptionsListAccount[353] === 12, "record 94 to get 12 (13 shown)");
+        await until(() => fieldOf(rowNamed(root, MEMORY)).value === "13", "the row to show 13");
+    });
+
+test("Tome: Set all 0 gives record 94 its floor of 1, not 0", async (t) => {
+    const before = gga.OptionsListAccount[353];
+    t.after(() => (gga.OptionsListAccount[353] = before));
+    gga.OptionsListAccount[353] = 5;
+    const root = await openPage("src/ui/pages/world-4/tome/tome.js");
+    const { linesIn } = await importRepo("src/ui/components/views/account/EditableNumberRow.js");
+    const line = linesIn(root).find((l) => text(byClass(l.row, "account-row__name")[0]) === MEMORY);
+    assert.equal(line.min, 1);
+});
+
 test("Eggs: Max all raises every egg in one press; Reset all asks in the tray first", async (t) => {
     const before = [...gga.Breeding[0]];
     t.after(() => (gga.Breeding[0] = before));

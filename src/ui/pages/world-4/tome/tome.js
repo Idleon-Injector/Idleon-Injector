@@ -50,9 +50,12 @@ const powerOfTwoOption = (index) => ({
     source: `2 ^ OptionsListAccount[${index}]`,
     toWrite: (value) => (value <= 0 ? null : Math.log2(value)),
 });
+// Its record shows 1 to 13: the row has that cap and floor, so Max and Set all stay inside them (#247).
 const roundedClampedPlusOneOption = (index) => ({
     path: `OptionsListAccount[${index}]`,
     source: `Round(Min(12, OptionsListAccount[${index}]) + 1)`,
+    cap: 13,
+    min: 1,
     normalize: (value) => Math.round(Math.max(1, Math.min(13, value))),
     toWrite: (value) => Math.max(0, Math.min(12, Math.round(value) - 1)),
 });
@@ -182,7 +185,8 @@ const writeEditableValue = async (editor, nextValue) => {
         throw new Error(`Invalid Tome write value for ${editor.path}`);
     }
     await writeVerified(editor.path, writeValue);
-    return nextValue;
+    // What the record shows for it: a Set all that went past a cap shows the cap, as the game does.
+    return typeof editor.normalize === "function" ? editor.normalize(nextValue) : nextValue;
 };
 
 const TomeEditableRow = ({ entry, valueState }) =>
@@ -194,9 +198,11 @@ const TomeEditableRow = ({ entry, valueState }) =>
         adjustInput: (rawValue, delta, currentValue) => adjustFormattedIntInput(rawValue, delta, currentValue ?? 0),
         inputMode: "float",
         inputProps: { formatter: largeFormatter, parser: largeParser },
+        cap: entry.editor.cap ?? null,
         // Its write takes the value as the field shows it, so Set all saves through it; a value its record can't hold
         // (0 in a 1 / x or 2 ^ x record) stops Set all before anything is written.
         setAll: {
+            min: entry.editor.min ?? 0,
             refuse: (value) => (gameValueOf(entry.editor, value) === null ? `${entry.name} can't be ${value}.` : null),
         },
     });
