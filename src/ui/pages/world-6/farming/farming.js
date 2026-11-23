@@ -229,12 +229,12 @@ const ExoticPart = () => {
         const failure = van.state("");
         const isOn = () => labelled.val.includes(upgrade.n);
         return span(
-            { class: "organic-label" },
-            span({ class: "organic-label__failure", role: "status" }, () => failure.val),
+            { class: "row-toggle" },
+            span({ class: "row-toggle__failure", role: "status" }, () => failure.val),
             ActionButton({
                 label: "Organic",
                 status,
-                className: "organic-label__button",
+                className: "row-toggle__button",
                 keepEnabled: true,
                 buttonProps: { "aria-pressed": () => String(isOn()), "aria-label": `${upgrade.name} organic` },
                 onClick: () => {

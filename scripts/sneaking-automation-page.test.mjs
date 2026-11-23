@@ -1,4 +1,4 @@
-// World 6 › Sneaking, its Automation tab (#92) on the fake game: Sneaking's switch, the jade, the saving %, and every Ninja
+// World 6 › Sneaking › Automation (#92) on the fake game: Sneaking's switch, the jade, the saving %, and every Ninja
 // Knowledge upgrade but the game's placeholder with its bonus or lock, level, next cost, a stop-at, "Save for it" and a
 // switch. A change saves cheatConfig.automation.sneaking (a plain list) or sneakingSaving; switching an upgrade
 // on switches Sneaking on; the tab reads the game again after every save.
@@ -9,15 +9,8 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, sent, fileSent, status, until } = kit;
-// The Sneaking page, open on its Automation tab: the automation's rows are that tab's (the other tabs have rows of
-// the same names).
-const tab = (await importRepo("src/ui/pages/world-6/sneaking/sneaking.js")).default.component();
-const automationTab = kit
-    .elements(tab)
-    .find((node) => node.attributes.role === "tab" && kit.text(node).trim() === "Automation");
-automationTab.listeners.click({});
-const pane = kit.elements(tab).find((node) => node.attributes.id === automationTab.attributes["aria-controls"]);
-const row = (name) => kit.row(pane, name);
+const tab = (await importRepo("src/ui/pages/world-6/sneaking/2-automation.js")).default.component();
+const row = (name) => kit.row(tab, name);
 await until(() => row("Way of Stealth"), "the tab to load");
 // A read-only value of a row, by its column ("Level", "Next level").
 const value = (node, column) =>

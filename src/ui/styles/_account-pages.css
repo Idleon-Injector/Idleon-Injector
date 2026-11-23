@@ -1891,3 +1891,28 @@
         padding: 22px 14px 8px;
     }
 }
+
+/* A setting that switches per line is a button on that line (Organic, Omni Jade; DESIGN.md, Page standards): a quiet
+   one that keeps its lavender word on a faint lavender wash while it's on (what is on). Why a press didn't save is said
+   before the button in the warning's amber, like a row's warning. */
+.row-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewport .account-btn.row-toggle__button[aria-pressed="true"] {
+    border-color: var(--c-accent-25);
+    background: var(--c-accent-dim);
+    color: var(--c-accent);
+}
+
+.row-toggle__failure {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c-warning);
+}
+
+.row-toggle__failure:empty {
+    display: none;
+}

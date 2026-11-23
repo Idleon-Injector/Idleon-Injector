@@ -1,4 +1,4 @@
-// World 6 › Summoning, its Automation tab (#92) on the fake game: one group per essence colour with what it owns and what it is
+// World 6 › Summoning › Automation (#92) on the fake game: one group per essence colour with what it owns and what it is
 // doing while the automation runs (beside its name), its saving % and its upgrades (level, next cost, a stop-at, "Save
 // for it", a switch). A
 // change saves cheatConfig.automation.summoning (a plain list) or that colour's place in summoningSaving; switching an
@@ -10,18 +10,11 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, sent, status, until } = kit;
-// The Summoning page, open on its Automation tab: the automation's rows are that tab's (the other tabs have rows of
-// the same names).
-const tab = (await importRepo("src/ui/pages/world-6/summoning/summoning.js")).default.component();
-const automationTab = kit
-    .elements(tab)
-    .find((node) => node.attributes.role === "tab" && kit.text(node).trim() === "Automation");
-automationTab.listeners.click({});
-const pane = kit.elements(tab).find((node) => node.attributes.id === automationTab.attributes["aria-controls"]);
-const sections = () => byClass(pane, "account-section");
+const tab = (await importRepo("src/ui/pages/world-6/summoning/2-automation.js")).default.component();
+const sections = () => byClass(tab, "account-section");
 const section = (colour) =>
     sections().find((node) => text(byClass(node, "account-section__title")[0]) === `${colour} essence`);
-const pick = (name) => kit.row(pane, name);
+const pick = (name) => kit.row(tab, name);
 // The group's line beside its name: "4.2M owned", then what it is doing while the automation runs.
 const statusOf = (colour) =>
     text(byClass(section(colour), "automation-group__meta")[0])

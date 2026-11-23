@@ -2,28 +2,3 @@
 .farming-tab {
     --page-measure: 60rem;
 }
-
-/* An Organic Label is a pick the game limits, so it keeps a button (DESIGN.md, Page layout): a quiet one that keeps
-   its lavender word on a faint lavender wash while the label is on (what is on). */
-.organic-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.viewport .account-btn.organic-label__button[aria-pressed="true"] {
-    border-color: var(--c-accent-25);
-    background: var(--c-accent-dim);
-    color: var(--c-accent);
-}
-
-/* Why a label didn't save, said before its button in the warning's amber, like a row's warning. */
-.organic-label__failure {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--c-warning);
-}
-
-.organic-label__failure:empty {
-    display: none;
-}

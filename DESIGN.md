@@ -420,17 +420,19 @@ World 5 uses the same pieces; two shared pages moved onto them:
 
 ### World 6 on the same pieces (draft, 2026-11-23)
 
-World 6 uses the World 5 pieces; one grew, and is now shared:
+World 6 uses the World 5 pieces and the Page standards; a few grew, and are now shared:
 
 - **The menu follows the game's screens:** Farming (Plots, Crop Depot, Market, Exotic Market, Land Rank, Stickers),
-  Sneaking (Ninja Knowledge, Jade Emporium, Charms, Omni Jade, Automation) and Summoning (Upgrades, Essence, Battles,
-  Automation) are one page each with tabs; Beanstalk and Emperor are one list each. The Day and Night Market are groups
-  in one Market tab, the board's colours groups in Upgrades.
-- **A system's automation is its page's last tab** (`automationPart` in `automation.js`): the same table and tray tools
-  as an automation page, its stats beside the title only while its tab is open, and its line (a wait, a failure) under
-  the title only while there is something to say, so switching tabs never moves the list.
-- **A list where only some lines have a max** (Land Rank, the summoning board) has no row Max: the numbers stay in one
-  column, and + stops at the max ("3 / 50").
+  Sneaking (Ninja Knowledge, Jade Emporium, Charms) and Summoning (Upgrades, Essence, Battles) are one page each with
+  tabs, and Sneaking and Summoning keep Automation as their own sidebar entry (Lumi: "i obviously wanted automation to
+  be its own menu point like w4 and before"). Beanstalk and Emperor are one list each. The Day and Night Market are
+  groups in one Market tab, the board's colours and the opponents' colours groups in their tabs.
+- **A setting that switches per line is a button on that line** (`row-toggle`): Organic on Exotic Market, Omni Jade on
+  Ninja Knowledge (Lumi: "it's the same as ninja knowledge and can just be implemented with a button to enable it").
+  It is lavender while on. In a table it takes the last column (`ValueTableRow`'s `action`), and a line that can't have
+  it keeps that column empty, as a line without a value keeps its own (`blank`).
+- **A save that the game caches** clears the cache after it (and Undo does too): Endless wins and the opponents won
+  clear `DNSM.h.SummWinBonus`, so the win bonuses follow at once.
 - **The game's placeholders stay out** (NAME_MAGNI, UNDER_CONSTRUCTION, Nonexistent_Sticker, "something World 7ish").
 - **A row's own question** (Emperor's Reset) puts its answer beside the row's name and keeps the button's room, so
   nothing moves while it asks.
