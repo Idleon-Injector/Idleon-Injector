@@ -792,6 +792,12 @@
     font-weight: 600;
     cursor: pointer;
 }
+/* A pick that is a row's value (a character's skin) keeps one width down the list, like a field, so the picks line up
+   and the row's save state beside it doesn't move when the pick changes. */
+.account-row__controls > .pick-in-place__opener {
+    justify-content: space-between;
+    width: 11rem;
+}
 .pick-in-place__opener:hover:not(:disabled) {
     background: var(--c-well-hover);
 }
@@ -930,13 +936,21 @@
         animation: none;
     }
 }
-.character-picker .pick-in-place__options {
+.character-picker .pick-in-place__options,
+.pick-in-place--columns .pick-in-place__options {
     display: grid;
     /* The columns follow the list's own width on every page: four at most, never fewer than two. */
     grid-template-columns: repeat(auto-fill, minmax(max(min(8.5rem, calc(50% - 1px)), calc(25% - 2px)), 1fr));
     gap: 2px;
     max-height: none;
     overflow: visible;
+}
+/* A short list of names that opens in place (a star sign's players, a character's skins) runs in the same columns. */
+.pick-in-place--columns .pick-in-place__option {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .character-picker .pick-in-place__option {
     display: flex;

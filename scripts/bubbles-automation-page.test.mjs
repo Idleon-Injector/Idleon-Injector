@@ -117,3 +117,21 @@ test("Enable all switches every bubble on in one save; Disable all asks in the t
         "the stop-at stays"
     );
 });
+
+// #236: every bubble had to be switched to Particles by hand. All to switches the shown bubbles in one save, with no
+// question (Materials and Particles have no order), and Materials leaves nothing to keep.
+test("All to Particles and back to Materials, one save each", async () => {
+    await kit.button(tab, "Particles").listeners.click({ preventDefault() {} });
+    await kit.idle();
+    const all = sent("bubbles");
+    assert.ok(all.length > 3 && all.every(({ pay }) => pay === "particles"), "every bubble pays with particles");
+    assert.equal(selected(row("Copper Spark")), "Particles", "the rows show it");
+    assert.ok(!byClass(tab, "tabbed-list__tools-label").some((node) => /\?$/.test(text(node))), "no question");
+    await kit.button(tab, "Materials").listeners.click({ preventDefault() {} });
+    await kit.idle();
+    assert.ok(
+        sent("bubbles").every(({ pay }) => pay === undefined),
+        "materials is the default: nothing left to keep"
+    );
+    assert.equal(selected(row("Copper Spark")), "Materials");
+});

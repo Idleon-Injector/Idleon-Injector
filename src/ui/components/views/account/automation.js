@@ -52,6 +52,7 @@ import { PersistentAccountListPage } from "./components/PersistentAccountListPag
 import { StepPicker } from "./components/StepPicker.js";
 import { ValueTableHead } from "./EditableFieldsRow.js";
 import { toNodes, useWriteStatus } from "./accountShared.js";
+import { AllToTool } from "./BulkActionBar.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
 import { ListPanel, TabbedList } from "./tabShared.js";
 import { Said, announce, useSaid } from "../../inPlace.js";
@@ -492,6 +493,12 @@ export const createAutomationPicks = (
             onLate
         );
     };
+    /** Give every item in `ids` the same value of its other setting `name` (a pick: pay with), with one save. */
+    const setFieldAll = (ids, name, value, onLate = null) =>
+        save(
+            ids.map((id) => [id, { [name]: value }]),
+            onLate
+        );
     /** Send the list again: after a file save failed, the field's Enter retries it. */
     const resave = (onLate = null) => save([], onLate);
 
@@ -501,6 +508,7 @@ export const createAutomationPicks = (
         sync,
         set,
         setAll,
+        setFieldAll,
         resave,
         fileBehind: () => fileBehind.val,
         bulkAsks: (id) => bulkAsks.get(id) ?? 0,
@@ -924,35 +932,50 @@ export const SettingRow = ({
  * the automation on with an item, and ends with the page's read when its picks have `afterSave`); while the top bar
  * searches the page, only the rows it shows. `done(on, total)` is true when Enable all has nothing left to do; `words`
  * names one and many items (["Orion upgrade", "Orion upgrades"], or a function giving them); `afterAll()`, when given,
- * is a queued read the page runs after every bulk save. Returns { tools(ask), label(), said, busy }: `tools`
- * and `label` go to the list's tray, `said` holds a bulk failure, for the page's top line.
+ * is a queued read the page runs after every bulk save. `selects` are the rows' picks (PickRow's): each gets an All to
+ * beside them ("All to Materials | Particles"). Returns { tools(ask), label(), said, busy }: `tools` and `label` go to
+ * the list's tray, `said` holds a bulk failure, for the page's top line.
  */
-export const usePicksBulk = ({ targets, done, words, waiting, loading = () => false, afterAll = null }) => {
+export const usePicksBulk = ({
+    targets,
+    done,
+    words,
+    waiting,
+    loading = () => false,
+    afterAll = null,
+    selects = [],
+}) => {
     const bulk = useWriteStatus();
     const bulkSaid = useSaid();
     const noun = (n) => (typeof words === "function" ? words() : words)[n === 1 ? 0 : 1];
     const shown = () => targets().map(([picks, ids]) => [picks, ids.filter((id) => shownBySearch(picks.get(id).row))]);
     const count = () => shown().reduce((n, [picks, ids]) => n + ids.filter((id) => picks.get(id).on.val).length, 0);
     const total = () => shown().reduce((n, [, ids]) => n + ids.length, 0);
+    // A bulk save, said in the page's top line when it fails.
+    const run = (task) =>
+        bulk.run(task, {
+            onSuccess: () => bulkSaid.clear(),
+            onError: (caught) => bulkSaid.say("failed", caught.message),
+        });
+    // `each(picks, ids)` saves one target's part; `pairs` are the [picks, ids] it covers.
+    const saveAll = async (pairs, each) => {
+        bulkSaid.clear();
+        // Every target's save is queued now, in order, so a row edit made after the press lands after them all. One
+        // that fails doesn't stop the rest; the first failure is said once all have ended.
+        const saves = await Promise.allSettled(pairs.map(([picks, ids]) => each(picks, ids)));
+        // Whatever happened, the page's own follow-up read (a queued step), so Enable all knows what's left.
+        await Promise.resolve(afterAll?.()).catch(() => {});
+        const failed = saves.find(({ status }) => status === "rejected");
+        if (failed) throw failed.reason;
+    };
+    // A group the search left with no rows sends nothing, unless the file still lacks its last save: then it saves
+    // again, which is what Enable all and Disable all stay pressable for.
     const setAll = (on) =>
-        bulk.run(
-            async () => {
-                bulkSaid.clear();
-                // Every target's save is queued now, in order, so a row edit made after the press lands after them
-                // all. One that fails doesn't stop the rest; the first failure is said once all have ended.
-                // A group the search left with no rows sends nothing, unless the file still lacks its last save:
-                // then it saves again, which is what Enable all and Disable all stay pressable for.
-                const saves = await Promise.allSettled(
-                    shown()
-                        .filter(([picks, ids]) => ids.length || picks.fileBehind())
-                        .map(([picks, ids]) => picks.setAll(ids, on, waiting.onLate))
-                );
-                // Whatever happened, the page's own follow-up read (a queued step), so Enable all knows what's left.
-                await Promise.resolve(afterAll?.()).catch(() => {});
-                const failed = saves.find(({ status }) => status === "rejected");
-                if (failed) throw failed.reason;
-            },
-            { onSuccess: () => bulkSaid.clear(), onError: (caught) => bulkSaid.say("failed", caught.message) }
+        run(() =>
+            saveAll(
+                shown().filter(([picks, ids]) => ids.length || picks.fileBehind()),
+                (picks, ids) => picks.setAll(ids, on, waiting.onLate)
+            )
         );
     const busy = () => bulk.status.val === "loading";
     // The game may hold a list the config file doesn't (a file save failed): the buttons stay, to save it again.
@@ -979,7 +1002,27 @@ export const usePicksBulk = ({ targets, done, words, waiting, loading = () => fa
                 });
             },
         });
-        return div(
+        // All to, per pick: the shown rows whose pick differs, each target's in one save.
+        const allTos = selects.map(({ field, options }) =>
+            AllToTool({
+                ask,
+                bulk,
+                run,
+                steps: options,
+                lines: () => shown().flatMap(([picks, ids]) => ids.map((id) => ({ picks, id }))),
+                pickedOf: ({ picks, id }) => picks.field(id, field).val ?? null,
+                word: noun,
+                disabled: () => loading() || busy(),
+                write: (lines, value) =>
+                    saveAll(
+                        targets()
+                            .map(([picks]) => [picks, lines.filter((line) => line.picks === picks).map(({ id }) => id)])
+                            .filter(([, ids]) => ids.length),
+                        (picks, ids) => picks.setFieldAll(ids, field, value, waiting.onLate)
+                    ),
+            })
+        );
+        const switches = div(
             { class: "tabbed-list__tool-group" },
             ActionButton({
                 label: "Enable all",
@@ -992,6 +1035,7 @@ export const usePicksBulk = ({ targets, done, words, waiting, loading = () => fa
             }),
             disableAll
         );
+        return allTos.length ? [switches, ...allTos] : switches;
     };
     return { tools, label, said: bulkSaid.said, busy };
 };

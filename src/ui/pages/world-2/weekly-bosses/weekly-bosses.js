@@ -18,6 +18,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -26,7 +27,7 @@ import { captureGesture } from "../../../services/changeLog.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, span, select, option } = van.tags;
+const { div, span } = van.tags;
 
 /**
  * Edit Weekly Boss trophies, cosmetic unlocks and each character's main-bar skin. One list: the trophies, the skins,
@@ -414,40 +415,33 @@ const WeeklyBossTab = () => {
 
     const renderPlayer = (player) => {
         const state = playerStates.get(playerKey(player));
-        const hasUnknownSelection = () =>
-            state.value.val !== "0" && !entries.some(({ selection }) => String(selection) === state.value.val);
-        const selectionNode = select(
-            {
-                class: "select-base",
-                "aria-label": `${player.name} main-bar skin`,
-                disabled: cannotEdit,
-                onchange: (event) => {
-                    state.draft.val = event.target.value;
-                    void state.write.save();
-                },
+        // Each read of the skins (entriesRead) renames the pick and its list.
+        const skinName = (selection) => {
+            void entriesRead.val;
+            if (selection === "0") return "Default";
+            return entries.find((entry) => String(entry.selection) === selection)?.name ?? `Unknown skin ${selection}`;
+        };
+        // The skin opens its list in place, under the row: Default and the unlocked skins (the game refuses the rest).
+        const pick = PickInPlace({
+            name: `${player.name} main-bar skin`,
+            opener: () => skinName(state.draft.val),
+            options: () => {
+                void entriesRead.val;
+                return [
+                    { id: "0", label: "Default" },
+                    ...entries
+                        .filter((entry) => skinStates.get(entry.key).unlocked.val)
+                        .map((entry) => ({ id: String(entry.selection), label: entry.name })),
+                ];
             },
-            option({ value: "0", selected: () => state.draft.val === "0" }, "Default"),
-            ...entries.map((entry) =>
-                option(
-                    {
-                        value: String(entry.selection),
-                        selected: () => state.draft.val === String(entry.selection),
-                        disabled: () =>
-                            !skinStates.get(entry.key).unlocked.val && state.value.val !== String(entry.selection),
-                    },
-                    entry.name
-                )
-            ),
-            option(
-                {
-                    value: () => (hasUnknownSelection() ? state.value.val : "__unknown__"),
-                    selected: () => hasUnknownSelection() && state.draft.val === state.value.val,
-                    hidden: () => !hasUnknownSelection(),
-                    disabled: () => !hasUnknownSelection(),
-                },
-                () => `Unknown selection ${state.value.val}`
-            )
-        );
+            picked: () => state.draft.val,
+            onPick: (id) => {
+                state.draft.val = id;
+                void state.write.save();
+            },
+            disabled: cannotEdit,
+            panelClass: "row-detail pick-in-place--columns",
+        });
         const getPlayerWarning = () => {
             if (state.value.val === "0") return "";
             const entry = entries.find(({ selection }) => String(selection) === state.value.val);
@@ -457,8 +451,9 @@ const WeeklyBossTab = () => {
                   ? `Saved skin ${entry.name} is locked.`
                   : "";
         };
-        return AccountRow({
-            rowClass: () => saveStateClass(state.write.status.val, state.write.undo),
+        // A value row: on a phone the name and "Active" keep the first line and the skin goes under them.
+        const row = AccountRow({
+            rowClass: () => `account-row--value ${saveStateClass(state.write.status.val, state.write.undo)}`,
             rowProps: state.write.handlers,
             info: div(
                 { class: "account-row__name-group" },
@@ -471,9 +466,12 @@ const WeeklyBossTab = () => {
                     getPlayerWarning
                 )
             ),
-            badge: () => (activePlayer.val === player.name ? "Active" : `Character ${player.index + 1}`),
-            controls: [SaveState(state.write), selectionNode],
+            // The character in play says so; the others need no word.
+            badge: () => (activePlayer.val === player.name ? "Active" : ""),
+            controls: [SaveState(state.write), pick.opener],
         });
+        row.append(pick.panel);
+        return row;
     };
 
     const load = () => {

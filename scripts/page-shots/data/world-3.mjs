@@ -83,7 +83,8 @@ export default () => ({
             ...list(BUILDINGS, (i) => (i * 370) % 1600),
         ],
         // 0 locked, positive charging, -11 or lower unlocked.
-        FlagUnlock: list(120, (i) => (i < 60 ? -11 : i < 70 ? 1000 * (i - 59) : 0)),
+        // The first 60 board slots and a few side slots (96, 100, ...: tiny cogs) unlocked, then some charging.
+        FlagUnlock: list(120, (i) => (i < 60 || (i >= 96 && i % 4 === 0) ? -11 : i < 70 ? 1000 * (i - 59) : 0)),
         FlagsPlaced: [61, 64, -1, -1],
         CogOrder: list(COG_SLOTS, cog),
         CogMap: list(COG_SLOTS, cogStats),
