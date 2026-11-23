@@ -457,3 +457,6 @@ The masterclasses use the World 6 pieces and the Page standards; one page builde
 - **A tool's own numbers sit in the tray with it:** Populate's units per outpost are its fields there, one per kind,
   so the list holds only what saves to the game.
 - **A table tab doesn't take `field-columns`:** it would pull the values off their column names.
+- **The four masterclasses have their drawings** (Lumi: put all four in): a clasped book with a small skull for the
+  Grimoire, a ring and its needle for the Compass, a cube in a cube for the Tesseract, and a knight's helm for the
+  Royal Armory.

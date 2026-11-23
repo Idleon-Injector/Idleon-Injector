@@ -398,4 +398,18 @@ const SYSTEM_ICONS = {
     ],
     // The emperor's crown: three soft points over a band.
     Emperor: ["M5 17 3.8 8.2l4.6 3.6L12 5.5l3.6 6.3 4.6-3.6L19 17z", "M5 20.5h14", [12, 13.6, 0.9]],
+    // Classes (Lumi: put all four in, 2026-11-23).
+    // The Grimoire: a closed book held shut by a clasp, a small skull on its cover.
+    Grimoire: [
+        "M6.5 3.5h11A1.5 1.5 0 0 1 19 5v14a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z",
+        "M19 10.5h-2v3h2",
+        "M9 11.2a3 3 0 0 1 6 0c0 1.1-.5 1.8-1.2 2.2v1.3h-3.6v-1.3C9.5 13 9 12.3 9 11.2z",
+        "M11 14.7v1M13 14.7v1",
+    ],
+    // The Compass: a ring with its needle across it.
+    Compass: [[12, 12, 8.5], "M16 8 13.4 13.4 8 16l2.6-5.4z"],
+    // The Tesseract: a cube in a cube, the corners joined.
+    Tesseract: ["M4.5 4.5h15v15h-15z", "M9 9h6v6H9z", "M4.5 4.5 9 9M19.5 4.5 15 9M4.5 19.5 9 15M19.5 19.5 15 15"],
+    // The Royal Armory: a knight's helm with its visor and crest.
+    "Royal Armory": ["M6 20.5v-7.5a6 6 0 0 1 12 0v7.5z", "M6 13.5h12", "M9.5 16.5h5", "M12 7V3.5"],
 };
