@@ -50,6 +50,25 @@ test("Max: a capped line without Max is a break; the shared rows add Max to ever
     assert.deepEqual(only(breaksOf(page("Stamps", ListPanel({ body: [level("Heart Stamp")] }))), "Max"), []);
 });
 
+test("Max: Max on a line without a cap is a break; an uncapped line keeping Max's empty room is fine", () => {
+    const node = page(
+        "Stamps",
+        ListPanel({
+            className: "field-columns",
+            body: [
+                level("Heart Stamp"),
+                level("Mana Stamp", null),
+                line(
+                    "Book Stamp",
+                    div({ class: "number-input-wrapper" }),
+                    button({ class: "account-row__max" }, "Max")
+                ),
+            ],
+        })
+    );
+    assert.deepEqual(only(breaksOf(node), "Max"), [`Max: "Book Stamp" has Max but no cap to fill up to`]);
+});
+
 test("Automation: a tab named Automation, or the automation list on another page, is a break", () => {
     const tabbed = TabbedList({
         name: "Sneaking",
@@ -210,6 +229,25 @@ test("Bulk tools: a tool that takes away without asking, and a Max all that asks
         `Bulk tools: "Unexalt all" takes away without asking in the tray`,
         `Bulk tools: "Max all" asks; Max all runs on one press`,
     ]);
+});
+
+test("Bulk tools: a tool that asks, then writes after an await without the answer, is a break", async () => {
+    let written = 0;
+    const tools = (_, ask) => [
+        button(
+            {
+                class: "account-btn btn-danger",
+                onclick: async (e) => {
+                    ask({ question: "Reset 12?", confirmLabel: "Reset them", from: e.currentTarget, onConfirm() {} });
+                    await new Promise((resolve) => setTimeout(resolve, 30));
+                    written++;
+                },
+            },
+            "Reset all"
+        ),
+    ];
+    const node = page("Stamps", ListPanel({ body: level("Heart Stamp"), tools, toolsLabel: () => "All 12 stamps" }));
+    assert.deepEqual(await bulkBreaks(node, () => written), [`Bulk tools: "Reset all" wrote before the answer`]);
 });
 
 test("Clicks: a :focus outline or accent ring is a break; :focus-visible and [data-keyboard] are the keyboard's", () => {
