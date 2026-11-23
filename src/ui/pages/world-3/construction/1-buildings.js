@@ -598,7 +598,9 @@ const CogsTab = () => {
             let picked = null;
             const save = useAutoSave({
                 prepare: () => {
-                    if (readOnly || picked === null || picked === held()) return { unchanged: true };
+                    // A pick of what the game holds is done: kept, a Refresh to another pattern would save it later.
+                    if (picked === held()) picked = null;
+                    if (readOnly || picked === null) return { unchanged: true };
                     const next = picked;
                     return {
                         write: async () => {
