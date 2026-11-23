@@ -74,3 +74,20 @@ test("superbits: two superbits flipped on while the first saves both stay unlock
     assert.equal(String(gga.Gaming[12]).length, before.length + 2, "the game holds both new letters");
     gga.Gaming[12] = before;
 });
+
+// CodeRabbit on #227: Undo of a Black Stars save clears the palette bonuses the game keeps, as the save itself does.
+test("palette: undoing a Black Stars save clears the game's palette bonuses", async () => {
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const old = Number(gga.Spelunk[49][0] ?? 0);
+    await withAction({ label: "palette" }, () => writeVerified("Spelunk[49][0]", old === 2 ? 1 : old + 1));
+    const { actions } = await fetchChanges();
+    const action = actions.find((entry) => entry.entries.some((change) => change.path === "Spelunk[49][0]"));
+    // The game rebuilt its bonuses from the saved stars since.
+    gga.DNSM.h.PaletteBonz = [1, 2, 3];
+    await undoAction(action.id);
+    assert.equal(Number(gga.Spelunk[49][0]), old);
+    assert.equal("PaletteBonz" in gga.DNSM.h, false, "the bonuses are cleared");
+});

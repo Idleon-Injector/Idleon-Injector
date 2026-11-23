@@ -16,6 +16,41 @@ const { router, game } = await createFakeApi(fakeGameData());
 await loadUi(router);
 const gga = game.gga;
 const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
+const { searchHits } = await importRepo("src/ui/menu/pageSearch.js");
+const { loadParts } = await importRepo("src/ui/components/views/account/tabShared.js");
+
+// Hold the game's writes until released, to act while a save runs. `most` is the most writes running at once.
+const holdWrites = () => {
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let running = 0;
+    const held = () => {
+        globalThis.fetch = realFetch;
+        release();
+    };
+    held.most = 0;
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).includes("/write")) return realFetch(url, options);
+        held.most = Math.max(held.most, ++running);
+        try {
+            await gate;
+            return await realFetch(url, options);
+        } finally {
+            running--;
+        }
+    };
+    return held;
+};
+// The game's writes fail until the returned function is called.
+const failWrites = () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("/write")) throw new Error("Connection lost");
+        return realFetch(url, options);
+    };
+    return () => (globalThis.fetch = realFetch);
+};
 
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
@@ -191,6 +226,68 @@ test("Rat King: a crown's switch keeps a crown reclaimed in game since; Clear al
     await until(() => gga.Research[11].length === 0, "no crowns left");
 });
 
+// CodeRabbit on #227: the Rat King's all-buttons and their counts follow the page search.
+test("Rat King: Reclaim all reclaims only the plants the search shows", async (t) => {
+    const before = [...gga.Research[11]];
+    t.after(() => {
+        searchHits.val = null;
+        gga.Research[11] = before;
+    });
+    gga.Research[11] = [];
+    const { root, pane } = await openPane(GAMING, "Rat King");
+    searchHits.val = new Set([rowNamed(pane, "Plant 2")]);
+    await until(() => trayLine(root) === "0 of 10 crowns reclaimed", "the count of the shown plant");
+    click(buttonNamed(root, "Reclaim all"));
+    await until(() => gga.Research[11].length > 0, "the crowns to save");
+    assert.deepEqual([...gga.Research[11]], ["1_", "1a", "1b", "1c", "1d", "1e", "1f", "1g", "1h", "1i"]);
+});
+
+test("Rat King: Clear all clears the crowns its question counted, not one reclaimed while it was open", async (t) => {
+    const before = [...gga.Research[11]];
+    t.after(() => (gga.Research[11] = before));
+    gga.Research[11] = ["0_", "0a"];
+    const { root } = await openPane(GAMING, "Rat King");
+    click(buttonNamed(root, "Clear all"));
+    await until(() => trayLine(root) === "Clear 2 reclaimed crowns?", "the question");
+    gga.Research[11] = ["0_", "0a", "9i"];
+    yes(root);
+    await until(() => !gga.Research[11].includes("0_"), "the counted crowns to clear");
+    assert.deepEqual([...gga.Research[11]], ["9i"], "the crown reclaimed after the question stays");
+});
+
+test("Rat King: a plant's All switch says Saving and Saved", async (t) => {
+    const before = [...gga.Research[11]];
+    t.after(() => (gga.Research[11] = before));
+    gga.Research[11] = [];
+    const { pane } = await openPane(GAMING, "Rat King");
+    const plant = rowNamed(pane, "Plant 3");
+    // The row's first switch is its All switch (the crowns' own come after, in the closed detail).
+    const said = () => text(byClass(byClass(plant, "state-switch")[0], "account-write-feedback")[0]);
+    flip(plant, true);
+    await until(() => said() === "Saved", "Saved");
+    assert.equal(gga.Research[11].length, 10);
+});
+
+test("Garden: two plants' Log Book counts saved together both land (one string)", async (t) => {
+    const before = gga.Gaming[11];
+    t.after(() => (gga.Gaming[11] = before));
+    gga.Gaming[11] = "ajjhhe";
+    const { root } = await openPane(GAMING, "Garden");
+    const seven = rowNamed(root, "Plant 7");
+    const eight = rowNamed(root, "Plant 8");
+    const release = holdWrites();
+    try {
+        typeAndEnter(seven, byTag(seven, "input")[0], 4);
+        typeAndEnter(eight, byTag(eight, "input")[0], 3);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    } finally {
+        release();
+    }
+    await settled(seven);
+    await settled(eight);
+    assert.equal(gga.Gaming[11], "ajjhhedc");
+});
+
 test("Superbits: a flip keeps a superbit unlocked in game since; Lock all asks, then locks every board", async (t) => {
     const before = gga.Gaming[12];
     t.after(() => (gga.Gaming[12] = before));
@@ -266,6 +363,23 @@ test("Villagers › Engineer: a switch unlocks one schematic; Lock all asks firs
     await until(() => /^Lock \d+ schematics\?$/.test(trayLine(root)), "the question");
     yes(root);
     await until(() => gga.Holes[13].every((built) => built === 0), "every schematic locked");
+});
+
+test("Villagers › Engineer: Unlock all waits for a switch's save, never writing beside it", async (t) => {
+    const before = [...gga.Holes[13]];
+    t.after(() => (gga.Holes[13] = before));
+    gga.Holes[13] = before.map(() => 0);
+    const { root, pane } = await openPane(VILLAGERS, "Engineer");
+    const held = holdWrites();
+    try {
+        flip(rowNamed(pane, "Better Buckets"), true);
+        click(buttonNamed(root, "Unlock all"));
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        assert.equal(held.most, 1, "one write at a time");
+    } finally {
+        held();
+    }
+    await until(() => gga.Holes[13].every((built) => built === 1), "every schematic unlocked");
 });
 
 test("Caverns: a tab per cavern in the game's order, and Fountain's parts are groups in its list, not tabs", async () => {
@@ -468,6 +582,61 @@ test("Captains: Remove won't take a captain on a boat, and says why", async () =
     assert.deepEqual(gga.Captains[0], before, "nothing written");
 });
 
+const askRemove = (pane, name) => {
+    const row = rowNamed(pane, name);
+    click(byClass(row, "row-opener")[0]);
+    const removeRow = rowNamed(row, "Remove captain");
+    click(buttonNamed(removeRow, "Remove"));
+    return removeRow;
+};
+const refusalOf = (removeRow) => text(byClass(removeRow, "captain-remove__refusal")[0]);
+
+test("Captains: two quick Removes of your last two captains keep one", async (t) => {
+    const before = gga.Captains.map((captain) => [...captain]);
+    t.after(() => (gga.Captains = before.map((captain) => [...captain])));
+    // Only Captains 8 and 9 hired; neither sails a boat.
+    gga.Captains = before.map((captain, slot) =>
+        slot < 30 && slot !== 7 && slot !== 8 ? [-1, ...captain.slice(1)] : [...captain]
+    );
+    const { pane } = await openPane(SAILING, "Captains");
+    await until(() => rowNamed(pane, "Captain 8") && !rowNamed(pane, "Captain 1"), "the two captains");
+    const eight = askRemove(pane, "Captain 8");
+    const nine = askRemove(pane, "Captain 9");
+    const held = holdWrites();
+    try {
+        click(buttonNamed(eight, "Remove it"));
+        click(buttonNamed(nine, "Remove it"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    } finally {
+        held();
+    }
+    await until(() => refusalOf(nine) !== "", "the second Remove's answer");
+    assert.equal(refusalOf(nine), "Can't remove your last captain.");
+    assert.equal(gga.Captains[7][0], -1);
+    assert.equal(gga.Captains[8][0], before[8][0], "the last captain stays");
+});
+
+test("Captains: a Remove that fails says why in its row, and the page reads the game again", async (t) => {
+    const before = gga.Captains.map((captain) => [...captain]);
+    t.after(() => (gga.Captains = before.map((captain) => [...captain])));
+    const { pane } = await openPane(SAILING, "Captains");
+    const removeRow = askRemove(pane, "Captain 8");
+    const restore = failWrites();
+    // The game moved on while the page showed it: a voyage levelled Captain 8.
+    gga.Captains[7][3] = Number(before[7][3]) + 5;
+    try {
+        click(buttonNamed(removeRow, "Remove it"));
+        await until(() => refusalOf(removeRow) !== "", "the reason");
+    } finally {
+        restore();
+    }
+    assert.match(refusalOf(removeRow), /Connection lost/);
+    assert.equal(gga.Captains[7][0], before[7][0], "the captain stays");
+    const [, level] = byTag(rowNamed(pane, "Captain 8"), "input");
+    const shown = largeFormatter(Number(before[7][3]) + 5);
+    await until(() => (level.value ?? String(level.attributes.value)) === shown, "the page to show the game's level");
+});
+
 test("Slab › Greenstacks: its own list, filter and tools; Clear all asks first", async (t) => {
     const before = [...gga.GreenStacks];
     t.after(() => (gga.GreenStacks = before));
@@ -504,4 +673,16 @@ test("Captains: a captain with one bonus shows only that one, and its second pic
         (node) => node.attributes.role === "radio" && attr(node, "aria-checked") === "true"
     );
     assert.equal(text(picked), "None");
+});
+
+// CodeRabbit on #227: a tabbed page's load waits for every tab's read, so a slow one can't land after the next load.
+test("Gaming, Sailing, Slab: a load that fails waits for every tab's read, then says the first failure", async () => {
+    let slowDone = false;
+    const parts = new Map([
+        ["fails", { load: () => Promise.reject(new Error("Garden read failed")) }],
+        ["slow", { load: () => new Promise((resolve) => setTimeout(() => resolve((slowDone = true)), 30)) }],
+        ["later", { load: () => Promise.reject(new Error("second failure")) }],
+    ]);
+    await assert.rejects(loadParts(parts), { message: "Garden read failed" });
+    assert.ok(slowDone, "the slow read had settled");
 });

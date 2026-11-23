@@ -16,7 +16,7 @@ import { ItemRegistrationPart } from "../../../components/views/account/ItemRegi
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
+import { TabbedList, toolsPerTab, loadParts } from "../../../components/views/account/tabShared.js";
 
 const { div } = van.tags;
 
@@ -40,7 +40,7 @@ const SlabTab = () => {
     const busy = () => [...parts.values()].some((part) => part.busy());
     const { loading, error, run } = useAccountLoad({ label: "Slab", busy });
     const pending = () => loading.val || Boolean(error.val);
-    const load = () => run(() => Promise.all([...parts.values()].map((part) => part.load())));
+    const load = () => run(() => loadParts(parts));
     for (const tab of TABS)
         parts.set(
             tab.id,

@@ -116,6 +116,18 @@ export const toolsPerTab = (byTab) => (activeId, ask) =>
         div({ class: "tabbed-list__tab-tools", hidden: () => activeId.val !== id }, tools(ask))
     );
 
+/**
+ * Loads every part of a tabbed page and waits for all of them, so a read that is still running can't land after the
+ * next load. Then fails with the first part that failed.
+ *
+ * @param {Map<string, { load: () => Promise<any> }>} parts
+ */
+export const loadParts = async (parts) => {
+    const results = await Promise.allSettled([...parts.values()].map((part) => part.load()));
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed) throw failed.reason;
+};
+
 export const TabbedList = ({
     name,
     tabs,

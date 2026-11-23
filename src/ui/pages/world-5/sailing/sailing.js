@@ -37,12 +37,13 @@ import { AccountToggleRow } from "../../../components/views/account/components/A
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
-import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
+import { TabbedList, toolsPerTab, loadParts } from "../../../components/views/account/tabShared.js";
 import {
     bonusText,
     cleanName,
     createIndexedStateGetter,
     createStaticRowReconciler,
+    oneAtATime,
     runBulkSet,
     toInt,
     toNum,
@@ -50,7 +51,12 @@ import {
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
+import {
+    SaveState,
+    saveFailureReason,
+    saveStateClass,
+    useAutoSave,
+} from "../../../components/views/account/autoSave.js";
 
 const { button, div, span } = van.tags;
 
@@ -232,36 +238,48 @@ const CaptainsPart = ({ pending, reload }) => {
 
     // Removing a hired captain, the way the game's own discard does it (its sailing screen): the slot's rarity goes to
     // -1, its level back to 1 and its EXP to 0, and nothing else moves. Like the game it won't take a captain that is
-    // on a boat, or the last one. It asks first, in place.
+    // on a boat, or the last one. It asks first, in place. Removals take turns (read, check, write, read again), so
+    // two quick Removes can't both pass the last-captain check.
+    const removeTurn = oneAtATime();
     const RemoveRow = (slot) => {
         const asking = van.state(false);
         const status = useWriteStatus();
         const refusal = van.state("");
         const name = `Captain ${slot + 1}`;
         const remove = () =>
-            status.run(async () => {
-                const [rawBoats, rawCaptains] = await Promise.all([gga("Boats"), gga("Captains")]);
-                const boats = toIndexedArray(rawBoats ?? []).map((raw) => toIndexedArray(raw ?? []));
-                const captains = toIndexedArray(rawCaptains ?? []).map((raw) => toIndexedArray(raw ?? []));
-                asking.val = false;
-                if (boats.some((boat) => toNum(boat[0], -1) === slot)) {
-                    refusal.val = "It's on a boat. Take it off first.";
-                    return { cancelled: true };
-                }
-                const hired = captains.slice(0, OWNED_SLOTS).filter((captain) => toNum(captain[0], -1) >= 0).length;
-                if (hired < 2) {
-                    refusal.val = "Can't remove your last captain.";
-                    return { cancelled: true };
-                }
-                refusal.val = "";
-                await writeManyVerified([
-                    { path: `Captains[${slot}][0]`, value: -1 },
-                    { path: `Captains[${slot}][3]`, value: 1 },
-                    { path: `Captains[${slot}][4]`, value: 0 },
-                ]);
-                openSlot.val = -1;
-                await reload();
-            });
+            status.run(() =>
+                removeTurn(async () => {
+                    const [rawBoats, rawCaptains] = await Promise.all([gga("Boats"), gga("Captains")]);
+                    const boats = toIndexedArray(rawBoats ?? []).map((raw) => toIndexedArray(raw ?? []));
+                    const captains = toIndexedArray(rawCaptains ?? []).map((raw) => toIndexedArray(raw ?? []));
+                    asking.val = false;
+                    if (boats.some((boat) => toNum(boat[0], -1) === slot)) {
+                        refusal.val = "It's on a boat. Take it off first.";
+                        return { cancelled: true };
+                    }
+                    const hired = captains.slice(0, OWNED_SLOTS).filter((captain) => toNum(captain[0], -1) >= 0).length;
+                    if (hired < 2) {
+                        refusal.val = "Can't remove your last captain.";
+                        return { cancelled: true };
+                    }
+                    refusal.val = "";
+                    try {
+                        await writeManyVerified([
+                            { path: `Captains[${slot}][0]`, value: -1 },
+                            { path: `Captains[${slot}][3]`, value: 1 },
+                            { path: `Captains[${slot}][4]`, value: 0 },
+                        ]);
+                        openSlot.val = -1;
+                    } catch (error) {
+                        // Said where the player is looking (the "Remove it" button is gone by now); Remove tries again.
+                        refusal.val = saveFailureReason(error);
+                        throw error;
+                    } finally {
+                        // Part of it may have landed: show what the game holds either way.
+                        await reload();
+                    }
+                })
+            );
         return AccountRow({
             info: span({ class: "account-row__name" }, () => (asking.val ? `Remove ${name}?` : "Remove captain")),
             controls: [
@@ -693,7 +711,7 @@ const SailingTab = () => {
     });
     // After a read that failed, what the tabs show may be old: their tools wait for one that works.
     const pending = () => loading.val || Boolean(error.val);
-    const load = () => run(() => Promise.all([...parts.values()].map((part) => part.load())));
+    const load = () => run(() => loadParts(parts));
     for (const tab of TABS) parts.set(tab.id, tab.part({ pending, reload: load }));
     const partOf = (id) => parts.get(id);
 

@@ -38,6 +38,7 @@ import {
     createIndexedStateGetter,
     createStaticRowReconciler,
     normalCase,
+    oneAtATime,
     runBulkSet,
     toInt,
     toNum,
@@ -180,17 +181,20 @@ const VillagersTab = () => {
     const schematicNode = div();
     const reconcileSchematics = createStaticRowReconciler(schematicNode);
     const unlocked = (schematic) => getUnlocked(schematic.index).val > 0;
+    // A switch's save and Lock all / Unlock all take turns, so neither lands on top of the other.
+    const inTurn = oneAtATime();
     const SchematicRow = (schematic) =>
         AccountToggleRow({
             info: RowTitles({ bonus: schematic.bonus, name: schematic.name }),
             words: ["Unlocked", ""],
             name: schematic.name,
             checked: () => unlocked(schematic),
-            write: async (on) => {
-                const value = on ? 1 : 0;
-                await writeVerified(`${SCHEMATICS}[${schematic.index}]`, value);
-                getUnlocked(schematic.index).val = value;
-            },
+            write: (on) =>
+                inTurn(async () => {
+                    const value = on ? 1 : 0;
+                    await writeVerified(`${SCHEMATICS}[${schematic.index}]`, value);
+                    getUnlocked(schematic.index).val = value;
+                }),
         });
     const showSchematics = (data) => {
         const order = new Map(data.order.map((index, place) => [Number(index), place]));
@@ -228,12 +232,14 @@ const VillagersTab = () => {
     const words = (n) => `schematic${n === 1 ? "" : "s"}`;
     const setAll = async (entries, value) => {
         const result = await bulk.run(() =>
-            runBulkSet({
-                entries,
-                getTargetValue: () => value,
-                getValueState: (schematic) => getUnlocked(schematic.index),
-                getPath: (schematic) => `${SCHEMATICS}[${schematic.index}]`,
-            })
+            inTurn(() =>
+                runBulkSet({
+                    entries,
+                    getTargetValue: () => value,
+                    getValueState: (schematic) => getUnlocked(schematic.index),
+                    getPath: (schematic) => `${SCHEMATICS}[${schematic.index}]`,
+                })
+            )
         );
         if (!result.ok && !result.cancelled) await load();
     };

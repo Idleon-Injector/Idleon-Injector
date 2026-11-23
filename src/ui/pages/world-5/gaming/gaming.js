@@ -38,7 +38,7 @@ import { AccountToggleRow } from "../../../components/views/account/components/A
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
-import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
+import { TabbedList, toolsPerTab, loadParts } from "../../../components/views/account/tabShared.js";
 import {
     bonusText,
     cleanName,
@@ -94,15 +94,18 @@ const GardenPart = () => {
         ClampedLevelRow({ valueState: getState(7), writePath: "Gaming[7]", integerMode: "trunc", name: "Evolve" }),
     ];
     // A plant's forms found: its letter in the Log Book, rewritten from what the game holds now, so a plant found in
-    // the game since the page read it keeps its letter.
-    const writeFound = async (plant, found) => {
-        const now = String((await gga("Gaming[11]")) ?? "")
-            .padEnd(PLANTS, "_")
-            .split("");
-        now[plant] = LETTERS[found];
-        await writeVerified("Gaming[11]", now.join("").replace(/_+$/, ""));
-        return found;
-    };
+    // the game since the page read it keeps its letter. Every plant lives in that one string, so saves take turns:
+    // two plants saved together both land.
+    const bookTurn = oneAtATime();
+    const writeFound = (plant, found) =>
+        bookTurn(async () => {
+            const now = String((await gga("Gaming[11]")) ?? "")
+                .padEnd(PLANTS, "_")
+                .split("");
+            now[plant] = LETTERS[found];
+            await writeVerified("Gaming[11]", now.join("").replace(/_+$/, ""));
+            return found;
+        });
     const logBookRows = Array.from({ length: PLANTS }, (_, plant) =>
         ClampedLevelRow({
             valueState: getFoundState(plant),
@@ -246,6 +249,12 @@ const RatKingPart = ({ pending, reload }) => {
         });
     const plantCrowns = (plant) => FORMS.map((form) => `${plant}${form}`);
     const countOf = (plant) => plantCrowns(plant).filter((id) => crowns.val.has(id)).length;
+    const rowOfPlant = [];
+    // The page search decides which plants the all-buttons act on; with no search that is every plant.
+    const shownCrowns = () =>
+        Array.from({ length: PLANTS }, (_, plant) => plant)
+            .filter((plant) => shownBySearch(rowOfPlant[plant]))
+            .flatMap(plantCrowns);
 
     const PlantRow = (plant) => {
         const name = `Plant ${plant + 1}`;
@@ -278,18 +287,25 @@ const RatKingPart = ({ pending, reload }) => {
                     words: ["All", ""],
                     name: `${name} all crowns`,
                     disabled: pending,
-                    onFlip: (on) =>
-                        change((next) => plantCrowns(plant).forEach((id) => (on ? next.add(id) : next.delete(id)))),
+                    ownStatus: true,
+                    onFlip: async (on) => {
+                        await change((next) =>
+                            plantCrowns(plant).forEach((id) => (on ? next.add(id) : next.delete(id)))
+                        );
+                        return { ok: true };
+                    },
                 }),
             ],
         });
         row.append(div({ class: "row-detail", hidden: () => !isOpen() }, ...crownRows));
+        rowOfPlant[plant] = row;
         return row;
     };
 
-    const setAll = async (claim) => {
+    // Reclaims or clears exactly these crowns; any other crown the game holds stays as it is.
+    const setAll = async (ids, claim) => {
         const result = await bulk.run(() =>
-            change((next) => ALL_CROWNS.forEach((id) => (claim ? next.add(id) : next.delete(id))))
+            change((next) => ids.forEach((id) => (claim ? next.add(id) : next.delete(id))))
         );
         if (!result.ok && !result.cancelled) await reload();
     };
@@ -328,21 +344,26 @@ const RatKingPart = ({ pending, reload }) => {
             KING_UPGRADES.forEach((upgrade, i) => (upgradeStates[i].val = toInt(levels[upgrade.index], { min: 0 })));
             crowns.val = held;
         },
-        toolsLabel: () => `${crowns.val.size} of ${ALL_CROWNS.length} crowns reclaimed`,
+        toolsLabel: () => {
+            const ids = shownCrowns();
+            return `${ids.filter((id) => crowns.val.has(id)).length} of ${ids.length} crowns reclaimed`;
+        },
         tools: (ask) => {
             const clearAll = ActionButton({
                 label: "Clear all",
                 status: bulk.status,
                 variant: "danger",
-                disabled: () => pending() || !crowns.val.size,
+                disabled: () => pending() || !shownCrowns().some((id) => crowns.val.has(id)),
                 onClick: (e) => {
                     e.preventDefault();
-                    const n = crowns.val.size;
+                    // The crowns the question counts are the ones cleared, even if more get reclaimed while it is open.
+                    const ids = shownCrowns().filter((id) => crowns.val.has(id));
+                    const n = ids.length;
                     ask({
                         question: `Clear ${n} reclaimed ${plural(n, "crown")}?`,
                         confirmLabel: n === 1 ? "Clear it" : "Clear them",
                         from: clearAll,
-                        onConfirm: () => setAll(false),
+                        onConfirm: () => setAll(ids, false),
                     });
                 },
             });
@@ -351,10 +372,10 @@ const RatKingPart = ({ pending, reload }) => {
                 ActionButton({
                     label: "Reclaim all",
                     status: bulk.status,
-                    disabled: () => pending() || crowns.val.size === ALL_CROWNS.length,
+                    disabled: () => pending() || shownCrowns().every((id) => crowns.val.has(id)),
                     onClick: (e) => {
                         e.preventDefault();
-                        return setAll(true);
+                        return setAll(shownCrowns(), true);
                     },
                 }),
                 clearAll
@@ -602,7 +623,7 @@ const GamingTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Gaming", busy });
     // After a read that failed, what the tabs show may be old: their tools wait for one that works.
     const pending = () => loading.val || Boolean(error.val);
-    const load = () => run(() => Promise.all([...parts.values()].map((part) => part.load())));
+    const load = () => run(() => loadParts(parts));
     for (const tab of TABS) parts.set(tab.id, tab.part({ pending, reload: load }));
     const partOf = (id) => parts.get(id);
 
