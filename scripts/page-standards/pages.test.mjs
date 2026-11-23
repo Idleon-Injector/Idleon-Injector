@@ -12,6 +12,7 @@ import {
     loadPage,
     NOT_LISTS,
     onStandards,
+    openedBreaks,
     pageBreaks,
     pageFiles,
     renderPage,
@@ -37,9 +38,16 @@ const writes = () => requests.filter((line) => line.includes("/write")).length;
 
 for (const { file, page } of pages.filter(({ file }) => onStandards(file))) {
     test(`${titleOf(page)} (${file.replace("src/ui/pages/", "")}) follows the page standards`, async () => {
+        // What the page puts outside itself (the cog board's editor) is checked with it.
+        const before = new Set(globalThis.document.body.childNodes);
         const node = await renderPage(page);
+        const hosts = globalThis.document.body.childNodes.filter((el) => el.nodeType === 1 && !before.has(el));
         const name = file.replace("src/ui/pages/", "");
-        const all = [...pageBreaks(node, page, titleOf(page)), ...(await bulkBreaks(node, writes))];
+        const all = [
+            ...pageBreaks(node, page, titleOf(page)),
+            ...(await openedBreaks(node, hosts)),
+            ...(await bulkBreaks(node, writes)),
+        ];
         const needsSetAll = (b) => b.startsWith("Set all: ") && b.endsWith("lines without a max but no Set all");
         const breaks = NOT_LISTS.has(name) ? all.filter((b) => !needsSetAll(b)) : all;
         if (NOT_LISTS.has(name)) assert.ok(all.some(needsSetAll), "a list now, so take it off NOT_LISTS in checks.mjs");

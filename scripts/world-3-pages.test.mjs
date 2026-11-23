@@ -732,15 +732,18 @@ const statRow = (popup, code) =>
     byClass(popup, "cogs-cog-stat-row").find((row) => text(byClass(row, "cogs-cog-stat-row__code")[0]) === code);
 const enterStat = async (row, value) => {
     const input = elements(row).find((node) => node.nodeName === "input");
+    input.listeners.focus?.({ target: input });
     input.value = value;
     input.listeners.input?.({ target: input });
     row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
     await until(() => /save-state--(success|error)/.test(classes(byClass(row, "save-state")[0])), "the save to finish");
 };
 
-test("Cogs: a stat that is a number refuses text that isn't one; the shape pattern still takes text", async () => {
+test("Cogs: a stat that is a number refuses text that isn't one; the pattern is picked out of the board's", async () => {
     gga.CogOrder[1] = "Cog2B01";
     gga.CogMap[1].h = { a: 11, b: 1, h: "pattern" };
+    gga.CogOrder[2] = "Cog2B02";
+    gga.CogMap[2].h = { a: 5, h: "ring" };
     const { popup, open } = await openCogs();
     open(1);
     await until(() => statRow(popup, "a") && statRow(popup, "h"), "the slot's stats to show");
@@ -753,10 +756,15 @@ test("Cogs: a stat that is a number refuses text that isn't one; the shape patte
         assert.equal(gga.CogMap[1].h.a, 11, `${typed} isn't written`);
     }
 
+    // The pattern is a pick in place, out of the patterns the board's cogs have.
     const shape = statRow(popup, "h");
-    await enterStat(shape, "ring");
-    assert.match(classes(byClass(shape, "save-state")[0]), /save-state--success/);
+    click(byClass(shape, "pick-in-place__opener")[0]);
+    const options = byClass(shape.parentNode, "pick-in-place__option");
+    assert.deepEqual(options.map(text), ["Pattern", "Ring"]);
+    click(options.find((option) => text(option) === "Ring"));
+    await until(() => /save-state--success/.test(classes(byClass(shape, "save-state")[0])), "the pick to save");
     assert.equal(gga.CogMap[1].h.h, "ring");
+    assert.equal(byClass(globalThis.document.body, "select").length, 0);
 });
 
 // Review of #207: one tab's failed read hid the whole Workbench, the other tab's rows with it.
@@ -798,12 +806,13 @@ test("Cogs: a Refresh while a stat is typed keeps the field and its draft; the o
     await until(() => statRow(popup, "a") && statRow(popup, "b"), "the slot's stats to show");
     const field = (code) => elements(statRow(popup, code)).find((node) => node.nodeName === "input");
     const typed = field("a");
+    typed.listeners.focus?.({ target: typed });
     typed.value = "50";
     typed.listeners.input?.({ target: typed });
 
     gga.CogMap[1].h = { a: 11, b: 2 }; // the game moves on
     click(buttonIn(root, "Refresh"));
-    await until(() => field("b").attributes.value === "2", "the read to show the game's newer stat");
+    await until(() => field("b").value === "2", "the read to show the game's newer stat");
     assert.equal(field("a"), typed, "the field being typed in stays");
     assert.equal(typed.value, "50", "with its draft");
 });
@@ -830,6 +839,7 @@ const openStat = async (stats) => {
     const row = statRow(popup, "a");
     const field = elements(row).find((node) => node.nodeName === "input");
     const type = (value) => {
+        field.listeners.focus?.({ target: field });
         field.value = value;
         field.listeners.input?.({ target: field });
     };
@@ -866,7 +876,7 @@ test("Cogs: Escape after a Refresh puts back the game's newer stat", async (t) =
     gga.CogMap[1].h = { a: 20, b: 2 }; // the game moves on
     click(buttonIn(root, "Refresh"));
     const other = elements(statRow(popup, "b")).find((node) => node.nodeName === "input");
-    await until(() => other.attributes.value === "2", "the read to show the game's stats");
+    await until(() => other.value === "2", "the read to show the game's stats");
     assert.equal(field.value, "50", "the draft stays through the read");
     key("Escape");
     assert.equal(field.value, "20");
@@ -879,10 +889,10 @@ test("Cogs: a read back to the shown stat clears text the game caught up with an
     type("50");
     gga.CogMap[1].h = { a: 50, b: 2 }; // the game reaches what was typed: no draft left
     click(buttonIn(root, "Refresh"));
-    await until(() => other().attributes.value === "2", "the first read");
+    await until(() => other().value === "2", "the first read");
     gga.CogMap[1].h = { a: 11, b: 3 }; // and moves back to the value the field last showed
     click(buttonIn(root, "Refresh"));
-    await until(() => other().attributes.value === "3", "the second read");
+    await until(() => other().value === "3", "the second read");
     assert.equal(field.value, "11", "the field shows what the game holds");
     key("Enter");
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1246,12 +1256,9 @@ test("Cogs: a tiny cog save's saving and failure stay with the slot it was for",
     open(96);
     await until(editor, "slot 96's tiny editor");
     const first = editor();
-    const [typeInput] = elements(first).filter((node) => node.nodeName === "input");
-    typeInput.value = "b";
-    typeInput.listeners.input({ target: typeInput });
-
+    // The type is a step picker (Flaggy, Build, XP: the game's _, a and b); a pick saves at once.
     const hold = holdWrites({ fail: true });
-    first.listeners.keydown({ key: "Enter", target: typeInput, preventDefault() {} });
+    click(byClass(first, "step-picker__step")[2]);
     await until(() => hold.held() === 1, "the save to reach the game");
     open(97);
     await until(() => editor() && editor() !== first, "slot 97's tiny editor");
@@ -1280,16 +1287,13 @@ test("Cogs: a tiny cog tier committed while its type saves still saves after ano
     open(96);
     await until(editor, "slot 96's tiny editor");
     const first = editor();
-    const [typeInput, tierInput] = elements(first).filter((node) => node.nodeName === "input");
-    const enter = (input, value) => {
-        input.value = value;
-        input.listeners.input({ target: input });
-        first.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
-    };
+    const [tierInput] = elements(first).filter((node) => node.nodeName === "input");
     const hold = holdWrites();
-    enter(typeInput, "b");
+    click(byClass(first, "step-picker__step")[2]); // b
     await until(() => hold.held() === 1, "the type save to reach the game");
-    enter(tierInput, "3");
+    tierInput.value = "3";
+    tierInput.listeners.input({ target: tierInput });
+    first.listeners.keydown({ key: "Enter", target: tierInput, preventDefault() {} });
     open(97);
     await until(() => editor() && editor() !== first, "slot 97's tiny editor");
     hold.release();
@@ -1309,7 +1313,7 @@ test("Cogs: reopening a slot while its tiny cog saves shows the tier being saved
     open(96);
     await until(editor, "slot 96's tiny editor");
     const first = editor();
-    const [, tierInput] = fields();
+    const [tierInput] = fields();
     tierInput.value = "2";
     tierInput.listeners.input({ target: tierInput });
     const hold = holdWrites();
@@ -1319,16 +1323,18 @@ test("Cogs: reopening a slot while its tiny cog saves shows the tier being saved
         open(97);
         await until(() => editor() && editor() !== first, "slot 97's tiny editor");
         open(96);
-        await until(() => editor() && fields()[1].attributes.value !== undefined, "slot 96's tiny editor again");
-        const value = (node) =>
-            String(typeof node.attributes.value === "function" ? node.attributes.value() : node.attributes.value);
-        assert.equal(value(fields()[1]), "2", "the tier being saved shows");
+        await until(() => editor() && fields()[0]?.attributes.value !== undefined, "slot 96's tiny editor again");
+        const value = (node) => {
+            const shown = node.attributes.value;
+            return String(typeof shown === "function" ? shown() : (shown?.val ?? shown));
+        };
+        assert.equal(value(fields()[0]), "2", "the tier being saved shows");
     } finally {
         hold.release();
     }
     await until(() => gga.CogOrder[228] === "CogSma1", "tier 2 to save");
     const again = editor();
-    const [, tier] = fields();
+    const [tier] = fields();
     again.listeners.focusout?.({ target: tier, currentTarget: again, relatedTarget: null });
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(gga.CogOrder[228], "CogSma1", "leaving the field keeps tier 2");

@@ -59,6 +59,8 @@ import {
     bonusText,
     cleanName,
     createStaticRowReconciler,
+    largeFormatter,
+    largeParser,
     oneAtATime,
     readLevelDefinitions,
     runBulkSet,
@@ -73,8 +75,11 @@ import { Cogs } from "../../../assets/cogs.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { formatNumber, parseNumber } from "../../../utils/numberFormat.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
+import { NumberInput, getNumberInputLiveRaw, setNumberInputValue } from "../../../components/NumberInput.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
+import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
 
-const { div, button, span, h3, input } = van.tags;
+const { div, button, span, h3 } = van.tags;
 
 const MAIN_COLS = 12;
 const MAIN_ROWS = 8;
@@ -95,17 +100,17 @@ const POPOVER_GAP = 4;
 const PREMIUM_COG_IDS = new Set(["CogY", "CogZA00", "CogZA01", "CogZA02", "CogZA03"]);
 const COG_MAP_FIELD_ORDER = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"];
 const COG_MAP_FIELD_META = {
-    a: { keyName: "_Build_Rate/HR", meaning: "Flat build rate" },
-    b: { keyName: "_Construct_Exp/HR", meaning: "Flat construction EXP/hr" },
-    c: { keyName: "_Flaggy_Rate/HR", meaning: "Flat flaggy rate" },
-    d: { keyName: "%_Bonus_Construct_EXP", meaning: "% bonus construction EXP" },
-    e: { keyName: "%_Build_Rate", meaning: "% build rate" },
-    f: { keyName: "%_Player_Construct_XP", meaning: "% player construction XP" },
-    g: { keyName: "%_Flaggy_Rate", meaning: "% flaggy rate" },
-    h: { keyName: "shape / surround pattern", meaning: "Area/target pattern for the percent effect" },
-    i: { keyName: "internal board marker", meaning: "Internal marker used during board recompute" },
-    j: { keyName: "%_Speed_to_Flags", meaning: "% speed to flags" },
-    k: { keyName: "%_Nothing_sowwy", meaning: "Junk/placeholder stat ('Nothing sowwy')" },
+    a: { keyName: "Build rate / hr", meaning: "Flat build rate" },
+    b: { keyName: "Construction EXP / hr", meaning: "Flat construction EXP" },
+    c: { keyName: "Flaggy rate / hr", meaning: "Flat flaggy rate" },
+    d: { keyName: "Bonus construction EXP %", meaning: "% bonus construction EXP" },
+    e: { keyName: "Build rate %", meaning: "% build rate" },
+    f: { keyName: "Player construction EXP %", meaning: "% player construction EXP" },
+    g: { keyName: "Flaggy rate %", meaning: "% flaggy rate" },
+    h: { keyName: "Pattern", meaning: "Which cogs its % bonus reaches" },
+    i: { keyName: "Board marker", meaning: "Used by the game while it works out the board" },
+    j: { keyName: "Speed to flags %", meaning: "% speed to flags" },
+    k: { keyName: "Nothing", meaning: 'The game\'s empty stat ("Nothing sowwy")' },
 };
 const isMainSlot = (index) => index >= 0 && index < MAIN_SLOT_COUNT;
 const isSideSlot = (index) => index >= MAIN_SLOT_COUNT && index < TOTAL_SLOT_COUNT;
@@ -428,10 +433,28 @@ const CogsTab = () => {
         return tinySaves.get(index);
     };
 
+    // A tiny cog type's name, read once from the game's name for its first tier ("Tiny T1 Flaggy Cog": Flaggy).
+    const tinyTypeNames = van.state({});
+    const readTinyTypeNames = async () => {
+        if (Object.keys(tinyTypeNames.val).length) return;
+        const names = await Promise.all(
+            [...TINY_COG_TYPES].map((type) => resolveCogName(`CogSm${type}0`).catch(() => type))
+        );
+        tinyTypeNames.val = Object.fromEntries(
+            [...TINY_COG_TYPES].map((type, i) => [type, names[i].replace(/^Tiny T\d+ /, "").replace(/ Cog$/, "")])
+        );
+    };
+
     const renderTinyEditor = () => {
         const index = getActiveIndex();
         if (!isSideSlot(index)) return null;
         const tinySave = tinySaveFor(index);
+        void readTinyTypeNames();
+        const stepTinyTier = (delta) => {
+            const tier = Math.round(toNum(tinyTierInput.val, 1)) + delta;
+            setNumberInputValue(tinyTierInput, String(Math.max(1, Math.min(TINY_COG_MAX_TIER, tier))));
+            void tinySave.save();
+        };
 
         return div(
             {
@@ -441,34 +464,32 @@ const CogsTab = () => {
 
             CogsEditorRow({
                 code: "t",
-                name: "Tiny Type",
-                meaning: "Allowed values: _, a, b",
-                inputNode: input({
-                    type: "text",
-                    class: "cogs-cog-stat-input",
-                    maxLength: 1,
-                    value: () => tinyTypeInput.val,
-                    oninput: (e) => {
-                        tinyTypeInput.val = String(e.target.value ?? "")
-                            .trim()
-                            .slice(0, 1);
+                name: "Tiny type",
+                meaning: "What the tiny cog adds to",
+                inputNode: StepPicker({
+                    name: "Tiny type",
+                    steps: [...TINY_COG_TYPES].map((type) => ({
+                        value: type,
+                        label: () => tinyTypeNames.val[type] ?? type,
+                    })),
+                    picked: () => tinyTypeInput.val,
+                    onPick: (type) => {
+                        tinyTypeInput.val = type;
+                        void tinySave.save();
                     },
                 }),
             }),
             CogsEditorRow({
                 code: "lvl",
-                name: "Tiny Tier",
-                meaning: `Range: 1 to ${TINY_COG_MAX_TIER}`,
-                inputNode: input({
-                    type: "number",
-                    class: "cogs-cog-stat-input",
-                    min: "1",
-                    max: String(TINY_COG_MAX_TIER),
-                    step: "1",
-                    value: () => tinyTierInput.val,
-                    oninput: (e) => {
-                        tinyTierInput.val = String(e.target.value ?? "");
-                    },
+                name: "Tiny tier",
+                meaning: `1 to ${TINY_COG_MAX_TIER}`,
+                inputNode: NumberInput({
+                    value: tinyTierInput,
+                    mode: "int",
+                    cap: TINY_COG_MAX_TIER,
+                    "aria-label": "Tiny tier",
+                    onDecrement: () => stepTinyTier(-1),
+                    onIncrement: () => stepTinyTier(1),
                 }),
                 state: tinySave,
             })
@@ -539,7 +560,9 @@ const CogsTab = () => {
                         .filter(Boolean)
                         .join(" ");
                 },
-                onclick: (e) => openSlotPopup(index, e),
+                // The slot opens its editor beside it; pressed again, it closes it.
+                "aria-expanded": () => String(activeSlot.val === index),
+                onclick: (e) => (activeSlot.val === index ? closeSlotPopup() : openSlotPopup(index, e)),
                 title: () => `${getSlotName(index)} (Index ${index})`,
             },
             () => renderSlotBackground(index),
@@ -584,71 +607,112 @@ const CogsTab = () => {
         return [index, getSlotState(slotValues[index].val), isReadOnlyCog(cogId), keys.join("")].join("|");
     });
 
+    // A stat's field is the shared one (NumberInput): it saves on Enter or on leaving it, − / + save at once, Escape
+    // shows what the game holds. The pattern (h) is a word, picked in place out of the patterns on the board.
     const renderStatRow = (index, key, readOnly) => {
-        const initial = cogMapStats[index].rawVal[key];
-        const text = (value) => (value !== null && value !== undefined ? formatNumber(value) : "");
-        // What the game holds, as text: the last read or save. The shown text is rounded ("1.2M"), so only text that
-        // differs from it saves.
-        let saved = text(initial);
-        const shown = van.state(saved);
-        let typing = false;
-        const inputEl = input({
-            type: "text",
-            class: "cogs-cog-stat-input",
-            value: shown,
-            disabled: readOnly,
-            oninput: () => (typing = true),
-        });
-        const hasDraft = () => typing && inputEl.value !== saved;
-        // Each read updates what the game holds; the field shows it only while it has no draft.
+        const path = `CogMap[${getCogOrderIndex(index)}].h.${key}`;
+        const held = () => cogMapStats[index].rawVal?.[key];
+        const label = COG_MAP_FIELD_META[key]?.keyName ?? key;
+        const row = (inputNode, save) =>
+            CogsEditorRow({
+                code: key,
+                name: label,
+                meaning: COG_MAP_FIELD_META[key]?.meaning ?? "Unknown field",
+                inputNode,
+                save,
+            });
+
+        if (typeof held() === "string") {
+            let picked = held();
+            const save = useAutoSave({
+                prepare: () => {
+                    if (readOnly || picked === held()) return { unchanged: true };
+                    const next = picked;
+                    return {
+                        write: async () => {
+                            await writeVerified(path, next);
+                            cogMapStats[index].rawVal[key] = next;
+                            cogMapStats[index].val = { ...cogMapStats[index].rawVal };
+                        },
+                    };
+                },
+                revert: () => (picked = held()),
+            });
+            const pick = PickInPlace({
+                name: label,
+                opener: () => {
+                    const pattern = String(cogMapStats[index].val?.[key] ?? "");
+                    return pattern.charAt(0).toUpperCase() + pattern.slice(1);
+                },
+                options: () =>
+                    [...new Set(cogMapStats.map((stats) => stats.val?.[key]).filter((v) => typeof v === "string"))]
+                        .sort()
+                        .map((pattern) => ({ id: pattern, label: pattern.charAt(0).toUpperCase() + pattern.slice(1) })),
+                picked: () => String(cogMapStats[index].val?.[key] ?? ""),
+                onPick: (id) => {
+                    picked = id;
+                    void save.save();
+                },
+                disabled: readOnly,
+                search: true,
+            });
+            return div(row(pick.opener, save), pick.panel);
+        }
+
+        const value = van.state(String(toNum(held(), 0)));
+        // The field's text, or the exact value while it still shows the rounded one ("1.2M").
+        const typed = () => {
+            const raw = getNumberInputLiveRaw(value);
+            return raw === undefined || raw === largeFormatter(value.val) ? value.val : raw;
+        };
+        // Each read shows what the game holds. Typed text stays, unless it is what the field showed or what the game
+        // now holds: then it was no draft, and the field follows the game.
         van.derive(() => {
-            const next = text(cogMapStats[index].val?.[key]);
-            const draft = hasDraft();
-            saved = next;
-            // The field too: typed text the state never saw stays in it when the state already holds `next`.
-            if (!draft) {
-                shown.val = inputEl.value = next;
-                typing = false;
-            }
+            const next = String(toNum(cogMapStats[index].val?.[key], 0));
+            const raw = getNumberInputLiveRaw(value);
+            if (raw === undefined || raw === largeFormatter(value.rawVal) || raw === largeFormatter(next))
+                setNumberInputValue(value, next);
+            else value.val = next;
         });
         const save = useAutoSave({
             prepare: () => {
-                if (readOnly || !hasDraft()) return { unchanged: true };
-                const typed = inputEl.value.trim();
-                if (typed === "") throw new Error("enter a value");
-                // The shape pattern (h) is text in the game; every other stat is a number.
-                const writeVal = typeof initial === "string" ? typed : parseNumber(typed);
-                if (!Number.isFinite(writeVal) && typeof writeVal !== "string") {
-                    throw new Error("not a number");
-                }
+                if (readOnly) return { unchanged: true };
+                const text = String(typed()).trim();
+                if (text === "") throw new Error("enter a value");
+                const next = parseNumber(text);
+                if (next === null || !Number.isFinite(next)) throw new Error("not a number");
+                if (next === toNum(held(), 0)) return { unchanged: true };
                 return {
                     write: async () => {
-                        await writeVerified(`CogMap[${getCogOrderIndex(index)}].h.${key}`, writeVal);
+                        await writeVerified(path, next);
                         // In place: a new stats object would tell every field of the slot to follow it.
-                        cogMapStats[index].rawVal[key] = writeVal;
-                        saved = text(writeVal);
+                        cogMapStats[index].rawVal[key] = next;
                         // Text typed since stays, for its own Enter, even the old value typed back.
-                        if (inputEl.value === typed) {
-                            shown.val = inputEl.value = saved;
-                            typing = false;
-                        }
+                        if (String(typed()).trim() === text) setNumberInputValue(value, String(next));
+                        else value.val = String(next);
                     },
                 };
             },
-            // Escape shows what the game holds now, a read made while typing included.
-            revert: () => {
-                saved = text(cogMapStats[index].rawVal?.[key]);
-                shown.val = inputEl.value = saved;
-                typing = false;
-            },
+            revert: () => setNumberInputValue(value, String(toNum(held(), 0))),
         });
-        return CogsEditorRow({
-            code: key,
-            name: COG_MAP_FIELD_META[key]?.keyName ?? key,
-            meaning: COG_MAP_FIELD_META[key]?.meaning ?? "Unknown field",
-            inputNode: inputEl,
-            save,
-        });
+        const step = (delta) => {
+            if (readOnly) return;
+            setNumberInputValue(value, String(Math.max(0, toNum(typed(), 0) + delta)));
+            void save.save();
+        };
+        return row(
+            NumberInput({
+                value,
+                mode: "float",
+                formatter: largeFormatter,
+                parser: largeParser,
+                "aria-label": label,
+                disabled: readOnly,
+                onDecrement: () => step(-1),
+                onIncrement: () => step(1),
+            }),
+            save
+        );
     };
 
     // Reads rawVal only: editorShape says when to build it again.
@@ -667,6 +731,15 @@ const CogsTab = () => {
             )
         );
     };
+
+    // The editor is built outside VanJS's dependency capture: a field's state, which NumberInput reads as it starts,
+    // would otherwise build the editor again on every − / + and save, with the value from before the save.
+    const editorHost = div({ class: "cogs-editor-host" });
+    van.derive(() => {
+        editorShape.val;
+        const index = activeSlot.rawVal ?? 0;
+        queueMicrotask(() => editorHost.replaceChildren(renderEditor(index)));
+    });
 
     const popupCard = div(
         {
@@ -724,10 +797,7 @@ const CogsTab = () => {
                           span("Flag placed")
                       )
                     : span({ hidden: true }),
-            () => {
-                editorShape.val;
-                return renderEditor(activeSlot.rawVal ?? 0);
-            }
+            editorHost
         ),
         div(
             { class: "cogs-modal-footer" },

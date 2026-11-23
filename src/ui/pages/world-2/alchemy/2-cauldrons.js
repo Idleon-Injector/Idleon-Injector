@@ -1,53 +1,43 @@
 /**
- * World 2 › Alchemy › Cauldrons: the Liquid and Pay 2 Win pages as two sections of one tab, as the game keeps them
- * at the cauldrons. (Concept: the two pages' code joined unchanged.)
- */
-
-/*
- * W2 - Liquid Tab (Alchemy Liquids)
+ * World 2 › Alchemy › Cauldrons: one page, a tab per brewing cauldron the way Bubbles has them (Power, Quicc, High-IQ,
+ * Kazam: their Pay 2 Win upgrades), then Liquids (each liquid's amount and cauldron upgrades, their Pay 2 Win upgrades
+ * and the Draconic count) and Vials and player (the Pay 2 Win upgrades that belong to no cauldron). Each tab's tray has
+ * Max all for its upgrades.
  *
- * Liquid names are hardcoded - they couldn't be easily sourced from game data
- * at runtime and were taken from the IdleOn wiki / in-game descriptions:
+ * Liquid names are hardcoded - they couldn't be easily sourced from game data at runtime and were taken from the IdleOn
+ * wiki / in-game descriptions:
  *   Liquid 1 (unlocked Alchemy Lv  1): Water Droplets
  *   Liquid 2 (unlocked Alchemy Lv 20): Liquid Nitrogen
  *   Liquid 3 (unlocked Alchemy Lv 35): Trench Seawater
  *   Liquid 4 (unlocked Alchemy Lv 80): Toxic Mercury
  *
- * One liquid per line, its values in columns (Amount, Cap upgrade, Rate upgrade).
- *
- * Data paths (all within CauldronInfo):
- *   [6][i]         -> current liquid amount   (i = 0..3)
- *   [8][4+i][2][1] -> cap upgrade level       (i = 0..3)
- *   [8][4+i][3][1] -> rate upgrade level      (i = 0..3)
- */
-
-/*
- * W2 - Pay 2 Win Tab (Alchemy P2W)
- *
  * Data paths:
- *   CauldronP2W[0][f + 3*e] -> Brewing cauldrons
- *   CauldronP2W[1][f + 2*e] -> Liquid cauldrons
- *   CauldronP2W[2][e]       -> Vial upgrades
- *   CauldronP2W[3][e]       -> Player boosts
- *   OptionsListAccount[123] -> Draconic cauldron count
+ *   CauldronInfo[6][i]         -> current liquid amount   (i = 0..3)
+ *   CauldronInfo[8][4+i][2][1] -> cap upgrade level       (i = 0..3), copied in OptionsListAccount[371 + 2i]
+ *   CauldronInfo[8][4+i][3][1] -> rate upgrade level      (i = 0..3), copied in OptionsListAccount[372 + 2i]
+ *   CauldronP2W[0][f + 3*e]    -> Brewing cauldrons
+ *   CauldronP2W[1][f + 2*e]    -> Liquid cauldrons
+ *   CauldronP2W[2][e]          -> Vial upgrades
+ *   CauldronP2W[3][e]          -> Player boosts
+ *   OptionsListAccount[123]    -> Draconic cauldron count
  *
  * Max levels are read via readComputedMany("alchemy", "CauldronLvMAX", ...).
- *
- * The game's groups are tabs: Cauldrons and Liquids are tables (a line per cauldron, its upgrades in columns), Vials
- * and Player lists. The Draconic count closes the Liquids tab.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readComputedMany, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { ListPanel, TabbedList } from "../../../components/views/account/tabShared.js";
-import { writeVerified } from "../../../components/views/account/accountShared.js";
+import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
+import { runBulkSet, useWriteStatus, writeVerified } from "../../../components/views/account/accountShared.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 
 const { div, span } = van.tags;
 
@@ -130,78 +120,34 @@ const liquidStates = LIQUIDS.map(() => ({
 // load shows its values. A load keeps its number when it reads again after a save, so that read can't hide a newer one.
 let liquidLoads = 0;
 
-const LiquidTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Liquid" });
+// Pay 2 Win's groups. A brewing cauldron's three upgrades sit at column + 3 × cauldron in bucket 0, a liquid's two at
+// column + 2 × liquid in bucket 1; vials and player are lists of their own.
+const BREWING = { bucket: 0, stride: 3, columns: ["Speed", "New bubble", "Boost req"] };
+const LIQUID_P2W = { bucket: 1, stride: 2, columns: ["Regen", "Capacity"] };
+const VIALS = { bucket: 2, rows: ["Attempts", "RNG"] };
+const PLAYER = { bucket: 3, rows: ["Alchemy speed", "Extra EXP"] };
+const P2W_GROUPS = [BREWING, LIQUID_P2W, VIALS, PLAYER];
+const slotsOf = (group) => (group.rows ? group.rows.length : 4 * group.stride);
 
-    const load = async () => {
-        const id = ++liquidLoads;
-        return run(async () => {
-            const read = await readLiquids();
-            if (id !== liquidLoads) return;
-            LIQUIDS.forEach((liquid, i) => {
-                const values = liquidValues(read, liquid, liquidStates[i]);
-                Object.keys(values).forEach((key) => (liquidStates[i][key].val = values[key]));
-            });
-        });
-    };
-
-    load();
-
-    return PersistentAccountListPage({
-        rootClass: "tab-container scroll-container",
-        title: "Liquid",
-        description: "Liquid amounts and each liquid cauldron's cap and rate upgrades.",
-        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
-        state: { loading, error },
-        loadingText: "Reading liquids",
-        errorTitle: "Couldn't read liquids",
-        initialWrapperClass: "account-list",
-        body: div(
-            { class: "account-list account-list--tabbed" },
-            ListPanel({
-                className: "liquid-table",
-                body: [
-                    ValueTableHead({ name: "Liquid", columns: ["Amount", "Cap upgrade", "Rate upgrade"] }),
-                    ...LIQUIDS.map((liquid, i) => LiquidRow({ liquid, states: liquidStates[i] })),
-                ],
-            })
-        ),
-    });
-};
-
-// The game's groups, each a tab. A table tab has a line per cauldron (or liquid), its upgrades in columns; a list tab a
-// row per upgrade. `bucket` is CauldronP2W's list; an upgrade's place in it is column + stride × line.
-const GROUPS = [
-    {
-        id: "cauldrons",
-        label: "Cauldrons",
-        thing: "Cauldron",
-        bucket: 0,
-        stride: 3,
-        lines: [
-            { label: "Power Cauldron", tone: "brew-power" },
-            { label: "Quicc Cauldron", tone: "brew-quicc" },
-            { label: "High-IQ Cauldron", tone: "brew-high-iq" },
-            { label: "Kazam Cauldron", tone: "brew-kazam" },
-        ],
-        columns: ["Speed", "New bubble", "Boost req"],
-    },
+// The four brewing cauldrons, in the game's order (Bubbles' Orange, Green, Purple, Yellow).
+const CAULDRONS = [
+    { id: "power", label: "Power", colour: "Orange" },
+    { id: "quicc", label: "Quicc", colour: "Green" },
+    { id: "high-iq", label: "High-IQ", colour: "Purple" },
+    { id: "kazam", label: "Kazam", colour: "Yellow" },
+];
+const TABS = [
+    ...CAULDRONS.map(({ id, label, colour }) => ({
+        id,
+        label,
+        keywords: [`${label} Cauldron`, colour, "Pay 2 Win", ...BREWING.columns],
+    })),
     {
         id: "liquids",
         label: "Liquids",
-        thing: "Liquid",
-        bucket: 1,
-        stride: 2,
-        lines: [
-            { label: "Water Droplets", tone: "water-droplets" },
-            { label: "Liquid Nitrogen", tone: "liquid-nitrogen" },
-            { label: "Trench Seawater", tone: "trench-seawater" },
-            { label: "Toxic Mercury", tone: "toxic-mercury" },
-        ],
-        columns: ["Regen", "Capacity"],
+        keywords: ["Liquid", ...LIQUIDS.map((liquid) => liquid.label), "Draconic", "Regen", "Capacity"],
     },
-    { id: "vials", label: "Vials", bucket: 2, rows: ["Attempts", "RNG"] },
-    { id: "player", label: "Player", bucket: 3, rows: ["Alchemy speed", "Extra EXP"] },
+    { id: "vials-player", label: "Vials and player", keywords: ["Vials", ...VIALS.rows, ...PLAYER.rows] },
 ];
 const DRACONIC = { label: "Draconic cauldrons", max: 4, writePath: "OptionsListAccount[123]" };
 
@@ -233,35 +179,37 @@ const P2WRow = ({ label, valueState, maxState, writePath }) =>
         inputMode: "int",
     });
 
-const Pay2WinTab = () => {
-    const { loading, error, run } = useAccountLoad({ label: "Pay 2 Win" });
-    // Each group's values and max levels: one state per upgrade, at its place in the group's bucket.
-    const slots = (group) => (group.lines ? group.lines.length * group.stride : group.rows.length);
-    const valueStates = GROUPS.map((group) => Array.from({ length: slots(group) }, () => van.state(0)));
-    const maxStates = GROUPS.map((group) => Array.from({ length: slots(group) }, () => van.state(0)));
+const CauldronsTab = () => {
+    const { loading, error, run } = useAccountLoad({ label: "Cauldrons" });
+    // Each Pay 2 Win upgrade's level and max, at its place in its group's bucket.
+    const valueStates = P2W_GROUPS.map((group) => Array.from({ length: slotsOf(group) }, () => van.state(0)));
+    const maxStates = P2W_GROUPS.map((group) => Array.from({ length: slotsOf(group) }, () => van.state(0)));
     const draconic = { value: van.state(0), max: van.state(DRACONIC.max) };
 
-    const load = async () =>
-        run(async () => {
-            const [rawP2W, rawDraconic] = await Promise.all([gga("CauldronP2W"), gga("OptionsListAccount[123]")]);
+    const load = async () => {
+        const id = ++liquidLoads;
+        return run(async () => {
+            const [liquids, rawP2W, rawDraconic] = await Promise.all([
+                readLiquids(),
+                gga("CauldronP2W"),
+                gga("OptionsListAccount[123]"),
+            ]);
             const p2w = toIndexedArray(rawP2W ?? []);
-            // What the game holds, even past the max, so the row never hides it.
-            const count = Number(rawDraconic ?? 0);
-            draconic.value.val = Number.isFinite(count) ? count : 0;
-
             const maxTargets = [];
-            GROUPS.forEach((group, g) => {
+            const levels = [];
+            P2W_GROUPS.forEach((group, g) => {
                 const bucket = toIndexedArray(p2w[group.bucket] ?? []);
-                valueStates[g].forEach((state, at) => {
-                    state.val = Number(bucket[at] ?? 0);
+                valueStates[g].forEach((_, at) => {
+                    levels.push([g, at, Number(bucket[at] ?? 0)]);
                     // The game asks for a max by group, line and column ("0" for a list's row).
-                    const args = group.lines
-                        ? [group.bucket, Math.floor(at / group.stride), String(at % group.stride)]
-                        : [group.bucket, at, "0"];
-                    maxTargets.push({ args, apply: (value) => (maxStates[g][at].val = Number(value ?? 0)) });
+                    maxTargets.push({
+                        args: group.rows
+                            ? [group.bucket, at, "0"]
+                            : [group.bucket, Math.floor(at / group.stride), String(at % group.stride)],
+                        apply: (value) => (maxStates[g][at].val = Number(value ?? 0)),
+                    });
                 });
             });
-
             const maxResults = await readComputedMany(
                 "alchemy",
                 "CauldronLvMAX",
@@ -273,89 +221,193 @@ const Pay2WinTab = () => {
                         `CauldronLvMAX failed for target ${index} (args=${JSON.stringify(entry.args)}): ${maxResults[index]?.error ?? "unknown"}`
                     );
                 }
-                entry.apply(maxResults[index].value);
+            });
+            if (id !== liquidLoads) return;
+            LIQUIDS.forEach((liquid, i) => {
+                const values = liquidValues(liquids, liquid, liquidStates[i]);
+                Object.keys(values).forEach((key) => (liquidStates[i][key].val = values[key]));
+            });
+            levels.forEach(([g, at, level]) => (valueStates[g][at].val = level));
+            maxTargets.forEach((entry, index) => entry.apply(maxResults[index].value));
+            // What the game holds, even past the max, so the row never hides it.
+            const count = Number(rawDraconic ?? 0);
+            draconic.value.val = Number.isFinite(count) ? count : 0;
+        });
+    };
+
+    // Max all, per tab: its upgrades the top bar's search shows, each to its max (one above it comes down to it).
+    const bulk = useWriteStatus();
+    const upgradesOf = new Map(TABS.map((tab) => [tab.id, []])); // tab id -> [{ row, valueState, maxState, path }]
+    const upgrade = (tabId, { row, valueState, maxState, path }) => {
+        upgradesOf.get(tabId).push({ row, valueState, maxState, path });
+        return row;
+    };
+    const shownUpgrades = (tabId) => upgradesOf.get(tabId).filter(({ row }) => shownBySearch(row));
+    const maxAll = (tabId) =>
+        div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Max all",
+                status: bulk.status,
+                disabled: () =>
+                    loading.val ||
+                    !shownUpgrades(tabId).some(
+                        ({ valueState, maxState }) =>
+                            maxState.val > 0 && Number(valueState.val) !== Number(maxState.val)
+                    ),
+                onClick: (e) => {
+                    e.preventDefault();
+                    return bulk.run(() =>
+                        runBulkSet({
+                            entries: shownUpgrades(tabId).filter(({ maxState }) => maxState.val > 0),
+                            getTargetValue: ({ maxState }) => Number(maxState.val),
+                            getValueState: ({ valueState }) => valueState,
+                            getPath: ({ path }) => path,
+                        })
+                    );
+                },
+            })
+        );
+    const upgradeWord = (tabId, n) => {
+        const cauldron = CAULDRONS.find((c) => c.id === tabId);
+        return `${cauldron ? `${cauldron.label} ` : ""}upgrade${n === 1 ? "" : "s"}`;
+    };
+    const toolsLabel = (activeId) => {
+        const n = shownUpgrades(activeId.val).length;
+        return isSearching()
+            ? `${n} matching ${upgradeWord(activeId.val, n)}`
+            : `All ${n} ${upgradeWord(activeId.val, n)}`;
+    };
+
+    // A list's Pay 2 Win rows, each an upgrade of `tabId`.
+    const listRows = (tabId, g, labels, at = (row) => row) =>
+        labels.map((label, i) => {
+            const slot = at(i);
+            const path = `CauldronP2W[${P2W_GROUPS[g].bucket}][${slot}]`;
+            const valueState = valueStates[g][slot];
+            const maxState = maxStates[g][slot];
+            return upgrade(tabId, {
+                row: P2WRow({ label, valueState, maxState, writePath: path }),
+                valueState,
+                maxState,
+                path,
             });
         });
 
-    const tableRows = (group, g) =>
-        group.lines.map((line, l) => {
-            const at = (column) => column + group.stride * l;
-            return ValueTableRow({
-                name: line.label,
-                info: span({ class: `account-row__name liquid-name liquid-name--${line.tone}` }, line.label),
-                fields: group.columns.map((label, column) => ({
+    const cauldronPane = (cauldron, c) =>
+        div(
+            { class: "account-page-pane" },
+            AccountSection({
+                title: "Pay 2 Win",
+                body: listRows(cauldron.id, 0, BREWING.columns, (column) => column + BREWING.stride * c),
+            })
+        );
+
+    // The liquids: each one's amount and its cauldron's two upgrades, then their Pay 2 Win upgrades and the Draconic
+    // count, which is the liquid cauldrons' own.
+    const liquidPane = () => {
+        const p2wLine = (liquid, l) => {
+            const at = (column) => column + LIQUID_P2W.stride * l;
+            const row = ValueTableRow({
+                name: liquid.label,
+                info: span({ class: `account-row__name liquid-name liquid-name--${liquid.id}` }, liquid.label),
+                fields: LIQUID_P2W.columns.map((label, column) => ({
                     key: String(column),
                     label,
-                    valueState: valueStates[g][at(column)],
-                    max: () => maxStates[g][at(column)].val,
-                    paths: [`CauldronP2W[${group.bucket}][${at(column)}]`],
+                    valueState: valueStates[1][at(column)],
+                    max: () => maxStates[1][at(column)].val,
+                    paths: [`CauldronP2W[${LIQUID_P2W.bucket}][${at(column)}]`],
                 })),
                 read: async () => {
-                    const bucket = toIndexedArray((await gga(`CauldronP2W[${group.bucket}]`)) ?? []);
+                    const bucket = toIndexedArray((await gga(`CauldronP2W[${LIQUID_P2W.bucket}]`)) ?? []);
                     return Object.fromEntries(
-                        group.columns.map((_, column) => [String(column), Number(bucket[at(column)] ?? 0)])
+                        LIQUID_P2W.columns.map((_, column) => [String(column), Number(bucket[at(column)] ?? 0)])
                     );
                 },
             });
-        });
-
-    const tabContent = (group, g) =>
-        group.lines
-            ? div(
-                  { class: "account-page-pane" },
-                  ValueTableHead({ name: group.thing, columns: group.columns }),
-                  ...tableRows(group, g),
-                  // The Draconic count is the liquid cauldrons' own: it closes their tab.
-                  group.id === "liquids"
-                      ? P2WRow({
+            LIQUID_P2W.columns.forEach((_, column) =>
+                upgradesOf.get("liquids").push({
+                    row,
+                    valueState: valueStates[1][at(column)],
+                    maxState: maxStates[1][at(column)],
+                    path: `CauldronP2W[${LIQUID_P2W.bucket}][${at(column)}]`,
+                })
+            );
+            return row;
+        };
+        return div(
+            { class: "account-page-pane" },
+            ValueTableHead({ name: "Liquid", columns: ["Amount", "Cap upgrade", "Rate upgrade"] }),
+            ...LIQUIDS.map((liquid, i) => LiquidRow({ liquid, states: liquidStates[i] })),
+            AccountSection({
+                title: "Pay 2 Win",
+                body: [
+                    ValueTableHead({ name: "Liquid", columns: LIQUID_P2W.columns }),
+                    ...LIQUIDS.map(p2wLine),
+                    upgrade("liquids", {
+                        row: P2WRow({
                             label: DRACONIC.label,
                             valueState: draconic.value,
                             maxState: draconic.max,
                             writePath: DRACONIC.writePath,
-                        })
-                      : null
-              )
-            : div(
-                  { class: "account-page-pane" },
-                  ...group.rows.map((label, at) =>
-                      P2WRow({
-                          label,
-                          valueState: valueStates[g][at],
-                          maxState: maxStates[g][at],
-                          writePath: `CauldronP2W[${group.bucket}][${at}]`,
-                      })
-                  )
-              );
+                        }),
+                        valueState: draconic.value,
+                        maxState: draconic.max,
+                        path: DRACONIC.writePath,
+                    }),
+                ],
+            })
+        );
+    };
+
+    const vialsPlayerPane = () =>
+        div(
+            { class: "account-page-pane" },
+            AccountSection({ title: "Vials", body: listRows("vials-player", 2, VIALS.rows) }),
+            AccountSection({ title: "Player", body: listRows("vials-player", 3, PLAYER.rows) })
+        );
+
+    const content = {
+        ...Object.fromEntries(CAULDRONS.map((cauldron, c) => [cauldron.id, cauldronPane(cauldron, c)])),
+        liquids: liquidPane(),
+        "vials-player": vialsPlayerPane(),
+    };
 
     load();
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Pay 2 Win",
-        description: "Pay 2 Win upgrades for cauldrons, liquids, vials and players, each up to its max.",
+        title: "Cauldrons",
+        description: "Each cauldron's Pay 2 Win upgrades, the liquids, and the vial and player upgrades.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "Reading Pay 2 Win",
-        errorTitle: "Couldn't read Pay 2 Win",
+        loadingText: "Reading cauldrons",
+        errorTitle: "Couldn't read cauldrons",
         initialWrapperClass: "account-list",
         body: div(
             { class: "account-list account-list--tabbed" },
             TabbedList({
-                name: "Pay 2 Win",
-                tabs: GROUPS.map((group, g) => ({ id: group.id, label: group.label, content: tabContent(group, g) })),
+                name: "Cauldrons",
+                page: "w2.cauldrons",
+                // Six tabs: on a phone they take two rows instead of running off the side.
+                wrap: true,
+                busy: () => bulk.status.val === "loading",
+                tabs: TABS.map((tab) => ({ id: tab.id, label: tab.label, content: content[tab.id] })),
+                tools: toolsPerTab(Object.fromEntries(TABS.map((tab) => [tab.id, () => maxAll(tab.id)]))),
+                toolsLabel,
             })
         ),
     });
 };
-
-const CauldronsTab = () => div({ class: "alchemy-cauldrons scroll-container" }, LiquidTab(), Pay2WinTab());
 
 export default definePage({
     id: "w2.cauldrons",
     world: 2,
     system: "Alchemy",
     tab: "Cauldrons",
-    description: "Liquid amounts and upgrades, and the Pay 2 Win cauldron, liquid, vial and player levels.",
-    keywords: ["Cauldrons", "Liquid", "Liquids", "Pay 2 Win", "P2W", "Draconic"],
+    description: "Each cauldron's Pay 2 Win upgrades, the liquids, and the vial and player upgrades.",
+    keywords: ["Cauldrons", "Liquid", "Liquids", "Pay 2 Win", "P2W", "Draconic", "Brewing"],
+    // Each tab is found by its own name and words, and opens there.
+    tabs: TABS.map(({ id, label, keywords }) => ({ id, label, keywords })),
     component: CauldronsTab,
 });

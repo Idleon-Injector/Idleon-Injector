@@ -151,43 +151,46 @@ test("sigils: a tier for all asks before it lowers any sigil, and raising runs o
     await until(() => all(4), "the raise to land");
 });
 
+// The first character's skin, picked in place: `pick(id)` opens its list and picks the skin with that id ("0" Default).
+const weeklyPicker = async () => {
+    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
+    const isOpener = (node) =>
+        node.nodeName === "button" && String(resolve(node.attributes["aria-label"])).includes("main-bar");
+    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
+        elements(root).some(isOpener)
+    );
+    const opener = elements(root).find(isOpener);
+    const row = byClass(root, "account-row").find((node) => elements(node).includes(opener));
+    const options = () => byClass(row, "pick-in-place__option");
+    const idOf = (option) => String(option.attributes["data-id"]);
+    const picker = {
+        pick: (id) => {
+            if (resolve(opener.attributes["aria-expanded"]) !== "true") click(opener);
+            click(options().find((option) => idOf(option) === id));
+        },
+        picked: () => idOf(options().find((option) => resolve(option.attributes["aria-selected"]) === "true") ?? {}),
+    };
+    const picks = options()
+        .map(idOf)
+        .filter((pick) => pick !== "2");
+    return { root, picker, picks };
+};
+
 test("weekly bosses: a skin picked while the last pick saves is the one saved", async () => {
     const weekly = game.gga.WeeklyBoss.h;
     weekly.set0 = 2;
-    const isPicker = (node) => node.nodeName === "select" && String(node.attributes["aria-label"]).includes("main-bar");
-    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
-        elements(root).some(isPicker)
-    );
-    const picker = elements(root).find(isPicker);
-    const value = (option) => String(resolve(option.attributes.value));
-    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
-    const [first, second] = elements(picker)
-        .filter((node) => node.nodeName === "option" && !resolve(node.attributes.disabled))
-        .map(value)
-        .filter((pick) => pick !== "2" && pick !== "__unknown__");
+    const { root, picker, picks } = await weeklyPicker();
+    const [first, second] = picks;
+    assert.equal(elements(root).filter((node) => node.nodeName === "select").length, 0, "no dropdown");
 
     const hold = holdWrites();
-    picker.listeners.change({ target: { value: first } });
+    picker.pick(first);
     await until(() => hold.held() > 0, "the first pick's save to reach the game");
-    picker.listeners.change({ target: { value: second } });
+    picker.pick(second);
     hold.release();
     await until(() => String(weekly.set0) === second, "the newer pick to save");
     weekly.set0 = 2;
 });
-
-const weeklyPicker = async () => {
-    const isPicker = (node) => node.nodeName === "select" && String(node.attributes["aria-label"]).includes("main-bar");
-    const root = await openPage("src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", (root) =>
-        elements(root).some(isPicker)
-    );
-    const picker = elements(root).find(isPicker);
-    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
-    const picks = elements(picker)
-        .filter((node) => node.nodeName === "option" && !resolve(node.attributes.disabled))
-        .map((option) => String(resolve(option.attributes.value)))
-        .filter((pick) => pick !== "2" && pick !== "__unknown__");
-    return { root, picker, picks };
-};
 
 test("weekly bosses: a pick back to the stored skin is saved after a failed save the game changed meanwhile", async () => {
     const weekly = game.gga.WeeklyBoss.h;
@@ -209,9 +212,9 @@ test("weekly bosses: a pick back to the stored skin is saved after a failed save
         return realFetch(url, options);
     };
     try {
-        picker.listeners.change({ target: { value: first } });
+        picker.pick(first);
         await until(() => held > 0, "the first pick's save to reach the game");
-        picker.listeners.change({ target: { value: "2" } }); // back to the stored skin
+        picker.pick("2"); // back to the stored skin
         weekly.set0 = Number(other); // the game changed it meanwhile
         release();
         await until(() => String(weekly.set0) === "2", "the newer pick to save");
@@ -232,7 +235,7 @@ test("weekly bosses: a pick waiting its turn survives a reload after an undo els
     try {
         enter(rowNamed(root, "Trophies"), Number(ola[188]) + 5);
         await until(() => hold.held() > 0, "the trophies save to reach the game");
-        picker.listeners.change({ target: { value: picks[0] } });
+        picker.pick(picks[0]);
         reloadPlace.val = { view: "", page: "" }; // an Undo elsewhere changed what this page shows
         await new Promise((resolve) => setTimeout(resolve, 50));
         hold.release();
@@ -248,14 +251,6 @@ test("weekly bosses: the picker follows the game when it changed the skin as the
     const weekly = game.gga.WeeklyBoss.h;
     weekly.set0 = 2;
     const { picker, picks } = await weeklyPicker();
-    const resolve = (attribute) => (typeof attribute === "function" ? attribute() : attribute);
-    const pickedValue = () =>
-        String(
-            resolve(
-                elements(picker).find((node) => node.nodeName === "option" && resolve(node.attributes.selected))
-                    ?.attributes.value
-            )
-        );
     const realFetch = globalThis.fetch;
     let wrote = false;
     globalThis.fetch = async (url, options) => {
@@ -267,9 +262,9 @@ test("weekly bosses: the picker follows the game when it changed the skin as the
         return response;
     };
     try {
-        picker.listeners.change({ target: { value: picks[0] } });
+        picker.pick(picks[0]);
         await until(() => wrote, "the pick to save");
-        await until(() => pickedValue() === "2", "the picker to show the skin the game holds");
+        await until(() => picker.picked() === "2", "the picker to show the skin the game holds");
     } finally {
         globalThis.fetch = realFetch;
         weekly.set0 = 2;
@@ -281,16 +276,16 @@ test("weekly bosses: a pick back to Default waiting behind the trophies after a 
     weekly.set0 = 2;
     const { root, picker, picks } = await weeklyPicker();
     const trophiesBefore = ola[188];
-    picker.listeners.change({ target: { value: "0" } }); // an earlier Default save
+    picker.pick("0"); // an earlier Default save
     await until(() => String(weekly.set0) === "0", "the Default save");
     await until(() => notBusy(buttonNamed(root, "Refresh")), "the page to settle");
     const hold = holdWrites();
     try {
         enter(rowNamed(root, "Trophies"), Number(ola[188]) + 5);
         await until(() => hold.held() > 0, "the trophies save to reach the game");
-        picker.listeners.change({ target: { value: picks.find((pick) => pick !== "0") } }); // waits behind the trophies
+        picker.pick(picks.find((pick) => pick !== "0")); // waits behind the trophies
         await new Promise((resolve) => setTimeout(resolve, 20));
-        picker.listeners.change({ target: { value: "0" } }); // back to Default, saved after it
+        picker.pick("0"); // back to Default, saved after it
         weekly.set0 = 2; // the game picks another skin meanwhile
         hold.release();
         await until(() => String(weekly.set0) === "0", "the player's Default to save");

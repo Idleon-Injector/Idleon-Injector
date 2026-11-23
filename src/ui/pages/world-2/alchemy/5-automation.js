@@ -2,7 +2,8 @@
  * World 2 › Alchemy › Automation: which alchemy bubbles the bubble automation raises, with the game's own upgrade.
  * Bubbles that have a max rise to one page-wide target % of it, the one furthest behind first; bubbles without a max
  * need a stop-at level, which also caps any bubble. A row pays with its materials, or with particles once the
- * particle buy is open for it. No "Save for it" and no saving.
+ * particle buy is open for it; the tray's All to switches what every shown bubble pays with. No "Save for it" and no
+ * saving.
  *
  * Reads readComputed("automation", "bubbles") (each cauldron's bubbles with level, % of max, costs and particle
  * option) and saves cheatConfig.automation.bubbles (one { id: "cauldron:bubble", on, stopAt, pay } per bubble, pay
@@ -141,6 +142,8 @@ const BubblesAutomationPage = () => {
         // With every bubble on it still has work while Bubbles is off now or at start: switching it on.
         done: (on, total) => on === total && Boolean(automation.val?.on) && tab.atStart(CHEAT),
         words: ["bubble", "bubbles"],
+        // All to Materials | Particles: what every shown bubble pays with.
+        selects: [PAY],
         waiting: tab.waiting,
         loading: () => tab.loading.val,
     });
