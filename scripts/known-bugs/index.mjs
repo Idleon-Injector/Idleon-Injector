@@ -256,6 +256,10 @@ export async function loadUi(router) {
         get firstChild() {
             return this.childNodes[0] ?? null;
         }
+        // The sidebar's sliding lists swap their panels by it (Sidebar.js).
+        get children() {
+            return this.childNodes.filter((node) => node?.nodeType === 1);
+        }
         get nextSibling() {
             const siblings = this.parentNode?.childNodes ?? [];
             return siblings[siblings.indexOf(this) + 1] ?? null;

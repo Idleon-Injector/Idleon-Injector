@@ -121,15 +121,16 @@ export const WORLDS = [
         folder: "classes",
         systems: ["Grimoire", "Compass", "Tesseract", "Royal Armory"],
     },
-    // Every automation page, for players who only want automation: they never cross a cheat page (#249). Overview is
-    // its home, the page picking it in the sidebar opens (`home`); then the systems by world, then the account ones.
+    // Every automation page, for players who only want automation: they never cross a cheat page (#249). It sits apart
+    // in the sidebar (`apart`), and like a world, picking it opens its list: Overview first, then the systems by world,
+    // then the account ones.
     {
         id: "automation",
         code: "AUT",
         label: "Automation",
         name: "Does what you'd do by hand, with your own resources.",
         folder: "automation",
-        home: true,
+        apart: true,
         systems: [
             "Overview",
             "Alchemy",

@@ -207,8 +207,9 @@ game's.
   Automation section, with a small inner tab per clicker.
 - **Automation is its own section** (#249, Lumi's answers on the issue): a sidebar entry of its own between the game's
   places and the injector's, a separator on each side and no colour of its own, so a player who only wants automation
-  never crosses a cheat page. Picking it lands on its Overview, its home, whose line is "Does what you'd do by hand, with
-  your own resources." (never "safe"). Then the systems by world (Alchemy, Construction, Cooking, Sneaking, Summoning,
+  never crosses a cheat page. Its code column shows a drawn loop, not "AUT" (Lumi, #255). Picking it opens its list,
+  like a world (Lumi, #255); its Overview comes first, whose line is "Does what you'd do by hand, with your own
+  resources." (never "safe"). Then the systems by world (Alchemy, Construction, Cooking, Sneaking, Summoning,
   Sushi Station), then Clickers, Grimoire and Shops. A system's page whose automation moved there keeps one quiet way
   to it beside its title, "Automation" with an arrow, muted words that get the quiet fill only when pointed at; an automation page never
   links back.
