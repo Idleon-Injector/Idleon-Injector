@@ -22,7 +22,7 @@ const automations = [];
  * @param {string} spec.cheat - The cheat that turns it on and off, e.g. "wide autoboss". When that cheat is a toggle,
  *   the automation follows it (a group's "all on" included). A command with its own answer calls
  *   switchAutomation() instead.
- * @param {string} [spec.label] - Its name on Automation › Overview, which lists the ones whose cheat is "automation …".
+ * @param {string} [spec.label] - Its name on Account › Automation, which lists the ones whose cheat is "automation …".
  * @param {number} spec.interval - Milliseconds between ticks.
  * @param {Function} spec.tick - One step of work.
  * @param {Function} spec.status - What the menu shows while it runs.

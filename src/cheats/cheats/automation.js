@@ -3,7 +3,7 @@
  *
  * Each system is one toggle here ("automation shops") that turns on its automation in src/cheats/automations/, and
  * one key of cheatConfig.automation holding what it buys: a list of { id, on, stopAt, ... }, one per item, as Shops
- * keeps it. A system-wide setting (a saving %, a target) is a key of its own beside the list. Automation › Overview
+ * keeps it. A system-wide setting (a saving %, a target) is a key of its own beside the list. Account › Automation
  * lists every "automation" toggle.
  */
 
