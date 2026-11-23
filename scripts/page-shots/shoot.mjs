@@ -240,7 +240,11 @@ async function main() {
     const picked = args.pages ? new Set(args.pages.split(",").map((id) => id.trim())) : null;
     if (!(threshold >= 0 && threshold < 1)) throw new Error("--threshold is a share of pixels, like 0.001.");
     const api = await startFakeApi();
-    const { client, close } = await launchBrowser();
+    // ponytail: one retry; a CI runner's Chrome once missed the port wait and failed the layout gate (#235).
+    const { client, close } = await launchBrowser().catch((error) => {
+        console.warn(`${error.message.replace(/\.$/, "")}. Trying once more.`);
+        return launchBrowser();
+    });
     const { Page, Runtime, Network, Emulation, Log } = client;
     const shots = [];
     try {
