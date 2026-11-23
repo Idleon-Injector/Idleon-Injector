@@ -13,7 +13,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readGgaEntries } from "../../../services/api.js";
-import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
+import { SetAllTool } from "../../../components/views/account/BulkActionBar.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
@@ -24,8 +24,6 @@ import { TabbedList } from "../../../components/views/account/tabShared.js";
 import {
     getOrCreateState,
     oneAtATime,
-    resolveNumberInput,
-    runBulkSet,
     useWriteStatus,
     writeManyVerified,
     writeVerified,
@@ -132,7 +130,6 @@ const IslandsTab = () => {
     const valueStates = new Map();
     const unlocksState = van.state("");
     const bribeState = van.state(0);
-    const setAllInput = van.state("");
 
     const getValueState = (index) => getOrCreateState(valueStates, index);
     // A bulk action waits for a read, and Refresh for a bulk action, so an older read can't land over a newer write.
@@ -193,49 +190,24 @@ const IslandsTab = () => {
 
     const tools = (activeId, ask) => {
         const onIslands = () => activeId.val === "islands";
-        const setUpgrades = (fields, target) =>
-            bulk
-                .run(() =>
-                    runBulkSet({
-                        entries: fields,
-                        getTargetValue: () => target,
-                        getValueState: (field) => getValueState(field.index),
-                        getPath: (field) => `OptionsListAccount[${field.index}]`,
-                    })
-                )
-                // Some of it may have landed: the rows show what the game holds, read once the tools are done.
-                .then((result) => {
-                    if (!result.ok && !result.cancelled) reload();
-                    return result;
-                });
-        // Lowering takes upgrade levels away, so it asks first; raising runs on one click. An empty field writes nothing.
-        const setAll = () => {
-            const target = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
-            if (target === null) return refuseSetAll(setAllInput);
-            const tab = tabOf(activeId);
-            return askOrSet(upgradesOn(tab), target, tab.noun);
-        };
-        const askOrSet = (fields, target, noun) => {
-            const loweredOf = () => fields.filter((field) => Number(getValueState(field.index).val) > target);
-            const n = loweredOf().length;
-            if (!n) return setUpgrades(fields, target);
-            ask({
-                question: `Lower ${n} ${plural(noun, n)} to ${target}?`,
-                confirmLabel: n === 1 ? "Lower it" : "Lower them",
-                from: setAllControl.querySelector(".account-btn"),
-                lowers: loweredOf,
-                again: () => askOrSet(fields, target, noun),
-                onConfirm: () => setUpgrades(fields, target),
-            });
-            return undefined;
-        };
-        const setAllControl = SetAllNumberControl({
-            label: "",
-            placeholder: "Level",
-            value: setAllInput,
-            status: bulk.status,
+        // A level for all on the upgrade tabs: they have no max, so it asks only before it lowers. Some of it may
+        // have landed when a write fails: the rows show what the game holds, read once the tools are done.
+        const setAllControl = SetAllTool({
+            ask,
+            bulk,
             disabled: readPending,
-            onApply: setAll,
+            lines: () =>
+                upgradesOn(tabOf(activeId)).map((field) => ({
+                    row: rowOf.get(field.index),
+                    valueState: getValueState(field.index),
+                    max: null,
+                    path: `OptionsListAccount[${field.index}]`,
+                })),
+            word: (n) => plural(tabOf(activeId).noun, n),
+            placeholder: "Level",
+            onDone: (result) => {
+                if (!result.ok && !result.cancelled) reload();
+            },
         });
 
         // The level is for the upgrade tabs; Islands has its own tools.

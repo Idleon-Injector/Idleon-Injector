@@ -76,6 +76,7 @@ const OrionTab = () => {
     const rowList = div(
         { class: "account-list account-list--tabbed" },
         ListPanel({
+            setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
             body: ALL_FIELDS.map((field) => OrionRow({ field, fieldState: fieldStates.get(field.index), onWrite })),
         })
     );

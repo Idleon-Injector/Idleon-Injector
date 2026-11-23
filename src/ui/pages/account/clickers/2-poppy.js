@@ -109,6 +109,7 @@ const PoppyTab = () => {
             { class: "account-list account-list--tabbed" },
             TabbedList({
                 name: "Kangaroo",
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
                 tabs: [
                     { id: "poppy", label: "Poppy", content: rows(POPPY_FIELDS) },
                     { id: "tar-pit", label: "Tar Pit", content: rows(TAR_PIT_FIELDS) },

@@ -6,6 +6,8 @@
 import { readdirSync } from "node:fs";
 import { importRepo } from "../known-bugs/index.mjs";
 
+const { resolveNumberInput } = await importRepo("src/ui/components/views/account/accountShared.js");
+
 /**
  * The page folders on the shared look, held to every standard. A world joins when its pages move to the shared
  * pieces (Classes adds its own in its PR); the rest still have pages from before.
@@ -34,6 +36,12 @@ export const KNOWN_BREAKS = {
     // #236: the characters' skins are native dropdowns.
     "world-2/weekly-bosses/weekly-bosses.js": ["Picks: a dropdown; pick in place (PickInPlace)"],
 };
+
+/** Pages of unrelated single numbers, which aren't a list (DESIGN.md's Set all), so they need no Set all. */
+export const NOT_LISTS = new Set([
+    // Emperor tries, Showdowns won and Entries: three different things, no one number fits them all.
+    "world-6/emperor/emperor.js",
+]);
 
 const root = new URL("../../", import.meta.url);
 
@@ -71,7 +79,12 @@ const words = (node) => text(node).replace(/\s+/g, " ").trim();
 /** Shown now: no ancestor hidden, and not in a closed tab's pane or a page still loading. */
 export const shown = (node) => {
     for (let at = node; at; at = at.parentNode)
-        if (attr(at, "hidden") || has(at, "account-page-pane--hidden") || has(at, "is-hidden-until-ready"))
+        if (
+            attr(at, "hidden") ||
+            at.hidden === true ||
+            has(at, "account-page-pane--hidden") ||
+            has(at, "is-hidden-until-ready")
+        )
             return false;
     return true;
 };
@@ -110,6 +123,12 @@ const rowsIn = (node) =>
                 return false;
             })(el)
     );
+// A line: a row whose controls hold one value field (a table's line, several values under column heads, isn't one).
+const lineField = (row) =>
+    row.childNodes
+        .find((el) => el.nodeType === 1 && has(el, "account-row__controls"))
+        ?.childNodes.find((el) => el.nodeType === 1 && has(el, "number-input-wrapper"));
+const capped = (field) => has(field, "number-input-wrapper--capped");
 const rowName = (row) =>
     words(byClass(row, "account-row__name")[0] ?? byClass(row, "account-row__info")[0] ?? row).slice(0, 60);
 const tabsOf = (node) => elements(node).filter((el) => attr(el, "role") === "tab");
@@ -133,14 +152,14 @@ export function pageBreaks(node, page, title) {
     for (const row of rows) {
         const controls = row.childNodes.find((el) => el.nodeType === 1 && has(el, "account-row__controls"));
         const own = controls?.childNodes.filter((el) => el.nodeType === 1) ?? [];
-        const field = own.find((el) => has(el, "number-input-wrapper"));
-        const capped = Boolean(field) && has(field, "number-input-wrapper--capped");
+        const field = lineField(row);
+        const hasCap = Boolean(field) && capped(field);
         const maxed = own.some(
             (el) =>
                 el.nodeName === "button" && !attr(el, "hidden") && (has(el, "account-row__max") || words(el) === "Max")
         );
-        if (capped && !maxed) breaks.push(`Max: "${rowName(row)}" has a cap but no Max button`);
-        if (field && !capped && maxed) breaks.push(`Max: "${rowName(row)}" has Max but no cap to fill up to`);
+        if (hasCap && !maxed) breaks.push(`Max: "${rowName(row)}" has a cap but no Max button`);
+        if (field && !hasCap && maxed) breaks.push(`Max: "${rowName(row)}" has Max but no cap to fill up to`);
     }
 
     // Automation: its own sidebar entry, never a tab.
@@ -264,8 +283,9 @@ export function pageBreaks(node, page, title) {
 
 /**
  * Bulk tools, pressed: on every tab, a tray tool that lowers or takes away (a danger button) asks in the tray before
- * it writes anything, and Max all runs on one press. `writes()` counts the game writes so far. The page is left as the
- * tools left it, so run this last.
+ * it writes anything, and Max all runs on one press. Set all: a list with lines without a max has it; it refuses an
+ * empty field, asks before a number goes past a line's max ("Go past") or lowers a line, and otherwise runs on one
+ * press. `writes()` counts the game writes so far. The page is left as the tools left it, so run this last.
  */
 export async function bulkBreaks(node, writes) {
     const breaks = [];
@@ -276,8 +296,33 @@ export async function bulkBreaks(node, writes) {
             await settle();
         }
         const where = tab ? `${words(tab)}: ` : "";
+        // The lists showing: the open tab's pane, a ListPanel's rows, or the page.
+        const panes = panelsOf(node).filter(shown);
+        const bodies = byClass(node, "tabbed-list__body").filter(shown);
+        const lists = panes.length ? panes : bodies.length ? bodies : [node];
+        const linesOf = (list) =>
+            rowsIn(list)
+                .filter(shown)
+                .map((row) => ({ row, field: lineField(row) }))
+                .filter(({ field }) => field);
+        const setAllsOf = (list) => {
+            let scope = list;
+            while (scope.parentNode && !has(scope, "tabbed-list")) scope = scope.parentNode;
+            return byClass(has(scope, "tabbed-list") ? scope : node, "account-setall-row").filter(shown);
+        };
+        for (const list of lists) {
+            const lines = linesOf(list);
+            if (lines.length >= 2 && lines.some(({ field }) => !capped(field)) && !setAllsOf(list).length)
+                breaks.push(`Set all: ${where}lines without a max but no Set all`);
+        }
+
         for (const tray of byClass(node, "tabbed-list__tools").filter(shown)) {
             const asking = () => has(byClass(tray, "tabbed-list__tools-label")[0], "is-question");
+            const answers = () =>
+                byClass(tray, "tabbed-list__answer").flatMap((row) =>
+                    elements(row).filter((el) => el.nodeName === "button" && shown(el))
+                );
+            const cancel = () => click(answers().find((el) => words(el) === "Cancel"));
             const tools = byClass(tray, "tabbed-list__tools-row")
                 .filter((row) => !has(row, "tabbed-list__answer"))
                 .flatMap((row) =>
@@ -296,10 +341,7 @@ export async function bulkBreaks(node, writes) {
                         continue;
                     }
                     for (let i = 0; i < 10; i++) await settle();
-                    const cancel = byClass(tray, "tabbed-list__answer")
-                        .flatMap((row) => elements(row))
-                        .find((el) => words(el) === "Cancel");
-                    if (cancel) click(cancel);
+                    if (answers().some((el) => words(el) === "Cancel")) cancel();
                     for (let i = 0; i < 5; i++) await settle();
                     if (writes() !== before) breaks.push(`Bulk tools: ${where}"${label}" wrote before the answer`);
                 } else if (/^Max all\b/.test(label)) {
@@ -307,13 +349,65 @@ export async function bulkBreaks(node, writes) {
                     for (let i = 0; i < 20; i++) await settle();
                     if (asking()) {
                         breaks.push(`Bulk tools: ${where}"${label}" asks; Max all runs on one press`);
-                        click(
-                            byClass(tray, "tabbed-list__answer")
-                                .flatMap((row) => elements(row))
-                                .find((el) => words(el) === "Cancel")
-                        );
+                        cancel();
                     }
                 }
+            }
+
+            // Set all, on the lines of the list its tray belongs to, by the values and maxes they show. In a table
+            // (several values under column names) its lines are the column its field names ("Level"), capped or not.
+            const list = lists.find((l) => setAllsOf(l).some((tool) => tray.contains(tool)));
+            const number = (raw) => resolveNumberInput(String(raw ?? ""), { formatted: true, float: true }) ?? 0;
+            const inputOf = (el) => elements(el).find((child) => child.nodeName === "input");
+            const columnOf = (row, column) =>
+                byClass(row, "number-input-wrapper").find((field) =>
+                    field.parentNode.childNodes.some(
+                        (el) => el !== field && String(attr(el, "class")).includes("__label") && words(el) === column
+                    )
+                );
+            for (const tool of byClass(tray, "account-setall-row").filter(shown)) {
+                const input = inputOf(tool);
+                const press = elements(tool).find((el) => el.nodeName === "button" && words(el) === "Set all");
+                if (!input || !press || attr(press, "disabled")) continue;
+                const column = attr(input, "placeholder");
+                const own = list ? linesOf(list) : [];
+                const lines = own.length
+                    ? own
+                    : (list ? rowsIn(list).filter(shown) : [])
+                          .map((row) => ({ row, field: columnOf(row, column) }))
+                          .filter(({ field }) => field);
+                const values = lines.map(({ field }) => number(inputOf(field).value ?? attr(inputOf(field), "value")));
+                const caps = lines
+                    .filter(({ field }) => capped(field))
+                    .map(({ field }) => number(words(byClass(field, "number-input__cap")[0].childNodes[0]).slice(1)));
+                // Type `value` and press Set all; the press isn't awaited, so a write after an await is counted too.
+                const tryWith = async (value) => {
+                    const before = writes();
+                    input.value = String(value);
+                    input.listeners.input?.({ target: input });
+                    click(press);
+                    for (let i = 0; i < 30; i++) await settle();
+                    const outcome = { asked: asking(), wrote: writes() !== before, answers: answers().map(words) };
+                    if (outcome.asked) cancel();
+                    for (let i = 0; i < 5; i++) await settle();
+                    outcome.wrote ||= writes() !== before;
+                    return outcome;
+                };
+                const empty = await tryWith("");
+                if (empty.wrote || empty.asked) breaks.push(`Set all: ${where}an empty field isn't refused`);
+                if (!lines.length) continue;
+                if (values.some((value) => value > 0)) {
+                    const lower = await tryWith(0);
+                    if (!lower.asked) breaks.push(`Set all: ${where}lowers without asking in the tray`);
+                    else if (lower.wrote) breaks.push(`Set all: ${where}wrote before the answer to lowering`);
+                }
+                // Above every value and max (a formatted value reads rounded), so nothing comes down.
+                const past = await tryWith(Math.ceil(Math.max(0, ...values, ...caps) * 1.1) + 1);
+                if (!caps.length) {
+                    if (past.asked) breaks.push(`Set all: ${where}asks when nothing goes past a max or down`);
+                } else if (!past.asked || !["Stop at max", "Go past"].every((a) => past.answers.includes(a)))
+                    breaks.push(`Set all: ${where}goes past a max without asking "Stop at max" or "Go past"`);
+                else if (past.wrote) breaks.push(`Set all: ${where}wrote before the answer to going past a max`);
             }
         }
     }

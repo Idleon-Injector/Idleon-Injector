@@ -22,7 +22,7 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
+import { shownBySearch } from "../../../menu/pageSearch.js";
 import { readGgaEntries } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -94,6 +94,7 @@ const ArcadeBallRow = ({ field, valueState }) =>
             formatter: largeFormatter,
             parser: largeParser,
         },
+        setAll: { path: `OptionsListAccount[${field.optionIndex}]` },
     });
 
 const ArcadeTab = () => {
@@ -223,10 +224,8 @@ const ArcadeTab = () => {
                     AccountSection({ title: "Upgrades", body: upgradeList }),
                 ],
                 tools,
-                toolsLabel: () => {
-                    const n = shown().length;
-                    return isSearching() ? `${n} matching ${upgradeWord(n)}` : `All ${n} ${upgradeWord(n)}`;
-                },
+                // Set all acts on every line, the balls too, so the tray counts lines.
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value", bulk },
             })
         ),
     });

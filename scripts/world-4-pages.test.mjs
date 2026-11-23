@@ -560,7 +560,7 @@ test("Upgrades: bonus first, the filler slot's bonus is Breeding EXP, and Max al
     const bonusOf = (name) => text(byClass(rowNamed(root, name), "account-row__bonus")[0]);
     assert.equal(bonusOf("No Upgrade Selected"), "Breeding EXP %");
     assert.equal(bonusOf("Egg Capacity"), "Egg Max");
-    assert.equal(trayLine(root), "All 13 upgrades");
+    assert.equal(trayLine(root), "All 14 lines", "Set all acts on the dead cells too, so the tray counts lines");
     click(buttonNamed(root, "Max all"));
     await until(() => gga.Breeding[2][1] === 50, "the upgrade above its max at 50");
     assert.equal(gga.Breeding[2][2], 100);

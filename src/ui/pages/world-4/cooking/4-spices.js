@@ -51,7 +51,13 @@ const SpicesTab = () => {
         loadingText: "Reading the spices",
         errorTitle: "Couldn't read the spices",
         initialWrapperClass: "account-list",
-        body: div({ class: "account-list account-list--tabbed" }, ListPanel({ body: rows })),
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                setAll: { word: (n) => (n === 1 ? "spice" : "spices"), placeholder: "Amount" },
+                body: rows,
+            })
+        ),
     });
 };
 

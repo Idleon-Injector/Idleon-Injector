@@ -82,5 +82,7 @@ export const SimpleNumberRow = ({ entry, valueState, renderExtraActions = null }
         controlsClass: entry.controlsClass ?? "account-row__controls--xl",
         inputMode: entry.inputMode ?? (float ? "float" : "int"),
         inputProps: formatted ? { formatter: largeFormatter, parser: largeParser } : {},
+        // A row with `afterWrite` saves through its own write in a Set all too, so the cache follows.
+        setAll: { min, path: entry.afterWrite ? null : entry.path },
     });
 };

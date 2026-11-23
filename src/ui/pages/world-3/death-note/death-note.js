@@ -86,9 +86,11 @@ const KillCountRow = ({
     renderBadge = null,
     write,
     onWriteError = null,
+    setAll = null,
 }) =>
     EditableNumberRow({
         valueState: killState,
+        setAll,
         normalize: (rawValue) => resolveFormattedIntInput(rawValue, null, { min: 0 }),
         write: async (nextKills) => {
             try {
@@ -181,6 +183,7 @@ const MinibossRow = ({ mob, killState }) =>
     KillCountRow({
         killState,
         renderInfo: () => span({ class: "account-row__name" }, mob.mobName),
+        setAll: { path: `Ninja[105][${mob.mobIndex}]` },
         write: async (nextKills) => {
             const path = `Ninja[105][${mob.mobIndex}]`;
             return writeVerified(path, nextKills);
@@ -380,6 +383,8 @@ const DeathNoteTab = () => {
         { class: "account-list account-list--tabbed" },
         TabbedList({
             name: "Death Note",
+            // The minibosses' kills are lines; a world's mobs hold their characters' kills, so they have none.
+            setAll: { word: (n) => `miniboss${n === 1 ? "" : "es"}`, placeholder: "Kills" },
             tabs: DN_SUBTABS.map((tab) => ({
                 id: tab.id,
                 label: tab.label,

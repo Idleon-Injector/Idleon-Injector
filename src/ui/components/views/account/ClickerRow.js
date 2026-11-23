@@ -31,6 +31,8 @@ export const ClickerRow = ({ field, fieldState, onWrite, warnBadgeClass, rowClas
         controlsClass,
         inputMode: isFloat ? "float" : "int",
         inputProps: isFormatted ? { formatter: largeFormatter, parser: largeParser } : {},
+        // Set all saves through the row's own write (its page's).
+        setAll: {},
         adjustInput: (rawValue, delta) => {
             const cur = parseInputValue(rawValue) ?? 0;
             const step = field.formatted ? formattedStep(cur) : isFloat ? 0.1 : 1;

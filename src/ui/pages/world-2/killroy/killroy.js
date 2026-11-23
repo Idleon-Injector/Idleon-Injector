@@ -105,6 +105,7 @@ const KillroyNumRow = ({ field, valueState, writePath }) => {
         valueState,
         normalize,
         write: async (nextValue) => writeVerified(writePath, nextValue),
+        setAll: { path: writePath },
         renderInfo: () => span({ class: "account-row__name" }, labelText),
         adjustInput: (rawValue, delta, currentValue) => {
             const next = toNum(rawValue, toNum(currentValue, 0)) + delta;
@@ -305,7 +306,19 @@ const KillroyTab = () => {
         loadingText: "Reading Killroy",
         errorTitle: "Couldn't read Killroy",
         initialWrapperClass: "account-list",
-        body: div({ class: "account-list account-list--tabbed" }, TabbedList({ name: "Killroy", tabs })),
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Killroy",
+                tabs,
+                setAll: {
+                    word: (n, tab) =>
+                        ({ records: ["record", "records"], "best-kills": ["mob", "mobs"] })[tab]?.[n === 1 ? 0 : 1] ??
+                        (n === 1 ? "line" : "lines"),
+                    placeholder: "Value",
+                },
+            })
+        ),
     });
 };
 
