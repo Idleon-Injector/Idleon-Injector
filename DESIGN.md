@@ -397,6 +397,11 @@ World 3 uses the World 1 and World 2 pieces; a few of them grew, and are now sha
   shows one character's things: Prayers, 3D Printer, Traps. Never tabs per character. Its list opens over the page
   (nothing below moves), across the page's width in columns (4 on desktop, 2 on a phone), each name with its class
   under it (Lumi's pick of two concepts, 2026-11-22).
+- **A cog opens its editor in place, under the board** (Lumi's pick, #251), the way a row's pick opens under its
+  row: one group of the page's value rows, its line saying the slot and cog, the slot's state in plain words
+  ("Unlocking 2K / 33K · Flag placed") and only the change it can take (Lock or Unlock). The same cog again or Escape
+  closes it, and Escape gives focus back to the cog. A mouse press scrolls nothing, so the next cog stays under the
+  pointer; a press from the keyboard takes focus into the editor.
 - **Bonus first everywhere the game has one**: hats (their Hat Rack stat), armor sets (their set bonus), talents
   (their first line), buildings (a town building's current bonus, a tower's or shrine's first line).
 
