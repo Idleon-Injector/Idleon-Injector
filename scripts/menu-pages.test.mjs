@@ -354,3 +354,16 @@ test("search finds the Equinox penguins by their names and the limited shop's wo
         );
     }
 });
+
+test("search finds the Exalted Stamp uses on Stamps by their name and the limited shop's words", async () => {
+    const pages = [];
+    for (const file of await collectPageModules(PAGES_DIR))
+        pages.push((await import(pathToFileURL(file).href)).default);
+    const entries = searchEntries(buildMenuTree(pages));
+    for (const words of ["exalted stamp uses", "limited", "gem shop", "fomo"]) {
+        assert.ok(
+            searchMenu(entries, words).some((hit) => hit.target.page === "w1.stamps"),
+            `"${words}" finds Stamps`
+        );
+    }
+});
