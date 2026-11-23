@@ -346,6 +346,11 @@ async function main() {
                 .filter((area) => !args.only || area.name.includes(args.only))
                 .map((area) => (picked ? { ...area, pages: (area.pages ?? []).filter((p) => picked.has(p.id)) } : area))
                 .filter((area) => !picked || area.pages.length);
+            if (picked) {
+                const kept = new Set(areas.flatMap((area) => (area.pages ?? []).map((p) => p.id)));
+                const dropped = [...picked].filter((id) => !kept.has(id));
+                if (dropped.length) throw new Error(`--only=${args.only} leaves out --pages ${dropped.join(", ")}.`);
+            }
 
             const shoot = async (path) => {
                 let name = `${width}/${path.join("/")}`;
