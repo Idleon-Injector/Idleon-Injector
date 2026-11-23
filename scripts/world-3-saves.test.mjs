@@ -167,6 +167,37 @@ test("Traps' Set all sets the picked column of the picked character's traps, and
     assert.deepEqual(gga.PlacedTraps, before.live);
 });
 
+test("Traps' Set all asks again when another character is picked while it asks (#256)", async (t) => {
+    const first = gga.UserInfo[0];
+    const [other, third] = gga.GetPlayersUsernames.filter((name) => name !== first);
+    const before = structuredClone([db[other].h.PldTraps, db[third].h.PldTraps]);
+    t.after(() => ([db[other].h.PldTraps, db[third].h.PldTraps] = before));
+    const root = await openPage("src/ui/pages/world-3/traps/traps.js", (r) => byClass(r, "trap-row").length > 1);
+    const pick = (name) => {
+        const option = byClass(root, "pick-in-place__option").find((node) => text(node).includes(name));
+        option.listeners.click({ preventDefault() {}, currentTarget: option });
+    };
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const question = () => text(byClass(tray, "tabbed-list__tools-label")[0]);
+    pick(other);
+    type(inputs(byClass(tray, "account-setall-row")[0])[0], 3);
+    const press = button(tray, "Set all");
+    press.listeners.click({ preventDefault() {}, currentTarget: press });
+    await until(() => /^Lower/.test(question()), "Set all to ask about lowering");
+
+    // Another character picked, then the answer: the first character's traps stay, and it asks about the new pick's.
+    pick(third);
+    const yes = byClass(tray, "tabbed-list__yes")[0];
+    yes.listeners.click({ preventDefault() {}, currentTarget: yes });
+    // Long enough for a write to land, and for the tray to show what it says now.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.match(question(), /^Lower/, "it asks again");
+    assert.deepEqual(db[other].h.PldTraps, before[0], `${other}'s traps are untouched`);
+    assert.deepEqual(db[third].h.PldTraps, before[1], `${third}'s traps wait for the new answer`);
+    const cancel = button(tray, "Cancel");
+    cancel.listeners.click({ preventDefault() {}, currentTarget: cancel });
+});
+
 test("Worship refuses a charge save once another character is in play, and writes nothing", async (t) => {
     const first = gga.UserInfo[0];
     t.after(() => switchTo(first));

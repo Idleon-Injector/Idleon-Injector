@@ -468,7 +468,8 @@ const TrappingTab = () => {
                     const n = trapsShown(selected.val).length;
                     return isSearching() ? `${n} matching ${trapWord(n)}` : `All ${n} ${trapWord(n)}`;
                 },
-                setAll: { word: trapWord, columns: COLUMNS, column },
+                // A question is about the picked character's traps: another pick asks again.
+                setAll: { word: trapWord, columns: COLUMNS, column, askedFor: () => selected.val },
             })
         ),
     });
