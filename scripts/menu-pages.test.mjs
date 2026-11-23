@@ -14,6 +14,7 @@ import {
     commandHint,
     definePage,
     isDangerousCommand,
+    MOVED_PAGES,
     pageFolder,
     searchEntries,
     searchMenu,
@@ -184,6 +185,24 @@ test("every module under src/ui/pages declares a page in its world and system fo
         pages.push(declared);
     }
     assert.doesNotThrow(() => buildMenuTree(pages), "page ids are unique");
+    // A remembered place or History entry from before #249 finds the page where it is now.
+    const ids = new Set(pages.map((page) => page.id));
+    for (const [old, now] of Object.entries(MOVED_PAGES)) {
+        assert.ok(ids.has(now), `${old} moved to ${now}, which must exist`);
+        assert.ok(!ids.has(old), `${old} moved, so no page keeps its id`);
+    }
+});
+
+test("search finds a moved automation page by its old words, under the Automation section", () => {
+    const tree = buildMenuTree([
+        page("w2.bubbles", 2, "Alchemy", { tab: "Bubbles" }),
+        page("w2.vials", 2, "Alchemy", { tab: "Vials" }),
+        page("automation.alchemy", "automation", "Alchemy", { keywords: ["Bubbles"] }),
+    ]);
+    const hit = searchMenu(searchEntries(tree), "bubble automation")[0];
+    assert.equal(hit.where, "Automation");
+    assert.deepEqual(hit.target, { world: "automation", page: "automation.alchemy" });
+    assert.equal(searchMenu(searchEntries(tree), "automation")[0].label, "Automation", "the section itself first");
 });
 
 // Rows as GET /api/cheats returns them (copied from the fake game's list).

@@ -19,6 +19,7 @@ const BONE_FIELDS = [
 const GrimoireTab = () =>
     MasterclassUpgradeTab({
         title: "GRIMOIRE",
+        automation: { page: "automation.grimoire" },
         description: "Manage Deathbringer Grimoire upgrades and Bone Currency.",
         levelsPath: "Grimoire",
         definitionPaths: ["GrimoireUpg"],
@@ -32,7 +33,6 @@ export default definePage({
     id: "classes.grimoire",
     world: "classes",
     system: "Grimoire",
-    tab: "Grimoire",
     description: "Deathbringer Grimoire upgrades and bone currency.",
     keywords: ["Deathbringer"],
     component: GrimoireTab,

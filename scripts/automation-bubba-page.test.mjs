@@ -10,7 +10,7 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 const kit = await automationTabKit();
 const { text, byClass, field, sent, fileSent, status, until } = kit;
 // The Clickers page, every clicker's tab mounted; Bubba's is the third.
-const page = (await importRepo("src/ui/pages/account/clickers/4-automation.js")).ClickersAutomation();
+const page = (await importRepo("src/ui/pages/automation/clickers/clickers.js")).ClickersAutomation();
 const bubbaTools = () => byClass(page, "automation-tools")[2];
 // Bubba's own rows (its tab's table: the other tabs have a "While saving" too).
 const row = (name) => kit.row(byClass(page, "automation-rows")[2], name);

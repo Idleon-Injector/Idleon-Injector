@@ -1,5 +1,5 @@
 /**
- * World 4 › Cooking › Automation: which kitchen upgrades and meals the cooking automation levels.
+ * Automation › Cooking: which kitchen upgrades and meals the cooking automation levels.
  *
  * Kitchens: one section per kitchen (Speed, Fire, Luck), each paid with a spice; every spice saves and buys on its own
  * ("Save for it" and its saving %). Meals: one row per meal, levelled with its own quantity up to the max.
@@ -238,6 +238,8 @@ const CookingAutomationTab = () => {
     tab.load();
 
     return AutomationPage({
+        title: "Cooking",
+        page: "automation.cooking",
         description: "Levels switched-on kitchen upgrades with spice and meals with themselves.",
         // While Food Lust stacks are held, any meal level-up spends them all, so the priciest meal goes first.
         total: AutomationStats(() =>
@@ -262,10 +264,9 @@ const CookingAutomationTab = () => {
 };
 
 export default definePage({
-    id: "w4.cooking.automation",
-    world: 4,
+    id: "automation.cooking",
+    world: "automation",
     system: "Cooking",
-    tab: "Automation",
     description: "Kitchen upgrades and meals levelled automatically, each up to its stop-at.",
     keywords: ["Autobuy", "Auto buy", "Kitchens", "Meals", "Spices", "Food Lust", "Stop at", "Save for it", "Priority"],
     component: CookingAutomationTab,

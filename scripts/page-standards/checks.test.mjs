@@ -86,11 +86,16 @@ test("Automation: a tab named Automation, or the automation list on another page
             breaksOf(page("Upgrades", tabbed.node ?? tabbed), declared({ tab: "Upgrades" }), "Upgrades"),
             "Automation"
         ),
-        [`Automation: "Automation" is a tab; make it its own page with tab "Automation"`]
+        [`Automation: "Automation" is a tab; make it its own page in the Automation section`]
     );
     const list = page("Upgrades", div({ class: "automation-rows" }));
     assert.equal(only(breaksOf(list, declared({ tab: "Upgrades" }), "Upgrades"), "Automation").length, 1);
-    assert.deepEqual(only(breaksOf(list, declared({ tab: "Automation" }), "Upgrades"), "Automation"), []);
+    assert.equal(
+        only(breaksOf(list, declared({ tab: "Automation" }), "Upgrades"), "Automation").length,
+        1,
+        "a tab called Automation on a system's page still breaks it"
+    );
+    assert.deepEqual(only(breaksOf(list, declared({ world: "automation" }), "Upgrades"), "Automation"), []);
 });
 
 test("Tabs: a tab that holds tabs is a break", () => {

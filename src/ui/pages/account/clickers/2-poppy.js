@@ -99,6 +99,7 @@ const PoppyTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Poppy",
+        automation: { page: "automation.clickers", tab: "poppy" },
         description: "Poppy the kangaroo's fish, upgrades and Tar Pit.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },

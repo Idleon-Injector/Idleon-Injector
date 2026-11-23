@@ -1,5 +1,5 @@
 /**
- * World 6 › Sneaking › Automation: which Ninja Knowledge upgrades the sneaking automation buys with jade coins, by
+ * Automation › Sneaking: which Ninja Knowledge upgrades the sneaking automation buys with jade coins, by
  * the shared rule ("Save for it", saving %), each up to its stop-at.
  *
  * Reads readComputed("automation", "sneaking") (jade, every upgrade with its bonus, level, next cost and lock) and
@@ -107,6 +107,8 @@ const SneakingAutomationTab = () => {
     tab.load();
 
     return AutomationPage({
+        title: "Sneaking",
+        page: "automation.sneaking",
         description: "Buys switched-on Ninja Knowledge with jade. They have no max, so set a stop-at.",
         total: AutomationStats(() => (jade.val === null ? [] : [[heldText(jade.val), "jade"]])),
         columns: COLUMNS,
@@ -137,10 +139,9 @@ const SneakingAutomationTab = () => {
 };
 
 export default definePage({
-    id: "w6.sneaking.automation",
-    world: 6,
+    id: "automation.sneaking",
+    world: "automation",
     system: "Sneaking",
-    tab: "Automation",
     description: "Ninja Knowledge upgrades bought with jade coins, each up to its stop-at.",
     keywords: ["Autobuy", "Auto buy", "Ninja Knowledge", "Jade", "Stop at", "Save for it", "Priority"],
     component: SneakingAutomationTab,

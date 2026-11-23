@@ -151,7 +151,7 @@ export function readComputed(namespace, name, args = []) {
         }
     }
 
-    // Account › Automation: its automations ("automation …" toggles) with their status; and what each system's
+    // Automation › Overview: its automations ("automation …" toggles) with their status; and what each system's
     // automation tab shows (the town shops, a system's currency and upgrades).
     if (
         namespace === "automation" &&

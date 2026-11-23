@@ -1,5 +1,5 @@
 /**
- * Account › Clickers › Automation: one page for the three clickers, a tab each on one list (TabbedList). What the open
+ * Automation › Clickers: one page for the three clickers, a tab each on one list (TabbedList). What the open
  * clicker holds sits beside the title, and its Enable all and Disable all in the list's tray.
  *
  * Orion and Poppy use useClickerAutomation: which Orion upgrades "automation orion" buys with feathers, and which
@@ -195,6 +195,8 @@ export const ClickersAutomation = () => {
     const activeId = van.state(tabs[0].id);
     const open = () => tabs.find(({ id }) => id === activeId.val) ?? tabs[0];
     return AutomationPage({
+        title: "Clickers",
+        page: "automation.clickers",
         description: () => open().description,
         total: AutomationStats(() => open().stats()),
         tabs,
@@ -211,10 +213,9 @@ export const ClickersAutomation = () => {
 };
 
 export default definePage({
-    id: "account.clickers.automation",
-    world: "account",
+    id: "automation.clickers",
+    world: "automation",
     system: "Clickers",
-    tab: "Automation",
     description:
         "What the Orion, Poppy and Bubba automations buy, each upgrade up to its stop-at, and what they save for.",
     keywords: [

@@ -18,6 +18,7 @@ import {
     reloadPlace,
     rootKey,
 } from "../../../services/changeLog.js";
+import { MOVED_PAGES } from "../../../menu/menuModel.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { NO_CHARACTER, readCharacterInPlay, writeManyVerified } from "./accountShared.js";
 
@@ -55,8 +56,10 @@ const targetPath = async (entry, active) => {
     return `${live}${saved.rest}`;
 };
 
-// The page the action was made on shows the game's values again (Pages and the area views listen).
-const reloadPlaceOf = (action) => (reloadPlace.val = { ...action.place });
+// The page the action was made on shows the game's values again (Pages and the area views listen); an action from
+// before a page moved into the Automation section reloads it where it is now.
+const reloadPlaceOf = (action) =>
+    (reloadPlace.val = { ...action.place, page: MOVED_PAGES[action.place?.page] ?? action.place?.page });
 
 // The game's cached totals that a page's save clears, by the values they are built from. Undo clears them here,
 // since the page may not be open. ponytail: one row per page that clears a cache; add a row with each new one.

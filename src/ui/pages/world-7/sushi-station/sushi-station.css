@@ -115,6 +115,11 @@
     min-width: 0;
 }
 
+/* Knowledge XP alone on the Tools page keeps the measure it had beside Auto Play. */
+.sushi-knowledge {
+    max-width: 26rem;
+}
+
 /* Plain sections (#26): no inset box inside the page. */
 .sushi-automation-controls {
     gap: 14px;

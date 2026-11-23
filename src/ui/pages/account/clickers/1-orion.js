@@ -86,6 +86,7 @@ const OrionTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Orion",
+        automation: { page: "automation.clickers", tab: "orion" },
         description: "Orion the owl's feathers and upgrades.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },

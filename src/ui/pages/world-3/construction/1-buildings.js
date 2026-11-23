@@ -1093,7 +1093,8 @@ const WorkbenchTab = () => {
         );
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Workbench",
+        title: "Construction",
+        automation: { page: "automation.construction" },
         description: "Building levels, each up to its max with the Workbench's extra levels, and the cog board.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
@@ -1119,11 +1120,10 @@ const WorkbenchTab = () => {
 };
 
 export default definePage({
-    id: PAGE_ID,
+    id: "w3.construction.buildings",
     world: 3,
     system: "Construction",
-    tab: "Workbench",
     description: "Building levels and the cog board.",
-    keywords: ["Construction", "Buildings", "Towers", "Shrines", "Cogs", "Flags", "Cog board"],
+    keywords: ["Workbench", "Buildings", "Towers", "Shrines", "Cogs", "Flags", "Cog board"],
     component: WorkbenchTab,
 });

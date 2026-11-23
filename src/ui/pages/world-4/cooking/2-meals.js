@@ -147,6 +147,7 @@ const MealsTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container meals-tab",
         title: "Meals",
+        automation: { page: "automation.cooking", tab: "meals" },
         description: "Each meal's level, how many are cooked, its ribbon and its mastery.",
         total: () =>
             pointsOff.val

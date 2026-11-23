@@ -1,6 +1,7 @@
 // Every page on the shared look, held to DESIGN.md's Page standards on the fake game (checks.mjs). A failure names
 // the rule and the line that breaks it. The layout rules are measured by `npm run page-shots`.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { importRepo, loadUi } from "../known-bugs/index.mjs";
 import { createFakeApi } from "../page-shots/fake-api.mjs";
@@ -59,12 +60,19 @@ for (const { file, page } of pages.filter(({ file }) => onStandards(file))) {
     });
 }
 
-test("Automation pages are their own sidebar entries, in every world", () => {
-    const breaks = pages
-        .filter(({ file }) => /automation/i.test(file.split("/").pop()))
-        .filter(({ page }) => page.tab !== "Automation" && page.system !== "Automation")
+test("every automation page is in the Automation section (#249)", () => {
+    // A page built from the automation pieces is an automation page, on any world's folder.
+    const automationPieces = (file) =>
+        readFileSync(new URL(`../../${file}`, import.meta.url), "utf8").includes("views/account/automation.js");
+    const outside = pages
+        .filter(({ file, page }) => page.world !== "automation" && automationPieces(file))
         .map(({ file }) => file);
-    assert.deepEqual(breaks, []);
+    assert.deepEqual(outside, []);
+    assert.deepEqual(
+        pages.filter(({ file }) => /automation/i.test(file.split("/").pop())).map(({ file }) => file),
+        [],
+        "no page file is named after automation outside the section"
+    );
 });
 
 test("no style leaves an outline or ring after a click", async () => {

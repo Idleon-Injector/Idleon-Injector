@@ -283,6 +283,7 @@ export const MasterclassUpgradeTab = ({
     deleteCachePaths = [],
     onUpgradeChanged = null,
     onBulkChanged = null,
+    automation = null,
 }) => {
     const { status: bulkStatus, run: runBulk } = useWriteStatus();
     const { loading, error, run: runLoad } = useAccountLoad({ label: title, busy: () => bulkStatus.val === "loading" });
@@ -411,6 +412,7 @@ export const MasterclassUpgradeTab = ({
     return PersistentAccountListPage({
         title,
         description,
+        automation,
         wrapActions: false,
         actions: BulkActionBar({
             actions: [

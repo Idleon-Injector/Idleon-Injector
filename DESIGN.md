@@ -37,8 +37,8 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
   bubble's Materials | Particles) has one All to tool in its tray with the same steps (`AllToTool`), acting on the
   lines the top bar's search shows. Picks with an order ask first when a press would lower a line; picks without one
   run on one press. A pick out of a long list (an item, a skin, a player) isn't one. _test_
-- **Automation:** every Automation page is its own sidebar entry under its system (`tab: "Automation"`, as Alchemy and
-  Cooking have it), never a tab. _test_
+- **Automation:** every automation page is its own page in the Automation section (`world: "automation"`), never a tab
+  and never on a system's own page; the system's page links to it beside its title (`automation` on the header). _test_
 - **Tabs:** only for a system's own game screens and groups; a tab never holds tabs, its parts are headed groups.
   _test (tabs in a tab), review (which screens)_
 - **Row switches:** a setting that switches per line (Omni Jade, Organic) is a button or switch on that line, never a
@@ -198,10 +198,17 @@ Rejected, so the design pass doesn't drift back:
 Decided on World 2 (2026-11-22), from two clickable concepts: IdleonToolbox's grouping or the game's. Lumi picked the
 game's.
 
-- **Names and grouping follow the game's own menus:** Alchemy with its tabs (Bubbles, Cauldrons, Vials, Sigils,
-  Automation), Poppy, Orion.
-- **Clickers live in one Account entry** with tabs Orion, Poppy, Bubba and a shared Automation page, which has a small
-  inner tab per clicker.
+- **Names and grouping follow the game's own menus:** Alchemy with its tabs (Bubbles, Cauldrons, Vials, Sigils), Poppy,
+  Orion.
+- **Clickers live in one Account entry** with tabs Orion, Poppy and Bubba; their automation is one page in the
+  Automation section, with a small inner tab per clicker.
+- **Automation is its own section** (#249, Lumi's answers on the issue): a sidebar entry of its own between the game's
+  places and the injector's, a separator on each side and no colour of its own, so a player who only wants automation
+  never crosses a cheat page. Picking it lands on its Overview, its home, whose line is "Does what you'd do by hand, with
+  your own resources." (never "safe"). Then the systems by world (Alchemy, Construction, Cooking, Sneaking, Summoning,
+  Sushi Station), then Clickers, Grimoire and Shops. A system's page whose automation moved there keeps one quiet way
+  to it beside its title, "Automation" with an arrow, muted words that get the quiet fill only when pointed at; an automation page never
+  links back.
 - **A first tab never repeats its entry's name.**
 - **Search keeps the old names** (Owl, Kangaroo, Liquid, Pay 2 Win), as extra words on the page that holds them now.
 - **Cauldrons has a tab per cauldron** (Lumi, 2026-11-23), like Bubbles: Power, Quicc, High-IQ and Kazam hold each

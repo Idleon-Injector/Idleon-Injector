@@ -9,7 +9,7 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, sent, fileSent, status, until } = kit;
-const tab = (await importRepo("src/ui/pages/world-3/construction/3-automation.js")).default.component();
+const tab = (await importRepo("src/ui/pages/automation/construction/construction.js")).default.component();
 const row = (name) => kit.row(tab, name);
 const byName = (index) =>
     byClass(tab, "automation-pick").map((node) => text(byClass(node, "account-row__name")[0]))[index];

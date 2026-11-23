@@ -68,6 +68,7 @@ const TablesTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container kitchen-tables-tab",
         title: "Tables",
+        automation: { page: "automation.cooking", tab: "kitchens" },
         description: "Each kitchen's Speed, Fire and Luck levels.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
