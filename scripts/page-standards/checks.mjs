@@ -37,6 +37,12 @@ export const KNOWN_BREAKS = {
     "world-2/weekly-bosses/weekly-bosses.js": ["Picks: a dropdown; pick in place (PickInPlace)"],
 };
 
+/** Pages of unrelated single numbers, which aren't a list (DESIGN.md's Set all), so they need no Set all. */
+export const NOT_LISTS = new Set([
+    // Emperor tries, Showdowns won and Entries: three different things, no one number fits them all.
+    "world-6/emperor/emperor.js",
+]);
+
 const root = new URL("../../", import.meta.url);
 
 /** Every page module under src/ui/pages, as repo paths, in the server's order. */

@@ -30,7 +30,8 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
   use); a list where every line has a max keeps only Max all. The typed number goes to every line. When some line's
   max is lower, the tray asks first, "Stop at max" or "Go past"; when the number would lower a line, it asks first
   too, and one question covers both. Otherwise it runs on one press; an empty field is refused, never written as 0. A
-  table's capped column counts as a capped line. _test_
+  table's capped column counts as a capped line. A page of unrelated single numbers (Emperor) isn't a list, so it has
+  no Set all. _test_
 - **Automation:** every Automation page is its own sidebar entry under its system (`tab: "Automation"`, as Alchemy and
   Cooking have it), never a tab. _test_
 - **Tabs:** only for a system's own game screens and groups; a tab never holds tabs, its parts are headed groups.
