@@ -456,9 +456,10 @@ The player learns the menu by doing it, like Wispr Flow's first start: little te
 - **It starts by itself** the first time the menu opens. Skip sits on every line, and Skip or Escape ends it at once,
   with no "are you sure". Settings has one row, "Show the tour again"; the tour doesn't walk there.
 - **Steps:** "Press Ctrl K. Type practice." → "Type stone. Only this page's rows stay." → "Make it 10. Press Enter." →
-  "Changed your mind? Undo." → (Set all, once the shared Set all lands) → "Every change lands in History." → "Now find
-  something real." The player opens any real page (by search, the sidebar or Home); the tour ends there and "You're
-  set." shows once under that page's title, then fades. A config pick joins with #198.
+  "Changed your mind? Undo." → "Set all of them at once." (the shared Set all in the Practice tray; 12 raises every row
+  with no question) → "Every change lands in History." → "Now find something real." The player opens any real page
+  (by search, the sidebar or Home); the tour ends there and "You're set." shows once under that page's title, then
+  fades. A config pick joins with #198.
 - **One short line by the thing it points at,** with a notch toward it, on the menu's raised surface (the bar's
   buttons' body and edge). The tour waits for the player to do it and moves on by itself; there is no Next button.
   Keys show as the top bar's own key look; the word to type or press is bold.
@@ -468,7 +469,8 @@ The player learns the menu by doing it, like Wispr Flow's first start: little te
 - **Small dots,** one per step: the step now in lavender, the ones done in a faint lavender.
 - **A quiet finish:** the real ✓ on each save, and "You're set." at the end. No confetti, no popups.
 - **Everything is practised on the Practice page,** which is in the menu only while the tour runs: the real page
-  layout and rows, a write that stays in the menu. History lists its saves as "Practice only" until the tour ends;
+  layout and rows (one without a max, so the list has Set all), a write that stays in the menu. History lists its
+  saves as "Practice only" until the tour ends;
   nothing reaches the game, so the tour works with the game closed. Undo stays beside a save until it's clicked
   while the tour runs.
 - **In the narrow overlay** the History line points at the icon rail. Lines wrap inside the width.

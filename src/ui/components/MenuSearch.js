@@ -24,6 +24,9 @@ const { div, input, span, button, kbd } = van.tags;
 
 /** Where the bar searches on a page with rows: "page" (its rows) or "everywhere" (the menu). The tour follows it. */
 export const searchScope = van.state("page");
+let closeBar = () => {};
+/** Close the bar as picking a result does: its text cleared, its list closed (the first-start tour). */
+export const closeSearch = () => closeBar();
 
 export const MenuSearch = () => {
     const query = van.state("");
@@ -92,6 +95,12 @@ export const MenuSearch = () => {
         if (run !== runs) return;
         ran.val = text;
         say(result.ok ? "done" : "failed", result.ok ? result.message : plainReason(result.message));
+    };
+    closeBar = () => {
+        if (command.val) leaveCommand();
+        query.val = "";
+        close();
+        field.blur();
     };
     const go = (result, byKeyboard = false) => {
         if (result.kind === "Command") return startCommand(result.target);

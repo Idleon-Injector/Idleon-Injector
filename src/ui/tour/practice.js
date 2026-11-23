@@ -15,13 +15,15 @@ const { div } = van.tags;
 /** Whether the tour is on screen (Tour.js sets it; Settings' "Show the tour again" waits while it is). */
 export const tourRunning = van.state(false);
 
-/** The practice rows, each 0 to MAX: names the top bar's search can tell apart, and where each starts. */
+/**
+ * The practice rows: names the top bar's search can tell apart, where each starts, and its max. One has no max, as on
+ * the game's pages, so the list gets the shared Set all (a list where Max all covers every line has none).
+ */
 export const PRACTICE_ROWS = [
-    { key: "stone", name: "Practice stone", start: 3 },
-    { key: "ore", name: "Practice ore", start: 6 },
-    { key: "log", name: "Practice log", start: 1 },
+    { key: "stone", name: "Practice stone", start: 3, max: 15 },
+    { key: "ore", name: "Practice ore", start: 6, max: 15 },
+    { key: "log", name: "Practice log", start: 1, max: null },
 ];
-const MAX = 15;
 
 /** Each practice row's value, by key. */
 export const practiceValues = Object.fromEntries(PRACTICE_ROWS.map((row) => [row.key, van.state(row.start)]));
@@ -36,9 +38,9 @@ const PracticePage = () => {
         const held = { read: () => value.val, write: (next) => (value.val = next) };
         return ClampedLevelRow({
             valueState: value,
-            max: MAX,
+            max: row.max,
             name: row.name,
-            maxAction: true,
+            maxAction: row.max !== null,
             rowClass: `practice-row practice-row--${row.key}`,
             // The write that does nothing: logged as practice (before any await, as a page's save is), then kept here.
             write: async (next) => {
@@ -48,8 +50,16 @@ const PracticePage = () => {
             },
         });
     });
-    // Step 6 (Set all in the tray) adds the shared Set all here once it lands (feat/set-all): ListPanel's `setAll`.
-    const body = div({ class: "account-list account-list--tabbed" }, ListPanel({ body: rows }));
+    // The shared Set all in the tray: each line saves through its row's practice write. Fields with and without a max
+    // share the list, so it keeps them in columns.
+    const body = div(
+        { class: "account-list account-list--tabbed" },
+        ListPanel({
+            className: "field-columns",
+            setAll: { word: (n) => (n === 1 ? "practice row" : "practice rows") },
+            body: rows,
+        })
+    );
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Practice",

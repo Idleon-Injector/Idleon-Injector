@@ -13,14 +13,14 @@
  * (null: the line waits at the bottom of the window); `beside()` the element whose free right side it takes when
  * there is room; `after()` the element it follows in the page otherwise (none: it floats beside its target); `yields`
  * a selector it keeps its room but hides behind while that shows (the search's results); `done()` true once the
- * player did it. A new step (Set all, a config pick) is one entry; the dots count the steps.
+ * player did it. A new step (a config pick, with #198) is one entry; the dots count the steps.
  */
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { VIEWS } from "../state/constants.js";
 import { menuTree } from "../menu/pageRegistry.js";
 import { searchHits } from "../menu/pageSearch.js";
-import { searchScope } from "../components/MenuSearch.js";
+import { closeSearch, searchScope } from "../components/MenuSearch.js";
 import { isRail, menuLevel } from "../components/MenuLevels.js";
 import { holdUndo } from "../components/views/account/autoSave.js";
 import { clearPractice, practiceActions } from "../services/changeLog.js";
@@ -60,6 +60,9 @@ const showTopList = () => {
 const undone = () => practiceActions.val.filter((action) => action.undoneAt).length;
 let undoneBefore = 0;
 let opensBefore = 0;
+// The practice saves that set several rows at once (Set all's).
+const bulkSaves = () => practiceActions.val.filter((action) => action.entries.length > 1).length;
+let bulkBefore = 0;
 
 const STEPS = [
     {
@@ -111,15 +114,31 @@ const STEPS = [
             },
         ],
     },
-    // Set all in the practice tray goes here once the shared Set all lands (feat/set-all).
+    {
+        // The search from "stone" is cleared, so Set all acts on every practice row.
+        start: () => {
+            closeSearch();
+            bulkBefore = bulkSaves();
+        },
+        parts: () => [
+            {
+                say: () => [word("Set all"), " of them at once."],
+                target: () => seen(practicePanel()?.querySelector(".tabbed-list__head .account-setall-row")),
+                beside: practicePanel,
+                after: () => practicePanel()?.querySelector(".tabbed-list__head"),
+                done: () => bulkSaves() > bulkBefore,
+            },
+        ],
+    },
     {
         start: showTopList,
         parts: () => [
             {
                 say: () => ["Every change lands in ", word("History"), "."],
-                // It floats beside the entry, over the Practice page's empty lower end (the sidebar's middle is too
-                // short to hold it under the entry).
+                // Beside the entry, over the Practice page's empty lower end. In the rail the rows reach down there,
+                // so it makes room for itself under the Practice list instead, the notch toward the rail.
                 target: () => entry("history"),
+                after: () => (isRail() ? practicePanel() : null),
                 done: () => store.app.activeTab === VIEWS.HISTORY.id,
             },
         ],

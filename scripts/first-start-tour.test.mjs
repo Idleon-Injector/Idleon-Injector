@@ -100,3 +100,30 @@ test("a practice undo is refused when the value moved on since", async () => {
     assert.equal(practiceValues.ore.val, 12);
     clearPractice();
 });
+
+test("the practice tray's Set all saves every row as one practice action, and Undo all puts them back", async () => {
+    resetPractice();
+    clearPractice();
+    const before = requests.length;
+    const root = PRACTICE_PAGE.component();
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const field = elements(byClass(tray, "account-setall-row")[0]).find((node) => node.nodeName === "input");
+    const setAll = elements(tray).find((node) => node.nodeName === "button" && classes(node).includes("account-btn"));
+    field.value = "12";
+    field.listeners.input({ target: field });
+    setAll.listeners.click({ preventDefault() {}, currentTarget: setAll });
+    await until(() => practiceActions.val[0]?.entries.length === 3, "the Set all");
+
+    assert.deepEqual(
+        [practiceValues.stone.val, practiceValues.ore.val, practiceValues.log.val],
+        [12, 12, 12],
+        "every practice row gets the number (12 is under every max, so nothing asks)"
+    );
+    assert.equal(practiceActions.val.length, 1, "one action for the whole Set all");
+    const sent = requests.slice(before);
+    assert.ok(!sent.some((request) => /\/api\/(game|changes)/.test(request)), `nothing reaches the game: ${sent}`);
+
+    await undoAction(practiceActions.val[0].id);
+    assert.deepEqual([practiceValues.stone.val, practiceValues.ore.val, practiceValues.log.val], [3, 6, 1]);
+    clearPractice();
+});
