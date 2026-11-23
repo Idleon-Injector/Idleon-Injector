@@ -4,6 +4,7 @@
  *
  * A shot: { name, errors: string[], misses: { [path]: error } (what the page asked the fake game for and didn't get),
  *           overflow: null | { viewport, boxes: [{ box, by, culprit }] },
+ *           layout: string[] (the layout rules it breaks, see layout.mjs),
  *           diff: null (no baseline) | { ratio } | { sizeChanged: true, before, after } }
  */
 
@@ -26,6 +27,7 @@ export function flagsFor(shot, threshold = DIFF_THRESHOLD) {
             `${box} is ${by}px too wide for the ${shot.overflow.viewport}px window${culprit ? ` (${culprit})` : ""}`
         );
     }
+    flags.push(...(shot.layout ?? []));
     if (shot.diff?.sizeChanged) flags.push(`size changed from ${shot.diff.before} to ${shot.diff.after}`);
     else if (shot.diff && shot.diff.ratio > threshold) {
         flags.push(`${(shot.diff.ratio * 100).toFixed(2)}% of the pixels changed since the baseline`);

@@ -533,6 +533,7 @@ test("search finds Sailing's and Gaming's tabs by name and old words, and a hit 
         ["rat king", "Rat King", "w5.gaming", "ratking"],
         ["duperbits", "Superbits", "w5.gaming", "superbits"],
         ["the jars", "The Jars", "w5.hole.caverns", "jars"],
+        ["captain level", "Captains", "w5.sailing", "captains"],
     ]) {
         const hit = searchMenu(entries, query)[0];
         assert.equal(hit.label, label, `"${query}" finds ${label}`);
