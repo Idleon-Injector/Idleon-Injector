@@ -130,10 +130,9 @@
     display: none;
 }
 
-/* A stat's field and the pattern's pick take one width, so the values and the pick line up down the editor. */
-.cogs-editor .account-row__controls > .number-input-wrapper,
+/* The pattern's pick takes a stat field's width, so the fields and the pick line up down the editor. */
 .cogs-editor .account-row__controls > .pick-in-place__opener {
-    width: 11rem;
+    width: 9.5rem;
 }
 
 /* The tiny type's steps keep their whole word ("Flaggy"). */
