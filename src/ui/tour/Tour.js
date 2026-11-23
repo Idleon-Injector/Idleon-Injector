@@ -1,14 +1,19 @@
 /**
- * The first-start tour (#200): the player learns the menu by doing it. One short line under (or beside) the thing it
- * points at; the tour waits for the player to do it and moves on by itself. Small dots show how far along it is; Skip
- * or Escape ends it at once. Everything is practised on the Practice page (practice.js), which is in the menu only
- * while the tour runs: nothing the tour does writes to the game, so it works with the game closed.
+ * The first-start tour (#200): the player learns the menu by doing it. One short line by the thing it points at; the
+ * tour waits for the player to do it and moves on by itself. Small dots show how far along it is; Skip or Escape ends
+ * it at once. Everything is practised on the Practice page (practice.js), which is in the menu only while the tour
+ * runs: nothing the tour does writes to the game, so it works with the game closed. It ends with the player finding a
+ * real page; "You're set." shows once under its title.
+ *
+ * A line never covers what the player reads: it sits in the free room beside the page when the window has it, else it
+ * makes room for itself in the page, right after something (it moves what is under it down while it shows).
  *
  * Steps are a list: a step is `{ start?, parts }`, and `parts()` gives its lines in order, each
- * `{ say, target, side?, yields?, done }`: `say()` the words, `target()` the element it points at (null: the line
- * waits at the bottom of the window), `side` "below" (the default) or "right", `yields` a selector the line hides
- * behind while it shows (the search's results), `done()` true once the player did it. A new step (Set all, a config
- * pick) is one entry; the dots count the steps.
+ * `{ say, target, beside?, after?, yields?, done }`: `say()` the words; `target()` the element the notch points at
+ * (null: the line waits at the bottom of the window); `beside()` the element whose free right side it takes when
+ * there is room; `after()` the element it follows in the page otherwise (none: it floats beside its target); `yields`
+ * a selector it keeps its room but hides behind while that shows (the search's results); `done()` true once the
+ * player did it. A new step (Set all, a config pick) is one entry; the dots count the steps.
  */
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
@@ -42,21 +47,31 @@ const openPractice = () => onPractice() || store.openMenu({ world: PRACTICE_WORL
 // The sidebar's entry for a world or area, in the list on screen (not one sliding away).
 const entry = (id) => seen($(`.sidebar .menu-panel:not(.is-leaving) [data-key="${id}"]`));
 const practiceRow = (id) => $(`#pages-tab [data-page="${PRACTICE_PAGE.id}"] .practice-row--${id}`);
+const practicePanel = () => practiceRow("stone")?.closest(".tabbed-list");
+const bar = () => seen($(".menu-bar"));
 const searchBar = () => seen($(".menu-bar .search-wrapper"));
+// Right under the search bar, in the page: a line there makes room for itself.
+const underBar = () => $(".menu-top > .menu-bar");
+const RESULTS = ".menu-search-results:not([hidden])";
 // The top list on screen in the sidebar, so a world or area can be pointed at (Back, as the player would).
 const showTopList = () => {
     if (!isRail()) menuLevel.val = null;
 };
 const undone = () => practiceActions.val.filter((action) => action.undoneAt).length;
 let undoneBefore = 0;
+let opensBefore = 0;
 
 const STEPS = [
     {
+        // On a page with rows the bar searches the page first: here it searches the menu, so "practice" is found.
+        start: () => (searchScope.val = "everywhere"),
         parts: () => [
             {
                 say: () => ["Press ", key("Ctrl K"), ". Type ", word("practice"), "."],
                 target: searchBar,
-                yields: ".menu-search-results:not([hidden])",
+                beside: bar,
+                after: underBar,
+                yields: RESULTS,
                 done: onPractice,
             },
         ],
@@ -66,48 +81,11 @@ const STEPS = [
             {
                 say: () => ["Type ", word("stone"), ". Only this page's rows stay."],
                 target: searchBar,
+                beside: bar,
+                after: underBar,
                 done: () => onPractice() && searchHits.val?.size > 0 && searchHits.val.size < PRACTICE_ROWS.length,
             },
-            {
-                say: () => ["Now try ", word("Everywhere"), "."],
-                target: () =>
-                    seen([...document.querySelectorAll(".menu-search-scope button")].pop()) ?? seen($(".menu-bar")),
-                done: () => searchScope.val === "everywhere",
-            },
         ],
-    },
-    {
-        // In the icon rail (the narrow overlay) a world opens at once and its list is the line above the page.
-        start: showTopList,
-        parts: () =>
-            isRail()
-                ? [
-                      {
-                          say: () => ["Your worlds live here. Tap ", word("W1"), "."],
-                          target: () => entry(1),
-                          side: "right",
-                          done: () => store.app.activeTab === VIEWS.PAGES.id && store.app.menuWorld === 1,
-                      },
-                      {
-                          say: () => ["Its list opens here."],
-                          target: () => seen($(".syslist-toggle")),
-                          done: () => $(".syslist-toggle")?.getAttribute("aria-expanded") === "true",
-                      },
-                  ]
-                : [
-                      {
-                          say: () => ["Your worlds live here. Open ", word("World 1"), "."],
-                          target: () => entry(1),
-                          side: "right",
-                          done: () => menuLevel.val === 1,
-                      },
-                      {
-                          say: () => [word("Back"), " takes you up."],
-                          target: () => seen($(".sidebar .menu-panel:not(.is-leaving) .drill-back")),
-                          side: "right",
-                          done: () => menuLevel.val === null,
-                      },
-                  ],
     },
     {
         start: openPractice,
@@ -115,6 +93,8 @@ const STEPS = [
             {
                 say: () => ["Make it ", word("10"), ". Press ", key("Enter"), "."],
                 target: () => seen(practiceRow("stone")?.querySelector(".number-input-wrapper")),
+                beside: practicePanel,
+                after: () => practiceRow("stone"),
                 done: () => practiceValues.stone.val === 10,
             },
         ],
@@ -125,31 +105,51 @@ const STEPS = [
             {
                 say: () => ["Changed your mind? ", word("Undo"), "."],
                 target: () => seen(practiceRow("stone")?.querySelector(".save-state__undo")),
+                beside: practicePanel,
+                after: () => practiceRow("stone"),
                 done: () => undone() > undoneBefore,
             },
         ],
     },
-    // Step 6, Set all in the practice tray, goes here once the shared Set all lands (feat/set-all).
+    // Set all in the practice tray goes here once the shared Set all lands (feat/set-all).
     {
         start: showTopList,
         parts: () => [
             {
                 say: () => ["Every change lands in ", word("History"), "."],
+                // It floats beside the entry, over the Practice page's empty lower end (the sidebar's middle is too
+                // short to hold it under the entry).
                 target: () => entry("history"),
-                side: "right",
                 done: () => store.app.activeTab === VIEWS.HISTORY.id,
             },
+        ],
+    },
+    {
+        // The search finds the whole menu here; any real place the player opens (by search, the sidebar or Home)
+        // ends the tour. It only moves around, so nothing is written.
+        start: () => {
+            searchScope.val = "everywhere";
+            opensBefore = store.app.menuOpens;
+        },
+        parts: () => [
             {
-                say: () => ["The tour lives in ", word("Settings"), "."],
-                target: () => entry("settings"),
-                side: "right",
-                done: () => store.app.activeTab === VIEWS.CONFIG.id,
+                say: () => ["Now find something real."],
+                target: searchBar,
+                beside: bar,
+                after: underBar,
+                yields: RESULTS,
+                done: () =>
+                    store.app.menuOpens > opensBefore && !onPractice() && store.app.activeTab !== VIEWS.HISTORY.id,
             },
         ],
     },
 ];
-// The last line, under Settings' "Show the tour again"; it leaves by itself.
-const FINISH = { say: () => ["You're set."], target: () => seen($(".tour-again button")) };
+// The last line, once, under the title of the real page the player opened; it leaves by itself.
+const pageTitle = () =>
+    [...document.querySelectorAll(".tab-pane.active .account-tab-header__title")].find(
+        (title) => seen(title) && !title.closest(".world-sub-pane:not(.active)")
+    ) ?? null;
+const FINISH = { say: () => ["You're set."], target: pageTitle, after: pageTitle };
 const FINISH_MS = 4000;
 
 // The line: its words, the dots and Skip, with a notch toward what it points at.
@@ -171,6 +171,7 @@ let frame = 0;
 let finishTimer = null;
 let recheck = null;
 let shownAt = null;
+let fadeTimer = null;
 
 const say = (current) => {
     const last = current === FINISH;
@@ -200,49 +201,76 @@ const begin = (index) => {
 
 const GAP = 10;
 const EDGE = 14;
+// The least free room beside the page a line takes; with less it makes room for itself in the page instead.
+const ROOM = 300;
 
-// Put the line by its target: under it (or above, without room), or to its right; a missing target docks it at the
-// bottom of the window. Runs every frame while the tour is on, so it follows scrolling, sliding lists and resizing.
+const px = (name, value) => line.style.setProperty(name, `${Math.round(value)}px`);
+
+// Over the page at `x` (the free room right of the page, or right of its target), level with its target; `room` is
+// the width it may take there.
+const float = (target, x, room) => {
+    if (line.parentElement !== document.body) document.body.prepend(line);
+    line.classList.remove("is-flow", "is-waiting");
+    px("--tour-max", room);
+    const own = line.getBoundingClientRect();
+    const height = window.innerHeight;
+    if (!target) {
+        line.dataset.side = "docked";
+        px("--tour-x", (window.innerWidth - own.width) / 2);
+        px("--tour-y", height - own.height - EDGE * 2);
+        return;
+    }
+    const box = target.getBoundingClientRect();
+    const y = Math.min(Math.max(box.top + box.height / 2 - own.height / 2, EDGE), height - own.height - EDGE);
+    line.dataset.side = "right";
+    px("--tour-x", x);
+    px("--tour-y", y);
+    px("--tour-notch", box.top + box.height / 2 - y);
+};
+
+// In the page after `anchor`, making room for itself: under its target with the notch up at it, or beside the rail
+// with the notch toward it. While `waiting` it keeps its room, hidden, so nothing under it jumps.
+const flow = (target, anchor, waiting) => {
+    if (anchor.nextElementSibling !== line) anchor.after(line);
+    line.classList.add("is-flow");
+    line.classList.toggle("is-waiting", waiting);
+    const own = line.getBoundingClientRect();
+    const start = own.left - (parseFloat(line.style.getPropertyValue("--tour-shift")) || 0);
+    const box = target.getBoundingClientRect();
+    if (box.right <= start) {
+        line.dataset.side = "right";
+        px("--tour-shift", 0);
+        px("--tour-notch", box.top + box.height / 2 - own.top);
+        return;
+    }
+    const parent = line.parentElement;
+    const end = parent.getBoundingClientRect().right - parseFloat(getComputedStyle(parent).paddingRight);
+    // A wide target (the search bar) is pointed at near its start; a small one at its middle.
+    const aim = box.width > 240 ? box.left + 36 : box.left + box.width / 2;
+    const left = Math.max(Math.min(aim - (box.width > 240 ? 24 : own.width / 2), end - own.width), start);
+    line.dataset.side = "below";
+    px("--tour-shift", left - start);
+    px("--tour-notch", aim - left);
+};
+
+// Where the line goes for `current`; runs every frame while the tour is on, so it follows scrolling, sliding lists
+// and resizing.
 const place = (current) => {
     const target = current.target();
-    const yielded = current.yields && seen($(current.yields));
-    line.hidden = Boolean(yielded);
-    if (yielded) return;
     const width = window.innerWidth;
-    const height = window.innerHeight;
-    const own = line.getBoundingClientRect();
-    let x;
-    let y;
-    let side = target ? current.side || "below" : "docked";
-    let notch = 0;
-    if (side === "right") {
+    const besideBox = target && current.beside?.()?.getBoundingClientRect();
+    const anchor = target && current.after?.();
+    if (besideBox && width - besideBox.right - GAP - EDGE >= ROOM)
+        float(target, besideBox.right + GAP, width - besideBox.right - GAP - EDGE);
+    else if (anchor) flow(target, anchor, Boolean(current.yields && seen($(current.yields))));
+    else if (target) {
         const box = target.getBoundingClientRect();
-        x = box.right + GAP;
-        y = Math.min(Math.max(box.top + box.height / 2 - own.height / 2, EDGE), height - own.height - EDGE);
-        notch = box.top + box.height / 2 - y;
-    } else if (side === "below") {
-        const box = target.getBoundingClientRect();
-        // A wide target (the search bar) is pointed at near its start; a small one at its middle.
-        const aim = box.width > 240 ? box.left + 36 : box.left + box.width / 2;
-        x = Math.min(Math.max(aim - (box.width > 240 ? 24 : own.width / 2), EDGE), width - own.width - EDGE);
-        y = box.bottom + GAP;
-        if (y + own.height > height - EDGE && box.top - GAP - own.height > EDGE) {
-            side = "above";
-            y = box.top - GAP - own.height;
-        }
-        notch = aim - x;
-    } else {
-        x = (width - own.width) / 2;
-        y = height - own.height - EDGE * 2;
-    }
-    line.dataset.side = side;
-    line.style.setProperty("--tour-x", `${Math.round(x)}px`);
-    line.style.setProperty("--tour-y", `${Math.round(y)}px`);
-    line.style.setProperty("--tour-notch", `${Math.round(notch)}px`);
+        float(target, box.right + GAP, width - box.right - GAP - EDGE);
+    } else float(null, 0, Math.min(width - EDGE * 2, 432));
 };
 
 const tick = () => {
-    if (!tourRunning.val) return;
+    if (!tourRunning.val && !finishing) return;
     if (!finishing) {
         while (parts[part].done()) {
             part++;
@@ -261,41 +289,58 @@ const tick = () => {
 const markDone = () =>
     saveTour(true).catch((error) => console.warn("[tour] Couldn't keep the tour as done; it shows next start.", error));
 
-// "You're set." under Settings' row, all dots lit, then the tour ends by itself, or on the player's next press.
+// The tour is done: it ends at once (the Practice page goes, it's kept as done), and "You're set." shows under the
+// real page's title, all dots lit, then fades by itself, or on the player's next press or Escape.
 const finish = () => {
+    end();
     finishing = true;
     shownAt = Date.now();
-    markDone();
     say(FINISH);
-    finishTimer = setTimeout(() => end({ saved: true }), FINISH_MS);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("pointerdown", onPress, true);
+    finishTimer = setTimeout(close, FINISH_MS);
+};
+
+// The line goes: at once, or (the last one) fading.
+const close = () => {
+    cancelAnimationFrame(frame);
+    clearTimeout(finishTimer);
+    window.removeEventListener("keydown", onKey, true);
+    window.removeEventListener("pointerdown", onPress, true);
+    clearTimeout(fadeTimer);
+    line.classList.remove("is-leaving");
+    if (!finishing) return line.remove();
+    finishing = false;
+    line.classList.add("is-leaving");
+    fadeTimer = setTimeout(() => {
+        line.remove();
+        line.classList.remove("is-leaving");
+    }, 300);
 };
 
 const onKey = (e) => {
-    if (e.key === "Escape") end();
+    if (e.key !== "Escape") return;
+    if (finishing) close();
+    else end();
 };
-// A press after "You're set." has been read ends it early.
+// A press after "You're set." has been read closes it early.
 const onPress = () => {
-    if (finishing && Date.now() - shownAt > 600) end({ saved: true });
+    if (finishing && Date.now() - shownAt > 600) close();
 };
 // The browser menu and the in-game overlay can both show the tour: once one of them ends it, the other follows.
 const checkElsewhere = () =>
     fetchTour()
-        .then(({ done }) => done && tourRunning.val && !finishing && end({ saved: true }))
+        .then(({ done }) => done && tourRunning.val && end({ saved: true }))
         .catch(() => {});
 
-/** End the tour: Skip, Escape, the last line leaving, or the other menu ending it. */
+/** End the tour: Skip, Escape, finding a real page, or the other menu ending it. */
 const end = ({ saved = false } = {}) => {
     if (!tourRunning.val) return;
     if (!saved) markDone();
     tourRunning.val = false;
-    finishing = false;
-    cancelAnimationFrame(frame);
-    clearTimeout(finishTimer);
     clearInterval(recheck);
-    window.removeEventListener("keydown", onKey, true);
-    window.removeEventListener("pointerdown", onPress, true);
     window.removeEventListener("focus", checkElsewhere);
-    line.remove();
+    close();
     holdUndo.on = false;
     // The Practice page and its History go with the tour.
     if (onPractice()) store.openMenu({ view: "HOME" });
@@ -319,6 +364,9 @@ const whenPagesLoaded = () =>
  */
 export const startTour = async ({ again = false } = {}) => {
     if (tourRunning.val) return;
+    // "You're set." from the last time, still on screen or fading, goes at once.
+    finishing = false;
+    close();
     tourRunning.val = true;
     if (again) saveTour(false).catch(() => {});
     await whenPagesLoaded();
@@ -327,8 +375,6 @@ export const startTour = async ({ again = false } = {}) => {
     clearPractice();
     menuTree.val = [...menuTree.val.filter((world) => world.id !== PRACTICE_WORLD.id), PRACTICE_WORLD];
     holdUndo.on = true;
-    // First in the page, so Tab from the top of the page reaches Skip first.
-    document.body.prepend(line);
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("pointerdown", onPress, true);
     window.addEventListener("focus", checkElsewhere);
