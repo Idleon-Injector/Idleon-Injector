@@ -266,7 +266,6 @@ export const renderAccountError = (message) => EmptyState({ failed: true, title:
  * the page's own writeVerified inside it does.
  */
 export const writeVerified = (path, value, { write = gga, character, readBack = write === gga } = {}) => {
-    countSave(path);
     if (character !== undefined) return writeManyVerified([{ path, value }], { character }).then(() => value);
     // Claimed now, while the caller's code runs, so the save joins the user action that made it. A custom writer
     // (a row handing the write to its page) saves through writeVerified itself, so only the game write logs.
@@ -285,6 +284,7 @@ export const writeVerified = (path, value, { write = gga, character, readBack = 
             ok = true;
         }
         if (!ok) throw new Error(`Write mismatch at ${path}`);
+        countSave(path);
         if (before) await finishChange(before, [value]);
         return value;
     })();
@@ -292,8 +292,9 @@ export const writeVerified = (path, value, { write = gga, character, readBack = 
 
 const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
 
-// How many saves each path has had, counted as they start: a bulk set sees a row saved while it ran, even back to the
-// value it had. ponytail: one count per path ever saved, kept for the session.
+// How many saves landed at each path: a bulk set sees a row saved while it ran, even back to the value it had. A save
+// that failed isn't counted, so its row takes the bulk value the game holds. ponytail: one count per path ever saved,
+// kept for the session.
 const savesByPath = new Map();
 const countSave = (path) => {
     const key = normalizeGgaPath(path);
@@ -336,7 +337,6 @@ export const readCharacterInPlay = (expected) =>
  * @returns {Promise<any>}
  */
 export const writeManyVerified = (writes, { log = true, character } = {}) => {
-    writes.forEach((entry) => countSave(entry.path));
     if (!writes.length) return Promise.resolve({ ok: true, results: [] });
     const change = log ? startChange(writes.map((entry) => entry.path)) : null;
     return writeManyLogged(writes, change, character);
@@ -345,6 +345,7 @@ export const writeManyVerified = (writes, { log = true, character } = {}) => {
 const writeManyLogged = async (writes, change, character) => {
     if (change) await change;
     const result = await ggaMany(writes, { character });
+    result.results.forEach((entry, i) => entry.ok && countSave(writes[i].path));
     if (change)
         await finishChange(
             await change,
@@ -447,16 +448,15 @@ export const runBulkSet = async ({
         writes.push({ path, value: targetValue });
     });
 
-    const written = writeManyVerified(writes, { character });
-    // Counted after this bulk's own saves.
     targets.forEach((target) => (target.saves = target.paths.map(savesOf)));
-    await written;
+    await writeManyVerified(writes, { character });
     if (shownCharacter && shownCharacter() !== character) return;
 
     resolvedEntries.forEach((entry, index) => {
         if (!targets.has(index)) return;
         const { targetValue, before, paths, saves } = targets.get(index);
-        if (paths.some((path, i) => savesOf(path) !== saves[i])) return;
+        // Each path once more: this bulk's own save.
+        if (paths.some((path, i) => savesOf(path) !== saves[i] + 1)) return;
         if (!Object.is(resolveValue(getValueState(entry, index)), before)) return;
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);
