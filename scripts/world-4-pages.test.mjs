@@ -421,6 +421,46 @@ test("Eggs: Max all raises every egg in one press; Reset all asks in the tray fi
     await until(() => gga.Breeding[0].every((egg) => egg === 0), "the eggs at 0");
 });
 
+test("an egg saved while Max all is answered keeps showing the rarity it saved (#222)", async (t) => {
+    const before = [...gga.Breeding[0]];
+    t.after(() => (gga.Breeding[0] = before));
+    gga.Breeding[0] = gga.Breeding[0].map(() => 0);
+    const root = await openPage("src/ui/pages/world-4/breeding/1-eggs.js");
+    // Max all's writes land in the game, but its answer waits until the egg's own save has landed and finished.
+    const realFetch = globalThis.fetch;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let landed = false;
+    globalThis.fetch = async (url, options) => {
+        const answer = await realFetch(url, options);
+        if (String(url).includes("/write") && String(options?.body ?? "").includes("Breeding[0][1]")) {
+            landed = true;
+            await held;
+        }
+        return answer;
+    };
+    try {
+        click(buttonNamed(root, "Max all"));
+        await until(() => landed, "Max all's writes to land");
+        const row = rowNamed(root, "Egg 1");
+        typeAndEnter(row, byTag(row, "input")[0], 5);
+        await settled(row);
+        assert.equal(gga.Breeding[0][0], 5, "the egg's save landed after Max all's");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    await until(() => gga.Breeding[0][1] === 11 && !byClass(root, "is-loading").length, "Max all to finish");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // The fake DOM keeps the typed text on the property; what the page binds since is the attribute.
+    assert.equal(
+        String(byTag(rowNamed(root, "Egg 1"), "input")[0].attributes.value),
+        "5",
+        "the row shows what the game holds"
+    );
+    assert.equal(shown(byTag(rowNamed(root, "Egg 2"), "input")[0]), "11", "the others show Max all's rarity");
+});
+
 test("Upgrades: bonus first, the filler slot's bonus is Breeding EXP, and Max all brings one above its max down", async (t) => {
     const before = [...gga.Breeding[2]];
     t.after(() => (gga.Breeding[2] = before));

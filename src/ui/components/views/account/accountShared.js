@@ -408,6 +408,8 @@ export const runBulkSet = async ({
 }) => {
     const resolvedEntries = typeof entries === "function" ? entries() : (entries ?? []);
     // Only the entries written take the target afterwards: a skipped row saved meanwhile keeps what it saved.
+    // Each written row's value as the writes start: a row whose value changed by the end (its own save, which may
+    // have landed after these writes) keeps it.
     const targets = new Map();
     const writes = [];
 
@@ -418,13 +420,13 @@ export const runBulkSet = async ({
 
         if (typeof getWrites === "function") {
             const entryWrites = toWriteEntries(getWrites({ entry, index, currentValue, targetValue, valueState }));
-            if (entryWrites.length) targets.set(index, targetValue);
+            if (entryWrites.length) targets.set(index, { targetValue, before: resolveValue(valueState) });
             writes.push(...entryWrites);
             return;
         }
 
         if (!shouldWrite({ entry, index, currentValue, targetValue, valueState })) return;
-        targets.set(index, targetValue);
+        targets.set(index, { targetValue, before: resolveValue(valueState) });
         writes.push({ path: getPath(entry, index, targetValue), value: targetValue });
     });
 
@@ -433,7 +435,8 @@ export const runBulkSet = async ({
 
     resolvedEntries.forEach((entry, index) => {
         if (!targets.has(index)) return;
-        const targetValue = targets.get(index);
+        const { targetValue, before } = targets.get(index);
+        if (!Object.is(resolveValue(getValueState(entry, index)), before)) return;
         if (typeof applyLocal === "function") {
             applyLocal(entry, index, targetValue);
             return;
