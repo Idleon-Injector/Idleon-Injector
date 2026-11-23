@@ -6,8 +6,8 @@ import { createFakeApi } from "../page-shots/fake-api.mjs";
 import { fakeGameData } from "../page-shots/fake-game-data.mjs";
 import { bulkBreaks, clickOutlineBreaks, openedBreaks, pageBreaks } from "./checks.mjs";
 
-const { router } = await createFakeApi(fakeGameData());
-await loadUi(router);
+const { router, game } = await createFakeApi(fakeGameData());
+const { requests } = await loadUi(router);
 const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
 const { TabbedList, ListPanel } = await importRepo("src/ui/components/views/account/tabShared.js");
 const { ClampedLevelRow } = await importRepo("src/ui/components/views/account/ClampedLevelRow.js");
@@ -393,6 +393,65 @@ test("Set all: a raise that asks nothing but writes nothing, or leaves a line ou
     assert.deepEqual(await bulkBreaks(partial, () => written), [
         "Set all: a raise that asks nothing doesn't set every line to it",
     ]);
+});
+
+test("Set all: a column pick is held to the rules in each column, and only the picked column may change", async () => {
+    const ola = game.gga.OptionsListAccount;
+    const saved = ola.slice(600, 606);
+    const gameWrites = () => requests.filter((line) => line.includes("/write")).length;
+    const COLUMNS = [
+        { value: "speed", label: "Speed" },
+        { value: "fire", label: "Fire" },
+    ];
+    // Two kitchens, Speed and Fire each in its own place; `setAll` is what each row sets. `tied` shows one value in
+    // both columns, so setting one changes the other.
+    const kitchens = (setAll, tied = false) =>
+        [0, 1].map((k) => {
+            const at = (c) => `OptionsListAccount[${600 + k * 2 + c}]`;
+            const speed = van.state(3);
+            const states = { speed, fire: tied ? speed : van.state(4) };
+            return ValueTableRow({
+                name: `Kitchen ${k + 1}`,
+                info: span({ class: "account-row__name" }, `Kitchen ${k + 1}`),
+                fields: COLUMNS.map(({ value, label }, c) => ({
+                    key: value,
+                    label,
+                    valueState: states[value],
+                    paths: [at(c)],
+                })),
+                read: async () => ({ speed: ola[600 + k * 2], fire: ola[601 + k * 2] }),
+                setAll,
+            });
+        });
+    const panel = (column, setAll, tied) =>
+        page(
+            "Tables",
+            ListPanel({
+                body: kitchens(setAll, tied),
+                setAll: { word: (n) => `kitchen${n === 1 ? "" : "s"}`, columns: COLUMNS, column },
+            })
+        );
+    try {
+        ola.splice(600, 4, 3, 4, 3, 4);
+        const column = van.state("speed");
+        assert.deepEqual(await bulkBreaks(panel(column, column), gameWrites), []);
+        // Rows that keep setting Speed whichever column is picked: Fire's Set all has no lines to set.
+        ola.splice(600, 4, 3, 4, 3, 4);
+        const picked = van.state("speed");
+        assert.deepEqual(await bulkBreaks(panel(picked, "speed"), gameWrites), [
+            "Set all: Fire: lowers without asking in the tray",
+            "Set all: Fire: a raise that asks nothing doesn't set every line to it",
+        ]);
+        // Rows where setting one column changes the other too.
+        ola.splice(600, 4, 3, 3, 3, 3);
+        const tied = van.state("speed");
+        assert.deepEqual(await bulkBreaks(panel(tied, tied, true), gameWrites), [
+            "Set all: Speed: changes another column too",
+            "Set all: Fire: changes another column too",
+        ]);
+    } finally {
+        ola.splice(600, saved.length, ...saved);
+    }
 });
 
 test("Clicks: a :focus outline or accent ring is a break; :focus-visible and [data-keyboard] are the keyboard's", () => {

@@ -103,6 +103,8 @@ const MealsTab = () => {
                     mastery: toInt(mastery, { min: 0 }),
                 };
             },
+            // Set all sets each meal's level; how many are cooked stays its own.
+            setAll: "level",
         });
     };
 
@@ -162,6 +164,7 @@ const MealsTab = () => {
             { class: "account-list account-list--tabbed" },
             ListPanel({
                 className: "meals-table",
+                setAll: { word: (n) => `meal${n === 1 ? "" : "s"}` },
                 body: [ValueTableHead({ name: "Meal", columns: ["Level", "Amount", "Ribbon", "Mastery"] }), listNode],
             })
         ),

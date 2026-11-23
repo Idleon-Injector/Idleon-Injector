@@ -17,7 +17,8 @@ const { div, span } = van.tags;
  * reads "2 / 15"), `min`, `float`, `formatted` (false for small whole numbers), `badge` (a state word before the
  * field) and `section` (rows of one section sit under its quiet heading, in the order the sections first come).
  * A table row has `fields` instead of `path`/`value` (`{ key, label, path, value, formatted, quiet }`): its section
- * starts with a column head, named by the row's `head` ("String", "Upgrade").
+ * starts with a column head, named by the row's `head` ("String", "Upgrade"). Its `setAll` is the key of the column
+ * the list's Set all sets (ValueTableRow's).
  */
 export const NumberList = () => {
     const node = div();
@@ -44,6 +45,7 @@ export const NumberList = () => {
                     ])
                 );
             },
+            setAll: entry.setAll,
         });
     const numberRow = (entry) =>
         SimpleNumberRow({

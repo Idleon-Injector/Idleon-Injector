@@ -573,6 +573,8 @@ const PalettePart = ({ pending }) => {
                 return { level: toInt(level, { min: 0 }), stars: Math.min(2, toInt(stars, { min: 0 })) };
             },
             afterWrite: (changed) => (changed.includes("stars") ? cleanUp() : null),
+            // Set all sets each colour's level; its Black Stars have All to.
+            setAll: "level",
         });
         rowOf.set(colour.index, row);
         return row;
@@ -709,7 +711,10 @@ const GamingTab = () => {
                 toolsOn: (id) => Boolean(partOf(id).tools),
                 toolsLabel: (activeId) => partOf(activeId.val).toolsLabel?.() ?? "",
                 // A tab whose numbers include one without a max has Set all.
-                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
+                setAll: {
+                    word: (n, tab) => (tab === "palette" ? plural(n, "colour") : n === 1 ? "line" : "lines"),
+                    placeholder: (tab) => (tab === "palette" ? "Level" : "Value"),
+                },
             })
         ),
     });

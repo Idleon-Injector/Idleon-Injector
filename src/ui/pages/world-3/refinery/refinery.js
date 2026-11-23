@@ -53,6 +53,8 @@ const SaltRow = ({ refIndex, name, states }) => {
             { key: "charge", label: "Charge", valueState: states.charge, paths: [`Refinery[${gameIndex}][0]`] },
         ],
         read: async () => saltValues(await gga("Refinery"), gameIndex),
+        // Set all sets each salt's level; its charge stays its own.
+        setAll: "level",
     });
 };
 
@@ -106,6 +108,7 @@ const RefineryTab = () => {
             { class: "account-list account-list--tabbed refinery-table" },
             TabbedList({
                 name: "Refinery",
+                setAll: { word: (n) => `salt${n === 1 ? "" : "s"}` },
                 tabs: TABS.map((tab, i) => ({
                     id: tab.id,
                     label: tab.label,

@@ -262,3 +262,44 @@ test("a row with afterWrite saves through its own write in a Set all, so its cac
     assert.equal(linesIn({ childNodes: [plain] })[0].path, "OptionsListAccount[1]");
     assert.equal(linesIn({ childNodes: [cached] })[0].path, null, "no path, so it isn't in the one bulk write");
 });
+
+test("a table line with a column pick follows the picked column, and a line taken keeps its column (#245)", async () => {
+    const { ValueTableRow } = await importRepo("src/ui/components/views/account/EditableFieldsRow.js");
+    const { linesIn } = await importRepo("src/ui/components/views/account/EditableNumberRow.js");
+    const ola = game.gga.OptionsListAccount;
+    const saved = [ola[510], ola[511]];
+    try {
+        ola[510] = 3;
+        ola[511] = 4;
+        const states = { speed: van.state(3), fire: van.state(4) };
+        const column = van.state("speed");
+        const row = ValueTableRow({
+            name: "Kitchen 1",
+            info: "Kitchen 1",
+            fields: [
+                { key: "speed", label: "Speed", valueState: states.speed, paths: ["OptionsListAccount[510]"] },
+                { key: "fire", label: "Fire", valueState: states.fire, paths: ["OptionsListAccount[511]"], max: 9 },
+            ],
+            read: async () => ({ speed: ola[510], fire: ola[511] }),
+            setAll: column,
+        });
+        const [speed] = linesIn({ childNodes: [row] });
+        assert.equal(speed.column, "speed");
+        assert.equal(speed.valueState, states.speed);
+        assert.equal(speed.path, "OptionsListAccount[510]");
+        assert.equal(speed.max, null);
+
+        column.val = "fire";
+        const [fire] = linesIn({ childNodes: [row] });
+        assert.equal(fire.column, "fire");
+        assert.equal(fire.valueState, states.fire);
+        assert.equal(fire.path, "OptionsListAccount[511]");
+        assert.equal(fire.max, 9);
+
+        // The pick changed after Speed's line was taken: that line still writes Speed.
+        assert.equal(await speed.write(8), 8);
+        assert.deepEqual([ola[510], ola[511]], [8, 4]);
+    } finally {
+        [ola[510], ola[511]] = saved;
+    }
+});

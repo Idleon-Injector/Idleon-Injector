@@ -32,7 +32,10 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
   too, and one question covers both. Otherwise it runs on one press and every line shows the number after; an empty
   field is refused, never written as 0, and a number one line can't hold stops it before anything is written. A
   table's column counts as lines too: a column without a max needs Set all, a capped one counts as capped lines. A page of unrelated single numbers (Emperor) isn't a list, so it has
-  no Set all. _test_
+  no Set all. A table's Set all sets its Level column (a pet's DNA), never the quiet progress columns (EXP, Charge,
+  Amount). A table whose columns are equal (Cooking's Speed, Fire, Luck; a boat's Loot Value, Speed; a trap's Qty, EXP,
+  Rare) has a small pick of them before the field, the same height, and the number goes into the picked column only
+  (Lumi, #245). _test_
 - **All to:** every list whose lines each have their own pick (a step picker: a pet's Off | Normal | Pets+, a
   bubble's Materials | Particles) has one All to tool in its tray with the same steps (`AllToTool`), acting on the
   lines the top bar's search shows. Picks with an order ask first when a press would lower a line; picks without one
