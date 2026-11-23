@@ -92,14 +92,19 @@ export const UpgradesPart = ({
     const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
     const pathOf = (upgrade) => `${levelsPath}[${upgrade.n}]`;
-    // Of the upgrades a save tried, those whose level the game holds now isn't the one shown before it; all of them when
-    // the game can't be read. A refused save may still have landed; one that didn't leaves the caches as they are.
-    const changedOf = async (tried, before) => {
-        const now = await gga(levelsPath).then(
+    // The levels the game holds now, or null when they can't be read (a read with no value included).
+    const readLevels = () =>
+        gga(levelsPath).then(
             (raw) => (raw === null || raw === undefined ? null : toIndexedArray(raw)),
             () => null
         );
-        return now ? tried.filter((upgrade) => Number(now[upgrade.n] ?? 0) !== Number(before.get(upgrade.n))) : tried;
+    // Of the upgrades a save tried, those whose level the game holds now isn't the one it held just before the save
+    // (`before`, read then); all of them when either read failed. A refused save may still have landed; one that
+    // didn't leaves the caches as they are.
+    const changedOf = async (tried, before) => {
+        const now = await readLevels();
+        if (!now || !before) return tried;
+        return tried.filter((upgrade) => Number(now[upgrade.n] ?? 0) !== Number(before[upgrade.n] ?? 0));
     };
 
     const UpgradeRow = (upgrade) => {
@@ -112,7 +117,7 @@ export const UpgradesPart = ({
             writePath: afterSave ? null : pathOf(upgrade),
             write: afterSave
                 ? async (level) => {
-                      const before = new Map([[upgrade.n, getLevel(upgrade.n).val]]);
+                      const before = await readLevels();
                       try {
                           await writeVerified(pathOf(upgrade), level);
                       } catch (error) {
@@ -137,7 +142,7 @@ export const UpgradesPart = ({
             // Nothing to change (every upgrade shown already at its max): no write, and no cache to clear.
             const tried = entries.filter((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade));
             if (!tried.length) return { cancelled: true };
-            const before = new Map(tried.map((upgrade) => [upgrade.n, getLevel(upgrade.n).val]));
+            const before = afterBulk ? await readLevels() : null;
             try {
                 await runBulkSet({
                     entries,

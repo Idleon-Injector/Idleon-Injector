@@ -336,9 +336,15 @@ const DEFAULT_OUTPOST = [0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 211111111, 0];
 const DEFAULT_UNITS = { 5: 1, 6: 4, 4: 5, 7: 1 };
 const UNIT_GONE = "that unit is no longer on this map";
 
+// A world's two unit lists, kind and map by place. Both must read back, and match in length, before one is changed.
 const readUnitPair = async (typeArray, mapArray) => {
     const [rawTypes, rawMaps] = await Promise.all([gga(`RoyalG[${typeArray}]`), gga(`RoyalG[${mapArray}]`)]);
-    return { types: toIndexedArray(rawTypes ?? []).slice(), maps: toIndexedArray(rawMaps ?? []).slice() };
+    if ([rawTypes, rawMaps].some((raw) => raw === null || raw === undefined))
+        throw new Error("Couldn't read the units. Try again.");
+    const types = toIndexedArray(rawTypes).slice();
+    const maps = toIndexedArray(rawMaps).slice();
+    if (types.length !== maps.length) throw new Error("The unit lists don't match. Reset to the game's.");
+    return { types, maps };
 };
 
 // A map unit in the lists the game holds now: where the page read it, or, when another unit change moved it, the same
@@ -503,11 +509,15 @@ const OutpostsTab = ({ pending, reload }) => {
         const fieldsOf = (list, formatted) =>
             list.map((field) => ({ ...field, valueState: levels[field.key], paths: [at(field.index)], formatted }));
 
-        // The slots a Barracks level opens, from the level and the slots the game holds now.
-        const syncSlots = (barracks) =>
+        // The slots the Barracks level opens, both as the game holds them now, in the slot queue. Without either (a read
+        // with no value), the slots stay as they are.
+        const syncSlots = () =>
             slotWrites(async () => {
-                const now = toInt(await gga(at(11)), { min: 0, fallback: 111111111 });
-                const next = normalizeSlotsForCapacity(now, barracks);
+                const [rawSlots, barracks] = await Promise.all([gga(at(11)), gga(at(0))]);
+                if ([rawSlots, barracks].some((raw) => raw === null || raw === undefined))
+                    throw new Error("Couldn't read the Barracks. Refresh.");
+                const now = toInt(rawSlots, { min: 0, fallback: 111111111 });
+                const next = normalizeSlotsForCapacity(now, toNum(barracks, 0));
                 slots.val = now;
                 if (next === now) return;
                 await writeVerified(at(11), next);
@@ -672,7 +682,7 @@ const OutpostsTab = ({ pending, reload }) => {
             read: () => readFields(LEVELS),
             // The Barracks level as saved (the line takes it after this): the slots follow it.
             afterWrite: async (changed) => {
-                if (changed.includes("barracks")) await syncSlots(toNum(await gga(at(0)), 0));
+                if (changed.includes("barracks")) await syncSlots();
             },
             // A failed save may still have changed the Barracks: the slots follow the level the game kept, and the
             // save's own failure is the one said.
@@ -680,9 +690,7 @@ const OutpostsTab = ({ pending, reload }) => {
                 try {
                     return await task();
                 } catch (error) {
-                    await gga(at(0))
-                        .then((barracks) => syncSlots(toNum(barracks, 0)))
-                        .catch(() => {});
+                    await syncSlots().catch(() => {});
                     throw error;
                 }
             },

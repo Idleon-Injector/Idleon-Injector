@@ -481,7 +481,7 @@ The masterclasses use the World 6 pieces and the Page standards; one page builde
 - **Each masterclass is one sidebar entry, its screens as tabs:** Grimoire (Upgrades, Bones), Compass (a tab per path:
   Elemental, Fighter, Survival, Nomadic, Abominations; then Dust), Tesseract (Upgrades, Tachyons, Map Bonuses) and
   Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop). The Grimoire automation is its
-  own entry under Grimoire, which names its main entry Grimoire, as World 6's Sneaking does.
+  own entry in the Automation section; the Grimoire page links to it beside its title.
 - **An upgrade list is the game's list in its order,** the bonus first, without the game's placeholders. An upgrade
   without a real max (999,999 in the game) shows its level alone and has no Max; Max all fills only the ones with a max.
 - **An outpost opens as a band under its line,** edge to edge, so its rank EXP, type, slots and units sit in the

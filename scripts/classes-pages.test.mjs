@@ -129,6 +129,15 @@ const holdWrites = () => {
         release();
     };
 };
+// Reads of one game path come back with no value, until restored.
+const emptyReadsOf = (path) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/gga/read") && JSON.parse(options?.body ?? "{}").path === `gga.${path}`
+            ? new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } })
+            : realFetch(url, options);
+    return () => (globalThis.fetch = realFetch);
+};
 // The requests to one route fail, until restored.
 const failRoute = (route) => {
     const realFetch = globalThis.fetch;
@@ -472,6 +481,31 @@ test("royal armory: a failed save that still changed a unit shelf builds the uni
         restore();
         gga.RoyalG[2][n] = level;
         gga.RoyalMaps = maps;
+        putUnitArrays(saved);
+    }
+});
+
+// Review of #239 round 6: "changed" is measured against the game's level just before the save, not the one shown.
+test("royal armory: a refused save on a unit shelf the game moved meanwhile leaves the units", async () => {
+    const saved = unitArrays();
+    const n = gga.CustomLists.h.Research[43][REBUILD_SHELF - 1];
+    const level = Number(gga.RoyalG[2][n] ?? 0);
+    try {
+        const { pane } = await openPane(ROYAL_ARMORY, "Upgrades");
+        const row = rowsIn(pane)[REBUILD_SHELF - 1];
+        gga.RoyalG[2][n] = level + 1; // the game moved it; the page still shows the old level
+        const restore = refuseWrites(gga.RoyalG[2], n);
+        const placed = armoryUnits();
+        try {
+            typeAndEnter(row, level + 2);
+            await settled(row);
+            assert.equal(stateOf(row), "error");
+            assert.deepEqual(unitArrays(), placed, "the refused save changed nothing: the units stay");
+        } finally {
+            restore();
+        }
+    } finally {
+        gga.RoyalG[2][n] = level;
         putUnitArrays(saved);
     }
 });
@@ -824,6 +858,47 @@ test("outposts: a failed Barracks save that landed still locks the slots", async
     } finally {
         globalThis.fetch = realFetch;
         gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239 round 6: a Barracks read with no value never locks slots.
+test("outposts: a Barracks save whose level can't be read back leaves the slots", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    gga.RoyalMaps[1][0] = 1;
+    gga.RoyalMaps[1][11] = 241111111;
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const restore = emptyReadsOf("RoyalMaps[1][0]");
+    try {
+        typeAndEnter(outpost, 2);
+        await until(() => gga.RoyalMaps[1][0] === 2, "Barracks 2 saved");
+        await settled(outpost);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        assert.equal(String(gga.RoyalMaps[1][11])[1], "4", "slot 2 keeps its Guard");
+    } finally {
+        restore();
+        gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239 round 6: Add changes the unit lists only when both read back.
+test("outposts: Add with a unit list that can't be read writes nothing", async () => {
+    const saved = unitArrays();
+    try {
+        const { pane } = await openOutposts();
+        const outpost = opened(outpostRow(pane, "Grassy Hollow"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const before = unitArrays();
+        const restore = emptyReadsOf("RoyalG[6]");
+        try {
+            await click(buttonNamed(lineIn(outpost, "Add a unit"), "Knight"));
+            await until(() => /Couldn't read the units/.test(says(outpost)), "the reason");
+            assert.deepEqual(unitArrays(), before, "both lists stay as they were");
+        } finally {
+            restore();
+        }
+    } finally {
+        putUnitArrays(saved);
     }
 });
 
