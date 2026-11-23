@@ -1,23 +1,5 @@
-.sneaking-toggle-row {
-    grid-template-columns: minmax(300px, 1fr) auto auto;
-}
-
-.sneaking-toggle-row--enabled:not(.account-row--success):not(.account-row--error) {
-    border-color: var(--c-accent);
-}
-
-.sneaking-toggle-row .account-row__badge {
-    min-width: 86px;
-    text-align: center;
-}
-
-@media (max-width: 760px) {
-    .sneaking-toggle-row {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .sneaking-toggle-row .account-row__badge,
-    .sneaking-toggle-row .account-row__controls {
-        justify-self: start;
-    }
+/* Sneaking: its Ninja Knowledge tab is a table (an upgrade's level, its Omni Jade levels and the Omni Jade button), so
+   the page takes the wider measure. */
+.sneaking-tab {
+    --page-measure: 60rem;
 }

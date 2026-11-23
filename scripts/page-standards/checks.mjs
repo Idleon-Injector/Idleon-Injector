@@ -8,7 +8,7 @@ import { importRepo } from "../known-bugs/index.mjs";
 
 /**
  * The page folders on the shared look, held to every standard. A world joins when its pages move to the shared
- * pieces (World 6 and Classes add theirs in their own PRs); the rest still have pages from before.
+ * pieces (Classes adds its own in its PR); the rest still have pages from before.
  */
 export const ON_STANDARDS = [
     "world-1/",
@@ -16,6 +16,7 @@ export const ON_STANDARDS = [
     "world-3/",
     "world-4/",
     "world-5/",
+    "world-6/",
     // The pages already on the shared pieces in Account: the clickers (Bubba not yet) and the automation pages.
     "account/clickers/1-orion.js",
     "account/clickers/2-poppy.js",

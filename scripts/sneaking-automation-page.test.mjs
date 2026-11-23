@@ -9,7 +9,7 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, sent, fileSent, status, until } = kit;
-const tab = (await importRepo("src/ui/pages/world-6/sneaking/5-automation.js")).default.component();
+const tab = (await importRepo("src/ui/pages/world-6/sneaking/2-automation.js")).default.component();
 const row = (name) => kit.row(tab, name);
 await until(() => row("Way of Stealth"), "the tab to load");
 // A read-only value of a row, by its column ("Level", "Next level").
@@ -26,7 +26,7 @@ test("the tab shows Sneaking's switch, the jade, the saving % and every upgrade 
     assert.match(text(tab), /42\.5M jade/, "beside the title");
     assert.equal(row("Name"), undefined, "row 9 is the game's placeholder");
     assert.equal(value(row("Way of Stealth"), "Level"), "40");
-    assert.match(text(row("Way of Stealth")), /\+50%/);
+    assert.match(text(row("Way of Stealth")), /\+50 Stealth per Sneaking Lv/);
     assert.equal(value(row("Way of Stealth"), "Next level"), "1.09K");
     assert.equal(value(row("Mastery Loot"), "Next level"), "Locked");
     assert.match(text(row("Mastery Loot")), /Unlocks once Centurion Lineage has a level/);
