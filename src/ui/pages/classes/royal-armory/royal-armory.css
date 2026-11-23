@@ -1,0 +1,42 @@
+/* Royal Armory › Outposts: the units table has four columns of the same width, so its last three line up with
+   Barracks, Logistics and Education. */
+.outpost-units {
+    --value-columns: repeat(4, 9.5rem);
+}
+
+/* An opened outpost reads as a band under its line, edge to edge, so its fields stay in the list's columns. */
+.viewport .tabbed-list .account-row > .row-detail.outpost-detail {
+    margin-right: -16px;
+    margin-left: -16px;
+    border-radius: 0;
+}
+/* Every line in it sits on the band's ground, a hairline between them. */
+.viewport .tabbed-list .outpost-detail .account-row {
+    border-width: 0;
+    background: transparent;
+}
+.viewport .tabbed-list .outpost-detail .account-row + .account-row {
+    border-top: 1px solid var(--c-hairline);
+}
+
+/* A pick starts in the first column and may run across the others; a word saying why it can't be picked yet sits in
+   its place. */
+.outpost-pick__cell {
+    grid-column: 1 / -1;
+}
+.outpost-pick__locked {
+    padding-left: 12px;
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+}
+.outpost-add {
+    gap: 6px;
+}
+/* A unit's Remove keeps the last column, so the pick still starts in the first. */
+.outpost-pick__cell--short {
+    grid-column: 1 / 3;
+}
+.outpost-pick__extra {
+    grid-column: 3;
+    justify-items: end;
+}

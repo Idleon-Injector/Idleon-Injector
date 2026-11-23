@@ -168,12 +168,7 @@ test("a press whose targets changed since the question asks again instead of run
     assert.equal(ran, 1, "and a third runs it");
 });
 
-const removals = [
-    ["src/ui/pages/classes/grimoire/1-grimoire.js", "Reset all"],
-    ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
-    ["src/ui/pages/classes/royal-armory/4-outposts.js", "Reset to vanilla", "UNITS"],
-    ["src/ui/pages/account/event-shop/event-shop.js", "Disable all"],
-];
+const removals = [["src/ui/pages/account/event-shop/event-shop.js", "Disable all"]];
 
 for (const [file, label, open] of removals) {
     test(`${file.split("/").pop()}: ${label} asks in place and writes nothing on the first click`, async () => {
@@ -186,19 +181,8 @@ for (const [file, label, open] of removals) {
     });
 }
 
-test("map bonuses: Clear world asks in place once a world is picked", async () => {
-    const root = (await importRepo("src/ui/pages/classes/tesseract/2-map-bonuses.js")).default.component();
-    await until(() => buttonsNamed(root, "W1").length, "the world tabs");
-    await click(buttonsNamed(root, "W1")[0]);
-    await until(() => buttonsNamed(root, "Clear world (0)").some((node) => !node.attributes.disabled), "Clear world");
-    await settle(100);
-    const button = buttonsNamed(root, "Clear world (0)").find((node) => !node.attributes.disabled);
-    const before = writes();
-    await click(button);
-    await settle(100);
-    assert.equal(button.attributes["data-again"], "Click again");
-    assert.equal(writes(), before);
-});
+// The Classes pages ask in the tray now (Reset all, Empty all, Set all, Populate, Reset to the game's):
+// classes-pages.test.mjs.
 
 // The Rat King's Clear all asks in the tray now: world-5-pages.test.mjs.
 
@@ -408,32 +392,6 @@ test("bundles: Buy all asks in place with the inventory warning beside it, and b
     assert.equal(warning(), "", "the warning goes once it buys");
 });
 
-// "Click again to deplete every node in this world.": the world picked between the two clicks is another question.
-for (const [file, label] of [
-    ["src/ui/pages/classes/royal-armory/3-resources.js", "Deplete all"],
-    ["src/ui/pages/classes/tesseract/2-map-bonuses.js", "Clear world (0)"],
-]) {
-    test(`${file.split("/").pop()}: ${label} asks again for a world picked after the first click`, async () => {
-        const root = (await importRepo(file)).default.component();
-        const enabled = () => buttonsNamed(root, label).find((node) => !node.attributes.disabled);
-        const pickWorld = async (name) => {
-            await until(() => buttonsNamed(root, name).length, name);
-            await click(buttonsNamed(root, name)[0]);
-            await until(enabled, `${label} in ${name}`);
-            await settle(100);
-        };
-        await pickWorld("W1");
-        const button = enabled();
-        const before = writes();
-        await click(button);
-        await pickWorld("W2");
-        await click(button);
-        await settle(100);
-        assert.equal(writes(), before, "W2 was not changed on W1's question");
-        assert.equal(button.attributes["data-again"], "Click again", "it asks about W2");
-    });
-}
-
 // Lumi's call (2026-11-20): Lock all removes every island unlock, so it asks first: in the tray since the shared
 // panels (2026-11-22).
 test("islands: Lock all asks in the tray, locks every island on the answer, and Undo puts them back", async () => {
@@ -459,10 +417,9 @@ test("islands: Lock all asks in the tray, locks every island on the answer, and 
 });
 
 // Lumi's call (2026-11-20): every Max all brings a value above its max down to the max, on one click, and Undo puts
-// it back.
+// it back. (The Grimoire's: classes-pages.test.mjs.)
 for (const [file, levels, definitions, maxIndex] of [
     ["src/ui/pages/world-3/prayers/prayers.js", "PrayersUnlocked", "PrayerInfo", 9],
-    ["src/ui/pages/classes/grimoire/1-grimoire.js", "Grimoire", "GrimoireUpg", 4],
     ["src/ui/pages/world-3/salt-lick/salt-lick.js", "SaltLick", "SaltLicks", 4],
 ]) {
     test(`${file.split("/").pop()}: Max all lowers a level above its max on one click`, async () => {

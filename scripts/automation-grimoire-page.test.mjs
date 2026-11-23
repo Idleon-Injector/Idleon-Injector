@@ -1,4 +1,4 @@
-// Classes › Grimoire › Automation (#92) on the fake game. What each bone type owns beside the title, a line per bone
+// Classes › Grimoire, its Automation tab (#92) on the fake game. What each bone type owns beside the title, a line per bone
 // type while the automation runs (what it is doing), the saving %, and every upgrade with its level, next cost, a
 // stop-at, "Save for it" and a switch. A
 // change saves cheatConfig.automation.grimoire (a plain list) or grimoireSaving; switching an upgrade on switches the
@@ -12,14 +12,24 @@ const kit = await automationTabKit();
 const { text, byClass, sent, fileSent, status, until } = kit;
 const { readComputed } = await importRepo("src/ui/services/api.js");
 const game = await readComputed("automation", "grimoire");
-const page = (await importRepo("src/ui/pages/classes/grimoire/2-automation.js")).default.component();
-const row = (name) => kit.row(page, name);
+// The Grimoire page, open on its Automation tab: the automation's rows are that tab's (the Upgrades tab has rows of the
+// same names).
+const page = (await importRepo("src/ui/pages/classes/grimoire/grimoire.js")).default.component();
+const automationTab = kit
+    .elements(page)
+    .find((node) => node.attributes.role === "tab" && kit.text(node).trim() === "Automation");
+automationTab.listeners.click({});
+const pane = kit.elements(page).find((node) => node.attributes.id === automationTab.attributes["aria-controls"]);
+const row = (name) => kit.row(pane, name);
 const pick = (id) =>
     row(
         game.upgrades
             .find((upgrade) => upgrade.id === id)
-            .name.replace(/_/g, " ")
+            // The game's name before its mark ("Knockout!_(#)_製"), as the row shows it.
+            .name.replace(/製.*$/, "")
+            .replace(/_/g, " ")
             .replace(/[{}]/g, "")
+            .trim()
     );
 const boneLine = (name) => text(byClass(row(name), "automation-row__status")[0]);
 const detail = (node) => text(byClass(node, "automation-pick__detail")[0]);

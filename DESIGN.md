@@ -398,3 +398,19 @@ World 6 uses the World 5 pieces; one grew, and is now shared:
 - **A row's own question** (Emperor's Reset) puts its answer beside the row's name and keeps the button's room, so
   nothing moves while it asks.
 - **Names keep the game's short words:** a tier's Roman numeral (Sproutluck III), GMO and OG.
+
+### Classes on the same pieces (draft, 2026-11-23)
+
+The masterclasses use the World 6 pieces; one page builder is new, for their four pages (`masterclassParts.js`):
+
+- **Each masterclass is one sidebar entry, its screens as tabs:** Grimoire (Upgrades, Bones, Automation), Compass (a
+  tab per path: Elemental, Fighter, Survival, Nomadic, Abominations; then Dust), Tesseract (Upgrades, Tachyons, Map
+  Bonuses) and Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop).
+- **An upgrade list is the game's list in its order,** the bonus first, without the game's placeholders. An upgrade
+  without a real max (999,999 in the game) shows its level alone; Max all fills only the ones with a max.
+- **An outpost opens as a band under its line,** edge to edge, so its rank EXP, type, slots and units sit in the
+  list's columns; a pick starts in the first column. A slot the barracks hasn't opened says so in its place ("Opens at
+  Barracks 3").
+- **A table with more than three columns** (units per kind) keeps the column width, so its last columns line up with
+  the three-column tables around it. A table tab doesn't take `field-columns`: it would pull the values off their
+  column names.
