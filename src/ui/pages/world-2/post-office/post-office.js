@@ -14,7 +14,7 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
+import { shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -55,6 +55,7 @@ const PointsRow = ({ label, valueState, writePath }) =>
             return Math.max(0, next + delta);
         },
         inputMode: "int",
+        setAll: { path: writePath },
     });
 
 const BoxRow = ({ box, getCharacter }) =>
@@ -269,9 +270,13 @@ const PostOfficeTab = () => {
                     AccountSection({ title: "Boxes", body: boxesListNode }),
                 ],
                 tools,
-                toolsLabel: () => {
-                    const n = shownBoxes().length;
-                    return isSearching() ? `${n} matching ${boxWord(n)}` : `All ${n} ${boxWord(n)}`;
+                // Set all acts on every line, the points too, so the tray counts lines. The boxes are the character
+                // in play's own: a Refresh that read another one while it asks makes it ask again.
+                setAll: {
+                    word: (n) => (n === 1 ? "line" : "lines"),
+                    placeholder: "Value",
+                    bulk,
+                    askedFor: () => character,
                 },
             })
         ),

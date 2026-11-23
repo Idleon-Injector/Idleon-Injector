@@ -19,7 +19,7 @@ import { definePage } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
+import { SetAllTool } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
@@ -33,8 +33,6 @@ import {
     normalCase,
     oneAtATime,
     readLevelDefinitions,
-    resolveNumberInput,
-    runBulkSet,
     sortPrefixedNumericCodes,
     useWriteStatus,
     writeVerified,
@@ -182,7 +180,6 @@ const BubblesTab = () => {
 
     // The open tab's tools. They share one status, so a bulk write runs alone.
     const bulk = useWriteStatus();
-    const setAllInput = van.state("");
     const cauldronOf = (activeId) => CAULDRONS.find((cauldron) => cauldron.id === activeId.val);
     // A tab's bubbles the tools act on: all of them, or the ones the top bar's search shows.
     const bubblesOn = (cauldron) => bubblesByCauldron.val[cauldron.index].filter((bubble) => shownBySearch(bubble.row));
@@ -201,42 +198,20 @@ const BubblesTab = () => {
                 .map((bubble) => prismaCode(c, bubble));
         const prismaOn = (c) => prismaCodesOn(c).filter((code) => prismaSet.val.has(code)).length;
 
-        const writeLevels = (c, bubbles, level) =>
-            bulk.run(() =>
-                runBulkSet({
-                    entries: bubbles,
-                    getTargetValue: () => level,
-                    getValueState: (bubble) => bubble.levelState,
-                    getPath: (bubble) => `CauldronInfo[${c.index}][${bubble.index}]`,
-                })
-            );
-        // Lowering takes levels away, so it asks first (in the tray); raising runs on one click.
-        const setAll = () => {
-            const level = resolveNumberInput(setAllInput.val, { min: 0, fallback: null });
-            if (level === null) return refuseSetAll(setAllInput);
-            const c = cauldron();
-            return askOrWrite(c, bubblesOn(c), level);
-        };
-        const askOrWrite = (c, bubbles, level) => {
-            const loweredOf = () => bubbles.filter((bubble) => Number(bubble.levelState.val) > level);
-            const lowered = loweredOf().length;
-            if (!lowered) return writeLevels(c, bubbles, level);
-            ask({
-                question: `Lower ${lowered} ${bubbleWord(c, lowered)} to level ${level}?`,
-                confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
-                from: setAllControl.querySelector(".account-btn"),
-                lowers: loweredOf,
-                again: () => askOrWrite(c, bubbles, level),
-                onConfirm: () => writeLevels(c, bubbles, level),
-            });
-            return undefined;
-        };
-        const setAllControl = SetAllNumberControl({
-            label: "",
-            placeholder: "Level",
-            value: setAllInput,
-            status: bulk.status,
-            onApply: setAll,
+        // A level for all: bubbles have no max, so it asks only before it lowers.
+        const setAllControl = SetAllTool({
+            ask,
+            bulk,
+            lines: () => {
+                const c = cauldron();
+                return bubblesOn(c).map((bubble) => ({
+                    row: bubble.row,
+                    valueState: bubble.levelState,
+                    max: null,
+                    path: `CauldronInfo[${c.index}][${bubble.index}]`,
+                }));
+            },
+            word: (n) => bubbleWord(cauldron(), n),
         });
 
         // Every prisma lives in one string: the tab's bubbles go in (or out) in one write, in turn with the switches.

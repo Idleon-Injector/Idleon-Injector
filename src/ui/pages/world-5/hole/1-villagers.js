@@ -31,7 +31,7 @@ import { AccountToggleRow } from "../../../components/views/account/components/A
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { NumberList } from "../../../components/views/account/components/NumberList.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { TabbedList } from "../../../components/views/account/tabShared.js";
+import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
 import {
     bonusText,
     cleanName,
@@ -300,12 +300,15 @@ const VillagersTab = () => {
                     label: tab.label,
                     content: div({ class: "field-columns" }, tab.rows ? lists.get(tab.id).node : schematicNode),
                 })),
-                tools,
+                // The Engineer's schematics have their tools; the other tabs' numbers have Set all.
+                tools: toolsPerTab({ engineer: (ask) => tools(null, ask) }),
                 toolsOn: (id) => id === "engineer",
-                toolsLabel: () => {
+                toolsLabel: (activeId) => {
+                    if (activeId.val !== "engineer") return "";
                     const n = shown().length;
                     return isSearching() ? `${n} matching ${words(n)}` : `All ${n} ${words(n)}`;
                 },
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value", bulk },
             })
         ),
     });

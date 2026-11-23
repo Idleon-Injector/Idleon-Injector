@@ -15,7 +15,7 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
-import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
+import { SetAllTool } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
@@ -27,8 +27,6 @@ import {
     createStaticRowReconciler,
     normalCase,
     readLevelDefinitions,
-    resolveNumberInput,
-    runBulkSet,
     toNum,
     useWriteStatus,
 } from "../../../components/views/account/accountShared.js";
@@ -51,7 +49,6 @@ const VialRow = ({ vial, levelState }) =>
 
 const VialTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Vials" });
-    const setAllInput = van.state("");
     const bulk = useWriteStatus();
     const vialDefs = van.state([]);
     const getLevelState = createIndexedStateGetter();
@@ -92,42 +89,18 @@ const VialTab = () => {
     const vialWord = (n) => `vial${n === 1 ? "" : "s"}`;
 
     const tools = (_activeId, ask) => {
-        const writeLevels = (vials, level) =>
-            bulk.run(() =>
-                runBulkSet({
-                    entries: vials,
-                    getTargetValue: () => level,
-                    getValueState: (vial) => getLevelState(vial.index),
-                    getPath: (vial) => `CauldronInfo[4][${vial.index}]`,
-                })
-            );
-        // Lowering takes levels away, so it asks first (in the tray); raising runs on one click.
-        const setAll = () => {
-            const level = resolveNumberInput(setAllInput.val, { min: 0, max: MAX_VIAL_LEVEL, fallback: null });
-            if (level === null) return refuseSetAll(setAllInput);
-            return askOrWrite(shown(), level);
-        };
-        const askOrWrite = (vials, level) => {
-            const loweredOf = () => vials.filter((vial) => Number(getLevelState(vial.index).val) > level);
-            const lowered = loweredOf().length;
-            if (!lowered) return writeLevels(vials, level);
-            ask({
-                question: `Lower ${lowered} ${vialWord(lowered)} to level ${level}?`,
-                confirmLabel: lowered === 1 ? "Lower it" : "Lower them",
-                from: setAllControl.querySelector(".account-btn"),
-                lowers: loweredOf,
-                again: () => askOrWrite(vials, level),
-                onConfirm: () => writeLevels(vials, level),
-            });
-            return undefined;
-        };
-        const setAllControl = SetAllNumberControl({
-            label: "",
-            placeholder: "Level",
-            value: setAllInput,
-            status: bulk.status,
-            max: MAX_VIAL_LEVEL,
-            onApply: setAll,
+        // Every vial stops at 13: a higher level asks whether to stop at it or go past.
+        const setAllControl = SetAllTool({
+            ask,
+            bulk,
+            lines: () =>
+                shown().map((vial) => ({
+                    row: rowOf.get(vial.index),
+                    valueState: getLevelState(vial.index),
+                    max: MAX_VIAL_LEVEL,
+                    path: `CauldronInfo[4][${vial.index}]`,
+                })),
+            word: vialWord,
         });
         return setAllControl;
     };

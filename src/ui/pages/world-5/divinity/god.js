@@ -91,6 +91,7 @@ const DivinityTab = () => {
         body: div(
             { class: "account-list account-list--tabbed" },
             ListPanel({
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
                 className: "field-columns",
                 body: [
                     AccountSection({ title: "Gods", body: unlockedRow }),

@@ -187,6 +187,11 @@ const MasteryTab = () => {
             TabbedList({
                 name: "Cooking Mastery",
                 activeId: activeTab,
+                setAll: {
+                    word: (n, tab) =>
+                        tab === "upgrades" ? `upgrade${n === 1 ? "" : "s"}` : n === 1 ? "line" : "lines",
+                    placeholder: "Value",
+                },
                 tabs: [
                     { id: "rank", label: "Rank", content: div({ class: "field-columns" }, ...rankRows) },
                     { id: "upgrades", label: "Upgrades", content: div({ class: "field-columns" }, upgradeNode) },

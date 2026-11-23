@@ -25,7 +25,36 @@ const { div, span } = van.tags;
  * - `renderBadge(value)` is a state (Equipped, Locked), a plain muted word just before the field.
  * - `unset` is a stored value that means "not set" (a locked talent's -1); the field shows it empty, and leaving the
  *   empty field untouched saves nothing.
+ * - `setAll` makes the row a line its list's Set all acts on (`linesIn`): `{ min, path }`, where `path` (the one place
+ *   the value lives) lets many lines save in one write; without it each line saves through `write`. Only for a row
+ *   whose `write` takes the value as the field shows it.
  */
+
+// The rows a Set all can act on, by row (see `setAll` above). `linesMade` goes up as rows are made, so a tray that
+// counts its list's lines counts again once a page shows new rows.
+const setAllLines = new WeakMap();
+const linesMade = van.state(0);
+
+/**
+ * The lines in `container` a Set all acts on: its rows with `setAll` that the top bar's search shows, without the
+ * rows another row opens, and the ones not set (`unset`). Each is `{ row, valueState, max, min, path, write }`; `max` is null for a line without one.
+ */
+export const linesIn = (container, shown = () => true) => {
+    void linesMade.val;
+    const lines = [];
+    const walk = (node) => {
+        for (const child of node.childNodes ?? []) {
+            if (child.nodeType !== 1 || child.classList.contains("row-detail")) continue;
+            const line = setAllLines.get(child);
+            // A line that isn't set (a locked talent) is left alone.
+            if (line && !line.disabled() && line.valueState.val !== line.unset && shown(child))
+                lines.push({ ...line, max: line.cap(), min: line.min(), path: line.path() });
+            else walk(child);
+        }
+    };
+    walk(container);
+    return lines;
+};
 export const EditableNumberRow = ({
     valueState,
     normalize,
@@ -48,6 +77,7 @@ export const EditableNumberRow = ({
     inputProps = {},
     disabled = null,
     unset = null,
+    setAll = null,
 }) => {
     const {
         onfocus: userOnfocus,
@@ -181,6 +211,18 @@ export const EditableNumberRow = ({
             ...extraActions
         )
     );
+    if (setAll) linesMade.val++;
+    if (setAll)
+        setAllLines.set(row, {
+            row,
+            valueState,
+            cap: capNow,
+            min: () => Number(resolveValue(setAll.min) ?? 0),
+            path: () => resolveValue(setAll.path) ?? null,
+            write,
+            unset,
+            disabled: isDisabled,
+        });
     // Max's room is kept only in a list where some line shows Max: the closest list of mixed fields says so (`has-max`)
     // once this row is laid out, and again whenever its Max comes or goes.
     van.derive(() => {

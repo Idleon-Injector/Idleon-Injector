@@ -12,7 +12,7 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
+import { shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList, readComputedMany } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
@@ -184,9 +184,12 @@ const UpgradesTab = () => {
                 className: "field-columns",
                 body: listNode,
                 tools,
-                toolsLabel: () => {
-                    const n = shown().length;
-                    return isSearching() ? `${n} matching ${upgradeWord(n)}` : `All ${n} ${upgradeWord(n)}`;
+                // Set all acts on every line, the dead cells too, so the tray counts lines.
+                setAll: {
+                    word: (n) => (n === 1 ? "line" : "lines"),
+                    bulk,
+                    disabled: readPending,
+                    onDone: (result) => !result.ok && !result.cancelled && load(),
                 },
             })
         ),
