@@ -321,6 +321,34 @@ test("Palette: a table of Level and Black Stars; a stars pick saves at once and 
     assert.equal(gga.Spelunk[9][0], level, "the level the game holds stays");
 });
 
+// CodeRabbit on #248 (#250): once every colour had the stars, All to was off, and the failed clean-up had no retry.
+test("Palette: after the clean-up of the game's bonuses fails, All to's step stays to clear them again", async () => {
+    const stars = [...gga.Spelunk[49]];
+    gga.Spelunk[49][0] = 0; // a colour All to ★★ raises
+    const { root } = await openPane(GAMING, "Palette");
+    const toTwo = () =>
+        byClass(root, "tabbed-list__tool-group")
+            .flatMap((group) => elements(group))
+            .find((node) => node.nodeName === "button" && text(node).trim() === "★★");
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).endsWith("/game/gga/delete")
+            ? new Response(JSON.stringify({ error: "the game refused" }), { status: 500 })
+            : realFetch(url, options);
+    try {
+        gga.DNSM.h.PaletteBonz = [1, 2, 3];
+        click(toTwo());
+        await until(() => gga.Spelunk[49][0] === 2, "every colour to get two Black Stars");
+        await until(() => !toTwo().attributes.disabled, "All to ★★ to stay pressable for the clean-up");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    click(toTwo());
+    await until(() => !("PaletteBonz" in gga.DNSM.h), "the bonuses to be cleared");
+    await until(() => toTwo().attributes.disabled, "nothing left to do");
+    gga.Spelunk[49] = stars;
+});
+
 test("Palette: a colour's level saves on Enter", async () => {
     const { pane } = await openPane(GAMING, "Palette");
     const row = rowNamed(pane, "Mossy Green");

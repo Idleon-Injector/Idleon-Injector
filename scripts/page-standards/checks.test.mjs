@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { importRepo, loadUi } from "../known-bugs/index.mjs";
 import { createFakeApi } from "../page-shots/fake-api.mjs";
 import { fakeGameData } from "../page-shots/fake-game-data.mjs";
-import { bulkBreaks, clickOutlineBreaks, pageBreaks } from "./checks.mjs";
+import { bulkBreaks, clickOutlineBreaks, openedBreaks, pageBreaks } from "./checks.mjs";
 
 const { router } = await createFakeApi(fakeGameData());
 await loadUi(router);
@@ -401,5 +401,29 @@ test("Clicks: a :focus outline or accent ring is a break; :focus-visible and [da
     assert.deepEqual(clickOutlineBreaks(css, "page.css"), [
         `Clicks: page.css rings ".a:focus" after a click; use :focus-visible`,
         `Clicks: page.css rings ".b:focus-within" after a click; use :focus-visible`,
+    ]);
+});
+
+// CodeRabbit on #248 (#250): an opener that shows only inside an opened row wasn't pressed, so what it opens passed.
+test("a dropdown behind an opener inside an opened row is found", async () => {
+    const outer = van.state(false);
+    const inner = van.state(false);
+    const opener = (state, name) =>
+        button(
+            { type: "button", "aria-expanded": () => String(state.val), onclick: () => (state.val = !state.val) },
+            name
+        );
+    const pick = opener(inner, "Pick");
+    const node = page(
+        "Stamps",
+        ListPanel({
+            body: [
+                line("Heart Stamp", opener(outer, "Open")),
+                div(() => (outer.val ? div(pick, () => (inner.val ? select() : span())) : span())),
+            ],
+        })
+    );
+    assert.deepEqual(only(await openedBreaks(node), "Picks"), [
+        `Picks: what "Pick" opens has a dropdown; pick in place (PickInPlace)`,
     ]);
 });

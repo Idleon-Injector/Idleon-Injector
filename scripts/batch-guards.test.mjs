@@ -53,3 +53,33 @@ test("a balance that holds saves the claims and the points together", async () =
         [g.StarSignProg[1], g.StarSignProg[2], g.OptionsListAccount[40]] = saved;
     }
 });
+
+// CodeRabbit on #248 (#250): a bulk write that partly failed left the rows whose write landed on their old value.
+test("a bulk set that partly fails shows what the game holds on every row it wrote", async () => {
+    const { runBulkSet } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
+    const options = g.OptionsListAccount;
+    const saved = [options[300], options[301]];
+    options[300] = 1;
+    Object.defineProperty(options, 301, { get: () => 7, set() {}, configurable: true }); // the game keeps 7
+    const states = [van.state(1), van.state(1)];
+    try {
+        await assert.rejects(
+            runBulkSet({
+                entries: [300, 301],
+                getTargetValue: () => 9,
+                getValueState: (_, i) => states[i],
+                getPath: (index) => `OptionsListAccount[${index}]`,
+            }),
+            /Write mismatch/
+        );
+        assert.deepEqual(
+            states.map((state) => state.val),
+            [9, 7],
+            "the landed row shows 9, the refused one what the game kept"
+        );
+    } finally {
+        Object.defineProperty(options, 301, { value: saved[1], writable: true, configurable: true });
+        options[300] = saved[0];
+    }
+});

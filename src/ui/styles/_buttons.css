@@ -59,18 +59,18 @@ button {
     color: var(--c-accent);
 }
 
-.btn-main:hover:not(:disabled) {
+.btn-main:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--c-accent-20);
     color: var(--c-accent-hover);
 }
 
-.btn-quiet:hover:not(:disabled) {
+.btn-quiet:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--c-white-05);
     color: var(--c-text-main);
 }
 
 /* Stands in for DESIGN.md's coral until the colour pass: the existing soft danger text on the danger wash. */
-.btn-danger:hover:not(:disabled) {
+.btn-danger:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--c-danger-10);
     color: var(--c-danger-soft-text);
 }
@@ -82,21 +82,25 @@ button {
     outline-offset: 2px;
 }
 
-.btn-main:active:not(:disabled),
-.btn-quiet:active:not(:disabled),
-.btn-danger:active:not(:disabled) {
+.btn-main:active:not(:disabled):not([aria-disabled="true"]),
+.btn-quiet:active:not(:disabled):not([aria-disabled="true"]),
+.btn-danger:active:not(:disabled):not([aria-disabled="true"]) {
     transform: scale(0.94);
 }
 
 .btn-main:disabled,
+.btn-main[aria-disabled="true"],
 .btn-quiet:disabled,
-.btn-danger:disabled {
+.btn-quiet[aria-disabled="true"],
+.btn-danger:disabled,
+.btn-danger[aria-disabled="true"] {
     background: transparent;
     color: var(--c-text-disabled);
     cursor: not-allowed;
 }
 
-.btn-main:disabled {
+.btn-main:disabled,
+.btn-main[aria-disabled="true"] {
     background: var(--c-white-04);
 }
 
@@ -142,9 +146,9 @@ button {
         transition: none;
     }
 
-    .btn-main:active:not(:disabled),
-    .btn-quiet:active:not(:disabled),
-    .btn-danger:active:not(:disabled) {
+    .btn-main:active:not(:disabled):not([aria-disabled="true"]),
+    .btn-quiet:active:not(:disabled):not([aria-disabled="true"]),
+    .btn-danger:active:not(:disabled):not([aria-disabled="true"]) {
         transform: none;
     }
 }
@@ -179,7 +183,7 @@ button {
 .viewport .number-input-btn.btn-quiet:last-child {
     margin-right: 6px;
 }
-.viewport .number-input-btn.btn-quiet:hover:not(:disabled) {
+.viewport .number-input-btn.btn-quiet:hover:not(:disabled):not([aria-disabled="true"]) {
     background: #34305a;
     color: #ffffff;
 }
@@ -209,16 +213,16 @@ button {
     padding: 0 14px;
     font-size: 0.8125rem;
 }
-.viewport .btn-quiet:hover:not(:disabled),
-.viewport .btn-danger:hover:not(:disabled),
-.viewport .btn-main:hover:not(:disabled) {
+.viewport .btn-quiet:hover:not(:disabled):not([aria-disabled="true"]),
+.viewport .btn-danger:hover:not(:disabled):not([aria-disabled="true"]),
+.viewport .btn-main:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--c-btn-hover);
     border-color: var(--c-btn-edge-hover);
     color: #ffffff;
 }
-.viewport .btn-quiet:active:not(:disabled),
-.viewport .btn-danger:active:not(:disabled),
-.viewport .btn-main:active:not(:disabled) {
+.viewport .btn-quiet:active:not(:disabled):not([aria-disabled="true"]),
+.viewport .btn-danger:active:not(:disabled):not([aria-disabled="true"]),
+.viewport .btn-main:active:not(:disabled):not([aria-disabled="true"]) {
     transform: scale(0.95);
 }
 
@@ -228,13 +232,15 @@ button {
     background: var(--c-accent);
     color: var(--c-accent-ink);
 }
-.viewport .btn-main:hover:not(:disabled) {
+.viewport .btn-main:hover:not(:disabled):not([aria-disabled="true"]) {
     border-color: transparent;
     background: var(--c-accent-hover);
     color: var(--c-accent-ink);
 }
 .viewport .btn-quiet:disabled,
-.viewport .btn-danger:disabled {
+.viewport .btn-quiet[aria-disabled="true"],
+.viewport .btn-danger:disabled,
+.viewport .btn-danger[aria-disabled="true"] {
     border-color: var(--c-hairline);
     background: transparent;
 }
@@ -246,17 +252,19 @@ button {
     border-color: transparent;
     background: var(--c-panel-dim);
 }
-.viewport .account-row__controls > .btn-quiet:hover:not(:disabled) {
+.viewport .account-row__controls > .btn-quiet:hover:not(:disabled):not([aria-disabled="true"]) {
     border-color: transparent;
     background: var(--c-well-hover);
 }
-.viewport .account-row__controls > .btn-danger:hover:not(:disabled) {
+.viewport .account-row__controls > .btn-danger:hover:not(:disabled):not([aria-disabled="true"]) {
     border-color: transparent;
     background: rgba(255, 138, 128, 0.14);
     color: var(--c-danger-soft-text);
 }
 .viewport .account-row__controls > .btn-quiet:disabled,
-.viewport .account-row__controls > .btn-danger:disabled {
+.viewport .account-row__controls > .btn-quiet[aria-disabled="true"],
+.viewport .account-row__controls > .btn-danger:disabled,
+.viewport .account-row__controls > .btn-danger[aria-disabled="true"] {
     border-color: transparent;
 }
 

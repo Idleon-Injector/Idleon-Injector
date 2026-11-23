@@ -307,40 +307,46 @@ function fieldAndPickBreaks(node, rows, where = "the page has") {
 
 /**
  * What opens, opened: on every tab, each opener (a button with `aria-expanded`: a row that holds a list, a pick in
- * place, a cog on the board) is pressed and what it shows is held to Fields and Picks, then it is closed again. `hosts`
- * are the nodes the page put outside itself (the cog board's editor), checked with it.
+ * place, a cog on the board) is pressed and what it shows is held to Fields and Picks, then it is closed again. An
+ * opener that only shows once another is open (a pick inside an opened row) is pressed while that one stays open.
+ * `hosts` are the nodes the page put outside itself (the cog board's editor), checked with it.
  */
 export async function openedBreaks(node, hosts = []) {
     const breaks = [];
     const tabs = tabsOf(node);
     const expanded = (el) => attr(el, "aria-expanded") === "true";
+    const openersIn = (roots) =>
+        roots.flatMap((root) =>
+            elements(root).filter(
+                (el) =>
+                    el.nodeName === "button" &&
+                    attr(el, "aria-expanded") !== undefined &&
+                    !attr(el, "disabled") &&
+                    shown(el)
+            )
+        );
+    // `seen`: the openers already showing before this one opened. ponytail: three levels deep, as deep as pages go.
+    const press = async (opener, seen, depth) => {
+        if (!expanded(opener)) click(opener);
+        for (let i = 0; i < 3; i++) await settle();
+        const name = (words(opener) || String(attr(opener, "title") ?? attr(opener, "aria-label") ?? "")).slice(0, 40);
+        const where = `what "${name}" opens has`;
+        // The first opener that shows a break names it; the rest of the same kind say nothing new.
+        for (const root of [node, ...hosts])
+            for (const found of fieldAndPickBreaks(root, rowsIn(root), where))
+                if (!breaks.some((b) => b.split(":")[0] === found.split(":")[0])) breaks.push(found);
+        const inner = depth < 3 ? openersIn([node, ...hosts]).filter((el) => !seen.has(el) && el !== opener) : [];
+        for (const child of inner) await press(child, new Set([...seen, opener, ...inner]), depth + 1);
+        if (expanded(opener)) click(opener);
+        await settle();
+    };
     for (const tab of tabs.length ? tabs : [null]) {
         if (tab) {
             click(tab);
             await settle();
         }
-        const openers = elements(node).filter(
-            (el) =>
-                el.nodeName === "button" &&
-                attr(el, "aria-expanded") !== undefined &&
-                !attr(el, "disabled") &&
-                shown(el)
-        );
-        for (const opener of openers) {
-            if (!expanded(opener)) click(opener);
-            for (let i = 0; i < 3; i++) await settle();
-            const name = (words(opener) || String(attr(opener, "title") ?? attr(opener, "aria-label") ?? "")).slice(
-                0,
-                40
-            );
-            const where = `what "${name}" opens has`;
-            // The first opener that shows a break names it; the rest of the same kind say nothing new.
-            for (const root of [node, ...hosts])
-                for (const found of fieldAndPickBreaks(root, rowsIn(root), where))
-                    if (!breaks.some((b) => b.split(":")[0] === found.split(":")[0])) breaks.push(found);
-            if (expanded(opener)) click(opener);
-            await settle();
-        }
+        const openers = openersIn([node]);
+        for (const opener of openers) await press(opener, new Set(openers), 1);
     }
     return breaks;
 }
