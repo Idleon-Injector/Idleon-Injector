@@ -506,6 +506,52 @@ test("an egg whose save fails while Max all is answered shows Max all's rarity, 
     await until(() => bound("Egg 1") === "11", "Escape to put back the rarity the game holds");
 });
 
+test("an egg whose save the game changes while Max all is answered shows what the game holds (#231)", async (t) => {
+    const before = [...gga.Breeding[0]];
+    t.after(() => (gga.Breeding[0] = before));
+    gga.Breeding[0] = gga.Breeding[0].map(() => 0);
+    const root = await openPage("src/ui/pages/world-4/breeding/1-eggs.js");
+    const bound = (name) => String(byTag(rowNamed(root, name), "input")[0].attributes.value);
+    const realFetch = globalThis.fetch;
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    let landed = false;
+    globalThis.fetch = async (url, options) => {
+        const answer = await realFetch(url, options);
+        if (String(url).includes("/write") && String(options?.body ?? "").includes("Breeding[0][1]")) {
+            landed = true;
+            await held;
+        }
+        return answer;
+    };
+    let maxAll;
+    const row = rowNamed(root, "Egg 1");
+    try {
+        maxAll = click(buttonNamed(root, "Max all"));
+        await until(() => landed, "Max all's writes to land");
+        // From here the game keeps one less than the egg's save, so the save lands but its read-back fails.
+        let stored = gga.Breeding[0][0];
+        Object.defineProperty(gga.Breeding[0], 0, {
+            get: () => stored,
+            set: (value) => {
+                stored = value - 1;
+            },
+            configurable: true,
+            enumerable: true,
+        });
+        typeAndEnter(row, byTag(row, "input")[0], 5);
+        await until(() => stateOf(row) === "error", "the egg's save to fail its read-back");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+    }
+    await maxAll;
+    await until(() => bound("Egg 2") === "11", "the others to show Max all's rarity");
+    assert.equal(gga.Breeding[0][0], 4, "the game holds what it made of the egg's save");
+    row.listeners.keydown({ key: "Escape", target: byTag(row, "input")[0], preventDefault() {} });
+    await until(() => bound("Egg 1") === "4", "Escape to put back what the game holds, not Max all's 11");
+});
+
 test("Upgrades: bonus first, the filler slot's bonus is Breeding EXP, and Max all brings one above its max down", async (t) => {
     const before = [...gga.Breeding[2]];
     t.after(() => (gga.Breeding[2] = before));

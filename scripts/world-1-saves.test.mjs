@@ -513,6 +513,32 @@ test("pets: a token the game no longer has room for is refused, and says why", a
     g.OptionsListAccount[606] = "2,5";
 });
 
+const tokenDisabled = (root, id) => {
+    const box = elements(petRow(root, id)).find((node) =>
+        String(node.attributes["aria-label"]).startsWith("Pet token for")
+    );
+    const disabled = box.attributes.disabled;
+    return Boolean(typeof disabled === "function" ? disabled() : disabled);
+};
+
+test("pets: with every token shown in use, a token press reads the game again and adds it when one is free (#126)", async () => {
+    g.OptionsListAccount[606] = "2,5";
+    const root = await openPage(PETS, (root) => petRow(root, 12));
+    g.OptionsListAccount[606] = "2"; // the game took a token back; the page still shows both in use
+    assert.equal(tokenDisabled(root, 12), false, "the switch can be pressed");
+    await flipToken(root, 12);
+    await until(() => g.OptionsListAccount[606] === "2,12", "the token on pet 12");
+    g.OptionsListAccount[606] = "2,5";
+});
+
+test("pets: with every token in use, a token press says so and writes nothing (#126)", async () => {
+    g.OptionsListAccount[606] = "2,5";
+    const root = await openPage(PETS, (root) => petRow(root, 12));
+    await flipToken(root, 12);
+    await until(() => alertText(root) === "All tokens are in use. Remove one first.", "the reason");
+    assert.equal(g.OptionsListAccount[606], "2,5");
+});
+
 for (const [press, act] of [
     ["picking Normal", (root, id) => pickTier(root, id, "Normal")],
     ["the token switch", (root, id) => flipToken(root, id)],
