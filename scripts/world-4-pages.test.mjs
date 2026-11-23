@@ -403,6 +403,23 @@ test("a Tome record with no field shows its value as plain text", async () => {
     assert.ok(rowNamed(root, "Total Talent Max LV"), "the game's marks are taken off the names");
 });
 
+test("Tome: Set all with a number a record can't hold writes no record, and the tray says which (#241)", async () => {
+    const root = await openPage("src/ui/pages/world-4/tome/tome.js");
+    const kept = () => JSON.stringify([gga.OptionsListAccount, gga.Divinity, gga.Gaming, gga.GamingSprout]);
+    const before = kept();
+    const setAll = byClass(root, "account-setall-row")[0];
+    const field = byTag(setAll, "input")[0];
+    field.value = "0";
+    field.listeners.input({ target: field });
+    click(buttonNamed(setAll, "Set all"));
+    await until(() => /^Lower \d+ records to 0\?$/.test(trayLine(root)), "the question about lowering");
+    click(byClass(root, "tabbed-list__yes")[0]);
+    await until(() => !/^(Lower|All) /.test(trayLine(root)), "Set all to stop");
+    assert.equal(kept(), before, "no record was written");
+    // 1 / x and 2 ^ x records can't be 0: the first one in the list is named.
+    assert.match(trayLine(root), /^.+ can't be 0\.$/);
+});
+
 test("Eggs: Max all raises every egg in one press; Reset all asks in the tray first", async (t) => {
     const before = [...gga.Breeding[0]];
     t.after(() => (gga.Breeding[0] = before));

@@ -1,4 +1,4 @@
-// An action button tells a screen reader how its press ended (#77): busy while it saves, then "done" or "failed"
+// An action button tells a screen reader how its press ended (#77): busy while it saves, then "done", or why it failed
 // from the page's live region. The button itself only changes colour.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -189,13 +189,13 @@ test("a quick retry that fails again is said", async () => {
     let press = click(button);
     read();
     await press;
-    await until(() => region()?.textContent === "Max all: failed", "the first failure to be said");
+    await until(() => region()?.textContent === "Max all: The game is busy", "the first failure to be said");
     announce("");
     press = click(button);
     await turn(); // the announcement looked at the status before the read was answered
     read();
     await press;
-    await until(() => region().textContent === "Max all: failed", "the retry's failure to be said");
+    await until(() => region().textContent === "Max all: The game is busy", "the retry's failure to be said");
 });
 
 // Give everyone, Bribes, Weekly Bosses: a press within 1.2 s of a done that reads the game and finds nothing to do
@@ -277,7 +277,7 @@ test("a failure is said though its colour cleared before the next look", async (
     announce("");
     const region = () => elements(globalThis.document.body).find((node) => node.attributes.role === "status");
     await click(button);
-    await until(() => region().textContent === "Max all: failed", "the failure to be said");
+    await until(() => region().textContent === "Max all: The game is busy", "the failure to be said");
 });
 
 // CodeRabbit on #149 (Sushi Station): a newer save that failed first kept its error only until the older save, now
@@ -319,7 +319,7 @@ test("a run whose onSuccess throws is said as failed, not done", async () => {
     const region = () => elements(globalThis.document.body).find((node) => node.attributes.role === "status");
     await click(button);
     await until(() => region().textContent !== "", "the press to be said");
-    assert.equal(region().textContent, "Max all: failed");
+    assert.equal(region().textContent, "Max all: the page couldn't show it");
     assert.deepEqual(
         write.status.ended.slice(-1).map((run) => run.outcome),
         ["error"]

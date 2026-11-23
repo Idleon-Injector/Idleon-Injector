@@ -87,6 +87,8 @@ const PlotsPart = () => {
                 const values = await Promise.all(PLOT_FIELDS.map((field) => gga(at(plot, field))));
                 return Object.fromEntries(PLOT_FIELDS.map((field, i) => [field.key, valueOf(field, values[i])]));
             },
+            // Set all sets every plot's rank (no max); its EXP stays each plot's own.
+            setAll: "rank",
         });
     };
 
@@ -427,7 +429,10 @@ const FarmingTab = () => {
                 wrap: true,
                 tabs: TABS.map((tab) => ({ id: tab.id, label: tab.label, content: parts.get(tab.id).content })),
                 // A tab whose numbers include one without a max has Set all.
-                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
+                setAll: {
+                    word: (n, tab) => (tab === "plots" ? `plot${n === 1 ? "" : "s"}` : n === 1 ? "line" : "lines"),
+                    placeholder: (tab) => (tab === "plots" ? "Rank" : "Value"),
+                },
             })
         ),
     });

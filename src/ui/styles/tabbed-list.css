@@ -386,6 +386,10 @@
     font-weight: 600;
     color: var(--c-text-main);
 }
+/* A tool that stopped says why on the same line, in the soft red, until its next try. */
+.tabbed-list__tools-label.is-failure {
+    color: var(--c-danger-soft-text);
+}
 .viewport .tabbed-list__tools .tabbed-list__answer .account-btn {
     padding: 0 16px;
     border-radius: 10px;

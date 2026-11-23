@@ -35,6 +35,28 @@ export const KNOWN_BREAKS = {
     "world-2/alchemy/2-cauldrons.js": [`Title: the page says "Liquid", its sidebar entry "Cauldrons"`],
     // #236: the characters' skins are native dropdowns.
     "world-2/weekly-bosses/weekly-bosses.js": ["Picks: a dropdown; pick in place (PickInPlace)"],
+    // #245: tables with a column without a max and no Set all yet.
+    "world-3/refinery/refinery.js": [
+        "Set all: Combustion: lines without a max but no Set all",
+        "Set all: Polymerization: lines without a max but no Set all",
+        "Set all: Synthesis: lines without a max but no Set all",
+    ],
+    "world-3/traps/traps.js": ["Set all: lines without a max but no Set all"],
+    "world-4/breeding/3-pets.js": [
+        "Set all: World 1: lines without a max but no Set all",
+        "Set all: World 2: lines without a max but no Set all",
+        "Set all: World 3: lines without a max but no Set all",
+        "Set all: World 4: lines without a max but no Set all",
+    ],
+    "world-4/cooking/1-tables.js": ["Set all: lines without a max but no Set all"],
+    "world-4/cooking/2-meals.js": ["Set all: lines without a max but no Set all"],
+    "world-5/gaming/gaming.js": ["Set all: Palette: lines without a max but no Set all"],
+    "world-5/hole/1-villagers.js": ["Set all: Villagers: lines without a max but no Set all"],
+    "world-5/sailing/sailing.js": [
+        "Set all: Boats: lines without a max but no Set all",
+        "Set all: Captains: lines without a max but no Set all",
+    ],
+    "world-6/sneaking/1-sneaking.js": ["Set all: Ninja Knowledge: lines without a max but no Set all"],
 };
 
 /** Pages of unrelated single numbers, which aren't a list (DESIGN.md's Set all), so they need no Set all. */
@@ -310,9 +332,26 @@ export async function bulkBreaks(node, writes) {
             while (scope.parentNode && !has(scope, "tabbed-list")) scope = scope.parentNode;
             return byClass(has(scope, "tabbed-list") ? scope : node, "account-setall-row").filter(shown);
         };
+        // A table's column (its fields under one column name, ValueTableRow's cells) is a list of lines too.
+        const columnsOf = (list) => {
+            const columns = new Map();
+            // An automation row's fields are its settings, not the game's values: its tray is Enable all | Disable all.
+            for (const row of rowsIn(list).filter(
+                (row) =>
+                    shown(row) &&
+                    !has(row, "automation-row") &&
+                    !has(row, "automation-pick") &&
+                    !has(row, "automation-setting")
+            ))
+                for (const field of byClass(row, "number-input-wrapper")) {
+                    const name = field.parentNode.childNodes.find((el) => has(el, "value-cell__label"));
+                    if (name) columns.set(words(name), [...(columns.get(words(name)) ?? []), { field }]);
+                }
+            return [...columns.values()];
+        };
         for (const list of lists) {
-            const lines = linesOf(list);
-            if (lines.length >= 2 && lines.some(({ field }) => !capped(field)) && !setAllsOf(list).length)
+            const open = (lines) => lines.length >= 2 && lines.some(({ field }) => !capped(field));
+            if ([linesOf(list), ...columnsOf(list)].some(open) && !setAllsOf(list).length)
                 breaks.push(`Set all: ${where}lines without a max but no Set all`);
         }
 
@@ -376,7 +415,8 @@ export async function bulkBreaks(node, writes) {
                     : (list ? rowsIn(list).filter(shown) : [])
                           .map((row) => ({ row, field: columnOf(row, column) }))
                           .filter(({ field }) => field);
-                const values = lines.map(({ field }) => number(inputOf(field).value ?? attr(inputOf(field), "value")));
+                const shows = ({ field }) => inputOf(field).value ?? attr(inputOf(field), "value");
+                const values = lines.map((line) => number(shows(line)));
                 const caps = lines
                     .filter(({ field }) => capped(field))
                     .map(({ field }) => number(words(byClass(field, "number-input__cap")[0].childNodes[0]).slice(1)));
@@ -401,10 +441,20 @@ export async function bulkBreaks(node, writes) {
                     if (!lower.asked) breaks.push(`Set all: ${where}lowers without asking in the tray`);
                     else if (lower.wrote) breaks.push(`Set all: ${where}wrote before the answer to lowering`);
                 }
-                // Above every value and max (a formatted value reads rounded), so nothing comes down.
-                const past = await tryWith(Math.ceil(Math.max(0, ...values, ...caps) * 1.1) + 1);
+                // Above every value and max (a formatted value reads rounded), so nothing comes down; in two figures, so
+                // a big number shown short ("1.4M") reads back as typed.
+                const above = Math.ceil(Math.max(0, ...values, ...caps) * 1.1) + 1;
+                const figure = 10 ** Math.max(0, Math.floor(Math.log10(above)) - 1);
+                const target = Math.ceil(above / figure) * figure;
+                // How many lines the tray's line says it acts on ("All 2 trash upgrades"), else every line.
+                const named = /^All (\d[\d,]*) /.exec(words(byClass(tray, "tabbed-list__tools-label")[0]));
+                const acts = named ? Number(named[1].replace(/,/g, "")) : lines.length;
+                const past = await tryWith(target);
                 if (!caps.length) {
                     if (past.asked) breaks.push(`Set all: ${where}asks when nothing goes past a max or down`);
+                    // A raise that asks nothing writes the number, and every line it acts on shows it after.
+                    else if (!past.wrote || lines.filter((line) => number(shows(line)) === target).length !== acts)
+                        breaks.push(`Set all: ${where}a raise that asks nothing doesn't set every line to it`);
                 } else if (!past.asked || !["Stop at max", "Go past"].every((a) => past.answers.includes(a)))
                     breaks.push(`Set all: ${where}goes past a max without asking "Stop at max" or "Go past"`);
                 else if (past.wrote) breaks.push(`Set all: ${where}wrote before the answer to going past a max`);

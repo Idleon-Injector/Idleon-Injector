@@ -210,6 +210,27 @@ test("Plots: saving a plot's rank keeps the rank EXP it earned in game since", a
     assert.equal(gga.FarmRank[1][1], exp);
 });
 
+test("Plots: Set all gives every plot the rank, and leaves each plot's rank EXP as it is (#241)", async () => {
+    const saved = gga.FarmRank.slice(0, 2).map((column) => [...column]);
+    try {
+        const { root } = await openPane(FARMING, "Plots");
+        const tray = byClass(root, "tabbed-list__tools")[0];
+        const setAll = byClass(tray, "account-setall-row")[0];
+        const field = byTag(setAll, "input")[0];
+        assert.equal(attr(field, "placeholder"), "Rank", "the field names the column it sets");
+        assert.equal(trayLine(root), "All 36 plots");
+        const exp = [...gga.FarmRank[1]];
+        const top = Math.max(...gga.FarmRank[0].slice(0, 36)) + 5;
+        type(field, top);
+        click(buttonNamed(setAll, "Set all"));
+        await until(() => gga.FarmRank[0].slice(0, 36).every((rank) => rank === top), "every plot's rank");
+        assert.deepEqual(gga.FarmRank[1], exp, "rank EXP untouched");
+        await until(() => shown(rowNamed(root, "Plot 36")) === String(top), "the plots to show it");
+    } finally {
+        saved.forEach((column, i) => (gga.FarmRank[i] = column));
+    }
+});
+
 test("Crop Depot: crops sit under their seed's group, and an amount saves to the depot", async () => {
     const { pane } = await openPane(FARMING, "Crop Depot");
     assert.deepEqual(

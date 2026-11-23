@@ -271,12 +271,24 @@ const PostOfficeTab = () => {
                 ],
                 tools,
                 // Set all acts on every line, the points too, so the tray counts lines. The boxes are the character
-                // in play's own: a Refresh that read another one while it asks makes it ask again.
+                // in play's own: a Refresh that read another one while it asks makes it ask again. Points and boxes
+                // go in one write for that character, so a game that switched refuses all of it, not just the boxes.
                 setAll: {
                     word: (n) => (n === 1 ? "line" : "lines"),
                     placeholder: "Value",
                     bulk,
                     askedFor: () => character,
+                    write: (plan) =>
+                        runBulkSet({
+                            character: getCharacter(),
+                            shownCharacter: () => character,
+                            entries: plan,
+                            getTargetValue: (step) => step.value,
+                            getValueState: (step) => step.line.valueState,
+                            getPath: ({ line }) =>
+                                line.path ??
+                                `PostOfficeInfo[3][${boxStates.find((box) => box.row === line.row).index}][0]`,
+                        }),
                 },
             })
         ),
