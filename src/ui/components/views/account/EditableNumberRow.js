@@ -38,7 +38,8 @@ const linesMade = van.state(0);
 
 /**
  * Make `row` a line its list's Set all acts on: `{ row, valueState, cap(), min(), path(), write, unset, disabled(),
- * refuse? }` (see `setAll` above; a table's line registers the one column Set all sets, ValueTableRow's `setAll`).
+ * refuse? }` (see `setAll` above; a table's line registers the one column Set all sets, ValueTableRow's `setAll`, and
+ * names it in `column`). A getter is read when Set all takes its lines, so a column picked later doesn't change them.
  */
 export const registerSetAllLine = (row, line) => {
     linesMade.val++;

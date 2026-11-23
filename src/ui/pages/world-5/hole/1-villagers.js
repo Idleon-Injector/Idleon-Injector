@@ -68,6 +68,8 @@ const TABS = [
                     key: `villager-${v}`,
                     head: "Villager",
                     name,
+                    // Set all sets each villager's level; its EXP and opals stay its own.
+                    setAll: "level",
                     fields: [
                         { key: "level", label: "Level", group: 1 },
                         { key: "exp", label: "EXP", group: 2, formatted: true, quiet: true },
@@ -308,7 +310,12 @@ const VillagersTab = () => {
                     const n = shown().length;
                     return isSearching() ? `${n} matching ${words(n)}` : `All ${n} ${words(n)}`;
                 },
-                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value", bulk },
+                setAll: {
+                    word: (n, tab) =>
+                        tab === "villagers" ? `villager${n === 1 ? "" : "s"}` : n === 1 ? "line" : "lines",
+                    placeholder: (tab) => (tab === "villagers" ? "Level" : "Value"),
+                    bulk,
+                },
             })
         ),
     });

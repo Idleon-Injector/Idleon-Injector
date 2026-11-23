@@ -258,6 +258,12 @@
     color: var(--c-text-muted);
 }
 
+/* Set all's pick of a table's columns (Speed | Fire | Luck): each step as wide as its name ("Loot Value"). */
+.tabbed-list__column-pick .step-picker__step {
+    flex: none;
+    padding: 0 12px;
+}
+
 /* A joined tool can start with a quiet word saying what it sets ("Tier for all"). */
 .tabbed-list__tool-label {
     padding: 0 12px;

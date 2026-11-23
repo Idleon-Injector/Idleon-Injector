@@ -25,6 +25,8 @@ const FIELDS = [
     { key: "fire", label: "Fire", index: 7 },
     { key: "luck", label: "Luck", index: 8 },
 ];
+// The columns Set all can set, picked in the tray.
+const COLUMNS = FIELDS.map((field) => ({ value: field.key, label: field.label }));
 
 // A kitchen's three levels as the game holds them.
 const kitchenValues = (raw) => {
@@ -35,6 +37,7 @@ const kitchenValues = (raw) => {
 const TablesTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Cooking tables" });
     const states = [];
+    const column = van.state(FIELDS[0].key);
     const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
@@ -57,6 +60,7 @@ const TablesTab = () => {
                             paths: [`Cooking[${k}][${field.index}]`],
                         })),
                         read: async () => kitchenValues(await gga(`Cooking[${k}]`)),
+                        setAll: column,
                     });
                 })
             );
@@ -79,6 +83,7 @@ const TablesTab = () => {
             { class: "account-list account-list--tabbed" },
             ListPanel({
                 body: [ValueTableHead({ name: "Kitchen", columns: FIELDS.map((field) => field.label) }), listNode],
+                setAll: { word: (n) => `kitchen${n === 1 ? "" : "s"}`, columns: COLUMNS, column },
             })
         ),
     });
