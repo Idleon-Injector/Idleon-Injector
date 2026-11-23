@@ -9,6 +9,8 @@ import {
     LIMITS,
     MARKER,
     hookChanges,
+    layoutGate,
+    layoutOf,
     pageIds,
     parseNameStatus,
     post,
@@ -118,8 +120,7 @@ test("every page and hook in the repo is seen", () => {
 });
 
 test("the summary from a fixture diff", () => {
-    const { data, areas } = fixtureSummary();
-    assert.deepEqual(areas, ["world-1"]);
+    const { data } = fixtureSummary();
     assert.deepEqual(data, {
         pr: 41,
         headSha: SHA,
@@ -149,6 +150,7 @@ test("the summary from a fixture diff", () => {
                 "`w4.labpx, w2.sigilspeed` on `_customBlock_Labb` (new), `w1.forge` on `_customBlock_ForgeStats` " +
                 "(removed), `w3.saltlick` on `2` (new).",
             "- Game names it newly uses: `gga:GemsOwned`, `method:_customBlock_Labb`.",
+            "- Layout of the touched pages: not measured, see the run.",
             "- Screenshots of the touched pages: [page-shots](https://x/shots) (a zip; GitHub asks you to sign in).",
             "",
             "For commit aaaaaaa, from [this run](https://github.com/o/r/actions/runs/77).",
@@ -167,8 +169,48 @@ test("the summary from a fixture diff", () => {
 test("stage 2 accepts a good artifact and keeps only the known fields", () => {
     const { data } = fixtureSummary();
     const extra = { ...data, note: "<img src=x>", hooks: data.hooks.map((h) => ({ ...h, why: "x" })) };
-    assert.deepEqual(validateSummary(JSON.stringify(extra), RUN), data);
-    assert.deepEqual(validateSummary(JSON.stringify(data), { ...RUN, pull_requests: [{ number: 41 }] }), data);
+    assert.deepEqual(validateSummary(JSON.stringify(extra), RUN), { ...data, layout: null });
+    assert.deepEqual(validateSummary(JSON.stringify(data), { ...RUN, pull_requests: [{ number: 41 }] }), {
+        ...data,
+        layout: null,
+    });
+});
+
+test("the touched pages' layout breaks are named in the comment, inside code spans", () => {
+    const report = {
+        shots: [
+            {
+                name: "1440/world-6/emperor",
+                layout: [
+                    `the fields don't line up: "Emperor tries" starts at 857px, 2 of 3 rows at 773px (at rest)`,
+                    `the fields don't line up: "Emperor tries" starts at 857px, 2 of 3 rows at 773px (controls showing)`,
+                ],
+                overflow: null,
+            },
+            {
+                name: "400/world-6/emperor",
+                layout: [],
+                overflow: { viewport: 400, boxes: [{ box: "the page", by: 8 }] },
+            },
+            { name: "1440/world-6/beanstalk", layout: [], overflow: null },
+        ],
+    };
+    const layout = layoutOf(report);
+    assert.deepEqual(layout, [
+        `1440/world-6/emperor: the fields don't line up: "Emperor tries" starts at 857px, 2 of 3 rows at 773px`,
+        "400/world-6/emperor: the page is 8px too wide for the window",
+    ]);
+    const { data } = fixtureSummary();
+    // A row's name is the page's text: a backtick in it can't end the code span.
+    const shown = validateSummary(JSON.stringify({ ...data, layout: [...layout, "x: `[click](https://evil)`"] }), RUN);
+    const body = renderComment({ data: shown, rules: { kind: "a page", problems: [] }, check: "success", runUrl: "u" });
+    assert.match(
+        body,
+        /- Layout of the touched pages: 3 breaks of the page standards:\n {2}- `1440\/world-6\/emperor: /
+    );
+    assert.match(body, /\n {2}- `x: '\[click\]\(https:\/\/evil\)'`\n/);
+    const fine = renderComment({ data: { ...data, layout: [] }, rules: { kind: "a page", problems: [] }, runUrl: "u" });
+    assert.match(fine, /- Layout of the touched pages: follows the page standards\./);
 });
 
 test("stage 2 refuses a wrong, oversized or malformed artifact", () => {
@@ -193,6 +235,10 @@ test("stage 2 refuses a wrong, oversized or malformed artifact", () => {
     refused({ ...data, hooks: [null] });
     refused({ ...data, names: ["gga:Cards0\n- injected"] });
     refused({ ...data, names: Array.from({ length: LIMITS.names + 1 }, (_, i) => `gga:N${i}`) });
+    refused({ ...data, layout: ["a break\n- injected"] });
+    refused({ ...data, layout: ["x".repeat(LIMITS.line + 1)] });
+    refused({ ...data, layout: Array.from({ length: LIMITS.layout + 1 }, (_, i) => `break ${i}`) });
+    refused({ ...data, layout: "a break" });
 });
 
 // A fake GitHub for post(): the PR, its files, the run's jobs and artifacts, and the comments it writes.
@@ -269,4 +315,17 @@ test("stage 2 doesn't post for a PR that isn't the run's, or a missing or huge a
     }
     await assert.rejects(run(artifactDir(), fakeGithub({ pr: PR })), /summary\.json is missing/);
     await assert.rejects(run(artifactDir("x".repeat(LIMITS.bytes + 1)), fakeGithub({ pr: PR })), /over/);
+});
+
+test("the layout gate fails on a break, and when touched pages went unmeasured", () => {
+    assert.equal(layoutGate({ pages: [], layout: null }).pass, true);
+    assert.equal(layoutGate({ pages: ["w1.anvil"], layout: [] }).pass, true);
+    const broken = layoutGate({ pages: ["w1.anvil"], layout: [`1440/world-1/anvil: the fields don't line up`] });
+    assert.equal(broken.pass, false);
+    assert.match(broken.message, /1440\/world-1\/anvil: the fields don't line up/);
+    assert.deepEqual(layoutGate({ pages: ["w1.anvil"], layout: null }), {
+        pass: false,
+        message: "The touched pages' layout wasn't measured: the page shots didn't finish.",
+    });
+    assert.equal(layoutGate({ pages: ["w1.anvil"] }).pass, false);
 });

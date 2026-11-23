@@ -1,10 +1,12 @@
 /**
  * Screenshot every page of the WebUI against the fake game, at desktop and overlay width, and flag the ones
- * that need a look: errors, anything too wide for the window, and changes since the baseline.
+ * that need a look: errors, anything too wide for the window, a break of the layout rules in DESIGN.md's Page
+ * standards (layout.mjs, measured at rest and with every row's controls showing), and changes since the baseline.
  *
  *   npm run page-shots                      run, compare with the baseline, print the flagged shots
  *   npm run page-shots -- --update-baseline  then make this run the new baseline (after the release check)
  *   npm run page-shots -- --only world-1     only the areas whose name contains "world-1"
+ *   npm run page-shots -- --pages w1.anvil,w5.gaming   only these pages (a PR's summary shoots the pages it touches)
  *
  * Screenshots go to .scratch/page-shots/current (with report.json and, for changed shots, a diff image);
  * the baseline is .scratch/page-shots/baseline. Both stay outside git. Needs Chrome, Edge or Chromium
@@ -21,6 +23,7 @@ import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { startFakeApi } from "./fake-api.mjs";
 import { DIFF_THRESHOLD, flagsFor, summarize } from "./report.mjs";
+import { collectLayout, layoutBreaks } from "./layout.mjs";
 
 const require = createRequire(import.meta.url);
 const CDP = require("chrome-remote-interface");
@@ -50,6 +53,7 @@ const { values: args } = parseArgs({
         baseline: { type: "string", default: join(root, ".scratch/page-shots/baseline") },
         "update-baseline": { type: "boolean", default: false },
         only: { type: "string" },
+        pages: { type: "string" },
         threshold: { type: "string", default: String(DIFF_THRESHOLD) },
     },
 });
@@ -208,6 +212,16 @@ const slug = (text) =>
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "") || "tab";
 
+// The shots a --pages run takes: each picked page's shot and its tabs' ("world-1/anvil", "world-5/gaming/garden").
+// Filled while the pages are listed; null for a run without --pages.
+let pickedShots = null;
+const isPickedShot = (name) => {
+    const rest = name.slice(name.indexOf("/") + 1);
+    return pickedShots.some(
+        (p) => rest === p || rest.startsWith(`${p}/`) || (rest.startsWith(p) && /^-\d+$/.test(rest.slice(p.length)))
+    );
+};
+
 async function listPngs(dir) {
     const entries = await readdir(dir, { recursive: true }).catch(() => []);
     return entries
@@ -215,15 +229,22 @@ async function listPngs(dir) {
         .filter(
             (f) => f.endsWith(".png") && !f.startsWith("diff/") && (!args.only || f.split("/")[1].includes(args.only))
         )
-        .map((f) => f.slice(0, -4));
+        .map((f) => f.slice(0, -4))
+        .filter((name) => !pickedShots || isPickedShot(name));
 }
 
 async function main() {
     if (args.only && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --only.");
+    if (args.pages && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --pages.");
     const threshold = Number(args.threshold);
+    const picked = args.pages ? new Set(args.pages.split(",").map((id) => id.trim())) : null;
     if (!(threshold >= 0 && threshold < 1)) throw new Error("--threshold is a share of pixels, like 0.001.");
     const api = await startFakeApi();
-    const { client, close } = await launchBrowser();
+    // ponytail: one retry; a CI runner's Chrome once missed the port wait and failed the layout gate (#235).
+    const { client, close } = await launchBrowser().catch((error) => {
+        console.warn(`${error.message.replace(/\.$/, "")}. Trying once more.`);
+        return launchBrowser();
+    });
     const { Page, Runtime, Network, Emulation, Log } = client;
     const shots = [];
     try {
@@ -309,6 +330,14 @@ async function main() {
                     ),
                 })))`
             );
+            if (picked) {
+                const known = new Set(worlds.flatMap((w) => w.pages.map((p) => p.id)));
+                const unknown = [...picked].filter((id) => !known.has(id));
+                if (unknown.length) throw new Error(`--pages: no page has the id ${unknown.join(", ")}.`);
+                pickedShots = worlds.flatMap((w) =>
+                    w.pages.filter((p) => picked.has(p.id)).map((p) => [w.name, ...p.path.map(slug)].join("/"))
+                );
+            }
             const areas = [
                 { name: "home", open: { view: "HOME" } },
                 { name: "cheats", open: { view: "CHEATS" } },
@@ -317,13 +346,29 @@ async function main() {
                 { name: "devtools", open: { view: "DEVTOOLS" } },
                 { name: "account-options", open: { view: "ACCOUNT_OPTIONS" } },
                 ...worlds,
-            ].filter((area) => !args.only || area.name.includes(args.only));
+            ]
+                .filter((area) => !args.only || area.name.includes(args.only))
+                .map((area) => (picked ? { ...area, pages: (area.pages ?? []).filter((p) => picked.has(p.id)) } : area))
+                .filter((area) => !picked || area.pages.length);
+            if (picked) {
+                const kept = new Set(areas.flatMap((area) => (area.pages ?? []).map((p) => p.id)));
+                const dropped = [...picked].filter((id) => !kept.has(id));
+                if (dropped.length) throw new Error(`--only=${args.only} leaves out --pages ${dropped.join(", ")}.`);
+            }
 
             const shoot = async (path) => {
                 let name = `${width}/${path.join("/")}`;
                 for (let n = 2; shots.some((s) => s.name === name); n++) name = `${width}/${path.join("/")}-${n}`;
                 await settle();
                 const overflow = await evaluate("__shots.overflow()");
+                // The layout rules, at rest and as on a touch screen, where every row shows its − / + and pickers.
+                const measure = () => evaluate(`(${collectLayout})(document)`);
+                const quiet = await measure();
+                await Emulation.setEmulatedMedia({ features: [{ name: "hover", value: "none" }] });
+                await evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+                const shown = await measure();
+                await Emulation.setEmulatedMedia({ features: [] });
+                const layout = layoutBreaks(quiet, shown);
                 await metrics(Math.min(MAX_HEIGHT, Math.max(height, await evaluate("__shots.height()"))));
                 await settle();
                 const { data } = await Page.captureScreenshot({ format: "png" });
@@ -331,7 +376,7 @@ async function main() {
                 const file = join(args.out, `${name}.png`);
                 await mkdir(dirname(file), { recursive: true });
                 await writeFile(file, data, "base64");
-                shots.push({ name, errors, overflow, diff: null, misses: Object.fromEntries(api.game.misses) });
+                shots.push({ name, errors, overflow, layout, diff: null, misses: Object.fromEntries(api.game.misses) });
                 errors = [];
                 api.game.misses.clear();
                 process.stdout.write(".");

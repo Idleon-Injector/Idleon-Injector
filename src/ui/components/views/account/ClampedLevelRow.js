@@ -56,12 +56,8 @@ export const ClampedLevelRow = ({
     ];
 
     const resolvedMaxAction =
-        maxAction === true
-            ? {
-                  value: resolveValue(max),
-                  tooltip: `Set to max level (${resolveValue(max)})`,
-              }
-            : maxAction;
+        // No hover popup explains a row's button (DESIGN.md).
+        maxAction === true ? { value: () => resolveValue(max) } : maxAction;
 
     // The value − last put in the field above the max: only that one saves above the max, once; a typed one is refused.
     let stepped = null;

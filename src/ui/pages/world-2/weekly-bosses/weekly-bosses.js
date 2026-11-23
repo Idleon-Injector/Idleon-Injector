@@ -588,9 +588,15 @@ const WeeklyBossTab = () => {
                         title: "Progress",
                         body: [
                             trophyRow,
+                            // A value line like Trophies, Max's room kept empty the same way, so its value ends in
+                            // the same column; on a phone it folds under the name like Trophies.
                             AccountRow({
+                                rowClass: "account-row--value",
                                 info: span({ class: "account-row__name" }, "Best stage this week"),
-                                controls: CappedValue({ value: () => best.val, cap: 5 }),
+                                controls: [
+                                    CappedValue({ value: () => best.val, cap: 5 }),
+                                    span({ class: "account-row__max-slot", "aria-hidden": "true" }),
+                                ],
                             }),
                         ],
                     }),

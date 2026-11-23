@@ -72,8 +72,8 @@ const AnvilRow = ({ category, valueState, getCharacter, onWriteApplied }) =>
             const next = Number.isFinite(base) ? base : Number(currentValue ?? 0);
             return clampCategoryValue(category, next + delta);
         },
-        maxAction: category.max !== null ? { value: category.max, tooltip: `Set to maximum (${category.max})` } : null,
-        resetAction: category.max === null ? { tooltip: `Reset ${category.label} to 0` } : null,
+        maxAction: category.max !== null ? { value: category.max } : null,
+        resetAction: category.max === null ? {} : null,
     });
 
 const AnvilTab = () => {
