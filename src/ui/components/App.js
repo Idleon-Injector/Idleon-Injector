@@ -18,6 +18,7 @@ import { DevTools } from "./views/DevTools.js";
 import { Search } from "./views/Search.js";
 import { History } from "./views/History.js";
 import { startChangeLog } from "../services/changeLog.js";
+import { startTourOnFirstOpen } from "../tour/Tour.js";
 
 const { div, main } = van.tags;
 
@@ -41,6 +42,8 @@ export const App = () => {
     store.loadCheats();
     // Pages that fail to load show in the sidebar's status line (#77).
     loadPages();
+    // The first-start tour, until the player finished or skipped it (#200).
+    startTourOnFirstOpen();
 
     // Field focus rings for the keyboard only (Lumi, 2026-11-22: nothing stays outlined after a click). A text field
     // matches :focus-visible on a click too, so Tab marks keyboard use and any mouse or touch press clears it.

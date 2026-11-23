@@ -9,6 +9,8 @@ const { span, button } = van.tags;
 export const SUCCESS_MS = 2400;
 /** How long Undo stays beside a saved field (longer while the pointer or focus is on it). */
 export const UNDO_MS = 10000;
+/** While `on` (the first-start tour), Undo stays beside a save until it's clicked or the field saves again. */
+export const holdUndo = { on: false };
 /** The row's confirm-in-place wash after an undo (Luminate's menu spec: 800 ms). */
 const WASH_MS = 800;
 
@@ -77,7 +79,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         offer.val = action;
         clearTimeout(clearTimer);
         clearTimeout(offerTimer);
-        if (!holds.pointer && !holds.focus) offerTimer = setTimeout(endOffer, UNDO_MS);
+        if (!holds.pointer && !holds.focus && !holdUndo.on) offerTimer = setTimeout(endOffer, UNDO_MS);
     };
 
     /**
@@ -236,7 +238,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
     const hold = (by, on) => {
         holds[by] = on;
         clearTimeout(offerTimer);
-        if (!holds.pointer && !holds.focus && offer.val) offerTimer = setTimeout(endOffer, UNDO_MS / 2);
+        if (!holds.pointer && !holds.focus && offer.val && !holdUndo.on) offerTimer = setTimeout(endOffer, UNDO_MS / 2);
     };
 
     // Escape: the draft is put back, so its failure goes, even while another write says saving…, and a commit

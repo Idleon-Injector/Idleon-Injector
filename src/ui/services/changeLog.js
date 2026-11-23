@@ -278,3 +278,58 @@ export const finishChange = async (change, values, landed = null) => {
 
 /** Places whose shown values an undo changed: their page re-reads the game (Pages and the area views listen). */
 export const reloadPlace = van.state(null);
+
+/*
+ * The first-start tour's practice saves (#200). They are logged as one action per save like a page's, so the row's
+ * ✓ and Undo (and a list's Undo all) work as they do everywhere, but they stay here in the menu: nothing reaches the
+ * game or the server's log. History lists them, marked as practice, until the tour ends.
+ */
+/** The practice actions, newest first, in History's shape ({ id, page, label, time, entries, practice }). */
+export const practiceActions = van.state([]);
+// Action id -> each entry's { read, write } on the practice page's values.
+const practiceValues = new Map();
+
+/**
+ * Log a practice save of `path` from `before` to `after` as the running action's. `value` reads and writes the
+ * practice value, for Undo. Call it while the save's code runs, before any await, as writeVerified's log does.
+ */
+export const logPractice = (path, before, after, value) => {
+    const action = actionForWrite();
+    action.landed++;
+    action.entries++;
+    const entry = { path, before, hasBefore: true, after, character: null, live: false, undone: false };
+    const known = practiceActions.val.find((item) => item.id === action.id);
+    const item = known
+        ? { ...known, entries: [...known.entries, entry] }
+        : { id: action.id, page: action.page, label: action.label, time: Date.now(), entries: [entry], practice: true };
+    practiceActions.val = [item, ...practiceActions.val.filter((other) => other !== known)];
+    practiceValues.set(action.id, [...(practiceValues.get(action.id) ?? []), value]);
+    if (action.kind !== "row" && !open.has(action)) lastBulkAction.val = { action };
+    changesVersion.val++;
+};
+
+/** Whether `id` is a practice action (its Undo stays in the menu). */
+export const isPracticeAction = (id) => practiceValues.has(id);
+
+/** Undo a practice action, as undoAction does a page's: refused when a value changed since. */
+export const undoPractice = (id) => {
+    const item = practiceActions.val.find((entry) => entry.id === id);
+    if (!item) throw new Error("no longer in History");
+    const values = practiceValues.get(id);
+    const todo = item.entries.map((entry, i) => ({ entry, value: values[i] })).filter(({ entry }) => !entry.undone);
+    if (!todo.length) throw new Error("already undone");
+    if (todo.some(({ entry, value }) => value.read() !== entry.after)) throw new Error("changed since");
+    // Newest first, so a value saved twice in one action ends on its first old value.
+    for (const { entry, value } of [...todo].reverse()) value.write(entry.before);
+    const done = { ...item, entries: item.entries.map((entry) => ({ ...entry, undone: true })), undoneAt: Date.now() };
+    practiceActions.val = practiceActions.val.map((entry) => (entry === item ? done : entry));
+    changesVersion.val++;
+    return done;
+};
+
+/** The tour ended: its practice saves leave History. */
+export const clearPractice = () => {
+    practiceActions.val = [];
+    practiceValues.clear();
+    changesVersion.val++;
+};

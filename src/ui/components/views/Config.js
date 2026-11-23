@@ -12,6 +12,7 @@ import { SearchBar } from "../SearchBar.js";
 import { Icons } from "../../assets/icons.js";
 import { withTooltip } from "../Tooltip.js";
 import { Said, replay, useSaid } from "../inPlace.js";
+import { tourRunning } from "../../tour/practice.js";
 
 const { div, button, h3, p, select, option, label, span } = van.tags;
 
@@ -374,6 +375,27 @@ export const Config = () => {
 
     return div(
         { id: "config-tab", class: "tab-pane config-layout" },
+
+        // The first-start tour, run again (#200): a settings row above the settings, so it's there even when they
+        // don't load; not in the Cheats page's drawer.
+        div(
+            { class: "config-item tour-again", hidden: () => store.app.activeTab !== VIEWS.CONFIG.id },
+            div({ class: "config-item-header" }, label({ for: "tour-again-start" }, "Show the tour again")),
+            div(
+                { class: "config-item-control" },
+                button(
+                    {
+                        id: "tour-again-start",
+                        type: "button",
+                        class: "btn-quiet btn-sm",
+                        disabled: () => tourRunning.val,
+                        // Loaded when pressed: the tour reaches into the whole menu (the app has it loaded already).
+                        onclick: () => import("../../tour/Tour.js").then(({ startTour }) => startTour({ again: true })),
+                    },
+                    "Start"
+                )
+            )
+        ),
 
         () => {
             if (store.app.configError && !draftReady.val) {

@@ -439,3 +439,29 @@ World 6 uses the World 5 pieces and the Page standards; a few grew, and are now 
 - **Names keep the game's short words:** a tier's Roman numeral (Sproutluck III), GMO and OG.
 - **World 6's five systems have their drawings** (Lumi: "put all five in"): a sprout for Farming, a ninja's hooded
   head for Sneaking, a slime familiar for Summoning, the beanstalk, and the Emperor's crown.
+
+### First-start tour (decided with Lumi, 2026-11-22 and 2026-11-23, #200)
+
+The player learns the menu by doing it, like Wispr Flow's first start: little text, every step a real action.
+
+- **It starts by itself** the first time the menu opens. Skip sits on every line, and Skip or Escape ends it at once,
+  with no "are you sure". Settings has one row, "Show the tour again"; the tour doesn't walk there.
+- **Steps:** "Press Ctrl K. Type practice." → "Type stone. Only this page's rows stay." → "Make it 10. Press Enter." →
+  "Changed your mind? Undo." → (Set all, once the shared Set all lands) → "Every change lands in History." → "Now find
+  something real." The player opens any real page (by search, the sidebar or Home); the tour ends there and "You're
+  set." shows once under that page's title, then fades. A config pick joins with #198.
+- **One short line by the thing it points at,** with a notch toward it, on the menu's raised surface (the bar's
+  buttons' body and edge). The tour waits for the player to do it and moves on by itself; there is no Next button.
+  Keys show as the top bar's own key look; the word to type or press is bold.
+- **A line covers only empty room** (Lumi's review, 2026-11-23): beside the page when the window has the room, else it
+  makes room for itself in the page, under its target (the search bar, a row, a sidebar entry, a title), and what is
+  under it moves down while it shows. While the search's results are open it keeps its room, hidden.
+- **Small dots,** one per step: the step now in lavender, the ones done in a faint lavender.
+- **A quiet finish:** the real ✓ on each save, and "You're set." at the end. No confetti, no popups.
+- **Everything is practised on the Practice page,** which is in the menu only while the tour runs: the real page
+  layout and rows, a write that stays in the menu. History lists its saves as "Practice only" until the tour ends;
+  nothing reaches the game, so the tour works with the game closed. Undo stays beside a save until it's clicked
+  while the tour runs.
+- **In the narrow overlay** the History line points at the icon rail. Lines wrap inside the width.
+- **Motion:** a line rises in once (280 ms, the soft ease) and the last one fades; off for players who ask for less
+  motion.

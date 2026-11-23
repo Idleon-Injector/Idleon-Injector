@@ -28,9 +28,9 @@ export const worldNow = (tree) => tree.find((world) => world.id === store.app.me
 const pagesOf = (world) => world.systems.flatMap((system) => system.pages);
 export const pageNow = (world) => pagesOf(world).find((page) => page.id === store.app.menuPage) || pagesOf(world)[0];
 
-const WorldFrame = (tree) => {
-    const allPages = tree.flatMap(pagesOf);
-    const activePage = van.derive(() => (pageNow(worldNow(tree)) || { id: "" }).id);
+const WorldFrame = () => {
+    const tree = () => menuTree.val;
+    const activePage = van.derive(() => (pageNow(worldNow(tree())) || { id: "" }).id);
     // Each time a page is shown (picked, or the Pages view shown again) or left, the pages that asked are told.
     let onScreen = null;
     van.derive(() => {
@@ -42,26 +42,40 @@ const WorldFrame = (tree) => {
 
     // No tab rows: a world's systems and a system's pages are its list in the sidebar (MenuLevels.js); this view is
     // only the page.
-    return div(
-        { class: () => `world-tab menu-world ${worldClass(worldNow(tree))}` },
-        () => {
-            const world = worldNow(tree);
-            return world.systems.length ? span({ hidden: true }) : NoPages(world);
-        },
-        div(
-            { class: "world-sub-content", hidden: () => !worldNow(tree).systems.length },
+    const content = div({ class: "world-sub-content", hidden: () => !worldNow(tree()).systems.length });
+    // Every page gets its pane, also one the menu gains later (the first-start tour's Practice); a pane stays once made.
+    const made = new Set();
+    van.derive(() => {
+        const fresh = tree()
+            .flatMap(pagesOf)
+            .filter((page) => !made.has(page.id));
+        fresh.forEach((page) => made.add(page.id));
+        if (!fresh.length) return;
+        van.add(
+            content,
             ...renderLazyPanes({
-                tabs: allPages,
+                tabs: fresh,
                 activeId: activePage,
                 paneClass: "world-sub-pane",
                 dataAttr: "data-page",
                 renderContent: (page) => page.component(),
             })
-        )
+        );
+    });
+    return div(
+        { class: () => `world-tab menu-world ${worldClass(worldNow(tree()))}` },
+        () => {
+            const world = worldNow(tree());
+            return world.systems.length ? span({ hidden: true }) : NoPages(world);
+        },
+        content
     );
 };
 
-export const Pages = () =>
-    div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
-        menuTree.val ? WorldFrame(menuTree.val) : div({ class: "account-loader" }, Loader({ text: "Loading pages" }))
+export const Pages = () => {
+    // The frame is made once the pages loaded; after that it follows the menu as it changes.
+    const loaded = van.derive(() => Boolean(menuTree.val));
+    return div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
+        loaded.val ? WorldFrame() : div({ class: "account-loader" }, Loader({ text: "Loading pages" }))
     );
+};

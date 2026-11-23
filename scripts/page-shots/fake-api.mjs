@@ -3,6 +3,7 @@
  * Routes that reach outside the process (update check and apply, open a URL, save config.custom.js) answer
  * without doing it.
  */
+import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -14,8 +15,12 @@ const { setupApiRoutes } = require("../../src/modules/server/apiRoutes");
 const { version } = require("../../package.json");
 const { deepClone } = require("../../src/modules/utils/objectUtils.js");
 
-/** Build the router with every API route on the fake game; `game.misses` lists reads the fixture lacked. */
-export async function createFakeApi(fixture) {
+/**
+ * Build the router with every API route on the fake game; `game.misses` lists reads the fixture lacked.
+ * The first-start tour counts as done, so it stays out of the pages' shots; `tourFile` names a file of its own
+ * (missing: the tour starts) to try the tour.
+ */
+export async function createFakeApi(fixture, { tourFile = null } = {}) {
     const game = await createFakeGame(fixture);
     const config = require("../../config.js");
     const client = {
@@ -33,6 +38,7 @@ export async function createFakeApi(fixture) {
         cdpPort: 0,
         // Not the repo's folder; nothing is written there unless the fake game cloud-saves.
         saveCopiesDir: path.join(os.tmpdir(), `idleon-fake-save-copies-${process.pid}`),
+        tourFile: tourFile ?? doneTour(),
     });
     // Later registrations replace earlier ones (TinyRouter keeps one handler per path).
     router.get("/api/update/check", (req, res) =>
@@ -56,6 +62,13 @@ export async function createFakeApi(fixture) {
     return { router, game };
 }
 
+// A tour file that says the tour was done, in the temp folder.
+const doneTour = () => {
+    const file = path.join(os.tmpdir(), `idleon-fake-tour-${process.pid}.json`);
+    writeFileSync(file, JSON.stringify({ done: true }));
+    return file;
+};
+
 const sessionUpdates = new WeakMap();
 /**
  * What the server's save does after writing the file: take `body` into the session and send it to the game. Answers as
@@ -74,8 +87,8 @@ export async function saveToSession(router, body) {
 }
 
 /** Serve the WebUI on the fake API (port 0 picks a free one). */
-export async function startFakeApi({ port = 0, fixture } = {}) {
-    const { router, game } = await createFakeApi(fixture);
+export async function startFakeApi({ port = 0, fixture, tourFile = null } = {}) {
+    const { router, game } = await createFakeApi(fixture, { tourFile });
     const server = await startServer(router, port, { runtime: game.runtime, context: "ctx" });
     return { url: `http://localhost:${server.address().port}/`, server, game };
 }

@@ -41,6 +41,7 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Automation          | Work that repeats while its toggle is on (`defineAutomation`). Account › Automation lists buyers.    |
 | Stop-at             | The level, or for a shop item the chest count, at which an automation stops buying an item.          |
 | Priority            | High, Low or Balanced: saving for the cheapest High or Low item, Balanced may spend its saving %.    |
+| Practice page       | The first-start tour's page: the real rows with a write that stays in the menu, never in the game.   |
 
 Source entry points: [game globals](../src/cheats/core/globals.js),
 [command registration](../src/cheats/core/registration.js),

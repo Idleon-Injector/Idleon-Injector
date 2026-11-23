@@ -8,7 +8,7 @@ import store from "../../state/store.js";
 import { VIEWS } from "../../state/constants.js";
 import { Icons } from "../../assets/icons.js";
 import { fetchChanges } from "../../services/api.js";
-import { changesVersion } from "../../services/changeLog.js";
+import { changesVersion, practiceActions } from "../../services/changeLog.js";
 import { AccountTabHeader } from "./account/components/AccountTabHeader.js";
 import { EmptyState } from "../EmptyState.js";
 import { undoAction } from "./account/undo.js";
@@ -77,6 +77,7 @@ const Group = (data) => {
             class: () =>
                 [
                     "change-group",
+                    data.val.practice ? "is-practice" : "",
                     left().length ? "" : "is-all-undone",
                     washed.val ? "is-undone" : "",
                     state.val === "refused" ? "is-refused" : "",
@@ -91,7 +92,10 @@ const Group = (data) => {
                 const count = data.val.entries.length;
                 return `${count} ${count === 1 ? "value" : "values"}`;
             }),
-            span({ class: "change-group__who" }, () => (characters().length === 1 ? characters()[0] : "")),
+            span({ class: "change-group__who" }, () =>
+                // The tour's practice saves say so where a save names its character.
+                data.val.practice ? "Practice only" : characters().length === 1 ? characters()[0] : ""
+            ),
             span(
                 { class: "change-group__undo" },
                 span({ class: "change-group__reason", role: "status" }, () =>
@@ -181,7 +185,8 @@ export const History = () => {
         try {
             const { actions } = await fetchChanges();
             if (ticket !== newest) return;
-            sync(actions);
+            // The tour's practice saves (kept in the menu) sit among the real ones by time.
+            sync([...practiceActions.val, ...actions].sort((a, b) => b.time - a.time));
             failed.val = "";
         } catch (error) {
             if (ticket === newest) failed.val = error?.message || "The change log couldn't be read.";

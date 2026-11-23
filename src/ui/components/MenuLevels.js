@@ -40,8 +40,8 @@ export const placeKey = van.derive(placeLevel);
 // Every openMenu reaches here (menuOpens), so after Back a pick of the same world still shows its list again.
 van.derive(() => (menuLevel.val = placeLevel()));
 
-/** The code and label a level is listed under at the top (W1 / World 1, ADV / Advanced). */
-export const levelHead = (key) => areaOf(key) || WORLDS.find((world) => world.id === key);
+/** The code and label a level is listed under at the top (W1 / World 1, ADV / Advanced, or the tour's Practice). */
+export const levelHead = (key) => areaOf(key) || WORLDS.find((world) => world.id === key) || worldOf(key);
 
 // The section in view: set by a jump, then kept by scrolling. "" means the page's first section.
 const sectionNow = van.state("");
