@@ -1,5 +1,5 @@
 /**
- * World 6 › Summoning › Automation: which summoning board upgrades the summoning automation buys. Each essence colour
+ * Automation › Summoning: which summoning board upgrades the summoning automation buys. Each essence colour
  * has its own group in the list: what it owns and what it is doing while the automation runs, its saving %, and its
  * upgrades, each with a stop-at level, "Save for it" and a switch.
  *
@@ -134,6 +134,8 @@ const SummoningAutomationTab = () => {
     tab.load();
 
     return AutomationPage({
+        title: "Summoning",
+        page: "automation.summoning",
         description: "Buys switched-on upgrades with essence, each colour on its own. Pauses while the board is open.",
         columns: COLUMNS,
         bulk,
@@ -170,10 +172,9 @@ const SummoningAutomationTab = () => {
 };
 
 export default definePage({
-    id: "w6.summoning.automation",
-    world: 6,
+    id: "automation.summoning",
+    world: "automation",
     system: "Summoning",
-    tab: "Automation",
     description: "Summoning upgrades bought with essence by the summoning automation, each colour on its own.",
     keywords: ["Autobuy", "Auto buy", "Summoning Upgrades", "Familiar", "Stop at", "Save for it", "Priority"],
     component: SummoningAutomationTab,

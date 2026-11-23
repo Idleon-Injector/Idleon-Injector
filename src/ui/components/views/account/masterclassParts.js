@@ -231,9 +231,10 @@ export const UpgradesPart = ({
 /**
  * A masterclass page: one sidebar entry, the game's screens as `tabs` ({ id, label, part }), each part built with
  * `{ pending, reload, bulk }`. One read of the game fills every tab. A tab with a line without a max has Set all in
- * its tray; it shares `bulk` with the tabs' own tools, so one bulk write runs at a time.
+ * its tray; it shares `bulk` with the tabs' own tools, so one bulk write runs at a time. `automation` links the page's
+ * automation beside the title ({ page }).
  */
-export const MasterclassPage = ({ name, page, description, tabs, wrap = false }) => {
+export const MasterclassPage = ({ name, page, description, tabs, wrap = false, automation = null }) => {
     const parts = new Map();
     const activeId = van.state(tabs[0].id);
     const bulk = useWriteStatus();
@@ -251,6 +252,7 @@ export const MasterclassPage = ({ name, page, description, tabs, wrap = false })
         rootClass: "tab-container scroll-container",
         title: name,
         description,
+        automation,
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy() }),
         state: { loading, error },
         loadingText: `Reading the ${name}`,

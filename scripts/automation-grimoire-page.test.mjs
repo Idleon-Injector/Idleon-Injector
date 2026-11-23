@@ -12,7 +12,7 @@ const kit = await automationTabKit();
 const { text, byClass, sent, fileSent, status, until } = kit;
 const { readComputed } = await importRepo("src/ui/services/api.js");
 const game = await readComputed("automation", "grimoire");
-const page = (await importRepo("src/ui/pages/classes/grimoire/2-automation.js")).default.component();
+const page = (await importRepo("src/ui/pages/automation/grimoire/grimoire.js")).default.component();
 const row = (name) => kit.row(page, name);
 const pick = (id) =>
     row(

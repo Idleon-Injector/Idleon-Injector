@@ -1,5 +1,5 @@
 /**
- * Account › Automation › Shops: which town shop items the shop automation buys. Switched-on items are bought into
+ * Automation › Shops: which town shop items the shop automation buys. Switched-on items are bought into
  * the storage chest with chest coins whenever the shop has stock, cheapest first, until the chest holds the stop-at.
  *
  * Reads readComputed("automation", "shops") (every shop by world, with today's stock) and saves
@@ -139,6 +139,7 @@ const ShopsPage = () => {
 
     return AutomationPage({
         title: "Shops",
+        page: "automation.shops",
         description: "Buys switched-on items into the chest whenever the shop has them.",
         tabs: WORLDS.map(({ id, label }, i) => ({
             id,
@@ -158,10 +159,9 @@ const ShopsPage = () => {
 };
 
 export default definePage({
-    id: "account.automation.shops",
-    world: "account",
-    system: "Automation",
-    tab: "Shops",
+    id: "automation.shops",
+    world: "automation",
+    system: "Shops",
     description: "Town shop items bought into the chest with chest coins, by world, each up to its stop-at.",
     keywords: ["Autobuy", "Auto buy", "Vendor", "Town shop", "Stop at", "Automation"],
     component: ShopsPage,

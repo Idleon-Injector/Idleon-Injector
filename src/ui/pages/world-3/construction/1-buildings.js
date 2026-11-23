@@ -665,13 +665,17 @@ const CogsTab = () => {
             const raw = getNumberInputLiveRaw(value);
             return raw === undefined || raw === largeFormatter(value.val) ? value.val : raw;
         };
+        // Text typed while a save runs is a draft even when it reads as the field showed (the old stat typed back): it
+        // stays until it is saved or Escape puts back the game's.
+        let saving = 0;
+        let typedWhileSaving = false;
         // Each read shows what the game holds. Typed text stays, unless it is what the field showed or what the game
         // now holds: then it was no draft, and the field follows the game.
         van.derive(() => {
             const next = String(toNum(cogMapStats[index].val?.[key], 0));
             const raw = getNumberInputLiveRaw(value);
-            if (raw === undefined || raw === largeFormatter(value.rawVal) || raw === largeFormatter(next))
-                setNumberInputValue(value, next);
+            const shown = !typedWhileSaving && raw === largeFormatter(value.rawVal);
+            if (raw === undefined || shown || raw === largeFormatter(next)) setNumberInputValue(value, next);
             else value.val = next;
         });
         const save = useAutoSave({
@@ -680,13 +684,19 @@ const CogsTab = () => {
             prepare: (committed) => {
                 if (readOnly) return { unchanged: true };
                 const text = committed ?? String(typed()).trim();
+                if (text === String(typed()).trim()) typedWhileSaving = false;
                 if (text === "") throw new Error("enter a value");
                 const next = parseNumber(text);
                 if (next === null || !Number.isFinite(next)) throw new Error("not a number");
                 if (next === toNum(held(), 0)) return { unchanged: true };
                 return {
                     write: async () => {
-                        await writeVerified(path, next);
+                        saving++;
+                        try {
+                            await writeVerified(path, next);
+                        } finally {
+                            saving--;
+                        }
                         // In place: a new stats object would tell every field of the slot to follow it.
                         cogMapStats[index].rawVal[key] = next;
                         // Text typed or stepped to since stays, for its own save, even the old value typed back.
@@ -694,7 +704,10 @@ const CogsTab = () => {
                     },
                 };
             },
-            revert: () => setNumberInputValue(value, String(toNum(held(), 0))),
+            revert: () => {
+                typedWhileSaving = false;
+                setNumberInputValue(value, String(toNum(held(), 0)));
+            },
         });
         const step = (delta) => {
             if (readOnly) return;
@@ -710,6 +723,7 @@ const CogsTab = () => {
                 parser: largeParser,
                 "aria-label": label,
                 disabled: readOnly,
+                oninput: () => (typedWhileSaving ||= saving > 0),
                 onDecrement: () => step(-1),
                 onIncrement: () => step(1),
             }),
@@ -1079,7 +1093,8 @@ const WorkbenchTab = () => {
         );
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Workbench",
+        title: "Construction",
+        automation: { page: "automation.construction" },
         description: "Building levels, each up to its max with the Workbench's extra levels, and the cog board.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
@@ -1105,11 +1120,10 @@ const WorkbenchTab = () => {
 };
 
 export default definePage({
-    id: PAGE_ID,
+    id: "w3.construction.buildings",
     world: 3,
     system: "Construction",
-    tab: "Workbench",
     description: "Building levels and the cog board.",
-    keywords: ["Construction", "Buildings", "Towers", "Shrines", "Cogs", "Flags", "Cog board"],
+    keywords: ["Workbench", "Buildings", "Towers", "Shrines", "Cogs", "Flags", "Cog board"],
     component: WorkbenchTab,
 });

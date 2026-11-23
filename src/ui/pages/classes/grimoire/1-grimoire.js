@@ -1,8 +1,8 @@
 /**
  * Classes - Grimoire (Death Bringer)
  *
- * One page, the Grimoire's screens as its tabs: Upgrades and Bones. The Grimoire automation is its own sidebar entry
- * (2-automation.js).
+ * One page, the Grimoire's screens as its tabs: Upgrades and Bones. The Grimoire automation is in the Automation
+ * section (automation/grimoire), linked beside the title.
  *
  * Data sources:
  *   gga.Grimoire[n]                - Grimoire upgrade n's level (cList.GrimoireUpg: [0] name, [4] max level, 999999 for
@@ -94,7 +94,6 @@ export default definePage({
     id: "classes.grimoire",
     world: "classes",
     system: "Grimoire",
-    tab: "Grimoire",
     description: "The Death Bringer's Grimoire upgrades and bones.",
     keywords: ["Deathbringer", "Death Bringer", "Masterclass"],
     tabs: TABS.map(({ id, label, keywords }) => ({ id, label, keywords })),
@@ -104,5 +103,6 @@ export default definePage({
             page: "classes.grimoire",
             description: "The Death Bringer's Grimoire upgrades and bones.",
             tabs: TABS,
+            automation: { page: "automation.grimoire" },
         }),
 });

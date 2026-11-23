@@ -78,7 +78,7 @@ async function until(check, what) {
 const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation shops").on;
 
-const shops = (await importRepo("src/ui/pages/account/automation/2-shops.js")).default.component();
+const shops = (await importRepo("src/ui/pages/automation/shops/shops.js")).default.component();
 await until(() => row(shops, "Lucky Whisker"), "the Shops tab to load");
 const pickRow = (name) => row(shops, name);
 

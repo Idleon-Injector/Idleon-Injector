@@ -9,7 +9,7 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, elements, sent, fileSent, status, until } = kit;
-const tab = (await importRepo("src/ui/pages/world-4/cooking/5-automation.js")).default.component();
+const tab = (await importRepo("src/ui/pages/automation/cooking/cooking.js")).default.component();
 const ariaIs = (label) => (node) => node.attributes["aria-label"] === label;
 const rowOf = (label) => byClass(tab, "account-row").find((node) => elements(node).some(ariaIs(label)));
 const SPICE = "Encroaching Forest Spice % of goal";

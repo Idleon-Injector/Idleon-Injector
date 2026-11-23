@@ -28,7 +28,7 @@ Object.defineProperty(Object.getPrototypeOf(globalThis.document.createElement("d
 });
 
 const ola = kit.gga.OptionsListAccount;
-const page = (await importRepo("src/ui/pages/account/clickers/4-automation.js")).ClickersAutomation();
+const page = (await importRepo("src/ui/pages/automation/clickers/clickers.js")).ClickersAutomation();
 await until(() => row(page, "The Great Mega Reset"), "the clickers page to load");
 const orionLine = () => kit.status(page, "Orion");
 const stats = () => text(byClass(page, "automation-stats")[0]);
@@ -224,7 +224,7 @@ test("a live read that fails is said for the page, and the next one that works c
 });
 
 test("Shops: an item switched on says so on Shops' row", async () => {
-    const shops = (await importRepo("src/ui/pages/account/automation/2-shops.js")).default.component();
+    const shops = (await importRepo("src/ui/pages/automation/shops/shops.js")).default.component();
     await until(() => row(shops, "Shops"), "the Shops page to load");
     const item = byClass(shops, "automation-pick")[0];
     await kit.flip(item, true);
@@ -237,7 +237,7 @@ test("Shops: an item switched on says so on Shops' row", async () => {
 });
 
 test("the overview follows an automation switched off in the game, without Refresh", async () => {
-    const overview = (await importRepo("src/ui/pages/account/automation/1-overview.js")).default.component();
+    const overview = (await importRepo("src/ui/pages/automation/overview/overview.js")).default.component();
     await until(() => row(overview, "Orion"), "the overview to load");
     await until(() => kit.status(overview, "Orion") !== "Off", "Orion on in the overview");
     const orion = kit.getAutomations().find(({ cheat }) => cheat === "automation orion");

@@ -51,6 +51,24 @@
     gap: 2px 16px;
 }
 
+/* The way to a system's automation page (#249): muted words on the title's line, bare until pointed at (then the
+   quiet button's fill), so it never reads as one of the page's actions. It takes no height of its own, so a title
+   with it sits where one without it does. */
+.automation-link.btn-quiet,
+.viewport .automation-link.btn-quiet {
+    /* Its words, not its hover fill, keep the line's gap, and start the line's left edge when it wraps. */
+    margin: -6px 0 -6px -8px;
+    padding-inline: 8px;
+    gap: 4px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--c-text-muted);
+}
+.automation-link__arrow {
+    width: 15px;
+    height: 15px;
+}
+
 /* A read-only amount still to spend: plain words, the number a step brighter. */
 .amount-left {
     font-size: 0.875rem;
@@ -501,11 +519,11 @@
     transform: translateY(-50%);
 }
 
-.save-state__undo:hover:not(:disabled) {
+.save-state__undo:hover:not(:disabled):not([aria-disabled="true"]) {
     background: linear-gradient(var(--c-white-05), var(--c-white-05)), var(--save-state-bg);
 }
 
-.viewport .save-state__undo:active:not(:disabled) {
+.viewport .save-state__undo:active:not(:disabled):not([aria-disabled="true"]) {
     transform: translateY(-50%) scale(0.94);
 }
 
@@ -519,7 +537,7 @@
     transform: none;
 }
 
-.viewport .save-state--inline .save-state__undo:active:not(:disabled) {
+.viewport .save-state--inline .save-state__undo:active:not(:disabled):not([aria-disabled="true"]) {
     transform: scale(0.94);
 }
 
@@ -1000,7 +1018,7 @@
     font-weight: 700;
 }
 
-.upgrade-doubler-button[aria-pressed="false"]:hover:not(:disabled) {
+.upgrade-doubler-button[aria-pressed="false"]:hover:not(:disabled):not([aria-disabled="true"]) {
     border-color: var(--c-accent);
     color: var(--c-accent);
 }
@@ -1143,12 +1161,13 @@
     text-transform: uppercase;
 }
 
-.account-btn--apply:hover:not(:disabled) {
+.account-btn--apply:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--c-success);
     color: var(--c-black);
 }
 
-.account-btn--switch:disabled {
+.account-btn--switch:disabled,
+.account-btn--switch[aria-disabled="true"] {
     filter: saturate(0.8) brightness(0.9);
     cursor: not-allowed;
 }

@@ -3,7 +3,7 @@
  *
  * One page, the game's sneaking screens as its tabs: Ninja Knowledge (with Omni Jade on each upgrade that can have it),
  * Jade Emporium and Charms. One read of the game fills every tab. The sneaking automation is its own page
- * (2-automation.js).
+ * in the Automation section (automation/sneaking).
  *
  * Data sources:
  *   gga.Ninja[103][n]           - Ninja Knowledge upgrade n's level (cList.NinjaUpg: [4] name, [6] bonus; row 9 is the
@@ -332,6 +332,7 @@ const SneakingTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container sneaking-tab",
         title: "Sneaking",
+        automation: { page: "automation.sneaking" },
         description: "Ninja Knowledge, the Jade Emporium and charms.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy() }),
         state: { loading, error },
@@ -362,8 +363,6 @@ export default definePage({
     id: "w6.sneaking",
     world: 6,
     system: "Sneaking",
-    // Its system has two sidebar entries: this page and Automation (2-automation.js).
-    tab: "Sneaking",
     description: "Ninja Knowledge, the Jade Emporium and charms.",
     // Each tab is found by its own name and words (tabs), and opens there.
     tabs: TABS.map(({ id, label, keywords }) => ({ id, label, keywords })),

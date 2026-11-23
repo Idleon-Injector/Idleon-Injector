@@ -303,6 +303,9 @@ export const SetAllTool = ({
  * @param {(task: Function) => Promise} [opts.run] runs the write in `bulk` (the page's own, to say a failure its way)
  * @param {boolean} [opts.ordered]
  * @param {() => boolean} [opts.disabled]
+ * @param {() => boolean} [opts.behind] true while part of a write failed after the lines took the step (the config
+ *   file's save, Palette's clean-up): a step every line already has stays pressable then, and its press only redoes
+ *   that part
  */
 export const AllToTool = ({
     ask,
@@ -315,6 +318,7 @@ export const AllToTool = ({
     run = (task) => bulk.run(task),
     ordered = false,
     disabled = () => false,
+    behind = () => false,
 }) => {
     const rank = (value) => steps.findIndex((step) => step.value === value);
     const buttons = steps.map((step) => {
@@ -337,7 +341,7 @@ export const AllToTool = ({
         const stepButton = ActionButton({
             label: step.label,
             status: bulk.status,
-            disabled: () => disabled() || !changing().length,
+            disabled: () => disabled() || (!changing().length && !behind()),
             onClick: (e) => {
                 e.preventDefault();
                 return askOrRun();

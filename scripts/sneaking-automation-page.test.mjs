@@ -9,7 +9,7 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, sent, fileSent, status, until } = kit;
-const tab = (await importRepo("src/ui/pages/world-6/sneaking/2-automation.js")).default.component();
+const tab = (await importRepo("src/ui/pages/automation/sneaking/sneaking.js")).default.component();
 const row = (name) => kit.row(tab, name);
 await until(() => row("Way of Stealth"), "the tab to load");
 // A read-only value of a row, by its column ("Level", "Next level").

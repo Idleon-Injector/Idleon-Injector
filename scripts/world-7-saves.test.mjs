@@ -309,7 +309,7 @@ test("Spelunking Caves: a Remove the game refuses says so on the row", async () 
 test("Sushi Tools: Refresh during a settings save keeps the typed setting, and the next save doesn't undo it", async () => {
     const status = { enabled: false, maxPurchaseTier: 70, maxTier: 70, working: [], reserved: [], message: "Idle" };
     router.post("/api/toggle", async (req, res) => res.json({ ok: true, message: JSON.stringify(status) }));
-    const root = (await importRepo("src/ui/pages/world-7/sushi-station/4-tools.js")).default.component();
+    const root = (await importRepo("src/ui/pages/automation/sushi-station/sushi-station.js")).default.component();
     root.offsetParent = null; // off screen: no status polling
     const field = (title) => elements(root).find((node) => node.attributes["aria-label"] === title);
     await until(() => buttonNamed(root, "Enable Auto Play")?.attributes.disabled === false, "the tab to load");

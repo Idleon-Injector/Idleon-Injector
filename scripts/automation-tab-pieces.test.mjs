@@ -274,6 +274,43 @@ test("while a bulk save reached the game but not the file, Enable all and Disabl
     assert.equal(disable.attributes.disabled, false);
 });
 
+// CodeRabbit on #248 (#250): every row already showed the step, so All to was off and couldn't save the file again.
+test("while an All to reached the game but not the file, its step stays pressable to save the file again", async () => {
+    picks.sync([
+        { id: "0:item0", on: false },
+        { id: "1:item3", on: false },
+    ]);
+    const bulk = ui.usePicksBulk({
+        targets: () => [[picks, ["0:item0", "1:item3"]]],
+        done: () => false,
+        words: ["item", "items"],
+        waiting: ui.useStillWaiting(),
+        selects: [PAY],
+    });
+    const [, allTo] = bulk.tools(() => {});
+    const toParticles = tagged(allTo, "button").find((node) => text(node).trim() === "Particles");
+    const press = async () => {
+        await toParticles.listeners.click({ preventDefault() {} });
+        await until(() => !bulk.busy(), "All to");
+        await ui.inTurn(() => {});
+        await settle();
+    };
+    fake.failSave = true;
+    try {
+        await press();
+    } finally {
+        fake.failSave = false;
+    }
+    assert.equal(picks.fileBehind(), true);
+    assert.equal(toParticles.attributes.disabled, false, "every row has Particles, but the file doesn't yet");
+    const since = updates.length;
+    await press();
+    assert.equal(picks.fileBehind(), false);
+    assert.equal(lastSave("shops").filter(({ payWith }) => payWith === "particles").length, 2, "the file has it");
+    assert.ok(updates.length > since, "the press saved again");
+    assert.equal(toParticles.attributes.disabled, true, "nothing left to do");
+});
+
 test("the tab's read after a refused save doesn't take the server's copy of the refused edit", async () => {
     const reads = [];
     const tab = ui.useAutomationTab({
@@ -456,6 +493,48 @@ test("a row switch waiting behind its own stop-at save doesn't undo a Disable al
     await ui.inTurn(() => {});
     await settle();
     assert.equal(lastUpdate("shops").find(({ id }) => id === "1:item3")?.on ?? false, false, "Disable all wins");
+});
+
+// CodeRabbit on #248 (#250): the picks had no such guard, and a row All to skipped (its pick already the step) too.
+test("a row pick waiting behind its own stop-at save doesn't undo an All to pressed after it", async () => {
+    picks.sync([
+        { id: "0:item0", on: false },
+        { id: "1:item3", on: false, payWith: "particles" },
+    ]);
+    const bulk = ui.usePicksBulk({
+        targets: () => [[picks, ["0:item0", "1:item3"]]],
+        done: () => false,
+        words: ["item", "items"],
+        waiting: ui.useStillWaiting(),
+        selects: [PAY],
+    });
+    const [, allTo] = bulk.tools(() => {});
+    const toMaterials = tagged(allTo, "button").find((node) => text(node).trim() === "Materials");
+    let release;
+    fake.holdUpdates = new Promise((resolve) => (release = resolve));
+    const since = updates.length;
+    try {
+        const input = numberField(whisker());
+        input.listeners.input({ target: { value: "4" } });
+        byClass(whisker(), "account-field-metric")[0].listeners.keydown({
+            key: "Enter",
+            target: input,
+            preventDefault() {},
+        });
+        await until(() => updates.length > since, "the stop-at save to reach the game");
+        tagged(picker("pay with"), "button")[1].listeners.click({}); // Particles, waits behind the stop-at save
+        toMaterials.listeners.click({ preventDefault() {} }); // All to Materials, pressed after: Whisker is skipped
+    } finally {
+        fake.holdUpdates = null;
+        release();
+    }
+    await until(() => !bulk.busy(), "All to to end");
+    await ui.inTurn(() => {});
+    await ui.inTurn(() => {});
+    await settle();
+    const sent = lastUpdate("shops");
+    assert.equal(sent.find(({ id }) => id === "1:item3")?.payWith, undefined, "All to took Pebble to Materials");
+    assert.equal(sent.find(({ id }) => id === "0:item0")?.payWith, undefined, "All to wins over the older pick");
 });
 
 // CodeRabbit on #209: a group the page search left with no rows doesn't send its whole list again.

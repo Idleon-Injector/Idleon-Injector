@@ -1,5 +1,5 @@
 /**
- * Classes › Grimoire › Automation: which Grimoire upgrades the grimoire automation buys. Switched-on upgrades are
+ * Automation › Grimoire: which Grimoire upgrades the grimoire automation buys. Switched-on upgrades are
  * bought with bones, each bone type saving and buying on its own, by the shared rule ("Save for it", saving %), up
  * to each stop-at level.
  *
@@ -146,6 +146,8 @@ const GrimoireAutomationPage = () => {
     tab.load();
 
     return AutomationPage({
+        title: "Grimoire",
+        page: "automation.grimoire",
         description: "Buys switched-on upgrades with bones, each bone type on its own.",
         total: AutomationStats(() => BONES.map((name) => [heldText(bones.get(name).val.owned), name])),
         columns: COLUMNS,
@@ -177,10 +179,9 @@ const GrimoireAutomationPage = () => {
 };
 
 export default definePage({
-    id: "classes.grimoire.automation",
-    world: "classes",
+    id: "automation.grimoire",
+    world: "automation",
     system: "Grimoire",
-    tab: "Automation",
     description: "Grimoire upgrades bought with bones, each bone type on its own, up to each stop-at level.",
     keywords: [
         "Deathbringer",

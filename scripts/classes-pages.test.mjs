@@ -8,7 +8,7 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
 const GRIMOIRE = "src/ui/pages/classes/grimoire/1-grimoire.js";
-const GRIMOIRE_AUTOMATION = "src/ui/pages/classes/grimoire/2-automation.js";
+const GRIMOIRE_AUTOMATION = "src/ui/pages/automation/grimoire/grimoire.js";
 const COMPASS = "src/ui/pages/classes/compass/compass.js";
 const TESSERACT = "src/ui/pages/classes/tesseract/tesseract.js";
 const ROYAL_ARMORY = "src/ui/pages/classes/royal-armory/royal-armory.js";

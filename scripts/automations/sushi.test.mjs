@@ -329,7 +329,7 @@ async function openTools() {
         return update(req, res);
     });
     await loadUi(router);
-    const root = (await importRepo("src/ui/pages/world-7/sushi-station/4-tools.js")).default.component();
+    const root = (await importRepo("src/ui/pages/automation/sushi-station/sushi-station.js")).default.component();
     openRoot = root;
     const tab = {
         root,

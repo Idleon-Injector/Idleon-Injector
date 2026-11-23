@@ -1,5 +1,5 @@
 /**
- * Building blocks for Account › Automation and each system's automation tab.
+ * Building blocks for the Automation section: its Overview and each system's automation page.
  *
  * An automation is an "automation <system>" toggle cheat; its picks are cheatConfig.automation[system]. The game
  * lists them in readComputed("automation", "list"): { id, cheat, label, on, error, status }.
@@ -483,11 +483,15 @@ export const createAutomationPicks = (
 
     /** Change one item's fields (`patch`: { on } or { stopAt }). `onLate` as for inTurn. */
     const set = (id, patch, onLate = null) => save([[id, patch]], onLate);
-    // How many bulk switches each item has had asked for, so a row's switch clicked before one can tell.
+    // How many bulk changes of each item's switch ("on") or pick have been asked for, so a row's switch or pick
+    // clicked before one can tell.
     const bulkAsks = new Map();
+    const askedAll = (ids, name) => {
+        for (const id of ids) bulkAsks.set(`${name}:${id}`, (bulkAsks.get(`${name}:${id}`) ?? 0) + 1);
+    };
     /** Switch every item in `ids` on or off with one save. */
     const setAll = (ids, on, onLate = null) => {
-        for (const id of ids) bulkAsks.set(id, (bulkAsks.get(id) ?? 0) + 1);
+        askedAll(ids, "on");
         return save(
             ids.map((id) => [id, { on }]),
             onLate
@@ -511,7 +515,8 @@ export const createAutomationPicks = (
         setFieldAll,
         resave,
         fileBehind: () => fileBehind.val,
-        bulkAsks: (id) => bulkAsks.get(id) ?? 0,
+        bulkAsks: (id, name = "on") => bulkAsks.get(`${name}:${id}`) ?? 0,
+        askedAll,
     };
 };
 
@@ -825,8 +830,16 @@ export const PickRow = ({
                 .then(() => (checkbox.checked = item.on.val));
         },
     });
-    // A pick saves through the row's queue; once its save ends, taken or not, the row shows what the game holds.
-    const setField = (setting, next) => field.other(() => picks.set(id, { [setting]: next }));
+    // A pick saves through the row's queue; once its save ends, taken or not, the row shows what the game holds. Like
+    // the switch, a pick waiting behind the row's own save gives way to an All to pressed meanwhile.
+    const setField = (setting, next) => {
+        const asks = picks.bulkAsks(id, setting);
+        return field.other(() =>
+            picks.bulkAsks(id, setting) === asks
+                ? picks.set(id, { [setting]: next })
+                : Promise.resolve({ cancelled: true })
+        );
+    };
     const pickers = selects.map(({ field: setting, title, options }) => {
         const shown = picks.field(id, setting);
         return Cell(
@@ -1013,13 +1026,18 @@ export const usePicksBulk = ({
                 pickedOf: ({ picks, id }) => picks.field(id, field).val ?? null,
                 word: noun,
                 disabled: () => loading() || busy(),
-                write: (lines, value) =>
-                    saveAll(
+                behind,
+                write: (lines, value) => {
+                    // Every shown row's pick waiting behind its own save gives way, also a row already at `value`.
+                    for (const [picks, ids] of shown()) picks.askedAll(ids, field);
+                    return saveAll(
                         targets()
                             .map(([picks]) => [picks, lines.filter((line) => line.picks === picks).map(({ id }) => id)])
-                            .filter(([, ids]) => ids.length),
+                            // A group with nothing to change saves only to write its file again.
+                            .filter(([picks, ids]) => ids.length || picks.fileBehind()),
                         (picks, ids) => picks.setFieldAll(ids, field, value, waiting.onLate)
-                    ),
+                    );
+                },
             })
         );
         const switches = div(
@@ -1062,10 +1080,12 @@ export const AutomationStats = (parts) =>
  * bulk failure).
  *
  * With `tabs` ([{ id, label, columns, bulk, body }]) the list is a TabbedList instead: each tab is its own table with
- * its own tools in the tray, and `activeId` (the open tab) lets the title's stats and line follow it.
+ * its own tools in the tray, and `activeId` (the open tab) lets the title's stats and line follow it. `page` (the page's
+ * id) lets a link from a system's page open it on one tab (AutomationLink).
  */
 export const AutomationPage = ({
     title = "Automation",
+    page = null,
     description,
     total = null,
     subNav = null,
@@ -1084,8 +1104,9 @@ export const AutomationPage = ({
         div({ class: "automation-rows", style: `--value-columns: ${cols.widths}` }, ...toNodes(rows));
     const list = tabs
         ? TabbedList({
-              name: `${title}: ${what}`,
+              name: `Automation: ${what}`,
               activeId,
+              page,
               tabs: tabs.map((tab) => ({ id: tab.id, label: tab.label, content: table(tab.columns, tab.body) })),
               // Every tab's tools are made once; only the open tab's show.
               tools: (open, ask) =>

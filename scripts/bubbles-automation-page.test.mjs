@@ -1,4 +1,4 @@
-// World 2 › Alchemy › Automation (#92) on the fake game: Bubbles' switch and the page-wide target, then one section
+// Automation › Alchemy (#92, moved there in #249) on the fake game: Bubbles' switch and the page-wide target, then one section
 // per cauldron, each bubble with its bonus, level, % of max, next cost, what it pays with, a stop-at and a switch. A
 // change saves cheatConfig.automation.bubbles (a plain list) or bubblesTarget; switching a bubble on switches Bubbles
 // on; the tab reads the game again after every save.
@@ -12,21 +12,20 @@ import { automationTabKit } from "./automation-tab-kit.mjs";
 
 const kit = await automationTabKit();
 const { text, byClass, sent, fileSent, selected, status, until } = kit;
-const tab = (await importRepo("src/ui/pages/world-2/alchemy/5-automation.js")).default.component();
+const tab = (await importRepo("src/ui/pages/automation/alchemy/alchemy.js")).default.component();
 const row = (name) => kit.row(tab, name);
 const notes = (name) => [...byClass(row(name), "automation-pick__detail")[0].childNodes].map(text);
 await until(() => row("Copper Spark"), "the tab to load");
 
-test("Alchemy's tabs are Bubbles, Cauldrons, Vials, Sigils, then Automation", async () => {
+test("Alchemy's tabs are Bubbles, Cauldrons, Vials and Sigils; its automation is in the Automation section", async () => {
     const { listPageFiles } = createRequire(import.meta.url)("../src/modules/server/routes/pages.js");
     const pagesDir = join(fileURLToPath(new URL("../", import.meta.url)), "src/ui/pages");
     const { modules } = await listPageFiles(pagesDir);
-    const files = modules.filter((file) => file.startsWith("world-2/alchemy/"));
+    const files = modules.filter((file) => file.startsWith("world-2/alchemy/") || file.startsWith("automation/"));
     const pages = await Promise.all(files.map(async (file) => (await importRepo(`src/ui/pages/${file}`)).default));
     const { buildMenuTree, pageTitle } = await importRepo("src/ui/menu/menuModel.js");
-    const system = buildMenuTree(pages)
-        .find(({ id }) => id === 2)
-        .systems.find(({ name }) => name === "Alchemy");
+    const tree = buildMenuTree(pages);
+    const system = tree.find(({ id }) => id === 2).systems.find(({ name }) => name === "Alchemy");
     assert.deepEqual(
         system.pages.map((entry) => [entry.id, pageTitle(entry, system)]),
         [
@@ -34,7 +33,22 @@ test("Alchemy's tabs are Bubbles, Cauldrons, Vials, Sigils, then Automation", as
             ["w2.cauldrons", "Cauldrons"],
             ["w2.vials", "Vials"],
             ["w2.sigils", "Sigils"],
-            ["w2.bubbles.automation", "Automation"],
+        ]
+    );
+    // Lumi's order (#249): the Overview as its home, then by world, then the account ones.
+    assert.deepEqual(
+        tree.find(({ id }) => id === "automation").systems.map(({ name, pages: [page] }) => [name, page.id]),
+        [
+            ["Overview", "automation.overview"],
+            ["Alchemy", "automation.alchemy"],
+            ["Construction", "automation.construction"],
+            ["Cooking", "automation.cooking"],
+            ["Sneaking", "automation.sneaking"],
+            ["Summoning", "automation.summoning"],
+            ["Sushi Station", "automation.sushi"],
+            ["Clickers", "automation.clickers"],
+            ["Grimoire", "automation.grimoire"],
+            ["Shops", "automation.shops"],
         ]
     );
 });
