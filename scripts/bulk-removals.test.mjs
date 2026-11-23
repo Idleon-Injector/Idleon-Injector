@@ -682,8 +682,13 @@ test("islands: while a Set all runs, the tray's other tools and Refresh wait, an
         const slow = holdNext((url) => url.endsWith("/game/gga/write-many"));
         const pressed = click(named("Set all")[0]);
         await until(() => slow.reached, "the Set all to be sent");
+        // Set all itself waits enabled, so focus stays on it (#247); a press meanwhile does nothing.
+        const others = () => [...named("Unlock all"), ...named("Lock all"), ...named("Refresh")];
         await until(
-            () => [...tools(), ...named("Refresh")].every((node) => node.attributes.disabled),
+            () =>
+                others().every((node) => node.attributes.disabled) &&
+                named("Set all")[0].attributes["aria-disabled"] === "true" &&
+                !named("Set all")[0].attributes.disabled,
             "the other tools and Refresh to wait"
         );
         const reads = holdAnswers((url) => url.endsWith("/game/gga/read-entries"));

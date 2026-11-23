@@ -328,3 +328,47 @@ test("a run whose onSuccess throws is said as failed, not done", async () => {
     assert.equal(outcome.ok, false);
     assert.equal(write.status.val, "error");
 });
+
+// A disabled button drops focus to the page, so a keyboard player had to Tab back into the tray after every tool (#247).
+test("the button whose press is running keeps focus: it waits enabled and ignores presses (#247)", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const status = van.state(null);
+    let presses = 0;
+    let finish;
+    const run = () => {
+        presses++;
+        status.val = "loading";
+        return new Promise((resolve) => (finish = resolve));
+    };
+    const pressed = ActionButton({ label: "Set all", status, onClick: run });
+    const other = ActionButton({ label: "Lock all", status, onClick: run });
+    click(pressed);
+    await settle();
+    assert.ok(!pressed.attributes.disabled, "not disabled, so focus stays on it");
+    assert.equal(pressed.attributes["aria-disabled"], "true");
+    assert.ok(other.attributes.disabled, "the tray's other tools wait disabled");
+    click(pressed);
+    assert.equal(presses, 1, "a press while it saves does nothing");
+    status.val = "success";
+    finish();
+    await settle();
+    assert.equal(pressed.attributes["aria-disabled"], "false");
+    assert.ok(!other.attributes.disabled);
+});
+
+test("a focused button with nothing left to do stays focusable until focus leaves it (#247)", async () => {
+    const { ActionButton } = await importRepo("src/ui/components/views/account/components/ActionButton.js");
+    const done = van.state(false);
+    let presses = 0;
+    const button = ActionButton({ label: "Enable all", disabled: () => done.val, onClick: () => presses++ });
+    button.listeners.focus({});
+    done.val = true;
+    await settle();
+    assert.ok(!button.attributes.disabled, "focus stays on it");
+    assert.equal(button.attributes["aria-disabled"], "true");
+    click(button);
+    assert.equal(presses, 0, "a press does nothing");
+    button.listeners.blur({});
+    await settle();
+    assert.ok(button.attributes.disabled, "disabled once focus leaves");
+});

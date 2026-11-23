@@ -78,6 +78,13 @@ export const ActionButton = ({
 }) => {
     const shared = Object(status) === status;
     let buttonNode = null;
+    const loading = () => resolveValue(status) === "loading";
+    const off = () => Boolean(resolveValue(disabled)) || (!keepEnabled && loading());
+    // A disabled button drops focus to the page (#247). So the button whose press is running, and one that holds
+    // focus, is never disabled: it says so (`aria-disabled`), looks it (_buttons.css), and ignores presses until it
+    // loses focus. A row's button (`keepEnabled`) isn't disabled by its own save at all.
+    const focused = van.state(false);
+    const held = () => focused.val || (shared && status.pressedBy === buttonNode && loading());
     const ownStatus = () => {
         const now = resolveValue(status);
         const by = shared ? status.pressedBy : undefined;
@@ -99,14 +106,13 @@ export const ActionButton = ({
                     resolvedStatus === "error" ? "account-btn--error" : ""
                 );
             },
-            disabled: () => {
-                return Boolean(resolveValue(disabled)) || (!keepEnabled && resolveValue(status) === "loading");
-            },
+            disabled: () => off() && !held(),
+            "aria-disabled": () => String(off()),
             "aria-busy": () => String(ownStatus() === "loading"),
             // One press is one action: everything it saves, now or after its awaits, undoes together.
             onclick: onClick
                 ? (e) => {
-                      if (keepEnabled && resolveValue(status) === "loading") return undefined;
+                      if (off() || loading()) return undefined;
                       if (confirm) {
                           const question = typeof confirm === "function" ? confirm() : confirm;
                           // A question that went away (Set count raised after it asked) takes "Click again" with it.
@@ -126,6 +132,9 @@ export const ActionButton = ({
         },
         () => resolveValue(label)
     );
+
+    buttonNode.addEventListener("focus", () => (focused.val = true));
+    buttonNode.addEventListener("blur", () => (focused.val = false));
 
     return tooltip ? withTooltip(buttonNode, tooltip) : buttonNode;
 };

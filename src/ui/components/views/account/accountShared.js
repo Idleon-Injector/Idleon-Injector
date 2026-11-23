@@ -470,13 +470,37 @@ export const runBulkSet = async ({
         target.saves = target.paths.map(savesOf);
         target.fails = target.paths.map(failsOf);
     });
-    await writeManyVerified(writes, { character });
+    const sameValue = (index, before) => Object.is(resolveValue(getValueState(resolvedEntries[index], index)), before);
+    const show = (index, value) => {
+        const entry = resolvedEntries[index];
+        if (typeof applyLocal === "function") applyLocal(entry, index, value);
+        else getValueState(entry, index).val = value;
+    };
+    try {
+        await writeManyVerified(writes, { character });
+    } catch (error) {
+        // Some writes landed (the batch has results): every row only this bulk wrote shows what the game holds now,
+        // landed or not; unread, it keeps what it shows. A batch that never reached the game wrote nothing.
+        if (error.results) {
+            // Only this bulk wrote it, and its value is as the bulk found it; checked again after the read, so a row
+            // saved while the read ran keeps what its own save shows.
+            const ownOnly = ([index, { before, paths, saves, fails }]) =>
+                sameValue(index, before) &&
+                paths.every((path, i) => savesOf(path) + failsOf(path) === saves[i] + fails[i] + 1);
+            const own = [...targets].filter(ownOnly);
+            const reads = own.length ? await readGgaMany(own.map(([, { paths }]) => paths[0])).catch(() => []) : [];
+            if (!shownCharacter || shownCharacter() === character)
+                own.forEach((target, i) => {
+                    if (reads[i]?.ok && ownOnly(target)) show(target[0], reads[i].value);
+                });
+        }
+        throw error;
+    }
     if (shownCharacter && shownCharacter() !== character) return;
 
     // A row saved since (each path once more is this bulk's own save) or changed keeps what it shows.
     const untouched = ([index, { before, paths, saves }]) =>
-        paths.every((path, i) => savesOf(path) === saves[i] + 1) &&
-        Object.is(resolveValue(getValueState(resolvedEntries[index], index)), before);
+        paths.every((path, i) => savesOf(path) === saves[i] + 1) && sameValue(index, before);
     // A row whose own save failed meanwhile shows what the game holds, read from its first path (the one that takes the
     // row's value); unread, it keeps what it shows, as neither value is sure.
     const kept = [...targets].filter(untouched);
@@ -490,14 +514,7 @@ export const runBulkSet = async ({
         const [index, { targetValue }] = target;
         const read = readOf.get(index);
         if ((read && !read.ok) || !untouched(target)) return;
-        const value = read ? read.value : targetValue;
-        const entry = resolvedEntries[index];
-        if (typeof applyLocal === "function") {
-            applyLocal(entry, index, value);
-            return;
-        }
-
-        getValueState(entry, index).val = value;
+        show(index, read ? read.value : targetValue);
     });
 };
 

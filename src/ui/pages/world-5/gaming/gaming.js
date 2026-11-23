@@ -545,6 +545,18 @@ const PalettePart = ({ pending }) => {
     const colours = van.state([]);
     const rowOf = new Map();
     const shown = () => colours.val.filter((colour) => shownBySearch(rowOf.get(colour.index)));
+    // The game keeps the palette's bonuses until it rebuilds them: a star saved here clears them. A clean-up that
+    // failed leaves All to pressable, to clear them again (#250).
+    const cleanUpFailed = van.state(false);
+    const cleanUp = async () => {
+        try {
+            await deleteGga("DNSM.h.PaletteBonz");
+            cleanUpFailed.val = false;
+        } catch (error) {
+            cleanUpFailed.val = true;
+            throw error;
+        }
+    };
 
     const ColourRow = (colour) => {
         const at = (field) => `${field.path}[${colour.index}]`;
@@ -560,8 +572,7 @@ const PalettePart = ({ pending }) => {
                 const [level, stars] = await Promise.all(PALETTE_FIELDS.map((field) => gga(at(field))));
                 return { level: toInt(level, { min: 0 }), stars: Math.min(2, toInt(stars, { min: 0 })) };
             },
-            // The game keeps the palette's bonuses until it rebuilds them: a star saved here clears them.
-            afterWrite: (changed) => (changed.includes("stars") ? deleteGga("DNSM.h.PaletteBonz") : null),
+            afterWrite: (changed) => (changed.includes("stars") ? cleanUp() : null),
         });
         rowOf.set(colour.index, row);
         return row;
@@ -599,7 +610,8 @@ const PalettePart = ({ pending }) => {
             const n = shown().length;
             return isSearching() ? `${n} matching ${plural(n, "colour")}` : `All ${n} ${plural(n, "colour")}`;
         },
-        // All to None | ★ | ★★: fewer stars asks first. Like a row's save, it clears the game's palette bonuses.
+        // All to None | ★ | ★★: fewer stars asks first. Like a row's save, it clears the game's palette bonuses; after
+        // a clean-up failed, a step every colour has only clears them.
         tools: (ask) =>
             AllToTool({
                 ask,
@@ -610,6 +622,7 @@ const PalettePart = ({ pending }) => {
                 pickedOf: (colour) => stateOf(colour.index).stars.val,
                 word: (n) => plural(n, "colour"),
                 disabled: pending,
+                behind: () => cleanUpFailed.val,
                 write: async (lines, value) => {
                     try {
                         await runBulkSet({
@@ -620,7 +633,7 @@ const PalettePart = ({ pending }) => {
                         });
                     } finally {
                         // A clean-up that fails is said like a failed write: the game may keep the old bonuses.
-                        await deleteGga("DNSM.h.PaletteBonz");
+                        await cleanUp();
                     }
                 },
             }),

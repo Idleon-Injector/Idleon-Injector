@@ -869,6 +869,26 @@ test("Cogs: the old stat typed back while a save runs is the next Enter's save",
     await until(() => gga.CogMap[1].h.a === 11, "the typed-back 11 to be saved");
 });
 
+// CodeRabbit on #248 (#250): the typed-back 11 read as untouched (it is the text the field showed), so a Refresh took it.
+test("Cogs: the old stat typed back while a save runs stays through a Refresh", async (t) => {
+    keepCog(t);
+    const { root, popup, field, type, key } = await openStat({ a: 11, b: 1 });
+    const other = () => elements(statRow(popup, "b")).find((node) => node.nodeName === "input");
+    const hold = holdWrites();
+    try {
+        type("50");
+        key("Enter");
+        await until(() => hold.held() === 1, "the save to reach the game");
+        type("11");
+        gga.CogMap[1].h = { a: 12, b: 2 }; // the game moves on
+        click(buttonIn(root, "Refresh"));
+        await until(() => other().value === "2", "the read to show the game's stats");
+        assert.equal(field.value, "11", "the draft typed after the save started stays");
+    } finally {
+        hold.release();
+    }
+});
+
 // CodeRabbit on #248: a second Raise while the first saved was read back to the first's value and never saved.
 test("Cogs: Raise twice while the first save runs saves both steps", async (t) => {
     keepCog(t);

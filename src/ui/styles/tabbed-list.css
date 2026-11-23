@@ -196,16 +196,17 @@
 .viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn:first-child {
     border-radius: 10px 0 0 10px;
 }
-.viewport .tabbed-list__tools .account-btn.btn-quiet:hover:not(:disabled) {
+.viewport .tabbed-list__tools .account-btn.btn-quiet:hover:not(:disabled):not([aria-disabled="true"]) {
     border-color: var(--c-btn-edge);
     background: var(--c-well-hover);
 }
-.viewport .tabbed-list__tools .account-btn.btn-danger:hover:not(:disabled) {
+.viewport .tabbed-list__tools .account-btn.btn-danger:hover:not(:disabled):not([aria-disabled="true"]) {
     border-color: var(--c-btn-edge);
     background: rgba(255, 138, 128, 0.14);
     color: var(--c-danger-soft-text);
 }
-.viewport .tabbed-list__tools .account-btn:disabled {
+.viewport .tabbed-list__tools .account-btn:disabled,
+.viewport .tabbed-list__tools .account-btn[aria-disabled="true"] {
     border-color: var(--c-btn-edge);
     background: transparent;
     color: var(--c-text-disabled);
@@ -798,7 +799,7 @@
     justify-content: space-between;
     width: 11rem;
 }
-.pick-in-place__opener:hover:not(:disabled) {
+.pick-in-place__opener:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--c-well-hover);
 }
 .pick-in-place__opener:focus-visible,

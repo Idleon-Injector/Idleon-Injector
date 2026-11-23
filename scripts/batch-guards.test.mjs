@@ -53,3 +53,72 @@ test("a balance that holds saves the claims and the points together", async () =
         [g.StarSignProg[1], g.StarSignProg[2], g.OptionsListAccount[40]] = saved;
     }
 });
+
+// CodeRabbit on #248 (#250): a bulk write that partly failed left the rows whose write landed on their old value.
+test("a bulk set that partly fails shows what the game holds on every row it wrote", async () => {
+    const { runBulkSet } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
+    const options = g.OptionsListAccount;
+    const saved = [options[300], options[301]];
+    options[300] = 1;
+    Object.defineProperty(options, 301, { get: () => 7, set() {}, configurable: true }); // the game keeps 7
+    const states = [van.state(1), van.state(1)];
+    try {
+        await assert.rejects(
+            runBulkSet({
+                entries: [300, 301],
+                getTargetValue: () => 9,
+                getValueState: (_, i) => states[i],
+                getPath: (index) => `OptionsListAccount[${index}]`,
+            }),
+            /Write mismatch/
+        );
+        assert.deepEqual(
+            states.map((state) => state.val),
+            [9, 7],
+            "the landed row shows 9, the refused one what the game kept"
+        );
+    } finally {
+        Object.defineProperty(options, 301, { value: saved[1], writable: true, configurable: true });
+        options[300] = saved[0];
+    }
+});
+
+// CodeRabbit on #253: a row saved while that read ran, back to the value it showed, kept the read's older value.
+test("a row saved while the read after a failed bulk set runs keeps what its own save shows", async () => {
+    const { runBulkSet, writeVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
+    const options = g.OptionsListAccount;
+    const saved = [options[300], options[301]];
+    options[300] = 1;
+    Object.defineProperty(options, 301, { get: () => 7, set() {}, configurable: true });
+    const states = [van.state(1), van.state(1)];
+    const realFetch = globalThis.fetch;
+    // The read after the failed write: the row's own save lands while it runs, back to the 1 it shows.
+    let written = false;
+    globalThis.fetch = async (url, init) => {
+        const answer = await realFetch(url, init);
+        if (String(url).endsWith("/game/gga/write-many")) written = true;
+        else if (written && String(url).endsWith("/game/gga/read-many")) {
+            globalThis.fetch = realFetch;
+            await writeVerified("OptionsListAccount[300]", 1);
+        }
+        return answer;
+    };
+    try {
+        await assert.rejects(
+            runBulkSet({
+                entries: [300, 301],
+                getTargetValue: () => 9,
+                getValueState: (_, i) => states[i],
+                getPath: (index) => `OptionsListAccount[${index}]`,
+            })
+        );
+        assert.equal(states[0].val, 1, "the newer save's value, not the read's 9");
+        assert.equal(states[1].val, 7);
+    } finally {
+        globalThis.fetch = realFetch;
+        Object.defineProperty(options, 301, { value: saved[1], writable: true, configurable: true });
+        options[300] = saved[0];
+    }
+});
