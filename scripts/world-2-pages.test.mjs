@@ -645,6 +645,40 @@ test("post office: Max all runs on one press, and Reset all asks in the tray", a
     }
 });
 
+test("post office: Set all after the game switched character changes nothing, points included, and says why (#241)", async () => {
+    const boxes = game.gga.PostOfficeInfo[3];
+    const saved = boxes.map((box) => box[0]);
+    const currencies = game.gga.CurrenciesOwned.h;
+    const points = () => [currencies.DeliveryBoxComplete, currencies.DeliveryBoxStreak, ola[347], ola[131]];
+    const { PLAYERS } = await import("./page-shots/data/shared.mjs");
+    const playing = game.gga.UserInfo[0];
+    boxes.forEach((box) => (box[0] = 1));
+    try {
+        const root = await openPage("src/ui/pages/world-2/post-office/post-office.js", (root) =>
+            rowNamed(root, "Civil War Memory Box")
+        );
+        await click(buttonNamed(root, "Refresh"));
+        const { input, button } = setAllOf(root);
+        await until(() => notBusy(button), "Set all to be ready");
+        const before = points();
+        // The player switches character in the game; the page still shows the one it read.
+        game.gga.UserInfo[0] = PLAYERS[1];
+        typeInto(input, 9999999);
+        await click(button);
+        assert.equal(trayLabel(root).endsWith("have a max under 9,999,999."), true, trayLabel(root));
+        await click(buttonNamed(root, "Stop at max"));
+        await until(() => trayLabel(root) === "Character changed. Refresh.", "the tray to say why it stopped");
+        assert.deepEqual(points(), before, "the account-wide points didn't land without the boxes");
+        assert.ok(
+            boxes.every((box) => box[0] === 1),
+            "no box changed"
+        );
+    } finally {
+        game.gga.UserInfo[0] = playing;
+        boxes.forEach((box, i) => (box[0] = saved[i]));
+    }
+});
+
 test("liquid: a connection lost while CAP UPGRADE saves writes neither of its two copies", async () => {
     const info = game.gga.CauldronInfo;
     const root = await openPage("src/ui/pages/world-2/alchemy/2-cauldrons.js", (root) =>

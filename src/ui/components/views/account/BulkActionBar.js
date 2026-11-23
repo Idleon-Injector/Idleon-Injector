@@ -165,13 +165,15 @@ export const setAllLines = (container) => linesIn(container, shownBySearch);
  *
  * @param {object} opts
  * @param {Function} opts.ask the tray's question (TabbedList, ListPanel)
- * @param {() => Array} opts.lines the lines it acts on now: `setAllLines(pane)`, or the page's own
+ * @param {() => Array} opts.lines the lines it acts on now: `setAllLines(pane)`, or the page's own; a line's
+ *   `refuse(value)`, when it has one, names a value its writer can't take, and then nothing is written
  * @param {(n: number) => string} opts.word what the lines are, for the question ("combat stamps")
  * @param {(plan: {line: *, value: number}[]) => Promise} [opts.write] writes the plan; by default each line's
  *   `path` in one write, or its own `write` when it has none
  * @param {object} [opts.bulk] the page's useWriteStatus, when its other tools share it (a bulk write runs alone)
  * @param {(line: *) => {val: *}} [opts.stateOf] a line's value state
  * @param {(line: *) => number|null} [opts.maxOf] a line's max, null for none
+ * @param {string|(() => string)} [opts.placeholder] the field's label ("Level"), or what gives it for the open tab
  * @param {(result: object) => void} [opts.onDone] called with how the write went (useWriteStatus' run result)
  * @param {() => *} [opts.askedFor] what else the question is about (the character in play): when it differs at the
  *   answer, the tool asks again
@@ -223,9 +225,13 @@ export const SetAllTool = ({
         if (failed) throw failed;
     };
     const run = (all, n, stop) => async () => {
-        const result = await bulk.run(() =>
-            (write ?? writeLines)(all.map((line) => ({ line, value: targetOf(line, n, stop) })))
-        );
+        const result = await bulk.run(() => {
+            const plan = all.map((line) => ({ line, value: targetOf(line, n, stop) }));
+            // A value one line's writer can't take stops the run before anything is written (Tome's 1 / x at 0).
+            const refused = plan.map(({ line, value }) => line.refuse?.(value)).find(Boolean);
+            if (refused) throw new Error(refused);
+            return (write ?? writeLines)(plan);
+        });
         onDone?.(result);
         return result;
     };
@@ -248,7 +254,7 @@ export const SetAllTool = ({
         if (!o)
             return ask({
                 ...asked,
-                question: `Lower ${l} ${word(l)} to ${placeholder === "Level" ? `level ${number}` : number}?`,
+                question: `Lower ${l} ${word(l)} to ${resolveValue(placeholder) === "Level" ? `level ${number}` : number}?`,
                 confirmLabel: l === 1 ? "Lower it" : "Lower them",
                 onConfirm: run(all, n, false),
             });

@@ -1,6 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
-import { joinClasses, toNodes } from "./accountShared.js";
-import { replay } from "../../inPlace.js";
+import { joinClasses, lastRun, toNodes } from "./accountShared.js";
+import { announce, replay } from "../../inPlace.js";
 import { labelOf, withAction } from "../../../services/changeLog.js";
 import { searchHits } from "../../../menu/pageSearch.js";
 import { tabRequest } from "../../../menu/pageRegistry.js";
@@ -122,13 +122,21 @@ export const toolsPerTab = (byTab) => (activeId, ask) =>
 /**
  * A list's Set all (TabbedList's and ListPanel's `setAll`): the shared tool on the list's own lines, first in its
  * tray, shown only where the list has two lines or more and one without a max. `setAll` is SetAllTool's options
- * without `lines` (`word`, `placeholder`, `bulk`, ...); its `word(n, tabId)` also gets the open tab.
+ * without `lines` (`word`, `placeholder`, `bulk`, ...); its `word(n, tabId)` also gets the open tab, and so does a
+ * `placeholder(tabId)` given as a function (a table's column on one tab: Farming's "Rank").
  */
 const hasSetAll = (lines) => lines.length >= 2 && lines.some((line) => line.max === null);
 const withSetAll = (setAll, linesOf, tools, toolsLabel) => ({
     tools: (activeId, ask) => {
         const word = (n) => setAll.word(n, activeId.val);
-        const tool = SetAllTool({ ...setAll, ask, word, lines: () => linesOf(activeId.val) });
+        const { placeholder } = setAll;
+        const tool = SetAllTool({
+            ...setAll,
+            ask,
+            word,
+            placeholder: typeof placeholder === "function" ? () => placeholder(activeId.val) : placeholder,
+            lines: () => linesOf(activeId.val),
+        });
         van.derive(() => (tool.hidden = !hasSetAll(linesOf(activeId.val))));
         return [tool, ...toNodes(tools?.(activeId, ask))];
     },
@@ -342,11 +350,17 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
         searchHits.val;
         asking.val = null;
     });
+    // Why the tray's tool stopped, said on the tray's line until that tool's next try (Lumi, #241).
+    const failed = van.state(null);
     const node = div(
         { class: "tabbed-list__tools" },
         div(
-            { id: questionId, class: () => joinClasses("tabbed-list__tools-label", asking.val && "is-question") },
-            () => asking.val?.question ?? (toolsLabel ? toolsLabel(activeId) : "")
+            {
+                id: questionId,
+                class: () =>
+                    joinClasses("tabbed-list__tools-label", asking.val ? "is-question" : failed.val && "is-failure"),
+            },
+            () => asking.val?.question ?? failed.val?.reason ?? (toolsLabel ? toolsLabel(activeId) : "")
         ),
         div(
             { class: "tabbed-list__tools-row", "data-undo-at-end": "", hidden: () => !!asking.val },
@@ -359,6 +373,16 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
             noButton
         )
     );
+    van.derive(() => {
+        const run = lastRun.val;
+        if (!run?.anchor || !node.contains(run.anchor)) return;
+        if (run.reason === null) {
+            if (failed.rawVal?.anchor === run.anchor) failed.val = null;
+            return;
+        }
+        failed.val = run;
+        announce(`${labelOf(run.anchor)}: ${run.reason}`);
+    });
     // Escape drops the question wherever focus is (a click on a tool left it outside the tray), but only on the page
     // showing: a page left open in the background keeps its question, and leaves Escape to the one on screen.
     document.addEventListener("keydown", (e) => {

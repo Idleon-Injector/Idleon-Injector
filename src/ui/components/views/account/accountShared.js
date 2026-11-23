@@ -519,6 +519,12 @@ export const oneAtATime = () => {
 };
 
 /**
+ * The newest useWriteStatus run to start or fail: `{ anchor, reason }`, the control that ran it and, once it failed,
+ * why (null while it runs). A tray says its own tool's reason until that tool's next try (ToolsTray).
+ */
+export const lastRun = van.state(null);
+
+/**
  * Hook that wraps an async write operation with status tracking and automatic
  * status-clear timers.
  *
@@ -550,7 +556,7 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
     };
 
     // Everything one run saves is one action (Undo all puts it back together).
-    const run = (task, options) => withAction({}, () => runTracked(task, options));
+    const run = (task, options) => withAction({}, (action) => runTracked(task, options, action.anchor));
 
     const runTracked = async (
         task,
@@ -560,7 +566,8 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
             errorState = "error",
             onSuccess = null,
             onError = null,
-        } = {}
+        } = {},
+        anchor = null
     ) => {
         if (clearTimer) {
             clearTimeout(clearTimer);
@@ -568,10 +575,12 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
         }
 
         status.val = loadingState;
+        lastRun.val = { anchor, reason: null };
         // A press's announcement (ActionButton) tells its own run from an earlier one's result by this count.
         const id = (status.runs = (status.runs ?? 0) + 1);
         const by = status.pressedBy;
-        const end = (outcome) => (status.ended = [...status.ended, { id, by, outcome }].slice(-10));
+        const end = (outcome, reason = null) =>
+            (status.ended = [...status.ended, { id, by, outcome, reason }].slice(-10));
 
         try {
             const result = await task();
@@ -588,7 +597,9 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
             if (successMs > 0) scheduleClear(successMs);
             return { ok: true, result };
         } catch (error) {
-            end("error");
+            const reason = error?.message || "Couldn't save. Try again.";
+            end("error", reason);
+            lastRun.val = { anchor, reason };
             status.val = errorState;
             if (typeof onError === "function") onError(error);
             if (errorMs > 0) scheduleClear(errorMs);

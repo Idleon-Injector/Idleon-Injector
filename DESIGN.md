@@ -29,8 +29,9 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
 - **Set all:** every list with a line without a max has Set all in its tray (`SetAllTool`, the one tool all pages
   use); a list where every line has a max keeps only Max all. The typed number goes to every line. When some line's
   max is lower, the tray asks first, "Stop at max" or "Go past"; when the number would lower a line, it asks first
-  too, and one question covers both. Otherwise it runs on one press; an empty field is refused, never written as 0. A
-  table's capped column counts as a capped line. A page of unrelated single numbers (Emperor) isn't a list, so it has
+  too, and one question covers both. Otherwise it runs on one press and every line shows the number after; an empty
+  field is refused, never written as 0, and a number one line can't hold stops it before anything is written. A
+  table's column counts as lines too: a column without a max needs Set all, a capped one counts as capped lines. A page of unrelated single numbers (Emperor) isn't a list, so it has
   no Set all. _test_
 - **Automation:** every Automation page is its own sidebar entry under its system (`tab: "Automation"`, as Alchemy and
   Cooking have it), never a tab. _test_
@@ -260,8 +261,12 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
   the change in the soft red ("Lower them", "Unexalt it") and Cancel. Nothing times out. Cancel, Escape or another tab
   drop the question. A change that only raises runs on one click. Focus moves to the answer only when the tool was
   pressed from the keyboard. Tools ask with the `ask` that `TabbedList` hands them.
-- **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`); with no
-  room there it takes its old place.
+- **A tool that stops on an error says why** on the tray's first line, where a question goes, in the soft red ("Character
+  changed. Refresh."), and screen readers hear it with the tool's name. It stays until that tool's next try (Lumi,
+  #241).
+- **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
+  tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
+  tools; only with no room anywhere does it take its old place.
 - **Row buttons** (Relock, Max, Reset) are soft filled shapes in the field's colour with no outline; one that lowers or
   removes turns red only under the pointer. No hover popup explains a button.
 - **A switch shows its word only when on** where the off word would repeat down the list: "Exalted", never "Not

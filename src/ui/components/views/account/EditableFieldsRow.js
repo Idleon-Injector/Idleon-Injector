@@ -12,6 +12,7 @@ import {
     writeManyVerified,
 } from "./accountShared.js";
 import { SaveState, saveStateClass } from "./autoSave.js";
+import { registerSetAllLine } from "./EditableNumberRow.js";
 import { useFieldEditor } from "./useFieldEditor.js";
 import { AccountRow } from "./components/AccountRow.js";
 import { StepPicker } from "./components/StepPicker.js";
@@ -140,6 +141,8 @@ export const ValueTableHead = ({ name, columns }) =>
  *   column (the head names it with ""), so the columns before it line up with the head
  * A `blank` field (`{ key, blank: true }`) keeps its column empty on a line that hasn't that value, so the columns after
  * it stay in line.
+ * @param {string} [opts.setAll] the key of the column its list's Set all sets (Farming's plot Rank): the line then
+ *   counts as one of that list's lines, and saves there like a typed value, through writeManyVerified
  */
 export const ValueTableRow = ({
     name,
@@ -150,6 +153,7 @@ export const ValueTableRow = ({
     badge = null,
     afterWrite = null,
     action = null,
+    setAll = null,
 }) => {
     const fields = allFields.filter((field) => !field.blank);
     const maxOf = (field) => {
@@ -161,7 +165,20 @@ export const ValueTableRow = ({
         fields.forEach((field) => (field.valueState.val = now[field.key]));
         return now;
     };
-    return EditableFieldsRow({
+    const write = async (next) => {
+        const changed = fields.filter((field) => next[field.key] !== field.valueState.val);
+        const writes = changed.flatMap((field) => field.paths.map((path) => ({ path, value: next[field.key] })));
+        try {
+            await writeManyVerified(writes, writeOptions);
+        } catch (error) {
+            await showRead().catch(() => {});
+            throw error;
+        }
+        // The write was read back, so it saved: a read after it that fails leaves the line on the saved values.
+        if (afterWrite && changed.length) await afterWrite(changed.map((field) => field.key));
+        return read().catch(() => next);
+    };
+    const row = EditableFieldsRow({
         fields: fields.map(({ key, valueState, formatted }) => ({ key, valueState, formatted })),
         normalize: (drafts) => {
             const next = {};
@@ -184,19 +201,7 @@ export const ValueTableRow = ({
             }
             return next;
         },
-        write: async (next) => {
-            const changed = fields.filter((field) => next[field.key] !== field.valueState.val);
-            const writes = changed.flatMap((field) => field.paths.map((path) => ({ path, value: next[field.key] })));
-            try {
-                await writeManyVerified(writes, writeOptions);
-            } catch (error) {
-                await showRead().catch(() => {});
-                throw error;
-            }
-            // The write was read back, so it saved: a read after it that fails leaves the line on the saved values.
-            if (afterWrite && changed.length) await afterWrite(changed.map((field) => field.key));
-            return read().catch(() => next);
-        },
+        write,
         rowClass: "value-row",
         info,
         badge,
@@ -247,4 +252,21 @@ export const ValueTableRow = ({
                 action ? div({ class: "value-cell value-cell--action" }, action) : null
             ),
     });
+    const line = setAll && fields.find((field) => field.key === setAll);
+    if (line)
+        registerSetAllLine(row, {
+            row,
+            valueState: line.valueState,
+            cap: () => (line.max !== undefined && maxOf(line) < Infinity ? maxOf(line) : null),
+            min: () => 0,
+            // One place, saved for no one character and with nothing to run after: it goes in Set all's one write.
+            path: () => (line.paths.length === 1 && !writeOptions.character && !afterWrite ? line.paths[0] : null),
+            write: async (value) => {
+                const next = Object.fromEntries(fields.map((field) => [field.key, field.valueState.val]));
+                return (await write({ ...next, [line.key]: value }))[line.key];
+            },
+            unset: null,
+            disabled: () => false,
+        });
+    return row;
 };

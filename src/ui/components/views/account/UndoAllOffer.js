@@ -44,8 +44,9 @@ const onLineWith = (anchor, element) =>
  * Out of the layout (absolutely placed), after the control in tab order. It takes, in this order: the box of the
  * control's left neighbour on the same line (a SET ALL value, another bulk button), whole, so nothing shows half;
  * free space on the left; the right neighbour's box; free space on the right. Returns whether it covers a box.
+ * Exported for its test only.
  */
-const place = (node, anchor) => {
+export const place = (node, anchor) => {
     // A control out of sight (in a list that closed, a step picker's hidden step) has nothing to place beside.
     if (!node.offsetParent) return false;
     const natural = node.offsetWidth;
@@ -65,19 +66,27 @@ const place = (node, anchor) => {
         return true;
     }
     // A line of tools that asks for it (data-undo-at-end, a tabbed list's tools) keeps its controls whole: the offer
-    // sits at the line's free right end, beside the last control on the anchor's line, when it fits there.
-    const line = anchor.closest?.("[data-undo-at-end]");
-    if (line) {
+    // sits at a line's free right end. First the anchor's line; on a phone, where the tools wrap and that line is full
+    // (#241), the line above the tools (the tray's words), then any other line of tools.
+    const tools = anchor.closest?.("[data-undo-at-end]");
+    if (tools) {
         const at = anchor.getBoundingClientRect();
         const mid = at.top + at.height / 2;
-        const end = line.getBoundingClientRect().right;
-        const onLine = [...line.children]
-            .map((child) => child.getBoundingClientRect())
-            .filter((box) => Math.abs(box.top + box.height / 2 - mid) < 8);
-        const used = Math.max(...onLine.map((box) => box.right));
-        if (end - used >= natural + GAP) {
+        const end = tools.getBoundingClientRect().right;
+        const boxes = [...tools.children].map((child) => child.getBoundingClientRect()).filter((box) => box.width);
+        // The words' line ends where its words do.
+        const words = document.createRange();
+        if (tools.previousElementSibling) words.selectNodeContents(tools.previousElementSibling);
+        const said = tools.previousElementSibling ? [words.getBoundingClientRect()] : [];
+        const middleOf = (box) => box.top + box.height / 2;
+        const others = boxes.filter((box) => Math.abs(middleOf(box) - mid) >= 8);
+        const lines = [mid, ...said.map(middleOf), ...others.map(middleOf)];
+        for (const lineMid of lines) {
+            const onLine = [...boxes, ...said].filter((box) => Math.abs(middleOf(box) - lineMid) < 8);
+            const used = Math.max(...onLine.map((box) => box.right));
+            if (end - used < natural + GAP) continue;
             node.style.setProperty("--undo-all-bg", "transparent");
-            node.style.top = `${middle(anchor)}px`;
+            node.style.top = `${middle(anchor) + lineMid - mid}px`;
             node.style.left = `${anchor.offsetLeft + (end - at.left) - natural}px`;
             node.style.width = `${natural}px`;
             return false;

@@ -11,18 +11,20 @@ await loadUi(router);
 const van = (await importRepo("src/ui/vendor/van-1.6.0.js")).default;
 const { TabbedList, ListPanel } = await importRepo("src/ui/components/views/account/tabShared.js");
 const { ClampedLevelRow } = await importRepo("src/ui/components/views/account/ClampedLevelRow.js");
-const { SetAllTool } = await importRepo("src/ui/components/views/account/BulkActionBar.js");
+const { SetAllTool, setAllLines } = await importRepo("src/ui/components/views/account/BulkActionBar.js");
 const { ValueTableRow } = await importRepo("src/ui/components/views/account/EditableFieldsRow.js");
 const { AccountSection } = await importRepo("src/ui/components/views/account/components/AccountSection.js");
 const { AccountTabHeader } = await importRepo("src/ui/components/views/account/components/AccountTabHeader.js");
 const { div, span, button, input, select, label } = van.tags;
 
 const declared = (extra = {}) => ({ id: "w1.test", world: 1, system: "Stamps", keywords: [], ...extra });
+// Writes the level lines made (a raise has to write).
+let levelWrites = 0;
 // A level line as every page builds it; `cap` is its max, or null for none.
 const level = (name, cap = 15) =>
     ClampedLevelRow({
         valueState: van.state(3),
-        write: async (next) => next,
+        write: async (next) => (levelWrites++, next),
         max: cap,
         renderInfo: () => span({ class: "account-row__name" }, name),
     });
@@ -264,7 +266,7 @@ const handSetAll = (press) => (_, ask) => {
 };
 const levels = (...caps) => {
     const rows = caps.map((cap, i) => level(`Stamp ${i}`, cap));
-    return { rows, lines: () => rows.map((row) => ({ row, valueState: { val: 3 }, max: caps[rows.indexOf(row)] })) };
+    return { rows, lines: () => setAllLines({ childNodes: rows }) };
 };
 
 test("Set all: a list with lines without a max needs Set all; a list where every line has a max doesn't", async () => {
@@ -298,7 +300,7 @@ test("Set all: the shared tool asks before it goes past a max or lowers, and oth
         "Stamps",
         ListPanel({ body: open.rows, tools: setAllTool(open.lines), toolsLabel: () => "All 2 stamps" })
     );
-    assert.deepEqual(await bulkBreaks(raising, () => 0), []);
+    assert.deepEqual(await bulkBreaks(raising, () => levelWrites), []);
 });
 
 test("Set all: one that writes past a max or lowers without asking, or asks when it only raises, is a break", async () => {
@@ -336,6 +338,55 @@ test("Set all: in a table, the column its field names counts, so a capped column
     assert.deepEqual(await bulkBreaks(node, () => written), [
         "Set all: lowers without asking in the tray",
         `Set all: goes past a max without asking "Stop at max" or "Go past"`,
+    ]);
+});
+
+// A table line (#241): Level under its column, with a max or none.
+const tableRow = (name, max) =>
+    ValueTableRow({
+        name,
+        info: span({ class: "account-row__name" }, name),
+        fields: [
+            { key: "level", label: "Level", valueState: van.state(3), paths: [`${name}[0]`], ...(max && { max }) },
+        ],
+        read: async () => ({ level: 3 }),
+    });
+
+test("Set all: a table with a column without a max needs Set all, as a list does", async () => {
+    const open = page("Stamps", ListPanel({ body: [tableRow("Heart"), tableRow("Mana")] }));
+    assert.deepEqual(await bulkBreaks(open, () => 0), ["Set all: lines without a max but no Set all"]);
+    const capped = page("Stamps", ListPanel({ body: [tableRow("Heart", 15), tableRow("Mana", 15)] }));
+    assert.deepEqual(await bulkBreaks(capped, () => 0), []);
+});
+
+test("Set all: a raise that asks nothing but writes nothing, or leaves a line out, is a break", async () => {
+    const open = levels(null, null);
+    // Runs on one press, as it should, and writes nothing.
+    const writesNothing = handSetAll(() => {});
+    const node = page("Stamps", ListPanel({ body: open.rows, tools: writesNothing, toolsLabel: () => "All 2 stamps" }));
+    assert.deepEqual(await bulkBreaks(node, () => 0), [
+        "Set all: lowers without asking in the tray",
+        "Set all: a raise that asks nothing doesn't set every line to it",
+    ]);
+    // Writes only the first line.
+    let written = 0;
+    const rows = ["Heart", "Mana"].map((name) =>
+        ClampedLevelRow({
+            valueState: van.state(3),
+            write: async (next) => (written++, next),
+            max: null,
+            renderInfo: () => span({ class: "account-row__name" }, name),
+        })
+    );
+    const firstOnly = (_, ask) =>
+        SetAllTool({
+            ask,
+            lines: () => setAllLines({ childNodes: rows }).slice(0, 1),
+            word: (n) => `stamp${n === 1 ? "" : "s"}`,
+        });
+    const partial = page("Stamps", ListPanel({ body: rows, tools: firstOnly, toolsLabel: () => "All 2 stamps" }));
+    assert.deepEqual(await bulkBreaks(partial, () => written), [
+        "Set all: a raise that asks nothing doesn't set every line to it",
     ]);
 });
 
