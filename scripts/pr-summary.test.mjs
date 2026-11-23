@@ -9,6 +9,7 @@ import {
     LIMITS,
     MARKER,
     hookChanges,
+    layoutGate,
     layoutOf,
     pageIds,
     parseNameStatus,
@@ -314,4 +315,17 @@ test("stage 2 doesn't post for a PR that isn't the run's, or a missing or huge a
     }
     await assert.rejects(run(artifactDir(), fakeGithub({ pr: PR })), /summary\.json is missing/);
     await assert.rejects(run(artifactDir("x".repeat(LIMITS.bytes + 1)), fakeGithub({ pr: PR })), /over/);
+});
+
+test("the layout gate fails on a break, and when touched pages went unmeasured", () => {
+    assert.equal(layoutGate({ pages: [], layout: null }).pass, true);
+    assert.equal(layoutGate({ pages: ["w1.anvil"], layout: [] }).pass, true);
+    const broken = layoutGate({ pages: ["w1.anvil"], layout: [`1440/world-1/anvil: the fields don't line up`] });
+    assert.equal(broken.pass, false);
+    assert.match(broken.message, /1440\/world-1\/anvil: the fields don't line up/);
+    assert.deepEqual(layoutGate({ pages: ["w1.anvil"], layout: null }), {
+        pass: false,
+        message: "The touched pages' layout wasn't measured: the page shots didn't finish.",
+    });
+    assert.equal(layoutGate({ pages: ["w1.anvil"] }).pass, false);
 });

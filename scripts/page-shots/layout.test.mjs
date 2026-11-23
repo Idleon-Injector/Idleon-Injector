@@ -102,6 +102,15 @@ test("a field that moves when the row's controls show is a break", () => {
     assert.ok(breaks.includes(`"Book Stamp": its field moves when the row's controls show`), breaks.join("\n"));
 });
 
+test("a field that drops when the row's controls show is a break; a pixel of rounding isn't", () => {
+    const shown = fine();
+    const down = (b, by) => ({ ...b, top: b.top + by, bottom: b.bottom + by });
+    const drop = (f, by) => ({ ...down(f, by), steppers: f.steppers.map((s) => down(s, by)) });
+    shown[0].rows[0].field = drop(shown[0].rows[0].field, 20); // the controls wrapped under it
+    shown[0].rows[1].field = drop(shown[0].rows[1].field, 1);
+    assert.deepEqual(layoutBreaks(fine(), shown), [`"Heart Stamp": its field moves when the row's controls show`]);
+});
+
 test("opening rows' arrows, switches and a table's columns each line up", () => {
     const page = list(
         row("Sample 1", {

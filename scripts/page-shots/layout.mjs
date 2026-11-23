@@ -189,7 +189,10 @@ export function layoutBreaks(quiet, shown) {
                 ["its field", row.field, then.field],
                 ["its switch", row.toggle, then.toggle],
                 ...row.cells.map((cell, i) => [`column ${i + 1}`, cell, then.cells[i]]),
-            ].find(([, a, b]) => a && b && (Math.abs(a.left - b.left) > SLACK || Math.abs(a.right - b.right) > SLACK));
+            ].find(
+                ([, a, b]) =>
+                    a && b && ["left", "right", "top", "bottom"].some((side) => Math.abs(a[side] - b[side]) > SLACK)
+            );
             if (moved) breaks.push(`${at}"${row.name}": ${moved[0]} moves when the row's controls show`);
         });
     });

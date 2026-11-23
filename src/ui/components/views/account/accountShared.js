@@ -295,20 +295,27 @@ export const writeVerified = (path, value, { write = gga, character, readBack = 
         countSave(path);
         if (before) await finishChange(before, [value]);
         return value;
-    })();
+    })().catch((error) => {
+        countFail(path);
+        throw error;
+    });
 };
 
 const normalizeGgaPath = (path) => String(path ?? "").replace(/^gga\./, "");
 
-// How many saves landed at each path: a bulk set sees a row saved while it ran, even back to the value it had. A save
-// that failed isn't counted, so its row takes the bulk value the game holds. ponytail: one count per path ever saved,
-// kept for the session.
+// How many saves landed at each path, and how many failed: a bulk set sees a row saved while it ran, even back to the
+// value it had. A failed save may still have changed the game (it kept another value), so its row shows what the game
+// holds after it. ponytail: one count per path ever written, kept for the session.
 const savesByPath = new Map();
-const countSave = (path) => {
+const failsByPath = new Map();
+const countIn = (counts, path) => {
     const key = normalizeGgaPath(path);
-    savesByPath.set(key, (savesByPath.get(key) ?? 0) + 1);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
 };
+const countSave = (path) => countIn(savesByPath, path);
+const countFail = (path) => countIn(failsByPath, path);
 const savesOf = (path) => savesByPath.get(normalizeGgaPath(path)) ?? 0;
+const failsOf = (path) => failsByPath.get(normalizeGgaPath(path)) ?? 0;
 
 /**
  * What a page says when the game has another character in play than the one it shows, so it refuses the save. Every
@@ -352,8 +359,11 @@ export const writeManyVerified = (writes, { log = true, character } = {}) => {
 
 const writeManyLogged = async (writes, change, character) => {
     if (change) await change;
-    const result = await ggaMany(writes, { character });
-    result.results.forEach((entry, i) => entry.ok && countSave(writes[i].path));
+    const result = await ggaMany(writes, { character }).catch((error) => {
+        writes.forEach((entry) => countFail(entry.path));
+        throw error;
+    });
+    result.results.forEach((entry, i) => (entry.ok ? countSave : countFail)(writes[i].path));
     if (change)
         await finishChange(
             await change,
@@ -456,22 +466,38 @@ export const runBulkSet = async ({
         writes.push({ path, value: targetValue });
     });
 
-    targets.forEach((target) => (target.saves = target.paths.map(savesOf)));
+    targets.forEach((target) => {
+        target.saves = target.paths.map(savesOf);
+        target.fails = target.paths.map(failsOf);
+    });
     await writeManyVerified(writes, { character });
     if (shownCharacter && shownCharacter() !== character) return;
 
-    resolvedEntries.forEach((entry, index) => {
-        if (!targets.has(index)) return;
-        const { targetValue, before, paths, saves } = targets.get(index);
-        // Each path once more: this bulk's own save.
-        if (paths.some((path, i) => savesOf(path) !== saves[i] + 1)) return;
-        if (!Object.is(resolveValue(getValueState(entry, index)), before)) return;
+    // A row saved since (each path once more is this bulk's own save) or changed keeps what it shows.
+    const untouched = ([index, { before, paths, saves }]) =>
+        paths.every((path, i) => savesOf(path) === saves[i] + 1) &&
+        Object.is(resolveValue(getValueState(resolvedEntries[index], index)), before);
+    // A row whose own save failed meanwhile shows what the game holds, read from its first path (the one that takes the
+    // row's value); unread, it keeps what it shows, as neither value is sure.
+    const kept = [...targets].filter(untouched);
+
+    const failed = kept.filter(([, { paths, fails }]) => paths.some((path, i) => failsOf(path) !== fails[i]));
+    const reads = failed.length ? await readGgaMany(failed.map(([, { paths }]) => paths[0])).catch(() => []) : [];
+    const readOf = new Map(failed.map(([index], i) => [index, reads[i] ?? { ok: false }]));
+    if (failed.length && shownCharacter && shownCharacter() !== character) return;
+
+    kept.forEach((target) => {
+        const [index, { targetValue }] = target;
+        const read = readOf.get(index);
+        if ((read && !read.ok) || !untouched(target)) return;
+        const value = read ? read.value : targetValue;
+        const entry = resolvedEntries[index];
         if (typeof applyLocal === "function") {
-            applyLocal(entry, index, targetValue);
+            applyLocal(entry, index, value);
             return;
         }
 
-        getValueState(entry, index).val = targetValue;
+        getValueState(entry, index).val = value;
     });
 };
 

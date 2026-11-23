@@ -167,7 +167,7 @@ const TIER_RANK = { off: 0, normal: 1, plus: 2 };
  * One pet: its bonus first (the Pets+ one when that tier applies), its name under it; then whether the game already
  * owns it, its tier, and its token. The row is the pet's only control, so the same row works for clicks and keys.
  */
-const PetRow = ({ companion, tierOf, onTier, isToken, tokenBlock, ownedPet, isBusy, onToken, isShown }) => {
+const PetRow = ({ companion, tierOf, onTier, isToken, tokenRefused, ownedPet, isBusy, onToken, isShown }) => {
     const { id } = companion;
     // Pets+ in the game: picked here, or the game's own Pets+ pet left Off here.
     const isPlusInGame = () => tierOf(id) === "plus" || (ownedPet(id)?.plus && tierOf(id) === "off");
@@ -203,9 +203,9 @@ const PetRow = ({ companion, tierOf, onTier, isToken, tokenBlock, ownedPet, isBu
                         role: "switch",
                         "aria-label": `Pet token for ${companion.name}`,
                         checked: () => isToken(id),
-                        // A token the game would refund or wipe can't be picked: an owned pet, a pet the game doesn't
-                        // allow, or no free token (the Token head says how many are in use).
-                        disabled: () => isBusy() || (!isToken(id) && Boolean(tokenBlock(id))),
+                        // A token the game would refund can't be picked: an owned pet or a pet the game doesn't allow.
+                        // With no free token shown the press still reads the game, which may have freed one since.
+                        disabled: () => isBusy() || Boolean(tokenRefused(id)),
                         onchange: async (e) => {
                             e.target.checked = isToken(id);
                             await onToken(id);
@@ -241,10 +241,15 @@ const CompanionsTab = () => {
 
     // The game refunds tokens on owned or blacklisted pets, and wipes every pick once
     // the list outgrows the owned token sources.
-    const tokenBlock = (id) => {
+    const tokenRefused = (id) => {
         if (isToken(id)) return null;
         if (ownedPet(id)) return "You own this pet, so the game would refund the token.";
         if (tokens.val.blacklist.includes(id)) return "The game doesn't allow a token on this pet.";
+        return null;
+    };
+    const tokenBlock = (id) => {
+        if (isToken(id)) return null;
+        if (tokenRefused(id)) return tokenRefused(id);
         if (tokens.val.picks.length >= tokens.val.owned) {
             return tokens.val.missing.length
                 ? "No free token. Use Grant missing token first."
@@ -432,7 +437,8 @@ const CompanionsTab = () => {
     };
 
     const handleToken = async (companionId) => {
-        if (isBusy() || tokenBlock(companionId)) return;
+        // No free token is checked once the save has read the game again: one may have been freed since.
+        if (isBusy() || tokenRefused(companionId)) return;
         const shown = isToken(companionId);
         await writeSelection(() => {
             const blocked = !shown && tokenBlock(companionId); // the game's tokens may have changed since the page read them
@@ -598,7 +604,7 @@ const CompanionsTab = () => {
                                 tierOf,
                                 onTier: setTier,
                                 isToken,
-                                tokenBlock,
+                                tokenRefused,
                                 ownedPet,
                                 isBusy,
                                 onToken: handleToken,

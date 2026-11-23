@@ -820,7 +820,7 @@ const buildingBonus = (index, description) => {
     return (first.charAt(0).toUpperCase() + first.slice(1)).replace(/[.!]$/, "");
 };
 
-const BuildingRow = ({ index, name, bonus, maxLevel, levelState, inTurn }) =>
+const BuildingRow = ({ index, name, bonus, maxLevel, levelState, inTurn, splitByRow }) =>
     ClampedLevelRow({
         valueState: levelState,
         max: maxLevel,
@@ -829,12 +829,18 @@ const BuildingRow = ({ index, name, bonus, maxLevel, levelState, inTurn }) =>
             inTurn(async () => {
                 // Both in one call to the game, so a dropped connection can't leave the level and its pending copy
                 // apart. The game still writes them one by one: if it refuses one, the other stays written (History
-                // lists it, and the row says why). ponytail: an all-or-nothing write needs the game's writePaths to
-                // put it back.
-                await writeManyVerified([
-                    { path: `TowerInfo[${index}]`, value: nextLevel },
-                    { path: `TowerInfo[${index + BUILDING_COUNT}]`, value: nextLevel },
-                ]);
+                // lists it, and the row says why), and the row keeps the old level (see load), so the same save
+                // writes both again. ponytail: an all-or-nothing write needs the game's writePaths to put it back.
+                try {
+                    await writeManyVerified([
+                        { path: `TowerInfo[${index}]`, value: nextLevel },
+                        { path: `TowerInfo[${index + BUILDING_COUNT}]`, value: nextLevel },
+                    ]);
+                } catch (error) {
+                    if (error.results?.some((result) => result.ok)) splitByRow.add(index);
+                    throw error;
+                }
+                splitByRow.delete(index);
                 return nextLevel;
             }),
         renderInfo: () => RowTitles({ bonus, name }),
@@ -848,6 +854,8 @@ const ConstructionBuildingsTab = () => {
     // a row save that started before it.
     const inTurn = oneAtATime();
     const levelStates = Array.from({ length: BUILDING_COUNT }, () => van.state(0));
+    // The buildings whose last row save the game took only in part.
+    const splitByRow = new Set();
     const rowList = div({ class: "account-page-pane" });
     const buildings = van.state([]);
     const rowOf = new Map();
@@ -859,12 +867,13 @@ const ConstructionBuildingsTab = () => {
                 levelsPath: "TowerInfo",
                 definitionsPath: "TowerInfo",
                 selectDefinitions: (_, definitions) => definitions.slice(0, BUILDING_COUNT),
-                mapEntry: ({ definition, rawLevel, index }) => ({
+                mapEntry: ({ definition, rawLevel, levels, index }) => ({
                     index,
                     name: cleanName(definition[0], `Building ${index + 1}`),
                     bonus: buildingBonus(index, definition[1]),
                     baseMax: toNum(definition[8]),
                     level: toNum(rawLevel),
+                    pending: toNum(levels[index + BUILDING_COUNT]),
                 }),
             });
             const computedResults = await readComputedMany(
@@ -896,6 +905,7 @@ const ConstructionBuildingsTab = () => {
                                     maxLevel: building.maxLevel,
                                     levelState: levelStates[building.index],
                                     inTurn,
+                                    splitByRow,
                                 });
                                 rowOf.set(building.index, row);
                                 return row;
@@ -904,8 +914,14 @@ const ConstructionBuildingsTab = () => {
                 )
             );
 
+            // A building whose row save left its two copies apart (the game took one and refused the other) keeps
+            // the copy the row showed, the one the save didn't change, so saving the new level again writes both, as
+            // Liquid does. Max all plans from the game, so its own split shows the level and the next Max all ends it.
+            // ponytail: lost when the tab opens again; a split found then shows the level.
             for (let i = 0; i < BUILDING_COUNT; i++) {
-                levelStates[i].val = toNum(next[i]?.level);
+                const { level, pending } = next[i] ?? {};
+                const kept = splitByRow.has(i) && pending !== level && toNum(levelStates[i].val) === pending;
+                levelStates[i].val = toNum(kept ? pending : level);
             }
             buildings.val = next;
         });

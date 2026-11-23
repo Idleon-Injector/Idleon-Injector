@@ -32,7 +32,7 @@ import {
 } from "../../../components/views/account/automation.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { SPICE_NAMES } from "./4-spices.js";
+import { SPICE_NAMES } from "../../../components/views/account/spiceNames.js";
 
 const { div, span } = van.tags;
 
