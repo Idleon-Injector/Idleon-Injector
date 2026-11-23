@@ -14,6 +14,11 @@ globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {}
 globalThis.document.addEventListener = () => {};
 const { Sidebar } = await importRepo("src/ui/components/Sidebar.js");
 const { menuLevel } = await importRepo("src/ui/components/MenuLevels.js");
+const { menuTree } = await importRepo("src/ui/menu/pageRegistry.js");
+const { buildMenuTree, definePage } = await importRepo("src/ui/menu/menuModel.js");
+// One page in World 2 and the Automation section, so each has a list to open.
+const page = (id, world, system) => definePage({ id, world, system, description: "x", component: () => null });
+menuTree.val = buildMenuTree([page("w2.bubbles", 2, "Alchemy"), page("automation.overview", "automation", "Overview")]);
 
 const find = (node, test) => (test(node) ? [node] : (node.childNodes ?? []).flatMap((child) => find(child, test)));
 const entry = (sidebar, key) => find(sidebar, (node) => node.attributes?.["data-key"] === String(key))[0];
@@ -26,10 +31,24 @@ for (const key of [2, "automation"]) {
         await settle();
         menuLevel.val = null;
         const before = place();
-        entry(Sidebar(), key).listeners.click();
-        await settle();
+        // The list renders all the way: a render that throws is only logged.
+        const errors = [];
+        const log = console.error;
+        console.error = (...args) => errors.push(args.join(" "));
+        try {
+            entry(Sidebar(), key).listeners.click();
+            await settle();
+        } finally {
+            console.error = log;
+        }
+        assert.deepEqual(errors, []);
         assert.equal(menuLevel.val, key, "its list shows");
         assert.deepEqual(place(), before, "no page opened");
+        assert.match(
+            globalThis.document.activeElement.className ?? globalThis.document.activeElement.attributes.class,
+            /drill-item/,
+            "focus on its first entry"
+        );
     });
 }
 

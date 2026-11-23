@@ -315,6 +315,35 @@ export async function loadUi(router) {
         focus() {
             globalThis.document.activeElement = this;
         }
+        // The selectors the sidebar asks for (".drill-item", '[data-key="2"]', ".a:not(.b) .c.d"): classes, an
+        // attribute's value and :not(.class), with spaces between ancestors.
+        // ponytail: no tag names, child combinators or other pseudo-classes; add them when a test needs one.
+        querySelectorAll(selector) {
+            const parts = selector.trim().split(/\s+/);
+            const fits = (el, part) => {
+                const classes = String(el.className ?? el.attributes?.class ?? "").split(/\s+/);
+                for (const [, cls, attr, value, not] of part.matchAll(
+                    /\.([\w-]+)|\[([\w-]+)="([^"]*)"\]|:not\(\.([\w-]+)\)/g
+                )) {
+                    if (cls && !classes.includes(cls)) return false;
+                    if (attr && String(el.attributes?.[attr]) !== value) return false;
+                    if (not && classes.includes(not)) return false;
+                }
+                return true;
+            };
+            const within = (el, i) => {
+                if (i < 0) return true;
+                for (let at = el.parentNode; at; at = at.parentNode)
+                    if (at.nodeType === 1 && fits(at, parts[i]) && within(at, i - 1)) return true;
+                return false;
+            };
+            const all = (el) =>
+                (el.childNodes ?? []).flatMap((child) => (child?.nodeType === 1 ? [child, ...all(child)] : []));
+            return all(this).filter((el) => fits(el, parts.at(-1)) && within(el, parts.length - 2));
+        }
+        querySelector(selector) {
+            return this.querySelectorAll(selector)[0] ?? null;
+        }
     }
     // A page always has a body: the UI's one live region (inPlace's announce) goes there.
     const body = new Element("body");
