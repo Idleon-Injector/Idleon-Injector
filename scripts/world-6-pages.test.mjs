@@ -15,7 +15,8 @@ const EMPEROR = "src/ui/pages/world-6/emperor/emperor.js";
 // The automation tabs read the game again every few seconds while one runs; that timer mustn't keep the file running.
 const setIntervalReal = globalThis.setInterval;
 globalThis.setInterval = (...args) => setIntervalReal(...args).unref();
-const { router, game } = await createFakeApi(fakeGameData());
+const fixture = fakeGameData();
+const { router, game } = await createFakeApi(fixture);
 await loadUi(router);
 globalThis.document.body = globalThis.document.createElement("body");
 globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
@@ -564,4 +565,36 @@ test("Emperor: an entries draft shows the game's count beside it while they diff
     click(buttonNamed(row, "Max"));
     await settled(row);
     assert.equal(1 - gga.OptionsListAccount[370], 4, "full is the natural capacity (3 + 1)");
+});
+
+test("Emperor: the gem shop's Emperor tries save in a Gem shop group, and the entries follow the game's new cap", async (t) => {
+    const ola = gga.OptionsListAccount;
+    const thingies = fixture.computed._customBlock_Thingies;
+    const before = { tries: ola[382], stack: thingies.MaxEmperorAttemptStack };
+    t.after(() => {
+        ola[382] = before.tries;
+        thingies.MaxEmperorAttemptStack = before.stack;
+    });
+    const root = await openPage(EMPEROR);
+    const group = byClass(root, "account-section").find(
+        (node) => text(byClass(node, "account-section__title")[0]) === "Gem shop"
+    );
+    assert.ok(group, "a Gem shop group");
+    const row = rowNamed(group, "Emperor tries");
+    assert.equal(text(byClass(row, "account-row__bonus")[0]), "+1 try a day and +6 saved-up tries each");
+    assert.equal(shown(row), "2");
+    // Each try raises the saved-up cap by 6 in the game: a save reads the game again, so the entries' cap follows.
+    thingies.MaxEmperorAttemptStack = 9;
+    typeAndEnter(row, 3);
+    await settled(row);
+    assert.equal(stateOf(row), "success");
+    assert.equal(ola[382], 3);
+    await until(() => capOf(rowWith(root, "Entries")) === "/ 10", "the entries' new cap");
+});
+
+test("search finds the Emperor's gem shop tries by limited, gem shop, fomo and its name", async () => {
+    const { buildMenuTree, searchEntries, searchMenu } = await importRepo("src/ui/menu/menuModel.js");
+    const entries = searchEntries(buildMenuTree([(await importRepo(EMPEROR)).default]));
+    for (const query of ["limited", "gem shop", "fomo", "emperor tries"])
+        assert.deepEqual(searchMenu(entries, query)[0]?.target, { world: 6, page: "w6.emperor" }, `"${query}"`);
 });

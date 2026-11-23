@@ -172,7 +172,8 @@ export default () => ({
             h: { NjEQ: h(Object.fromEntries(CHARMS.map((charm, i) => [`NjTrP${i}`, charm]))) },
         },
         DNSM: { h: { EmperorBon: list(12, (i) => i * 3) } },
-        OptionsListAccount: { 319: 40, 369: 37, 370: 0 },
+        // [319] Endless Summoning wins, [369] showdowns won, [370] 1 minus the Emperor entries, [382] gem shop Emperor tries.
+        OptionsListAccount: { 319: 40, 369: 37, 370: 0, 382: 2 },
         ItemDefinitionsGET: {
             h: Object.fromEntries(GOLD_FOOD_IDS.map((id, i) => [id, h({ displayName: GOLD_FOOD_NAMES[i] ?? id })])),
         },

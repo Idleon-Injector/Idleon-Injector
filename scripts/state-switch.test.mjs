@@ -819,7 +819,8 @@ const openEmperor = async () => {
         game.gga.DNSM.h.EmperorBon = JSON.parse(before.cache);
     });
     if (!(Number(ola[369]) > 0)) ola[369] = 5;
-    const root = await openPage(EMPEROR, (root) => text(root).includes("a day"));
+    // The entries row says its tries a day once the game is read.
+    const root = await openPage(EMPEROR, (root) => /\+\d+ a day/.test(text(root)));
     const row = byClass(root, "account-row").find((node) => text(node).includes("Showdowns won"));
     const button = (label) => elements(row).find((node) => node.nodeName === "button" && text(node).trim() === label);
     return {

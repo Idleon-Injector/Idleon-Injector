@@ -3,13 +3,14 @@ import { definePage } from "../../../menu/menuModel.js";
 import { fetchCheatStates, gga, readCList, readComputed } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { NumberInput } from "../../../components/NumberInput.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
 import { askAtField } from "../../../components/inPlace.js";
@@ -22,6 +23,8 @@ const { div, span } = van.tags;
 const PROGRESS_PATH = "OptionsListAccount[369]";
 const ENTRIES_PATH = "OptionsListAccount[370]";
 const CACHE_PATH = "DNSM.h.EmperorBon";
+// Emperor tries from the gem shop (a past limited buy): each is +1 try a day and +6 to the tries saved up.
+const TRIES_PATH = "OptionsListAccount[382]";
 // Above 1617 completed showdowns, the next fight's base HP becomes Infinity.
 const PROGRESS_LIMIT = 1617;
 // The game's placeholder rewards ("+{%_something_World_7ish").
@@ -78,6 +81,7 @@ const EmperorTab = () => {
     });
     // Reset asks in place first: the row's name becomes the question and its buttons the answer.
     const askingReset = van.state(false);
+    const triesState = van.state(0);
     const rewardList = div({ class: "account-item-stack" });
     const reconcileRewards = createStaticRowReconciler(rewardList);
 
@@ -91,15 +95,17 @@ const EmperorTab = () => {
         current.baseRewards.every((value, index) => current.cache[index] === value);
 
     const readSnapshot = async () => {
-        const [rawProgress, rawCounter, rawMetadata, rawCapacity, rawDaily, cheats, rawCache] = await Promise.all([
-            gga(PROGRESS_PATH),
-            gga(ENTRIES_PATH),
-            readCList("EmperorBon"),
-            readComputed("thingies", "MaxEmperorAttemptStack", [0, 0]),
-            readComputed("thingies", "DailyEmperorTries", [0, 0]),
-            fetchCheatStates(),
-            gga(CACHE_PATH),
-        ]);
+        const [rawProgress, rawCounter, rawMetadata, rawCapacity, rawDaily, cheats, rawCache, rawTries] =
+            await Promise.all([
+                gga(PROGRESS_PATH),
+                gga(ENTRIES_PATH),
+                readCList("EmperorBon"),
+                readComputed("thingies", "MaxEmperorAttemptStack", [0, 0]),
+                readComputed("thingies", "DailyEmperorTries", [0, 0]),
+                fetchCheatStates(),
+                gga(CACHE_PATH),
+                gga(TRIES_PATH),
+            ]);
         const progress = Number(rawProgress);
         const counter = Number(rawCounter);
         const capacity = Number(rawCapacity) + 1;
@@ -153,11 +159,13 @@ const EmperorTab = () => {
             metadata,
             baseRewards: rewards,
             cache: toIndexedArray(rawCache).map(Number),
+            tries: Math.max(0, Math.floor(Number(rawTries) || 0)),
         };
     };
 
     const showSnapshot = (current, syncInputs = false, savedRow = null) => {
         snapshot.val = current;
+        triesState.val = current.tries;
         if (savedRow === "progress") progressDraft.val = String(current.progress);
         if (savedRow === "entries") entriesDraft.val = String(current.remaining);
         if (syncInputs) {
@@ -351,6 +359,18 @@ const EmperorTab = () => {
         ),
         controls: [SaveState(progressWrite), progressInput, resetButton],
     });
+    // The gem shop's Emperor tries. The game sets no max. A save reads the game again, so the entries' cap and the
+    // tries a day follow.
+    const triesRow = ClampedLevelRow({
+        valueState: triesState,
+        integerMode: "floor",
+        write: async (count) => {
+            const verified = await writeVerified(TRIES_PATH, count);
+            await load();
+            return verified;
+        },
+        renderInfo: () => RowTitles({ bonus: "+1 try a day and +6 saved-up tries each", name: "Emperor tries" }),
+    });
     const entriesRow = AccountRow({
         rowClass: () => `account-row--wide-controls ${saveStateClass(entriesWrite.status.val, entriesWrite.undo)}`,
         rowProps: entriesWrite.handlers,
@@ -420,7 +440,11 @@ const EmperorTab = () => {
             { class: "account-list account-list--tabbed" },
             ListPanel({
                 body: [
-                    div({ class: "field-columns" }, progressRow, entriesRow),
+                    AccountSection({ title: "Gem shop", body: div({ class: "field-columns" }, triesRow) }),
+                    AccountSection({
+                        title: "Showdowns",
+                        body: div({ class: "field-columns" }, progressRow, entriesRow),
+                    }),
                     AccountSection({ title: "Rewards", meta: span(nextReward), body: rewardList }),
                 ],
             })
@@ -433,6 +457,6 @@ export default definePage({
     world: 6,
     system: "Emperor",
     description: "Showdowns won, entries and their rewards.",
-    keywords: ["Emperor Fights", "Emperor Entries"],
+    keywords: ["Emperor Fights", "Emperor Entries", "Emperor tries", "FOMO Tickets", "Limited", "Gem shop", "FOMO"],
     component: EmperorTab,
 });
