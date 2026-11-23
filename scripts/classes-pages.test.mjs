@@ -21,6 +21,7 @@ const { requests } = await loadUi(router);
 globalThis.document.body = globalThis.document.createElement("body");
 globalThis.document.body.appendChild = (child) => globalThis.document.body.append(child);
 const gga = game.gga;
+const { requestLimit } = await importRepo("src/ui/services/api.js");
 const unhandled = [];
 process.on("unhandledRejection", (error) => unhandled.push(String(error?.message ?? error)));
 
@@ -138,8 +139,12 @@ const failRoute = (route) => {
     return () => (globalThis.fetch = realFetch);
 };
 // Writes whose request matches `match` (url, body) wait until released; `reads` logs the reads made meanwhile.
+// While held, no request times out: on a busy machine a long hold would fail the held write while it still lands, and
+// the page then goes on as if it hadn't, which is what the request limit is for in the game, not here.
 const holdWritesTo = (match) => {
     const realFetch = globalThis.fetch;
+    const limit = requestLimit.timeoutMs;
+    requestLimit.timeoutMs = 0;
     let release;
     const gate = new Promise((resolve) => (release = resolve));
     let held = 0;
@@ -160,6 +165,7 @@ const holdWritesTo = (match) => {
         bodies,
         release: () => {
             globalThis.fetch = realFetch;
+            requestLimit.timeoutMs = limit;
             release();
         },
     };
