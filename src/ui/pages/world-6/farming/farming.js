@@ -426,6 +426,8 @@ const FarmingTab = () => {
                 // Six tabs: on a phone they take two rows instead of running off the side.
                 wrap: true,
                 tabs: TABS.map((tab) => ({ id: tab.id, label: tab.label, content: parts.get(tab.id).content })),
+                // A tab whose numbers include one without a max has Set all.
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
             })
         ),
     });
