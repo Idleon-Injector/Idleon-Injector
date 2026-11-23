@@ -40,6 +40,8 @@ const EXAMPLES = {
     "/save-copies/restore": ["POST", { id: "2026-11-20T00-00-00-000Z_Lumi_Main", select: "all" }, 404],
     "/changes": ["GET"],
     "/changes/undone": ["POST", { id: "no-such-action", indexes: [0] }, 404],
+    // Pictures only come from the real game on the player's PC: the fake one has none.
+    "/game/pet-frames": ["GET"],
 };
 
 const uiRoutes = [
@@ -75,6 +77,11 @@ test("reads come from the fake game's data, and what it lacks is listed", async 
     const missing = await request(router, "POST", "/api/game/gga/read", { path: "gga.NotInTheFakeGame.x" });
     assert.equal(missing.statusCode, 500);
     assert.deepEqual([...game.misses.keys()], ["gga.NotInTheFakeGame.x"]);
+});
+
+test("the fake game hands out no pet pictures, so CI and the page shots never hold one", async () => {
+    assert.equal((await request(router, "GET", "/api/game/pet-picture?id=0")).statusCode, 404);
+    assert.equal((await request(router, "GET", "/api/game/pet-frames?id=0")).body, null);
 });
 
 test("the fake game's data is the same every time", () => {
