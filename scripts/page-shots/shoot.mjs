@@ -212,6 +212,16 @@ const slug = (text) =>
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "") || "tab";
 
+// The shots a --pages run takes: each picked page's shot and its tabs' ("world-1/anvil", "world-5/gaming/garden").
+// Filled while the pages are listed; null for a run without --pages.
+let pickedShots = null;
+const isPickedShot = (name) => {
+    const rest = name.slice(name.indexOf("/") + 1);
+    return pickedShots.some(
+        (p) => rest === p || rest.startsWith(`${p}/`) || (rest.startsWith(p) && /^-\d+$/.test(rest.slice(p.length)))
+    );
+};
+
 async function listPngs(dir) {
     const entries = await readdir(dir, { recursive: true }).catch(() => []);
     return entries
@@ -219,11 +229,13 @@ async function listPngs(dir) {
         .filter(
             (f) => f.endsWith(".png") && !f.startsWith("diff/") && (!args.only || f.split("/")[1].includes(args.only))
         )
-        .map((f) => f.slice(0, -4));
+        .map((f) => f.slice(0, -4))
+        .filter((name) => !pickedShots || isPickedShot(name));
 }
 
 async function main() {
     if (args.only && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --only.");
+    if (args.pages && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --pages.");
     const threshold = Number(args.threshold);
     const picked = args.pages ? new Set(args.pages.split(",").map((id) => id.trim())) : null;
     if (!(threshold >= 0 && threshold < 1)) throw new Error("--threshold is a share of pixels, like 0.001.");
@@ -314,6 +326,14 @@ async function main() {
                     ),
                 })))`
             );
+            if (picked) {
+                const known = new Set(worlds.flatMap((w) => w.pages.map((p) => p.id)));
+                const unknown = [...picked].filter((id) => !known.has(id));
+                if (unknown.length) throw new Error(`--pages: no page has the id ${unknown.join(", ")}.`);
+                pickedShots = worlds.flatMap((w) =>
+                    w.pages.filter((p) => picked.has(p.id)).map((p) => [w.name, ...p.path.map(slug)].join("/"))
+                );
+            }
             const areas = [
                 { name: "home", open: { view: "HOME" } },
                 { name: "cheats", open: { view: "CHEATS" } },

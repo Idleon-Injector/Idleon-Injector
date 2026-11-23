@@ -255,6 +255,22 @@ export async function post({ dir, run, repo, github, core }) {
     return { posted: true, body };
 }
 
+/**
+ * Stage 1's verdict on the touched pages' layout (summary.json's pages and layout): it passes with no touched page or
+ * a measure without breaks, and fails on a break or when touched pages went unmeasured (the shots didn't finish).
+ */
+export function layoutGate({ pages = [], layout = null }) {
+    if (!pages.length) return { pass: true, message: "No page touched, so no layout to check." };
+    if (!layout)
+        return { pass: false, message: "The touched pages' layout wasn't measured: the page shots didn't finish." };
+    if (layout.length)
+        return {
+            pass: false,
+            message: `The touched pages break the page standards' layout rules (DESIGN.md):\n${layout.join("\n")}`,
+        };
+    return { pass: true, message: "The touched pages follow the layout rules." };
+}
+
 function collect({ base: baseRef, out, shots }) {
     const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
     const base = git("merge-base", baseRef, "HEAD").trim();
@@ -287,10 +303,12 @@ function collect({ base: baseRef, out, shots }) {
         if (shots && data.pages.length) {
             const dir = path.join(out, "shots");
             const shoot = path.join(root, "scripts/page-shots/shoot.mjs");
+            const report = path.join(dir, "report.json");
+            // An old report from an earlier run here would pass for this one if this one fails before writing its own.
+            fs.rmSync(report, { force: true });
             spawnSync(process.execPath, [shoot, `--pages=${data.pages.join(",")}`, `--out=${dir}`], {
                 stdio: "inherit",
             });
-            const report = path.join(dir, "report.json");
             if (fs.existsSync(report)) data.layout = layoutOf(JSON.parse(fs.readFileSync(report, "utf8")));
         }
         fs.mkdirSync(out, { recursive: true });
@@ -313,13 +331,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const [command, dir] = positionals;
     if (command === "collect") collect(values);
     else if (command === "gate") {
-        const { layout } = JSON.parse(fs.readFileSync(path.join(dir, "summary.json"), "utf8"));
-        if (layout?.length) {
-            console.error(
-                `The touched pages break the page standards' layout rules (DESIGN.md):\n${layout.join("\n")}`
-            );
-            process.exitCode = 1;
-        } else console.log(layout ? "The touched pages follow the layout rules." : "No touched page was measured.");
+        const { pass, message } = layoutGate(JSON.parse(fs.readFileSync(path.join(dir, "summary.json"), "utf8")));
+        (pass ? console.log : console.error)(message);
+        if (!pass) process.exitCode = 1;
     } else if (command === "post") {
         const run = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8")).workflow_run;
         const repo = process.env.GITHUB_REPOSITORY;

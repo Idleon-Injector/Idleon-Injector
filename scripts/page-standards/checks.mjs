@@ -126,16 +126,20 @@ export function pageBreaks(node, page, title) {
     const breaks = [];
     const rows = rowsIn(node);
 
-    // Max: every line whose value has a cap ("2 / 15") has a Max button. A line is one value in the row's controls; a
-    // table's line (several values under column heads) isn't one.
+    // Max: every line whose value has a cap ("2 / 15") has a Max button, and only those: Max fills up to the cap. A line
+    // is one value in the row's controls; a table's line (several values under column heads) isn't one. A line without
+    // a cap may keep Max's room (the empty slot, or the shared row's Max hidden).
     for (const row of rows) {
         const controls = row.childNodes.find((el) => el.nodeType === 1 && has(el, "account-row__controls"));
         const own = controls?.childNodes.filter((el) => el.nodeType === 1) ?? [];
-        const capped = own.some((el) => has(el, "number-input-wrapper--capped"));
+        const field = own.find((el) => has(el, "number-input-wrapper"));
+        const capped = Boolean(field) && has(field, "number-input-wrapper--capped");
         const maxed = own.some(
-            (el) => el.nodeName === "button" && (has(el, "account-row__max") || words(el) === "Max")
+            (el) =>
+                el.nodeName === "button" && !attr(el, "hidden") && (has(el, "account-row__max") || words(el) === "Max")
         );
         if (capped && !maxed) breaks.push(`Max: "${rowName(row)}" has a cap but no Max button`);
+        if (field && !capped && maxed) breaks.push(`Max: "${rowName(row)}" has Max but no cap to fill up to`);
     }
 
     // Automation: its own sidebar entry, never a tab.
@@ -281,15 +285,22 @@ export async function bulkBreaks(node, writes) {
             for (const tool of tools) {
                 const label = words(tool);
                 if (has(tool, "btn-danger")) {
+                    // The press isn't awaited: writes are counted from it, while the question stays open and through
+                    // Cancel, so a handler that writes after an await is caught too.
                     const before = writes();
                     click(tool);
                     for (let i = 0; i < 20 && !asking(); i++) await settle();
-                    if (!asking()) breaks.push(`Bulk tools: ${where}"${label}" takes away without asking in the tray`);
-                    else if (writes() !== before) breaks.push(`Bulk tools: ${where}"${label}" wrote before the answer`);
+                    if (!asking()) {
+                        breaks.push(`Bulk tools: ${where}"${label}" takes away without asking in the tray`);
+                        continue;
+                    }
+                    for (let i = 0; i < 10; i++) await settle();
                     const cancel = byClass(tray, "tabbed-list__answer")
                         .flatMap((row) => elements(row))
                         .find((el) => words(el) === "Cancel");
                     if (cancel) click(cancel);
+                    for (let i = 0; i < 5; i++) await settle();
+                    if (writes() !== before) breaks.push(`Bulk tools: ${where}"${label}" wrote before the answer`);
                 } else if (/^Max all\b/.test(label)) {
                     click(tool);
                     for (let i = 0; i < 20; i++) await settle();
