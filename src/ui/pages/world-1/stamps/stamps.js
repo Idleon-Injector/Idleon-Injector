@@ -5,6 +5,9 @@
  *   StampLevel[page][order]    -> current stamp level
  *   StampLevelMAX[page][order] -> unlocked max level
  *   Compass[4]                 -> exalted stamp codes
+ *   OptionsListAccount[366]    -> Exalted Stamp uses from a past limited gem shop sale: each is one more stamp to
+ *                                 exalt (_customBlock_Windwalker "StampDoublersLeft" adds it to the Compass and
+ *                                 event shop uses)
  *
  * Stamp definition lookup:
  *   ItemDefinitionsGET.h.Stamp{A|B|C}{N}.displayName -> stamp name
@@ -31,8 +34,9 @@ import { StateSwitch } from "../../../components/views/account/components/StateS
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { TabbedList } from "../../../components/views/account/tabShared.js";
+import { ListPanel, TabbedList } from "../../../components/views/account/tabShared.js";
 import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { SetAllNumberControl, refuseSetAll } from "../../../components/views/account/BulkActionBar.js";
 import {
     cleanName,
@@ -42,6 +46,7 @@ import {
     sortPrefixedNumericCodes,
     useWriteStatus,
     writeManyVerified,
+    writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
@@ -71,6 +76,22 @@ const normalizeExaltedCodes = (rawCodes) =>
         .filter((code) => EXALTED_CODE_REGEX.test(code));
 
 const makeExaltedStampCode = (page, order) => `${EXALTED_PAGE_PREFIXES[page] ?? "_"}${order}`;
+
+const EXALTED_USES_PATH = "OptionsListAccount[366]";
+// An account that never bought one holds 0 or nothing. A count may be text ("3"), as the game reads the slot through
+// its number conversion; anything but a whole count from 0 is a broken read.
+const readExaltedUses = (raw) => {
+    const stored = raw ?? 0;
+    const uses = Number(stored);
+    if (
+        !["number", "string"].includes(typeof stored) ||
+        String(stored).trim() === "" ||
+        !Number.isInteger(uses) ||
+        uses < 0
+    )
+        throw new Error(`Unexpected Exalted Stamp uses count: ${JSON.stringify(raw)}`);
+    return uses;
+};
 
 // A stamp's bonus in the game's own words: its description's 12th part, "{}%_Total_Damage" -> "Total Damage %". The
 // number is the game's, worked out with many multipliers, so only the words show.
@@ -133,6 +154,20 @@ const StampsTab = () => {
     const levelStatesByPage = PAGE_LETTERS.map(() => []);
     const maxLevelStatesByPage = PAGE_LETTERS.map(() => []);
     const pageRowCounts = Array(PAGE_LETTERS.length).fill(-1);
+    const exaltedUses = van.state(0);
+    // Uses counts saved: a load that read the count before a save landed leaves the saved one shown.
+    let exaltedUsesSaves = 0;
+    // The uses from a past limited gem shop sale. The game sets no max, so neither does the row.
+    const exaltedUsesRow = ClampedLevelRow({
+        valueState: exaltedUses,
+        integerMode: "floor",
+        write: async (count) => {
+            const verified = await writeVerified(EXALTED_USES_PATH, count);
+            exaltedUsesSaves++;
+            return verified;
+        },
+        renderInfo: () => RowTitles({ bonus: "+1 Exalted Stamp use each", name: "Exalted Stamp uses" }),
+    });
 
     const getCellState = (grid, page, order) => {
         if (!grid[page][order]) grid[page][order] = van.state(0);
@@ -293,11 +328,15 @@ const StampsTab = () => {
 
     const load = async () =>
         run(async () => {
-            const [levels, maxLevels, rawExaltedCodes] = await Promise.all([
+            const exaltedUsesSavesBefore = exaltedUsesSaves;
+            const [levels, maxLevels, rawExaltedCodes, rawExaltedUses] = await Promise.all([
                 gga("StampLevel"),
                 gga("StampLevelMAX"),
                 gga("Compass[4]"),
+                gga(EXALTED_USES_PATH),
             ]);
+            const uses = readExaltedUses(rawExaltedUses);
+            if (exaltedUsesSaves === exaltedUsesSavesBefore) exaltedUses.val = uses;
 
             const levelsByPage = toIndexedArray(levels);
             const maxLevelsByPage = toIndexedArray(maxLevels);
@@ -375,6 +414,10 @@ const StampsTab = () => {
 
     const body = div(
         { class: "account-list account-list--tabbed" },
+        ListPanel({
+            className: "field-columns stamps-gem-shop",
+            body: AccountSection({ title: "Gem shop", body: exaltedUsesRow }),
+        }),
         TabbedList({
             name: "Stamps",
             tabs: PAGES.map((page, i) => ({ id: page.section, label: page.label, content: pageContainers[i] })),
@@ -403,7 +446,8 @@ export default definePage({
     id: "w1.stamps",
     world: 1,
     system: "Stamps",
-    description: "Stamp levels and exalted stamps.",
-    keywords: ["Exalted", "Combat", "Skills", "Misc"],
+    description: "Stamp levels, exalted stamps and Exalted Stamp uses.",
+    // The uses were a limited gem shop item, so search finds them by the shop's words too.
+    keywords: ["Exalted", "Exalted Stamp uses", "Combat", "Skills", "Misc", "Limited", "Gem shop", "FOMO"],
     component: StampsTab,
 });

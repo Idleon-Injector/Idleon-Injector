@@ -1,0 +1,6 @@
+/* The Gem shop group above the stamp tabs holds one row: it keeps its own height, and the tabs take the rest. */
+.viewport .stamps-gem-shop {
+    flex: none;
+    min-height: 0;
+    margin-bottom: 12px;
+}

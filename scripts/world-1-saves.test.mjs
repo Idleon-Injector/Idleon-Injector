@@ -171,6 +171,106 @@ test("stamps: a flip saves when the game holds the exalts as a numeric-key objec
     assert.equal(wordsOf(row), "Exalted");
 });
 
+// #216: the Exalted Stamp uses from a past limited gem shop sale have their row on Stamps.
+const USES = "Exalted Stamp uses";
+const shownValue = (row) => {
+    // The fake DOM keeps the typed text on the property; what the page binds since is the attribute.
+    const value = elements(row).find((node) => node.nodeName === "input").attributes.value;
+    return String(typeof value === "function" ? value() : value);
+};
+const typeAndEnter = async (row, value) => {
+    const [input] = elements(row).filter((node) => node.nodeName === "input");
+    input.value = String(value);
+    input.listeners.input({ target: input });
+    row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
+    await until(() => ["success", "error"].includes(saveState(row)), "the save to finish");
+};
+const quietly = async (task) => {
+    const realError = console.error;
+    console.error = () => {};
+    try {
+        return await task();
+    } finally {
+        console.error = realError;
+    }
+};
+
+test("stamps: the Exalted Stamp uses row saves the count the game reads", async (t) => {
+    const before = g.OptionsListAccount[366];
+    t.after(() => (g.OptionsListAccount[366] = before));
+    g.OptionsListAccount[366] = 2;
+    const root = await openPage(STAMPS, (root) => rowNamed(root, USES));
+    const row = rowNamed(root, USES);
+    assert.equal(shownValue(row), "2");
+    await typeAndEnter(row, 7);
+    assert.equal(saveState(row), "success");
+    assert.equal(g.OptionsListAccount[366], 7);
+});
+
+// As #228 on Equinox: a Refresh that read the count before a save landed doesn't put the old count back.
+test("stamps: an Exalted Stamp uses count saved while a Refresh reads stays on screen", async (t) => {
+    const before = g.OptionsListAccount[366];
+    t.after(() => (g.OptionsListAccount[366] = before));
+    g.OptionsListAccount[366] = 2;
+    const root = await openPage(STAMPS, (root) => rowNamed(root, USES));
+    const row = rowNamed(root, USES);
+    const realFetch = globalThis.fetch;
+    t.after(() => (globalThis.fetch = realFetch));
+    // A load's stamp-level reads wait for `gate` while it is set.
+    let gate = null;
+    let reached = 0;
+    globalThis.fetch = async (url, options) => {
+        if (String(options?.body ?? "").includes('"gga.StampLevelMAX"') && gate) {
+            reached++;
+            await gate;
+        }
+        return realFetch(url, options);
+    };
+    let releaseFirst;
+    let releaseSecond;
+    gate = new Promise((resolve) => (releaseFirst = resolve));
+    elements(root)
+        .find((node) => node.nodeName === "button" && text(node).trim() === "Refresh")
+        .listeners.click({ preventDefault() {}, stopPropagation() {} });
+    await until(() => reached === 1, "the Refresh to read the count and wait for the levels");
+    gate = new Promise((resolve) => (releaseSecond = resolve));
+    await typeAndEnter(row, 5);
+    assert.equal(saveState(row), "success");
+    releaseFirst();
+    await until(() => reached === 2, "the load to read again");
+    assert.equal(shownValue(row), "5", "the saved count, not the one the Refresh read before the save");
+    gate = null;
+    releaseSecond();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(shownValue(row), "5");
+});
+
+for (const odd of ["broken", "", " ", true, -1, 1.5]) {
+    test(`stamps: an Exalted Stamp uses count of ${JSON.stringify(odd)} is a read error, not 0`, async (t) => {
+        const before = g.OptionsListAccount[366];
+        t.after(() => (g.OptionsListAccount[366] = before));
+        g.OptionsListAccount[366] = odd;
+        const root = (await importRepo(STAMPS)).default.component();
+        await quietly(() =>
+            until(() => text(root).includes("Exalted Stamp uses count"), "the read to fail and say why")
+        );
+    });
+}
+
+for (const [stored, shows] of [
+    [null, "0"],
+    [undefined, "0"],
+    ["3", "3"],
+]) {
+    test(`stamps: an Exalted Stamp uses count of ${JSON.stringify(stored)} shows as ${shows}`, async (t) => {
+        const before = g.OptionsListAccount[366];
+        t.after(() => (g.OptionsListAccount[366] = before));
+        g.OptionsListAccount[366] = stored;
+        const root = await openPage(STAMPS, (root) => rowNamed(root, USES));
+        assert.equal(shownValue(rowNamed(root, USES)), shows);
+    });
+}
+
 const STATUES = "src/ui/pages/world-1/statues/statues.js";
 const statueRow = (root, index) => byClass(root, "statue-row")[index];
 // The tier shows once, in its step picker: the step that is picked.
