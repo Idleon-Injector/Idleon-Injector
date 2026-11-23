@@ -18,7 +18,9 @@ const { div, span } = van.tags;
  * - `write(next)` must resolve to the verified value; returning `{ cancelled: true }` leaves the stored
  *   value unchanged and resets the draft, without success feedback.
  * - `cap` (a number or a function returning one) shows muted inside the field after the value: "2 / 15". Only a
- *   real cap, the value Max fills up to; a number that isn't a limit never gets the slash.
+ *   real cap, the value Max fills up to; a number that isn't a limit never gets the slash. A row with a cap has Max
+ *   (DESIGN.md's Page standards), filling up to the cap, unless `maxAction` names its own; a row with no button of
+ *   its own keeps Max's room empty in a list of mixed fields (`field-columns`), so the fields line up.
  * - `renderBadge(value)` is a state (Equipped, Locked), a plain muted word just before the field.
  * - `unset` is a stored value that means "not set" (a locked talent's -1); the field shows it empty, and leaving the
  *   empty field untouched saves nothing.
@@ -55,6 +57,13 @@ export const EditableNumberRow = ({
         disabled: inputDisabled,
         ...restInputProps
     } = inputProps;
+    const capNow = () => {
+        const raw = resolveValue(cap);
+        const value = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
+        return Number.isFinite(value) ? value : null;
+    };
+    // A real cap is what Max fills up to, so a capped row has Max; it steps aside while the cap is unknown.
+    const max = maxAction ?? (cap === null ? null : { value: capNow, hidden: () => capNow() === null });
     const formatCommittedValue = (value) =>
         unset !== null && value === unset
             ? ""
@@ -70,7 +79,7 @@ export const EditableNumberRow = ({
     });
 
     // Buttons stay enabled while the row saves, so Tab onto one never loses focus; a click then saves after it.
-    const renderBuiltInAction = (action, fallbackLabel, fallbackValue, variant = "quiet") => {
+    const renderBuiltInAction = (action, fallbackLabel, fallbackValue, variant = "quiet", className = "") => {
         if (!action) return null;
 
         const actionValue = action.value ?? fallbackValue;
@@ -82,6 +91,8 @@ export const EditableNumberRow = ({
         return ActionButton({
             label: () => resolveValue(actionLabel),
             variant,
+            className,
+            buttonProps: action.hidden ? { hidden: action.hidden } : {},
             tooltip: action.tooltip ?? null,
             disabled: actionDisabled,
             onClick: (e) => {
@@ -156,7 +167,15 @@ export const EditableNumberRow = ({
                 onDecrement: step(-1, userOnDecrement),
                 onIncrement: step(1, userOnIncrement),
             }),
-            ...toNodes(renderBuiltInAction(maxAction, "Max")),
+            // Max's room, kept empty on a row with no button of its own (shown only in `field-columns`).
+            !resetAction && !extraActions.length
+                ? span({
+                      class: "account-row__max-slot",
+                      "aria-hidden": "true",
+                      hidden: () => Boolean(max) && !max.hidden?.(),
+                  })
+                : null,
+            ...toNodes(renderBuiltInAction(max, "Max", undefined, "quiet", "account-row__max")),
             ...toNodes(renderBuiltInAction(resetAction, "Reset", 0, "danger")),
             ...extraActions
         )

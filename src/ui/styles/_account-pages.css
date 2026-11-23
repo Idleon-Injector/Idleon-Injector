@@ -915,6 +915,17 @@
     min-width: 4.5rem;
 }
 
+/* Max's room on a line without a cap (EditableNumberRow), kept empty so the fields of a mixed list line up. */
+.account-row__max-slot {
+    display: none;
+}
+
+.field-columns .account-row__controls > .account-row__max-slot:not([hidden]) {
+    display: block;
+    flex: none;
+    width: 4.5rem;
+}
+
 .account-row__controls--stack {
     flex-direction: column;
     align-items: flex-end;

@@ -90,3 +90,13 @@ test("without a baseline nothing counts as new, and the summary says nothing was
     assert.deepEqual(summary.added, []);
     assert.equal(summary.text, "1 screenshot, 0 flagged.\nNo baseline for these pages yet, so nothing was compared.");
 });
+
+test("a break of the page standards' layout rules is flagged as it is said, and fails the run", () => {
+    const layout = [`the fields don't line up: "Bonus Exp" starts at 620px, 2 of 3 rows at 540px (at rest)`];
+    assert.deepEqual(flagsFor(shot("1440/world-1/anvil", { layout })), layout);
+    const summary = summarize([shot("1440/world-1/anvil", { layout })], []);
+    assert.deepEqual(
+        summary.flagged.map((s) => s.name),
+        ["1440/world-1/anvil"]
+    );
+});

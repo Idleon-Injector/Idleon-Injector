@@ -1,6 +1,7 @@
 /**
  * Screenshot every page of the WebUI against the fake game, at desktop and overlay width, and flag the ones
- * that need a look: errors, anything too wide for the window, and changes since the baseline.
+ * that need a look: errors, anything too wide for the window, a break of the layout rules in DESIGN.md's Page
+ * standards (layout.mjs, measured at rest and with every row's controls showing), and changes since the baseline.
  *
  *   npm run page-shots                      run, compare with the baseline, print the flagged shots
  *   npm run page-shots -- --update-baseline  then make this run the new baseline (after the release check)
@@ -21,6 +22,7 @@ import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { startFakeApi } from "./fake-api.mjs";
 import { DIFF_THRESHOLD, flagsFor, summarize } from "./report.mjs";
+import { collectLayout, layoutBreaks } from "./layout.mjs";
 
 const require = createRequire(import.meta.url);
 const CDP = require("chrome-remote-interface");
@@ -324,6 +326,14 @@ async function main() {
                 for (let n = 2; shots.some((s) => s.name === name); n++) name = `${width}/${path.join("/")}-${n}`;
                 await settle();
                 const overflow = await evaluate("__shots.overflow()");
+                // The layout rules, at rest and as on a touch screen, where every row shows its − / + and pickers.
+                const measure = () => evaluate(`(${collectLayout})(document)`);
+                const quiet = await measure();
+                await Emulation.setEmulatedMedia({ features: [{ name: "hover", value: "none" }] });
+                await evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+                const shown = await measure();
+                await Emulation.setEmulatedMedia({ features: [] });
+                const layout = layoutBreaks(quiet, shown);
                 await metrics(Math.min(MAX_HEIGHT, Math.max(height, await evaluate("__shots.height()"))));
                 await settle();
                 const { data } = await Page.captureScreenshot({ format: "png" });
@@ -331,7 +341,7 @@ async function main() {
                 const file = join(args.out, `${name}.png`);
                 await mkdir(dirname(file), { recursive: true });
                 await writeFile(file, data, "base64");
-                shots.push({ name, errors, overflow, diff: null, misses: Object.fromEntries(api.game.misses) });
+                shots.push({ name, errors, overflow, layout, diff: null, misses: Object.fromEntries(api.game.misses) });
                 errors = [];
                 api.game.misses.clear();
                 process.stdout.write(".");

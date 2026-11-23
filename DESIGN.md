@@ -11,6 +11,40 @@ down; tags wait for a later pass.
 Very simple, but refined, and never cheap. Cheap means glow, gradients, heavy fills and borders, mixed icon styles, and
 shouting text. Lumify's buttons are the nearest reference, made quieter.
 
+## Page standards
+
+Every page follows these, the same way. `test`: `npm test` renders every page on the shared look on the fake game and
+checks it (`scripts/page-standards/`). `shots`: `npm run page-shots` measures it at 1440 and 400 px, at rest and with
+every row's controls showing, and fails the run on a break (`scripts/page-shots/layout.mjs`). `review`: a person checks.
+A world joins the checks when its pages move to the shared pieces (`ON_STANDARDS` in `checks.mjs`); a break that needs
+more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list only shrinks.
+
+- **Max:** every line whose value has a cap ("2 / 15") has a Max button; a line without one in the same list keeps
+  Max's room empty (`field-columns`), so the fields line up. The shared rows do both. _test, shots_
+- **Bulk tools:** Max all and tools that only raise run on one press, and Max all also lowers a value above the max. A
+  tool that lowers or takes away asks first, in the tray or in place, never in a popup; Set all asks only when it
+  lowers. _test (takers ask, Max all doesn't); each page's tests (lowering, Set all)_
+- **Automation:** every Automation page is its own sidebar entry under its system (`tab: "Automation"`, as Alchemy and
+  Cooking have it), never a tab. _test_
+- **Tabs:** only for a system's own game screens and groups; a tab never holds tabs, its parts are headed groups.
+  _test (tabs in a tab), review (which screens)_
+- **Row switches:** a setting that switches per line (Omni Jade, Organic) is a button or switch on that line, never a
+  tab or page of its own. _test (a tab that lists another tab's lines again, a switch each)_
+- **Names:** the game's names in normal case ("Thicc Skin", never THICC*SKIN), and so are titles, tabs, headings and
+  buttons; the bonus first where the game has one (`RowTitles`). \_test (capitals), review (bonus first)*
+- **Title:** a page's title is its sidebar name, with its system's icon. _test_
+- **Search:** old page names stay as search words; the tabs a page declares (`tabs` in `definePage`) are its real tabs;
+  a limited gem shop buy sits in a quiet "Gem shop" group on its system's page, found by "gem shop", "limited" and
+  "fomo". _test (tabs, gem shop words), review (old names)_
+- **Picks:** a pick out of a list opens in place (`PickInPlace`), never a dropdown. _test_
+- **Layout:** down a list the fields, switches, a table's columns and opening rows' arrows each line up; − / + sit
+  inside their field and a field inside its column; nothing lies over a control or a name; nothing moves when a row's
+  controls show; nothing scrolls sideways at 400 px. _shots_
+- **Saving:** on Enter or on leaving the field, said by the row's `SaveState`; no Set or Save buttons. _test_
+- **Feedback:** no toasts and no `confirm()` popup; no "Coming soon"; no hover popup explains a row's button; no
+  outline or ring left after a click (`:focus-visible` only). _test, no-toasts test_
+- **Words:** plain and short, the way Lumify says it ("Couldn't save. Try again."). _review_
+
 ## Buttons
 
 There are three kinds of button, all pills (`border-radius: 999px`) set in Fira Sans 600 (`--font-display`).

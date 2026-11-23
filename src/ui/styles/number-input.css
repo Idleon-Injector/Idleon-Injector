@@ -186,4 +186,15 @@ input[type="number"] {
         min-width: 0;
         max-width: 9.5rem;
     }
+
+    /* A list of mixed fields keeps one field width here too, capped or not, and its values end in one column. */
+    .viewport .field-columns .account-row__controls .number-input-wrapper,
+    .viewport .field-columns .account-row__controls .number-input-wrapper:not(.number-input-wrapper--capped) {
+        flex: none;
+        width: var(--field-columns-width);
+        max-width: none;
+    }
+    .viewport .field-columns .account-row__controls .number-input-wrapper:not(.number-input-wrapper--capped) input {
+        padding: 0 calc(var(--field-columns-cap) + 2px) 0 4px;
+    }
 }
