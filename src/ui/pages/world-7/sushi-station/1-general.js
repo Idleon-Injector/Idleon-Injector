@@ -123,6 +123,7 @@ const KnowledgeRow = ({ entry, fieldStates }) =>
             span({ class: "account-row__name" }, entry.name),
         ],
         badge: `Tier ${entry.index + 1}`,
+        rowClass: "sushi-knowledge-row",
         controlsClass: "account-row__controls--stack-action",
         renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
             div(
