@@ -89,6 +89,8 @@ const trayLine = (root) => text(byClass(root, "tabbed-list__tools-label").find((
 const yes = (root) => click(byClass(root, "tabbed-list__yes").find((node) => !hidden(node)));
 const stateOf = (row) => /save-state--(\w+)/.exec(classes(byClass(row, "save-state")[0] ?? { attributes: {} }))?.[1];
 const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
+// What a field shows now (a big number short, as the row writes it: "20M").
+const showing = (input) => String(input.value ?? attr(input, "value"));
 const fieldsOf = (row) => byTag(row, "input").filter((node) => node.attributes.role !== "switch");
 const focus = (input) => input.listeners.focus?.({ target: input });
 const typeAndEnter = (row, value, input = fieldsOf(row)[0]) => {
@@ -123,6 +125,15 @@ const holdWrites = () => {
         globalThis.fetch = realFetch;
         release();
     };
+};
+// The requests to one route fail, until restored.
+const failRoute = (route) => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes(route)
+            ? new Response(JSON.stringify({ error: "the game refused" }), { status: 500 })
+            : realFetch(url, options);
+    return () => (globalThis.fetch = realFetch);
 };
 // Counts the times a node is taken out of the page, even to be put back: a browser then drops its focus and blurs it.
 const watchTakenOut = (node) => {
@@ -220,14 +231,52 @@ test("grimoire: Max all fills the upgrades that have a max, lowers one above it,
         gga.Grimoire[4] = 9; // Ribbon Shelf, max 1
         gga.Grimoire[5] = 3; // Ribbon Winning, max 50
         gga.Grimoire[0] = 12; // Wraith Damage, no max
-        click(buttonNamed(root, "Refresh"));
-        await until(() => fieldsOf(rowNamed(pane, "Ribbon Shelf"))[0].attributes.value !== undefined, "the read");
+        await click(buttonNamed(root, "Refresh"));
+        await until(
+            () => showing(fieldsOf(rowNamed(pane, "Ribbon Shelf"))[0]) === "9",
+            "Ribbon Shelf to show the 9 the game holds"
+        );
         const before = writes();
         await click(buttonNamed(root, "Max all"));
         await until(() => gga.Grimoire[5] === 50, "Ribbon Winning to its max");
         assert.ok(writes() > before);
         assert.equal(gga.Grimoire[4], 1, "brought down to its max");
         assert.equal(gga.Grimoire[0], 12, "no max: left as it is");
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+// Review of #239: a failed save may still have changed the level, so the game's level total goes then too.
+test("grimoire: a refused level save says why, and the game counts its levels again", async () => {
+    const { pane } = await openPane(GRIMOIRE, "Upgrades");
+    const row = rowNamed(pane, "Wraith Accuracy");
+    gga.DNSM.h.GrimoireTotLV = 1234;
+    const restore = refuseWrites(gga.Grimoire, 1);
+    try {
+        typeAndEnter(row, 66);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, undefined, "the total is gone though the save failed");
+    } finally {
+        restore();
+    }
+});
+
+// Review of #239: a Max all with nothing to change writes nothing and leaves the game's total alone.
+test("grimoire: Max all with every upgrade at its max writes nothing", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root } = await openPane(GRIMOIRE, "Upgrades");
+        await click(buttonNamed(root, "Max all"));
+        await until(() => gga.Grimoire[5] === 50, "the first Max all");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        gga.DNSM.h.GrimoireTotLV = 77;
+        const before = writes();
+        await click(buttonNamed(root, "Max all"));
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        assert.equal(writes(), before, "nothing written");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, 77, "the game's total stays");
     } finally {
         saved.forEach((level, n) => (gga.Grimoire[n] = level));
     }
@@ -305,6 +354,23 @@ test("map bonuses: a crystal's kills save to the map, and the game works its sum
     }
 });
 
+// Review of #239: a save that can't clear the game's crystal sums fails, and the line says so.
+test("map bonuses: a save whose sums the game can't clear says so on its line", async () => {
+    const before = copy(gga.MapBon[1]);
+    const { pane } = await openPane(TESSERACT, "Map Bonuses");
+    const row = mapRow(pane, 1);
+    const restore = failRoute("/gga/delete");
+    try {
+        typeAndEnter(row, 4321, fieldsOf(row)[2]);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(gga.MapBon[1][2], 4321, "the kills saved; only the sums didn't clear");
+    } finally {
+        restore();
+        gga.MapBon[1] = before;
+    }
+});
+
 test("map bonuses: Set all raising runs on one press; lowering asks in the tray first", async () => {
     const saved = copy(gga.MapBon);
     try {
@@ -334,7 +400,8 @@ test("map bonuses: Set all raising runs on one press; lowering asks in the tray 
 test("map bonuses: a Set all that fails partway shows what the game holds", async () => {
     const saved = copy(gga.MapBon);
     const { root, pane } = await openPane(TESSERACT, "Map Bonuses");
-    const shown = () => fieldsOf(mapRow(pane, 1)).map((node) => String(node.attributes.value ?? node.value));
+    const { largeFormatter } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const shown = () => fieldsOf(mapRow(pane, 1)).map(showing);
     const realFetch = globalThis.fetch;
     let batches = 0;
     globalThis.fetch = async (url, options) => {
@@ -352,7 +419,10 @@ test("map bonuses: a Set all that fails partway shows what the game holds", asyn
         await click(buttonNamed(root, "Set all"));
         assert.equal(batches, 2, "the second batch was refused");
         assert.deepEqual([...gga.MapBon[1]], [20000000, 20000000, 20000000], "the first batch landed");
-        await until(() => shown().every((value) => value === shown()[0] && value !== "0"), "map 1 to show its kills");
+        await until(
+            () => JSON.stringify(shown()) === JSON.stringify([...gga.MapBon[1]].map(largeFormatter)),
+            "map 1 to show the three kills the game holds"
+        );
     } finally {
         globalThis.fetch = realFetch;
         saved.forEach((entry, m) => (gga.MapBon[m] = entry));
@@ -500,6 +570,43 @@ test("outposts: a slot pick whose answer is lost shows what the game holds, not 
     } finally {
         globalThis.fetch = realFetch;
         gga.RoyalMaps[1][11] = before;
+    }
+});
+
+// Review of #239: the slots followed the Barracks level from before the save.
+test("outposts: Barracks opens and locks the slots with the level just saved", async () => {
+    const before = copy(gga.RoyalMaps[1]);
+    try {
+        const { pane } = await openOutposts();
+        const outpost = opened(outpostRow(pane, "Grassy Path"));
+        typeAndEnter(outpost, 5);
+        await until(() => gga.RoyalMaps[1][11] === 222222111, "Barracks 5 to open six slots");
+        await settled(outpost);
+        await new Promise((resolve) => setTimeout(resolve, 1300));
+        typeAndEnter(outpost, 0);
+        await until(() => gga.RoyalMaps[1][11] === 211111111, "Barracks 0 to lock all but the first");
+        assert.equal(gga.RoyalMaps[1][0], 0);
+    } finally {
+        gga.RoyalMaps[1] = before;
+    }
+});
+
+// Review of #239: the game keeps its unit totals per map; a unit change clears them so it counts again.
+test("outposts: adding or removing a unit clears the game's unit totals", async () => {
+    const saved = unitArrays();
+    try {
+        const { pane } = await openOutposts();
+        const outpost = opened(outpostRow(pane, "Grassy Hollow"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        gga.DNSM.h.TotUnitzAllMapz = { h: { 2: [1, 0, 0, 0] } };
+        await click(buttonNamed(lineIn(outpost, "Add a unit"), "Knight"));
+        await until(() => gga.DNSM.h.TotUnitzAllMapz === undefined, "the totals to go after Add");
+        gga.DNSM.h.TotUnitzAllMapz = { h: { 2: [1, 0, 0, 0] } };
+        await until(() => lineIn(outpost, "Unit 2"), "the added unit");
+        await click(buttonNamed(lineIn(outpost, "Unit 2"), "Remove"));
+        await until(() => gga.DNSM.h.TotUnitzAllMapz === undefined, "the totals to go after Remove");
+    } finally {
+        putUnitArrays(saved);
     }
 });
 

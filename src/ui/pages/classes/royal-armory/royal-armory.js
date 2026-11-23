@@ -449,6 +449,18 @@ const PickLine = ({ name, label = name, steps, state, write, said, onFailed = nu
     });
 };
 
+// A change to the map unit lists, then the game's unit totals per map (DNSM TotUnitzAllMapz) go, so it counts them
+// again, as Reset to the game's does. A failed change may have landed, so they go then too.
+const withUnitTotals = (task) => async () => {
+    try {
+        await task();
+    } catch (error) {
+        await refreshRoyalGuardUnitCaches().catch(() => {});
+        throw error;
+    }
+    await refreshRoyalGuardUnitCaches();
+};
+
 const OutpostsTab = ({ pending, reload }) => {
     const openMap = van.state(-1);
     const read = van.state({ outposts: [], royalG: [], builtByWorld: {} });
@@ -483,10 +495,13 @@ const OutpostsTab = ({ pending, reload }) => {
         const fieldsOf = (list, formatted) =>
             list.map((field) => ({ ...field, valueState: levels[field.key], paths: [at(field.index)], formatted }));
 
+        // The slots a Barracks level opens, from the level and the slots the game holds now.
         const syncSlots = (barracks) =>
             slotWrites(async () => {
-                const next = normalizeSlotsForCapacity(slots.val, barracks);
-                if (next === slots.val) return;
+                const now = toInt(await gga(at(11)), { min: 0, fallback: 111111111 });
+                const next = normalizeSlotsForCapacity(now, barracks);
+                slots.val = now;
+                if (next === now) return;
                 await writeVerified(at(11), next);
                 slots.val = next;
                 await refreshRoyalGuardUnitCaches();
@@ -527,7 +542,7 @@ const OutpostsTab = ({ pending, reload }) => {
             return run(
                 async () => {
                     try {
-                        await unitWrites(task);
+                        await unitWrites(withUnitTotals(task));
                     } finally {
                         await reload();
                     }
@@ -545,14 +560,16 @@ const OutpostsTab = ({ pending, reload }) => {
                 state: kind,
                 said,
                 write: (value) =>
-                    unitWrites(async () => {
-                        const { types, maps } = await readUnitPair(unit.typeArray, unit.mapArray);
-                        const index = findUnit(types, maps, unit);
-                        if (index < 0) throw new Error(UNIT_GONE);
-                        await writeVerified(`RoyalG[${unit.typeArray}][${index}]`, value);
-                        Object.assign(unit, { unitIndex: index, type: value });
-                        kind.val = value;
-                    }).finally(reload),
+                    unitWrites(
+                        withUnitTotals(async () => {
+                            const { types, maps } = await readUnitPair(unit.typeArray, unit.mapArray);
+                            const index = findUnit(types, maps, unit);
+                            if (index < 0) throw new Error(UNIT_GONE);
+                            await writeVerified(`RoyalG[${unit.typeArray}][${index}]`, value);
+                            Object.assign(unit, { unitIndex: index, type: value });
+                            kind.val = value;
+                        })
+                    ).finally(reload),
                 extra: ActionButton({
                     label: "Remove",
                     variant: "danger",
@@ -642,7 +659,10 @@ const OutpostsTab = ({ pending, reload }) => {
             ),
             fields: fieldsOf(LEVELS, false),
             read: () => readFields(LEVELS),
-            afterWrite: (changed) => (changed.includes("barracks") ? syncSlots(levels.barracks.val) : null),
+            // The Barracks level as saved (the line takes it after this): the slots follow it.
+            afterWrite: async (changed) => {
+                if (changed.includes("barracks")) await syncSlots(toNum(await gga(at(0)), 0));
+            },
         });
         row.append(
             div(
@@ -801,19 +821,21 @@ const OutpostsTab = ({ pending, reload }) => {
         const counts = wanted();
         await unitsBulk.run(async () => {
             try {
-                await unitWrites(async () => {
-                    const royalG = toIndexedArray((await gga("RoyalG")) ?? []);
-                    // Units the game added since the page read them would go without being asked.
-                    if (unitsRemoved(royalG, read.val.builtByWorld, counts) > confirmed)
-                        throw new Error("Map units changed in game. Press Populate again.");
-                    const { rebuilt } = buildDistributedUnitArrays(royalG, counts, builtIn(read.val.builtByWorld));
-                    await writeManyVerified(
-                        Object.values(rebuilt).flatMap((entry) => [
-                            { path: `RoyalG[${entry.typeArray}]`, value: entry.types },
-                            { path: `RoyalG[${entry.mapArray}]`, value: entry.maps },
-                        ])
-                    );
-                });
+                await unitWrites(
+                    withUnitTotals(async () => {
+                        const royalG = toIndexedArray((await gga("RoyalG")) ?? []);
+                        // Units the game added since the page read them would go without being asked.
+                        if (unitsRemoved(royalG, read.val.builtByWorld, counts) > confirmed)
+                            throw new Error("Map units changed in game. Press Populate again.");
+                        const { rebuilt } = buildDistributedUnitArrays(royalG, counts, builtIn(read.val.builtByWorld));
+                        await writeManyVerified(
+                            Object.values(rebuilt).flatMap((entry) => [
+                                { path: `RoyalG[${entry.typeArray}]`, value: entry.types },
+                                { path: `RoyalG[${entry.mapArray}]`, value: entry.maps },
+                            ])
+                        );
+                    })
+                );
             } finally {
                 await reload();
             }

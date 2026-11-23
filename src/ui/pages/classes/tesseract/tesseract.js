@@ -85,7 +85,8 @@ const CRYSTALS = [
     { key: "blue", label: "AFK" },
 ];
 const WORLDS = 7;
-const forgetSums = () => deleteGga("DNSM.h.ArcMultBon").catch(() => {});
+// A save that can't clear them fails, so the line says so; the next save of any value clears them.
+const forgetSums = () => deleteGga("DNSM.h.ArcMultBon");
 
 // The world a map is in: the world whose Death Note lists the map's monster, else its number's fifty.
 const worldOf = (mapIndex, target, deathNoteMobs) => {
@@ -143,14 +144,24 @@ const MapBonusesTab = ({ pending, reload }) => {
                     ({ map: { m }, crystal }) => stateOf(m, crystal.key).val !== kills
                 )
             );
+            if (!writes.length) return { cancelled: true };
             try {
                 // ponytail: 60 writes a request, the size the old page used; one request would do if the server took it.
                 for (let i = 0; i < writes.length; i += 60)
                     await writeManyVerified(writes.slice(i, i + 60).map(({ path }) => ({ path, value: kills })));
-            } finally {
-                await forgetSums();
+            } catch (error) {
+                // Part of it may have landed: the sums go too, and the write's failure is the one said.
+                await forgetSums().catch(() => {});
+                throw error;
             }
-            writes.forEach(({ map, crystal }) => (stateOf(map.m, crystal.key).val = kills));
+            await forgetSums();
+            // The lines show what the game holds now, not the number typed.
+            const maps = [...new Set(writes.map(({ map }) => map))];
+            const values = await Promise.all(maps.map((map) => gga(`MapBon[${map.m}]`)));
+            maps.forEach((map, i) => {
+                const now = toIndexedArray(values[i] ?? []);
+                CRYSTALS.forEach((crystal, c) => (stateOf(map.m, crystal.key).val = toInt(now[c], { min: 0 })));
+            });
         });
         // Some of it may have landed: the rows show what the game holds.
         if (!result.ok && !result.cancelled) await reload();

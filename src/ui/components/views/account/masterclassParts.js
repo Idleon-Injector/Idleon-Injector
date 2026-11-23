@@ -100,7 +100,13 @@ export const UpgradesPart = ({
             writePath: afterSave ? null : pathOf(upgrade),
             write: afterSave
                 ? async (level) => {
-                      await writeVerified(pathOf(upgrade), level);
+                      try {
+                          await writeVerified(pathOf(upgrade), level);
+                      } catch (error) {
+                          // A failed save may still have changed the game: its cache goes too, and the failure is said.
+                          await Promise.resolve(afterSave(upgrade)).catch(() => {});
+                          throw error;
+                      }
                       await afterSave(upgrade);
                       return level;
                   }
@@ -114,6 +120,8 @@ export const UpgradesPart = ({
     const capped = () => shown().filter((upgrade) => upgrade.max !== null);
     const setLevels = async (entries, targetOf) => {
         const result = await bulk.run(async () => {
+            // Nothing to change (every upgrade shown already at its max): no write, and no cache to clear.
+            if (!entries.some((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade))) return { cancelled: true };
             try {
                 await runBulkSet({
                     entries,
