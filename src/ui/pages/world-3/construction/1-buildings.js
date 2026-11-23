@@ -675,9 +675,11 @@ const CogsTab = () => {
             else value.val = next;
         });
         const save = useAutoSave({
-            prepare: () => {
+            // The text as committed: a save waiting its turn (a second Raise while the first saves) saves its own value.
+            capture: () => String(typed()).trim(),
+            prepare: (committed) => {
                 if (readOnly) return { unchanged: true };
-                const text = String(typed()).trim();
+                const text = committed ?? String(typed()).trim();
                 if (text === "") throw new Error("enter a value");
                 const next = parseNumber(text);
                 if (next === null || !Number.isFinite(next)) throw new Error("not a number");
@@ -687,9 +689,8 @@ const CogsTab = () => {
                         await writeVerified(path, next);
                         // In place: a new stats object would tell every field of the slot to follow it.
                         cogMapStats[index].rawVal[key] = next;
-                        // Text typed since stays, for its own Enter, even the old value typed back.
+                        // Text typed or stepped to since stays, for its own save, even the old value typed back.
                         if (String(typed()).trim() === text) setNumberInputValue(value, String(next));
-                        else value.val = String(next);
                     },
                 };
             },

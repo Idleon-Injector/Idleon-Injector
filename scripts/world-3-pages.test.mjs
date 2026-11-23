@@ -869,6 +869,19 @@ test("Cogs: the old stat typed back while a save runs is the next Enter's save",
     await until(() => gga.CogMap[1].h.a === 11, "the typed-back 11 to be saved");
 });
 
+// CodeRabbit on #248: a second Raise while the first saved was read back to the first's value and never saved.
+test("Cogs: Raise twice while the first save runs saves both steps", async (t) => {
+    keepCog(t);
+    const { row } = await openStat({ a: 11, b: 1 });
+    const raise = byClass(row, "number-input-btn")[1];
+    const hold = holdWrites();
+    click(raise);
+    await until(() => hold.held() === 1, "the first save to reach the game");
+    click(raise);
+    hold.release();
+    await until(() => gga.CogMap[1].h.a === 13, "the second step to save");
+});
+
 test("Cogs: Escape after a Refresh puts back the game's newer stat", async (t) => {
     keepCog(t);
     const { root, popup, field, type, key } = await openStat({ a: 11, b: 1 });
