@@ -220,6 +220,13 @@ export const Icons = {
 const ELLIPSE = "M3 12a9 3.6 0 1 0 18 0 9 3.6 0 1 0-18 0z";
 const SYSTEM_ICONS = {
     Home: ["M4 10.5 12 4l8 6.5", "M6 9v10.5h4.5V15h3v4.5H18V9"],
+    // Work that repeats (the glossary's automation): two arrows chasing each other round a loop.
+    Automation: [
+        "M16.5 3.5 19.5 6.5l-3 3",
+        "M4.5 11.5v-1a4 4 0 0 1 4-4h11",
+        "M7.5 20.5l-3-3 3-3",
+        "M19.5 12.5v1a4 4 0 0 1-4 4h-11",
+    ],
     Stamps: [
         "M9.5 4.5a2.5 2.5 0 1 1 5 0c0 1.2-.8 1.8-1 2.8V10h-3V7.3c-.2-1-1-1.6-1-2.8z",
         "M5 13a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v2H5z",

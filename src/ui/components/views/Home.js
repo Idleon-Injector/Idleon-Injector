@@ -22,7 +22,7 @@ const WorldEntry = (world) =>
             { type: "button", class: "home-world__title", onclick: () => store.openMenu({ world: world.id }) },
             span(
                 { class: `home-world__code ${worldClass(world)}`, "aria-hidden": "true" },
-                WORLDS.find((w) => w.id === world.id)?.code ?? ""
+                Icons.System({ name: world.label }) ?? WORLDS.find((w) => w.id === world.id)?.code ?? ""
             ),
             span({ class: "home-world__label" }, world.label),
             span({ class: "home-world__name" }, world.name)
