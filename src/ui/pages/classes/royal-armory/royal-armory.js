@@ -74,7 +74,7 @@ const resourceName = (r) => `Resource ${(r % 10) + 1}`;
 // Some shelves add or remove map units (militia, Kingdom Sovereignty): the units are built again from the levels.
 const rebuildsUnits = (upgrades) => upgrades.some((upgrade) => UNIT_REBUILD_DISPLAY_SHELVES.has(upgrade.shelf));
 
-const UpgradesTab = ({ pending, reload }) =>
+const UpgradesTab = ({ pending, reload, bulk }) =>
     UpgradesPart({
         levelsPath: "RoyalG[2]",
         definitions: "ArmoryUpg",
@@ -84,6 +84,7 @@ const UpgradesTab = ({ pending, reload }) =>
         afterBulk: (upgrades) => (rebuildsUnits(upgrades) ? resetRoyalGuardUnitsToVanilla() : null),
         pending,
         reload,
+        bulk,
     });
 
 // ---- Resources ---------------------------------------------------------------------------------------------------
@@ -958,7 +959,7 @@ const OutpostsTab = ({ pending, reload }) => {
 
 // ---- Lil' Orblet Shop --------------------------------------------------------------------------------------------
 
-const OrbletTab = ({ pending, reload }) =>
+const OrbletTab = ({ pending, reload, bulk }) =>
     UpgradesPart({
         levelsPath: "RoyalG[23]",
         definitions: "OrbletMarket",
@@ -966,6 +967,7 @@ const OrbletTab = ({ pending, reload }) =>
         words: ["upgrade", "upgrades"],
         pending,
         reload,
+        bulk,
     });
 
 // ---- The page ----------------------------------------------------------------------------------------------------

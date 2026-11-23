@@ -38,13 +38,14 @@ const { div, span } = van.tags;
 
 // ---- Upgrades ----------------------------------------------------------------------------------------------------
 
-const UpgradesTab = ({ pending, reload }) =>
+const UpgradesTab = ({ pending, reload, bulk }) =>
     UpgradesPart({
         levelsPath: "Arcane",
         definitions: "ArcaneUpg",
         words: ["upgrade", "upgrades"],
         pending,
         reload,
+        bulk,
     });
 
 // ---- Tachyons ----------------------------------------------------------------------------------------------------

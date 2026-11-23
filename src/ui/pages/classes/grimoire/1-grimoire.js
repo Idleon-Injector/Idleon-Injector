@@ -27,7 +27,7 @@ const forgetTotal = () => deleteGga("DNSM.h.GrimoireTotLV");
 
 // ---- Upgrades ----------------------------------------------------------------------------------------------------
 
-const UpgradesTab = ({ pending, reload }) =>
+const UpgradesTab = ({ pending, reload, bulk }) =>
     UpgradesPart({
         levelsPath: "Grimoire",
         definitions: "GrimoireUpg",
@@ -36,6 +36,7 @@ const UpgradesTab = ({ pending, reload }) =>
         afterBulk: forgetTotal,
         pending,
         reload,
+        bulk,
     });
 
 // ---- Bones -------------------------------------------------------------------------------------------------------

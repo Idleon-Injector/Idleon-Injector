@@ -33,7 +33,7 @@ const PATHS = [
 
 const pathTab = (path, p) => ({
     ...path,
-    part: ({ pending, reload }) =>
+    part: ({ pending, reload, bulk }) =>
         UpgradesPart({
             levelsPath: "Compass[0]",
             definitions: "CompassUpg",
@@ -41,6 +41,7 @@ const pathTab = (path, p) => ({
             words: path.words ?? [`${path.label} upgrade`, `${path.label} upgrades`],
             pending,
             reload,
+            bulk,
         }),
 });
 

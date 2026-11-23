@@ -71,6 +71,7 @@ const upgradeBonus = (line) => {
  *   whose level changed (or can't be read)
  * @param {() => boolean} opts.pending true while the page reads, or after a read that failed
  * @param {() => *} opts.reload reads the page again
+ * @param {object} [opts.bulk] the page's useWriteStatus, shared with its Set all (a bulk write runs alone)
  */
 export const UpgradesPart = ({
     levelsPath,
@@ -83,8 +84,8 @@ export const UpgradesPart = ({
     afterBulk = null,
     pending,
     reload,
+    bulk = useWriteStatus(),
 }) => {
-    const bulk = useWriteStatus();
     const getLevel = createIndexedStateGetter(0);
     const upgrades = van.state([]);
     const rowOf = new Map();
@@ -95,7 +96,7 @@ export const UpgradesPart = ({
     // the game can't be read. A refused save may still have landed; one that didn't leaves the caches as they are.
     const changedOf = async (tried, before) => {
         const now = await gga(levelsPath).then(
-            (raw) => toIndexedArray(raw ?? []),
+            (raw) => (raw === null || raw === undefined ? null : toIndexedArray(raw)),
             () => null
         );
         return now ? tried.filter((upgrade) => Number(now[upgrade.n] ?? 0) !== Number(before.get(upgrade.n))) : tried;
@@ -229,14 +230,16 @@ export const UpgradesPart = ({
 
 /**
  * A masterclass page: one sidebar entry, the game's screens as `tabs` ({ id, label, part }), each part built with
- * `{ pending, reload }`. One read of the game fills every tab.
+ * `{ pending, reload, bulk }`. One read of the game fills every tab. A tab with a line without a max has Set all in
+ * its tray; it shares `bulk` with the tabs' own tools, so one bulk write runs at a time.
  */
 export const MasterclassPage = ({ name, page, description, tabs, wrap = false }) => {
     const parts = new Map();
     const activeId = van.state(tabs[0].id);
-    const busy = () => [...parts.values()].some((part) => part.busy?.());
+    const bulk = useWriteStatus();
+    const busy = () => bulk.status.val === "loading" || [...parts.values()].some((part) => part.busy?.());
     const own = useAccountLoad({ label: name, busy });
-    for (const tab of tabs) parts.set(tab.id, tab.part({ pending: () => pending(), reload: () => load() }));
+    for (const tab of tabs) parts.set(tab.id, tab.part({ pending: () => pending(), reload: () => load(), bulk }));
     const { loading, error } = own;
     // After a read that failed, what the tabs show may be old: their tools wait for one that works.
     const pending = () => loading.val || Boolean(error.val);
@@ -269,6 +272,7 @@ export const MasterclassPage = ({ name, page, description, tabs, wrap = false })
                 ),
                 toolsOn: (id) => Boolean(parts.get(id).tools),
                 toolsLabel: (open) => parts.get(open.val).toolsLabel?.() ?? "",
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value", bulk },
             })
         ),
     });

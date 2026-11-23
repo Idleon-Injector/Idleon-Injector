@@ -279,6 +279,53 @@ test("grimoire: a refused level save says why, and the game counts its levels ag
     }
 });
 
+// Master's Set all (#240) on a masterclass list: each line saves through its row, so the game's total goes too.
+test("grimoire: Set all gives the lines without a max the number, Stop at max the capped ones their max", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root } = await openPane(GRIMOIRE, "Upgrades");
+        gga.DNSM.h.GrimoireTotLV = 1234;
+        const row = byClass(root, "account-setall-row").find((node) => !attr(node, "hidden"));
+        const field = elements(row).find((node) => node.nodeName === "input");
+        field.value = "70";
+        field.listeners.input({ target: field });
+        await click(buttonNamed(row, "Set all"));
+        await click(buttonNamed(root, "Stop at max"));
+        await until(() => gga.Grimoire[0] === 70, "Wraith Damage (no max) to 70");
+        assert.equal(gga.Grimoire[4], 1, "Ribbon Shelf stops at its max");
+        assert.equal(gga.Grimoire[5], 50, "Ribbon Winning stops at its max");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, undefined, "the game counts its levels again");
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+// Review of #239 round 3: a read back with no value is one that can't be read, not level 0, so the total goes.
+test("grimoire: a refused save whose level can't be read back still clears the game's total", async () => {
+    const level = gga.Grimoire[1];
+    gga.Grimoire[1] = 0;
+    const { pane } = await openPane(GRIMOIRE, "Upgrades");
+    const row = rowNamed(pane, "Wraith Accuracy");
+    await until(() => showing(fieldsOf(row)[0]) === "0", "the level the game holds");
+    gga.DNSM.h.GrimoireTotLV = 1234;
+    const restore = refuseWrites(gga.Grimoire, 1);
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) =>
+        String(url).includes("/gga/read") && JSON.parse(options?.body ?? "{}").path === "gga.Grimoire"
+            ? new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } })
+            : realFetch(url, options);
+    try {
+        typeAndEnter(row, 5);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, undefined, "unknown level: the total goes");
+    } finally {
+        globalThis.fetch = realFetch;
+        restore();
+        gga.Grimoire[1] = level;
+    }
+});
+
 // Review of #239: a Max all with nothing to change writes nothing and leaves the game's total alone.
 test("grimoire: Max all with every upgrade at its max writes nothing", async () => {
     const saved = copy(gga.Grimoire);
@@ -426,6 +473,8 @@ test("royal armory: Max all leaves the units where they are when no unit shelf c
 
 // ---- Tesseract › Map Bonuses -------------------------------------------------------------------------------------
 
+const killsSetAll = (root) =>
+    byClass(root, "account-setall-row").find((node) => byTag(node, "input")[0]?.attributes?.placeholder === "Kills");
 const mapRow = (pane, m) => rowNamed(pane, gga.CustomLists.h.MapDispName[m].replace(/_/g, " "));
 
 test("map bonuses: a crystal's kills save to the map, and the game works its sums out again", async () => {
@@ -464,8 +513,9 @@ test("map bonuses: Set all raising runs on one press; lowering asks in the tray 
     const saved = copy(gga.MapBon);
     try {
         const { root } = await openPane(TESSERACT, "Map Bonuses");
-        const setAll = () => click(buttonNamed(root, "Set all"));
-        const kills = byClass(root, "account-setall-row").find((node) => !hidden(node));
+        // The map bonuses' own Set all (three kills a line); the shared one stays hidden on this tab.
+        const kills = killsSetAll(root);
+        const setAll = () => click(buttonNamed(kills, "Set all"));
         const input = byTag(kills, "input")[0];
         input.value = "99000000";
         input.listeners.input({ target: input });
@@ -499,13 +549,11 @@ test("map bonuses: a Set all that fails partway shows what the game holds", asyn
         return realFetch(url, options);
     };
     try {
-        const input = byTag(
-            byClass(root, "account-setall-row").find((node) => !hidden(node)),
-            "input"
-        )[0];
+        const kills = killsSetAll(root);
+        const input = byTag(kills, "input")[0];
         input.value = "20000000";
         input.listeners.input({ target: input });
-        await click(buttonNamed(root, "Set all"));
+        await click(buttonNamed(kills, "Set all"));
         assert.equal(batches, 2, "the second batch was refused");
         assert.deepEqual([...gga.MapBon[1]], [20000000, 20000000, 20000000], "the first batch landed");
         await until(
