@@ -31,10 +31,6 @@ export const ON_STANDARDS = [
  * on any other break, and on one listed here that is gone, so the list only shrinks. New pages never go on it.
  */
 export const KNOWN_BREAKS = {
-    // #236: Liquid and Pay 2 Win stacked as two pages, each with its own title and Refresh.
-    "world-2/alchemy/2-cauldrons.js": [`Title: the page says "Liquid", its sidebar entry "Cauldrons"`],
-    // #236: the characters' skins are native dropdowns.
-    "world-2/weekly-bosses/weekly-bosses.js": ["Picks: a dropdown; pick in place (PickInPlace)"],
     // #245: tables with a column without a max and no Set all yet.
     "world-3/refinery/refinery.js": [
         "Set all: Combustion: lines without a max but no Set all",
@@ -277,8 +273,22 @@ export function pageBreaks(node, page, title) {
         ))
             breaks.push(`Buttons: "${words(button)}" on "${rowName(row)}" explains itself in a hover popup`);
 
-    // Fields: a value is typed into the shared field (NumberInput, which EditableNumberRow, ClampedLevelRow and the
-    // tables use), so its cap, Max, − / + and saving come with it. A field drawn by hand drops out of all of them.
+    breaks.push(...fieldAndPickBreaks(node, rows));
+
+    // Feedback: nothing promised for later.
+    if (/coming soon/i.test(text(node))) breaks.push(`Feedback: the page says "Coming soon"`);
+
+    return [...new Set(breaks)];
+}
+
+/**
+ * Fields and Picks, in `node` (a page, or what an opener showed). `where` says what holds a field that isn't in a row.
+ * Fields: a value is typed into the shared field (NumberInput, which EditableNumberRow, ClampedLevelRow and the tables
+ * use), so its cap, Max, − / + and saving come with it; a field drawn by hand drops out of all of them. Picks: a pick
+ * out of a list opens in place (PickInPlace), never a dropdown.
+ */
+function fieldAndPickBreaks(node, rows, where = "the page has") {
+    const breaks = [];
     const within = (el, name) => {
         for (let at = el.parentNode; at && at !== node; at = at.parentNode) if (has(at, name)) return true;
         return false;
@@ -288,26 +298,59 @@ export function pageBreaks(node, page, title) {
     ))
         if (!within(field, "number-input-wrapper") && !within(field, "pick-in-place")) {
             const row = rows.find((r) => elements(r).includes(field));
-            breaks.push(
-                `Fields: ${row ? `"${rowName(row)}" has` : "the page has"} a field drawn by hand; use NumberInput`
-            );
+            breaks.push(`Fields: ${row ? `"${rowName(row)}" has` : where} a field drawn by hand; use NumberInput`);
         }
-
-    // Picks: a pick out of a list opens in place (PickInPlace), never a dropdown.
     if (elements(node).some((el) => el.nodeName === "select"))
-        breaks.push(`Picks: a dropdown; pick in place (PickInPlace)`);
+        breaks.push(`Picks: ${where === "the page has" ? "a" : `${where} a`} dropdown; pick in place (PickInPlace)`);
+    return breaks;
+}
 
-    // Feedback: nothing promised for later.
-    if (/coming soon/i.test(text(node))) breaks.push(`Feedback: the page says "Coming soon"`);
-
-    return [...new Set(breaks)];
+/**
+ * What opens, opened: on every tab, each opener (a button with `aria-expanded`: a row that holds a list, a pick in
+ * place, a cog on the board) is pressed and what it shows is held to Fields and Picks, then it is closed again. `hosts`
+ * are the nodes the page put outside itself (the cog board's editor), checked with it.
+ */
+export async function openedBreaks(node, hosts = []) {
+    const breaks = [];
+    const tabs = tabsOf(node);
+    const expanded = (el) => attr(el, "aria-expanded") === "true";
+    for (const tab of tabs.length ? tabs : [null]) {
+        if (tab) {
+            click(tab);
+            await settle();
+        }
+        const openers = elements(node).filter(
+            (el) =>
+                el.nodeName === "button" &&
+                attr(el, "aria-expanded") !== undefined &&
+                !attr(el, "disabled") &&
+                shown(el)
+        );
+        for (const opener of openers) {
+            if (!expanded(opener)) click(opener);
+            for (let i = 0; i < 3; i++) await settle();
+            const name = (words(opener) || String(attr(opener, "title") ?? attr(opener, "aria-label") ?? "")).slice(
+                0,
+                40
+            );
+            const where = `what "${name}" opens has`;
+            // The first opener that shows a break names it; the rest of the same kind say nothing new.
+            for (const root of [node, ...hosts])
+                for (const found of fieldAndPickBreaks(root, rowsIn(root), where))
+                    if (!breaks.some((b) => b.split(":")[0] === found.split(":")[0])) breaks.push(found);
+            if (expanded(opener)) click(opener);
+            await settle();
+        }
+    }
+    return breaks;
 }
 
 /**
  * Bulk tools, pressed: on every tab, a tray tool that lowers or takes away (a danger button) asks in the tray before
  * it writes anything, and Max all runs on one press. Set all: a list with lines without a max has it; it refuses an
  * empty field, asks before a number goes past a line's max ("Go past") or lowers a line, and otherwise runs on one
- * press. `writes()` counts the game writes so far. The page is left as the tools left it, so run this last.
+ * press. All to: lines that each have their own step picker have a tray tool with the same steps. `writes()` counts
+ * the game writes so far. The page is left as the tools left it, so run this last.
  */
 export async function bulkBreaks(node, writes) {
     const breaks = [];
@@ -353,6 +396,37 @@ export async function bulkBreaks(node, writes) {
             const open = (lines) => lines.length >= 2 && lines.some(({ field }) => !capped(field));
             if ([linesOf(list), ...columnsOf(list)].some(open) && !setAllsOf(list).length)
                 breaks.push(`Set all: ${where}lines without a max but no Set all`);
+
+            // All to: lines that each have their own pick (a step picker: Off | Normal | Pets+) have one tool in the
+            // tray with the same steps, so a pick for every line is one press.
+            const picks = new Map();
+            // A line's own picks, not those of the rows it opens (a captain's bonuses).
+            const ownPicks = (row) =>
+                byClass(row, "step-picker").filter((picker) => {
+                    for (let up = picker.parentNode; up && up !== row; up = up.parentNode)
+                        if (has(up, "row-detail")) return false;
+                    return true;
+                });
+            for (const row of rowsIn(list).filter(shown))
+                for (const picker of ownPicks(row)) {
+                    const steps = elements(picker)
+                        .filter((el) => attr(el, "role") === "radio")
+                        .map(words)
+                        .join(" | ");
+                    picks.set(steps, (picks.get(steps) ?? 0) + 1);
+                }
+            let scope = list;
+            while (scope.parentNode && !has(scope, "tabbed-list")) scope = scope.parentNode;
+            const tools = byClass(has(scope, "tabbed-list") ? scope : node, "tabbed-list__tool-group")
+                .filter(shown)
+                .map((group) =>
+                    elements(group)
+                        .filter((el) => el.nodeName === "button")
+                        .map(words)
+                );
+            for (const [steps, count] of picks)
+                if (count >= 2 && !tools.some((tool) => steps.split(" | ").every((step) => tool.includes(step))))
+                    breaks.push(`All to: ${where}each line has its own pick (${steps}) but the tray has no All to`);
         }
 
         for (const tray of byClass(node, "tabbed-list__tools").filter(shown)) {
@@ -409,12 +483,12 @@ export async function bulkBreaks(node, writes) {
                 const press = elements(tool).find((el) => el.nodeName === "button" && words(el) === "Set all");
                 if (!input || !press || attr(press, "disabled")) continue;
                 const column = attr(input, "placeholder");
-                const own = list ? linesOf(list) : [];
-                const lines = own.length
-                    ? own
-                    : (list ? rowsIn(list).filter(shown) : [])
-                          .map((row) => ({ row, field: columnOf(row, column) }))
-                          .filter(({ field }) => field);
+                // The table's column the field names, when the list has one ("Amount" beside a lone Draconic line);
+                // else the list's own lines.
+                const inColumn = (list ? rowsIn(list).filter(shown) : [])
+                    .map((row) => ({ row, field: columnOf(row, column) }))
+                    .filter(({ field }) => field);
+                const lines = inColumn.length ? inColumn : list ? linesOf(list) : [];
                 const shows = ({ field }) => inputOf(field).value ?? attr(inputOf(field), "value");
                 const values = lines.map((line) => number(shows(line)));
                 const caps = lines

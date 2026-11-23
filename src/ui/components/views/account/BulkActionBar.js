@@ -285,3 +285,65 @@ export const SetAllTool = ({
     const button = () => [...control.childNodes].find((node) => node.nodeName?.toLowerCase() === "button");
     return control;
 };
+
+/**
+ * All to (DESIGN.md's Picks with states), the one tool every list whose lines each have their own pick has: one press
+ * gives every line the same step ("All to Off | Normal | Pets+", "All to Materials | Particles"). A step every line
+ * already has is off. With `ordered`, the steps go from least to most, and a press that would lower a line asks in
+ * the tray first ("Lower 3 pets to Normal?"); without it, every press runs at once.
+ *
+ * @param {object} opts
+ * @param {Function} opts.ask the tray's question (TabbedList, ListPanel)
+ * @param {{value: *, label: string}[]} opts.steps the same steps as the lines' pickers
+ * @param {() => Array} opts.lines the lines it acts on now (the ones the top bar's search shows)
+ * @param {(line: *) => *} opts.pickedOf a line's step now
+ * @param {(lines: Array, value: *) => Promise} opts.write gives `lines` the step `value`
+ * @param {(n: number) => string} opts.word what the lines are, for the question ("pets")
+ * @param {object} [opts.bulk] the page's useWriteStatus, when its other tools share it (a bulk write runs alone)
+ * @param {(task: Function) => Promise} [opts.run] runs the write in `bulk` (the page's own, to say a failure its way)
+ * @param {boolean} [opts.ordered]
+ * @param {() => boolean} [opts.disabled]
+ */
+export const AllToTool = ({
+    ask,
+    steps,
+    lines,
+    pickedOf,
+    write,
+    word,
+    bulk = useWriteStatus(),
+    run = (task) => bulk.run(task),
+    ordered = false,
+    disabled = () => false,
+}) => {
+    const rank = (value) => steps.findIndex((step) => step.value === value);
+    const buttons = steps.map((step) => {
+        const changing = () => lines().filter((line) => pickedOf(line) !== step.value);
+        // What a press would lower; a line changed while it asks can change that, and then it asks again.
+        const lowered = () => (ordered ? changing().filter((line) => rank(pickedOf(line)) > rank(step.value)) : []);
+        const press = () => run(() => write(changing(), step.value));
+        const askOrRun = () => {
+            const n = lowered().length;
+            if (!n) return press();
+            return ask({
+                question: `Lower ${n} ${word(n)} to ${step.label}?`,
+                confirmLabel: n === 1 ? "Lower it" : "Lower them",
+                from: stepButton,
+                lowers: lowered,
+                again: askOrRun,
+                onConfirm: press,
+            });
+        };
+        const stepButton = ActionButton({
+            label: step.label,
+            status: bulk.status,
+            disabled: () => disabled() || !changing().length,
+            onClick: (e) => {
+                e.preventDefault();
+                return askOrRun();
+            },
+        });
+        return stepButton;
+    });
+    return div({ class: "tabbed-list__tool-group" }, span({ class: "tabbed-list__tool-label" }, "All to"), ...buttons);
+};

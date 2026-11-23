@@ -33,6 +33,10 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
   field is refused, never written as 0, and a number one line can't hold stops it before anything is written. A
   table's column counts as lines too: a column without a max needs Set all, a capped one counts as capped lines. A page of unrelated single numbers (Emperor) isn't a list, so it has
   no Set all. _test_
+- **All to:** every list whose lines each have their own pick (a step picker: a pet's Off | Normal | Pets+, a
+  bubble's Materials | Particles) has one All to tool in its tray with the same steps (`AllToTool`), acting on the
+  lines the top bar's search shows. Picks with an order ask first when a press would lower a line; picks without one
+  run on one press. A pick out of a long list (an item, a skin, a player) isn't one. _test_
 - **Automation:** every Automation page is its own sidebar entry under its system (`tab: "Automation"`, as Alchemy and
   Cooking have it), never a tab. _test_
 - **Tabs:** only for a system's own game screens and groups; a tab never holds tabs, its parts are headed groups.
@@ -46,8 +50,9 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
   a limited gem shop buy sits in a quiet "Gem shop" group on its system's page, found by "gem shop", "limited" and
   "fomo". _test (tabs, gem shop words), review (old names)_
 - **Fields:** a value is typed into the shared field (`NumberInput`, through the shared rows), never one drawn by
-  hand, so its cap, Max, − / + and saving come with it. _test_
-- **Picks:** a pick out of a list opens in place (`PickInPlace`), never a dropdown. _test_
+  hand, so its cap, Max, − / + and saving come with it; also in what a row or a cog opens. _test (each opener pressed)_
+- **Picks:** a pick out of a list opens in place (`PickInPlace`), never a dropdown; also in what a row or a cog
+  opens. _test (each opener pressed)_
 - **Layout:** down a list the fields, switches, a table's columns and opening rows' arrows each line up; − / + sit
   inside their field and a field inside its column; nothing lies over a control or a name; nothing moves when a row's
   controls show; nothing scrolls sideways at 400 px. _shots; a PR fails its summary check on a break on a page it
@@ -199,6 +204,10 @@ game's.
   inner tab per clicker.
 - **A first tab never repeats its entry's name.**
 - **Search keeps the old names** (Owl, Kangaroo, Liquid, Pay 2 Win), as extra words on the page that holds them now.
+- **Cauldrons has a tab per cauldron** (Lumi, 2026-11-23), like Bubbles: Power, Quicc, High-IQ and Kazam hold each
+  cauldron's Pay 2 Win upgrades; Liquids holds the four liquids and their Pay 2 Win upgrades with the Draconic count;
+  Vials and player holds the Pay 2 Win upgrades that belong to no cauldron. Each tab's tray has Max all; Liquids
+  also has Set all for the liquids' amounts.
 
 ## Page layout
 
@@ -317,6 +326,9 @@ words that keep one width (Page layout).
 - **A plain state word sits in its own column before the picker,** muted: "Owned", "Owned · Pets+".
 - **Bulk tiers are one "All to" tool** (Off | Normal | Pets+) for the open tab; lowering asks in the tray, and bulk
   never touches a saved state (tokens).
+- **Every list of picks has All to** (Lumi, 2026-11-23): a list where each line has its own pick gets the same "All
+  to" in its tray, so switching every line is one press, never one row at a time: Alchemy Automation's "All to
+  Materials | Particles", the palette's "All to None | ★ | ★★". Statues' and Sigils' "Tier for all" are this tool.
 - **Every page's search is the top bar,** with no code on the page (`src/ui/menu/pageSearch.js`). On any page with
   shared rows (`.account-row`) the bar says "This page | Everywhere" at its right end: "This page" hides the rows whose
   name or bonus doesn't match as the player types, "Everywhere" drops the menu's list down as before. The typed text

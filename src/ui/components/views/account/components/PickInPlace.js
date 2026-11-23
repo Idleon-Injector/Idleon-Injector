@@ -83,6 +83,7 @@ export const PickInPlace = ({
                     {
                         type: "button",
                         role: "option",
+                        "data-id": option.id,
                         class: () => joinClasses("pick-in-place__option", picked() === option.id && "is-picked"),
                         "aria-selected": () => String(picked() === option.id),
                         onclick: () => pick(option.id),

@@ -28,6 +28,7 @@ import { PersistentAccountListPage } from "../../../components/views/account/com
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
 import { TabbedList } from "../../../components/views/account/tabShared.js";
 import {
     joinClasses,
@@ -40,7 +41,7 @@ import { SaveState, useAutoSave } from "../../../components/views/account/autoSa
 import { Icons } from "../../../assets/icons.js";
 import { announce } from "../../../components/inPlace.js";
 
-const { div, button, span, p, select, option } = van.tags;
+const { div, button, span, p } = van.tags;
 
 const PLAYER_LETTERS = ["_", "a", "b", "c", "d", "e", "f", "g", "h", "i"];
 const PLAYER_NUMBERS = PLAYER_LETTERS.map((_, index) => index + 1);
@@ -233,11 +234,19 @@ const StarSignDetail = ({ sign, current, usernames = [], onSave }) => {
         setPlayers([...players.val, num]);
     };
     const removePlayer = (num) => setPlayers(players.val.filter((p) => p !== num));
-    const picker = select(
-        { class: "starsign-player-select select-base", "aria-label": "Add a player" },
-        option({ value: "", disabled: true, selected: true }, "Add player…"),
-        ...PLAYER_NUMBERS.map((n) => option({ value: n }, playerName(n, usernames)))
-    );
+    // A player who hasn't completed it yet is picked in place, under the list, and saves at once.
+    const picker = PickInPlace({
+        name: "Players",
+        opener: "Add a player",
+        options: () =>
+            PLAYER_NUMBERS.filter((n) => !players.val.includes(n)).map((n) => ({
+                id: String(n),
+                label: playerName(n, usernames),
+            })),
+        onPick: (id) => addPlayer(Number(id)),
+        disabled: () => players.val.length >= PLAYER_NUMBERS.length,
+        panelClass: "pick-in-place--columns",
+    });
 
     return div(
         { class: "starsign-detail" },
@@ -267,24 +276,11 @@ const StarSignDetail = ({ sign, current, usernames = [], onSave }) => {
         }),
         div(
             { class: "starsign-add-row" },
-            picker,
-            button(
-                {
-                    type: "button",
-                    class: "btn-quiet btn-sm",
-                    onclick: () => {
-                        const val = parseInt(picker.value, 10);
-                        if (val && !players.val.includes(val)) {
-                            addPlayer(val);
-                            picker.value = "";
-                        }
-                    },
-                },
-                "Add"
-            ),
+            picker.opener,
             p({ class: "starsign-detail__hint", hidden: () => players.val.length < 2 }, "Drag a player to move them."),
             SaveState({ status, reason, undo, className: "save-state--inline" })
-        )
+        ),
+        picker.panel
     );
 };
 

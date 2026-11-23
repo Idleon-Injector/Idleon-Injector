@@ -45,11 +45,13 @@ import {
     createIndexedStateGetter,
     createStaticRowReconciler,
     oneAtATime,
+    runBulkSet,
     toInt,
     toNum,
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
+import { AllToTool } from "../../../components/views/account/BulkActionBar.js";
 
 const { button, div, span } = van.tags;
 
@@ -529,7 +531,7 @@ const PALETTE_FIELDS = [
     { key: "stars", label: "Black Stars", path: STARS_PATH, steps: STARS },
 ];
 
-const PalettePart = () => {
+const PalettePart = ({ pending }) => {
     const states = new Map();
     const stateOf = (index) => {
         if (!states.has(index))
@@ -538,10 +540,15 @@ const PalettePart = () => {
     };
     const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
+    const bulk = useWriteStatus();
+    // The colours, with their rows, as the last read found them: All to acts on the ones the top bar's search shows.
+    const colours = van.state([]);
+    const rowOf = new Map();
+    const shown = () => colours.val.filter((colour) => shownBySearch(rowOf.get(colour.index)));
 
     const ColourRow = (colour) => {
         const at = (field) => `${field.path}[${colour.index}]`;
-        return ValueTableRow({
+        const row = ValueTableRow({
             name: colour.name,
             info: RowTitles({ bonus: colour.bonus, name: colour.name }),
             fields: PALETTE_FIELDS.map((field) => ({
@@ -556,6 +563,8 @@ const PalettePart = () => {
             // The game keeps the palette's bonuses until it rebuilds them: a star saved here clears them.
             afterWrite: (changed) => (changed.includes("stars") ? deleteGga("DNSM.h.PaletteBonz") : null),
         });
+        rowOf.set(colour.index, row);
+        return row;
     };
 
     return {
@@ -572,18 +581,49 @@ const PalettePart = () => {
             ]);
             const levels = toIndexedArray(rawLevels ?? []);
             const stars = toIndexedArray(rawStars ?? []);
-            const colours = toIndexedArray(rawDefs ?? []).map((raw, index) => {
+            const read = toIndexedArray(rawDefs ?? []).map((raw, index) => {
                 const def = toIndexedArray(raw ?? []);
                 // "#" marks the bonus's number too ("+#%_Gold_Ball_gain").
                 const bonus = bonusText(String(def[10] ?? "").replace(/#/g, "{"));
                 return { index, name: cleanName(def[3], `Colour ${index + 1}`), bonus };
             });
-            reconcileRows(colours.map((colour) => colour.name).join("|"), () => colours.map(ColourRow));
-            colours.forEach((colour) => {
+            reconcileRows(read.map((colour) => colour.name).join("|"), () => read.map(ColourRow));
+            read.forEach((colour) => {
                 stateOf(colour.index).level.val = toInt(levels[colour.index], { min: 0 });
                 stateOf(colour.index).stars.val = Math.min(2, toInt(stars[colour.index], { min: 0 }));
             });
+            colours.val = read;
         },
+        busy: () => bulk.status.val === "loading",
+        toolsLabel: () => {
+            const n = shown().length;
+            return isSearching() ? `${n} matching ${plural(n, "colour")}` : `All ${n} ${plural(n, "colour")}`;
+        },
+        // All to None | ★ | ★★: fewer stars asks first. Like a row's save, it clears the game's palette bonuses.
+        tools: (ask) =>
+            AllToTool({
+                ask,
+                bulk,
+                steps: STARS,
+                ordered: true,
+                lines: shown,
+                pickedOf: (colour) => stateOf(colour.index).stars.val,
+                word: (n) => plural(n, "colour"),
+                disabled: pending,
+                write: async (lines, value) => {
+                    try {
+                        await runBulkSet({
+                            entries: lines,
+                            getTargetValue: () => value,
+                            getValueState: (colour) => stateOf(colour.index).stars,
+                            getPath: (colour) => `${STARS_PATH}[${colour.index}]`,
+                        });
+                    } finally {
+                        // A clean-up that fails is said like a failed write: the game may keep the old bonuses.
+                        await deleteGga("DNSM.h.PaletteBonz");
+                    }
+                },
+            }),
     };
 };
 

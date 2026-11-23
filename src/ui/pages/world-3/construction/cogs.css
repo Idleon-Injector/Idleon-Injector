@@ -309,28 +309,37 @@
     gap: 6px;
 }
 
-.cogs-cog-stat-input {
-    width: 96px;
-    min-width: 96px;
-    padding: 3px 6px;
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    color: var(--c-text);
+/* A stat's field is the shared one (NumberInput), one width down the list like a row's field; the pattern's pick
+   takes the same width, so they line up. */
+.cogs-cog-stat-row__edit .number-input-wrapper,
+.cogs-cog-stat-row__edit .pick-in-place__opener {
+    width: 130px;
+}
+.cogs-cog-stat-row__edit .pick-in-place__opener {
+    justify-content: space-between;
+}
+/* The tiny type's steps keep their whole word ("Flaggy"). */
+.cogs-cog-stat-row__edit .step-picker__step {
+    flex: 1 0 auto;
+    padding: 0 12px;
 }
 
-.cogs-cog-stat-input:focus {
-    outline: none;
-    border-color: var(--c-border-strong);
+/* The editor lies over the board, outside the page, so the shared picks get the page's type here too: words in
+   normal case, as everywhere else. */
+.cogs-popup .step-picker__step,
+.cogs-popup .pick-in-place__opener,
+.cogs-popup .pick-in-place__option,
+.cogs-popup .pick-in-place__search {
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .cogs-cog-stat-row .save-state {
     --save-state-bg: var(--c-panel-dim);
 }
 
-.cogs-cog-stat-row.is-save-failed .cogs-cog-stat-input,
-.cogs-tiny-editor.is-save-failed .cogs-cog-stat-input {
+.cogs-cog-stat-row.is-save-failed .number-input-wrapper,
+.cogs-tiny-editor.is-save-failed .number-input-wrapper {
     border-color: var(--c-warning);
 }
 
@@ -369,4 +378,9 @@
         flex-direction: column;
         align-items: center;
     }
+}
+
+/* The stat editor's host takes no box of its own: its rows sit in the body as before. */
+.cogs-editor-host {
+    display: contents;
 }
