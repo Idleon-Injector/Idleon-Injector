@@ -644,12 +644,16 @@ test("bundles: a pack the game didn't give says the free slots it needs, not a t
     }
 });
 
-// #28: the count and Buy all covered every bundle, whatever the search showed.
-test("bundles: the count and Buy all follow the search, and a search changed before the second press asks again", async () => {
+// #28: the count and Buy all covered every bundle, whatever the top bar's search showed.
+test("bundles: the count and Buy all follow the top bar's search, and a search changed before the second press asks again", async () => {
+    const { searchHits } = await importRepo("src/ui/menu/pageSearch.js");
     const root = await openPage(BUNDLES);
     const received = gga.BundlesReceived.h;
-    const search = elements(root).find((node) => node.attributes.placeholder === "SEARCH BUNDLES OR CODES");
-    const typeSearch = (value) => search.listeners.input({ target: { value } });
+    // The top bar's search leaves the rows whose code matches (null: not searching).
+    const typeSearch = (value) =>
+        (searchHits.val = value
+            ? new Set(byClass(root, "account-row").filter((row) => ownedFlag(row).includes(value)))
+            : null);
     const buyAll = () =>
         elements(root).find((node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim()));
     const shownCount = () => Number(/\((\d+)\)/.exec(text(buyAll()))[1]);
