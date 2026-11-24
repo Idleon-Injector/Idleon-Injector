@@ -103,6 +103,6 @@ export default definePage({
             page: "classes.grimoire",
             description: "The Death Bringer's Grimoire upgrades and bones.",
             tabs: TABS,
-            automation: { page: "automation.grimoire" },
+            automation: { page: "automation.masterclasses", tab: "grimoire" },
         }),
 });

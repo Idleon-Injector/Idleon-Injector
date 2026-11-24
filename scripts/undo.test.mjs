@@ -688,6 +688,55 @@ test("a finished Undo all goes on its own, even after the pointer passed over it
     }
 });
 
+// #81: Undo where the old value is gone (a typed number, Max, a bulk action); none after a switch or a step pick,
+// which undo themselves. History keeps them all.
+const control = (kind) => ({ closest: (selector) => (selector.split(", ").includes(kind) ? {} : null) });
+
+test("a switch or a step pick offers no Undo; a typed number, Max and a row button do", async () => {
+    const { useAutoSave } = await importRepo("src/ui/components/views/account/autoSave.js");
+    const save = useAutoSave({
+        prepare: () => ({ write: () => writeVerified("OptionsListAccount[254]", ola[254] + 1) }),
+    });
+    const old = ola[254];
+    const offered = async (write) => {
+        await write();
+        const shown = Boolean(save.undo.offer.rawVal);
+        await save.undo.run();
+        return shown;
+    };
+    assert.equal(await offered(() => save.save(control("input"))), true, "a typed number");
+    assert.equal(await offered(() => save.save()), true, "Max (a button)");
+    assert.equal(await offered(() => save.run(() => writeVerified("OptionsListAccount[254]", 7))), true, "Reset");
+    assert.equal(await offered(() => save.save(control(".toggle-switch"))), false, "a switch editing the row");
+    assert.equal(await offered(() => save.save(control(".step-picker"))), false, "a tier pick");
+    const flip = () => writeVerified("OptionsListAccount[254]", 8);
+    assert.equal(await offered(() => save.run(flip, "switch")), false, "a switch with its own status");
+    assert.equal(await offered(() => save.run(() => writeVerified("OptionsListAccount[254]", 9), "toggle")), false);
+    const logged = (await fetchChanges()).actions.slice(0, 4).map((action) => action.entries.length > 0);
+    assert.deepEqual(logged, [true, true, true, true], "History still has the switches and picks");
+    ola[254] = old;
+});
+
+test("Undo all isn't offered beside a switch or a step picker", async () => {
+    await importRepo("src/ui/components/views/account/UndoAllOffer.js");
+    const parent = globalThis.document.createElement("div");
+    for (const kind of [".toggle-switch", ".step-picker"]) {
+        const anchor = {
+            ...control(kind),
+            isConnected: true,
+            parentElement: parent,
+            after: (node) => parent.append(node),
+        };
+        const old = ola[254];
+        await withAction({ label: "flip", anchor }, () =>
+            writeManyVerified([{ path: "OptionsListAccount[254]", value: old + 1 }])
+        );
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        assert.equal(parent.childNodes.length, 0, `nothing beside ${kind}`);
+        ola[254] = old;
+    }
+});
+
 test("Printer saves a picked item over the one an undo put back", async () => {
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
     const root = await openPage(PRINTER, (node) => printerRows(node).length > 0);

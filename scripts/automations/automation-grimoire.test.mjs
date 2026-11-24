@@ -54,21 +54,19 @@ const run = async (items, saving) => {
     await cheat("automation grimoire", false);
 };
 
-test("the Grimoire tab reads the bones, what each saves for, and every upgrade but the placeholders", () => {
+test("the Grimoire tab reads the bones its upgrades use, what each saves for, and every upgrade but the placeholders", () => {
     setGrimoireGame();
     setGrimoire([
         { id: 1, on: true, save: true },
         { id: 2, on: true },
     ]);
-    const { bones, upgrades } = readComputed("automation", "grimoire").value;
-    assert.deepEqual(bones, [
+    const { currencies, upgrades } = readComputed("automation", "grimoire").value;
+    assert.deepEqual(currencies, [
         { name: "femur", owned: 100, goal: { id: 1, cost: 15 } },
         { name: "ribcage", owned: 100, goal: null },
-        { name: "cranium", owned: 0, goal: null },
-        { name: "bovinae", owned: 0, goal: null },
     ]);
     assert.deepEqual(
-        upgrades.map(({ id, bone, max, cost, unlockAt, unlocked }) => [id, bone, max, cost, unlockAt, unlocked]),
+        upgrades.map(({ id, currency, max, cost, unlockAt, open }) => [id, currency, max, cost, unlockAt, open]),
         [
             [0, "femur", null, 10, 0, true],
             [1, "femur", 2, 15, 0, true],
@@ -126,7 +124,7 @@ test("it stops at the stop-at and the max level, and never buys locked, switched
     ]);
     assert.deepEqual(gga.Grimoire, [3, 2, 0, 0, 0]);
     // A maxed or locked upgrade is nothing to save for.
-    assert.equal(readComputed("automation", "grimoire").value.bones[0].goal, null);
+    assert.equal(readComputed("automation", "grimoire").value.currencies[0].goal, null);
 
     // A stop-at already reached buys nothing more, an unlock opens the row, and a placeholder never buys.
     unlocked = 5;

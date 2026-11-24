@@ -210,7 +210,7 @@ game's.
   never crosses a cheat page. Its code column shows a drawn loop, not "AUT" (Lumi, #255). Picking it opens its list,
   like a world (Lumi, #255); its Overview comes first, whose line is "Does what you'd do by hand, with your own
   resources." (never "safe"). Then the systems by world (Alchemy, Construction, Cooking, Sneaking, Summoning,
-  Sushi Station), then Clickers, Grimoire and Shops. A system's page whose automation moved there keeps one quiet way
+  Sushi Station), then Clickers, Masterclasses and Shops. A system's page whose automation moved there keeps one quiet way
   to it beside its title, "Automation" with an arrow, muted words that get the quiet fill only when pointed at; an automation page never
   links back.
 - **A first tab never repeats its entry's name.**
@@ -241,9 +241,9 @@ switches, picking the first option each time.
 - **Sections** are a plain heading in small muted capitals over a thin rule, with the rows straight under it. No box
   inside the page box. The heading's row can carry the section's own controls (Set all) on the right.
 - **On/off is one switch** (`StateSwitch`) with the game's own word for the state beside it: Owned / Not owned,
-  Unlocked / Locked, On / Off. It saves on flip; the row shows saving, the ✓ and Undo like any save, and the switch
-  goes back if the game refuses. The words keep one width, so the switches in a list line up. A switch is reachable
-  and flips from the keyboard; it has no glow.
+  Unlocked / Locked, On / Off. It saves on flip; the row shows saving and the ✓ like any save, with no Undo (flipping
+  again undoes it), and the switch goes back if the game refuses. The words keep one width, so the switches in a list
+  line up. A switch is reachable and flips from the keyboard; it has no glow.
 - **In the narrow overlay** a value row keeps its name and state word on the first line and puts the field and its
   buttons on the line under it.
 - **A search with no results** shows the shared empty state (`EmptyState`), and a save's error shows next to its field.
@@ -284,6 +284,9 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
 - **A tool that stops on an error says why** on the tray's first line, where a question goes, in the soft red ("Character
   changed. Refresh."), and screen readers hear it with the tool's name. It stays until that tool's next try (Lumi,
   #241).
+- **Undo shows where the old value is gone:** after a typed number, Max, and bulk actions (Set all, Max all, All to,
+  the tray's tools). Not after a switch or a step pick: flipping or picking again undoes them. History keeps every
+  change with its Undo (Lumi, #81).
 - **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
   tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
   tools; only with no room anywhere does it take its old place.
@@ -494,8 +497,9 @@ The masterclasses use the World 6 pieces and the Page standards; one page builde
 
 - **Each masterclass is one sidebar entry, its screens as tabs:** Grimoire (Upgrades, Bones), Compass (a tab per path:
   Elemental, Fighter, Survival, Nomadic, Abominations; then Dust), Tesseract (Upgrades, Tachyons, Map Bonuses) and
-  Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop). The Grimoire automation is its
-  own entry in the Automation section; the Grimoire page links to it beside its title.
+  Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop). Their automation is one entry
+  in the Automation section, Masterclasses, with a tab per masterclass (Lumi, 2026-11-24); each masterclass page links
+  to its own tab beside its title.
 - **An upgrade list is the game's list in its order,** the bonus first, without the game's placeholders. An upgrade
   without a real max (999,999 in the game) shows its level alone and has no Max; Max all fills only the ones with a max.
 - **An outpost opens as a band under its line,** edge to edge, so its rank EXP, type, slots and units sit in the
