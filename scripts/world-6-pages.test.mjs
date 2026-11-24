@@ -243,7 +243,13 @@ test("Crop Depot: crops sit under their seed's group, and an amount saves to the
         ["Basic", "Earthy", "Bulbo", "Sushi", "Mushie", "Glassy", "Medal"],
         "the game's seeds, in its order"
     );
-    const row = rowNamed(pane, "Earthy 1");
+    const row = rowNamed(pane, "Carrot");
+    assert.equal(
+        text(byClass(row, "account-row__sub-label")[0]),
+        "Earthy 1",
+        "the wiki's name, its seed and place under it"
+    );
+    assert.ok(rowNamed(pane, "Sushi 9"), "a crop the wiki only numbers keeps its seed and place");
     typeAndEnter(row, 4321);
     await settled(row);
     assert.equal(gga.FarmCrop.h[21], 4321, "Earthy's first crop is crop 21");

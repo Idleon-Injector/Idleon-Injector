@@ -30,6 +30,7 @@ import {
     refreshRoyalGuardUnitCaches,
     resetRoyalGuardUnitsToVanilla,
     unlockedSlotCount,
+    vanillaUnitsRemoved,
 } from "../../../components/views/account/royalGuardDomain.js";
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
@@ -37,6 +38,7 @@ import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 import { NumberInput } from "../../../components/NumberInput.js";
 import { gga, readCList } from "../../../services/api.js";
+import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
@@ -120,6 +122,8 @@ const ResourcesTab = () => {
 // ---- Nodes -------------------------------------------------------------------------------------------------------
 
 const EMPTY = -1;
+// What was collected from a node as the game holds it: -1 when Empty.
+const collectedOf = (raw) => toInt(raw, { min: EMPTY, mode: "floor" });
 
 // `bulk` is the page's, so the nodes' tools and Set all never write at once.
 const NodesTab = ({ pending, reload, bulk }) => {
@@ -131,13 +135,16 @@ const NodesTab = ({ pending, reload, bulk }) => {
     const reconcilers = worldNodes.map(createStaticRowReconciler);
     const counts = worldNodes.map(() => van.state(0));
     const collectedPath = (node) => `RoyalG[4][${node.i}]`;
+    const isEmpty = (node) => stateOf(node.i, "collected").val === EMPTY;
+    const isFull = (node) => stateOf(node.i, "collected").val === 0;
 
-    // A node's grade and what was collected from it; "Empty" before them when it is.
+    // A node's grade and what was collected from it; "Empty" before them when it is, its Collected box blank (0 is
+    // full). A collected amount typed in fills it again from there.
     const NodeRow = (node) => {
         const row = ValueTableRow({
             name: node.name,
             info: RowTitles({ bonus: resourceName(node.resource), name: node.name }),
-            badge: () => (stateOf(node.i, "empty").val ? "Empty" : ""),
+            badge: () => (isEmpty(node) ? withTooltip(span("Empty"), "Nothing left to collect") : ""),
             // Set all sets every node's grade; what was collected stays each node's own (Refill all, Empty all).
             setAll: "grade",
             fields: [
@@ -148,16 +155,12 @@ const NodesTab = ({ pending, reload, bulk }) => {
                     valueState: stateOf(node.i, "collected"),
                     paths: [collectedPath(node)],
                     formatted: true,
+                    toDraft: (value) => (value === EMPTY ? "" : String(value ?? 0)),
                 },
             ],
             read: async () => {
                 const [grade, collected] = await Promise.all([gga(`RoyalG[5][${node.i}]`), gga(collectedPath(node))]);
-                stateOf(node.i, "empty").val = toNum(collected, 0) === EMPTY;
-                return { grade: toInt(grade, { min: 0 }), collected: toInt(collected, { min: 0 }) };
-            },
-            // A collected amount typed in fills it again from there.
-            afterWrite: (changed) => {
-                if (changed.includes("collected")) stateOf(node.i, "empty").val = false;
+                return { grade: toInt(grade, { min: 0 }), collected: collectedOf(collected) };
             },
         });
         rowOf.set(node.i, row);
@@ -172,20 +175,14 @@ const NodesTab = ({ pending, reload, bulk }) => {
             runBulkSet({
                 entries,
                 getTargetValue: () => value,
-                getValueState: (node) => ({
-                    val: stateOf(node.i, "empty").val ? EMPTY : stateOf(node.i, "collected").val,
-                }),
+                getValueState: (node) => stateOf(node.i, "collected"),
                 getPath: collectedPath,
-                applyLocal: (node) => {
-                    stateOf(node.i, "empty").val = value === EMPTY;
-                    stateOf(node.i, "collected").val = 0;
-                },
+                // The amount the game holds: the one asked for, or what it read back after a save failed.
+                applyLocal: (node, _index, now) => (stateOf(node.i, "collected").val = collectedOf(now)),
             })
         );
         if (!result.ok && !result.cancelled) await reload();
     };
-    const isEmpty = (node) => stateOf(node.i, "empty").val;
-    const isFull = (node) => !isEmpty(node) && stateOf(node.i, "collected").val === 0;
 
     return {
         content: div(
@@ -220,9 +217,7 @@ const NodesTab = ({ pending, reload, bulk }) => {
                 counts[w].val = own.length;
             });
             next.forEach((node) => {
-                const amount = toNum(collected[node.i], 0);
-                stateOf(node.i, "empty").val = amount === EMPTY;
-                stateOf(node.i, "collected").val = Math.max(0, Math.floor(amount));
+                stateOf(node.i, "collected").val = collectedOf(collected[node.i]);
                 stateOf(node.i, "grade").val = toInt(grades[node.i], { min: 0 });
             });
             nodes.val = next;
@@ -334,6 +329,8 @@ const UNIT_KINDS = [
 const unitLabel = (type) => UNIT_KINDS.find((kind) => kind.value === Number(type))?.label ?? `Unit ${type}`;
 const DEFAULT_OUTPOST = [0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 211111111, 0];
 const DEFAULT_UNITS = { 5: 1, 6: 4, 4: 5, 7: 1 };
+// The most of one kind Populate puts on an outpost.
+const MAX_UNITS_EACH = 100;
 const UNIT_GONE = "that unit is no longer on this map";
 
 // A world's two unit lists, kind and map by place. Both must read back, and match in length, before one is changed.
@@ -370,13 +367,27 @@ const killsToBuild = (mapId, mapDetails, overrides) => {
     );
 };
 
+// The built outposts of each world (RoyalMaps as the game holds it). Only W1-W4 have map unit lists the page knows, so
+// only their outposts are populated.
+const builtByWorldOf = (rawMaps) => {
+    const builtByWorld = {};
+    toIndexedArray(rawMaps ?? []).forEach((row, mapId) => {
+        const world = worldOfMap(mapId);
+        if (!Array.isArray(row) || row.length < BUILT_OUTPOST_LENGTH || !MAP_UNIT_ARRAYS[world]) return;
+        builtByWorld[world] = [...(builtByWorld[world] ?? []), mapId];
+    });
+    return builtByWorld;
+};
+
 const readOutposts = async () => {
-    const [rawMaps, rawDetails, rawOverrides, rawRoyalG, rawNames] = await Promise.all([
+    const [rawMaps, rawDetails, rawOverrides, rawRoyalG, rawNames, order] = await Promise.all([
         gga("RoyalMaps"),
         gga("CustomLists.h.MapDetails"),
         gga("CustomMaps.h.RG_KillReq.h"),
         gga("RoyalG"),
         readCList("MapDispName"),
+        // The shelves' order, which Reset to the game's builds the units from.
+        readCList("Research[43]"),
     ]);
     const royalG = toIndexedArray(rawRoyalG ?? []);
     const details = toIndexedArray(rawDetails ?? []);
@@ -395,7 +406,8 @@ const readOutposts = async () => {
                 mapId,
                 ...arrays,
             };
-            unitsOn.set(mapId, [...(unitsOn.get(mapId) ?? []), unit]);
+            if (!unitsOn.has(mapId)) unitsOn.set(mapId, []);
+            unitsOn.get(mapId).push(unit);
         }
     });
     const outposts = toIndexedArray(rawMaps ?? [])
@@ -411,12 +423,7 @@ const readOutposts = async () => {
             return null;
         })
         .filter(Boolean);
-    // Only W1-W4 have map unit lists the page knows, so only their outposts are populated.
-    const builtByWorld = {};
-    for (const outpost of outposts)
-        if (outpost.kind === "built" && MAP_UNIT_ARRAYS[outpost.world])
-            builtByWorld[outpost.world] = [...(builtByWorld[outpost.world] ?? []), outpost.mapId];
-    return { outposts, royalG, builtByWorld };
+    return { outposts, royalG, order, builtByWorld: builtByWorldOf(rawMaps) };
 };
 
 // A pick that saves on the press, its words where the list's first column starts. A refused one goes back to what the
@@ -425,6 +432,8 @@ const PickLine = ({ name, label = name, steps, state, write, said, onFailed = nu
     const { status, run } = useWriteStatus();
     const picked = van.state(state.val);
     van.derive(() => (picked.val = state.val));
+    // Only the newest pick's answer is shown: an older one that fails after it started says nothing over it.
+    let newest = 0;
     return AccountRow({
         status,
         rowClass: "value-row outpost-pick",
@@ -444,10 +453,11 @@ const PickLine = ({ name, label = name, steps, state, write, said, onFailed = nu
                             steps,
                             picked: () => picked.val,
                             onPick: async (value) => {
+                                const pick = ++newest;
                                 picked.val = value;
                                 said.clear();
                                 const result = await run(() => write(value));
-                                if (result.ok) return;
+                                if (result.ok || pick !== newest) return;
                                 picked.val = state.val;
                                 said.say("failed", `${name} not saved: ${saveFailureReason(result.error)}`);
                                 if (onFailed) await onFailed();
@@ -462,7 +472,7 @@ const PickLine = ({ name, label = name, steps, state, write, said, onFailed = nu
 };
 
 // The map unit lists are shared by every outpost of a world, and an upgrade shelf rebuilds them: each change to them
-// runs after the last one ended.
+// runs after the last one ended. The outposts' slot values go here too, since a rebuild sets them to the Barracks.
 const unitWrites = oneAtATime();
 
 // A change to the map unit lists, then the game's unit totals per map (DNSM TotUnitzAllMapz) go, so it counts them
@@ -479,7 +489,7 @@ const withUnitTotals = (task) => async () => {
 
 const OutpostsTab = ({ pending, reload }) => {
     const openMap = van.state(-1);
-    const read = van.state({ outposts: [], royalG: [], builtByWorld: {} });
+    const read = van.state({ outposts: [], royalG: [], order: [], builtByWorld: {} });
     // mapId -> { kind, node, update }: a reload keeps each row, and what is typed or said in it.
     const rows = new Map();
     const worldNodes = Array.from({ length: WORLDS }, () => ({ built: div(), kills: div({ class: "outpost-kills" }) }));
@@ -500,8 +510,9 @@ const OutpostsTab = ({ pending, reload }) => {
         const glorified = van.state(0);
         const slots = van.state(111111111);
         const isOpen = () => openMap.val === mapId;
-        // The slot value is one number: the slot picks and the barracks' slot fix save it one at a time.
-        const slotWrites = oneAtATime();
+        // The slot value is one number: the slot picks and the barracks' slot fix save it one at a time, in the unit
+        // queue, since Reset to the game's (and a unit shelf's rebuild) sets the slots too.
+        const slotWrites = unitWrites;
         const readFields = async (fields) => {
             const values = await Promise.all(fields.map((field) => gga(at(field.index))));
             return Object.fromEntries(fields.map((field, i) => [field.key, toNum(values[i], 0)]));
@@ -852,28 +863,38 @@ const OutpostsTab = ({ pending, reload }) => {
         );
     const builtIn = (builtByWorld) =>
         Object.fromEntries(Object.entries(builtByWorld).filter(([world]) => unitWorlds.includes(Number(world))));
-    // What Populate would take away from `royalG`: units over the counts, and kinds it doesn't place.
+    // What Populate would take away from `royalG`: units over the counts, and kinds it doesn't place. Counted from the
+    // units of each kind, without building the lists (a huge count typed in would freeze the page).
     const unitsRemoved = (royalG, builtByWorld, counts = wanted()) =>
-        buildDistributedUnitArrays(royalG, counts, builtIn(builtByWorld)).summaries.reduce(
-            (sum, summary) =>
-                sum +
-                toIndexedArray(royalG[MAP_UNIT_ARRAYS[summary.world].typeArray] ?? []).length -
-                summary.movedExisting,
-            0
-        );
+        Object.entries(builtIn(builtByWorld)).reduce((sum, [world, mapIds]) => {
+            const types = toIndexedArray(royalG[MAP_UNIT_ARRAYS[world].typeArray] ?? []).map(Number);
+            const kept = MAP_UNIT_ORDER.reduce(
+                (n, type) => n + Math.min(types.filter((t) => t === type).length, counts[world][type] * mapIds.length),
+                0
+            );
+            return sum + types.length - kept;
+        }, 0);
     const unitsBulk = useWriteStatus();
     const populate = async (confirmed) => {
         // The counts and the removal as pressed, while the save waits its turn.
         const counts = wanted();
         await unitsBulk.run(async () => {
+            // ponytail: a fixed cap keeps the lists (and the save) a sane size; raise it if players want more.
+            if (Object.values(counts[unitWorlds[0]]).some((n) => n > MAX_UNITS_EACH))
+                throw new Error(`max ${MAX_UNITS_EACH} of each`);
             try {
                 await unitWrites(
                     withUnitTotals(async () => {
-                        const royalG = toIndexedArray((await gga("RoyalG")) ?? []);
+                        // The outposts built when it runs (Build may have added one since the page read them).
+                        const [rawRoyalG, rawMaps] = await Promise.all([gga("RoyalG"), gga("RoyalMaps")]);
+                        if ([rawRoyalG, rawMaps].some((raw) => raw === null || raw === undefined))
+                            throw new Error("Couldn't read the outposts. Try again.");
+                        const royalG = toIndexedArray(rawRoyalG);
+                        const builtByWorld = builtByWorldOf(rawMaps);
                         // Units the game added since the page read them would go without being asked.
-                        if (unitsRemoved(royalG, read.val.builtByWorld, counts) > confirmed)
+                        if (unitsRemoved(royalG, builtByWorld, counts) > confirmed)
                             throw new Error("Map units changed in game. Press Populate again.");
-                        const { rebuilt } = buildDistributedUnitArrays(royalG, counts, builtIn(read.val.builtByWorld));
+                        const { rebuilt } = buildDistributedUnitArrays(royalG, counts, builtIn(builtByWorld));
                         await writeManyVerified(
                             Object.values(rebuilt).flatMap((entry) => [
                                 { path: `RoyalG[${entry.typeArray}]`, value: entry.types },
@@ -887,10 +908,10 @@ const OutpostsTab = ({ pending, reload }) => {
             }
         });
     };
-    const resetUnits = () =>
+    const resetUnits = (confirmed) =>
         unitsBulk.run(async () => {
             try {
-                await unitWrites(resetRoyalGuardUnitsToVanilla);
+                await unitWrites(() => resetRoyalGuardUnitsToVanilla({ removesAtMost: confirmed }));
             } finally {
                 await reload();
             }
@@ -951,11 +972,15 @@ const OutpostsTab = ({ pending, reload }) => {
                 disabled: pending,
                 onClick: (e) => {
                     e.preventDefault();
+                    // What it takes away, as Populate says; more by the time it runs, and it stops.
+                    const removed = vanillaUnitsRemoved(read.val.royalG, read.val.order);
                     ask({
-                        question: "Put every map unit back where the game puts it?",
+                        question: removed
+                            ? `Reset map units to the game's? ${plural(removed, ["unit", "units"])} will be removed.`
+                            : "Reset map units to the game's?",
                         confirmLabel: "Reset them",
                         from: reset,
-                        onConfirm: resetUnits,
+                        onConfirm: () => resetUnits(removed),
                     });
                 },
             });

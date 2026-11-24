@@ -107,6 +107,40 @@ const PlotsPart = () => {
 
 // ---- Crop Depot --------------------------------------------------------------------------------------------------
 
+// The game names no crop (a crop is its picture), so these are the community wiki's names, by crop id: idleon.wiki,
+// Data:Farming Notes (2026-11-24), spelled as the wiki spells them. null: the wiki has only a number too, so the crop
+// keeps its seed and place ("Sushi 9"). A named crop keeps that under its name, so "Basic 3" still finds it.
+// prettier-ignore
+const GLASSY_FIRST = [
+    "Bananas", "Mango", "Mushroom", "Maki", "Broccoli", "Carrot", "Tomato", "Watermelon", "Shrimp", "Rose", "Lettuce",
+    "Onigiri", "Corn",
+];
+// prettier-ignore
+const GLASSY_KINDS = ["Bananas", "Mango", "Broccoli", "Carrot", "Tomato", "Watermelon", "Shrimp", "Rose", "Onigiri", "Corn"];
+// prettier-ignore
+const GLASSY_COLOURS = [
+    "Red", "Green", "White", "Rainbow", "Yellow", "Bright Blue", "Dark", "Bright Green", "Light", "Blue", "Orange",
+];
+// prettier-ignore
+const CROP_NAMES = [
+    "Apple", "Orange", "Lemon", "Pear", "Strawberry", "Bananas", "Blueberry", "Brown Grapes", "Red Pear", "Pineapple",
+    "Lime", "Raspberry", "Fig", "Peach", "Purple Grapes", "Yellow Pear", "Watermelon", "Green Grapes", "Dragon Fruit",
+    "Mango", "Gold Blueberry", "Carrot", "Potato", "Beat", "Tomato", "Artichoke", "Roma Tomato", "Butternut Squash",
+    "Avocado", "Red Pepper", "Broccoli", "Radish", "Coconut", "Sliced Tomato", "Cashew", "Turnip", "Coffee Bean",
+    "Pumpkin", "Sliced Cucumber", "Eggplant", "Lettuce", "Garlic", "Green Beans", "Bell Pepper", "Corn",
+    "Gold Sliced Tomato", "Daisy", "Flour", "Stargazer Lily", "Rose", "Sunflower", "Blue Daisy", "Red Rose", "Tulip",
+    "Pink Daisy", "Cauliflower", "Cape Marguerite Daisy", "Papua Black Orchid", "Muffin", "Black Rose", "Golden Tulip",
+    "Sake Maki", "Salmon Nigiri", "Temaki", "Hamaguri", "Onigiri", "Ama-ebi", "Cup Ramen", "Dalkon Maki", null, null,
+    "Ikura", null, null, null, "Abocado Maki", "Ebi Nigiri", null, null, "Tako Nigiri", "Soy Sauce", null, "Neko Rice",
+    "Shrimp",
+    // Mushie's 23 crops: the wiki numbers them too.
+    ...Array(23).fill(null),
+    // Glassy: 13 plain, then ten kinds in each colour, the colour first ("Red Glassy Corn").
+    ...GLASSY_FIRST.map((kind) => `Glassy ${kind}`),
+    ...GLASSY_COLOURS.flatMap((colour) => GLASSY_KINDS.map((kind) => `${colour} Glassy ${kind}`)),
+    // Medal: numbers on the wiki too.
+];
+
 const CropDepotPart = () => {
     const list = NumberList();
     return {
@@ -121,7 +155,8 @@ const CropDepotPart = () => {
                     const [first, last] = [toInt(seed[2], { min: 0 }), toInt(seed[3], { min: 0 })];
                     return Array.from({ length: Math.max(0, last - first + 1) }, (_, n) => ({
                         key: String(first + n),
-                        name: `${name} ${n + 1}`,
+                        name: CROP_NAMES[first + n] ?? `${name} ${n + 1}`,
+                        subLabel: CROP_NAMES[first + n] ? `${name} ${n + 1}` : undefined,
                         path: `FarmCrop.h[${first + n}]`,
                         value: toNum(crops[first + n], 0),
                         float: true,

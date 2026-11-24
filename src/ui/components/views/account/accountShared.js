@@ -610,6 +610,8 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
             // Done only once onSuccess finished: if it throws, the run failed and is said so, not done as well.
             if (typeof onSuccess === "function") onSuccess(result);
             end("success");
+            // A run started since says how it went (or still runs): an older one's result leaves the status to it.
+            if (id !== status.runs) return { ok: true, result };
             status.val = successState;
             if (successMs > 0) scheduleClear(successMs);
             return { ok: true, result };
@@ -617,9 +619,9 @@ export const useWriteStatus = ({ successMs = 1200, errorMs = 1200 } = {}) => {
             const reason = error?.message || "Couldn't save. Try again.";
             end("error", reason);
             lastRun.val = { anchor, reason };
-            status.val = errorState;
+            if (id === status.runs) status.val = errorState;
             if (typeof onError === "function") onError(error);
-            if (errorMs > 0) scheduleClear(errorMs);
+            if (errorMs > 0 && id === status.runs) scheduleClear(errorMs);
             return { ok: false, error };
         }
     };

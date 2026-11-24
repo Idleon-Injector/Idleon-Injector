@@ -130,6 +130,15 @@ const MapBonusesTab = ({ pending, reload, bulk }) => {
                 return Object.fromEntries(CRYSTALS.map((crystal, c) => [crystal.key, toInt(values[c], { min: 0 })]));
             },
             afterWrite: forgetSums,
+            // A refused save may still have changed the kills: the sums go too, and the save's failure is the one said.
+            runWrite: async (task) => {
+                try {
+                    return await task();
+                } catch (error) {
+                    await forgetSums().catch(() => {});
+                    throw error;
+                }
+            },
         });
         rowOf.set(map.m, row);
         return row;

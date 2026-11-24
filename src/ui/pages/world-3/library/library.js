@@ -11,8 +11,7 @@
  *   cList.TalentOrder        - talent IDs per class page + slot
  *   cList.TalentIconNames    - talent names
  *   cList.ClassNames         - class display names
- *   cList.RANDOlist[16]      - talents shown in Library but blocked with
- *                                          "This Book is not Available"
+ *   cList.RANDOlist[16]      - talents the game's Library blocks with "This Book is not Available" (left out here)
  *   gga.DNSM.h.TalentDL2                 - available talent points per class page (indexed by group order)
  *
  * Computed:
@@ -27,8 +26,7 @@ import { definePage } from "../../../menu/menuModel.js";
 import { readComputed, gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
-import { CappedValue } from "../../../components/NumberInput.js";
-import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { TabbedList } from "../../../components/views/account/tabShared.js";
@@ -49,7 +47,7 @@ import {
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const LIBRARY_CLASS_PARENT_OFFSETS = [null, 0, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7];
 const SPECIAL_TALENT_ORDER_START = 615;
@@ -95,23 +93,11 @@ const TalentRow = ({
     talentBonus,
     maxState,
     maxBookLvState,
-    isBookAvailable,
     isSpecial,
     character,
     checkCharacter,
-}) => {
-    // A talent the Library has no book for: it says so in its state word, and its max shows without a field.
-    if (!isBookAvailable) {
-        return AccountRow({
-            rowClass: "talent-row",
-            rowProps: { "data-talent": talentId },
-            info: RowTitles({ bonus: talentBonus, name: talentName }),
-            badge: () => (maxState.val === -1 ? "Locked" : "Not a book"),
-            controls: () => (maxState.val === -1 ? span() : CappedValue({ value: () => maxState.val })),
-        });
-    }
-
-    return ClampedLevelRow({
+}) =>
+    ClampedLevelRow({
         valueState: maxState,
         // The character the rows were read for, kept by the save even when it waits behind another: it refuses once
         // another is in play, and the game checks again as it writes.
@@ -123,12 +109,12 @@ const TalentRow = ({
         max: isSpecial ? Infinity : () => maxBookLvState.val,
         integerMode: isSpecial ? "floor" : null,
         renderInfo: () => RowTitles({ bonus: talentBonus, name: talentName }),
-        // A max level of -1 is a talent the character hasn't unlocked: the word says so and the field shows empty.
+        // A max level of -1 is a talent the character hasn't unlocked: "Locked" stands where its field would be.
         renderBadge: () => (maxState.val === -1 ? "Locked" : ""),
         unset: -1,
         rowClass: "talent-row",
+        controlsClass: () => (maxState.val === -1 ? "account-row__controls--locked" : ""),
     });
-};
 
 const buildStaticMeta = async () => {
     const [rawTalentOrder, rawTalentIconNames, rawClassNames, rawBlockedLibraryTalents, rawTalentDescriptions] =
@@ -204,12 +190,17 @@ const LibraryTab = () => {
         });
     };
 
-    // The open tab's talents Max books can set: books, not the special talents, and only those the search shows.
+    // The open tab's talents Max books can set: books, not the special talents, only those the search shows, and not
+    // a locked one (left alone, like Set all leaves a line that isn't set).
     const booksShown = (tabId) => {
         const group = groupsShown.find((entry) => String(entry.classId) === tabId);
         if (!group || group.isSpecial) return [];
         return group.talents
-            .filter((talent) => talent.isBookAvailable && shownBySearch(rowOf.get(talent.talentId)))
+            .filter(
+                (talent) =>
+                    getMaxState(loadedCharacter, talent.talentId).val !== -1 &&
+                    shownBySearch(rowOf.get(talent.talentId))
+            )
             .map((talent) => talent.talentId);
     };
     const talentWord = (n) => `book${n === 1 ? "" : "s"}`;
@@ -225,11 +216,7 @@ const LibraryTab = () => {
                 "||" +
                 groups
                     .map((group) =>
-                        [
-                            group.classId,
-                            group.className,
-                            ...group.talents.map((talent) => `${talent.talentId}:${talent.isBookAvailable ? 1 : 0}`),
-                        ].join("|")
+                        [group.classId, group.className, ...group.talents.map((talent) => talent.talentId)].join("|")
                     )
                     .join("||"),
             () => {
@@ -250,7 +237,6 @@ const LibraryTab = () => {
                                     talentBonus: talent.talentBonus,
                                     maxState: getMaxState(loadedCharacter, talent.talentId),
                                     maxBookLvState,
-                                    isBookAvailable: talent.isBookAvailable,
                                     isSpecial: group.isSpecial,
                                     character: loadedCharacter,
                                     checkCharacter,
@@ -325,14 +311,14 @@ const LibraryTab = () => {
                         if (rawTalentId === null || rawTalentId === undefined) continue;
 
                         const talentId = Number(rawTalentId);
-                        const isBookAvailable = !staticMeta.blockedLibraryTalentIds.has(talentId);
+                        // A talent the Library has no book for (Base STR/AGI/WIS) isn't shown.
+                        if (staticMeta.blockedLibraryTalentIds.has(talentId)) continue;
                         getMaxState(character, talentId).val = toNum(skillLevelsMAX[talentId]);
 
                         talents.push({
                             talentId,
                             talentName: getTalentName(talentId),
                             talentBonus: getTalentBonus(talentId),
-                            isBookAvailable,
                         });
                     }
 
@@ -349,7 +335,6 @@ const LibraryTab = () => {
                         talentId,
                         talentName: getTalentName(talentId),
                         talentBonus: getTalentBonus(talentId),
-                        isBookAvailable: true,
                     };
                 });
             if (specialTalents.length) {

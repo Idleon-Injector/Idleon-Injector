@@ -19,7 +19,6 @@ import { readComputedMany } from "../../../services/api.js";
 import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
-import { WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
@@ -38,6 +37,8 @@ const { div, span } = van.tags;
 const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
     const maxLabel = () =>
         realMaxState.val !== baseMax ? `${realMaxState.val} (base ${baseMax})` : String(realMaxState.val);
+    // The game keeps a level above its real max; the value shows it in the warning colour.
+    const overMax = () => toNum(levelState.val) > realMaxState.val;
 
     return ClampedLevelRow({
         valueState: levelState,
@@ -46,6 +47,8 @@ const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
         indexLabel: `#${index}`,
         name,
         cap: () => realMaxState.val,
+        rowClass: () => (overMax() ? "account-row--over-max" : ""),
+        inputProps: { title: () => (overMax() ? "over max" : "") },
         maxAction: {
             value: () => realMaxState.val,
             tooltip: () => `Set to max level (${maxLabel()})`,
@@ -160,10 +163,6 @@ const UpgradeVaultTab = () => {
                 disabled: () => maxAllStatus.val === "loading",
             },
         }),
-        topNotices: WarningBanner(
-            " Max level is sourced from the game's VaultUpgMaxLV formula. " +
-                "Any level from 0 up saves; no hard upper limit is enforced."
-        ),
         state: { loading, error },
         body: listNode,
     });

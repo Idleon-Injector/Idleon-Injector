@@ -71,6 +71,20 @@ const NOTES = [
 ];
 const STRINGS = ["C", "D", "E", "F", "G", "A"];
 const JARS = ["Simple", "Tall", "Ornate", "Great", "Enchanted", "Artisan", "Epic", "Gilded", "Ceremony", "Heirloom"];
+// The game draws its rupies and names none: these are the community wiki's names (idleon.wiki, Module:Caverns
+// RUPIE_NAMES, 2026-11-24), rupie 1 first. Each keeps its number under its name, so "Rupie 3" still finds it.
+const RUPIES = [
+    "Basic Red Rupie",
+    "Basic Green Rupie",
+    "Basic Blue Rupie",
+    "Decent Yellow Rupie",
+    "Decent Pink Rupie",
+    "Decent Green Rupie",
+    "Elegant Orange Rupie",
+    "Elegant Blue Rupie",
+    "Elegant Purple Rupie",
+    "Master Rupie",
+];
 const COINS = ["Bronze", "Silver", "Gold", "Dollar", "Credit", "Treasury", "Moolah", "Shilling", "Greane"];
 const WATERS = ["Blue", "Yellow", "Green"];
 const COVE_UPGRADES = 630;
@@ -255,10 +269,11 @@ const CAVERNS = [
                 value: toNum(data.options["355"], 0),
                 formatted: false,
             },
-            ...Array.from({ length: 10 }, (_, n) => ({
+            ...RUPIES.map((name, n) => ({
                 key: `rupie-${n}`,
                 section: "Rupies",
-                name: `Rupie ${n + 1}`,
+                name,
+                subLabel: `Rupie ${n + 1}`,
                 path: `Holes[9][${20 + n}]`,
                 value: toNum(data.holes[9]?.[20 + n], 0),
                 float: true,
@@ -521,7 +536,7 @@ const CavernsTab = () => {
             TabbedList({
                 name: "Caverns",
                 page: "w5.hole.caverns",
-                wrap: true,
+                pick: "Cavern",
                 setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
                 tabs: CAVERNS.map((cavern, i) => ({
                     id: cavern.id,
