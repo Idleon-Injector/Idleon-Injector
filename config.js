@@ -20,6 +20,10 @@ exports.cheatConfig = {
         flurbocap: 1000000, // Maximum flurbo capacity for dungeons
     },
     automation: {
+        gaming: [], // Automation: Gaming upgrades to buy with bits, { id: "fertilizer0", on, stopAt, save }; stopAt is a level, save true is "Save for it".
+        gamingSaving: 10, // Automation: while Gaming saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
+        gamingAutoHarvest: true, // Automation: while Gaming is open, harvest a full garden, leaving the plant types locked on the Mutation tab.
+        gamingAutoDig: true, // Automation: while Gaming is open, dig once the shovel is ready.
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
         orion: [
             { id: "8", on: false, save: true },
@@ -269,6 +273,7 @@ exports.cheatConfig = {
         },
     },
     w5: {
+        betternuggets: 3, // Gaming: how strongly dug nuggets lean toward big ones, 1 (the game's own odds) to 20
         sailing: {
             IslandDistance: (t) => t / 2, // Sailing: Island distance (lower is closer)
             MaxChests: (t) => t, // Sailing: Maximum chest limit (Warning: too high may break cloud saves). No change until you set it
