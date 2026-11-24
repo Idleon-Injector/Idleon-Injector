@@ -74,13 +74,14 @@ const AUTOMATION_TABS = {
     poppy: () => getAutomationClicker("poppy"),
     tarpit: () => getAutomationClicker("tarpit"),
     bubba: getAutomationBubba,
-    // The Grimoire automation page still reads the bones and each upgrade's bone and unlocked (until the Masterclasses
-    // page replaces it).
+    // Also under the old Grimoire automation page's names (bones; an upgrade's bone and unlocked), until the
+    // Masterclasses page replaces it; a follow-up drops them.
     grimoire: () => {
-        const { currencies, upgrades } = grimoire.read();
+        const read = grimoire.read();
         return {
-            bones: currencies,
-            upgrades: upgrades.map((upgrade) => ({ ...upgrade, bone: upgrade.currency, unlocked: upgrade.open })),
+            ...read,
+            bones: read.currencies,
+            upgrades: read.upgrades.map((upgrade) => ({ ...upgrade, bone: upgrade.currency, unlocked: upgrade.open })),
         };
     },
     compass: compass.read,
