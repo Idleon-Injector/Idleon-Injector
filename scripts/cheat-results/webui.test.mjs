@@ -157,7 +157,7 @@ test("a cheat that needs a value lights its star once that value is a favorite",
 });
 
 // The sidebar's list is My cheats now (concept): a row per cheat with its own switches.
-test("My cheats lists the cheats that are on, and a row's On switch turns exactly that cheat off", async () => {
+test("My cheats lists the cheats that are on, and pressing a name turns exactly that cheat off", async () => {
     await game.cheat("godlike crit", true);
     await store.loadCheatStates();
     const sidebar = Sidebar();
@@ -167,9 +167,9 @@ test("My cheats lists the cheats that are on, and a row's On switch turns exactl
     assert.ok(names.includes("godlike crit"), names.join(", "));
 
     sent.length = 0;
-    const box = find(rows[names.indexOf("godlike crit")], (node) => node.attributes?.role === "switch")[0];
-    box.checked = false;
-    await box.listeners.change({ target: box });
+    const name = find(rows[names.indexOf("godlike crit")], (node) => /my-cheat__name/.test(classOf(node)))[0];
+    assert.equal(name.attributes["aria-pressed"], "true");
+    name.listeners.click();
     await settle();
     assert.deepEqual(sent, [["godlike crit", false]]);
     assert.equal(crit(), false);

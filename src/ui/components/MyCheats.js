@@ -1,13 +1,14 @@
 /**
  * My cheats (concept): the sidebar's list of the player's own cheats, where "Active cheats" was. Lumi: every cheat on
- * now plus every cheat set to start with the injector, each row with a proper on/off and an Autostart toggle;
- * effectively your favourites.
+ * now plus every cheat set to start with the injector; effectively your favourites. Second pass (her words: "on/off if
+ * you press on the name and it turns grey and white depending on the state. a autostart option if its not in autostart
+ * already?"): the quiet look of the old list, names only, at the sidebar's own width.
  *
  * A cheat gets in by being turned on anywhere (a page's cheats panel, the Cheats area, the command box) or by being in
  * the startup cheats (Settings › Startup). It arrives with the accent wash draining from its row. Autostart is the
- * same startup list Settings › Startup edits; flipping it never turns the cheat on or off now.
+ * same startup list Settings › Startup edits; changing it never turns the cheat on or off now.
  *
- * Rows keep one order (by name) and stay put while the pointer or focus is in the list, so a cheat switched off here
+ * Rows keep one order (by name) and stay put while the pointer or focus is in the list, so a cheat turned off here
  * doesn't leave from under the cursor; it goes when the pointer leaves. In the icon rail (a narrow window, a folded
  * sidebar) the list opens from a "MY" entry at the rail's foot, over the page, like the status details do.
  */
@@ -16,7 +17,7 @@ import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
 import { withNewNames } from "../menu/pageCheats.js";
-import { StateSwitch } from "./views/account/components/StateSwitch.js";
+import { Icons } from "../assets/icons.js";
 import { isRail } from "./MenuLevels.js";
 import { Said, plainReason, useSaid } from "./inPlace.js";
 
@@ -41,50 +42,82 @@ const arrive = (el) => {
     el.addEventListener("animationend", () => el.classList.remove("is-arriving"), { once: true });
 };
 
+/**
+ * A row is the cheat's name, and the name is the switch: pressing it turns the cheat on or off (white on, grey off).
+ * A cheat that starts with the injector has a small dot at the row's end. Pointing at the row (or focus in it) shows
+ * "Autostart" there instead, a quiet toggle: plain words when it doesn't autostart, with a tick and the soft fill when
+ * it does. Each row's presses save one at a time, in order, and the row shows the newest one while they run.
+ */
 const Row = (cheat, { say, linger }) => {
-    const on = StateSwitch({
-        checked: () => store.getActiveCheats().includes(cheat),
-        words: ["", ""],
-        name: `${cheat}: on`,
-        ownStatus: true,
-        onFlip: async (next) => {
-            linger(cheat);
+    const wantOn = van.state(null);
+    const wantAuto = van.state(null);
+    const isOn = () => wantOn.val ?? store.getActiveCheats().includes(cheat);
+    const isAuto = () => wantAuto.val ?? autostarts(cheat);
+    let onQueue = Promise.resolve();
+    let autoQueue = Promise.resolve();
+    let onRuns = 0;
+    let autoRuns = 0;
+
+    const flip = () => {
+        const next = !isOn();
+        linger(cheat);
+        wantOn.val = next;
+        onRuns++;
+        onQueue = onQueue.then(async () => {
             const result = await store.executeCheat(cheat, next);
-            if (result.ok) return { ok: true };
-            say("failed", `${cheat}: ${plainReason(result.message)}`);
-            return { ok: false, error: new Error(plainReason(result.message)) };
-        },
-    });
-    const auto = StateSwitch({
-        checked: () => autostarts(cheat),
-        words: ["", ""],
-        name: `${cheat}: autostart`,
-        ownStatus: true,
-        disabled: () => startup.val === null || throughGroup(cheat),
-        title: () => (throughGroup(cheat) ? `Starts with ${groupOf(cheat)}` : ""),
-        onFlip: async (next) => {
-            linger(cheat);
+            if (!result.ok) say("failed", `${cheat}: ${plainReason(result.message)}`);
+            if (--onRuns === 0) wantOn.val = null;
+        });
+    };
+    const flipAuto = () => {
+        const next = !isAuto();
+        linger(cheat);
+        wantAuto.val = next;
+        autoRuns++;
+        autoQueue = autoQueue.then(async () => {
             try {
                 const { config } = await saveConfigPart((file) => ({
                     startupCheats: startupWith(withNewNames(file.startupCheats ?? []), cheat, next),
                 }));
                 startup.val = withNewNames(config.startupCheats ?? []);
-                return { ok: true };
-            } catch (error) {
+            } catch {
                 say("failed", "Couldn't save. Try again.");
-                loadStartup();
-                return { ok: false, error };
+                await loadStartup();
             }
-        },
-    });
+            if (--autoRuns === 0) wantAuto.val = null;
+        });
+    };
+
     return div(
         {
-            class: () => `my-cheat${store.getActiveCheats().includes(cheat) ? " is-on" : ""}`,
+            class: () => `my-cheat${isOn() ? " is-on" : ""}${isAuto() ? " is-auto" : ""}`,
             "data-cheat": cheat,
         },
-        span({ class: "my-cheat__name", title: cheat }, cheat),
-        span({ class: "my-cheat__col" }, on),
-        span({ class: "my-cheat__col" }, auto)
+        button(
+            {
+                type: "button",
+                class: "my-cheat__name",
+                "aria-pressed": () => String(isOn()),
+                title: () => (isOn() ? `${cheat}: on` : `${cheat}: off`),
+                onclick: flip,
+            },
+            cheat
+        ),
+        span({ class: "my-cheat__mark", "aria-hidden": "true" }),
+        button(
+            {
+                type: "button",
+                class: "my-cheat__auto",
+                "aria-pressed": () => String(isAuto()),
+                "aria-label": `${cheat}: autostart`,
+                // Started through its group ("w4" starts every W4 cheat): only the group's own row changes that.
+                disabled: () => startup.val === null || throughGroup(cheat),
+                title: () => (throughGroup(cheat) ? `Starts with ${groupOf(cheat)}` : ""),
+                onclick: flipAuto,
+            },
+            () => (isAuto() ? Icons.Check() : span()),
+            "Autostart"
+        )
     );
 };
 
@@ -183,12 +216,7 @@ export const MyCheats = () => {
                 railButton.focus();
             },
         },
-        div(
-            { class: "my-cheats__head" },
-            span({ class: "my-cheats__title" }, "MY CHEATS"),
-            span({ class: "my-cheats__colhead", "aria-hidden": "true" }, "ON"),
-            span({ class: "my-cheats__colhead", "aria-hidden": "true" }, "AUTOSTART")
-        ),
+        div({ class: "my-cheats__head" }, "MY CHEATS"),
         list,
         div({ class: "my-cheats__empty" }, "Cheats you turn on show here."),
         Said({ said, className: "said--line" })

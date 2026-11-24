@@ -437,20 +437,18 @@
     font-family: var(--font-display);
 }
 
-/* --- MY CHEATS (concept) ---
- * The cheats on now and the ones that start with the injector, in one list under the menu. Two real columns, On and
- * Autostart, each a small switch under its head; a cheat that is on reads in the main colour, an autostart-only one
- * in the sidebar's quiet words. Nothing glows; a row only gets the hover fill. */
+/* --- MY CHEATS (concept, second pass) ---
+ * The old Active cheats look, kept: the same box, heading and type. A row is the cheat's name, and the name is its
+ * switch: the row-name colour when on, the faint colour when off. A cheat that starts with the injector has a small dot
+ * at the row's end; pointing at a row shows its quiet "Autostart" toggle there instead. */
 .my-cheats {
-    --my-on: 34px;
-    --my-auto: 62px;
     flex: 0 0 auto;
     max-height: 30vh;
     min-height: 0;
     display: flex;
     flex-direction: column;
     margin-top: 12px;
-    padding: 14px 0 0;
+    padding: 14px 6px 0;
     border-top: 1px solid var(--c-border);
 }
 
@@ -458,34 +456,19 @@
     display: none;
 }
 
-.my-cheats__head,
-.my-cheat {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--my-on) var(--my-auto);
-    align-items: center;
-    column-gap: 4px;
-}
-
 .my-cheats__head {
-    padding: 0 6px 8px;
-    font-family: var(--font-display);
     font-size: 0.6875rem;
-    font-weight: 600;
     color: var(--c-text-faint);
     letter-spacing: 0.12em;
-}
-
-.my-cheats__colhead {
-    justify-self: center;
-    font-size: 0.625rem;
-    letter-spacing: 0.06em;
-}
-
-.my-cheats.is-empty .my-cheats__colhead {
-    visibility: hidden;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-family: var(--font-display);
 }
 
 .my-cheats__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -495,35 +478,47 @@
 }
 
 .my-cheats__list.is-cut {
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
 }
 
 .my-cheat {
-    height: 30px;
-    padding: 0 6px;
-    border-radius: 8px;
-    transition: background-color 160ms var(--ease-soft);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    min-height: 22px;
+    padding: 4px 0;
 }
 
-.my-cheat:hover,
-.my-cheat:focus-within {
-    background: var(--c-panel-hover);
+.my-cheat.is-arriving .my-cheat__name {
+    animation: name-arrive 1.4s ease-out;
 }
 
-.my-cheat.is-arriving,
-.my-cheats-rail.is-arriving {
-    animation: confirm-wash 1.4s ease-out;
+@keyframes name-arrive {
+    from {
+        color: var(--c-accent);
+    }
 }
 
 .my-cheat__name {
-    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
     white-space: nowrap;
+    overflow: hidden;
     text-overflow: ellipsis;
     font-family: var(--font-display);
     font-size: 0.8125rem;
     font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--c-text-faint);
+    cursor: pointer;
     transition: color 160ms var(--ease-soft);
 }
 
@@ -531,64 +526,104 @@
     color: var(--c-text-body);
 }
 
-.my-cheat__col {
-    display: flex;
-    justify-content: center;
+.my-cheat__name:hover {
+    color: var(--c-text-muted);
 }
 
-/* The switches, a size down from a page's: words go under the list (a failure), not beside the switch. */
-.my-cheats .state-switch {
-    gap: 0;
+.my-cheat.is-on .my-cheat__name:hover {
+    color: var(--c-text-main);
 }
 
-.my-cheats .state-switch__words {
+.my-cheat__name:focus-visible,
+.my-cheat__auto:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* The autostart dot: the status line's dot, smaller. */
+.my-cheat__mark {
+    display: none;
+    flex: none;
+    width: 4px;
+    height: 4px;
+    margin-right: 4px;
+    border-radius: 50%;
+    background: var(--c-text-faint);
+}
+
+.my-cheat.is-auto .my-cheat__mark {
+    display: block;
+}
+
+/* "Autostart": a quiet toggle, only while the row is pointed at or holds focus. On, it has a tick and keeps the soft
+   fill (a quiet toggle that is on keeps its hover fill). */
+.my-cheat__auto {
+    display: none;
+    flex: none;
+    align-items: center;
+    gap: 3px;
+    height: 20px;
+    /* Taller than the name's line: it overhangs the row's padding, so showing it never moves the rows below. */
+    margin-block: -4px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--c-text-faint);
+    cursor: pointer;
+    transition:
+        color 160ms var(--ease-soft),
+        background-color 160ms var(--ease-soft);
+}
+
+.my-cheat__auto svg {
+    width: 12px;
+    height: 12px;
+}
+
+.my-cheat__auto[aria-pressed="true"] {
+    color: var(--c-text-muted);
+    background: var(--c-white-05);
+}
+
+.my-cheat__auto:hover:not(:disabled) {
+    color: var(--c-text-main);
+    background: var(--c-white-05);
+}
+
+.my-cheat__auto:disabled {
+    cursor: default;
+}
+
+.my-cheat:hover .my-cheat__auto,
+.my-cheat:focus-within .my-cheat__auto {
+    display: inline-flex;
+}
+
+.my-cheat:hover .my-cheat__mark,
+.my-cheat:focus-within .my-cheat__mark {
     display: none;
 }
 
-.my-cheats .toggle-switch .slider {
-    width: 28px;
-    height: 16px;
-}
+/* No pointer to point with: the toggle shows on every row. */
+@media (hover: none) {
+    .my-cheat__auto {
+        display: inline-flex;
+    }
 
-.my-cheats .toggle-switch .slider::before {
-    width: 12px;
-    height: 12px;
-    left: 2px;
-    top: 2px;
-}
-
-.my-cheats .toggle-switch input:checked ~ .slider::before {
-    transform: translateX(12px);
-}
-
-.my-cheats .toggle-switch input {
-    width: 28px;
-    height: 16px;
-}
-
-/* Quiet until touched: a switch that is off sits a step back until its row is pointed at or holds focus. */
-.my-cheat .toggle-switch input:not(:checked) ~ .slider {
-    background: var(--c-border);
-}
-
-.my-cheat .toggle-switch input:not(:checked) ~ .slider::before {
-    background: var(--c-text-faint);
-    box-shadow: none;
-}
-
-.my-cheat:hover .toggle-switch input:not(:checked) ~ .slider,
-.my-cheat:focus-within .toggle-switch input:not(:checked) ~ .slider {
-    background: var(--c-control-border-strong);
-}
-
-.my-cheat:hover .toggle-switch input:not(:checked) ~ .slider::before,
-.my-cheat:focus-within .toggle-switch input:not(:checked) ~ .slider::before {
-    background: var(--c-control-thumb);
+    .my-cheat.is-auto .my-cheat__mark {
+        display: none;
+    }
 }
 
 .my-cheats__empty {
     display: none;
-    padding: 2px 6px 6px;
     font-family: var(--font-display);
     font-size: 0.8125rem;
     color: var(--c-text-faint);
@@ -600,7 +635,7 @@
 }
 
 .my-cheats .said--line {
-    padding: 4px 6px 0;
+    padding-top: 4px;
 }
 
 /* The rail: "MY" at its foot opens the list beside it, over the page. */
@@ -614,27 +649,25 @@
     display: none;
 }
 
+.my-cheats-rail.is-arriving .menu-nav-code {
+    animation: name-arrive 1.4s ease-out;
+}
+
 .my-cheats.is-pop {
     position: fixed;
     left: 68px;
     bottom: 14px;
     z-index: 2100;
-    width: min(300px, calc(100vw - 84px));
-    max-height: min(520px, 72vh);
+    width: min(260px, calc(100vw - 84px));
+    max-height: min(480px, 72vh);
     margin: 0;
-    padding: 14px 8px 8px;
-    border: 1px solid var(--c-border-strong);
-    border-radius: 14px;
-    background: var(--c-panel);
+    padding: 14px 14px 10px;
+    border: 1px solid var(--c-border);
+    border-radius: 12px;
+    background: var(--c-sidebar-bg);
     box-shadow: 0 14px 28px var(--c-black-50);
-    --my-on: 40px;
-    --my-auto: 72px;
 }
 
 .my-cheats.is-pop .my-cheat {
-    height: 36px;
-}
-
-.my-cheats.is-pop .my-cheat__name {
-    font-size: 0.875rem;
+    min-height: 28px;
 }
