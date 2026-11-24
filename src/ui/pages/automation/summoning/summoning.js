@@ -86,10 +86,8 @@ const SummoningAutomationTab = () => {
                             values: [
                                 {
                                     name: "Level",
-                                    text: () => {
-                                        const { level = 0, max } = upgrades.get(id).val;
-                                        return `${level}${max ? ` / ${max}` : ""}`;
-                                    },
+                                    text: () => upgrades.get(id).val.level ?? 0,
+                                    cap: () => upgrades.get(id).val.max || null,
                                 },
                                 { name: "Next level", quiet: true, text: () => nextLevel(upgrades.get(id).val) },
                             ],

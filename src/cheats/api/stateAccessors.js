@@ -20,7 +20,7 @@ import { getAutomationClicker } from "../helpers/automation/clickers.js";
 import { getAutomationConstruction } from "../helpers/automation/construction.js";
 import { getAutomationCooking } from "../helpers/automation/cooking.js";
 import { getAutomationGaming } from "../helpers/automation/gaming.js";
-import { getAutomationArmory } from "../helpers/automation/armory.js";
+import { RESOURCES as ROYAL_RESOURCES, getAutomationArmory } from "../helpers/automation/armory.js";
 import { compass } from "../helpers/automation/compass.js";
 import { grimoire } from "../helpers/automation/grimoire.js";
 import { tesseract } from "../helpers/automation/tesseract.js";
@@ -151,6 +151,9 @@ export function readComputed(namespace, name, args = []) {
             return { error: error.message };
         }
     }
+
+    // The royal resources' names, the ones Automation's Armory uses, for Classes > Royal Armory.
+    if (namespace === "royal" && name === "resourceNames") return { value: ROYAL_RESOURCES };
 
     if (namespace === "attire" && name === "status") {
         try {

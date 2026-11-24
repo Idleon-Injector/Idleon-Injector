@@ -37,7 +37,7 @@ import { definePage } from "../../../menu/menuModel.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 import { NumberInput } from "../../../components/NumberInput.js";
-import { gga, readCList } from "../../../services/api.js";
+import { gga, readCList, readComputed } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
@@ -67,8 +67,6 @@ const { button, div, span } = van.tags;
 
 const WORLDS = 7;
 const worldOfMap = (m) => Math.floor(m / 50) + 1;
-// A royal resource has no name in the game, only its picture: its number in its world.
-const resourceName = (r) => `Resource ${(r % 10) + 1}`;
 
 // ---- Upgrades ----------------------------------------------------------------------------------------------------
 
@@ -91,11 +89,15 @@ const UpgradesTab = ({ pending, reload, bulk }) =>
 
 // ---- Resources ---------------------------------------------------------------------------------------------------
 
-// The nodes on the world maps, and the resource kinds they give.
-const readNodes = async () =>
-    toIndexedArray((await readCList("RoyalResources")) ?? [])
+// The nodes on the world maps, and the resource kinds they give. A resource has no name in the game, only its
+// picture: it goes by the name Automation's Armory gives it (Wheat, Berries, then its world and place).
+const readNodes = async () => {
+    const [rawNodes, names] = await Promise.all([readCList("RoyalResources"), readComputed("royal", "resourceNames")]);
+    return toIndexedArray(rawNodes ?? [])
         .map((raw, i) => ({ i, resource: toInt(toIndexedArray(raw ?? [])[3], { min: -1, fallback: -1 }) }))
-        .filter((node) => node.resource >= 0);
+        .filter((node) => node.resource >= 0)
+        .map((node) => ({ ...node, resourceName: names[node.resource] }));
+};
 
 const ResourcesTab = () => {
     const list = NumberList();
@@ -104,11 +106,12 @@ const ResourcesTab = () => {
         load: async () => {
             const [nodes, rawOwned] = await Promise.all([readNodes(), gga("RoyalG[1]")]);
             const owned = toIndexedArray(rawOwned ?? []);
-            const kinds = [...new Set(nodes.map((node) => node.resource))].sort((a, b) => a - b);
+            const nameOf = new Map(nodes.map((node) => [node.resource, node.resourceName]));
+            const kinds = [...nameOf.keys()].sort((a, b) => a - b);
             list.show(
                 kinds.map((r) => ({
                     key: String(r),
-                    name: resourceName(r),
+                    name: nameOf.get(r),
                     section: `World ${Math.floor(r / 10) + 1}`,
                     path: `RoyalG[1][${r}]`,
                     value: toNum(owned[r], 0),
@@ -142,7 +145,7 @@ const NodesTab = ({ pending, reload, bulk }) => {
     const NodeRow = (node) => {
         const row = ValueTableRow({
             name: node.name,
-            info: RowTitles({ bonus: resourceName(node.resource), name: node.name }),
+            info: RowTitles({ bonus: node.resourceName, name: node.name }),
             badge: () => (isEmpty(node) ? span("Empty") : ""),
             // Set all sets every node's grade; what was collected stays each node's own (Refill all, Empty all).
             setAll: "grade",

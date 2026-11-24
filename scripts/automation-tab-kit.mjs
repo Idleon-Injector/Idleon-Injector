@@ -93,6 +93,13 @@ export async function automationTabKit() {
             : node?.nodeType === 3
               ? node.data
               : (node?.childNodes ?? []).map(text).join("");
+    // What the screen shows: without the words only screen readers hear, and a capped value read as "15 / 50".
+    const shown = (node) =>
+        typeof node === "string" || node?.nodeType === 3
+            ? text(node)
+            : String(node?.attributes?.class ?? "").includes("sr-only")
+              ? ""
+              : `${String(node?.attributes?.class ?? "").includes("number-input__cap") ? " " : ""}${(node?.childNodes ?? []).map(shown).join("")}`;
     const elements = (node, out = []) => {
         if (node?.nodeType !== 1) return out;
         out.push(node);
@@ -199,6 +206,7 @@ export async function automationTabKit() {
         getAutomations,
         switchAutomation,
         text,
+        shown,
         elements,
         byClass,
         row,

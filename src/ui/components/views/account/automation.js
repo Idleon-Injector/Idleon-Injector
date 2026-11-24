@@ -36,7 +36,7 @@
  */
 
 import van from "../../../vendor/van-1.6.0.js";
-import { NumberInput, getNumberInputLiveRaw, setNumberInputValue } from "../../NumberInput.js";
+import { CappedValue, NumberInput, getNumberInputLiveRaw, setNumberInputValue } from "../../NumberInput.js";
 import {
     executeCheatAction,
     fetchConfig,
@@ -798,8 +798,9 @@ export const SAVE_FOR_IT = "save";
 
 /**
  * An item's row, one line of its list (see automationColumns): its name with `detail` under it (a node, or a function
- * giving one), led by `bonus` (what it does, in the game's words: RowTitles) when it has one, then `values` ([{ name, text, quiet }]: read-only numbers such as its level and next cost; `quiet` for
- * one that only supports another), a step picker per pick in `selects` ({ field, title, options: [{ value, label }] };
+ * giving one), led by `bonus` (what it does, in the game's words: RowTitles) when it has one, then `values` ([{ name, text, quiet, cap }]: read-only numbers such as its level and next cost; `quiet` for
+ * one that only supports another; `cap`, a function giving the value's real max or null, shows it as "200 / 150" with
+ * the over-max mark like any capped value), a step picker per pick in `selects` ({ field, title, options: [{ value, label }] };
  * a value of null is the default, left out of the config), its stop-at (empty is no limit; saves on Enter or on leaving
  * it), its "Save for it" switch when `save`, and its switch. The switches, the picks and the stop-at share one save
  * state, whose writes take turns in the order the player made them (a stop-at, then the switch, reach the game in that
@@ -882,10 +883,13 @@ export const PickRow = ({
             QueuedSaveState(field),
             div(
                 { class: "value-cells" },
-                ...values.map(({ name: column, text, quiet = false }) =>
+                ...values.map(({ name: column, text, quiet = false, cap = null }) =>
                     Cell(
                         column,
-                        span({ class: quiet ? "automation-value automation-value--quiet" : "automation-value" }, text)
+                        span(
+                            { class: quiet ? "automation-value automation-value--quiet" : "automation-value" },
+                            cap ? CappedValue({ value: text, cap }) : text
+                        )
                     )
                 ),
                 ...pickers,

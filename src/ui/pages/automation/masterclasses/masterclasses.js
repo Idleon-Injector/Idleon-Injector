@@ -172,8 +172,8 @@ const MasterclassPart = ({ spec, tab, entry, switchNode }) => {
             values: [
                 {
                     name: "Level",
-                    text: () =>
-                        `${upgrade.val.level ?? 0}${(upgrade.val.max ?? null) === null ? "" : ` / ${upgrade.val.max}`}`,
+                    text: () => upgrade.val.level ?? 0,
+                    cap: () => upgrade.val.max ?? null,
                 },
                 {
                     name: "Next level",

@@ -179,6 +179,7 @@
 }
 
 .observation-tile {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -197,6 +198,14 @@
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+}
+
+/* The tile's ✓ sits in its bottom-right corner, level with the last field; its words and Undo lie to its left, in the
+   room beside that field's value (#290). */
+.observation-tile__body > .save-state {
+    position: absolute;
+    right: 12px;
+    bottom: 21px;
 }
 
 .observation-tile--unlocked {
@@ -232,10 +241,10 @@
     text-align: left;
 }
 
-/* The two stats sit side by side while the tile has room and stack when it doesn't, so a tile never runs past its
-   column. */
+/* The two stats stack, so a tile never runs past its column and the room right of the last field takes the save
+   state's words and Undo (#290). */
 .observation-tile__stats {
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: stretch;
 }
 
