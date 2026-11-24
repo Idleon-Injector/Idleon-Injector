@@ -18,8 +18,13 @@ import { reachable } from "./construction.js";
 import { bonusPart, masterclass } from "./masterclass.js";
 
 const PARCHMENT = "RGenh";
-// Ten resources a world; only the kinds the map nodes give are real.
-const RESOURCES = Array.from({ length: 70 }, (_, r) => `W${Math.floor(r / 10) + 1} resource ${(r % 10) + 1}`);
+// Ten resources a world; only the kinds the map nodes give are real. The game names none (only a picture): the first
+// four go by the names players use for them, the rest by their world and place.
+const NAMED = ["Wheat", "Berries", "Sticks", "Spider webs"];
+const RESOURCES = Array.from(
+    { length: 70 },
+    (_, r) => NAMED[r] ?? `W${Math.floor(r / 10) + 1} resource ${(r % 10) + 1}`
+);
 // ponytail: a cap per tick so a large parchment pile rolls over a few seconds instead of in one frame.
 const ROLLS_PER_TICK = 20;
 

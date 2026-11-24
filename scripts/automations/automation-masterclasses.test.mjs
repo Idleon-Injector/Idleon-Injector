@@ -340,6 +340,16 @@ test("a statue at its stop-at rolls no more, and the status counts rolls", async
     mock.restoreAll();
 });
 
+test("the Armory names wheat, berries, sticks and spider webs, and the rest by world and place", () => {
+    setArmory();
+    // Positions 0 and 1 pay resources 0 and 3; position 2 keeps resource 7.
+    gga.CustomLists.h.ArmoryUpg = ARMORY.map((row, p) => (p < 2 ? Object.assign([...row], { 3: ["0", "3"][p] }) : row));
+    state.updateCheatConfig({ automation: { armory: [], statues: [] } });
+    const { currencies } = readComputed("automation", "armory").value;
+    assert.deepEqual(currencies.map(({ name }) => name).sort(), ["Spider webs", "W1 resource 8", "Wheat"]);
+    mock.restoreAll();
+});
+
 test("the Armory tab reads the resources in use, the statues and the parchments held", () => {
     setArmory({ parchments: 7 });
     state.updateCheatConfig({ automation: { armory: [], statues: [] } });
