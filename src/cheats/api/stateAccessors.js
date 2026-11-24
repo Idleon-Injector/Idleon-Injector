@@ -151,7 +151,7 @@ export function readComputed(namespace, name, args = []) {
         }
     }
 
-    // Account › Automation: its automations ("automation …" toggles) with their status; and what each system's
+    // The Automation overview: its automations (the ones with a label) with their status; and what each system's
     // automation tab shows (the town shops, a system's currency and upgrades).
     if (
         namespace === "automation" &&
@@ -159,7 +159,7 @@ export function readComputed(namespace, name, args = []) {
     ) {
         try {
             if (name !== "list") return { value: AUTOMATION_TABS[name]() };
-            return { value: getAutomations().filter(({ cheat }) => cheat.startsWith("automation ")) };
+            return { value: getAutomations().filter(({ label }) => label) };
         } catch (error) {
             return { error: error.message };
         }

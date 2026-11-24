@@ -29,6 +29,9 @@ let slowUpdate = 0; // ms each session update takes
 let holdNextUpdate = null; // a promise the next session update waits on before the game answers it
 let slowSave = 0; // ms each config file save takes
 let failSave = false; // the config file save fails
+// The automation settings the game holds but the config file doesn't, as the server's config read says them: a session
+// update the game took adds its keys, a file save that works writes them all.
+let fileLacks = [];
 let holdNextConfigRead = null; // a promise the next config read waits on, answering what it read before
 let failNextConfigRead = false; // the next config read fails
 let failNextListRead = false; // the next automation list read fails
@@ -122,6 +125,7 @@ router.routes.POST.set("/api/config/update", async (req, res) => {
         refuseNextUpdates = Math.max(0, refuseNextUpdates - 1);
         return res.json({ message: "Config update failed", details: "the game is busy" });
     }
+    fileLacks = [...new Set([...fileLacks, ...Object.keys(body.cheatConfig?.automation ?? {})])];
     return update(req, res);
 });
 router.routes.POST.set("/api/config/save", async (req, res) => {
@@ -129,6 +133,7 @@ router.routes.POST.set("/api/config/save", async (req, res) => {
     await wait(slowSave);
     if (failSave) return res.status(500).json({ error: "the disk is full" });
     saves.push(body);
+    fileLacks = [];
     order.push(["save"]);
     fileStartup = body.startupCheats ?? fileStartup; // the server merges a partial save into the file
     res.json({ ok: true });
@@ -149,7 +154,7 @@ router.routes.GET.set("/api/config", async (req, res) => {
         },
         json: (data) => (read = data),
     });
-    read = structuredClone({ ...read, startupCheats: [...fileStartup] });
+    read = structuredClone({ ...read, startupCheats: [...fileStartup], unsavedAutomation: [...fileLacks] });
     if (hold) await hold;
     configAnswered++;
     res.json(read);
@@ -213,7 +218,7 @@ const startup = () => fileStartup;
 const fileShops = () => saves.findLast((body) => body.cheatConfig)?.cheatConfig.automation.shops;
 const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation shops").on;
 
-// Every automation the game declares, in the overview's order.
+// Every automation the game declares with a label, in the overview's order.
 const ALL_LABELS = [
     "Bubba",
     "Bubbles",
@@ -245,12 +250,8 @@ const ALL_CHEATS = [
 const overview = (await importRepo("src/ui/pages/automation/overview/overview.js")).default.component();
 await until(() => row(overview, "Shops"), "the overview to list Shops");
 
-test("the overview lists the automation toggles only, each with its status", () => {
-    assert.deepEqual(
-        byClass(overview, "account-row__name").map(text),
-        ALL_LABELS,
-        "Sushi Auto Play and autoboss are not automation toggles"
-    );
+test("the overview lists the automations with a label, each with its status", () => {
+    assert.deepEqual(byClass(overview, "account-row__name").map(text), ALL_LABELS, "autoboss stays a cheat");
     assert.equal(text(byClass(row(overview, "Shops"), "automation-row__status")[0]), "Off");
     assert.equal(button(overview, "Disable all"), undefined, "nothing runs, so nothing to disable");
 });
@@ -2117,4 +2118,30 @@ test("the menu tells a page each time it is shown: picked, or the Pages view sho
     store.openMenu({ world: "automation", page: "automation.shops" });
     await settle();
     assert.deepEqual(shown, ["shops", "shops"], "back from another view");
+});
+
+// #92: the file's lag outlives a reload. The page's first read hears it from the server and says it on the page's line;
+// Enter on a value as it is saves the file again, and the line goes.
+test("after a reload, a change the config file lacks is said again until Enter saves it", async () => {
+    fileLacks = ["shops"]; // a file save failed before the reload: the game holds a list the file doesn't
+    const page = (await importRepo("src/ui/pages/automation/shops/shops.js")).default.component();
+    const said = () => byClass(page, "said--line").map(text).join(" ");
+    await until(
+        () => /Not saved to the config file/.test(said()),
+        () => `the page to say it, not "${said()}"`
+    );
+    const input = elements(row(page, "Lucky Whisker")).find(
+        (node) => node.nodeName === "input" && node.attributes.type !== "checkbox"
+    );
+    const since = saves.length;
+    byClass(row(page, "Lucky Whisker"), "account-field-metric")[0].listeners.keydown({
+        key: "Enter",
+        target: input,
+        preventDefault() {},
+    });
+    await until(() => saves.length > since, "Enter on the value as it is to save the file again");
+    await until(
+        () => !/Not saved to the config file/.test(said()),
+        () => `the line to go, not "${said()}"`
+    );
 });
