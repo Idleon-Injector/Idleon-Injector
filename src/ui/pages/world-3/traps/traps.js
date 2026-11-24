@@ -132,6 +132,7 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap
     const finishStatus = useWriteStatus();
     // Why a Finish failed (another character in play, say) stays beside it until the next Finish works.
     const finishSaid = useSaid();
+    const values = { qty: qtyValue, exp: expValue, rare: rareValue };
 
     const row = EditableFieldsRow({
         fields: [
@@ -146,11 +147,14 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap
             if (nextQty === null || nextExp === null || nextRare === null) return null;
             return { qty: nextQty, exp: nextExp, rare: nextRare };
         },
-        write: async ({ qty, exp, rare }) => {
-            const verifiedQty = await onWriteField(playerName, trap.trapIndex, 4, qty);
-            const verifiedExp = await onWriteField(playerName, trap.trapIndex, 7, exp);
-            const verifiedRare = await onWriteField(playerName, trap.trapIndex, 8, rare);
-            return { qty: verifiedQty, exp: verifiedExp, rare: verifiedRare };
+        // Only the values the player changed are written (as ValueTableRow does), so a Set all that lands on another
+        // column meanwhile keeps its value; the others show what the page holds once the save ends.
+        write: async (next) => {
+            const changed = Object.keys(values).filter((key) => next[key] !== values[key].val);
+            for (const key of changed) await onWriteField(playerName, trap.trapIndex, FIELD_INDEX[key], next[key]);
+            return Object.fromEntries(
+                Object.keys(values).map((key) => [key, changed.includes(key) ? next[key] : values[key].val])
+            );
         },
         // The critter, then how far the trap is, small and muted under it.
         info: span(
@@ -225,7 +229,6 @@ const TrappingRow = ({ playerName, trap, getValueState, onWriteField, finishTrap
         renderExtraActions: () => Said({ said: finishSaid.said, kinds: ["failed"] }),
     });
     // A line of the picked character's Set all, in the column picked in the tray.
-    const values = { qty: qtyValue, exp: expValue, rare: rareValue };
     registerSetAllLine(row, {
         row,
         get column() {
