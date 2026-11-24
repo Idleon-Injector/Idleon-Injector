@@ -4,7 +4,7 @@
  * writes the new words.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import fsModule, { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { captureLogger, loadCommonJs, requireFresh, useInstallDir } from "./known-bugs/index.mjs";
@@ -112,4 +112,52 @@ test("the next save writes a draft build's lists in the new shape", async (t) =>
     assert.deepEqual(automation.orion[0], { id: 8, on: true, save: true });
     assert.equal(automation.orionSaving, 5);
     assert.equal(automation.bubblesTarget, 75);
+});
+
+// #92: a change the game took while the file save after it failed is said again after a reload. The config read says
+// which automation settings the game holds but config.custom.js doesn't, until a save that works writes them.
+test("the config read says which automation settings the file lacks, until a save writes them", async (t) => {
+    const dir = useInstallDir(t, {
+        cheatConfig: { automation: { shops: [], orionSaving: 10 } },
+        custom: `exports.cheatConfig = { automation: { shops: [{ id: "0:A", on: true }] } };`,
+    });
+    let diskFull = false;
+    const fs = {
+        ...fsModule,
+        promises: {
+            ...fsModule.promises,
+            rename: (...args) =>
+                diskFull ? Promise.reject(new Error("EPERM: read-only")) : fsModule.promises.rename(...args),
+        },
+    };
+    const config = loadCommonJs("src/modules/config/configManager.js", { "../utils/logger": captureLogger(), fs });
+    config.loadConfiguration();
+    const live = {
+        cheatConfig: config.getCheatConfig(),
+        startupCheats: config.getStartupCheats(),
+        injectorConfig: config.getInjectorConfig(),
+    };
+    const unsaved = () => config.unsavedAutomation(live.cheatConfig);
+    assert.deepEqual(unsaved(), [], "what the file loaded is saved");
+
+    const shops = [{ id: "0:A", on: true, stopAt: 5 }];
+    await config.updateSessionConfiguration({ cheatConfig: { automation: { shops } } }, live, {
+        isAttached: async () => false,
+    });
+    assert.deepEqual(unsaved(), ["shops"], "the game has it, the file doesn't");
+
+    diskFull = true;
+    await assert.rejects(config.saveConfiguration({ cheatConfig: { automation: { orionSaving: 20 } } }));
+    assert.deepEqual(unsaved(), ["shops"], "a failed save changes nothing");
+
+    diskFull = false;
+    await config.saveConfiguration({ cheatConfig: { automation: { orionSaving: 20 } } });
+    assert.deepEqual(unsaved(), [], "any save that works writes it");
+    assert.deepEqual(requireFresh(join(dir, "config.custom.js")).cheatConfig.automation.shops, shops);
+});
+
+test("a file the injector updated as it loaded (old words) isn't said as lacking anything", (t) => {
+    useInstallDir(t, { cheatConfig: { automation: { orion: [], kitchens: [], orionSaving: 10 } }, custom: OLD_FILE });
+    const config = start();
+    assert.deepEqual(config.unsavedAutomation(config.getCheatConfig()), []);
 });
