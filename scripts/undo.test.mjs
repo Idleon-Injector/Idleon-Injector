@@ -688,11 +688,11 @@ test("a finished Undo all goes on its own, even after the pointer passed over it
     }
 });
 
-// #81: Undo where the old value is gone (a typed number, Max, a bulk action); none after a switch or a step pick,
-// which undo themselves. History keeps them all.
+// #81: Undo where the old value is gone (a typed number, Max, a bulk action, a one-click wipe); none after a switch,
+// − / +, a step pick or a dropdown pick, which undo themselves. History keeps them all.
 const control = (kind) => ({ closest: (selector) => (selector.split(", ").includes(kind) ? {} : null) });
 
-test("a switch or a step pick offers no Undo; a typed number, Max and a row button do", async () => {
+test("a switch, − / +, a step pick or a dropdown pick offers no Undo; a typed number, Max and a wipe do", async () => {
     const { useAutoSave } = await importRepo("src/ui/components/views/account/autoSave.js");
     const save = useAutoSave({
         prepare: () => ({ write: () => writeVerified("OptionsListAccount[254]", ola[254] + 1) }),
@@ -709,18 +709,21 @@ test("a switch or a step pick offers no Undo; a typed number, Max and a row butt
     assert.equal(await offered(() => save.run(() => writeVerified("OptionsListAccount[254]", 7))), true, "Reset");
     assert.equal(await offered(() => save.save(control(".toggle-switch"))), false, "a switch editing the row");
     assert.equal(await offered(() => save.save(control(".step-picker"))), false, "a tier pick");
+    assert.equal(await offered(() => save.save(control(".number-input-btn"))), false, "− or + beside the field");
+    assert.equal(await offered(() => save.save(control("select"))), false, "a dropdown pick");
+    assert.equal(await offered(() => save.save(control(".pick-in-place"))), false, "a pick from a list in place");
     const flip = () => writeVerified("OptionsListAccount[254]", 8);
     assert.equal(await offered(() => save.run(flip, "switch")), false, "a switch with its own status");
     assert.equal(await offered(() => save.run(() => writeVerified("OptionsListAccount[254]", 9), "toggle")), false);
-    const logged = (await fetchChanges()).actions.slice(0, 4).map((action) => action.entries.length > 0);
-    assert.deepEqual(logged, [true, true, true, true], "History still has the switches and picks");
+    const logged = (await fetchChanges()).actions.slice(0, 7).map((action) => action.entries.length > 0);
+    assert.deepEqual(logged, Array(7).fill(true), "History still has the switches, − / + and picks");
     ola[254] = old;
 });
 
-test("Undo all isn't offered beside a switch or a step picker", async () => {
+test("Undo all isn't offered beside a switch, − / +, a step picker or a dropdown pick", async () => {
     await importRepo("src/ui/components/views/account/UndoAllOffer.js");
     const parent = globalThis.document.createElement("div");
-    for (const kind of [".toggle-switch", ".step-picker"]) {
+    for (const kind of [".toggle-switch", ".number-input-btn", ".step-picker", "select", ".pick-in-place"]) {
         const anchor = {
             ...control(kind),
             isConnected: true,

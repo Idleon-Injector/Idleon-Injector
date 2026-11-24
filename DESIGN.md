@@ -240,7 +240,9 @@ switches, picking the first option each time.
 - **Values show once.** A number lives in its field, and so does its cap: the field reads `2 / 15`, with `/ 15` muted
   and a step smaller after the value. The cap is never part of the typed text; Enter or leaving the field saves only
   the number, and a typed value over the cap is refused beside the field (`max 15`). A row with a cap but no field shows
-  the same `2 / 15` as text, without the box. Nothing repeats the field.
+  the same `2 / 15` as text, without the box. Nothing repeats the field. A value above its cap (a level the game holds
+  past its max, Library's `200 / 150`) shows in the warning colour, "over max" on hover, in a field or as text; it is
+  a mark only and changes nothing (`NumberInput`, so every capped value has it).
 - **A slash means a real cap.** `/ N` only ever stands for a real limit, the value Max or Max all fills up to (a
   prayer's max level, Library's book cap). A number that isn't a limit never gets a slash: a stamp's own max level
   rises as it is levelled, so Stamps shows the level alone, with no note.
@@ -292,9 +294,11 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
 - **A tool that stops on an error says why** on the tray's first line, where a question goes, in the soft red ("Character
   changed. Refresh."), and screen readers hear it with the tool's name. It stays until that tool's next try (Lumi,
   #241).
-- **Undo shows where the old value is gone:** after a typed number, Max, and bulk actions (Set all, Max all, All to,
-  the tray's tools). Not after a switch or a step pick: flipping or picking again undoes them. History keeps every
-  change with its Undo (Lumi, #81).
+- **Undo shows where the old value is gone:** a row offers Undo only after a typed number, Max, a bulk action (Set
+  all, Max all, Reset all, All to, the tray's tools) or a one-click wipe (Reset, Clear, Relock, × remove). Not after a
+  switch, the − / + beside a field, a step pick or a dropdown pick: using it again undoes it. A row with a switch and
+  fields (Research's observations) follows the control that saved it. History > Changes keeps every change with its
+  own Undo (Lumi, #81).
 - **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
   tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
   tools; only with no room anywhere does it take its old place.

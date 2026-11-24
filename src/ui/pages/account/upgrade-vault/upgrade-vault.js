@@ -35,9 +35,6 @@ const { div, span } = van.tags;
 
 // realMaxState follows every load; the row itself stays, so its save and undo feedback stays with it.
 const VaultRow = ({ index, name, realMaxState, levelState }) => {
-    // The game keeps a level above its real max; the value shows it in the warning colour.
-    const overMax = () => toNum(levelState.val) > realMaxState.val;
-
     return ClampedLevelRow({
         valueState: levelState,
         writePath: `UpgVault[${index}]`,
@@ -45,8 +42,6 @@ const VaultRow = ({ index, name, realMaxState, levelState }) => {
         indexLabel: `#${index}`,
         name,
         cap: () => realMaxState.val,
-        rowClass: () => (overMax() ? "account-row--over-max" : ""),
-        inputProps: { title: () => (overMax() ? "over max" : "") },
         maxAction: {
             value: () => realMaxState.val,
         },

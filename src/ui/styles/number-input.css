@@ -138,6 +138,12 @@ input[type="number"] {
     color: #ffffff;
     caret-color: var(--c-accent);
 }
+/* A value above its cap (a level the game holds past its max): the value in the warning colour, "over max" on hover.
+   Strong enough to beat a quiet column's muted value (tabbed-list.css). */
+.viewport .number-input-wrapper.number-input-wrapper--capped.number-input-wrapper--over-max input,
+.viewport .capped-value.capped-value--over-max > span:first-child {
+    color: var(--c-warning);
+}
 
 /* A row's value field holds seven digits (9,999,999) at full size, so a big level never runs under its − / +; a
    longer one scrolls inside its own box. One width for every row keeps the values in one column. */

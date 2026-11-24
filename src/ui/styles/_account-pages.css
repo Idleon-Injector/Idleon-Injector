@@ -82,11 +82,6 @@
     color: var(--c-text-main);
 }
 
-/* A level the game holds above its real max: the value in the warning colour ("over max" on hover). */
-.viewport .account-row--over-max .number-input-wrapper input {
-    color: var(--c-warning);
-}
-
 /* More spent than owned: the whole amount in the failed red. */
 .amount-left--over,
 .amount-left--over .amount-left__value {

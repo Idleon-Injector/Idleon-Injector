@@ -43,6 +43,7 @@ test("Alchemy's tabs are Bubbles, Cauldrons, Vials and Sigils; its automation is
             ["Alchemy", "automation.alchemy"],
             ["Construction", "automation.construction"],
             ["Cooking", "automation.cooking"],
+            ["Gaming", "automation.gaming"],
             ["Sneaking", "automation.sneaking"],
             ["Summoning", "automation.summoning"],
             ["Sushi Station", "automation.sushi"],
