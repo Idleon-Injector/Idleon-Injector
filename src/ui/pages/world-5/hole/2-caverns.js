@@ -536,7 +536,7 @@ const CavernsTab = () => {
             TabbedList({
                 name: "Caverns",
                 page: "w5.hole.caverns",
-                wrap: true,
+                pick: "Cavern",
                 setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
                 tabs: CAVERNS.map((cavern, i) => ({
                     id: cavern.id,

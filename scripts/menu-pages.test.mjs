@@ -154,7 +154,7 @@ test("search finds systems, tabs, extra words and areas by their old names", () 
     assert.deepEqual(top("chromedebug").target, { view: "DEVTOOLS" });
     assert.deepEqual(top("account options").target, { view: "ACCOUNT_OPTIONS" });
     assert.deepEqual(top("w1").target, { world: 1, page: null });
-    assert.deepEqual(top("equinox valley").target, { world: 7, page: null });
+    assert.deepEqual(top("shimmerfin deep").target, { world: 7, page: null });
     assert.equal(top("button page").label, "The Button", "descriptions match last");
     assert.deepEqual(searchMenu(entries, "   "), []);
     assert.deepEqual(searchMenu(entries, "zzzz"), []);

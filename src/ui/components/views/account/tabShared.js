@@ -6,6 +6,7 @@ import { searchHits } from "../../../menu/pageSearch.js";
 import { tabRequest } from "../../../menu/pageRegistry.js";
 import { SetAllTool, setAllLines, trayLabel } from "./BulkActionBar.js";
 import { StepPicker } from "./components/StepPicker.js";
+import { PickInPlace } from "./components/PickInPlace.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -100,8 +101,10 @@ let listCount = 0;
  * @param {(tabId: string) => void} [opts.onTab] called with the tab the player opens (a pane closes what it had open)
  * @param {() => boolean} [opts.busy] true while the page saves: a question's Yes waits, so it can't start a second save
  * @param {string} [opts.page] the page id whose `tabs` (definePage) these are: a search hit on one opens it
- * @param {boolean} [opts.wrap] more tabs than a row holds (a Hole cavern each; six on a phone): the tabs wrap onto rows
- *   instead of scrolling sideways
+ * @param {boolean} [opts.wrap] more tabs than a row holds (six on a phone): the tabs wrap onto rows instead of
+ *   scrolling sideways
+ * @param {string} [opts.pick] far more parts than a tab row holds (Hole's 18 caverns): one pick named for them
+ *   ("Cavern") in place of the tabs; while the top bar searches, each part says how many of its rows match
  * @param {{val: string}} [opts.activeId] the open tab's id, when the page shows something of it outside the list (the
  *   stats beside its title)
  * @param {object} [opts.setAll] the open tab's Set all on its rows (see withSetAll): SetAllTool's options, `word` at
@@ -198,6 +201,7 @@ export const TabbedList = ({
     busy = null,
     activeId: sharedId = null,
     wrap = false,
+    pick = null,
     page = null,
     setAll = null,
 }) => {
@@ -222,7 +226,11 @@ export const TabbedList = ({
             tabs,
             activeId,
             renderContent: (tab) => tab.content,
-            getPaneProps: (tab) => ({ id: paneId(tab), role: "tabpanel", "aria-labelledby": tabId(tab) }),
+            // With a pick there are no tabs to name a pane: each pane is a group named for its part.
+            getPaneProps: (tab) =>
+                pick
+                    ? { id: paneId(tab), role: "group", "aria-label": tab.label }
+                    : { id: paneId(tab), role: "tabpanel", "aria-labelledby": tabId(tab) },
         })
     );
     const { nav, buttons } = buildTabNav({
@@ -234,6 +242,40 @@ export const TabbedList = ({
         getButtonProps: (tab) => ({ id: tabId(tab), "aria-controls": paneId(tab) }),
     });
     if (wrap) nav.classList.add("tabbed-list__tabs--wrap");
+
+    // The pick in place of the tabs: "Cavern [The Well]", the parts opening over the page like a character's names.
+    let picker = null;
+    if (pick) {
+        const matching = (tab) => {
+            if (!searchHits.val) return "";
+            const pane = body.childNodes[tabs.indexOf(tab)];
+            return `${[...searchHits.val].filter((row) => pane.contains(row)).length} matching`;
+        };
+        const labelNow = () => tabs.find((tab) => tab.id === activeId.val)?.label ?? "";
+        const choice = PickInPlace({
+            name: pick,
+            opener: () => {
+                const tab = tabs.find((t) => t.id === activeId.val);
+                return tab && matching(tab) ? `${tab.label} · ${matching(tab)}` : labelNow();
+            },
+            label: labelNow,
+            options: () => tabs.map((tab) => ({ id: tab.id, label: tab.label, note: matching(tab) })),
+            picked: () => activeId.val,
+            onPick: (id) => (activeId.val = id),
+        });
+        // A click on the list's own ground keeps it open; anywhere else (or Tab past the end) closes it.
+        choice.panel.tabIndex = -1;
+        picker = div(
+            {
+                class: "character-picker tabbed-list__pick",
+                onfocusout: (e) => {
+                    if (choice.isOpen() && !picker.contains(e.relatedTarget)) choice.close();
+                },
+            },
+            div({ class: "character-picker__line" }, span({ class: "character-picker__label" }, pick), choice.opener),
+            choice.panel
+        );
+    }
 
     // The pill under the open tab (the tabs sit above it): placed from the tab's own box, so it fits any label and
     // follows a resize.
@@ -282,11 +324,11 @@ export const TabbedList = ({
                 class: () =>
                     joinClasses(
                         "tabbed-list__head",
-                        activeId.val === tabs[0].id && "first-open",
-                        activeId.val === tabs[tabs.length - 1].id && "last-open"
+                        !pick && activeId.val === tabs[0].id && "first-open",
+                        !pick && activeId.val === tabs[tabs.length - 1].id && "last-open"
                     ),
             },
-            nav,
+            picker ?? nav,
             tray?.node
         ),
         body
