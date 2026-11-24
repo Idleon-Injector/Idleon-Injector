@@ -17,6 +17,7 @@ import { AccountOptions } from "./views/AccountOptions.js";
 import { DevTools } from "./views/DevTools.js";
 import { Search } from "./views/Search.js";
 import { History } from "./views/History.js";
+import { SaveCopies } from "./views/SaveCopies.js";
 import { startChangeLog } from "../services/changeLog.js";
 
 const { div, main } = van.tags;
@@ -30,6 +31,7 @@ const viewFactories = {
     [VIEWS.DEVTOOLS.id]: DevTools,
     [VIEWS.SEARCH.id]: Search,
     [VIEWS.HISTORY.id]: History,
+    [VIEWS.SAVE_COPIES.id]: SaveCopies,
 };
 
 export const App = () => {

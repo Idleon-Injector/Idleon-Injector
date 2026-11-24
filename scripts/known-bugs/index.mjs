@@ -286,6 +286,10 @@ export async function loadUi(router) {
             delete this.attributes[name];
         }
         style = { setProperty() {} };
+        // No layout in Node: every box is empty, at the top.
+        getBoundingClientRect() {
+            return { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+        }
         // On the class attribute, where VanJS puts a `class` binding here.
         get classList() {
             const names = () =>

@@ -1,7 +1,7 @@
 /**
  * History › Changes (#31): every value a page saved this game session, newest first, grouped by the action that
  * saved it (a field, a button, a bulk action). Each group puts its old values back with Undo / Undo all, on the
- * character each value was saved on. Save copies (#32) get the next tab in this area.
+ * character each value was saved on. Save copies (#32) are the next tab in this area (SaveCopies.js).
  */
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
@@ -17,12 +17,12 @@ const { div, span, button, time, details, summary } = van.tags;
 
 const WASH_MS = 800;
 // A bulk action lists this many values; the rest open under "N more".
-const SHOWN = 6;
+export const SHOWN = 6;
 
 const clock = (at) => new Date(at).toLocaleTimeString([], { hour12: false });
 
 /** A value as History shows it: numbers exact, anything else as JSON, long ones cut (the title has it all). */
-const shown = (value) => {
+export const shown = (value) => {
     if (value === undefined) return { text: "—", full: "nothing" };
     const full = typeof value === "number" ? String(value) : JSON.stringify(value);
     return { text: full.length > 28 ? `${full.slice(0, 27)}…` : full, full };
