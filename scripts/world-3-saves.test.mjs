@@ -198,6 +198,49 @@ test("Traps' Set all asks again when another character is picked while it asks (
     cancel.listeners.click({ preventDefault() {}, currentTarget: cancel });
 });
 
+test("A trap row's save keeps a Set all that lands on another column while it saves (#257)", async (t) => {
+    const first = gga.UserInfo[0];
+    const other = gga.GetPlayersUsernames.find((name) => name !== first);
+    const before = structuredClone(db[other].h.PldTraps);
+    const realFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = realFetch;
+        db[other].h.PldTraps = before;
+    });
+    const root = await openPage("src/ui/pages/world-3/traps/traps.js", (r) => byClass(r, "trap-row").length > 1);
+    const pick = byClass(root, "pick-in-place__option").find((option) => text(option).includes(other));
+    pick.listeners.click({ preventDefault() {}, currentTarget: pick });
+    const tray = byClass(root, "tabbed-list__tools")[0];
+    const expPick = elements(tray).find((node) => node.attributes.role === "radio" && text(node) === "EXP");
+    expPick.listeners.click({ preventDefault() {}, currentTarget: expPick });
+
+    // The row's Qty write waits at the game until Set all has set every trap's EXP.
+    let setAllLanded;
+    const held = new Promise((resolve) => (setAllLanded = resolve));
+    globalThis.fetch = async (url, options) => {
+        if (String(url).includes("gga/write") && options.body.includes(`[${other}].h.PldTraps[0][4]`)) await held;
+        return realFetch(url, options);
+    };
+    // The other character's first trap: the rows come in the characters' order.
+    const placed = (name) => db[name].h.PldTraps.filter((trap) => trap[0] !== -1).length;
+    const earlier = gga.GetPlayersUsernames.slice(0, gga.GetPlayersUsernames.indexOf(other));
+    const row = byClass(root, "trap-row")[earlier.reduce((sum, name) => sum + placed(name), 0)];
+    type(inputs(row)[0], 99);
+    enter(row, inputs(row)[0]);
+
+    type(inputs(byClass(tray, "account-setall-row")[0])[0], 900);
+    const press = button(tray, "Set all");
+    press.listeners.click({ preventDefault() {}, currentTarget: press });
+    const exps = () => db[other].h.PldTraps.filter((trap) => trap[0] !== -1).map((trap) => trap[7]);
+    await until(() => exps().every((exp) => exp === 900), "Set all to set every EXP");
+    setAllLanded();
+
+    await until(() => saved(row), "the row save to end");
+    assert.match(saveState(row), /save-state--success/);
+    assert.equal(db[other].h.PldTraps[0][4], 99, "the row's Qty saved");
+    assert.deepEqual(exps(), [900, 900, 900], "the row's save left Set all's EXP in place");
+});
+
 test("Worship refuses a charge save once another character is in play, and writes nothing", async (t) => {
     const first = gga.UserInfo[0];
     t.after(() => switchTo(first));
