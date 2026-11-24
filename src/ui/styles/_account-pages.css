@@ -82,6 +82,11 @@
     color: var(--c-text-main);
 }
 
+/* A level the game holds above its real max: the value in the warning colour ("over max" on hover). */
+.viewport .account-row--over-max .number-input-wrapper input {
+    color: var(--c-warning);
+}
+
 /* More spent than owned: the whole amount in the failed red. */
 .amount-left--over,
 .amount-left--over .amount-left__value {
@@ -813,6 +818,11 @@
         overflow: visible;
         text-overflow: clip;
     }
+}
+
+/* A row the game holds locked (a talent not unlocked yet): its state word stands where the field would be. */
+.viewport .account-row__controls.account-row__controls--locked {
+    display: none;
 }
 
 .account-row__badge:empty {
@@ -1566,8 +1576,14 @@
     border: 0;
 }
 
+/* The list scrolls; its rows keep their full height (a row folded onto two lines at 400px isn't squeezed back). A
+   tabbed panel still shrinks to the room left, so only its rows scroll, under its tabs and tools. */
 .viewport .account-list > * {
+    flex-shrink: 0;
     max-width: var(--page-measure);
+}
+.viewport .account-list > .tabbed-list {
+    flex-shrink: 1;
 }
 
 /* Section headings: plain words in normal case, space above, no rule and no box. */

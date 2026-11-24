@@ -23,6 +23,14 @@
     border-bottom: 1px solid var(--c-border);
 }
 
+/* A pick in place of the tabs ("Cavern [The Well]") starts the head, its word in line with the row names. */
+.tabbed-list__pick {
+    padding: 12px 16px 4px;
+}
+.tabbed-list:not(.has-tools) .tabbed-list__pick {
+    padding-bottom: 12px;
+}
+
 /* Without tools the head is the darker ground and the open tab runs down into the rows. */
 .tabbed-list:not(.has-tools) {
     --tab-open-fill: var(--c-void-soft);
@@ -46,7 +54,7 @@
 }
 
 /*
- * Many tabs (a tab per Hole cavern) wrap onto rows that fill the panel's width. The open tab runs down into the list
+ * Many tabs (a farm's crops, Death Note's eight on a phone) wrap onto rows that fill the panel's width. The open tab runs down into the list
  * from the last row; on a row above, its block is rounded all round, with no feet (TabbedList sets pill-floats).
  */
 .viewport .tabbed-list .tabbed-list__tabs--wrap {
