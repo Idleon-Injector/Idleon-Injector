@@ -54,11 +54,6 @@
     background: var(--c-border);
 }
 
-.sidebar .active-cheats {
-    flex: 1 1 0;
-    min-height: 56px;
-}
-
 .sidebar-collapsed .menu-nav-btn {
     padding: 8px 4px;
 }

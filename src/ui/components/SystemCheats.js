@@ -9,16 +9,17 @@
  * per cheat with its short label first and its command small under it (`RowTitles`), the one on/off switch
  * (`StateSwitch`), and a cheat's settings in the row it opens (`row-opener`, `row-detail`) as the shared value rows
  * (`EditableNumberRow`). A switch runs the cheat the way the Cheats area does (`store.executeCheat`), so it is on until
- * the injector restarts; the row's pin puts it in the startup cheats, on at every start. A command (a reset, an unlock)
- * gets a Run button instead, with a field when it takes a value.
+ * the injector restarts; a cheat turned on here arrives in the sidebar's My cheats, whose Autostart keeps it on at
+ * every start (concept, replacing the pin). A command (a reset, an unlock) gets a Run button instead, with a field
+ * when it takes a value.
  */
 
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
-import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
+import { fetchConfig, saveConfigPart } from "../services/api.js";
 import { parseFunction, generateFunctionString, FUNCTION_TYPES } from "../utils/functionParser.js";
 import { configDescriptions } from "../config/configDescriptions.js";
-import { cheatsOfPage, withNewNames } from "../menu/pageCheats.js";
+import { cheatsOfPage } from "../menu/pageCheats.js";
 import { whenShown } from "../menu/menuModel.js";
 import { revealFound } from "../utils/index.js";
 import { Icons } from "../assets/icons.js";
@@ -114,62 +115,6 @@ const kindOf = (command) => {
     return row ? (row.toggle ? "toggle" : "run") : "";
 };
 
-/**
- * The pin: keeps a cheat on at every start (the startup cheats in the config). Pinning one that is off also turns it
- * on now; taking the pin off leaves it as it is until the injector restarts. While a save runs it shows the newest
- * click; the saves run one at a time, in order, each on the file as it is then.
- */
-const PinButton = (cheat, { startup, say, clear }) => {
-    const group = cheat.cheat.split(" ")[0];
-    // Pinned through its group ("w4" at start turns every W4 cheat on): only the group's own row can change that.
-    const throughGroup = () => group !== cheat.cheat && (startup.val ?? []).includes(group);
-    const pinned = () => (startup.val ?? []).includes(cheat.cheat) || throughGroup();
-    const wanted = van.state(null);
-    let saves = 0;
-    const pin = async (on) => {
-        wanted.val = on;
-        saves++;
-        try {
-            const { config } = await saveConfigPart((file) => ({
-                startupCheats: startupWith(withNewNames(file.startupCheats ?? []), cheat.cheat, on),
-            }));
-            startup.val = withNewNames(config.startupCheats ?? []);
-            clear();
-            if (on && !isOn(cheat.cheat)) {
-                const result = await store.executeCheat(cheat.cheat, true);
-                if (!result.ok) say("failed", `Pinned, but it didn't turn on: ${plainReason(result.message)}`);
-            }
-        } catch {
-            say("failed", "Couldn't save. Try again.");
-            // The file as it is now, not as this click hoped.
-            fetchConfig()
-                .then((file) => (startup.val = withNewNames(file.startupCheats ?? [])))
-                .catch(() => {});
-        } finally {
-            if (--saves === 0) wanted.val = null;
-        }
-    };
-    const shown = () => wanted.val ?? pinned();
-    return button(
-        {
-            type: "button",
-            class: () => `system-cheats__pin${shown() ? " is-pinned" : ""}`,
-            "aria-pressed": () => String(shown()),
-            "aria-label": () => `${cheat.label}: on at every start`,
-            title: () =>
-                throughGroup()
-                    ? `On at every start through ${group}`
-                    : shown()
-                      ? "On at every start"
-                      : "Keep on at every start",
-            // Not known until the config is read.
-            disabled: () => startup.val === null || throughGroup(),
-            onclick: () => pin(!shown()),
-        },
-        Icons.Pin()
-    );
-};
-
 /** A command's value field, with the command's own choices (chips, gems, units) from the cheat list. */
 const ValueField = (cheat) => {
     const listId = `cheat-choices-${cheat.cheat.replace(/\W+/g, "-")}`;
@@ -196,11 +141,11 @@ const ValueField = (cheat) => {
 };
 
 /**
- * A cheat: its label and its command, then what it takes: a switch (with its pin) for an on/off cheat, a Run button
+ * A cheat: its label and its command, then what it takes: a switch for an on/off cheat, a Run button
  * for a command, and a field first when it takes a value. A cheat with settings opens them under it from its name.
  */
-const CheatRow = (cheat, { openId, config, startup }) => {
-    const { said, say, clear } = useSaid();
+const CheatRow = (cheat, { openId, config }) => {
+    const { said, say } = useSaid();
     const isOpen = () => openId.val === cheat.cheat;
     // Made again when the row learns it has settings (it then opens them), so the words never move between parents.
     const titles = () =>
@@ -248,7 +193,10 @@ const CheatRow = (cheat, { openId, config, startup }) => {
                     next && field ? `${cheat.cheat} ${value()}` : cheat.cheat,
                     next
                 );
-                return result.ok ? { ok: true } : { ok: false, error: new Error(plainReason(result.message)) };
+                if (!result.ok) return { ok: false, error: new Error(plainReason(result.message)) };
+                // In the rail My cheats is folded away, so where the cheat went is said here.
+                if (next && document.getElementById("my-cheats")?.hidden) say("done", "In My cheats");
+                return { ok: true };
             },
         });
 
@@ -287,7 +235,7 @@ const CheatRow = (cheat, { openId, config, startup }) => {
                 field,
                 choices,
                 kind.val === "toggle"
-                    ? [cheat.hint ? null : PinButton(cheat, { startup, say, clear }), toggle()]
+                    ? toggle()
                     : kind.val === "run"
                       ? button({ type: "button", class: "btn-quiet btn-sm system-cheats__run", onclick: run }, "Run")
                       : null
@@ -332,16 +280,14 @@ export const SystemCheats = (page, content) => {
     const side = van.state(false);
     const open = van.state(false);
     const openId = van.state(null);
-    // The config: the settings' numbers and the startup list, read again each time the page is shown (the Config page
+    // The config: the settings' numbers, read again each time the page is shown (the Config page
     // may have changed them). Each save reads its own back.
     const config = van.state(null);
-    const startup = van.state(null);
     const loadFailed = van.state(false);
     const load = () =>
         fetchConfig()
             .then((file) => {
                 config.val = file;
-                startup.val = withNewNames(file.startupCheats ?? []);
                 loadFailed.val = false;
             })
             .catch(() => (loadFailed.val = true));
@@ -356,13 +302,13 @@ export const SystemCheats = (page, content) => {
     ];
     const rows = div(
         { class: "tabbed-list__body system-cheats__rows", hidden: () => !side.val && !open.val },
-        // Without the config the pins and settings aren't known: said here, with a way to read it again.
+        // Without the config the settings aren't known: said here, with a way to read it again.
         div(
             { class: "system-cheats__failed", hidden: () => !loadFailed.val, role: "status" },
             span("Couldn't read the settings."),
             button({ type: "button", class: "btn-quiet btn-sm", onclick: load }, "Try again")
         ),
-        ...cheats.map((cheat) => CheatRow(cheat, { openId, config, startup }))
+        ...cheats.map((cheat) => CheatRow(cheat, { openId, config }))
     );
     const panel = aside(
         {

@@ -6,7 +6,8 @@ import { withTooltip } from "./Tooltip.js";
 import { WORLDS, AREAS, worldClass } from "../menu/menuModel.js";
 import { menuError, menuTree } from "../menu/pageRegistry.js";
 import { isRail, menuLevel, levelHead, LevelItems, DRILL_AREAS } from "./MenuLevels.js";
-import { Said, plainReason, replay, useSaid } from "./inPlace.js";
+import { plainReason, replay } from "./inPlace.js";
+import { MyCheats } from "./MyCheats.js";
 
 const { nav, div, button, span, a, p, ul, li } = van.tags;
 
@@ -51,7 +52,7 @@ const MenuBtn = ({ code, label, active, onclick, colorClass = "", key = null, dr
 
 /*
  * The menu drills down. Picking a world (or Account, Classes, Advanced) opens it and slides the list
- * over to its systems; the row at the top goes back. The logo above and the active cheats, status and keys below
+ * over to its systems; the row at the top goes back. The logo above and My cheats, status and keys below
  * stay put while the middle slides. In the icon rail a world just opens; its list is the line above the page.
  */
 let focusFirst = false; // a pick moves focus to the first entry of the new list
@@ -198,32 +199,6 @@ export const turnOff = async (cheat, { said, say, clear }) => {
     const result = await store.executeCheat(cheat, false);
     if (!result.ok) return say("failed", `${cheat}: ${plainReason(result.message)}`);
     if (said.val?.text.startsWith(`${cheat}: `)) clear();
-};
-
-const ActiveCheatList = () => {
-    const line = useSaid();
-    return div(
-        { class: "active-cheats" },
-        div({ class: "active-cheats-header" }, "ACTIVE CHEATS"),
-        () => {
-            const activeCheats = store.getActiveCheats();
-
-            if (activeCheats.length === 0) {
-                return div({ class: "active-cheats-list" }, span({ class: "no-active-cheats" }, "None"));
-            }
-
-            return div(
-                { class: "active-cheats-list" },
-                ...activeCheats.map((cheat) =>
-                    span(
-                        { class: "active-cheat-item", onclick: () => turnOff(cheat, line) },
-                        span({ class: "active-cheat-text" }, cheat)
-                    )
-                )
-            );
-        },
-        Said({ said: line.said, className: "said--line" })
-    );
 };
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -396,7 +371,7 @@ export const Sidebar = () => {
             )
         ),
         MenuNav(),
-        ActiveCheatList(),
+        ...MyCheats(),
         div({ class: "system-status" }, ...SystemStatus()),
 
         // GitHub and Keys share the last line with the collapse chevron; the rail keeps only the chevron.

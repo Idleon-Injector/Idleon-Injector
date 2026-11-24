@@ -156,10 +156,26 @@ test("a cheat that needs a value lights its star once that value is a favorite",
     store.toggleFavorite("fixture nested deep 7");
 });
 
-for (const [where, render] of [
-    ["the sidebar", () => Sidebar()],
-    ["Home", () => Home()],
-]) {
+// The sidebar's list is My cheats now (concept): a row per cheat with its own switches.
+test("My cheats lists the cheats that are on, and a row's On switch turns exactly that cheat off", async () => {
+    await game.cheat("godlike crit", true);
+    await store.loadCheatStates();
+    const sidebar = Sidebar();
+    await settle();
+    const rows = find(sidebar, (node) => node.attributes?.["data-cheat"]);
+    const names = rows.map((row) => row.attributes["data-cheat"]);
+    assert.ok(names.includes("godlike crit"), names.join(", "));
+
+    sent.length = 0;
+    const box = find(rows[names.indexOf("godlike crit")], (node) => node.attributes?.role === "switch")[0];
+    box.checked = false;
+    await box.listeners.change({ target: box });
+    await settle();
+    assert.deepEqual(sent, [["godlike crit", false]]);
+    assert.equal(crit(), false);
+});
+
+for (const [where, render] of [["Home", () => Home()]]) {
     test(`clicking a cheat in ${where}'s active list turns exactly that cheat off, at any depth`, async () => {
         await game.cheat("fixture nested deep", true);
         await game.cheat("godlike crit", true);
