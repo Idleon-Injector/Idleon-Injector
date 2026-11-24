@@ -158,6 +158,12 @@ exports.cheatConfig = {
         towerdamage: (t) => t * 10, // Tower Defense: Tower damage
         refineryspeed: (t) => Math.max(1, Math.floor(t / 10)), // Refinery: Cycle speed. Don't go below 1! (lower is better)
         trapping: (t) => t * 10, // Trapping: Trap timer speed
+        collider: {
+            AtomsUnlocked: (t) => t, // Collider: Number of unlocked atoms (max 10). No change until you set it
+            AtomCost: (t) => 0, // Collider: Atom collider upgrade costs. (lower is better)
+            AtomBonuses: (t) => t, // Collider: Bonuses provided by atoms. No change until you set it
+            AtomBubbleUpgCost: (t) => 0, // Collider: Atom bubble upgrade costs. (lower is better)
+        },
     },
     w4: {
         fasteggs: (t) => t / 4, // Breeding: Egg incubation speed. (lower is better)
@@ -324,12 +330,6 @@ exports.cheatConfig = {
             Bonus_Minor: (t) => t * 2, // Divinity: Minor god bonuses
             OfferingCost: (t) => 0, // Divinity: Offering costs. (lower is better)
             OfferingOdds: (t) => 1, // Divinity: Success probability for offerings
-        },
-        collider: {
-            AtomsUnlocked: (t) => t, // Collider: Number of unlocked atoms (max 10). No change until you set it
-            AtomCost: (t) => 0, // Collider: Atom collider upgrade costs. (lower is better)
-            AtomBonuses: (t) => t, // Collider: Bonuses provided by atoms. No change until you set it
-            AtomBubbleUpgCost: (t) => 0, // Collider: Atom bubble upgrade costs. (lower is better)
         },
         holes: {
             VillagerExpPerHour: (t) => t * 2, // Sneaking: Villager XP gain speed

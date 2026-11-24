@@ -10,6 +10,7 @@ import { menuTree, menuError } from "../../menu/pageRegistry.js";
 import { pageLeft, pageShown, worldClass } from "../../menu/menuModel.js";
 import { VIEWS } from "../../state/constants.js";
 import { renderLazyPanes } from "./account/tabShared.js";
+import { SIDE, SystemCheats } from "../SystemCheats.js";
 // Undo all, offered beside a page's bulk control after it changed values.
 import "./account/UndoAllOffer.js";
 
@@ -27,6 +28,9 @@ const NoPages = (world) =>
 export const worldNow = (tree) => tree.find((world) => world.id === store.app.menuWorld) || tree[0];
 const pagesOf = (world) => world.systems.flatMap((system) => system.pages);
 export const pageNow = (world) => pagesOf(world).find((page) => page.id === store.app.menuPage) || pagesOf(world)[0];
+
+// Balances the page and its cheats column again (balancePages, below), once a page has rendered.
+let relayout = () => {};
 
 const WorldFrame = (tree) => {
     const allPages = tree.flatMap(pagesOf);
@@ -55,13 +59,59 @@ const WorldFrame = (tree) => {
                 activeId: activePage,
                 paneClass: "world-sub-pane",
                 dataAttr: "data-page",
-                renderContent: (page) => page.component(),
+                // A system's own cheats stand beside its page, or fold under its title (#23).
+                renderContent: (page) => {
+                    const content = page.component();
+                    SystemCheats(page, content);
+                    // Its measure is known once it is on screen.
+                    requestAnimationFrame(() => relayout());
+                    return content;
+                },
             })
         )
     );
 };
 
-export const Pages = () =>
-    div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
+/**
+ * The page column and the cheats column beside it read as one layout (#23). Where the window holds both, the pair is
+ * balanced in it, and the search above spans both. The balance is worked out from a list page (48rem) and a full
+ * cheats column on every page, a page with no cheats included, so the page column never moves between pages; a wider
+ * table page that doesn't fit beside its cheats at that place folds them under its title instead.
+ */
+const balancePages = (root) => {
+    const apply = () => {
+        const viewport = root.closest(".viewport");
+        if (!viewport) return;
+        const pad = parseFloat(getComputedStyle(viewport).getPropertyValue("--page-pad")) || 0;
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        const list = 48 * rem;
+        const room = viewport.clientWidth - 2 * pad;
+        const fits =
+            store.app.activeTab === VIEWS.PAGES.id && root.clientWidth > 0 && room - list - SIDE.gap >= SIDE.min;
+        viewport.classList.toggle("pages-frame", fits);
+        if (!fits) return;
+        const inset = Math.max(0, (room - list - SIDE.gap - SIDE.max) / 2);
+        // The open page's own measure: a table page's search is as wide as its column and cheats column.
+        const open = root.querySelector(".world-sub-pane.active > .tab-container");
+        const measure = open ? parseFloat(getComputedStyle(open).getPropertyValue("--page-measure")) * rem : list;
+        const column = Math.min(SIDE.max, room - inset - measure - SIDE.gap);
+        viewport.style.setProperty("--page-inset", `${inset}px`);
+        viewport.style.setProperty("--frame-width", `${column >= SIDE.min ? measure + SIDE.gap + column : measure}px`);
+    };
+    relayout = apply;
+    new ResizeObserver(apply).observe(root);
+    // Another page or view: after a frame, once the page is on screen.
+    van.derive(() => {
+        store.app.activeTab;
+        store.app.menuPage;
+        requestAnimationFrame(apply);
+    });
+};
+
+export const Pages = () => {
+    const root = div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
         menuTree.val ? WorldFrame(menuTree.val) : div({ class: "account-loader" }, Loader({ text: "Loading pages" }))
     );
+    balancePages(root);
+    return root;
+};

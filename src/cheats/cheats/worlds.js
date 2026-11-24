@@ -6,7 +6,7 @@
  * - W2: boss, roo, alchemy, vialrng, vialattempt, sigilspeed, killroyreset
  * - W3: mobdeath, towerdamage, refinery, trapping, prayer, shrines, etc.
  * - W4: breeding, spice, kitchens, lab, arena, mainframe, ribbon, chips, etc.
- * - W5: sailing, endercaptains, gaming, divinity, collider, holes, jargems
+ * - W5: sailing, endercaptains, gaming, divinity, holes, jargems
  * - W6: farming, ninja, summoning, grimoire, endless, ninjaitem, sumunit, etc.
  * - W7: spelunk, gallery, sushi, reef, clam, zenith, spelunkmana, spelunkdepth, etc.
  */
@@ -20,7 +20,8 @@ import { getJarGemCatalog } from "../helpers/jarGems.js";
 defineCheat({
     name: "w1",
     message: "Activate all World 1 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "anvil", message: "anvil cost and duration nullification" },
         { name: "forge", message: "forge speed and capacity multiplier check config" },
@@ -63,7 +64,8 @@ defineCheat({
 defineCheat({
     name: "w2",
     message: "Activate all World 2 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "boss", message: "unlimited boss attempts" },
         { name: "roo", message: "roo cheats, check config file" },
@@ -88,9 +90,17 @@ defineCheat({
             RooCatchREQ: { default: (t) => t / 2, description: "Roo: Catch requirements. (lower is better)" },
             RooCatchFishQTY: { default: (t) => t * 2, description: "Roo: Quantity of fish caught" },
             RooCatchRate_S: { default: (t) => t * 2, description: "Roo: Shiny catch rates" },
-            RooCatchREQ_S: { default: (t) => t / 2, description: "Roo: Shiny catch requirements. (lower is better)" },
+            RooCatchREQ_S: {
+                default: (t) => t / 2,
+                short: "Shiny catches needed",
+                description: "Roo: Shiny catch requirements. (lower is better)",
+            },
             RooCatchRate_T: { default: (t) => t * 2, description: "Roo: Tar pit catch rates" },
-            RooCatchREQ_T: { default: (t) => t / 2, description: "Roo: Tar pit catch requirements. (lower is better)" },
+            RooCatchREQ_T: {
+                default: (t) => t / 2,
+                short: "Tar pit catches needed",
+                description: "Roo: Tar pit catch requirements. (lower is better)",
+            },
             RooNextUpgReq: { example: (t) => t },
             RooShinyLuck: { example: (t) => t },
             RooTarOwned: { example: (t) => t },
@@ -108,9 +118,14 @@ defineCheat({
             ResearchSpeed: { default: (t) => t * 4, description: "Alchemy: Brewing speed" },
             VialCosts: { default: (t) => t / 2, description: "Alchemy: Vial costs. (lower is better)" },
             VialBonus: { default: (t) => t, description: "Alchemy: Vial effects. No change until you set it" },
-            PctChanceNewBubble: { default: (t) => t * 4, description: "Alchemy: New bubble discovery chance" },
+            PctChanceNewBubble: {
+                default: (t) => t * 4,
+                short: "New bubble chance",
+                description: "Alchemy: New bubble discovery chance",
+            },
             CauldronLvsBrewREQ: {
                 default: (t) => t / 2,
+                short: "Cauldron levels needed",
                 description: "Alchemy: Cauldron level requirements. (lower is better)",
             },
             LiquidCap: { default: (t) => t * 2, description: "Alchemy: Liquid storage capacity" },
@@ -123,7 +138,8 @@ defineCheat({
 defineCheat({
     name: "w3",
     message: "Activate all World 3 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "mobdeath", message: "worship mobs insta-death" },
         { name: "towerdamage", message: "multiply tower damage (see config)" },
@@ -145,23 +161,52 @@ defineCheat({
         { name: "instantdreams", message: "Dream bar fills instantly" },
         { name: "bettercog", message: "Gives you a bit better cog chances" },
         { name: "jeweledcogs", message: "Unlimited jeweled cogs (needs to be unlocked in gaming first)" },
+        // The Atom Collider is a World 3 system; "w5 collider" still runs it (see runCheat).
+        { name: "collider", message: "collider cheats" },
     ],
     config: {
         buildspd: { default: (t) => t * 10, description: "Construction: Building speed" },
-        WorshipSpeed: { default: (t) => t * 10, description: "Worship: Charge generation speed" },
+        WorshipSpeed: {
+            default: (t) => t * 10,
+            short: "Charge speed",
+            description: "Worship: Charge generation speed",
+        },
         towerdamage: { default: (t) => t * 10, description: "Tower Defense: Tower damage" },
         refineryspeed: {
             default: (t) => Math.max(1, Math.floor(t / 10)),
             description: "Refinery: Cycle speed. Don't go below 1! (lower is better)",
         },
         trapping: { default: (t) => t * 10, description: "Trapping: Trap timer speed" },
+        collider: {
+            AtomsUnlocked: {
+                default: (t) => t,
+                short: "Atoms unlocked",
+                description: "Collider: Number of unlocked atoms (max 10). No change until you set it",
+            },
+            AtomCost: {
+                default: (t) => 0,
+                short: "Atom upgrade cost",
+                description: "Collider: Atom collider upgrade costs. (lower is better)",
+            },
+            AtomBonuses: {
+                default: (t) => t,
+                short: "Atom bonuses",
+                description: "Collider: Bonuses provided by atoms. No change until you set it",
+            },
+            AtomBubbleUpgCost: {
+                default: (t) => 0,
+                short: "Atom bubble cost",
+                description: "Collider: Atom bubble upgrade costs. (lower is better)",
+            },
+        },
     },
 });
 
 defineCheat({
     name: "w4",
     message: "Activate all World 4 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "battleslots", message: "all 6 battle slots" },
         { name: "eggcap", message: "all egg slots" },
@@ -215,13 +260,11 @@ defineCheat({
                           {
                               value: "w4 chips all",
                               message: "Set amount for all lab chips",
-                              category: "w4",
                               needsParam: true,
                           },
                           ...cList.ChipDesc.filter((chip) => chip[0]).map((chip) => ({
                               value: `w4 chips ${chip[0].toLowerCase()}`,
                               message: chip[1],
-                              category: "w4",
                               needsParam: true,
                           })),
                       ]
@@ -257,7 +300,11 @@ defineCheat({
     ],
     config: {
         fasteggs: { default: (t) => t / 4, description: "Breeding: Egg incubation speed. (lower is better)" },
-        petchance: { default: (t) => t * 2, description: "Breeding: New pet discovery chance" },
+        petchance: {
+            default: (t) => t * 2,
+            short: "New pet chance",
+            description: "Breeding: New pet discovery chance",
+        },
         petupgrades: { default: (t) => t / 4, description: "Breeding: Pet upgrade costs. (lower is better)" },
         mealspeed: { default: (t) => t / 4, description: "Cooking: Meal preparation speed. (lower is better)" },
         recipespeed: { default: (t) => t / 4, description: "Cooking: Recipe research speed. (lower is better)" },
@@ -266,7 +313,11 @@ defineCheat({
         fastforaging: { default: (t) => t * 4, description: "Cooking: Foraging speed" },
         luckychef: { default: (t) => t * 2, description: "Cooking: New recipe discovery luck" },
         superpets: {
-            BlockChance: { default: (t) => t * 2, description: "Pet Arena: Block chance when attacked" },
+            BlockChance: {
+                default: (t) => t * 2,
+                short: "Block chance",
+                description: "Pet Arena: Block chance when attacked",
+            },
             TotalDMG: { default: (t) => t * 4, description: "Pet Arena: Total pet damage" },
         },
         mainframe: {
@@ -278,14 +329,22 @@ defineCheat({
                 description: "Mainframe: Alchemy bubble level gain (affects multi-bubble discovery)",
             },
             4: { default: (t) => Math.max(t, 2), description: "Mainframe: Deathnote and portal kill multiplier" },
-            5: { default: (t) => 1, description: "Mainframe: Enable Shrine World Tour effect" },
+            5: { default: (t) => 1, on: 1, description: "Mainframe: Enable Shrine World Tour effect" },
             6: { default: (t) => Math.max(t, 5), description: "Mainframe: Alchemy liquid capacity multiplier" },
-            7: { default: (t) => 2, description: "Mainframe: Stamp bonus multiplier (must be 2 to work)" },
+            7: { default: (t) => 2, on: 2, description: "Mainframe: Stamp bonus multiplier (must be 2 to work)" },
             8: { default: (t) => Math.max(t, 5), description: "Mainframe: Spelunker jewel effect multiplier" },
-            9: { default: (t) => t * 2, description: "Mainframe: Fungi Finger Pocketer cash bonus multiplier" },
+            9: {
+                default: (t) => t * 2,
+                short: "Fungi Finger cash",
+                description: "Mainframe: Fungi Finger Pocketer cash bonus multiplier",
+            },
             10: { default: (t) => Math.max(t, 2), description: "Mainframe: Alchemy vial bonus multiplier" },
-            11: { default: (t) => t * 1.2, description: "Mainframe: Banking Fury damage multiplier" },
-            12: { default: (t) => 1, description: "Mainframe: Enable sigils in alchemy" },
+            11: {
+                default: (t) => t * 1.2,
+                short: "Banking Fury damage",
+                description: "Mainframe: Banking Fury damage multiplier",
+            },
+            12: { default: (t) => 1, on: 1, description: "Mainframe: Enable sigils in alchemy" },
             13: { default: (t) => Math.max(t, 300), description: "Mainframe: Lab connection range multiplier" },
             100: { default: (t) => Math.max(t, 10), description: "Mainframe: Meal cooking speed multiplier" },
             101: { default: (t) => Math.max(t, 3), description: "Mainframe: Additional animal farm damage % per pet" },
@@ -307,25 +366,29 @@ defineCheat({
                 default: (t) => Math.max(t, 1.5),
                 description: "Mainframe: Fungi Finger Pocketer extra cash percentage",
             },
-            114: { default: (t) => t * 3, description: "Mainframe: Meal cooking bonus speed percentage" },
+            114: {
+                default: (t) => t * 3,
+                short: "Meal speed",
+                description: "Mainframe: Meal cooking bonus speed percentage",
+            },
             115: { default: (t) => Math.max(t, 45), description: "Mainframe: Pet passive ability speed percentage" },
             116: { default: (t) => Math.max(t, 50), description: "Mainframe: Additional meal bonus percentage" },
             117: { default: (t) => Math.max(t, 1.5), description: "Mainframe: Damage per greened stack bonus" },
         },
         chipbonuses: {
             resp: { default: (t) => Math.max(t, 50), description: "Lab Chip: Mob respawn speed bonus percentage" },
-            card1: { default: (t) => 1, description: "Lab Chip: Double top-left card effect (1 = yes)" },
-            card2: { default: (t) => 1, description: "Lab Chip: Double bottom-right card effect (1 = yes)" },
+            card1: { default: (t) => 1, on: 1, description: "Lab Chip: Double top-left card effect (1 = yes)" },
+            card2: { default: (t) => 1, on: 1, description: "Lab Chip: Double bottom-right card effect (1 = yes)" },
             crys: { default: (t) => Math.max(t, 95), description: "Lab Chip: Crystal spawn chance on kill percentage" },
-            star: { default: (t) => 1, description: "Lab Chip: Double star sign effects (1 = yes)" },
+            star: { default: (t) => 1, on: 1, description: "Lab Chip: Double star sign effects (1 = yes)" },
             mkill: { default: (t) => Math.max(t, 40), description: "Lab Chip: Multikill per tier bonus percentage" },
             linewidth: { default: (t) => Math.max(t, 12), description: "Lab Chip: Lab line width bonus percentage" },
             dmg: { default: (t) => Math.max(t, 100), description: "Lab Chip: Damage bonus percentage" },
             move: { default: (t) => Math.max(t, 30), description: "Lab Chip: Movement speed bonus percentage" },
             acc: { default: (t) => Math.max(t, 30), description: "Lab Chip: Accuracy bonus percentage" },
-            pend: { default: (t) => 1, description: "Lab Chip: Double pendant bonuses (1 = yes)" },
-            key1: { default: (t) => 1, description: "Lab Chip: Double first keychain bonuses (1 = yes)" },
-            troph: { default: (t) => 1, description: "Lab Chip: Double trophy bonuses (1 = yes)" },
+            pend: { default: (t) => 1, on: 1, description: "Lab Chip: Double pendant bonuses (1 = yes)" },
+            key1: { default: (t) => 1, on: 1, description: "Lab Chip: Double first keychain bonuses (1 = yes)" },
+            troph: { default: (t) => 1, on: 1, description: "Lab Chip: Double trophy bonuses (1 = yes)" },
             def: { default: (t) => Math.max(t, 10), description: "Lab Chip: Defense bonus percentage" },
             weappow: { default: (t) => Math.max(t, 100), description: "Lab Chip: Weapon power bonus percentage" },
             dr: { default: (t) => Math.max(t, 60), description: "Lab Chip: Drop rarity bonus percentage" },
@@ -391,14 +454,14 @@ defineCheat({
 defineCheat({
     name: "w5",
     message: "Activate all World 5 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "sailing", message: "sailing cheats" },
         { name: "endercaptains", message: "100% ender captains (requires Emporium bonus unlock)" },
         { name: "gaming", message: "gaming cheats" },
         { name: "betternuggets", message: "bigger nuggets from the gaming shovel (see config)" },
         { name: "divinity", message: "divinity cheats" },
-        { name: "collider", message: "collider cheats" },
         { name: "holes", message: "holes cheats" },
         { name: "lantern", message: "no daily limit on Blinding Lantern uses" },
         { name: "skillcaverns", message: "no daily limit on skilling cavern nodes" },
@@ -411,7 +474,6 @@ defineCheat({
                 {
                     value: "w5 jargems all",
                     message: "Set amount for all jar gems",
-                    category: "w5",
                     needsParam: true,
                 },
                 ...getJarGemCatalog()
@@ -419,7 +481,6 @@ defineCheat({
                     .map((gem) => ({
                         value: `w5 jargems ${gem.commandName}`,
                         message: gem.description || "",
-                        category: "w5",
                         needsParam: true,
                     })),
             ],
@@ -465,6 +526,7 @@ defineCheat({
     config: {
         betternuggets: {
             default: 3,
+            short: "Big nugget odds",
             description: "Gaming: how strongly dug nuggets lean toward big ones, 1 (the game's own odds) to 20",
         },
         sailing: {
@@ -581,32 +643,34 @@ defineCheat({
             RatShopBonuses: { default: (t) => t, description: "Gaming: Rat shop bonuses. No change until you set it" },
         },
         divinity: {
-            unlinks: { default: true, description: "Divinity: Allows unlinking gods at any time" },
+            unlinks: {
+                default: true,
+                short: "Unlink gods anytime",
+                description: "Divinity: Allows unlinking gods at any time",
+            },
             StyleLvReq: {
                 default: (t) => 0,
+                short: "Style level needed",
                 description: "Divinity: Meditation style level requirements. (lower is better)",
             },
-            DivPerHr: { default: (t) => t * 3, description: "Divinity: Base divinity points gained per hour" },
-            DivPerHr_EXP: { default: (t) => t * 3, description: "Divinity: Base divinity XP gained per hour" },
+            DivPerHr: {
+                default: (t) => t * 3,
+                short: "Divinity per hour",
+                description: "Divinity: Base divinity points gained per hour",
+            },
+            DivPerHr_EXP: {
+                default: (t) => t * 3,
+                short: "Divinity XP per hour",
+                description: "Divinity: Base divinity XP gained per hour",
+            },
             BlesssBonus: { default: (t) => t * 2, description: "Divinity: God blessing bonuses" },
             Bonus_MAJOR: { default: (t) => t, description: "Divinity: Major god bonuses. No change until you set it" },
             Bonus_Minor: { default: (t) => t * 2, description: "Divinity: Minor god bonuses" },
             OfferingCost: { default: (t) => 0, description: "Divinity: Offering costs. (lower is better)" },
-            OfferingOdds: { default: (t) => 1, description: "Divinity: Success probability for offerings" },
-        },
-        collider: {
-            AtomsUnlocked: {
-                default: (t) => t,
-                description: "Collider: Number of unlocked atoms (max 10). No change until you set it",
-            },
-            AtomCost: { default: (t) => 0, description: "Collider: Atom collider upgrade costs. (lower is better)" },
-            AtomBonuses: {
-                default: (t) => t,
-                description: "Collider: Bonuses provided by atoms. No change until you set it",
-            },
-            AtomBubbleUpgCost: {
-                default: (t) => 0,
-                description: "Collider: Atom bubble upgrade costs. (lower is better)",
+            OfferingOdds: {
+                default: (t) => 1,
+                short: "Offering success",
+                description: "Divinity: Success probability for offerings",
             },
         },
         holes: {
@@ -616,19 +680,41 @@ defineCheat({
             AmpMulti: { default: (t) => t * 2, description: "Sneaking: Amplifier effects" },
             MeasurementCost: {
                 default: (t) => t / 2,
+                short: "Measurement cost",
                 description: "Sneaking: Measurement upgrade costs. (lower is better)",
             },
-            MeasurementBaseBonus: { default: (t) => t * 2, description: "Sneaking: Measurement base bonuses" },
+            MeasurementBaseBonus: {
+                default: (t) => t * 2,
+                short: "Measurement bonus",
+                description: "Sneaking: Measurement base bonuses",
+            },
             MotherlodeEffBase: {
                 default: (t) => t / 2,
+                short: "Motherlode efficiency",
                 description: "Sneaking: Base efficiency for the motherlode. (lower is better)",
             },
             MonumentRewardMulti: { default: (t) => t * 2, description: "Sneaking: Monument rewards" },
-            MonumentROGbonuses: { default: (t) => t * 2, description: "Sneaking: Right-side monument rewards" },
+            MonumentROGbonuses: {
+                default: (t) => t * 2,
+                short: "Right monument bonus",
+                description: "Sneaking: Right-side monument rewards",
+            },
             MonumentHRbonuses: { example: (t) => t * 2 },
-            Bravery_MinDMG: { default: (t) => t * 10, description: "Bravery: Minimum bravery damage" },
-            Bravery_MaxDMG: { default: (t) => t * 2, description: "Bravery: Maximum bravery damage" },
-            Bravery_SwordsOwned: { default: (t) => 9, description: "Bravery: Number of swords owned" },
+            Bravery_MinDMG: {
+                default: (t) => t * 10,
+                short: "Bravery min damage",
+                description: "Bravery: Minimum bravery damage",
+            },
+            Bravery_MaxDMG: {
+                default: (t) => t * 2,
+                short: "Bravery max damage",
+                description: "Bravery: Maximum bravery damage",
+            },
+            Bravery_SwordsOwned: {
+                default: (t) => 9,
+                short: "Swords owned",
+                description: "Bravery: Number of swords owned",
+            },
             MaxRerolls: { default: (t) => Math.max(t, 20), description: "Bravery: Max rerolls allowed" },
             MaxRevisions: { default: (t) => Math.max(t, 5), description: "Bravery: Max revisions allowed" },
             Bravery_MonsterHP: { default: (t) => t / 2, description: "Bravery: Monster HP. (lower is better)" },
@@ -650,6 +736,7 @@ defineCheat({
             LampWishPerDay: { default: (t) => t * 2, description: "Sneaking: Daily lamp wish limit" },
             MushKillsLeft: {
                 default: (t) => 0,
+                short: "Mushroom kills left",
                 description: "Sneaking: Remaining mushroom kills required for boss. (lower is better)",
             },
             J_StartCoins: { default: (t) => t * 5, description: "Justice: Starting coins" },
@@ -658,26 +745,38 @@ defineCheat({
             J_StartHealth: { default: (t) => t * 5, description: "Justice: Starting health" },
             Justice_BlueChestChanceDEC: {
                 default: (t) => 0.5,
+                short: "Blue chest chance",
                 description: "Justice: Probability of blue chest spawn. (lower is better)",
             },
             BolaiaStudyRate: { default: (t) => t * 2, description: "Sneaking: Bolaia study speed" },
             JarProductionPerHR: { default: (t) => t * 2, description: "Sneaking: Jar production speed" },
             TempleTorchCost: { default: (t) => t / 2, description: "Sneaking: Temple torch costs. (lower is better)" },
             JarCollectibleBonus: { default: (t) => t * 2, description: "Sneaking: Jar collectible bonuses" },
-            JarEnchantChance: { default: (t) => t * 2, description: "Sneaking: Jar enchantment success chance" },
+            JarEnchantChance: {
+                default: (t) => t * 2,
+                short: "Jar enchant chance",
+                description: "Sneaking: Jar enchantment success chance",
+            },
             JarNewCollectibleChance: {
                 default: (t) => t * 2,
+                short: "New collectible chance",
                 description: "Sneaking: New jar collectible discovery chance",
             },
             Cost_FountainUPG: { default: (t) => t / 2, description: "Fountain: Upgrade costs. (lower is better)" },
             Fount_RoyalChance: { default: (t) => t * 2, description: "Fountain: Royal stack chance" },
-            Fount_RoyalMulti: { default: (t) => t * 2, description: "Fountain: Royal stack value multiplier" },
+            Fount_RoyalMulti: {
+                default: (t) => t * 2,
+                short: "Royal stack value",
+                description: "Fountain: Royal stack value multiplier",
+            },
             Fount_MarblePerFill: {
                 default: (t) => t * 2,
+                short: "Marble per fill",
                 description: "Fountain: Marble gained per Yellow Water fill",
             },
             Fount_MarbleizeCost: {
                 default: (t) => t / 2,
+                short: "Marbleize cost",
                 description: "Fountain: Upgrade marbleization costs. (lower is better)",
             },
             FountainBar_REQ: { example: (t) => t },
@@ -713,7 +812,8 @@ defineCheat({
 defineCheat({
     name: "w6",
     message: "Activate all World 6 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "farming", message: "farming cheats" },
         { name: "ninja", message: "ninja cheats" },
@@ -751,7 +851,6 @@ defineCheat({
                 Object.keys(summonUnits).map((unit) => ({
                     value: `w6 sumunit ${unit}`,
                     message: "",
-                    category: "w6",
                 })),
             fn: (params) => {
                 const unitName = params[1];
@@ -846,9 +945,14 @@ defineCheat({
                 default: (t) => t,
                 description: "Summoning: Starting mana in battles. No change until you set it",
             },
-            ManaRegen: { default: (t) => t * 2, description: "Summoning: Mana regeneration speed" },
+            ManaRegen: {
+                default: (t) => t * 2,
+                short: "Mana regen",
+                description: "Summoning: Mana regeneration speed",
+            },
             UnitSpd: {
                 default: (t) => t,
+                short: "Ally speed",
                 description: "Summoning: Ally unit movement speed. No change until you set it",
             },
             UnitHP: { default: (t) => t * 2, description: "Summoning: Ally unit HP" },
@@ -857,8 +961,12 @@ defineCheat({
                 default: (t) => Math.min(1, t * 2),
                 description: "Summoning: Ally unit dodge probability (max 1)",
             },
-            EndlessUnlocked: { default: (t) => 1, description: "Summoning: Unlocks endless mode (1 = yes)" },
-            SummUpgBonus: { default: (t) => t * 2, description: "Summoning: Summoning upgrade bonuses" },
+            EndlessUnlocked: { default: (t) => 1, on: 1, description: "Summoning: Unlocks endless mode (1 = yes)" },
+            SummUpgBonus: {
+                default: (t) => t * 2,
+                short: "Upgrade bonuses",
+                description: "Summoning: Summoning upgrade bonuses",
+            },
             SummRockEssGen: { default: (t) => t * 1.5, description: "Summoning: Essence generation rate" },
             UpgCost: { default: (t) => t / 2, description: "Summoning: Upgrade costs (0 = free). (lower is better)" },
             UnitCost: {
@@ -871,11 +979,16 @@ defineCheat({
             EnemyDMG: { default: (t) => t / 2, description: "Summoning: Enemy unit damage. (lower is better)" },
             EnemySpd: {
                 default: (t) => t,
+                short: "Enemy speed",
                 description: "Summoning: Enemy unit movement speed. No change until you set it",
             },
         },
         grimoire: {
-            GrimoireBoneQTYbase: { default: (t) => t * 2, description: "Grimoire: Bone quantity base value" },
+            GrimoireBoneQTYbase: {
+                default: (t) => t * 2,
+                short: "Base bones",
+                description: "Grimoire: Bone quantity base value",
+            },
             GrimoireUpgCost: { default: (t) => t / 2, description: "Grimoire: Upgrade costs. (lower is better)" },
             Grimoire_HP: { default: (t) => t * 2, description: "Grimoire: HP" },
             Grimoire_DMG: { default: (t) => t * 2, description: "Grimoire: Damage" },
@@ -896,7 +1009,11 @@ defineCheat({
             Compass_CRITPCT: { default: (t) => t * 2, description: "Windwalker: Crit Chance" },
             Compass_CRITDMG: { default: (t) => t * 2, description: "Windwalker: Crit Damage" },
             Compass_MoveSpeed: { default: (t) => Math.max(t, 300), description: "Windwalker: Movement speed bonus" },
-            TempestMultishotPCT: { default: (t) => t * 2, description: "Windwalker: Tempest multishot chance" },
+            TempestMultishotPCT: {
+                default: (t) => t * 2,
+                short: "Multishot chance",
+                description: "Windwalker: Tempest multishot chance",
+            },
             CompassDustQTYbase: { default: (t) => t * 2, description: "Windwalker: Dust quantity base value" },
             TempestWepDropChance: {
                 default: (t) => Math.max(t, 0.1),
@@ -912,10 +1029,12 @@ defineCheat({
             },
             TempestMedallionDropChance: {
                 default: (t) => 1,
+                short: "Medallion drop chance",
                 description: "Windwalker: Probability of Tempest medallion drops",
             },
             PortalCostQTY: {
                 default: (t) => 1,
+                short: "Portal item cost",
                 description: "Windwalker: Items required for portal access. (lower is better)",
             },
             PortalCostType: { example: (t) => t },
@@ -959,8 +1078,16 @@ defineCheat({
             Arcane_AttackSpdPCT: { default: (t) => t * 2, description: "Arcane: Attack Speed" },
             ArcaneMultishotPCT: { default: (t) => t * 2, description: "Arcane: Arcane multishot chance" },
             TenteyeclePCT: { default: (t) => Math.max(t, 100), description: "Arcane: Tenteyecle proc chance" },
-            PrismaBubDropChance: { default: (t) => t * 2, description: "Arcane: Probability of Prisma Bubble drops" },
-            WepDropChance: { default: (t) => t * 2, description: "Arcane: Probability of weapon drops" },
+            PrismaBubDropChance: {
+                default: (t) => t * 2,
+                short: "Prisma Bubble chance",
+                description: "Arcane: Probability of Prisma Bubble drops",
+            },
+            WepDropChance: {
+                default: (t) => t * 2,
+                short: "Weapon drop chance",
+                description: "Arcane: Probability of weapon drops",
+            },
             WepDropQuality: { example: (t) => t },
             RingDropChance: { default: (t) => t * 2, description: "Arcane: Probability of ring drops" },
             RingDropQuality: { example: (t) => t },
@@ -970,17 +1097,24 @@ defineCheat({
             },
             ExtraTachyon: { default: (t) => t * 2, description: "Arcane: Extra tachyon gain" },
             ExtraTachyonMulti: { default: (t) => t * 2, description: "Arcane: Extra tachyon bonuses" },
-            ArcaneTachyonQTYbase: { default: (t) => t * 2, description: "Arcane: Tachyon quantity base value" },
+            ArcaneTachyonQTYbase: {
+                default: (t) => t * 2,
+                short: "Base tachyons",
+                description: "Arcane: Tachyon quantity base value",
+            },
             ArcaneMobSpawnQTY: {
                 default: (t) => t,
+                short: "Crystal mob spawns",
                 description: "Arcane: Mobs spawned by Arcane Crystal ability. No change until you set it",
             },
             TimeLeft: {
                 default: (t) => t,
+                short: "Arcane Barrier time",
                 description: "Arcane: Remaining time for the Arcane Barrier encounter. No change until you set it",
             },
             CrystalChargeReq: {
                 default: (t) => t,
+                short: "Kills per crystal",
                 description:
                     "Arcane: Kill requirement to spawn Arcane mobs. (lower is better). No change until you set it",
             },
@@ -1003,21 +1137,34 @@ defineCheat({
         },
         royal: {
             StatueUpgOdds: { default: (t) => t * 2, description: "Royal Guardian: Statue upgrade odds" },
-            Statue_CanAfford: { default: (t) => 1, description: "Royal Guardian: Statue affordability check" },
+            Statue_CanAfford: { default: (t) => 1, on: 1, description: "Royal Guardian: Statue affordability check" },
             StatueBon: { default: (t) => t * 2, description: "Royal Guardian: Statue bonus multiplier" },
             ArmoryUpgCost: {
                 default: (t) => t / 2,
                 description: "Royal Guardian: Armory upgrade costs. (lower is better)",
             },
-            RatDMG: { default: (t) => t * 2, description: "Royal Guardian: Damage dealt to Verminous rats" },
-            ParchmentDrop: { default: (t) => t * 2, description: "Royal Guardian: Parchment of Enchantment drop rate" },
+            RatDMG: {
+                default: (t) => t * 2,
+                short: "Rat damage",
+                description: "Royal Guardian: Damage dealt to Verminous rats",
+            },
+            ParchmentDrop: {
+                default: (t) => t * 2,
+                short: "Parchment drops",
+                description: "Royal Guardian: Parchment of Enchantment drop rate",
+            },
             MarbleDrop: { default: (t) => t * 2, description: "Royal Guardian: Marble drop rate" },
             OutpostKillsReq: {
                 default: (t) => t / 2,
+                short: "Outpost kills needed",
                 description: "Kingdom: Outpost kills requirement. (lower is better)",
             },
             SupportEXP: { default: (t) => t * 2, description: "Kingdom: Support units EXP gain" },
-            OutpostRange: { default: (t) => t * 2, description: "Kingdom: Outpost connection range" },
+            OutpostRange: {
+                default: (t) => t * 2,
+                short: "Outpost range",
+                description: "Kingdom: Outpost connection range",
+            },
             OutpostResourceRate: { default: (t) => t * 2, description: "Kingdom: Resource collection rate" },
             Statue_Cost: { example: (t) => t, description: "Royal Guardian: Statue upgrade cost. (lower is better)" },
             SF_unlocked: { example: (t) => t, description: "Royal Guardian: Statue flair unlock state" },
@@ -1083,7 +1230,8 @@ defineCheat({
 defineCheat({
     name: "w7",
     message: "Activate all World 7 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "spelunk", message: "spelunk cheats" },
         { name: "gallery", message: "gallery cheats" },
@@ -1109,8 +1257,16 @@ defineCheat({
     config: {
         menagerie: {
             LumiGainRate: { default: (t) => t * 2, description: "Menagerie: Lumi generated per hour" },
-            ScurgeEXPgain: { default: (t) => t * 2, description: "Menagerie: Scurge EXP gained per kill" },
-            PinkJellyCosts: { default: (t) => t / 2, description: "Menagerie: Purple Jellyfish purchase costs" },
+            ScurgeEXPgain: {
+                default: (t) => t * 2,
+                short: "Scurge EXP per kill",
+                description: "Menagerie: Scurge EXP gained per kill",
+            },
+            PinkJellyCosts: {
+                default: (t) => t / 2,
+                short: "Jellyfish cost",
+                description: "Menagerie: Purple Jellyfish purchase costs",
+            },
             SilverJellyCosts: { default: (t) => t / 2, description: "Menagerie: Silver Jelly Costs" },
             ScurgeEXP_Req: { default: (t) => t / 2, description: "Menagerie: Scurge EXP Req" },
             UpgUnlocked: { example: (t) => t, description: "Menagerie: Available mission, unlock, or upgrade count" },
@@ -1165,9 +1321,17 @@ defineCheat({
         },
         jelly: {
             UpgCost: { default: (t) => t / 2, description: "Jelly Operator: Upgrade cost" },
-            UpgLvREQ: { default: (t) => 0, description: "Jelly Operator: Upgrade level requirement" },
+            UpgLvREQ: {
+                default: (t) => 0,
+                short: "Upgrade level needed",
+                description: "Jelly Operator: Upgrade level requirement",
+            },
             CellExpREQ: { default: (t) => t / 2, description: "Jelly Operator: Cell EXP requirement" },
-            DailyTries: { default: (t) => t * 2, description: "Jelly Operator: Daily operation attempts" },
+            DailyTries: {
+                default: (t) => t * 2,
+                short: "Daily tries",
+                description: "Jelly Operator: Daily operation attempts",
+            },
             BloodcellDaily: { default: (t) => t * 2, description: "Jelly Operator: Daily Bloodcells" },
             CellDMG: { default: (t) => t * 2, description: "Jelly Operator: Cell damage" },
             CellSPD: { default: (t) => t * 2, description: "Jelly Operator: Cell speed" },
@@ -1210,20 +1374,38 @@ defineCheat({
             UpgCost: { default: (t) => t / 2, description: "Bubba: Upgrade costs. (lower is better)" },
             DoubleLVchancePCT: {
                 default: (t) => t,
+                short: "Double level chance",
                 description: "Bubba: Double level chance on upgrade. No change until you set it",
             },
             DailyPetting: { default: (t) => t * 2, description: "Bubba: Daily petting limit" },
-            DailyPet_HappinessQTY: { default: (t) => t * 2, description: "Bubba: Happiness gained from petting" },
-            DailyPet_HappinessFromUpg: { default: (t) => t * 2, description: "Bubba: Happiness gained from upgrades" },
+            DailyPet_HappinessQTY: {
+                default: (t) => t * 2,
+                short: "Petting happiness",
+                description: "Bubba: Happiness gained from petting",
+            },
+            DailyPet_HappinessFromUpg: {
+                default: (t) => t * 2,
+                short: "Upgrade happiness",
+                description: "Bubba: Happiness gained from upgrades",
+            },
             HappinessLoss: { default: (t) => t / 2, description: "Bubba: Happiness decay rate. (lower is better)" },
             CharismaTraitSPD: { default: (t) => t * 2, description: "Bubba: Charisma trait speed" },
             CharismaTraitREQ: {
                 default: (t) => t / 2,
+                short: "Charisma needed",
                 description: "Bubba: Charisma trait requirements. (lower is better)",
             },
             CharismaBonus: { default: (t) => t * 2, description: "Bubba: Charisma bonuses" },
-            GiftPassiveBonus: { default: (t) => t * 2, description: "Bubba: Gift-provided passive bonuses" },
-            Dice_Result: { default: (t) => t * 2, description: "Bubba: Modifier for dice roll results" },
+            GiftPassiveBonus: {
+                default: (t) => t * 2,
+                short: "Gift passive bonus",
+                description: "Bubba: Gift-provided passive bonuses",
+            },
+            Dice_Result: {
+                default: (t) => t * 2,
+                short: "Dice rolls",
+                description: "Bubba: Modifier for dice roll results",
+            },
             SmokeMeat_Multi: { default: (t) => t * 2, description: "Bubba: Smoked Meat gain" },
             SpareCoins_Multi: { default: (t) => t * 2, description: "Bubba: Spare Coins gain" },
             HappinessRank: { example: (t) => t },
@@ -1255,49 +1437,85 @@ defineCheat({
         spelunk: {
             POW: { default: (t) => t * 2, description: "Spelunking: Spelunking power" },
             StaminaMax: { default: (t) => t * 2, description: "Spelunking: Maximum stamina" },
-            StaminaRegenRate: { default: (t) => t * 2, description: "Spelunking: Stamina regeneration speed" },
+            StaminaRegenRate: {
+                default: (t) => t * 2,
+                short: "Stamina regen",
+                description: "Spelunking: Stamina regeneration speed",
+            },
             OverstimFillRate: { default: (t) => t * 2, description: "Spelunking: Overstim fill speed" },
             AmberGain: { default: (t) => t * 2, description: "Spelunking: Amber gain" },
-            AmberDropChance: { default: (t) => t * 2, description: "Spelunking: Probability of primary amber drops" },
+            AmberDropChance: {
+                default: (t) => t * 2,
+                short: "Amber drop chance",
+                description: "Spelunking: Probability of primary amber drops",
+            },
             AmberDropChance2nd: {
                 default: (t) => t * 2,
+                short: "Second amber chance",
                 description: "Spelunking: Probability of secondary amber drops",
             },
             EscapeRopeChance: { default: (t) => Math.max(t, 1), description: "Spelunking: Escape rope find chance" },
             TollExitTax: {
                 default: (t) => 1,
+                short: "Loot kept at toll",
                 description: "Spelunking: Share of loot kept at the toll exit (1 = all)",
             },
             SpelunkingEfficiency: { default: (t) => t * 2, description: "Spelunking: Spelunking efficiency" },
             SpelunkingSpeed: { default: (t) => t / 2, description: "Spelunking: Spelunking speed. (lower is better)" },
-            ExaltDropChance: { default: (t) => t * 2, description: "Spelunking: Probability of exalt drops" },
-            PrismaDropChance: { default: (t) => t * 2, description: "Spelunking: Probability of prisma drops" },
+            ExaltDropChance: {
+                default: (t) => t * 2,
+                short: "Exalt drop chance",
+                description: "Spelunking: Probability of exalt drops",
+            },
+            PrismaDropChance: {
+                default: (t) => t * 2,
+                short: "Prisma drop chance",
+                description: "Spelunking: Probability of prisma drops",
+            },
             MiscDropChance: {
                 default: (t) => t * 2,
+                short: "Misc drop chance",
                 description: "Spelunking: Probability of miscellaneous item drops",
             },
-            GoldPieceDropChance: { default: (t) => t * 2, description: "Spelunking: Probability of gold piece drops" },
-            w7itemDropChance: { default: (t) => t * 2, description: "Spelunking: Probability of World 7 item drops" },
-            blingbagDropChance: { default: (t) => t * 2, description: "Spelunking: Probability of bling bag drops" },
+            GoldPieceDropChance: {
+                default: (t) => t * 2,
+                short: "Gold piece chance",
+                description: "Spelunking: Probability of gold piece drops",
+            },
+            w7itemDropChance: {
+                default: (t) => t * 2,
+                short: "World 7 item chance",
+                description: "Spelunking: Probability of World 7 item drops",
+            },
+            blingbagDropChance: {
+                default: (t) => t * 2,
+                short: "Bling bag chance",
+                description: "Spelunking: Probability of bling bag drops",
+            },
             ShadowStrikeChance: {
                 default: (t) => t * 2,
+                short: "Shadow Strike chance",
                 description: "Spelunking: Probability of Shadow Strike procs",
             },
             GrandDiscoveries_FindChance: {
                 default: (t) => t * 2,
+                short: "Grand Discoveries",
                 description: "Spelunking: Grand Discovery find chance",
             },
             RockPOWreq: {
                 default: (t) => t / 2,
+                short: "Rock power needed",
                 description: "Spelunking: Rock power requirements. (lower is better)",
             },
             RockHP: { default: (t) => t / 2, description: "Spelunking: Rock HP. (lower is better)" },
             MaxDailyPageReads: {
                 default: (t) => t,
+                short: "Page reads per day",
                 description: "Spelunking: Maximum page reads per day. No change until you set it",
             },
             PageReadingLVgains: {
                 default: (t) => t,
+                short: "Levels per page",
                 description: "Spelunking: Levels gained from reading a page. No change until you set it",
             },
             POW_base: { example: (t) => t * 2 },
@@ -1359,14 +1577,24 @@ defineCheat({
             StaminaCostMulti: { description: "Spelunking: Stamina costs. (lower is better)" },
         },
         gallery: {
-            GalleryBonusMulti: { default: (t) => t * 2, description: "Gallery: All gallery-provided bonuses" },
-            HatrackBonusMulti: { default: (t) => t * 2, description: "Gallery: Premium Hat Rack bonus multiplier" },
+            GalleryBonusMulti: {
+                default: (t) => t * 2,
+                short: "Gallery bonuses",
+                description: "Gallery: All gallery-provided bonuses",
+            },
+            HatrackBonusMulti: {
+                default: (t) => t * 2,
+                short: "Hat Rack bonus",
+                description: "Gallery: Premium Hat Rack bonus multiplier",
+            },
             InitializeTrophyBonuses: {
                 default: (t) => t,
+                short: "Trophy bonuses",
                 description: "Gallery: Logic for initializing trophy bonuses. No change until you set it",
             },
             InitializeNametagBonuses: {
                 default: (t) => t,
+                short: "Nametag bonuses",
                 description: "Gallery: Logic for initializing nametag bonuses. No change until you set it",
             },
             PodiumsOwned: { example: (t) => t },
@@ -1382,17 +1610,30 @@ defineCheat({
             NametagY_inTown: { example: (t) => t },
         },
         sushi: {
-            UpgLvREQ: { default: (t) => t / 2, description: "Sushi: Upgrade level requirements. (lower is better)" },
+            UpgLvREQ: {
+                default: (t) => t / 2,
+                short: "Upgrade level needed",
+                description: "Sushi: Upgrade level requirements. (lower is better)",
+            },
             UpgCost: { default: (t) => t / 2, description: "Sushi: Upgrade costs. (lower is better)" },
             FuelCost: { default: (t) => t / 2, description: "Sushi: Sushi fuel costs. (lower is better)" },
             FuelGen: { default: (t) => t * 2, description: "Sushi: Fuel generation rate" },
             FuelCap: { default: (t) => t * 2, description: "Sushi: Maximum fuel capacity" },
-            CurrencyperHR: { default: (t) => t * 2, description: "Sushi: Money generation per hour" },
+            CurrencyperHR: {
+                default: (t) => t * 2,
+                short: "Money per hour",
+                description: "Sushi: Money generation per hour",
+            },
             KnowledgeXP_req: {
                 default: (t) => t / 2,
+                short: "Knowledge XP needed",
                 description: "Sushi: Knowledge XP requirements per level. (lower is better)",
             },
-            KnowledgeXP_multi: { default: (t) => t * 2, description: "Sushi: Knowledge XP gain multiplier" },
+            KnowledgeXP_multi: {
+                default: (t) => t * 2,
+                short: "Knowledge XP",
+                description: "Sushi: Knowledge XP gain multiplier",
+            },
             UpgradeQTY: { example: (t) => t },
             CanWeBuyUpg: { example: (t) => t },
             SlotsOwned: { example: (t) => t },
@@ -1455,7 +1696,11 @@ defineCheat({
             ReefCost: { default: (t) => 0, description: "Reef: Costs. (lower is better)" },
         },
         clam: {
-            ClamPromochance: { default: (t) => t * 2, description: "Clams: Probability of clam promotion" },
+            ClamPromochance: {
+                default: (t) => t * 2,
+                short: "Promotion chance",
+                description: "Clams: Probability of clam promotion",
+            },
             ClamBonuses: { default: (t) => t * 2, description: "Clams: Clam-provided bonuses" },
             ClamPearlValue: { default: (t) => t * 2, description: "Clams: Pearl value" },
             ClamPearl10x: { example: (t) => t * 2 },
@@ -1463,6 +1708,7 @@ defineCheat({
             Clam_Cost: { default: (t) => t / 2, description: "Clams: Clam costs. (lower is better)" },
             Clam_PearlUpgReq: {
                 default: (t) => t,
+                short: "Pearl upgrade cost",
                 description: "Clams: Pearl upgrade requirements. (lower is better). No change until you set it",
             },
             Clam_Mobs: { default: (t) => t * 2, description: "Clams: Mob spawns" },
@@ -1473,6 +1719,7 @@ defineCheat({
         coralkid: {
             CoralKidUpgCost: {
                 default: (t) => 0,
+                short: "Upgrade costs",
                 description: "Coral Kid: Standard and Singularity upgrade costs. (lower is better)",
             },
         },
@@ -1481,10 +1728,18 @@ defineCheat({
         },
         zenith: {
             ZenithMarketCost: { default: (t) => t / 2, description: "Zenith: Market upgrade costs. (lower is better)" },
-            ZenithMarketBonus: { default: (t) => t * 2, description: "Zenith: Market-provided bonuses" },
+            ZenithMarketBonus: {
+                default: (t) => t * 2,
+                short: "Market bonuses",
+                description: "Zenith: Market-provided bonuses",
+            },
         },
         spelunkmana: {
-            StaminaCostMulti: { default: (t) => 0, description: "Spelunking: No stamina cost in spelunking" },
+            StaminaCostMulti: {
+                default: (t) => 0,
+                short: "Stamina cost",
+                description: "Spelunking: No stamina cost in spelunking",
+            },
         },
         minehead: {
             Button_BonusMULTI: { default: (t) => t * 2, description: "The Button: Bonus multiplier" },

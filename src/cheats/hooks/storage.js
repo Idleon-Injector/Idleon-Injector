@@ -106,19 +106,9 @@ for (const method of ["_event_Click", "_customEvent_AutoClaimio"]) {
     );
 }
 
-// Before gameReady, follow the startup cheats without running or double-toggling them.
+// Before gameReady, follow the startup cheats without running or double-toggling them: each one toggles.
 function startupStorageCap() {
-    let storageCap = false;
-    let wide = false;
-    for (const command of startupCheats) {
-        if (command === "wide") {
-            wide = !wide;
-            storageCap = wide;
-        } else if (command === "wide storagecap") {
-            storageCap = !storageCap;
-        }
-    }
-    return storageCap;
+    return startupCheats.filter((command) => command === "wide storagecap").length % 2 === 1;
 }
 
 // Storage and Collider timers, using the registry's Script: the first actors init before setup binds `behavior`.

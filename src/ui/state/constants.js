@@ -51,19 +51,20 @@ export const VIEWS = {
 // Order in which tabs appear in the sidebar
 export const VIEW_ORDER = [VIEWS.CHEATS, VIEWS.ACCOUNT_OPTIONS, VIEWS.CONFIG, VIEWS.SEARCH, VIEWS.DEVTOOLS];
 export const IS_ELECTRON = /electron/i.test(navigator.userAgent);
+/**
+ * The Cheats area's groups, in order (#23); each cheat row names its group as its `category`. Dangerous comes last and
+ * stands apart. Cheats that belong to a system page are on that page instead (menu/pageCheats.js).
+ */
 export const CATEGORY_ORDER = [
-    "general",
-    "buy",
-    "wide",
-    "unlock",
-    "w1",
-    "w2",
-    "w3",
-    "w4",
-    "w5",
-    "w6",
-    "w7",
-    "minigame",
+    "Combat",
+    "Multipliers",
+    "Items & drops",
+    "Costs & limits",
+    "Unlocks",
+    "Minigames",
+    "Display",
+    "Tools",
+    "Dangerous",
 ];
 
 /**

@@ -10,8 +10,10 @@ import { defineCheat } from "../core/registration.js";
 
 defineCheat({
     name: "godlike",
+    category: "Combat",
     message: "all godlike powers",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "reach", message: "reach set to 666" },
         { name: "crit", message: "crit set to 100" },

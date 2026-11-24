@@ -5,6 +5,9 @@
  * The server lists that folder (GET /api/pages); the menu imports every module and builds itself from them.
  */
 
+import { OLD_NAMES, isPageCheat, pageRowOf } from "./pageCheats.js";
+import { VALUE_COMMANDS, valueCommandOf, valueOf } from "./valueCommands.js";
+
 /**
  * The worlds and their systems in game order, with IdleonToolbox names. A page's `system` must be one of these.
  * ponytail: a new game system is a core edit here; pages themselves only add files.
@@ -369,8 +372,18 @@ const categoryName = (category) =>
  * - A Setting belongs to the longest command its path starts with, the one whose gear shows it; settings no
  *   command owns (unban, maxval, ...) live on the Settings page and stay out.
  */
-export const cheatSearchEntries = (cheats, descriptions) => {
+export const cheatSearchEntries = (cheats, descriptions, tree = null) => {
     const values = new Set(cheats.map((cheat) => cheat.value));
+    // A system's own cheat is found on its page, in its cheats panel (#23): the tab it shows on, else the first page.
+    const pageOf = (value) => {
+        const row = pageRowOf(value);
+        const [worldId, systemName] = row?.key.split(":") ?? [];
+        const world = tree?.find((w) => String(w.id) === worldId);
+        const system = world?.systems.find((sys) => sys.name === systemName);
+        if (!system) return null;
+        const page = system.pages.find((p) => p.tab === row.tab) ?? system.pages[0];
+        return { world, page, place: `${world.label} › ${pageTitle(page, system)}` };
+    };
     // Equal matches list by command, in the game's order: "candy" gives every candy to drop, then to nomore.
     const groups = new Map();
     for (const cheat of cheats)
@@ -378,10 +391,43 @@ export const cheatSearchEntries = (cheats, descriptions) => {
     const out = cheats.map((cheat) => {
         const value = cheat.value;
         const base = value.split(" ")[0];
-        const place = `Cheats › ${categoryName(cheat.category || "general")}`;
+        const onPage = pageOf(value);
+        const place = onPage?.place ?? `Cheats › ${categoryName(cheat.category || "general")}`;
         const message = cheat.message || "";
-        const hiddenBase = value.includes(" ") && !values.has(base);
-        if (!cheat.needsParam && !hiddenBase) {
+        // A suggestion for a command the list only has suggestions of ("drop Copper"); an on/off cheat is its own row,
+        // its group's switch or not (#23 took those away).
+        const hiddenBase = value.includes(" ") && !values.has(base) && !cheat.toggle;
+        // A value of a command that takes one from a list ("spawn rift2", "Rift Slug"), or the command itself: its one
+        // row (in the Cheats area or a page's panel), with the value put in its field (#23).
+        const valueCommand = VALUE_COMMANDS[value] ? value : valueCommandOf(value);
+        if (valueCommand) {
+            const fill = value === valueCommand ? "" : valueOf(valueCommand, cheat).name;
+            return {
+                kind: "Cheat",
+                group: groups.get(base),
+                label: fill ? `${valueCommand} · ${fill}` : valueCommand,
+                where: `Cheat · ${place}`,
+                command: value,
+                description: fill ? "" : message,
+                target: onPage
+                    ? { world: onPage.world.id, page: onPage.page.id, cheat: valueCommand, fill }
+                    : { view: "CHEATS", cheat: valueCommand, fill },
+            };
+        }
+        if (onPage && !cheat.needsParam && !hiddenBase) {
+            return {
+                kind: "Cheat",
+                group: groups.get(base),
+                label: value,
+                where: `Cheat · ${place}`,
+                command: value,
+                description: message,
+                words: Object.keys(OLD_NAMES).filter((old) => OLD_NAMES[old] === value),
+                target: { world: onPage.world.id, page: onPage.page.id, cheat: value },
+            };
+        }
+        // A cheat a page runs itself (an automation, a bundle) has no row anywhere: it runs from the command box.
+        if (!cheat.needsParam && !hiddenBase && !(tree && isPageCheat(value))) {
             return {
                 kind: "Cheat",
                 group: groups.get(base),
@@ -470,6 +516,9 @@ const scoreCheat = (entry, q) => {
     const last = entry.command.split(" ").pop();
     const score = Math.max(scoreText(entry.label, q), scoreText(entry.command, q), scoreText(last, q));
     if (score) return { score, matched: null };
+    // An old name it had ("w5 collider"), a little below its own.
+    for (const word of entry.words ?? [])
+        if (scoreText(word, q)) return { score: scoreText(word, q) - 2, matched: word };
     // Every typed word in the name, in any order: "damage multiply".
     const name = `${entry.label} ${entry.command}`.toLowerCase();
     if (q.includes(" ") && q.split(/\s+/).every((part) => name.includes(part))) return { score: 50, matched: null };
