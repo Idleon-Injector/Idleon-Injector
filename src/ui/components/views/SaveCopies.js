@@ -461,10 +461,7 @@ export const SaveCopies = () => {
                         : span(),
                 () =>
                     loaded.val && !failed.val && count.val && active.val === null
-                        ? div(
-                              { class: "save-copy__note save-copies__none" },
-                              "No character in play. Pick one to compare."
-                          )
+                        ? div({ class: "save-copy__note save-copies__none" }, `${NO_CHARACTER} Pick one to compare.`)
                         : span(),
                 () =>
                     failed.val
