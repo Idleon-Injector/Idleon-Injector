@@ -307,3 +307,18 @@
 .viewport.pages-frame .menu-bar {
     max-width: var(--frame-width, var(--page-measure));
 }
+
+/* The config didn't load: one line at the top of the rows, in the failure colour, with Try again. */
+.viewport .system-cheats__failed {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px 8px 16px;
+    border-bottom: 1px solid var(--c-hairline);
+    color: var(--c-danger);
+    font-size: var(--size-small);
+}
+.viewport .system-cheats__failed[hidden] {
+    display: none;
+}

@@ -5,7 +5,7 @@
  * The server lists that folder (GET /api/pages); the menu imports every module and builds itself from them.
  */
 
-import { isPageCheat, pageRowOf } from "./pageCheats.js";
+import { OLD_NAMES, isPageCheat, pageRowOf } from "./pageCheats.js";
 
 /**
  * The worlds and their systems in game order, with IdleonToolbox names. A page's `system` must be one of these.
@@ -399,6 +399,7 @@ export const cheatSearchEntries = (cheats, descriptions, tree = null) => {
                 where: `Cheat · ${place}`,
                 command: value,
                 description: message,
+                words: Object.keys(OLD_NAMES).filter((old) => OLD_NAMES[old] === value),
                 target: { world: onPage.world.id, page: onPage.page.id, cheat: value },
             };
         }
@@ -492,6 +493,9 @@ const scoreCheat = (entry, q) => {
     const last = entry.command.split(" ").pop();
     const score = Math.max(scoreText(entry.label, q), scoreText(entry.command, q), scoreText(last, q));
     if (score) return { score, matched: null };
+    // An old name it had ("w5 collider"), a little below its own.
+    for (const word of entry.words ?? [])
+        if (scoreText(word, q)) return { score: scoreText(word, q) - 2, matched: word };
     // Every typed word in the name, in any order: "damage multiply".
     const name = `${entry.label} ${entry.command}`.toLowerCase();
     if (q.includes(" ") && q.split(/\s+/).every((part) => name.includes(part))) return { score: 50, matched: null };

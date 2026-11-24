@@ -18,7 +18,7 @@ import store from "../state/store.js";
 import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
 import { parseFunction, generateFunctionString, FUNCTION_TYPES } from "../utils/functionParser.js";
 import { configDescriptions } from "../config/configDescriptions.js";
-import { cheatsOfPage } from "../menu/pageCheats.js";
+import { cheatsOfPage, withNewNames } from "../menu/pageCheats.js";
 import { whenShown } from "../menu/menuModel.js";
 import { revealFound } from "../utils/index.js";
 import { Icons } from "../assets/icons.js";
@@ -122,8 +122,8 @@ const kindOf = (command) => {
 const PinButton = (cheat, { startup, say, clear }) => {
     const group = cheat.cheat.split(" ")[0];
     // Pinned through its group ("w4" at start turns every W4 cheat on): only the group's own row can change that.
-    const throughGroup = () => group !== cheat.cheat && startup.val.includes(group);
-    const pinned = () => startup.val.includes(cheat.cheat) || throughGroup();
+    const throughGroup = () => group !== cheat.cheat && (startup.val ?? []).includes(group);
+    const pinned = () => (startup.val ?? []).includes(cheat.cheat) || throughGroup();
     const wanted = van.state(null);
     let saves = 0;
     const pin = async (on) => {
@@ -131,9 +131,9 @@ const PinButton = (cheat, { startup, say, clear }) => {
         saves++;
         try {
             const { config } = await saveConfigPart((file) => ({
-                startupCheats: startupWith(file.startupCheats ?? [], cheat.cheat, on),
+                startupCheats: startupWith(withNewNames(file.startupCheats ?? []), cheat.cheat, on),
             }));
-            startup.val = config.startupCheats ?? [];
+            startup.val = withNewNames(config.startupCheats ?? []);
             clear();
             if (on && !isOn(cheat.cheat)) {
                 const result = await store.executeCheat(cheat.cheat, true);
@@ -143,7 +143,7 @@ const PinButton = (cheat, { startup, say, clear }) => {
             say("failed", "Couldn't save. Try again.");
             // The file as it is now, not as this click hoped.
             fetchConfig()
-                .then((file) => (startup.val = file.startupCheats ?? []))
+                .then((file) => (startup.val = withNewNames(file.startupCheats ?? [])))
                 .catch(() => {});
         } finally {
             if (--saves === 0) wanted.val = null;
@@ -162,7 +162,8 @@ const PinButton = (cheat, { startup, say, clear }) => {
                     : shown()
                       ? "On at every start"
                       : "Keep on at every start",
-            disabled: throughGroup,
+            // Not known until the config is read.
+            disabled: () => startup.val === null || throughGroup(),
             onclick: () => pin(!shown()),
         },
         Icons.Pin()
@@ -334,14 +335,16 @@ export const SystemCheats = (page, content) => {
     // The config: the settings' numbers and the startup list, read again each time the page is shown (the Config page
     // may have changed them). Each save reads its own back.
     const config = van.state(null);
-    const startup = van.state([]);
+    const startup = van.state(null);
+    const loadFailed = van.state(false);
     const load = () =>
         fetchConfig()
             .then((file) => {
                 config.val = file;
-                startup.val = file.startupCheats ?? [];
+                startup.val = withNewNames(file.startupCheats ?? []);
+                loadFailed.val = false;
             })
-            .catch(() => {});
+            .catch(() => (loadFailed.val = true));
     load();
     whenShown(page.id, load);
 
@@ -353,6 +356,12 @@ export const SystemCheats = (page, content) => {
     ];
     const rows = div(
         { class: "tabbed-list__body system-cheats__rows", hidden: () => !side.val && !open.val },
+        // Without the config the pins and settings aren't known: said here, with a way to read it again.
+        div(
+            { class: "system-cheats__failed", hidden: () => !loadFailed.val, role: "status" },
+            span("Couldn't read the settings."),
+            button({ type: "button", class: "btn-quiet btn-sm", onclick: load }, "Try again")
+        ),
         ...cheats.map((cheat) => CheatRow(cheat, { openId, config, startup }))
     );
     const panel = aside(

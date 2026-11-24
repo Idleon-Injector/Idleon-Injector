@@ -204,3 +204,13 @@ export const pageRowOf = (value) => rowsByCommand.get(pageCommandOf(value)) ?? n
 /** A page's panel rows: its system's rows for its own tab, plus the ones for every tab. */
 export const cheatsOfPage = (page) =>
     (PAGE_CHEATS[`${page.world}:${page.system}`] ?? []).filter((row) => !row.tab || row.tab === page.tab);
+
+/** Old command names that still run (the game side maps them in runCheat): search finds a cheat by them too. */
+export const OLD_NAMES = { "w5 collider": "w3 collider" };
+
+/** A startup list with old names put as the new ones, so a pin reads what runs at start. */
+export const withNewNames = (list) =>
+    list.map((command) => {
+        const old = Object.keys(OLD_NAMES).find((name) => command === name || command.startsWith(`${name} `));
+        return old ? OLD_NAMES[old] + command.slice(old.length) : command;
+    });

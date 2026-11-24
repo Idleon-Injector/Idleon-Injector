@@ -12,9 +12,10 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const game = await loadGame();
 const { cheats } = await importRepo("src/cheats/core/registration.js");
 const { cheatState } = await importRepo("src/cheats/core/state.js");
-const { PAGE_CHEATS, PAGE_RUNS, isPageCheat, cheatsOfPage } = await importRepo("src/ui/menu/pageCheats.js");
+const { PAGE_CHEATS, PAGE_RUNS, isPageCheat, cheatsOfPage, withNewNames } =
+    await importRepo("src/ui/menu/pageCheats.js");
 const { CATEGORY_ORDER } = await importRepo("src/ui/state/constants.js");
-const { WORLDS } = await importRepo("src/ui/menu/menuModel.js");
+const { WORLDS, buildMenuTree, cheatSearchEntries, searchMenu } = await importRepo("src/ui/menu/menuModel.js");
 
 const commands = Object.keys(cheats);
 
@@ -93,4 +94,33 @@ test("collider settings saved under w5 before the rename load under w3", (t) => 
     const cheatConfig = config.getCheatConfig();
     assert.deepEqual(cheatConfig.w3.collider, { AtomCost: 7, AtomBonuses: 1 });
     assert.equal(cheatConfig.w5.collider, undefined);
+});
+
+test("the old name reads as the new one: a pin shows on, and search finds the cheat on its page", () => {
+    assert.deepEqual(withNewNames(["w5 collider", "w4 eggcap", "w5 collider 3"]), [
+        "w3 collider",
+        "w4 eggcap",
+        "w3 collider 3",
+    ]);
+    const tree = buildMenuTree([
+        {
+            id: "w3.atomcollider",
+            world: 3,
+            system: "Atom Collider",
+            description: "Atoms.",
+            keywords: [],
+            component: () => null,
+        },
+    ]);
+    const entries = cheatSearchEntries(
+        [
+            { value: "w3", message: "Activate all World 3 cheats", category: "Tools", toggle: true },
+            { value: "w3 collider", message: "collider cheats", category: "Tools", toggle: true },
+        ],
+        {},
+        tree
+    );
+    const hit = searchMenu(entries, "w5 collider")[0];
+    assert.equal(hit?.command, "w3 collider");
+    assert.deepEqual(hit.target, { world: 3, page: "w3.atomcollider", cheat: "w3 collider" });
 });
