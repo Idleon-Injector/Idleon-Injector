@@ -173,7 +173,10 @@ export const withTooltip = (element, text, position = "top", enabled = true, pin
     // A label the pointer gets also shows for the keyboard, never after a click.
     element.addEventListener("focus", () => element.matches(":focus-visible") && show());
     element.addEventListener("mouseleave", hide);
-    element.addEventListener("blur", hide);
+    // Focus moving to another control (Tab away) closes a pinned list too; a blur to nothing (another window) doesn't.
+    element.addEventListener("blur", (e) =>
+        pinnedFor === element ? e?.relatedTarget && unpin() : hideTooltip(element)
+    );
     element.addEventListener("click", () => {
         if (!pinnable) hideTooltip(element);
         else if (pinnedFor === element) unpin();

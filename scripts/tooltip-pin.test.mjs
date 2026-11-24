@@ -37,6 +37,14 @@ test("a click elsewhere closes it; a click on the button doesn't", async () => {
     assert.equal(pageListeners.pointerdown, undefined);
 });
 
+test("Tab to another control closes it", async () => {
+    keys.listeners.click();
+    assert.equal(keys.attributes["aria-expanded"], "true");
+    keys.listeners.blur({ relatedTarget: elsewhere });
+    assert.equal(keys.attributes["aria-expanded"], "false");
+    assert.ok(!(await shown()));
+});
+
 test("Escape closes it", async () => {
     keys.listeners.click();
     pageListeners.keydown({ key: "Tab" });

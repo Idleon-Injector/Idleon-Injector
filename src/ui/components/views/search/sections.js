@@ -976,7 +976,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                             handlers.clearSavedResults();
                         },
                         disabled: () => ui.savedResults.length === 0,
-                        title: "Clear saved list",
+                        "aria-label": "Clear saved list",
                     },
                     "Clear"
                 )
