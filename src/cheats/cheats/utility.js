@@ -343,6 +343,7 @@ function createListFunction(params) {
 // Search commands
 defineCheat({
     name: "search",
+    category: "Tools",
     message: "Search for an item, monster, talent or smithing recipe",
     registerParent: false,
     needsParam: true,
@@ -417,6 +418,7 @@ defineCheat({
 // Get Game Attributes
 defineCheat({
     name: "gga",
+    category: "Tools",
     message: "The attribute you want to get, separated by spaces",
     needsParam: true,
     fn: (params) => gg_func(params, 0),
@@ -425,6 +427,7 @@ defineCheat({
 // Get Game Key
 defineCheat({
     name: "ggk",
+    category: "Tools",
     message: "The key you want to get, separated by spaces",
     fn: (params) => gg_func(params, 1),
 });
@@ -454,6 +457,7 @@ function eval_gg_func(params, mode) {
 // Evaluate Get Game Attributes
 defineCheat({
     name: "egga",
+    category: "Dangerous",
     dangerous: true,
     message: "Show the game attribute, separate with spaces",
     fn: (params) => eval_gg_func(params, 0),
@@ -462,6 +466,7 @@ defineCheat({
 // Evaluate Get Game Key
 defineCheat({
     name: "eggk",
+    category: "Dangerous",
     dangerous: true,
     message: "Show the game key, separate with spaces",
     fn: (params) => eval_gg_func(params, 1),
@@ -470,6 +475,7 @@ defineCheat({
 // List available cheats
 defineCheat({
     name: "cheats",
+    category: "Tools",
     message: "list available cheats",
     fn: () => {
         const cheats = getCheats();
@@ -482,6 +488,7 @@ defineCheat({
 // List command
 defineCheat({
     name: "list",
+    category: "Tools",
     message: "list something. third param optional filter",
     registerParent: false,
     subcheats: [

@@ -48,7 +48,6 @@ export function getAutoCompleteSuggestions() {
         choices.push({
             value: "cheats",
             message: cheats.cheats.message || "list available cheats",
-            category: "general",
         });
     }
 
@@ -61,7 +60,6 @@ export function getAutoCompleteSuggestions() {
         return {
             value: name,
             message: def.message || "",
-            category: def.category || "general",
             ...(def.needsParam && { needsParam: true }),
         };
     });
@@ -80,9 +78,9 @@ export function getAutoCompleteSuggestions() {
         if (code !== "Quest66" && name === "Strung Jewels") return null;
 
         return [
-            { value: `drop ${code}`, message: name, category: "drop", needsParam: true },
-            { value: `nomore ${code}`, message: name, category: "nomore" },
-            { value: `multiplestacks ${code}`, message: name, category: "multiplestacks", needsParam: true },
+            { value: `drop ${code}`, message: name, needsParam: true },
+            { value: `nomore ${code}`, message: name },
+            { value: `multiplestacks ${code}`, message: name, needsParam: true },
         ];
     });
 
@@ -90,7 +88,7 @@ export function getAutoCompleteSuggestions() {
     addChoices(choices, monsterDefs, (code, monster) => {
         if (!monster.h.Name) return null;
         const name = monster.h.Name.replace(/_/g, " ");
-        return { value: `spawn ${code}`, message: name, category: "spawn", needsParam: true };
+        return { value: `spawn ${code}`, message: name, needsParam: true };
     });
 
     // Keep migrated command groups in their legacy autocomplete positions.
@@ -103,7 +101,6 @@ export function getAutoCompleteSuggestions() {
         choices.push({
             value: `bulk ${type}`,
             message: `Drop all ${type} items`,
-            category: "bulk",
             needsParam: true,
         });
     }
@@ -113,7 +110,6 @@ export function getAutoCompleteSuggestions() {
         choices.push({
             value: `buy ${code}`,
             message: name + " (One Time Use, does not provide gems and pets)",
-            category: "buy",
         });
     }
 
@@ -125,7 +121,6 @@ export function getAutoCompleteSuggestions() {
         choices.push({
             value: `gga ${key}`,
             message: "",
-            category: "gga",
         });
     }
 
@@ -136,13 +131,14 @@ export function getAutoCompleteSuggestions() {
         addCommandSuggestions(name);
     }
 
-    // Mark what can damage the account, from the cheat the suggestion runs (the longest registered name it
-    // starts with), so the WebUI can ask before running it.
+    // Each suggestion takes the group of the cheat it runs (the longest registered name it starts with), and is
+    // marked when that cheat can damage the account, so the WebUI can ask before running it.
     for (const choice of choices) {
         const words = choice.value.split(" ");
         for (let i = words.length; i > 0; i--) {
             const definition = cheats[words.slice(0, i).join(" ")];
             if (!definition) continue;
+            choice.category = definition.category;
             if (definition.dangerous) choice.dangerous = true;
             break;
         }

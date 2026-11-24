@@ -20,7 +20,7 @@ import { keychainStatsMap } from "../constants.js";
 // The OG-drop function that we all love
 defineCheat({
     name: "drop",
-    category: "drop",
+    category: "Items & drops",
     message: "drop items",
     needsParam: true,
     fn: (params) => {
@@ -34,7 +34,7 @@ defineCheat({
 // Spawn any monster you like: Be careful with what you spawn!
 defineCheat({
     name: "spawn",
-    category: "spawn",
+    category: "Combat",
     message: "spawn monsters",
     needsParam: true,
     fn: (params) => {
@@ -56,6 +56,7 @@ defineCheat({
 // Quick daily shop and post office reset
 defineCheat({
     name: "daily",
+    category: "Costs & limits",
     message: "Daily shop and post office reset",
     fn: () => {
         gga.TimeAway.h.ShopRestock = 1;
@@ -66,6 +67,7 @@ defineCheat({
 // Kill yourself (set HP to value)
 defineCheat({
     name: "noob",
+    category: "Tools",
     message: "Kill yourself",
     fn: (params) => {
         const hpval = parseInt(params[0]) || 0;
@@ -77,7 +79,7 @@ defineCheat({
 // Quantity cheat (first inventory/chest slot)
 defineCheat({
     name: "qnty",
-    category: "general",
+    category: "Items & drops",
     message: "Change the quantity of the first item in inventory/chest",
     registerParent: false,
     subcheats: [
@@ -120,6 +122,8 @@ defineCheat({
 // Stop/restart cloud saving
 defineCheat({
     name: "cloudz",
+    category: "Dangerous",
+    dangerous: true,
     message: "Stops cloud saving",
     fn: () => {
         cheatState.cloudz = !cheatState.cloudz;
@@ -132,6 +136,7 @@ defineCheat({
 // Chrome debug (handled in executable)
 defineCheat({
     name: "chromedebug",
+    category: "Tools",
     message: "Open the game in a chrome debug console",
     fn: () => {},
 });
@@ -139,6 +144,7 @@ defineCheat({
 // update (handled in executable)
 defineCheat({
     name: "update",
+    category: "Tools",
     message: "update (Check for updates and install the latest version)",
     fn: () => {},
 });
@@ -146,7 +152,7 @@ defineCheat({
 // Stop dropping items from monsters
 defineCheat({
     name: "nomore",
-    category: "nomore",
+    category: "Items & drops",
     message: "Stop dropping items from monsters, accepts regex",
     needsParam: true,
     fn: (params) => {
@@ -185,7 +191,7 @@ defineCheat({
 // Multiple stacks in chest
 defineCheat({
     name: "multiplestacks",
-    category: "multiplestacks",
+    category: "Items & drops",
     message: "Will make multiple stacks of specified items in chest when autochest is on",
     needsParam: true,
     fn: (params) => {
@@ -211,6 +217,8 @@ defineCheat({
 // Save game attribute to memory
 defineCheat({
     name: "fix_save",
+    category: "Dangerous",
+    dangerous: true,
     message: "Save a game attribute to memory. Use fix_write to write it back to the game",
     needsParam: true,
     fn: (params) => {
@@ -222,6 +230,8 @@ defineCheat({
 // Write game attribute from memory
 defineCheat({
     name: "fix_write",
+    category: "Dangerous",
+    dangerous: true,
     message: "Write a game attribute from memory to the game. Use fix_save to save it to memory",
     needsParam: true,
     fn: (params) => {
@@ -235,6 +245,7 @@ defineCheat({
 // Upgrade stones cheats (now hook-based - see hooks/items.js)
 defineCheat({
     name: "upstones",
+    category: "Items & drops",
     message: "upgrade stone cheats",
     allowToggleChildren: true,
     subcheats: [
@@ -247,18 +258,19 @@ defineCheat({
 // Unlock cheats
 defineCheat({
     name: "unlock",
+    category: "Unlocks",
     message: "unlock cheats",
     allowToggleChildren: true,
     subcheats: [
         { name: "divinitypearl", message: "divinity pearls > lvl50" },
         { name: "presets", message: "preset changes everywhere" },
         { name: "quickref", message: "quickref" },
-        { name: "teleports", message: "free teleports" },
-        { name: "tickets", message: "free colosseum tickets" },
-        { name: "silvpen", message: "free silver pens" },
-        { name: "obolfrag", message: "free obol fragments" },
+        { name: "teleports", category: "Costs & limits", message: "free teleports" },
+        { name: "tickets", category: "Costs & limits", message: "free colosseum tickets" },
+        { name: "silvpen", category: "Costs & limits", message: "free silver pens" },
+        { name: "obolfrag", category: "Costs & limits", message: "free obol fragments" },
         { name: "rifts", message: "Unlock rift portals" },
-        { name: "revive", message: "unlimited revives" },
+        { name: "revive", category: "Costs & limits", message: "unlimited revives" },
         {
             name: "eventshop",
             message: "unlocks all eventshop items",
@@ -389,19 +401,17 @@ defineCheat({
 // Keychain cheat
 defineCheat({
     name: "keychain",
-    category: "keychain",
+    category: "Items & drops",
     message: "Generate a specific maxed keychain stat from Flurbo store",
     needsParam: true,
     suggestions: () => [
         {
             value: "keychain reset",
             message: "Reset keychain override",
-            category: "keychain",
         },
         ...Object.keys(keychainStatsMap).map((stat) => ({
             value: `keychain ${stat}`,
             message: "",
-            category: "keychain",
         })),
     ],
     fn: (params) => {

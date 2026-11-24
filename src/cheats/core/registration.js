@@ -50,7 +50,8 @@ export async function cheat(action, context, on) {
  */
 export function runCheat(action, context, on) {
     try {
-        const command = action.split(" ");
+        // Renamed commands keep their old names working: a startup list or a habit still types them.
+        const command = action.replace(/^w5 collider/, "w3 collider").split(" ");
         const params = [];
         let foundCheat = cheats[command.join(" ")];
 

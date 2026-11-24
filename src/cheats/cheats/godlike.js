@@ -10,6 +10,7 @@ import { defineCheat } from "../core/registration.js";
 
 defineCheat({
     name: "godlike",
+    category: "Combat",
     message: "all godlike powers",
     allowToggleChildren: true,
     subcheats: [

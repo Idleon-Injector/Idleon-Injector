@@ -14,6 +14,7 @@ import { defineCheat } from "../core/registration.js";
 // Register minigame cheats
 defineCheat({
     name: "minigame",
+    category: "Minigames",
     message: "unlimited minigames",
     subcheats: [
         { name: "mining", message: "mining minigame cheat" },

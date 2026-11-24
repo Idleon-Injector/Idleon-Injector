@@ -137,7 +137,7 @@ defineHook(
 for (const [method, mappings] of [
     ["_customBlock_GamingStatType", [{ state: "w5.gaming" }]],
     ["_customBlock_Divinity", [{ state: "w5.divinity" }]],
-    ["_customBlock_AtomCollider", [{ state: "w5.collider" }]],
+    ["_customBlock_AtomCollider", [{ state: "w3.collider" }]],
     ["_customBlock_Dreamstuff", [{ state: "w3.instantdreams", fixedKey: "BarFillReq", value: 0 }]],
     ["_customBlock_FarmingStuffs", [{ state: "w6.farming" }]],
     ["_customBlock_Ninja", [{ state: "w6.ninja" }]],

@@ -6,7 +6,7 @@
  * - W2: boss, roo, alchemy, vialrng, vialattempt, sigilspeed, killroyreset
  * - W3: mobdeath, towerdamage, refinery, trapping, prayer, shrines, etc.
  * - W4: breeding, spice, kitchens, lab, arena, mainframe, ribbon, chips, etc.
- * - W5: sailing, endercaptains, gaming, divinity, collider, holes, jargems
+ * - W5: sailing, endercaptains, gaming, divinity, holes, jargems
  * - W6: farming, ninja, summoning, grimoire, endless, ninjaitem, sumunit, etc.
  * - W7: spelunk, gallery, sushi, reef, clam, zenith, spelunkmana, spelunkdepth, etc.
  */
@@ -19,6 +19,7 @@ import { getJarGemCatalog } from "../helpers/jarGems.js";
 
 defineCheat({
     name: "w1",
+    category: "Tools",
     message: "Activate all World 1 cheats",
     allowToggleChildren: true,
     subcheats: [
@@ -59,6 +60,7 @@ defineCheat({
 
 defineCheat({
     name: "w2",
+    category: "Tools",
     message: "Activate all World 2 cheats",
     allowToggleChildren: true,
     subcheats: [
@@ -116,6 +118,7 @@ defineCheat({
 
 defineCheat({
     name: "w3",
+    category: "Tools",
     message: "Activate all World 3 cheats",
     allowToggleChildren: true,
     subcheats: [
@@ -139,6 +142,8 @@ defineCheat({
         { name: "instantdreams", message: "Dream bar fills instantly" },
         { name: "bettercog", message: "Gives you a bit better cog chances" },
         { name: "jeweledcogs", message: "Unlimited jeweled cogs (needs to be unlocked in gaming first)" },
+        // The Atom Collider is a World 3 system; "w5 collider" still runs it (see runCheat).
+        { name: "collider", message: "collider cheats" },
     ],
     config: {
         buildspd: { default: (t) => t * 10, description: "Construction: Building speed" },
@@ -149,11 +154,21 @@ defineCheat({
             description: "Refinery: Cycle speed. Don't go below 1! (lower is better)",
         },
         trapping: { default: (t) => t * 10, description: "Trapping: Trap timer speed" },
+        collider: {
+            AtomsUnlocked: { default: (t) => t, description: "Collider: Number of unlocked atoms (max 10)" },
+            AtomCost: { default: (t) => 0, description: "Collider: Atom collider upgrade costs. (lower is better)" },
+            AtomBonuses: { default: (t) => t, description: "Collider: Bonuses provided by atoms" },
+            AtomBubbleUpgCost: {
+                default: (t) => 0,
+                description: "Collider: Atom bubble upgrade costs. (lower is better)",
+            },
+        },
     },
 });
 
 defineCheat({
     name: "w4",
+    category: "Tools",
     message: "Activate all World 4 cheats",
     allowToggleChildren: true,
     subcheats: [
@@ -209,13 +224,11 @@ defineCheat({
                           {
                               value: "w4 chips all",
                               message: "Set amount for all lab chips",
-                              category: "w4",
                               needsParam: true,
                           },
                           ...cList.ChipDesc.filter((chip) => chip[0]).map((chip) => ({
                               value: `w4 chips ${chip[0].toLowerCase()}`,
                               message: chip[1],
-                              category: "w4",
                               needsParam: true,
                           })),
                       ]
@@ -363,6 +376,7 @@ defineCheat({
 
 defineCheat({
     name: "w5",
+    category: "Tools",
     message: "Activate all World 5 cheats",
     allowToggleChildren: true,
     subcheats: [
@@ -370,7 +384,6 @@ defineCheat({
         { name: "endercaptains", message: "100% ender captains (requires Emporium bonus unlock)" },
         { name: "gaming", message: "gaming cheats" },
         { name: "divinity", message: "divinity cheats" },
-        { name: "collider", message: "collider cheats" },
         { name: "holes", message: "holes cheats" },
         { name: "lantern", message: "no daily limit on Blinding Lantern uses" },
         { name: "skillcaverns", message: "no daily limit on skilling cavern nodes" },
@@ -383,7 +396,6 @@ defineCheat({
                 {
                     value: "w5 jargems all",
                     message: "Set amount for all jar gems",
-                    category: "w5",
                     needsParam: true,
                 },
                 ...getJarGemCatalog()
@@ -391,7 +403,6 @@ defineCheat({
                     .map((gem) => ({
                         value: `w5 jargems ${gem.commandName}`,
                         message: gem.description || "",
-                        category: "w5",
                         needsParam: true,
                     })),
             ],
@@ -543,15 +554,6 @@ defineCheat({
             OfferingCost: { default: (t) => 0, description: "Divinity: Offering costs. (lower is better)" },
             OfferingOdds: { default: (t) => 1, description: "Divinity: Success probability for offerings" },
         },
-        collider: {
-            AtomsUnlocked: { default: (t) => t, description: "Collider: Number of unlocked atoms (max 10)" },
-            AtomCost: { default: (t) => 0, description: "Collider: Atom collider upgrade costs. (lower is better)" },
-            AtomBonuses: { default: (t) => t, description: "Collider: Bonuses provided by atoms" },
-            AtomBubbleUpgCost: {
-                default: (t) => 0,
-                description: "Collider: Atom bubble upgrade costs. (lower is better)",
-            },
-        },
         holes: {
             VillagerExpPerHour: { default: (t) => t * 2, description: "Sneaking: Villager XP gain speed" },
             BuildCost: { default: (t) => t / 2, description: "Sneaking: Building upgrade costs. (lower is better)" },
@@ -655,6 +657,7 @@ defineCheat({
 
 defineCheat({
     name: "w6",
+    category: "Tools",
     message: "Activate all World 6 cheats",
     allowToggleChildren: true,
     subcheats: [
@@ -694,7 +697,6 @@ defineCheat({
                 Object.keys(summonUnits).map((unit) => ({
                     value: `w6 sumunit ${unit}`,
                     message: "",
-                    category: "w6",
                 })),
             fn: (params) => {
                 const unitName = params[1];
@@ -987,6 +989,7 @@ defineCheat({
 
 defineCheat({
     name: "w7",
+    category: "Tools",
     message: "Activate all World 7 cheats",
     allowToggleChildren: true,
     subcheats: [

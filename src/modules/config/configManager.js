@@ -63,6 +63,13 @@ function migrateAutomationShape(automation = {}) {
     }
 }
 
+/** `w5 collider` became `w3 collider` (#23): a file written before it keeps its collider settings under w5. */
+function migrateColliderRename(cheats) {
+    if (!cheats?.w5?.collider) return;
+    cheats.w3 = { ...cheats.w3, collider: { ...cheats.w5.collider, ...cheats.w3?.collider } };
+    delete cheats.w5.collider;
+}
+
 /**
  * Load and merge configuration from base config and custom config files
  * @returns {Object} The loaded configuration object
@@ -110,6 +117,7 @@ function loadConfiguration() {
             }
 
             if (customConfig.cheatConfig) {
+                migrateColliderRename(customConfig.cheatConfig);
                 validateConfig(config.cheatConfig, customConfig.cheatConfig, "");
                 config.cheatConfig = deepMerge(config.cheatConfig, customConfig.cheatConfig);
             }
