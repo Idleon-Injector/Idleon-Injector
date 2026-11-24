@@ -1,5 +1,10 @@
 const { prepareConfigForJson } = require("../../utils/helpers");
-const { pullGameConfig, saveConfiguration, updateSessionConfiguration } = require("../../config/configManager");
+const {
+    pullGameConfig,
+    saveConfiguration,
+    unsavedAutomation,
+    updateSessionConfiguration,
+} = require("../../config/configManager");
 const { createLogger } = require("../../utils/logger");
 
 const log = createLogger("API");
@@ -25,6 +30,8 @@ function setupConfigRoutes(app, gameBridge, config) {
                 injectorConfig: injectorConfig,
                 defaultConfig: serializableDefaultConfig,
                 gameRead,
+                // Automation settings the game holds but config.custom.js doesn't (a file save failed).
+                unsavedAutomation: unsavedAutomation(cheatConfig),
             };
             res.json(fullConfigResponse);
         } catch (error) {
