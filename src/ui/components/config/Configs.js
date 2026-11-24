@@ -1,6 +1,6 @@
 import van from "../../vendor/van-1.6.0.js";
 import { changeConfigs } from "../../services/api.js";
-import { Said, clickAgain, replay, useSaid } from "../inPlace.js";
+import { Said, announce, clickAgain, replay, useSaid } from "../inPlace.js";
 
 const { div, span, button, input, form } = van.tags;
 
@@ -10,9 +10,13 @@ const cheatCount = (n) => (n === 0 ? "No cheats" : n === 1 ? "1 cheat" : `${n} c
  * The Configs tab of Settings (#198): the shipped configs and the player's own, one row each. Use switches to a config,
  * Reset puts a changed shipped one back, Delete removes one of the player's own, and the field at the end keeps the
  * settings in use as a new config. `configs` is a state holding the server's list ({ active, list }); `onChanged()`
- * runs after a change, for the page to read the settings again.
+ * runs after a change, for the page to read the settings again; `hasUnsavedEdits()` makes a switch ask first, as it
+ * drops them.
  */
-export const Configs = ({ configs, onChanged }) => {
+const DONE = { use: "in use", reset: "reset", remove: "deleted" };
+const WAITING = { use: "Switching…", reset: "Resetting…", remove: "Deleting…" };
+
+export const Configs = ({ configs, onChanged, hasUnsavedEdits = () => false }) => {
     // What the last change said, on the row it was about (a failure stays until the next change).
     const { said, say } = useSaid(5000);
     const saidOn = van.state(null);
@@ -20,19 +24,16 @@ export const Configs = ({ configs, onChanged }) => {
     const nameSaid = useSaid(5000);
 
     const run = async (action, name, where, pressed) => {
+        saidOn.val = where;
+        say("waiting", WAITING[action]);
         try {
             const { configs: next, game } = await changeConfigs(action, name);
             configs.val = next;
             await onChanged();
             if (game?.failed?.length) {
                 saidOn.val = where;
-                const [first] = game.failed;
-                return say(
-                    "failed",
-                    game.failed.length === 1
-                        ? `${first.cheat} didn't start. ${first.reason}`.trim()
-                        : `Didn't start: ${game.failed.map((f) => f.cheat).join(", ")}`
-                );
+                // One line per cheat; the line shows them joined with a dot.
+                return say("failed", game.failed.map((f) => `${f.cheat} didn't start. ${f.reason}`.trim()).join("\n"));
             }
             if (game && !game.gameApplied && !game.contextLost) {
                 saidOn.val = where;
@@ -40,6 +41,8 @@ export const Configs = ({ configs, onChanged }) => {
             }
             saidOn.val = null; // a success clears the last failure, wherever it was
             replay(pressed, "confirmed");
+            // The row's own words change (In use moves, the row goes); screen readers hear it here.
+            announce(`${name} ${DONE[action]}.`);
         } catch (error) {
             saidOn.val = where;
             say("failed", error.message);
@@ -67,7 +70,8 @@ export const Configs = ({ configs, onChanged }) => {
                               class: "btn-danger btn-sm",
                               onclick: (e) => {
                                   const el = e.currentTarget;
-                                  if (clickAgain(el, `reset ${entry.name} to how it ships.`))
+                                  const drops = inUse && hasUnsavedEdits() ? " Unsaved changes are dropped." : "";
+                                  if (clickAgain(el, `reset ${entry.name} to how it ships.${drops}`))
                                       run("reset", entry.name, entry.name, el);
                               },
                           },
@@ -94,7 +98,16 @@ export const Configs = ({ configs, onChanged }) => {
                           {
                               type: "button",
                               class: "btn-quiet btn-sm",
-                              onclick: (e) => run("use", entry.name, entry.name, e.currentTarget),
+                              onclick: (e) => {
+                                  const el = e.currentTarget;
+                                  // A switch loads the new config's settings, so edits not saved yet would be lost.
+                                  if (
+                                      hasUnsavedEdits() &&
+                                      !clickAgain(el, `drop unsaved changes and use ${entry.name}.`)
+                                  )
+                                      return;
+                                  run("use", entry.name, entry.name, el);
+                              },
                           },
                           "Use"
                       )
@@ -107,6 +120,7 @@ export const Configs = ({ configs, onChanged }) => {
     const saveAs = async (e) => {
         e.preventDefault();
         const saveButton = e.currentTarget.querySelector("button");
+        nameSaid.say("waiting", "Saving…");
         try {
             const typed = newName.val;
             const { configs: next } = await changeConfigs("saveAs", typed);
@@ -114,6 +128,7 @@ export const Configs = ({ configs, onChanged }) => {
             if (newName.val === typed) newName.val = ""; // not what was typed while it saved
             nameSaid.clear();
             replay(saveButton, "confirmed");
+            announce(`${next.active} saved and in use.`);
             await onChanged();
         } catch (error) {
             nameSaid.say("failed", error.message);

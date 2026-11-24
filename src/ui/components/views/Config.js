@@ -69,13 +69,38 @@ export const Config = () => {
         return merged;
     };
 
+    // After a config change the draft still holds the old config's settings: it is replaced, never merged, so the
+    // old config's edits can't be saved into the new one. Until then a save or a tab reloads first.
+    let stale = false;
+    const reloadDraft = async () => {
+        const latest = await fetchConfig();
+        vanX.replace(draft, toPlain(latest));
+        baseline = latest;
+        configs.val = latest.configs ?? null;
+        stale = false;
+        return toPlain(latest);
+    };
+    const refresh = () => (stale ? reloadDraft() : syncDraft());
+    const configChanged = () => {
+        stale = true;
+        return inConfigTurn(reloadDraft).catch(() => {
+            throw new Error("Its settings didn't load. Open another tab to try again.");
+        });
+    };
+    // Edits on the other tabs that Save settings hasn't saved yet.
+    const hasUnsavedEdits = () =>
+        !!draft &&
+        ["startupCheats", "cheatConfig", "injectorConfig"].some(
+            (key) => JSON.stringify(toPlain(draft[key] ?? null)) !== JSON.stringify(baseline?.[key] ?? null)
+        );
+
     // What Apply and Save did, said beside them (#77): a ✓ with where it went, or the reason in warm.
     const { said, say } = useSaid(5000);
 
     van.derive(() => {
         const isOpen = store.app.activeTab === VIEWS.CONFIG.id || store.app.configDrawerOpen;
         if (isOpen && draftReady.val)
-            inConfigTurn(syncDraft).catch((e) => say("failed", `The latest settings didn't load: ${e.message}`));
+            inConfigTurn(refresh).catch((e) => say("failed", `The latest settings didn't load: ${e.message}`));
     });
 
     // Handle forced config path navigation from Cheats tab
@@ -125,7 +150,7 @@ export const Config = () => {
         // Syncs and saves run in the menu's config turn, so an older fetch can't land after a newer save.
         return inConfigTurn(async () => {
             try {
-                const merged = await syncDraft();
+                const merged = await refresh();
                 const toSave = toPlain(merged);
                 delete toSave.defaultConfig;
                 delete toSave.gameRead; // the read's answer, not a setting
@@ -281,6 +306,10 @@ export const Config = () => {
                             onclick: () => {
                                 activeSubTab.val = id;
                                 isAddingCheat.val = false;
+                                if (stale)
+                                    inConfigTurn(refresh).catch((e) =>
+                                        say("failed", `The latest settings didn't load: ${e.message}`)
+                                    );
                             },
                         },
                         name.toUpperCase(),
@@ -299,7 +328,7 @@ export const Config = () => {
                     description:
                         "Each config keeps its own startup cheats and cheat settings. Switching keeps both; edits save into the config in use.",
                 }),
-                Configs({ configs, onChanged: () => inConfigTurn(syncDraft).catch(() => {}) })
+                Configs({ configs, onChanged: configChanged, hasUnsavedEdits })
             ),
 
             div(

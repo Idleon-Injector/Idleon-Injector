@@ -42,6 +42,8 @@ let startupCheats = null;
 let cheatConfig = null;
 // config.custom.js exists but couldn't be loaded; the next save keeps it under another name.
 let customConfigBroken = false;
+// A switched config the running game hasn't taken yet: reading the game would bring the old config's settings back.
+let gameBehind = false;
 
 const CDP_PORT = 32123;
 const WEB_PORT = 8080;
@@ -66,8 +68,8 @@ function migrateAutomationPriority(cheats) {
  * The draft builds before #104 kept each automation list as { saving, target, items }; it is now the list itself, with
  * the saving % beside it as `<key>Saving` (`kitchenSaving` for kitchens) and the bubbles target as `bubblesTarget`.
  */
-function migrateAutomationShape(automation = {}) {
-    for (const [key, value] of Object.entries(automation)) {
+function migrateAutomationShape(automation) {
+    for (const [key, value] of Object.entries(automation ?? {})) {
         if (!value || Array.isArray(value) || !Array.isArray(value.items)) continue;
         automation[key] = value.items;
         if (value.saving !== undefined)
@@ -308,6 +310,7 @@ async function switchGame(gameBridge, before) {
     try {
         if (!(await gameBridge.isAttached())) return { gameApplied: false, contextLost: true };
         const result = await gameBridge.updateConfig(cheatConfig, true);
+        gameBehind = !!result.error;
         if (result.error) return { gameApplied: false, details: result.error.text };
         const failed = [];
         const run = async (command, on) => {
@@ -410,6 +413,11 @@ function pullGameConfig(gameBridge, cheatConfig) {
 
 async function readGameConfig(gameBridge, cheatConfig) {
     try {
+        // The game still has the config switched away from: give it this one first, or read nothing.
+        if (gameBehind) {
+            if ((await gameBridge.updateConfig(cheatConfig, true)).error) return false;
+            gameBehind = false;
+        }
         const result = await gameBridge.callHelper("readCheatConfig");
         if (result.error || typeof result.value !== "string") return false;
         deepMerge(cheatConfig, reviveRegExps(dropEmptyObjects(JSON.parse(result.value))));

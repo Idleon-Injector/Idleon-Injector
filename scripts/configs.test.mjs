@@ -311,3 +311,35 @@ test("the game takes a switched config in place: keys only the old config had go
     state.updateCheatConfig({ wardrobe: { goldenfood: { Other: 1 } } });
     assert.deepEqual(state.cheatConfig.wardrobe.goldenfood, { New: 2, Other: 1 });
 });
+
+test("a config whose automation is null still loads, and so does the file", async (t) => {
+    useInstall(t, `exports.configs = { Odd: { startupCheats: [], cheatConfig: { automation: null } } };`);
+    const app = start();
+    assert.ok(row((await app.read()).configs, "Odd"));
+});
+
+test("after a switch the game refused, the game's old settings don't come back into the new config", async (t) => {
+    useInstall(t, `exports.cheatConfig = { automation: { shops: [{ id: "0:1", on: true }] } };`);
+    const game = fakeGame();
+    let takes = false;
+    // The game keeps the old config's shop list until it takes the new config.
+    game.callHelper = async () => ({ value: JSON.stringify({ automation: { shops: [{ id: "0:1", on: true }] } }) });
+    game.updateConfig = async (config, replace) => {
+        game.calls.push(["config", replace]);
+        if (!takes) return { error: { text: "busy" } };
+        game.callHelper = async () => ({ value: JSON.stringify({ automation: { shops: config.automation.shops } }) });
+        return { value: "Config updated in game." };
+    };
+    const app = start(game);
+    const { body } = await app.change("use", "Light");
+    assert.equal(body.game.gameApplied, false);
+    await app.read();
+    await app.change("saveAs", "Copy");
+    assert.deepEqual(app.config.getCheatConfig().automation.shops, [], "Light's empty list stays");
+
+    // Once the game takes it, the game's own changes are read again.
+    takes = true;
+    await app.read();
+    assert.deepEqual(app.game.calls.at(-1), ["config", true]);
+    assert.deepEqual(app.config.getCheatConfig().automation.shops, []);
+});

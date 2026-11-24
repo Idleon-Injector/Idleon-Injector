@@ -107,3 +107,33 @@ test("a refused name is said beside the field, and the field keeps it", async ()
     form.listeners.submit({ preventDefault() {}, currentTarget: form });
     await until(() => text(root).includes("That name is taken."), "the refusal");
 });
+
+test("in Settings, Use switches on one press when nothing is unsaved, and asks first when something is", async () => {
+    const asked = fakeRoute(({ name }) => ({ configs: list(name) }));
+    const { saveConfigFile } = await importRepo("src/ui/services/api.js");
+    await saveConfigFile({ startupCheats: ["godlike reach"] });
+    const { Config } = await importRepo("src/ui/components/views/Config.js");
+    const root = Config();
+    const row = (name) =>
+        elements(root).find((n) => n.getAttribute?.("role") === "listitem" && text(n).startsWith(name));
+    const press = (name, word) => {
+        const node = elements(row(name)).find((n) => n.nodeName === "button" && text(n) === word);
+        return node.listeners.click({ currentTarget: node, target: node });
+    };
+    await until(() => row("AFK"), "the Configs tab");
+    await new Promise((resolve) => setTimeout(resolve, 50)); // the open-time sync
+    press("AFK", "Use");
+    await until(() => asked.length === 1, "the switch");
+
+    // An edit on the Startup tab that isn't saved: the next switch asks first.
+    const field = elements(root).find(
+        (n) => n.nodeName === "input" && String(n.getAttribute?.("class")).includes("startup-cheat-input")
+    );
+    field.listeners.change({ target: { value: "godlike crit" } });
+    await until(() => row("Light"), "the rows");
+    press("Light", "Use");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(asked.length, 1, "the first press only asks");
+    press("Light", "Use");
+    await until(() => asked.length === 2, "the second press");
+});
