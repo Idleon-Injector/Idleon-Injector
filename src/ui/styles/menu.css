@@ -674,7 +674,9 @@
     height: 30px;
     border-radius: 8px;
 }
+/* Each side as wide as its word, so "Everywhere" keeps the same room on both sides as "This page". */
 .viewport .menu-search-scope .step-picker__step {
+    flex: none;
     padding: 0 11px;
     font-size: 0.8125rem;
 }
