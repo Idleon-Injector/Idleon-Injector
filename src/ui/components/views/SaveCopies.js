@@ -1,18 +1,18 @@
 /**
  * History › Save copies (#32): the copies of the save the injector keeps (one per cloud save), newest first. Opening a
  * copy of the character in play compares it with the save now, one box per save key; the values the game moves by
- * itself wait in one closed box. Restore puts a key's values back (or all of them) through writeManyVerified, so the
- * restore is one action in Changes ("Restored Cards from 18:36") and Undo takes it back.
+ * itself wait in one closed box. Restore puts a key's values back, or all of them. A restore is a fork, not an undo:
+ * the injector copies the save first ("Before restore") and after ("Restored from 18:36 (Cards)"), and going back is
+ * restoring "Before restore" like any other copy.
  */
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
 import { VIEWS } from "../../state/constants.js";
 import { Icons } from "../../assets/icons.js";
-import { compareSaveCopy, fetchSaveCopies, saveCopyWrites } from "../../services/api.js";
-import { withAction } from "../../services/changeLog.js";
+import { compareSaveCopy, fetchSaveCopies, restoreSaveCopy } from "../../services/api.js";
 import { AccountTabHeader } from "./account/components/AccountTabHeader.js";
-import { NO_CHARACTER, readCharacterInPlay, writeManyVerified } from "./account/accountShared.js";
-import { clearCaches, undoAction } from "./account/undo.js";
+import { NO_CHARACTER, readCharacterInPlay } from "./account/accountShared.js";
+import { clearCaches } from "./account/undo.js";
 import { EmptyState } from "../EmptyState.js";
 import { SHOWN, shown } from "./History.js";
 
@@ -47,33 +47,28 @@ export const copyName = (at) =>
 
 const values = (n) => `${n} ${n === 1 ? "value" : "values"}`;
 
+/** What a restore's own copy says in the list; "" for a copy of a cloud save. */
+export const labelText = (label) =>
+    label?.kind === "before"
+        ? "Before restore"
+        : label?.kind === "restored"
+          ? `Restored from ${label.from ? copyName(label.from) : "a copy"} (${label.what})`
+          : "";
+
 /**
- * Put back a copy's selected values ("all" or paths from the compare) as one action named `label`, on the copy's
- * character only. Resolves to { action, warning } (action null when nothing differed any more); a write that
- * failed rejects with the Error, carrying the action its landed values were logged under. A value that moved since
- * the server planned the writes (gems bought a moment ago) is refused, "changed since"; the others still land.
+ * Put back a copy's selected values ("all" or paths from the compare), on the copy's character only. Resolves to the
+ * server's answer ({ ok, results, before, after }, `before` null when nothing differed any more) with `warning` when
+ * the game's cached totals weren't cleared. A gem bought a moment ago refuses the whole restore ("changed since").
  */
-export const restoreCopy = async (copy, select, label) => {
-    const { writes } = await saveCopyWrites(copy.id, select);
-    if (!writes.length) return { action: null };
-    let action = null;
-    try {
-        await withAction({ label }, (made) => {
-            action = made;
-            return writeManyVerified(writes, { character: copy.character });
-        });
-    } catch (error) {
-        error.action = action;
-        // The values that landed (or that the game kept differently) still change the totals built from them.
-        await clearCaches(
-            (error.results ?? [])
-                .filter((result) => result.ok || result.error === "Write mismatch")
-                .map((result) => result.path.replace(/^gga\./, ""))
-        );
-        throw error;
-    }
-    const cleared = await clearCaches(writes.map((write) => write.path.replace(/^gga\./, "")));
-    return { action, warning: cleared ? null : "Restored. Totals may be off. Refresh." };
+export const restoreCopy = async (copy, select) => {
+    const answer = await restoreSaveCopy(copy.id, select);
+    // The values that landed (or that the game kept differently) change the totals built from them.
+    const cleared = await clearCaches(
+        answer.results
+            .filter((result) => result.ok || result.error === "Write mismatch")
+            .map((result) => result.path.replace(/^gga\./, ""))
+    );
+    return { ...answer, warning: cleared ? null : "Restored. Totals may be off. Refresh." };
 };
 
 /** The compare's boxes: the player's own changes by key, and the values the game moved by itself by key. */
@@ -169,9 +164,8 @@ const CopyBody = (copy, onRestored) => {
     const result = van.state(null); // { groups } once read
     const failed = van.state("");
     const busy = van.state(""); // the select being restored ("all" or a key), "" when none
-    const status = van.state(""); // what the last restore or undo did
+    const status = van.state(""); // what the last restore did
     const refused = van.state(false);
-    const lastAction = van.state(null);
     // Boxes stay as the player left them when the compare is read again after a restore.
     const opened = new Map();
     const openState = (name) => {
@@ -201,17 +195,20 @@ const CopyBody = (copy, onRestored) => {
         busy.val = name;
         refused.val = false;
         status.val = "";
-        const label = `Restored ${name} from ${copyName(copy.time)}`;
+        const what = name === "all" ? "everything" : name;
         try {
-            const { action, warning } = await restoreCopy(copy, select, label);
-            lastAction.val = action;
-            status.val = action ? (warning ?? `Restored ${name}.`) : "Nothing left to restore.";
+            const { ok, results, before, warning } = await restoreCopy(copy, select);
+            const missed = results.filter((entry) => !entry.ok).length;
+            refused.val = !ok;
+            status.val = !before
+                ? "Nothing left to restore."
+                : results.some((entry) => entry.error === "changed since")
+                  ? "Gems came in just now. Try again."
+                  : missed === results.length
+                    ? "Couldn't restore. Try again."
+                    : `${missed ? `${missed} of ${results.length} not restored. ` : ""}${warning ?? `Restored ${what}.`} To go back, restore "Before restore".`;
         } catch (error) {
-            lastAction.val = error.action?.entries ? error.action : null;
-            const missed = (error.results ?? []).filter((entry) => !entry.ok).length;
-            status.val = missed
-                ? `${missed} of ${error.results.length} not restored.`
-                : error?.message || "Couldn't restore. Try again.";
+            status.val = error?.message || "Couldn't restore. Try again.";
             refused.val = true;
         } finally {
             busy.val = "";
@@ -221,43 +218,11 @@ const CopyBody = (copy, onRestored) => {
         }
     };
 
-    const undo = async () => {
-        const action = lastAction.val;
-        if (!action || busy.val) return;
-        busy.val = "undo";
-        try {
-            const { warning } = await undoAction(action.id);
-            status.val = warning ?? "Undone.";
-            refused.val = false;
-            lastAction.val = null;
-        } catch (error) {
-            status.val = `Not undone: ${error?.message || "try again"}.`;
-            refused.val = true;
-        } finally {
-            busy.val = "";
-            await read();
-            keepFocus();
-        }
-    };
-
-    const undoButton = button(
-        {
-            type: "button",
-            class: "btn-quiet btn-sm save-copy__undo",
-            hidden: () => !lastAction.val,
-            "aria-disabled": () => String(Boolean(busy.val)),
-            title: "Put back the values this restore changed",
-            onclick: () => void undo(),
-        },
-        Icons.Undo({ class: "undo-all__icon" }),
-        span("Undo")
-    );
-    // The compare is drawn again after a restore or undo, so the button pressed may be gone: focus goes to Undo, or to
-    // the first box's line, never back to the top of the page.
+    // The compare is drawn again after a restore, so the button pressed may be gone: focus goes to the first box's
+    // line, never back to the top of the page.
     const keepFocus = () => {
         if (!document.body || document.activeElement !== document.body) return;
-        const next = lastAction.val ? undoButton : node.querySelector("button");
-        next?.focus();
+        node.querySelector("button")?.focus();
     };
 
     const restoreButton = (select, name, title) =>
@@ -321,24 +286,14 @@ const CopyBody = (copy, onRestored) => {
         },
         div(
             { class: "save-copy__bar", hidden: () => !result.val || failed.val },
-            span({ class: () => `save-copy__status ${refused.val ? "is-refused" : ""}`, role: "status" }, () =>
-                busy.val === "undo" ? "saving…" : status.val
+            span(
+                { class: () => `save-copy__status ${refused.val ? "is-refused" : ""}`, role: "status" },
+                () => status.val
             ),
-            undoButton,
-            () => {
-                // Everything but the game's own progress: that keeps moving, so an undo of it would be refused at
-                // once ("changed since"), and it stays restorable key by key in its box.
-                const paths = (result.val?.groups ?? []).flatMap((group) =>
-                    group.changes.filter((change) => change.restorable && !change.onItsOwn).map((change) => change.path)
-                );
-                return paths.length
-                    ? restoreButton(
-                          paths,
-                          "all",
-                          `Put back every value outside "Changed on its own" as at ${hhmm(copy.time)}`
-                      )
-                    : span();
-            }
+            () =>
+                result.val?.groups.some((group) => group.changes.some((change) => change.restorable))
+                    ? restoreButton("all", "all", `Put back every value as it was at ${hhmm(copy.time)}`)
+                    : span()
         )
     );
     return node;
@@ -355,6 +310,7 @@ const CopyRow = (copy, active, openId, onRestored) => {
             ago(copy.time)
         ),
         span({ class: "change-group__time" }, hhmm(copy.time)),
+        copy.label ? span({ class: "save-copy__label" }, labelText(copy.label)) : null,
     ];
     return div(
         { class: () => `change-group save-copy ${mine() ? "" : "is-other"} ${isOpen() ? "is-open" : ""}` },

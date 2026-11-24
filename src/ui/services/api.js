@@ -508,17 +508,17 @@ export async function compareSaveCopy(id) {
 }
 
 /**
- * The writes that put a save copy's values back, from the save as it is now (the page writes them with
- * writeManyVerified, so a restore is logged and can be undone). `select` is "all" or a list of paths from
- * compareSaveCopy (a path selects everything under it, e.g. "Cards").
+ * Put a save copy's values back. The injector first copies the save as it is ("Before restore", the way back), and
+ * after the writes copies it again ("Restored from …"). `select` is "all" or a list of paths from compareSaveCopy (a
+ * path selects everything under it, e.g. "Cards").
  *
  * @param {string} id
  * @param {"all" | string[]} select
- * @returns {Promise<{ writes: Array<{ path: string, value: any }> }>}
+ * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }>, before: string|null, after: string|null }>}
  */
-export async function saveCopyWrites(id, select) {
+export async function restoreSaveCopy(id, select) {
     return _request(
-        "/save-copies/writes",
+        "/save-copies/restore",
         {
             method: "POST",
             headers: { "Content-Type": "application/json" },

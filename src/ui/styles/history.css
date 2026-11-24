@@ -209,7 +209,6 @@
  * open in place to the compare: one box per save key, the game's own progress in one closed box, Restore at each
  * box's end and Restore all under them. Another character's copies stay quiet with a hint to switch.
  */
-.save-copy__undo[hidden],
 .save-copy__bar[hidden],
 .save-copies__day > .change-log[hidden] {
     display: none;
@@ -262,6 +261,13 @@ button.save-copy__head:hover {
 
 .save-copy.is-other .save-copy__head {
     padding-left: 40px;
+}
+
+/* A restore's own copy says what it is: "Before restore", "Restored from 18:36 (Cards)". */
+.save-copy__label {
+    color: var(--c-text-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
 }
 
 .save-copy__hint {

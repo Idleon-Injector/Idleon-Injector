@@ -169,8 +169,7 @@ function diffSave(copy, now) {
 /**
  * The writes that put the selected changes back: "all", or a list of paths, each selecting itself and everything
  * under it ("Cards" selects every card, "PlayerDATABASE.h.Bob" one character). Changes a restore may not write are
- * never in it. Another character's values are written as `PlayerDATABASE.h[name].h…`, the form the WebUI's change log
- * reads as that character's (so an undo puts them back on that character).
+ * never in it.
  * @param {ReturnType<typeof diffSave>} groups
  * @param {"all" | string[]} select
  * @returns {Array<{ path: string, value: any, expect?: any }>}
@@ -182,35 +181,40 @@ function restoreWrites(groups, select) {
         .flatMap((group) => group.changes)
         .filter((change) => change.restorable && selected(change.path))
         .map((change) => ({
-            path: `gga.${change.path.replace(/^PlayerDATABASE\.h\.([^.]+)\.h\./, "PlayerDATABASE.h[$1].h.")}`,
+            path: `gga.${change.path}`,
             value: change.copy,
-            // Refused in the game if the value moved since this plan (a gem bought a moment ago). The game's own
-            // progress moves every second, so its writes go unguarded (the History page restores it on its own: in
-            // the game, an unguarded write in a batch with guarded ones waits on all of them).
-            ...(change.onItsOwn ? {} : { expect: change.now }),
+            // A gem bought between this plan and the write: the game refuses the restore rather than lose it (in the
+            // game, the unguarded writes of a batch wait on its guarded ones).
+            ...(GEM_KEYS.has(change.path.split(/[.[]/)[0]) ? { expect: change.now } : {}),
         }));
 }
 
-// <ISO time with - for :>_<character>.json.gz, e.g. 2026-11-20T01-02-03-456Z_Luumii.json.gz
-const FILE = /^(\d{4}-\d\d-\d\dT\d\d)-(\d\d)-(\d\d)-(\d{3}Z)_(\w+)\.json\.gz$/;
+// <ISO time with - for :>_<character>[~<label>].json.gz, e.g. 2026-11-20T01-02-03-456Z_Luumii.json.gz. The label
+// (base64url JSON) marks the copies a restore makes: { kind: "before" } or { kind: "restored", from, what }.
+const FILE = /^(\d{4}-\d\d-\d\dT\d\d)-(\d\d)-(\d\d)-(\d{3}Z)_(\w+?)(?:~([\w-]+))?\.json\.gz$/;
 
 /**
- * Store a copy (the JSON from the game) and return its id. Written to a temporary file and renamed, so a crash
- * can't leave half a copy.
+ * Store a copy (the JSON from the game), with an optional label, and return its id. Written to a temporary file and
+ * renamed, so a crash can't leave half a copy; a copy never replaces another taken in the same millisecond.
  */
-async function writeCopy(dir, time, json) {
+async function writeCopy(dir, time, json, label = null) {
     const character = String(JSON.parse(json).character).replace(/\W/g, "_");
-    const id = `${new Date(time).toISOString().replace(/[:.]/g, "-")}_${character}`;
-    const file = path.join(dir, `${id}.json.gz`);
+    const tag = label ? `~${Buffer.from(JSON.stringify(label)).toString("base64url")}` : "";
     await fs.mkdir(dir, { recursive: true });
+    const taken = new Set(await fs.readdir(dir));
+    let at = time;
+    const idAt = (t) => `${new Date(t).toISOString().replace(/[:.]/g, "-")}_${character}`;
+    while ([...taken].some((name) => name.startsWith(`${idAt(at)}.`) || name.startsWith(`${idAt(at)}~`))) at++;
+    const id = `${idAt(at)}${tag}`;
+    const file = path.join(dir, `${id}.json.gz`);
     await fs.writeFile(`${file}.tmp`, await gzip(json));
     await fs.rename(`${file}.tmp`, file);
     return id;
 }
 
 /**
- * Every stored copy, newest first.
- * @returns {Promise<Array<{ id: string, time: number, character: string, size: number }>>}
+ * Every stored copy, newest first; `label` is null for a copy of a cloud save.
+ * @returns {Promise<Array<{ id: string, time: number, character: string, size: number, label: object|null }>>}
  */
 async function listCopies(dir) {
     let names;
@@ -225,11 +229,18 @@ async function listCopies(dir) {
         const m = FILE.exec(name);
         if (!m) continue;
         const { size } = await fs.stat(path.join(dir, name));
+        let label = null;
+        try {
+            label = m[6] ? JSON.parse(Buffer.from(m[6], "base64url").toString("utf8")) : null;
+        } catch {
+            label = null;
+        }
         copies.push({
             id: name.slice(0, -".json.gz".length),
             time: Date.parse(`${m[1]}:${m[2]}:${m[3]}.${m[4]}`),
             character: m[5],
             size,
+            label,
         });
     }
     return copies.sort((a, b) => b.time - a.time);
@@ -248,7 +259,8 @@ const localDay = (time) => new Date(time).toDateString();
 
 /**
  * Which copies to delete: keep every copy from the last 24 hours and the newest copy of each day for 30 days, then
- * drop the oldest kept ones while the total is over the size cap.
+ * drop the oldest kept ones while the total is over the size cap. A restore's own copies (labelled: "Before restore"
+ * is the way back from it) stay their 30 days, and go last for the size cap.
  * @param {Awaited<ReturnType<typeof listCopies>>} copies - newest first
  * @returns {{ expired: string[], trimmed: number }} the ids to delete; `trimmed` of them only for the size cap
  */
@@ -260,14 +272,15 @@ function pickExpired(copies, now, maxBytes = MAX_TOTAL_BYTES) {
         const age = now - copy.time;
         const newestOfDay = !seenDays.has(localDay(copy.time));
         seenDays.add(localDay(copy.time));
-        if (age < DAY || (newestOfDay && age < 30 * DAY)) kept.push(copy);
+        if (age < DAY || ((newestOfDay || copy.label) && age < 30 * DAY)) kept.push(copy);
         else expired.push(copy.id);
     }
     let total = kept.reduce((sum, copy) => sum + copy.size, 0);
     let trimmed = 0;
-    // The newest copy always stays, whatever its size.
+    // The newest copy always stays, whatever its size; the oldest cloud-save copies go before a restore's own.
     while (total > maxBytes && kept.length > 1) {
-        const oldest = kept.pop();
+        const at = kept.findLastIndex((copy, i) => i > 0 && !copy.label);
+        const [oldest] = kept.splice(at > 0 ? at : kept.length - 1, 1);
         total -= oldest.size;
         expired.push(oldest.id);
         trimmed++;

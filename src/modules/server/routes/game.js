@@ -12,7 +12,7 @@ const normalizeReadValue = (value) => {
 };
 
 /**
- * Write many game paths through the game's writeGamePaths helper (the write-many route).
+ * Write many game paths through the game's writeGamePaths helper: the write-many route, and restoring a save copy.
  * Each written entry's `value` is read back in the game's same call, so a game tick can't change it first.
  * With `character`, the game writes nothing unless that character is in play, checked in that same call.
  * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, value?: any, error?: string }> }>}
@@ -375,4 +375,4 @@ function setupGameRoutes(app, gameBridge) {
     });
 }
 
-module.exports = { setupGameRoutes };
+module.exports = { setupGameRoutes, writeGamePaths, normalizeReadValue };

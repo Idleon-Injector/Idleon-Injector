@@ -1,6 +1,8 @@
+const { isDeepStrictEqual } = require("util");
 const { createLogger } = require("../../utils/logger");
 const { getRuntimePath } = require("../../utils/runtimePaths");
 const { diffSave, restoreWrites, writeCopy, listCopies, readCopy, pruneCopies } = require("../../saveCopies");
+const { normalizeReadValue, writeGamePaths } = require("./game");
 
 const log = createLogger("Save copies");
 
@@ -47,10 +49,11 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
     const timer = setInterval(pullSaveCopy, PULL_EVERY_MS);
     timer.unref();
 
+    /** The save now, as the game's JSON. */
     const readSaveNow = async () => {
         const result = await gameBridge.callHelper("readSave");
         if (result.error) throw new Error(`Couldn't read the save: ${result.error.text}`);
-        return JSON.parse(result.value);
+        return result.value;
     };
 
     /** The copy and the save now, or null when an HTTP error was sent. */
@@ -66,7 +69,8 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
             res.status(404).json({ error: error.message });
             return null;
         }
-        const now = await readSaveNow();
+        const nowJson = await readSaveNow();
+        const now = JSON.parse(nowJson);
         // A character's values sit in the top-level keys only while it's in play, so they only line up then.
         if (copy.character !== now.character) {
             res.status(409).json({
@@ -74,7 +78,7 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
             });
             return null;
         }
-        return { copy, now };
+        return { copy, now, nowJson };
     }
 
     /** Every stored copy, newest first, and the last failure to store one (null when the last copy went fine). */
@@ -101,21 +105,62 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
     });
 
     /**
-     * { id, select: "all" | paths } -> { writes: [{ path, value }] }: the writes that put the selected values back,
-     * from the save as it is now. The WebUI writes them (writeManyVerified), so a restore is logged in History like
-     * any save and Undo can take it back.
+     * A restore is a fork: first a copy of the save as it is ("Before restore", the way back), then the copy's values
+     * are written through the same game helper as the write-many route, each checked as the game read it back in that
+     * same call (#78), then a copy of the save after it ("Restored from <copy> (<what>)"). One restore runs at a time,
+     * so two quick ones each get their own before-copy.
      */
-    app.post("/api/save-copies/writes", async (req, res) => {
+    async function restore(req, res) {
+        const { id, select } = await req.json();
+        if (select !== "all" && !(Array.isArray(select) && select.every((s) => typeof s === "string" && s))) {
+            return res.status(400).json({ error: 'select must be "all" or a list of paths' });
+        }
+        const both = await copyAndNow(id, res);
+        if (!both) return;
+        const writes = restoreWrites(diffSave(both.copy, both.now), select);
+        if (writes.length === 0) return res.json({ ok: true, results: [], before: null, after: null });
+
+        const before = await writeCopy(dir, Date.now(), both.nowJson, { kind: "before" });
+        let written;
         try {
-            const { id, select } = await req.json();
-            if (select !== "all" && !(Array.isArray(select) && select.every((s) => typeof s === "string" && s))) {
-                return res.status(400).json({ error: 'select must be "all" or a list of paths' });
-            }
-            const both = await copyAndNow(id, res);
-            if (!both) return;
-            res.json({ writes: restoreWrites(diffSave(both.copy, both.now), select) });
+            // Only while the copy's character is in play, checked by the game as it writes.
+            written = await writeGamePaths(gameBridge, writes, both.copy.character);
         } catch (error) {
-            log.error("Error in /api/save-copies/writes:", error);
+            if (error.refused) return res.status(409).json({ error: error.message, before });
+            throw error;
+        }
+        const results = writes.map((write, i) => {
+            const wrote = written.results?.[i];
+            if (!wrote?.ok) return { path: write.path, ok: false, error: wrote?.error ?? "Write failed" };
+            if (!isDeepStrictEqual(normalizeReadValue(wrote.value), write.value)) {
+                return { path: write.path, ok: false, error: "Write mismatch" };
+            }
+            return { path: write.path, ok: true };
+        });
+        const landed = results.filter((r) => r.ok).length;
+        log.info(`Restored ${landed} of ${writes.length} values from save copy ${id}`);
+        let after = null;
+        if (landed) {
+            const keys = [...new Set(writes.map((write) => write.path.slice(4).split(/[.[]/)[0]))];
+            const what = select === "all" ? "all" : keys.length === 1 ? keys[0] : `${keys.length} keys`;
+            const copyTime = (await listCopies(dir)).find((c) => c.id === id)?.time ?? null;
+            after = await writeCopy(dir, Date.now(), await readSaveNow(), { kind: "restored", from: copyTime, what });
+        }
+        res.json({ ok: landed === writes.length, results, before, after });
+    }
+
+    /**
+     * { id, select: "all" | paths } -> { ok, results: [{ path, ok, error? }], before, after }: the ids of the copies
+     * taken before and after (null when nothing was left to restore, or nothing landed).
+     */
+    let running = Promise.resolve();
+    app.post("/api/save-copies/restore", async (req, res) => {
+        const turn = running.then(() => restore(req, res));
+        running = turn.catch(() => {});
+        try {
+            await turn;
+        } catch (error) {
+            log.error("Error in /api/save-copies/restore:", error);
             res.status(500).json({ error: error.message });
         }
     });

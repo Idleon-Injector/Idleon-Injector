@@ -1,7 +1,7 @@
 // History › Save copies (#32) on the fake game: the real page and server over copies on disk. Done when a copy of the
-// character in play opens to its compare (the game's own progress in its own box), Restore puts one key back as one
-// action in Changes that Undo takes back, Restore all never writes the protected values, gems bought since a copy are
-// kept, and another character's copy is listed greyed with a hint to switch.
+// character in play opens to its compare (the game's own progress in its own box), Restore puts one key back with a
+// copy before and after (going back is restoring "Before restore"), Restore all never writes the protected values, gems
+// bought since a copy are kept, and another character's copy is listed greyed with a hint to switch.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -30,9 +30,8 @@ const { router, game } = await createFakeApi(fixture, { saveCopiesDir: dir });
 const { store } = await loadUi(router);
 const gga = game.gga;
 const { readSave } = await importRepo("src/cheats/core/saveCopy.js");
-const { fetchChanges } = await importRepo("src/ui/services/api.js");
-const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
-const { SaveCopies, copyName, restoreCopy } = await importRepo("src/ui/components/views/SaveCopies.js");
+const { fetchChanges, fetchSaveCopies } = await importRepo("src/ui/services/api.js");
+const { SaveCopies, copyName } = await importRepo("src/ui/components/views/SaveCopies.js");
 
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
@@ -77,7 +76,7 @@ const now = { mob0: gga.Cards[0].h.mob0, mob1: gga.Cards[0].h.mob1, money: gga.M
 async function openPage() {
     store.app.activeTab = "save-copies-tab";
     const root = SaveCopies();
-    await until(() => byClass(root, "save-copy").length === 4, "the copies to list");
+    await until(() => byClass(root, "save-copy").length >= 4, "the copies to list");
     return root;
 }
 const heads = (root) => byClass(root, "save-copy__head");
@@ -123,36 +122,48 @@ test("a copy opens to one box per key; the game's own progress waits in its own 
     assert.match(text(keyHead(root, "Cards")), /2 values/);
 });
 
-test("Restore puts one key back as one action in Changes, and Undo takes it back", async () => {
+/** The row of a copy, by id (the list is newest first, in the page as in the API). */
+async function openById(root, copyId) {
+    const { copies } = await fetchSaveCopies();
+    await until(() => byClass(root, "save-copy").length === copies.length, "the list to show every copy");
+    await heads(root)[copies.findIndex((c) => c.id === copyId)].listeners.click({});
+    await until(() => byClass(root, "save-key__head").length > 0, "the compare to show");
+}
+const status = (root) => text(byClass(root, "save-copy__status")[0]);
+
+test("Restore is a fork: a copy before and after, listed on top; going back is restoring Before restore", async () => {
     const root = await openPage();
-    await openCopy(root, 0);
+    await openById(root, id);
     const [restore] = byClass(keyHead(root, "Cards"), "save-key__restore");
     const logged = (await fetchChanges()).actions.length;
+    const listed = (await fetchSaveCopies()).copies.length;
     // A quick second press while the first runs does nothing.
     await Promise.all([restore.listeners.click({}), restore.listeners.click({})]);
-    await until(() => /Restored Cards\./.test(text(byClass(root, "save-copy__status")[0])), "the restore to finish");
+    await until(() => /Restored Cards\./.test(status(root)), "the restore to finish");
+    assert.match(status(root), /To go back, restore "Before restore"\./);
     assert.equal(gga.Cards[0].h.mob0, atCopy.mob0);
     assert.equal(gga.Cards[0].h.mob1, atCopy.mob1);
     assert.equal(gga.Money, now.money, "only the cards");
     await until(() => !keyHead(root, "Cards"), "the compare to read the game again");
 
-    const { actions } = await fetchChanges();
-    assert.equal(actions.length, logged + 1, "one restore, one action");
-    const [action] = actions;
-    assert.equal(action.label, `Restored Cards from ${copyName(copyTime)}`);
-    assert.deepEqual(action.entries.map((entry) => [entry.path, entry.before, entry.after]).sort(), [
-        ["Cards[0].h.mob0", now.mob0, atCopy.mob0],
-        ["Cards[0].h.mob1", now.mob1, atCopy.mob1],
-    ]);
+    const { copies } = await fetchSaveCopies();
+    assert.equal(copies.length, listed + 2, "one restore, two copies");
+    await until(() => byClass(root, "save-copy").length === copies.length, "the new copies to list");
+    const labels = byClass(root, "save-copy__label").map(text);
+    assert.deepEqual(labels.slice(0, 2), [`Restored from ${copyName(copyTime)} (Cards)`, "Before restore"]);
+    assert.equal((await fetchChanges()).actions.length, logged, "a restore is no change with an Undo");
 
-    await undoAction(action.id);
-    assert.equal(gga.Cards[0].h.mob0, now.mob0);
+    // Going back: the same Restore, on "Before restore".
+    const before = copies[1];
+    await openById(root, before.id);
+    await byClass(keyHead(root, "Cards"), "save-key__restore")[0].listeners.click({});
+    await until(() => gga.Cards[0].h.mob0 === now.mob0, "the cards to go back");
     assert.equal(gga.Cards[0].h.mob1, now.mob1);
 });
 
-test("Restore all puts back the player's values, not the game's own progress or the protected ones; gems bought since are kept", async () => {
+test("Restore all writes everything, the game's own progress too, never the protected values; gems bought since are kept", async () => {
     const root = await openPage();
-    await openCopy(root, 1);
+    await openById(root, gemsId);
     assert.match(text(keyHead(root, "GemsOwned")), /Gems were bought since this copy/);
     assert.equal(byClass(keyHead(root, "GemsOwned"), "save-key__restore").length, 0);
     const protectedNow = structuredClone({
@@ -161,13 +172,13 @@ test("Restore all puts back the player's values, not the game's own progress or 
         time: gga.TimeAway,
         timer: gga.CloudsaveTimer,
     });
+    const farmNow = gga.FarmPlot[0][6];
     const [all] = byClass(root, "save-copy__bar").flatMap((bar) => byClass(bar, "save-key__restore"));
     await all.listeners.click({});
-    await until(() => /Restored all\./.test(text(byClass(root, "save-copy__status")[0])), "Restore all to finish");
+    await until(() => /Restored everything\./.test(status(root)), "Restore all to finish");
     assert.equal(gga.Money, atCopy.money);
     assert.equal(gga.Cards[0].h.mob0, atCopy.mob0);
-    const farmNow = gga.FarmPlot[0][6];
-    assert.notEqual(farmNow, atCopy.farm, "the game's own progress stays (it waits in its own box)");
+    assert.equal(gga.FarmPlot[0][6], atCopy.farm, "the game's own progress too");
     assert.deepEqual(
         structuredClone({
             gems: gga.GemsOwned,
@@ -177,11 +188,17 @@ test("Restore all puts back the player's values, not the game's own progress or 
         }),
         protectedNow
     );
-    const [action] = (await fetchChanges()).actions;
-    assert.equal(action.label, `Restored all from ${copyName(copyTime - 60e3)}`);
-    await undoAction(action.id);
-    assert.equal(gga.Money, now.money, "so Undo takes it back while the game moves on");
+    const { copies } = await fetchSaveCopies();
+    assert.deepEqual(copies[0].label, { kind: "restored", from: copyTime - 60e3, what: "all" });
+
+    // Back, with Restore all on "Before restore".
+    await openById(root, copies[1].id);
+    await byClass(root, "save-copy__bar")
+        .flatMap((bar) => byClass(bar, "save-key__restore"))[0]
+        .listeners.click({});
+    await until(() => gga.Money === now.money, "the money to go back");
     assert.equal(gga.FarmPlot[0][6], farmNow);
+    assert.equal(gga.Cards[0].h.mob0, now.mob0);
 });
 
 test("without gems bought since, a copy's GemsOwned is restorable", async () => {
@@ -195,34 +212,4 @@ test("without gems bought since, a copy's GemsOwned is restorable", async () => 
     assert.equal(gems.restorable, true);
     assert.equal(gems.gemsBought, false);
     assert.ok(gemsId);
-});
-
-test("a gem bought between the plan and the write is kept: that value is refused, the others land", async () => {
-    const gems = gga.GemsOwned;
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = async (url, options) => {
-        // The purchase lands after the server planned the writes, before the game writes them.
-        if (String(url).includes("/game/gga/write-many")) gga.GemsOwned += 50;
-        return realFetch(url, options);
-    };
-    let error;
-    try {
-        await restoreCopy({ id, time: copyTime, character: "Lumi_Main" }, ["GemsOwned", "Money"], "test").catch(
-            (e) => (error = e)
-        );
-    } finally {
-        globalThis.fetch = realFetch;
-    }
-    assert.ok(error, "the restore says a value wasn't put back");
-    assert.deepEqual(
-        error.results.map((result) => [result.path, result.ok, result.error ?? ""]),
-        [
-            ["gga.GemsOwned", false, "changed since"],
-            ["gga.Money", true, ""],
-        ]
-    );
-    assert.equal(gga.GemsOwned, gems + 50, "the bought gems stay");
-    assert.equal(gga.Money, atCopy.money);
-    gga.Money = now.money;
-    gga.GemsOwned = gems;
 });
