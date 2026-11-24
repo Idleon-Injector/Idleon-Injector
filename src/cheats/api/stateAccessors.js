@@ -19,7 +19,10 @@ import { getAutomationBubbles } from "../helpers/automation/bubbles.js";
 import { getAutomationClicker } from "../helpers/automation/clickers.js";
 import { getAutomationConstruction } from "../helpers/automation/construction.js";
 import { getAutomationCooking } from "../helpers/automation/cooking.js";
-import { getAutomationGrimoire } from "../helpers/automation/grimoire.js";
+import { getAutomationArmory } from "../helpers/automation/armory.js";
+import { compass } from "../helpers/automation/compass.js";
+import { grimoire } from "../helpers/automation/grimoire.js";
+import { tesseract } from "../helpers/automation/tesseract.js";
 import { getAutomationShops } from "../helpers/automation/shops.js";
 import { getAutomationSneaking } from "../helpers/automation/sneaking.js";
 import { getAutomationSummoning } from "../helpers/automation/summoning.js";
@@ -71,7 +74,10 @@ const AUTOMATION_TABS = {
     poppy: () => getAutomationClicker("poppy"),
     tarpit: () => getAutomationClicker("tarpit"),
     bubba: getAutomationBubba,
-    grimoire: getAutomationGrimoire,
+    grimoire: grimoire.read,
+    compass: compass.read,
+    tesseract: tesseract.read,
+    armory: getAutomationArmory,
     sneaking: getAutomationSneaking,
     summoning: getAutomationSummoning,
     cooking: getAutomationCooking,

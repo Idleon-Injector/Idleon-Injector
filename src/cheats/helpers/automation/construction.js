@@ -60,7 +60,7 @@ const switchedOn = () => cheatConfig.automation.construction.filter((entry) => e
 
 // What removeitems(..., "InventoryStorage") can take: the active character's inventory, the first refinery
 // storage slot holding it, then the chest. The game's own map counts more, so this keeps a pay from falling short.
-function reachable(item) {
+export function reachable(item) {
     let total = 0;
     for (let i = 0; i < gga.InventorySlotsOwned; i++) if (gga.InventoryOrder[i] === item) total += gga.ItemQuantity[i];
     const refinery = gga.Refinery[1].indexOf(item);
