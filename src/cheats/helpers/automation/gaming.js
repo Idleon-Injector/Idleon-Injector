@@ -3,8 +3,8 @@
  * switched-on upgrades with bits by the shared rule ("Save for it", saving %), each up to its stop-at, menu open or not.
  *
  * Bits are Gaming[0]. The upgrades: the three fertilizers, Gaming[1..3] (names cList.GamingUpgrades); mutation chance,
- * Gaming[7]; and the imports' levels, GamingSprout[25 + i][0] (names cList.RandoListo2[1]). POiNG (import 6) and
- * import 9 aren't offered. The game has no callable buy, so a buy repeats its button: take the price, add a level.
+ * Gaming[7]; and the imports' levels, GamingSprout[25 + i][0] (names cList.RandoListo2[1]). Import 9 ("idk") is the
+ * game's unused slot and isn't offered. The game has no callable buy, so a buy repeats its button: take the price, add a level.
  * Settings: cheatConfig.automation.gaming, one { id, on, stopAt, save } per upgrade, cheatConfig.automation.gamingSaving,
  * and the gamingAutoHarvest and gamingAutoDig switches.
  */
@@ -19,7 +19,7 @@ const cleanName = (name) => String(name).replace(/_/g, " ");
 const unlocked = (i) => String(gga.Gaming[6]).includes(String(gga.Number2Letter[i]));
 const gamingLevel = () => Number(gga.Lv0[15]);
 
-const IMPORTS = [0, 1, 2, 3, 4, 5, 7, 8];
+const IMPORTS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 // Every upgrade by id: its name, level and price, and when the game lets it be bought.
 const UPGRADES = [
     ...[0, 1, 2].map((i) => ({

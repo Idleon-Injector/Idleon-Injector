@@ -92,14 +92,20 @@ const turnOff = async () => {
     if (gaming().on) await cheat("automation gaming");
 };
 
-test("the Gaming page reads bits and every upgrade but POiNG, with its level, price and lock", () => {
+test("the Gaming page reads bits and every upgrade, POiNG included, with its level, price and lock", () => {
     setGame({ bits: 500, imports: "_a" });
     gga.Gaming[3] = 20;
     const { value } = readComputed("automation", "gaming");
     assert.equal(value.bits, 500);
     assert.deepEqual(
         value.upgrades.map(({ id }) => id),
-        ["fertilizer0", "fertilizer1", "fertilizer2", "mutation", ...[0, 1, 2, 3, 4, 5, 7, 8].map((i) => `import${i}`)]
+        [
+            "fertilizer0",
+            "fertilizer1",
+            "fertilizer2",
+            "mutation",
+            ...[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => `import${i}`),
+        ]
     );
     assert.deepEqual(value.upgrades[0], {
         id: "fertilizer0",
