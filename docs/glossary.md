@@ -30,6 +30,7 @@ These terms distinguish concepts used throughout the project. Follow the linked 
 | Monitor             | A subscription to observe a game value over time.                                                    |
 | Session update      | A configuration change applied to the running session.                                               |
 | Saved configuration | User overrides written to disk for later runs.                                                       |
+| Config              | A named set of startup cheats and cheat settings to switch between: Light, AFK or your own.          |
 | Save copy           | A copy of the save the injector keeps on the player's PC each time the game cloud-saves.             |
 | Change log          | Every value saved from a page this game session, with its old value and character; History lists it. |
 | Action              | One user action's saves (a field, a button press, a bulk action); Undo puts an action back whole.    |

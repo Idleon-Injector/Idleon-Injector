@@ -279,3 +279,91 @@
     color: var(--c-text-main);
     letter-spacing: 0.05em;
 }
+
+/* --- CONFIGS (#198) --- */
+/* The config the settings tabs edit, quietly beside the tab that switches it. */
+.config-sub-tab-active {
+    margin-left: 8px;
+    color: var(--c-text-faint);
+    font-weight: 400;
+}
+
+.config-sub-tab-active:empty {
+    display: none;
+}
+
+.configs {
+    max-width: 760px;
+}
+
+.configs-row__name {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-text-main);
+    overflow-wrap: anywhere;
+}
+
+/* The config in use: the row the settings belong to, edged in the accent like a changed setting. */
+.configs-row.is-active {
+    border-color: var(--c-accent-40);
+}
+
+.configs-row__state {
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+    white-space: nowrap;
+}
+
+/* A switch's failure: a line of its own across the row, wrapped instead of hiding the reason. */
+.configs-row__said {
+    grid-column: 1 / -1;
+    margin-top: 0;
+}
+
+.configs-row__state.is-on {
+    color: var(--c-accent);
+}
+
+.configs-new {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--c-hairline);
+}
+
+.configs-new__name {
+    flex: 0 1 260px;
+    min-width: 0;
+    border-radius: 9px;
+}
+
+@media (max-width: 600px) {
+    .configs-row .config-item-control {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .configs-new__name {
+        flex: 1 1 100%;
+    }
+}
+
+/* Four tabs don't fit a phone's width on one line: they wrap instead of scrolling sideways. */
+@media (max-width: 600px) {
+    .sub-nav {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    .config-sub-tab-button {
+        padding: 8px 10px;
+    }
+
+    .config-sub-tab-button.active::after {
+        bottom: 0;
+    }
+}

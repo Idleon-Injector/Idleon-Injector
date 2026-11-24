@@ -20,6 +20,15 @@ If `config.custom.js` has an error, the injector says where, runs with the defau
 Use Startup Cheats for commands you want to run on startup. Check command descriptions before making
 an action automatic.
 
+## Configs
+
+Settings lists configs: the shipped Light (quality of life only) and AFK (Light plus idling help), and the player's own
+("Save current as new", for example one per account). A config is a set of startup cheats and cheat settings; ports,
+paths and the other injector settings belong to the PC and stay the same in every config. Switching is by hand: the
+config left keeps its settings as they were, and the running game gets the new one's settings and cheats. Editing while
+a shipped config is in use saves the player's copy of it, which Reset puts back. A fresh install and a
+`config.custom.js` from before configs start in "My config".
+
 ## Safety
 
 The Web UI permits command execution and game-state editing. Keep access local unless you deliberately need
@@ -32,6 +41,7 @@ Keep the dangerous `chng` command disabled unless you understand the consequence
 ## Source entry points
 
 - [Defaults](../config.js) and [configuration loading](../src/modules/config/configManager.js).
+- [Shipped configs](../src/modules/config/shippedConfigs.js).
 - [Config view](../src/ui/components/views/Config.js).
 - [Account option labels and warnings](../src/ui/config/optionsAccountSchema.json).
 

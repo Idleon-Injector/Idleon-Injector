@@ -8,6 +8,7 @@ import { Loader } from "../Loader.js";
 import { EmptyState } from "../EmptyState.js";
 import { ConfigNode } from "../config/ConfigNode.js";
 import { StartupCheats, AddCheatSearchBar } from "../config/StartupCheats.js";
+import { Configs } from "../config/Configs.js";
 import { SearchBar } from "../SearchBar.js";
 import { Icons } from "../../assets/icons.js";
 import { withTooltip } from "../Tooltip.js";
@@ -33,11 +34,13 @@ const SettingsTop = ({ title, description, toolbar = null }) =>
     );
 
 export const Config = () => {
-    const activeSubTab = van.state("cheatconfig");
+    const activeSubTab = van.state("configs");
     const categoryFilter = van.state("all");
     const configSearchTerm = van.state("");
     const isAddingCheat = van.state(false);
     const draftReady = van.state(false);
+    // The configs (#198): { active, list } as the server last said.
+    const configs = van.state(null);
 
     // Draft will be a vanX.reactive object, but we store it in a regular variable to avoid reactivity cascade
     let draft = null;
@@ -50,6 +53,7 @@ export const Config = () => {
     van.derive(() => {
         if (store.app.config && !draft) {
             baseline = toPlain(store.app.config);
+            configs.val = baseline.configs ?? null;
             draft = vanX.reactive(toPlain(baseline));
             draftReady.val = true;
         }
@@ -61,6 +65,7 @@ export const Config = () => {
         const merged = applyConfigEdits(toPlain(latest), baseline, toPlain(draft));
         vanX.replace(draft, merged);
         baseline = latest;
+        configs.val = latest.configs ?? null;
         return merged;
     };
 
@@ -124,9 +129,12 @@ export const Config = () => {
                 const toSave = toPlain(merged);
                 delete toSave.defaultConfig;
                 delete toSave.gameRead; // the read's answer, not a setting
+                delete toSave.configs; // changed only through the Configs tab
 
                 const message = await store.saveConfig(toSave, isPersistent);
                 baseline = merged;
+                // A save can change a shipped config into the player's copy (Changed, Reset).
+                configs.val = (await fetchConfig().catch(() => null))?.configs ?? configs.val;
                 if (message && !SAVED.test(message)) return say("failed", message);
                 replay(saveButton, "confirmed");
                 say("done", isPersistent ? "Saved to config.custom.js" : "Applied until the injector restarts");
@@ -262,7 +270,7 @@ export const Config = () => {
 
             div(
                 { class: "sub-nav" },
-                ["Cheat Config", "Startup", "Injector"].map((name) => {
+                ["Configs", "Cheat Config", "Startup", "Injector"].map((name) => {
                     let id = name.toLowerCase().replace(" ", "");
                     if (name === "Startup") id += "cheats";
                     if (name === "Injector") id += "config";
@@ -275,9 +283,23 @@ export const Config = () => {
                                 isAddingCheat.val = false;
                             },
                         },
-                        name.toUpperCase()
+                        name.toUpperCase(),
+                        // Which config the settings tabs edit, beside the tab that switches it.
+                        name === "Configs"
+                            ? span({ class: "config-sub-tab-active" }, () => configs.val?.active ?? "")
+                            : null
                     );
                 })
+            ),
+
+            div(
+                { class: () => `config-sub-tab-pane ${activeSubTab.val === "configs" ? "active" : ""}` },
+                SettingsTop({
+                    title: "CONFIGS",
+                    description:
+                        "Each config keeps its own startup cheats and cheat settings. Switching keeps both; edits save into the config in use.",
+                }),
+                Configs({ configs, onChanged: () => inConfigTurn(syncDraft).catch(() => {}) })
             ),
 
             div(
@@ -390,7 +412,8 @@ export const Config = () => {
         },
 
         div(
-            { class: "action-bar" },
+            // Configs change on their own rows, so its tab has no Apply or Save.
+            { class: () => `action-bar${activeSubTab.val === "configs" ? " hidden" : ""}` },
             button(
                 {
                     type: "button",
@@ -426,7 +449,12 @@ export const Config = () => {
 
             withTooltip(
                 button(
-                    { id: "update-config-button", type: "button", class: "btn-quiet", onclick: (e) => save(false, e) },
+                    {
+                        id: "update-config-button",
+                        type: "button",
+                        class: "btn-quiet",
+                        onclick: (e) => save(false, e),
+                    },
                     "Apply"
                 ),
                 "Apply to session only (lost on restart)"

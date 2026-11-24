@@ -462,3 +462,21 @@ Alternative: keep each automation as a tab or sidebar entry under its system, or
 Trade-off: a system's automation sits away from its cheat page, so the cheat page carries a link to it.
 
 Source: [menu model](../src/ui/menu/menuModel.js), [pages](../src/ui/pages/automation/).
+
+## Ship configs instead of turning cheats on by default
+
+Decision: a fresh install still starts no cheats. Settings offers shipped configs, Light and AFK, beside the player's
+own, and switching is by hand. Each config keeps its own startup cheats and cheat settings; ports and paths stay the
+PC's. Editing a shipped config makes the player's copy, which Reset puts back. All configs live in `config.custom.js`,
+the one in use at the top as before, so a file from before configs loads as "My config".
+
+Why: the maintainer wanted a better first start without switching cheats on for anyone, and saving one config per
+account (#93) needed the same mechanism (#198).
+
+Alternative: better default cheats for everyone, or presets that merge into the player's settings (both rejected).
+
+Trade-off: a shipped config the player never edited is still kept as the list it had when they switched to it; a new
+version's changes to Light or AFK reach them on their next switch to it.
+
+Source: [configuration loading](../src/modules/config/configManager.js),
+[shipped configs](../src/modules/config/shippedConfigs.js).

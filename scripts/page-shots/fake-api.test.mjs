@@ -24,6 +24,7 @@ const EXAMPLES = {
     "/update/apply": ["POST", {}, 400],
     "/config/update": ["POST", { cheatConfig: {} }],
     "/config/save": ["POST", { cheatConfig: {} }],
+    "/configs": ["POST", { action: "use", name: "No such config" }, 400],
     "/open-url": ["POST", { url: "https://example.com" }],
     "/search": ["POST", { query: "60", keys: ["StampLevelMAX"] }],
     "/game/gga/read": ["POST", { path: "gga.StampLevel[0]" }],
