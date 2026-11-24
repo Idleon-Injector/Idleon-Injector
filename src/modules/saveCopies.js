@@ -72,7 +72,7 @@ const ON_ITS_OWN = new RegExp(
         "CauldronInfo\\[[56]\\]\\[\\d+\\]",
         "CauldronP2W\\[4\\]\\[\\d+\\]",
         "Bubba\\[0\\]\\[\\d+\\]",
-        "GamingSprout\\[\\d+\\]\\[1\\]",
+        "GamingSprout\\[\\d+\\]\\[[13]\\]",
         "Gaming\\[14\\]",
         "Summon\\[[23]\\]\\[\\d+\\]",
         "Spelunk\\[3\\]\\[\\d+\\]",
@@ -89,6 +89,9 @@ const ON_ITS_OWN = new RegExp(
         "ForgeIntervalProgress\\[\\d+\\]",
         // Timers and running totals kept in the account options: they moved in every idle gap, on both accounts.
         "OptionsListAccount\\[(45|87|124|253|263|288|289|305|423|439)\\]",
+        // The storage chest, where idle loot lands: on the bigger test account the same items rose in every gap. A
+        // storage change the player made shows here too.
+        "ChestQuantity\\[\\d+\\]",
     ].join("|")})$`
 );
 const isOnItsOwn = (filePath) =>
