@@ -27,6 +27,9 @@ const loadStartup = () =>
     fetchConfig()
         .then((file) => (startup.val = withNewNames(file.startupCheats ?? [])))
         .catch(() => {});
+// Read again when the window comes back: the file may have changed in the other window (the in-game overlay and a
+// browser both show the menu).
+window.addEventListener("focus", loadStartup);
 
 const groupOf = (cheat) => cheat.split(" ")[0];
 // "w4" in the startup cheats starts every W4 cheat: only "w4"'s own row can change that.
@@ -46,7 +49,10 @@ const arrive = (el) => {
  * "autostart" in This session, "remove" in Starts with injector. Each row's presses save one at a time, in order, and
  * the row shows the newest one while they run.
  */
-const Row = (cheat, { say, linger }) => {
+const Row = (cheat, { said, say, clear, linger }) => {
+    // A failure is said under the list, and this row's next success takes its own failure away.
+    const failed = (reason) => say("failed", `${cheat}: ${reason}`);
+    const done = () => said.val?.text.startsWith(`${cheat}: `) && clear();
     const wantOn = van.state(null);
     const wantAuto = van.state(null);
     const isOn = () => wantOn.val ?? store.getActiveCheats().includes(cheat);
@@ -63,7 +69,8 @@ const Row = (cheat, { say, linger }) => {
         onRuns++;
         onQueue = onQueue.then(async () => {
             const result = await store.executeCheat(cheat, next);
-            if (!result.ok) say("failed", `${cheat}: ${plainReason(result.message)}`);
+            if (result.ok) done();
+            else failed(plainReason(result.message));
             if (--onRuns === 0) wantOn.val = null;
         });
     };
@@ -78,8 +85,9 @@ const Row = (cheat, { say, linger }) => {
                     startupCheats: startupWith(withNewNames(file.startupCheats ?? []), cheat, next),
                 }));
                 startup.val = withNewNames(config.startupCheats ?? []);
+                done();
             } catch {
-                say("failed", "Couldn't save. Try again.");
+                failed("Couldn't save. Try again.");
                 await loadStartup();
             }
             if (--autoRuns === 0) wantAuto.val = null;
@@ -119,7 +127,7 @@ const Row = (cheat, { say, linger }) => {
 
 /** `side`: true while Home stands in the two-column frame (Pages.js), so the list stands beside Home's contents. */
 export const MyCheats = (side) => {
-    const { said, say } = useSaid();
+    const { said, say, clear } = useSaid();
     // Cheats switched off here that stay in the list until the pointer (or focus) leaves it.
     const lingering = van.state([]);
     // While the player works in the list, every row keeps its section; a row whose autostart changed moves on leaving.
@@ -188,7 +196,7 @@ export const MyCheats = (side) => {
             let el = rows.get(name);
             const isNew = !el;
             if (isNew) {
-                el = Row(name, { say, linger });
+                el = Row(name, { said, say, clear, linger });
                 rows.set(name, el);
             }
             const auto = keep && placed.has(name) ? placed.get(name) : autostarts(name);
