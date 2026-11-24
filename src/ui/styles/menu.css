@@ -119,61 +119,101 @@
     color: var(--c-text-muted);
 }
 
+/*
+ * The results drop over the page the way the character picker's names do, so nothing below moves: the panel's colour
+ * with its hairline and the menu's shadow. Inside, quiet groups (Pages, Cheats, Settings, Commands) of rows like a
+ * pick's options: a name, a small muted line under it, and the row hover's fill on the picked row; no box, no outline.
+ */
 .menu-search-results {
     position: absolute;
-    top: calc(100% + 4px);
+    top: calc(100% + 6px);
     left: 0;
     right: 0;
-    max-height: min(440px, 60vh);
+    max-height: min(560px, 70vh);
     overflow-y: auto;
-    padding: 6px;
-    background: var(--c-panel-98);
+    overscroll-behavior: contain;
+    padding: 6px 8px 8px;
     border: 1px solid var(--c-border);
+    border-radius: var(--radius-group);
+    background: var(--c-panel);
     box-shadow: 0 14px 28px var(--c-black-50);
+    animation: character-picker-in 180ms var(--ease-soft);
+}
+
+.menu-search-group + .menu-search-group {
+    margin-top: 6px;
+    border-top: 1px solid var(--c-hairline);
+}
+
+.menu-search-group__head {
+    padding: 10px 10px 4px;
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c-text-muted);
 }
 
 .menu-search-result {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
+    align-items: stretch;
+    gap: 2px;
     width: 100%;
-    padding: 6px 8px;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--c-text-main);
+    min-height: 44px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--c-text-body);
+    font-family: var(--font-display);
     text-align: left;
     text-transform: none;
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
+    cursor: pointer;
+    transition:
+        background-color 150ms var(--ease-soft),
+        color 150ms var(--ease-soft);
 }
 
+/* The picked row, by pointer or arrow keys: the fill the sidebar gives where you are. Focus stays in the field, so no
+   ring shows here. */
 .menu-search-result.is-hi {
-    background: var(--c-accent-dim);
-    border-color: var(--c-accent-25);
+    background: var(--c-here);
+    color: var(--c-text-main);
 }
 
+/* A name runs to two lines before it is cut; the line under it stays one. */
 .menu-search-result__label {
-    font-size: 0.92rem;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.3;
+    word-break: break-word;
 }
 
-/* A cheat command or setting name, in the monospace the Active Cheats list gives commands. */
+.menu-search-result__where {
+    overflow: hidden;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--c-text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A command typed or run (the command box's lines): the monospace the Active Cheats list gives commands. */
 .menu-search-result__label--command {
     font-family: var(--font-mono);
     font-size: 0.875rem;
 }
 
-.menu-search-result__matched {
-    margin-left: 8px;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--c-text-muted);
-}
-
-.menu-search-result__where {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--c-text-muted);
+@media (prefers-reduced-motion: reduce) {
+    .menu-search-results {
+        animation: none;
+    }
 }
 
 /* The command box: the same field holding a command to run, marked like the Cheats page's command prompt. */
@@ -217,9 +257,9 @@
 }
 
 .menu-search-none {
-    padding: 14px 8px;
-    font-size: 0.9rem;
-    font-style: italic;
+    padding: 12px 10px 10px;
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
     color: var(--c-text-muted);
 }
 
@@ -634,7 +674,9 @@
     height: 30px;
     border-radius: 8px;
 }
+/* Each side as wide as its word, so "Everywhere" keeps the same room on both sides as "This page". */
 .viewport .menu-search-scope .step-picker__step {
+    flex: none;
     padding: 0 11px;
     font-size: 0.8125rem;
 }

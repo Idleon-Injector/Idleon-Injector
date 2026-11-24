@@ -85,15 +85,8 @@ export const UpgradeDoublerButton = ({ doublers, index, name }) => {
                 "aria-pressed": () => doublers.selected.val.includes(index),
             },
             disabled: () => doublers.disabled(index),
-            tooltip: () => {
-                const selected = doublers.selected.val.includes(index);
-                const base = selected
-                    ? `${name} is doubled. Click to remove its doubler.`
-                    : doublers.selected.val.length >= doublers.capacity.val
-                      ? `All ${doublers.capacity.val} doubler slots are in use. Remove one before selecting ${name}.`
-                      : `Click to double ${name}.`;
-                return status() === "error" ? `${base} Save failed: ${doublers.writeError.val}` : base;
-            },
+            // Only a failed save says why under the pointer; the page's "2/3 doubled" says the rest.
+            tooltip: () => (status() === "error" ? `Not saved: ${doublers.writeError.val}` : ""),
             onClick: () => void doublers.toggle(index),
         }),
         van.tags.span({ class: "account-write-feedback", role: "status" }, () => {

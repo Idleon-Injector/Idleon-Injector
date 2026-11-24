@@ -405,7 +405,6 @@ const BundlesTab = () => {
             ),
             RefreshButton({
                 onRefresh: load,
-                tooltip: "Re-read bundle names, codes, and ownership from the running game.",
                 disabled: () => loading.val || buyAllStatus.val === "loading",
             }),
         ],

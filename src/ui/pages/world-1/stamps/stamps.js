@@ -414,7 +414,6 @@ const StampsTab = () => {
         description: "Change stamp levels and toggle exalted stamps.",
         actions: RefreshButton({
             onRefresh: load,
-            tooltip: "Re-read stamp data from game memory",
         }),
         state: { loading, error },
         loadingText: "Reading stamps",

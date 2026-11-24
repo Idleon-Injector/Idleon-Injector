@@ -139,16 +139,17 @@ export const TooltipContainer = () => {
  * @returns {HTMLElement} The same element with tooltip attached
  */
 export const withTooltip = (element, text, position = "top", enabled = true) => {
-    element.addEventListener("mouseenter", () => {
+    const show = () => {
         const isEnabled = typeof enabled === "function" ? enabled() : enabled;
-        if (!isEnabled) return;
-
         const tooltipText = typeof text === "function" ? text() : text;
-        showTooltip(element, tooltipText, position);
-    });
-
-    element.addEventListener("mouseleave", () => hideTooltip());
-    element.addEventListener("click", () => hideTooltip());
+        if (isEnabled && tooltipText) showTooltip(element, tooltipText, position);
+    };
+    element.addEventListener("mouseenter", show);
+    // A label the pointer gets also shows for the keyboard, never after a click.
+    element.addEventListener("focus", () => element.matches(":focus-visible") && show());
+    element.addEventListener("mouseleave", () => hideTooltip(element));
+    element.addEventListener("blur", () => hideTooltip(element));
+    element.addEventListener("click", () => hideTooltip(element));
 
     return element;
 };

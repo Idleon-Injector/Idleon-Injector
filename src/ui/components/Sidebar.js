@@ -22,7 +22,8 @@ const SHORTCUTS_TOOLTIP_TEXT =
 
 const areaActive = (area) => (area.tabs || [area]).some((tab) => store.app.activeTab === VIEWS[tab.view].id);
 
-const MenuBtn = ({ code, label, active, onclick, colorClass = "", key = null, drill = false }) =>
+// `tip`: the rail's hover label, in normal case ("World 1"); the rail shows only the code.
+const MenuBtn = ({ code, label, tip = label, active, onclick, colorClass = "", key = null, drill = false }) =>
     withTooltip(
         button(
             {
@@ -44,7 +45,7 @@ const MenuBtn = ({ code, label, active, onclick, colorClass = "", key = null, dr
             span({ class: "tab-label" }, label),
             drill ? span({ class: "menu-nav-more", "aria-hidden": "true" }, Icons.Chevron({ dir: "right" })) : null
         ),
-        label,
+        tip,
         "right",
         isRail
     );
@@ -72,6 +73,7 @@ const WorldBtn = (world) =>
         // A world or section with a drawing shows it instead of its code (Automation's loop: "AUT" read as a cut word).
         code: Icons.System({ name: world.label }) ?? world.code,
         label: world.label.toUpperCase(),
+        tip: world.label,
         colorClass: worldClass(world),
         key: world.id,
         drill: true,
@@ -86,6 +88,7 @@ const TopList = () =>
         MenuBtn({
             code: "HOM",
             label: "HOME",
+            tip: "Home",
             active: () => store.app.activeTab === VIEWS.HOME.id,
             onclick: () => store.openMenu({ view: "HOME" }),
         }),
@@ -101,6 +104,7 @@ const TopList = () =>
             return MenuBtn({
                 code: area.code,
                 label: area.label.toUpperCase(),
+                tip: area.label,
                 key: area.id,
                 drill,
                 active: () => areaActive(area),

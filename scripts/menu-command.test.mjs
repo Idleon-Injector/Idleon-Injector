@@ -62,7 +62,7 @@ const resultLine = () => {
 test("picking a command fills the box without running it; Enter runs it once, with the amount typed", async () => {
     await type("candy");
     const list = results();
-    assert.equal(list[0], "wide candyCheat · Cheats › Wide", "the cheat first");
+    assert.equal(list[0], "wide candyCandy use everywhere", "the cheat first, with what it does under it");
     const drop = list.findIndex((row) => row.startsWith("drop · 24 Hr Time Candy"));
     assert.ok(drop > 0, "then the candy drop");
 
@@ -88,6 +88,25 @@ test("picking a command fills the box without running it; Enter runs it once, wi
 
     await type("c");
     assert.ok(!resultLine().shown, "typing again puts the search back in its place");
+});
+
+test("results come in groups, each together, and the arrow keys follow the order shown", async () => {
+    await type("candy");
+    const groups = find(bar, (node) => node.attributes?.role === "group");
+    assert.deepEqual(
+        groups.map((group) => group.attributes["aria-label"]),
+        ["Cheats", "Commands"],
+        "the cheat's group first, where its best result ranked"
+    );
+    const shown = groups.flatMap((group) => find(group, (node) => node.attributes?.role === "option").map(text));
+    assert.deepEqual(shown, results(), "every result sits in its group, in the listbox's order");
+    await key("ArrowDown");
+    const picked = find(
+        bar,
+        (node) => node.attributes?.role === "option" && node.attributes["aria-selected"] === "true"
+    );
+    assert.equal(text(picked[0]), shown[1], "ArrowDown picks the next row shown");
+    await key("Escape");
 });
 
 test("a command that fails says why in the line under the box", async () => {
