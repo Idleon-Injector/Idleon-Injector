@@ -82,6 +82,8 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
         id: "fixture.steady",
         cheat: "fixture steady",
         label: undefined,
+        whenOff: undefined,
+        startup: true,
         on: true,
         error: null,
         status: "ticked 3",

@@ -369,8 +369,9 @@ test("a free extra level can pass the stop-at, and the status counts levels", as
     await cheat("automation bubbles", false);
 });
 
-test("the overview lists Bubbles with the other automation toggles", () => {
+test("the overview lists Bubbles with the other automations that have a label", () => {
     const list = readComputed("automation", "list").value;
     assert.ok(list.some(({ id, label }) => id === "w2.automation.bubbles" && label === "Bubbles"));
-    assert.ok(list.every(({ cheat: name }) => name.startsWith("automation ")));
+    assert.ok(list.every(({ label }) => label));
+    assert.ok(!list.some(({ cheat: name }) => name === "wide autoboss"), "autoboss stays a cheat");
 });

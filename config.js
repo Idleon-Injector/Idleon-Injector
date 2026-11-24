@@ -111,7 +111,7 @@ exports.cheatConfig = {
             OwlCost: (t) => t / 2, // Owl: Upgrade costs. (lower is better)
             OwlFeatherRate: (t) => t * 2, // Owl: Feather gain rate
             OwlBonuses: (t) => t * 2, // Owl: All owl-related bonuses
-            OwlFeatherShinyGe: (t) => t, // Owl: Shiny feather generation (unknown effect)
+            OwlFeatherShinyGe: (t) => t, // Owl: Shiny feather generation (unknown effect). No change until you set it
             // OwlMegafeather: (t) => t,
             // OwlNextUpgReq: (t) => t,
         },
@@ -136,11 +136,11 @@ exports.cheatConfig = {
             // RooBonuse: (t) => t,
         },
         alchemy: {
-            BubbleBonus: (t) => t, // Alchemy: All bubble effects
-            CauldronCosts: (t) => t, // Alchemy: Bubble upgrade costs
+            BubbleBonus: (t) => t, // Alchemy: All bubble effects. No change until you set it
+            CauldronCosts: (t) => t, // Alchemy: Bubble upgrade costs. No change until you set it
             ResearchSpeed: (t) => t * 4, // Alchemy: Brewing speed
             VialCosts: (t) => t / 2, // Alchemy: Vial costs. (lower is better)
-            VialBonus: (t) => t, // Alchemy: Vial effects
+            VialBonus: (t) => t, // Alchemy: Vial effects. No change until you set it
             PctChanceNewBubble: (t) => t * 4, // Alchemy: New bubble discovery chance
             CauldronLvsBrewREQ: (t) => t / 2, // Alchemy: Cauldron level requirements. (lower is better)
             LiquidCap: (t) => t * 2, // Alchemy: Liquid storage capacity
@@ -170,105 +170,105 @@ exports.cheatConfig = {
             TotalDMG: (t) => t * 4, // Pet Arena: Total pet damage
         },
         mainframe: {
-            0: (t) => 200, // Mainframe: Animal farm damage bonus percentage
-            1: (t) => 2, // Mainframe: Wired In printer multiplier
-            2: (t) => 10, // Mainframe: Refinery cycle speed multiplier
-            3: (t) => 10, // Mainframe: Alchemy bubble level gain (affects multi-bubble discovery)
-            4: (t) => 2, // Mainframe: Deathnote and portal kill multiplier
+            0: (t) => Math.max(t, 200), // Mainframe: Animal farm damage bonus percentage
+            1: (t) => Math.max(t, 2), // Mainframe: Wired In printer multiplier
+            2: (t) => Math.max(t, 10), // Mainframe: Refinery cycle speed multiplier
+            3: (t) => Math.max(t, 10), // Mainframe: Alchemy bubble level gain (affects multi-bubble discovery)
+            4: (t) => Math.max(t, 2), // Mainframe: Deathnote and portal kill multiplier
             5: (t) => 1, // Mainframe: Enable Shrine World Tour effect
-            6: (t) => 5, // Mainframe: Alchemy liquid capacity multiplier
+            6: (t) => Math.max(t, 5), // Mainframe: Alchemy liquid capacity multiplier
             7: (t) => 2, // Mainframe: Stamp bonus multiplier (must be 2 to work)
-            8: (t) => 5, // Mainframe: Spelunker jewel effect multiplier
+            8: (t) => Math.max(t, 5), // Mainframe: Spelunker jewel effect multiplier
             9: (t) => t * 2, // Mainframe: Fungi Finger Pocketer cash bonus multiplier
-            10: (t) => 2, // Mainframe: Alchemy vial bonus multiplier
+            10: (t) => Math.max(t, 2), // Mainframe: Alchemy vial bonus multiplier
             11: (t) => t * 1.2, // Mainframe: Banking Fury damage multiplier
             12: (t) => 1, // Mainframe: Enable sigils in alchemy
-            13: (t) => 300, // Mainframe: Lab connection range multiplier
-            100: (t) => 10, // Mainframe: Meal cooking speed multiplier
-            101: (t) => 3, // Mainframe: Additional animal farm damage % per pet
-            102: (t) => 60, // Mainframe: Lab XP gain bonus percentage
-            103: (t) => 36, // Mainframe: Trim all building slots bonus
-            104: (t) => 15, // Mainframe: All Stat bonus percentage
-            105: (t) => 100, // Mainframe: Breeding XP gain bonus percentage
-            106: (t) => 10, // Mainframe: Kitchen level up per day bonus
-            107: (t) => 2, // Mainframe: Adds to bonus 3 (multi-bubble discovery)
-            108: (t) => 50, // Mainframe: Food non-consume chance percentage
-            109: (t) => 145, // Mainframe: Connection range for bonuses and jewels
-            110: (t) => 100, // Mainframe: Extra damage bonus percentage
-            111: (t) => 500, // Mainframe: Reduced egg incubation time percentage
-            112: (t) => 1500, // Mainframe: Base efficiency bonus for all skills
-            113: (t) => 1.5, // Mainframe: Fungi Finger Pocketer extra cash percentage
+            13: (t) => Math.max(t, 300), // Mainframe: Lab connection range multiplier
+            100: (t) => Math.max(t, 10), // Mainframe: Meal cooking speed multiplier
+            101: (t) => Math.max(t, 3), // Mainframe: Additional animal farm damage % per pet
+            102: (t) => Math.max(t, 60), // Mainframe: Lab XP gain bonus percentage
+            103: (t) => Math.max(t, 36), // Mainframe: Trim all building slots bonus
+            104: (t) => Math.max(t, 15), // Mainframe: All Stat bonus percentage
+            105: (t) => Math.max(t, 100), // Mainframe: Breeding XP gain bonus percentage
+            106: (t) => Math.max(t, 10), // Mainframe: Kitchen level up per day bonus
+            107: (t) => Math.max(t, 2), // Mainframe: Adds to bonus 3 (multi-bubble discovery)
+            108: (t) => Math.max(t, 50), // Mainframe: Food non-consume chance percentage
+            109: (t) => Math.max(t, 145), // Mainframe: Connection range for bonuses and jewels
+            110: (t) => Math.max(t, 100), // Mainframe: Extra damage bonus percentage
+            111: (t) => Math.max(t, 500), // Mainframe: Reduced egg incubation time percentage
+            112: (t) => Math.max(t, 1500), // Mainframe: Base efficiency bonus for all skills
+            113: (t) => Math.max(t, 1.5), // Mainframe: Fungi Finger Pocketer extra cash percentage
             114: (t) => t * 3, // Mainframe: Meal cooking bonus speed percentage
-            115: (t) => 45, // Mainframe: Pet passive ability speed percentage
-            116: (t) => 50, // Mainframe: Additional meal bonus percentage
-            117: (t) => 1.5, // Mainframe: Damage per greened stack bonus
+            115: (t) => Math.max(t, 45), // Mainframe: Pet passive ability speed percentage
+            116: (t) => Math.max(t, 50), // Mainframe: Additional meal bonus percentage
+            117: (t) => Math.max(t, 1.5), // Mainframe: Damage per greened stack bonus
         },
         chipbonuses: {
-            resp: (t) => 50, // Lab Chip: Mob respawn speed bonus percentage
+            resp: (t) => Math.max(t, 50), // Lab Chip: Mob respawn speed bonus percentage
             card1: (t) => 1, // Lab Chip: Double top-left card effect (1 = yes)
             card2: (t) => 1, // Lab Chip: Double bottom-right card effect (1 = yes)
-            crys: (t) => 95, // Lab Chip: Crystal spawn chance on kill percentage
+            crys: (t) => Math.max(t, 95), // Lab Chip: Crystal spawn chance on kill percentage
             star: (t) => 1, // Lab Chip: Double star sign effects (1 = yes)
-            mkill: (t) => 40, // Lab Chip: Multikill per tier bonus percentage
-            linewidth: (t) => 12, // Lab Chip: Lab line width bonus percentage
-            dmg: (t) => 100, // Lab Chip: Damage bonus percentage
-            move: (t) => 30, // Lab Chip: Movement speed bonus percentage
-            acc: (t) => 30, // Lab Chip: Accuracy bonus percentage
+            mkill: (t) => Math.max(t, 40), // Lab Chip: Multikill per tier bonus percentage
+            linewidth: (t) => Math.max(t, 12), // Lab Chip: Lab line width bonus percentage
+            dmg: (t) => Math.max(t, 100), // Lab Chip: Damage bonus percentage
+            move: (t) => Math.max(t, 30), // Lab Chip: Movement speed bonus percentage
+            acc: (t) => Math.max(t, 30), // Lab Chip: Accuracy bonus percentage
             pend: (t) => 1, // Lab Chip: Double pendant bonuses (1 = yes)
             key1: (t) => 1, // Lab Chip: Double first keychain bonuses (1 = yes)
             troph: (t) => 1, // Lab Chip: Double trophy bonuses (1 = yes)
-            def: (t) => 10, // Lab Chip: Defense bonus percentage
-            weappow: (t) => 100, // Lab Chip: Weapon power bonus percentage
-            dr: (t) => 60, // Lab Chip: Drop rarity bonus percentage
-            toteff: (t) => 40, // Lab Chip: Skilling efficiency bonus percentage
-            eff: (t) => 1200, // Lab Chip: Base skilling efficiency bonus
-            labexp: (t) => 150, // Lab Chip: Lab XP bonus percentage
-            atkspd: (t) => 60, // Lab Chip: Attack speed bonus percentage
-            safk: (t) => 15, // Lab Chip: Skill AFK gains bonus percentage
-            fafk: (t) => 25, // Lab Chip: Fight AFK gains bonus percentage
+            def: (t) => Math.max(t, 10), // Lab Chip: Defense bonus percentage
+            weappow: (t) => Math.max(t, 100), // Lab Chip: Weapon power bonus percentage
+            dr: (t) => Math.max(t, 60), // Lab Chip: Drop rarity bonus percentage
+            toteff: (t) => Math.max(t, 40), // Lab Chip: Skilling efficiency bonus percentage
+            eff: (t) => Math.max(t, 1200), // Lab Chip: Base skilling efficiency bonus
+            labexp: (t) => Math.max(t, 150), // Lab Chip: Lab XP bonus percentage
+            atkspd: (t) => Math.max(t, 60), // Lab Chip: Attack speed bonus percentage
+            safk: (t) => Math.max(t, 15), // Lab Chip: Skill AFK gains bonus percentage
+            fafk: (t) => Math.max(t, 25), // Lab Chip: Fight AFK gains bonus percentage
         },
         meals: {
-            TotDmg: (t) => t, // Meals: total damage bonus
-            Mcook: (t) => t, // Meals: meal cooking speed bonus
-            Cash: (t) => t, // Meals: cash from monsters bonus
-            Rcook: (t) => t, // Meals: recipe cooking speed bonus
-            Npet: (t) => t, // Meals: new mob breed odds bonus
-            BrExp: (t) => t, // Meals: breeding EXP bonus
-            Seff: (t) => t, // Meals: skill efficiency bonus
-            VIP: (t) => t, // Meals: VIP library points bonus
-            Lexp: (t) => t, // Meals: lab EXP bonus
-            Def: (t) => t, // Meals: base defence bonus
-            PxLine: (t) => t, // Meals: lab line width (px) bonus
-            KitchenEff: (t) => t, // Meals: cooking speed per ten levels bonus
-            TimeEgg: (t) => t, // Meals: lower egg creation time bonus
-            KitchC: (t) => t, // Meals: lower kitchen costs bonus
-            PetDmg: (t) => t, // Meals: mob fighting damage bonus
-            TDpts: (t) => t, // Meals: tower defence points bonus
-            CookExp: (t) => t, // Meals: cooking EXP bonus
-            Breed: (t) => t, // Meals: mob breedability rate bonus
-            TotAcc: (t) => t, // Meals: total accuracy bonus
-            AtkSpd: (t) => t, // Meals: basic attack speed bonus
-            Sprow: (t) => t, // Meals: skilling prowess bonus
-            Lib: (t) => t, // Meals: library checkout speed bonus
-            Critter: (t) => t, // Meals: critters from traps bonus
-            Crit: (t) => t, // Meals: crit chance bonus
-            LinePct: (t) => t, // Meals: lab line width (%) bonus
-            TPpete: (t) => t, // Meals: max levels for TPPST bonus
-            Liquid12: (t) => t, // Meals: liquid capacity (liquids 1 and 2) bonus
-            DivExp: (t) => t, // Meals: divinity EXP bonus
-            GamingBits: (t) => t, // Meals: bits gain in gaming bonus
-            Liquid34: (t) => t, // Meals: liquid capacity (liquids 3 and 4) bonus
-            Sailing: (t) => t, // Meals: sailing speed bonus
-            GamingExp: (t) => t, // Meals: gaming EXP bonus
+            TotDmg: (t) => t, // Meals: total damage bonus. No change until you set it
+            Mcook: (t) => t, // Meals: meal cooking speed bonus. No change until you set it
+            Cash: (t) => t, // Meals: cash from monsters bonus. No change until you set it
+            Rcook: (t) => t, // Meals: recipe cooking speed bonus. No change until you set it
+            Npet: (t) => t, // Meals: new mob breed odds bonus. No change until you set it
+            BrExp: (t) => t, // Meals: breeding EXP bonus. No change until you set it
+            Seff: (t) => t, // Meals: skill efficiency bonus. No change until you set it
+            VIP: (t) => t, // Meals: VIP library points bonus. No change until you set it
+            Lexp: (t) => t, // Meals: lab EXP bonus. No change until you set it
+            Def: (t) => t, // Meals: base defence bonus. No change until you set it
+            PxLine: (t) => t, // Meals: lab line width (px) bonus. No change until you set it
+            KitchenEff: (t) => t, // Meals: cooking speed per ten levels bonus. No change until you set it
+            TimeEgg: (t) => t, // Meals: lower egg creation time bonus. No change until you set it
+            KitchC: (t) => t, // Meals: lower kitchen costs bonus. No change until you set it
+            PetDmg: (t) => t, // Meals: mob fighting damage bonus. No change until you set it
+            TDpts: (t) => t, // Meals: tower defence points bonus. No change until you set it
+            CookExp: (t) => t, // Meals: cooking EXP bonus. No change until you set it
+            Breed: (t) => t, // Meals: mob breedability rate bonus. No change until you set it
+            TotAcc: (t) => t, // Meals: total accuracy bonus. No change until you set it
+            AtkSpd: (t) => t, // Meals: basic attack speed bonus. No change until you set it
+            Sprow: (t) => t, // Meals: skilling prowess bonus. No change until you set it
+            Lib: (t) => t, // Meals: library checkout speed bonus. No change until you set it
+            Critter: (t) => t, // Meals: critters from traps bonus. No change until you set it
+            Crit: (t) => t, // Meals: crit chance bonus. No change until you set it
+            LinePct: (t) => t, // Meals: lab line width (%) bonus. No change until you set it
+            TPpete: (t) => t, // Meals: max levels for TPPST bonus. No change until you set it
+            Liquid12: (t) => t, // Meals: liquid capacity (liquids 1 and 2) bonus. No change until you set it
+            DivExp: (t) => t, // Meals: divinity EXP bonus. No change until you set it
+            GamingBits: (t) => t, // Meals: bits gain in gaming bonus. No change until you set it
+            Liquid34: (t) => t, // Meals: liquid capacity (liquids 3 and 4) bonus. No change until you set it
+            Sailing: (t) => t, // Meals: sailing speed bonus. No change until you set it
+            GamingExp: (t) => t, // Meals: gaming EXP bonus. No change until you set it
         },
     },
     w5: {
         sailing: {
             IslandDistance: (t) => t / 2, // Sailing: Island distance (lower is closer)
-            MaxChests: (t) => t, // Sailing: Maximum chest limit (Warning: too high may break cloud saves)
+            MaxChests: (t) => t, // Sailing: Maximum chest limit (Warning: too high may break cloud saves). No change until you set it
             RareTreasureChance: (t) => t * 5, // Sailing: Rare treasure find chance
             Minimumtraveltime: (t) => t / 5, // Sailing: Minimum travel time in minutes. (lower is better)
-            BoatUpgCostType: (t) => t, // Sailing: Loot type ID for boat upgrades
+            BoatUpgCostType: (t) => t, // Sailing: Loot type ID for boat upgrades. No change until you set it
             BoatUpgCostQty: (t) => t / 2, // Sailing: Loot quantity for upgrades. (lower is better)
             BoatValue: (t) => t * 2, // Sailing: Loot quantity gained from boats
             BoatSpeed: (t) => t * 2, // Sailing: Boat travel speed
@@ -281,7 +281,7 @@ exports.cheatConfig = {
             TranscendentChances: (t) => t / 5, // Sailing: Transcendent artifact chance. (lower is better)
             NewCaptBoatSlot: (t) => 0, // Sailing: Cost for unlocking new boat and captain slots. (lower is better)
             BuyCaptainCost: (t) => 0, // Sailing: Cost for hiring new captains. (lower is better)
-            ArtifactBonus: (t) => t, // Sailing: All artifact-provided bonuses
+            ArtifactBonus: (t) => t, // Sailing: All artifact-provided bonuses. No change until you set it
         },
         gaming: {
             FertilizerUpgCosts: (t) => 0, // Gaming: Fertilizer upgrade costs. (lower is better)
@@ -290,7 +290,7 @@ exports.cheatConfig = {
             LogBookBitBonus: (t) => Math.max(20, t * 2), // Gaming: Bit bonuses from the logbook
             GamingExpPCT: (t) => t * 1.5, // Gaming: Gaming XP gain percentage
             NewMutantChanceDEC: (t) => 1, // Gaming: Decimal new mutant chance (1 = guaranteed)
-            SproutGrowthCHANCEperMUT: (t) => t, // Gaming: Growth chance per mutation
+            SproutGrowthCHANCEperMUT: (t) => t, // Gaming: Growth chance per mutation. No change until you set it
             SproutGrowthTime: (t) => t / 5, // Gaming: Sprout growth speed. (lower is better)
             SaveSprinkler: (t) => t * 1.1, // Gaming: Chance to save water when using sprinkler
             ImportItemCOST: (t) => 0, // Gaming: Import item costs. (lower is better)
@@ -303,11 +303,11 @@ exports.cheatConfig = {
             SnailMail: false, // Gaming: Enable/disable Snail Mail automation
             PaletteLuck: (t) => t * 2, // Gaming: Palette-related luck
             PaletteBonus: (t) => t * 2, // Gaming: Palette-related bonuses
-            RatBitMulti: (t) => t, // Gaming: Rat King crown bit multiplier
-            RatCrownOdds: (t) => t, // Gaming: Rat King crown odds
-            RatCurrencyGain: (t) => t, // Gaming: Rat currency gain
-            RatShopCost: (t) => t, // Gaming: Rat shop costs. (lower is better)
-            RatShopBonuses: (t) => t, // Gaming: Rat shop bonuses
+            RatBitMulti: (t) => t, // Gaming: Rat King crown bit multiplier. No change until you set it
+            RatCrownOdds: (t) => t, // Gaming: Rat King crown odds. No change until you set it
+            RatCurrencyGain: (t) => t, // Gaming: Rat currency gain. No change until you set it
+            RatShopCost: (t) => t, // Gaming: Rat shop costs. (lower is better). No change until you set it
+            RatShopBonuses: (t) => t, // Gaming: Rat shop bonuses. No change until you set it
         },
         divinity: {
             unlinks: true, // Divinity: Allows unlinking gods at any time
@@ -315,15 +315,15 @@ exports.cheatConfig = {
             DivPerHr: (t) => t * 3, // Divinity: Base divinity points gained per hour
             DivPerHr_EXP: (t) => t * 3, // Divinity: Base divinity XP gained per hour
             BlesssBonus: (t) => t * 2, // Divinity: God blessing bonuses
-            Bonus_MAJOR: (t) => t, // Divinity: Major god bonuses
+            Bonus_MAJOR: (t) => t, // Divinity: Major god bonuses. No change until you set it
             Bonus_Minor: (t) => t * 2, // Divinity: Minor god bonuses
             OfferingCost: (t) => 0, // Divinity: Offering costs. (lower is better)
             OfferingOdds: (t) => 1, // Divinity: Success probability for offerings
         },
         collider: {
-            AtomsUnlocked: (t) => t, // Collider: Number of unlocked atoms (max 10)
+            AtomsUnlocked: (t) => t, // Collider: Number of unlocked atoms (max 10). No change until you set it
             AtomCost: (t) => 0, // Collider: Atom collider upgrade costs. (lower is better)
-            AtomBonuses: (t) => t, // Collider: Bonuses provided by atoms
+            AtomBonuses: (t) => t, // Collider: Bonuses provided by atoms. No change until you set it
             AtomBubbleUpgCost: (t) => 0, // Collider: Atom bubble upgrade costs. (lower is better)
         },
         holes: {
@@ -339,11 +339,11 @@ exports.cheatConfig = {
             // MonumentHRbonuses: (t) => t * 2,
             Bravery_MinDMG: (t) => t * 10, // Bravery: Minimum bravery damage
             Bravery_MaxDMG: (t) => t * 2, // Bravery: Maximum bravery damage
-            Bravery_SwordsOwned: (t) => 8, // Bravery: Number of swords owned
-            MaxRerolls: (t) => 20, // Bravery: Max rerolls allowed
-            MaxRevisions: (t) => 5, // Bravery: Max revisions allowed
+            Bravery_SwordsOwned: (t) => 9, // Bravery: Number of swords owned
+            MaxRerolls: (t) => Math.max(t, 20), // Bravery: Max rerolls allowed
+            MaxRevisions: (t) => Math.max(t, 5), // Bravery: Max revisions allowed
             Bravery_MonsterHP: (t) => t / 2, // Bravery: Monster HP. (lower is better)
-            Bravery_BlueChestChanceDEC: (t) => 0.5, // Bravery: Probability of blue chest spawn. (lower is better)
+            Bravery_BlueChestChanceDEC: (t) => t, // Bravery: Blue chest chance (higher is better). No change until you set it
             BellCosts: (t) => t / 2, // Sneaking: Bell improvement costs. (lower is better)
             BellBonuss: (t) => t * 2, // Sneaking: Bell bonuses
             BellExpPerHR: (t) => t * 2, // Sneaking: Bell XP gain speed
@@ -401,23 +401,23 @@ exports.cheatConfig = {
     w6: {
         farming: {
             GrowthReq: (t) => t / 5, // Farming: Plant growth time. (lower is better)
-            OGunlocked: (t) => t, // Farming: Overgrowth shop unlock state (0 = locked, 1 = unlocked)
+            OGunlocked: (t) => t, // Farming: Overgrowth shop unlock state (0 = locked, 1 = unlocked). No change until you set it
             NextOGchance: (t) => t * 5, // Farming: Next overgrowth discovery chance
-            OGmulti: (t) => (t === 1 ? 1 : Math.max(1, t * 2)), // Farming: Overgrowth bonuses
+            OGmulti: (t) => (t === 1 ? 1 : Math.min(1e9, Math.max(1, t * 2))), // Farming: Overgrowth bonuses (the game stops at 1e9)
             PlotOwned: (t) => Math.min(36, t + 2), // Farming: Number of plots owned (max 36)
-            MarketCostType: (t) => t, // Farming: Plant type ID for market upgrades
+            MarketCostType: (t) => t, // Farming: Plant type ID for market upgrades. No change until you set it
             MarketCostQTY: (t) => Math.floor(t / 5), // Farming: Plant quantity for upgrades. (lower is better)
             NextCropChance: (t) => t * 2, // Farming: Next plant evolution discovery chance
             CropsBonusValue: (t) => t * 2, // Farming: Crop value/bonus
             CropsOnVine: (t) => t * 2, // Farming: Crops per plant
-            GrowthRate: (t) => t, // Farming: Base growth rate multiplier
-            ExoticPurchasesAllowed: (t) => Math.max(t, 8), // Farming: Allowed exotic purchases (max 8)
+            GrowthRate: (t) => t, // Farming: Base growth rate multiplier. No change until you set it
+            ExoticPurchasesAllowed: (t) => Math.max(t, 8), // Farming: Allowed exotic purchases (at least 8)
             ExoticLVQTY: (t) => t * 2, // Farming: Exotic level quantities
-            StickerDMGmulti: (t) => t, // Farming: Sticker damage multiplier
-            StickersPerRow: (t) => t, // Farming: Stickers per row
-            StickerOdds: (t) => t, // Farming: Sticker find chance
-            AttemptMegacropGrowth: (t) => t, // Farming: Megacrop growth roll (1 = it grows)
-            StickerBonus: (t) => t, // Farming: Sticker bonuses
+            StickerDMGmulti: (t) => t, // Farming: Sticker damage multiplier. No change until you set it
+            StickersPerRow: (t) => t, // Farming: Stickers per row. No change until you set it
+            StickerOdds: (t) => t, // Farming: Sticker find chance. No change until you set it
+            AttemptMegacropGrowth: (t) => t, // Farming: Megacrop growth roll (1 = it grows). No change until you set it
+            StickerBonus: (t) => t, // Farming: Sticker bonuses. No change until you set it
             // StickerOddsMulti: (t) => t,
             // TotalStickers: (t) => t,
             // NumberOfBigStickers: (t) => t,
@@ -428,16 +428,16 @@ exports.cheatConfig = {
             ActionSpd: (t) => t * 2, // Ninja: Action speed
             Stealth: (t) => t * 2, // Ninja: Stealth rating
             DetectionDEC: (t) => t / 5, // Ninja: Detection rate. (lower is better)
-            DoorMaxHP: (t) => t, // Ninja: Door max HP
-            JadeUpgCost: (t) => t, // Ninja: Jade upgrade costs. (lower is better)
+            DoorMaxHP: (t) => t, // Ninja: Door max HP. No change until you set it
+            JadeUpgCost: (t) => t, // Ninja: Jade upgrade costs. (lower is better). No change until you set it
             ItemStat: (t) => t * 2, // Ninja: Item stats
             ItemFindOdds: (t) => t * 2, // Ninja: Item find chance
-            PristineBon: (t) => t, // Ninja: Pristine Charm bonuses
+            PristineBon: (t) => t, // Ninja: Pristine Charm bonuses. No change until you set it
         },
         summoning: {
-            ManaStart: (t) => t, // Summoning: Starting mana in battles
+            ManaStart: (t) => t, // Summoning: Starting mana in battles. No change until you set it
             ManaRegen: (t) => t * 2, // Summoning: Mana regeneration speed
-            UnitSpd: (t) => t, // Summoning: Ally unit movement speed
+            UnitSpd: (t) => t, // Summoning: Ally unit movement speed. No change until you set it
             UnitHP: (t) => t * 2, // Summoning: Ally unit HP
             UnitDMG: (t) => t * 2, // Summoning: Ally unit damage
             UnitDODGE: (t) => Math.min(1, t * 2), // Summoning: Ally unit dodge probability (max 1)
@@ -447,10 +447,10 @@ exports.cheatConfig = {
             UpgCost: (t) => t / 2, // Summoning: Upgrade costs (0 = free). (lower is better)
             UnitCost: (t) => Math.ceil(t / 2), // Summoning: Unit summoning costs. (lower is better)
             RerollCost: (t) => 0, // Summoning: Reroll costs (0 = free). (lower is better)
-            SummEXPgain: (t) => t, // Summoning: Summoning XP gain
+            SummEXPgain: (t) => t, // Summoning: Summoning XP gain. No change until you set it
             EnemyHP: (t) => t / 2, // Summoning: Enemy unit HP. (lower is better)
             EnemyDMG: (t) => t / 2, // Summoning: Enemy unit damage. (lower is better)
-            EnemySpd: (t) => t, // Summoning: Enemy unit movement speed
+            EnemySpd: (t) => t, // Summoning: Enemy unit movement speed. No change until you set it
         },
         grimoire: {
             GrimoireBoneQTYbase: (t) => t * 2, // Grimoire: Bone quantity base value
@@ -528,9 +528,9 @@ exports.cheatConfig = {
             ExtraTachyon: (t) => t * 2, // Arcane: Extra tachyon gain
             ExtraTachyonMulti: (t) => t * 2, // Arcane: Extra tachyon bonuses
             ArcaneTachyonQTYbase: (t) => t * 2, // Arcane: Tachyon quantity base value
-            ArcaneMobSpawnQTY: (t) => t, // Arcane: Mobs spawned by Arcane Crystal ability
-            TimeLeft: (t) => t, // Arcane: Remaining time for the Arcane Barrier encounter
-            CrystalChargeReq: (t) => t, // Arcane: Kill requirement to spawn Arcane mobs. (lower is better)
+            ArcaneMobSpawnQTY: (t) => t, // Arcane: Mobs spawned by Arcane Crystal ability. No change until you set it
+            TimeLeft: (t) => t, // Arcane: Remaining time for the Arcane Barrier encounter. No change until you set it
+            CrystalChargeReq: (t) => t, // Arcane: Kill requirement to spawn Arcane mobs. (lower is better). No change until you set it
             // TesseractArcanist: (t) => t,
             // ArcaneUpgUNLOCKED: (t) => t,
             // ArcaneUpgTotal: (t) => t,
@@ -714,7 +714,7 @@ exports.cheatConfig = {
         bubba: {
             MeatsliceRate: (t) => t * 2, // Bubba: Meat slicing speed
             UpgCost: (t) => t / 2, // Bubba: Upgrade costs. (lower is better)
-            DoubleLVchancePCT: (t) => t, // Bubba: Double level chance on upgrade
+            DoubleLVchancePCT: (t) => t, // Bubba: Double level chance on upgrade. No change until you set it
             DailyPetting: (t) => t * 2, // Bubba: Daily petting limit
             DailyPet_HappinessQTY: (t) => t * 2, // Bubba: Happiness gained from petting
             DailyPet_HappinessFromUpg: (t) => t * 2, // Bubba: Happiness gained from upgrades
@@ -761,7 +761,7 @@ exports.cheatConfig = {
             AmberDropChance: (t) => t * 2, // Spelunking: Probability of primary amber drops
             AmberDropChance2nd: (t) => t * 2, // Spelunking: Probability of secondary amber drops
             EscapeRopeChance: (t) => Math.max(t, 1), // Spelunking: Escape rope find chance
-            TollExitTax: (t) => 1, // Spelunking: Toll exit tax. (lower is better)
+            TollExitTax: (t) => 1, // Spelunking: Share of loot kept at the toll exit (1 = all)
             SpelunkingEfficiency: (t) => t * 2, // Spelunking: Spelunking efficiency
             SpelunkingSpeed: (t) => t / 2, // Spelunking: Spelunking speed. (lower is better)
             ExaltDropChance: (t) => t * 2, // Spelunking: Probability of exalt drops
@@ -774,8 +774,8 @@ exports.cheatConfig = {
             GrandDiscoveries_FindChance: (t) => t * 2, // Spelunking: Grand Discovery find chance
             RockPOWreq: (t) => t / 2, // Spelunking: Rock power requirements. (lower is better)
             RockHP: (t) => t / 2, // Spelunking: Rock HP. (lower is better)
-            MaxDailyPageReads: (t) => t, // Spelunking: Maximum page reads per day
-            PageReadingLVgains: (t) => t, // Spelunking: Levels gained from reading a page
+            MaxDailyPageReads: (t) => t, // Spelunking: Maximum page reads per day. No change until you set it
+            PageReadingLVgains: (t) => t, // Spelunking: Levels gained from reading a page. No change until you set it
             // POW_base: (t) => t * 2,
             // POW_multi: (t) => t * 2,
             // SpelunkingMultiOre: (t) => t,
@@ -836,8 +836,8 @@ exports.cheatConfig = {
         gallery: {
             GalleryBonusMulti: (t) => t * 2, // Gallery: All gallery-provided bonuses
             HatrackBonusMulti: (t) => t * 2, // Gallery: Premium Hat Rack bonus multiplier
-            InitializeTrophyBonuses: (t) => t, // Gallery: Logic for initializing trophy bonuses
-            InitializeNametagBonuses: (t) => t, // Gallery: Logic for initializing nametag bonuses
+            InitializeTrophyBonuses: (t) => t, // Gallery: Logic for initializing trophy bonuses. No change until you set it
+            InitializeNametagBonuses: (t) => t, // Gallery: Logic for initializing nametag bonuses. No change until you set it
             // PodiumsOwned: (t) => t,
             // PodiumsOwned_Lv2: (t) => t,
             // PodiumsOwned_Lv3: (t) => t,
@@ -908,7 +908,7 @@ exports.cheatConfig = {
             // ClamPearl10x: (t) => t * 2,
             Clam_BlackPearlValue: (t) => t * 2, // Clams: Black pearl value
             Clam_Cost: (t) => t / 2, // Clams: Clam costs. (lower is better)
-            Clam_PearlUpgReq: (t) => t, // Clams: Pearl upgrade requirements. (lower is better)
+            Clam_PearlUpgReq: (t) => t, // Clams: Pearl upgrade requirements. (lower is better). No change until you set it
             Clam_Mobs: (t) => t * 2, // Clams: Mob spawns
             // Clam_Respawn: (t) => t,
             // ClamWorkBonus: (t) => t,
@@ -965,9 +965,9 @@ exports.cheatConfig = {
             AFKgainsRatePCT: (t) => t * 2, // Research: AFK gains rate
             MaxRoll: (t) => t * 2, // Research: Max roll
             RollsPerDay: (t) => t * 2, // Research: Rolls per day
-            MagnifiersOwned: (t) => t, // Research: Magnifiers owned
-            KaleidoscopeOwned: (t) => t, // Research: Kaleidoscopes owned
-            OpticalMonocleOwned: (t) => t, // Research: Optical monocles owned
+            MagnifiersOwned: (t) => t, // Research: Magnifiers owned. No change until you set it
+            KaleidoscopeOwned: (t) => t, // Research: Kaleidoscopes owned. No change until you set it
+            OpticalMonocleOwned: (t) => t, // Research: Optical monocles owned. No change until you set it
             ResearchEXPrateObj: (t) => t * 2, // Research: EXP rate object
             ObservationInsightExpRate: (t) => t * 2, // Research: Insight EXP rate
             Kalei_MultiBase: (t) => t * 2, // Research: Kaleidoscope base multi
