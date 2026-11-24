@@ -12,8 +12,47 @@ jobs:
     build:
         uses: ./.github/workflows/build-into-zip.yml
 
+    # The notes come from each PR's release line since the last release (scripts/release-notes.mjs). PRs
+    # without a usable line aren't published: they're listed on this run's summary page under "Needs a line".
+    notes:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0 # the tags, to find the last release's
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+
+            # The last release is the newest tag before this commit; this repo had no GitHub releases before 3.0, only
+            # the tags it brought from 2.x.
+            - name: Write the release notes
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  previous=$(git describe --tags --abbrev=0 "$GITHUB_SHA")
+                  node scripts/release-notes.mjs "$previous" "$GITHUB_SHA" > release-notes.md 2> needs-a-line.md \
+                    || { cat needs-a-line.md >&2; exit 1; }
+                  cat needs-a-line.md
+                  { cat release-notes.md; echo; cat needs-a-line.md; } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload the notes
+              uses: actions/upload-artifact@v7
+              with:
+                  name: release-notes
+                  path: release-notes.md
+                  if-no-files-found: error
+                  retention-days: 5
+
     release:
-        needs: build
+        needs: [build, notes]
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -41,6 +80,11 @@ jobs:
                   name: release-files
                   path: release/
 
+            - name: Download the release notes
+              uses: actions/download-artifact@v8
+              with:
+                  name: release-notes
+
             # GITHUB_TOKEN can't start other workflows, so the Discord post below is called directly.
             - name: Create GitHub Release
               env:
@@ -51,7 +95,7 @@ jobs:
                   gh release create "$VERSION" $DRAFT \
                     --target "$GITHUB_SHA" \
                     --title "$VERSION" \
-                    --generate-notes \
+                    --notes-file release-notes.md \
                     release/InjectCheatsUI-Windows.zip \
                     release/InjectCheatsUI-Linux.tar.gz \
                     release/InjectCheatsUI-macOS-x64.tar.gz \
