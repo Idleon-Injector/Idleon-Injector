@@ -116,7 +116,8 @@ export const cheatRows = [];
  *   `{ default, description }`, or `{ example, description }` for one config.js only shows commented out, or
  *   `{ description }` alone for one the cheat sets at runtime. Nest plain objects for groups of settings. An on/off
  *   setting adds `on`, the value the game checks for (`on: 1` for `1 == MainframeBonus(5)`): the WebUI then shows a
- *   switch that writes `(t) => on` or the game's own value. A true/false setting is a switch without it.
+ *   switch that writes `(t) => on` or the game's own value. A true/false setting is a switch without it. A setting
+ *   whose description would wrap in a page's cheats panel adds `short`, the name the panel shows instead.
  */
 export function defineCheat(row) {
     cheatRows.push(row);

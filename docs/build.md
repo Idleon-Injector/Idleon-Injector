@@ -45,8 +45,13 @@ error against the packaging configuration in `package.json`.
 2. Run **Build and Release** from `master` in the Actions tab. It runs the check, builds all four platforms,
    packs them, writes `SHA256SUMS`, and publishes the release, tagged with the version without a "v" (`3.0.0`).
    Tick **draft** to edit the notes first; publishing the draft then posts it.
-3. The release is posted to #injector-updates through the `DISCORD_RELEASE_WEBHOOK` repository secret. Without
-   the secret, the run notes that it skipped the post.
+   The notes are each merged PR's release line since the last release, grouped by kind, from
+   [scripts/release-notes.mjs](../scripts/release-notes.mjs). PRs without a usable line aren't in them: the run's
+   summary page lists them under "Needs a line". To see the notes before a release, run
+   `node scripts/release-notes.mjs <last tag>`.
+3. The release is posted to #injector-updates through the `DISCORD_RELEASE_WEBHOOK` repository secret: the New
+   lines, a count of the improvements and fixes, and a link to the full notes. Without the secret, the run notes that
+   it skipped the post.
 
 If one platform's build fails (GitHub sometimes has no Apple Silicon runner free), nothing is released; use
 **Re-run failed jobs** on that run.

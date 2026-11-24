@@ -30,6 +30,13 @@ test("every page cheat is a real command", () => {
         );
 });
 
+test("a setting's short name fits on one line in the panel", async () => {
+    // 22 characters is the widest measured to fit beside a setting's field at 1440 (Lumi's pick: no wrapped names).
+    const { configShortNames } = await importRepo("src/ui/config/configDescriptions.js");
+    const long = Object.entries(configShortNames).filter(([, name]) => name.length > 22);
+    assert.deepEqual(long, []);
+});
+
 test("every other cheat is in one of the nine groups", () => {
     const loose = commands.filter((name) => !isPageCheat(name) && !CATEGORY_ORDER.includes(cheats[name].category));
     assert.deepEqual(loose, []);

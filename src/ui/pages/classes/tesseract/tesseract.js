@@ -280,6 +280,7 @@ export default definePage({
             name: "Tesseract",
             page: "classes.tesseract",
             description: "The Arcane Cultist's Tesseract upgrades, tachyons and map bonuses.",
+            automation: { page: "automation.masterclasses", tab: "tesseract" },
             tabs: TABS,
         }),
 });

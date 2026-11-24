@@ -1,6 +1,6 @@
-// Writes config.js and the WebUI's setting descriptions and on/off settings (src/ui/config/configDescriptions.js). Nobody edits either
-// by hand: the settings come from the defineCheat rows in src/cheats/cheats/ (each row's `config` is
-// cheatConfig[row.name]) and from the injector's own settings in src/modules/config/coreSettings.js.
+// Writes config.js and the WebUI's setting descriptions, short names and on/off settings
+// (src/ui/config/configDescriptions.js). Nobody edits either by hand: the settings come from the defineCheat rows in
+// src/cheats/cheats/ (each row's `config` is cheatConfig[row.name]) and from the injector's own settings in src/modules/config/coreSettings.js.
 //
 //   node scripts/config-file.mjs     (npm run config:generate) rewrite both files
 //
@@ -85,11 +85,11 @@ function descriptions(tree, prefix, out = []) {
     return out;
 }
 
-/** Every on/off setting's on value (`on` in its row: what the game checks for), keyed like the descriptions. */
-function switches(tree, prefix, out = []) {
+/** Each setting's `field` from its row (`on`: what the game checks for; `short`: its panel name), keyed like the descriptions. */
+function fieldOf(field, tree, prefix, out = []) {
     for (const [name, value] of Object.entries(tree)) {
-        if (!isSetting(value)) switches(value, `${prefix}.${name}`, out);
-        else if ("on" in value) out.push(`${JSON.stringify(`${prefix}.${name}`)}: ${JSON.stringify(value.on)},`);
+        if (!isSetting(value)) fieldOf(field, value, `${prefix}.${name}`, out);
+        else if (field in value) out.push(`${JSON.stringify(`${prefix}.${name}`)}: ${JSON.stringify(value[field])},`);
     }
     return out;
 }
@@ -110,7 +110,9 @@ export async function generate() {
         DESCRIPTIONS_HEADER,
         `export const configDescriptions = {\n${lines.join("\n")}\n};`,
         "// The on/off settings, with the value each holds when on. The WebUI shows them as switches.",
-        `export const configSwitches = {\n${switches(cheatConfig, "cheatConfig").join("\n")}\n};`,
+        `export const configSwitches = {\n${fieldOf("on", cheatConfig, "cheatConfig").join("\n")}\n};`,
+        "// Short names for the cheats panel, where the description would wrap. The Config page keeps the description.",
+        `export const configShortNames = {\n${fieldOf("short", cheatConfig, "cheatConfig").join("\n")}\n};`,
     ].join("\n");
     return {
         [CONFIG_PATH]: await format(config, CONFIG_PATH),
