@@ -94,7 +94,6 @@ const TaskRow = ({ entry, entryState, valueState }) =>
             cap: entry.maxStages,
             maxAction: {
                 value: entry.maxStages,
-                tooltip: `Set completed stages to ${entry.maxStages}`,
             },
             resetAction: true,
         },
@@ -213,7 +212,6 @@ const AchievementRow = ({ entry, valueState }) =>
             maxAction: {
                 label: "Done",
                 value: -1,
-                tooltip: "Set achievement status to complete (-1)",
             },
             resetAction: true,
         },

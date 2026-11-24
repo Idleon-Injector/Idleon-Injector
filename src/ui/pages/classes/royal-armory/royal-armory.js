@@ -38,7 +38,6 @@ import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 import { NumberInput } from "../../../components/NumberInput.js";
 import { gga, readCList } from "../../../services/api.js";
-import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
@@ -144,7 +143,7 @@ const NodesTab = ({ pending, reload, bulk }) => {
         const row = ValueTableRow({
             name: node.name,
             info: RowTitles({ bonus: resourceName(node.resource), name: node.name }),
-            badge: () => (isEmpty(node) ? withTooltip(span("Empty"), "Nothing left to collect") : ""),
+            badge: () => (isEmpty(node) ? span("Empty") : ""),
             // Set all sets every node's grade; what was collected stays each node's own (Refill all, Empty all).
             setAll: "grade",
             fields: [

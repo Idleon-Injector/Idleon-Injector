@@ -60,6 +60,7 @@ const VARIANT_CLASS = {
  * removals pass it; additions run on one press. `confirmTargets` (a value, or a function that returns one) is what the
  * change touches that the question doesn't name, such as the world picked: a change to it asks again.
  * `keepEnabled`: a row's button stays enabled while its save runs, so focus stays on it; a press meanwhile does nothing.
+ * `tooltip` is only for what the button can't show: a reason it failed. No hover label explains a button (DESIGN.md).
  */
 export const ActionButton = ({
     label,

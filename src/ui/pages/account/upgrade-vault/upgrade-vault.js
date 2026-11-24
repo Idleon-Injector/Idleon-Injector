@@ -34,9 +34,7 @@ import {
 const { div, span } = van.tags;
 
 // realMaxState follows every load; the row itself stays, so its save and undo feedback stays with it.
-const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
-    const maxLabel = () =>
-        realMaxState.val !== baseMax ? `${realMaxState.val} (base ${baseMax})` : String(realMaxState.val);
+const VaultRow = ({ index, name, realMaxState, levelState }) => {
     // The game keeps a level above its real max; the value shows it in the warning colour.
     const overMax = () => toNum(levelState.val) > realMaxState.val;
 
@@ -51,7 +49,6 @@ const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
         inputProps: { title: () => (overMax() ? "over max" : "") },
         maxAction: {
             value: () => realMaxState.val,
-            tooltip: () => `Set to max level (${maxLabel()})`,
         },
     });
 };
@@ -153,13 +150,11 @@ const UpgradeVaultTab = () => {
                     label: "Max all",
                     status: maxAllStatus,
                     disabled: () => loading.val || Boolean(error.val) || !data.val?.upgrades.length,
-                    tooltip: "Set all vault upgrades to their real max levels",
                     onClick: doMaxAll,
                 },
             ],
             refresh: {
                 onClick: load,
-                tooltip: "Re-read vault levels from game memory",
                 disabled: () => maxAllStatus.val === "loading",
             },
         }),

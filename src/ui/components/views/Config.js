@@ -10,7 +10,6 @@ import { ConfigNode } from "../config/ConfigNode.js";
 import { StartupCheats, AddCheatSearchBar } from "../config/StartupCheats.js";
 import { SearchBar } from "../SearchBar.js";
 import { Icons } from "../../assets/icons.js";
-import { withTooltip } from "../Tooltip.js";
 import { Said, replay, useSaid } from "../inPlace.js";
 
 const { div, button, h3, p, select, option, label, span } = van.tags;
@@ -424,19 +423,13 @@ export const Config = () => {
             div({ class: () => `spacer ${activeSubTab.val === "startupcheats" && isAddingCheat.val ? "hidden" : ""}` }),
             Said({ said, className: "said--inline said--config" }),
 
-            withTooltip(
-                button(
-                    { id: "update-config-button", type: "button", class: "btn-quiet", onclick: (e) => save(false, e) },
-                    "Apply"
-                ),
-                "Apply to session only (lost on restart)"
+            button(
+                { id: "update-config-button", type: "button", class: "btn-quiet", onclick: (e) => save(false, e) },
+                "Apply"
             ),
-            withTooltip(
-                button(
-                    { id: "save-config-button", type: "button", class: "btn-main", onclick: (e) => save(true, e) },
-                    "Save settings"
-                ),
-                "Save to config file and send to the running game"
+            button(
+                { id: "save-config-button", type: "button", class: "btn-main", onclick: (e) => save(true, e) },
+                "Save settings"
             )
         )
     );

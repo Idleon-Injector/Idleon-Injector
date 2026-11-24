@@ -1,6 +1,5 @@
 import van from "../../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../../assets/icons.js";
-import { withTooltip } from "../../../Tooltip.js";
 import { resolveValue, toNodes } from "../accountShared.js";
 
 const { div, button, span } = van.tags;
@@ -24,8 +23,8 @@ export const AmountLeft = ({ value, one = "point", many = "points" }) => {
 /**
  * Shared quiet refresh button for account tabs.
  */
-export const RefreshButton = ({ onRefresh, tooltip = null, label = "Refresh", disabled = false } = {}) => {
-    const refreshButton = button(
+export const RefreshButton = ({ onRefresh, label = "Refresh", disabled = false } = {}) =>
+    button(
         {
             type: "button",
             class: "btn-quiet btn-sm",
@@ -34,9 +33,6 @@ export const RefreshButton = ({ onRefresh, tooltip = null, label = "Refresh", di
         },
         label
     );
-
-    return tooltip ? withTooltip(refreshButton, tooltip) : refreshButton;
-};
 
 /**
  * Shared notice banner shell for top-of-page notices.
