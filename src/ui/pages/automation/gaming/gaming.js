@@ -1,152 +1,159 @@
-import { definePage } from "../../../menu/menuModel.js";
-import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+/**
+ * Automation › Gaming: which Gaming upgrades the gaming automation buys with bits, by the shared rule ("Save for it",
+ * saving %), each up to its stop-at, and whether it harvests a full garden and digs while Gaming is open.
+ *
+ * Reads readComputed("automation", "gaming") (bits, every upgrade with its level, next cost and lock) and saves
+ * cheatConfig.automation.gaming, one { id, on, stopAt, save } per upgrade, gamingSaving, gamingAutoHarvest and
+ * gamingAutoDig.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
-import { readCList } from "../../../services/api.js";
+import { definePage } from "../../../menu/menuModel.js";
+import { readComputed } from "../../../services/api.js";
+import { formatNumber } from "../../../utils/numberFormat.js";
+import { Said } from "../../../components/inPlace.js";
+import { createStaticRowReconciler, getOrCreateState } from "../../../components/views/account/accountShared.js";
+import {
+    AutomationPage,
+    AutomationStats,
+    PickRow,
+    SAVING_DETAIL,
+    SettingRow,
+    automationColumns,
+    createAutomationPicks,
+    createAutomationSetting,
+    useAutomationTab,
+    usePicksBulk,
+} from "../../../components/views/account/automation.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { AccountToggleRow } from "../../../components/views/account/components/AccountToggleRow.js";
-import { createAutomationSetting, SettingRow, useAutomationTab } from "../../../components/views/account/automation.js";
 
 const { div, span } = van.tags;
-const TOGGLES = [
-    [
-        "AutoHarvest",
-        "Harvest a full garden",
-        "Harvest when every unlocked plot has a plant, without waiting for evolution.",
-    ],
-    ["AutoDig", "Dig whenever available", "Native dig batches may overlap. Already queued digs finish after stopping."],
-    ["AutoBuy", "Continuously buy upgrades", "Spend actual bits on the cheapest affordable selected upgrade."],
-    [
-        "HideEffects",
-        "Hide Gaming effects",
-        "Hide harvest text, particles and nugget effects. Rewards and timing stay unchanged.",
-    ],
-    [
-        "NuggetBiasEnabled",
-        "Bias nugget rolls",
-        "Requires this switch on. Biases dig results toward larger nuggets without raising the game’s maximum roll.",
-    ],
-    ["FertilizerValue", "Fertilizer: bit value", "Increase base sprout value."],
-    [
-        "FertilizerSpeed",
-        "Fertilizer: growth speed",
-        "Keep upgrading unless the growth threshold below has been reached.",
-    ],
-    ["FertilizerCapacity", "Fertilizer: plant capacity", "Stop buying this upgrade once capacity reaches 24."],
-    ["Mutation", "Mutation chance", "Buy the mutation-chance upgrade when unlocked."],
-];
-const NUMBERS = [
-    [
-        "GrowthStopSeconds",
-        "Growth speed threshold",
-        "Seconds",
-        3600000,
-        "float",
-        "Stop buying speed at this effective sprout time; 0 disables the limit.",
-    ],
-    [
-        "PurchaseBatch",
-        "Purchases per tick",
-        "Purchases",
-        500,
-        "int",
-        "Up to this many purchases every 100ms, within an 8ms work budget. 0 pauses buying.",
-    ],
-    [
-        "NuggetBias",
-        "Nugget bias strength",
-        "Strength",
-        20,
-        "int",
-        "Only works with Bias nugget rolls on. Choose 1–20: 1 = normal results, 3 = moderate bias, 6 = stronger bias. Higher settings make large nuggets more likely; they do not multiply nugget power or guarantee the maximum. Possible sizes still depend on the game’s bonuses, including Shovel level and Metal Detector.",
-    ],
-];
-const IMPORTS = [0, 1, 2, 3, 4, 5, 7, 8];
 
-const GamingAutomation = () => {
-    const settings = new Map();
-    const names = new Map(IMPORTS.map((id) => [id, van.state(`Import ${id}`)]));
-    const get = (suffix) => {
-        if (!settings.has(suffix))
-            settings.set(
-                suffix,
-                createAutomationSetting(`gaming${suffix}`, {
-                    afterSave: () => tab.afterSave(),
-                })
-            );
-        return settings.get(suffix);
-    };
+// Like the game's own panels, small amounts show whole: a cost rounded up, what is held rounded down.
+const costText = (value) => formatNumber(value < 1000 ? Math.ceil(value) : value);
+const heldText = (value) => formatNumber(value < 1000 ? Math.floor(value) : value);
+
+const CHEAT = "automation gaming";
+const COLUMNS = automationColumns({ values: ["Level", "Next level"], save: true, stopAt: "Stop at level" });
+
+const SWITCHES = [
+    ["gamingAutoHarvest", "Harvest a full garden", "Skips plant types you locked"],
+    ["gamingAutoDig", "Dig when the shovel is ready", null],
+];
+
+const GamingAutomationTab = () => {
+    const ids = van.state([]);
+    const bits = van.state(null);
+    const upgrades = new Map(); // id -> state of the game's row
+    const listNode = div();
+    const reconcile = createStaticRowReconciler(listNode);
+
     const tab = useAutomationTab({
         label: "Gaming automation",
-        cheats: ["automation gaming"],
-        read: async (held) => {
-            for (const [suffix, setting] of settings) setting.sync(held[`gaming${suffix}`]);
-            const lists = await readCList("RandoListo2");
-            for (const id of IMPORTS) names.get(id).val = String(lists[1][id]).replace(/_/g, " ");
+        cheats: [CHEAT],
+        switchColumn: COLUMNS.on,
+        read: async (automation) => {
+            const data = await readComputed("automation", "gaming");
+            picks.sync(automation.gaming);
+            saving.sync(automation.gamingSaving);
+            for (const [key, setting] of switches) setting.sync(automation[key]);
+            bits.val = data.bits;
+            reconcile(data.upgrades.map(({ id }) => id).join("|"), () =>
+                data.upgrades.map(({ id, name }) => {
+                    const upgrade = getOrCreateState(upgrades, id, {});
+                    return PickRow({
+                        picks,
+                        id,
+                        name,
+                        save: true,
+                        stopAtTitle: "Stop at level",
+                        detail: () => (upgrade.val.unlocked === false ? "Locked" : ""),
+                        values: [
+                            { name: "Level", text: () => formatNumber(upgrade.val.level ?? 0) },
+                            {
+                                name: "Next level",
+                                quiet: true,
+                                text: () =>
+                                    upgrade.val.maxed
+                                        ? "Max"
+                                        : upgrade.val.unlocked === false
+                                          ? "Locked"
+                                          : costText(upgrade.val.cost ?? 0),
+                            },
+                        ],
+                    });
+                })
+            );
+            for (const upgrade of data.upgrades) getOrCreateState(upgrades, upgrade.id, {}).val = upgrade;
+            ids.val = data.upgrades.map(({ id }) => id);
         },
     });
-    const toggle = (suffix, name, detail) => {
-        const setting = get(suffix);
-        const field = setting.get();
-        return AccountToggleRow({
-            words: ["On", "Off"],
-            info: div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, name),
-                div({ class: "automation-pick__detail" }, detail)
-            ),
-            name,
-            checked: () => Boolean(field.value.val),
-            write: (next) => setting.set(null, next, tab.waiting.onLate),
-        });
-    };
-    const numberRows = NUMBERS.map(([suffix, name, title, max, mode, detail]) => {
-        const setting = get(suffix);
-        const bounded =
-            suffix !== "NuggetBias"
-                ? setting
-                : {
-                      ...setting,
-                      set: (index, value) => {
-                          if (value < 1) return Promise.reject(new Error("Nugget bias must be 1 to 20."));
-                          return setting.set(index, value);
-                      },
-                  };
-        return SettingRow({ setting: bounded, name, title, max, mode, detail });
-    });
-    const content = div(
-        { class: "account-list" },
-        AccountSection({
-            title: "Auto Gaming",
-            note: "Open Gaming in the game for harvesting and digging.",
-            body: tab.switches,
-        }),
-        AccountSection({ title: "Actions and effects", body: TOGGLES.slice(0, 5).map((row) => toggle(...row)) }),
-        AccountSection({ title: "Upgrade selection", body: TOGGLES.slice(5).map((row) => toggle(...row)) }),
-        AccountSection({
-            title: "Imports",
-            note: "POING is excluded.",
-            body: IMPORTS.map((id) =>
-                toggle(
-                    `Import${id}`,
-                    () => names.get(id).val,
-                    "Buy levels while this import is unlocked and affordable."
-                )
-            ),
-        }),
-        AccountSection({ title: "Limits", body: numberRows })
+    const [automation] = tab.entries;
+    // Switching an upgrade on switches Gaming on too (now and at start), in the same save; after every save the tab
+    // reads the game again.
+    const picks = createAutomationPicks("gaming", { cheat: CHEAT, entry: automation, afterSave: tab.afterSave });
+    const saving = createAutomationSetting("gamingSaving", { afterSave: tab.afterSave });
+    const switches = new Map(
+        SWITCHES.map(([key]) => [key, createAutomationSetting(key, { afterSave: tab.afterSave })])
     );
+
+    const bulk = usePicksBulk({
+        targets: () => [[picks, ids.val]],
+        // With every upgrade on it still has work while Gaming is off now or at start: switching it on.
+        done: (on, total) => on === total && Boolean(automation.val?.on) && tab.atStart(CHEAT),
+        words: ["Gaming upgrade", "Gaming upgrades"],
+        waiting: tab.waiting,
+        loading: () => tab.loading.val,
+    });
+    const busy = () => tab.loading.val || bulk.busy();
+
     tab.load();
-    return PersistentAccountListPage({
-        rootClass: "tab-container scroll-container automation-page",
+
+    return AutomationPage({
         title: "Gaming",
-        description: "Harvest, dig and buy selected upgrades with bits.",
-        actions: RefreshButton({ onRefresh: tab.load, disabled: () => tab.loading.val }),
+        page: "automation.gaming",
+        description: "Buys switched-on upgrades with bits. While Gaming is open, it also harvests and digs.",
+        total: AutomationStats(() => (bits.val === null ? [] : [[heldText(bits.val), "bits"]])),
+        columns: COLUMNS,
+        bulk,
         state: { loading: tab.loading, error: tab.error },
-        loadingText: "Reading Gaming automation",
-        errorTitle: "Couldn't read Gaming automation",
-        initialWrapperClass: "account-list",
-        body: content,
+        load: tab.load,
+        busy,
+        notices: Said({ said: tab.waiting.over(bulk.said), className: "said--line" }),
+        what: "Gaming upgrades",
+        body: [
+            AccountSection({
+                title: "Settings",
+                body: [
+                    tab.switches,
+                    ...SWITCHES.map(([key, name, detail]) => {
+                        const setting = switches.get(key);
+                        const field = setting.get();
+                        return AccountToggleRow({
+                            words: ["On", "Off"],
+                            info: div(
+                                { class: "account-row__name-group" },
+                                span({ class: "account-row__name" }, name),
+                                detail ? div({ class: "automation-pick__detail" }, detail) : null
+                            ),
+                            name,
+                            checked: () => Boolean(field.value.val),
+                            write: (next) => setting.set(null, next, tab.waiting.onLate),
+                        });
+                    }),
+                    SettingRow({
+                        setting: saving,
+                        name: "While saving",
+                        title: "% of goal",
+                        detail: SAVING_DETAIL,
+                        column: COLUMNS.stopAt,
+                    }),
+                ],
+            }),
+            COLUMNS.head("Upgrades"),
+            listNode,
+        ],
     });
 };
 
@@ -154,7 +161,19 @@ export default definePage({
     id: "automation.gaming",
     world: "automation",
     system: "Gaming",
-    description: "Harvesting, digging and Gaming upgrades.",
-    keywords: ["Auto Gaming", "Harvest", "Nuggets", "Animations", "Tools"],
-    component: GamingAutomation,
+    description: "Gaming upgrades bought with bits, each up to its stop-at; harvesting and digging.",
+    keywords: [
+        "Autobuy",
+        "Auto buy",
+        "Bits",
+        "Fertilizer",
+        "Mutation",
+        "Imports",
+        "Harvest",
+        "Dig",
+        "Nuggets",
+        "Stop at",
+        "Save for it",
+    ],
+    component: GamingAutomationTab,
 });
