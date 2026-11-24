@@ -17,7 +17,7 @@ import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart } from "../services/api.js";
 import { parseFunction, generateFunctionString, FUNCTION_TYPES } from "../utils/functionParser.js";
-import { configDescriptions, configSwitches } from "../config/configDescriptions.js";
+import { configDescriptions, configShortNames, configSwitches } from "../config/configDescriptions.js";
 import { cheatsOfPage } from "../menu/pageCheats.js";
 import { VALUE_COMMANDS } from "../menu/valueCommands.js";
 import { ValueFields } from "./ValueFields.js";
@@ -37,8 +37,12 @@ const SIGN = { [MULTIPLY]: "×", [DIVIDE]: "÷", [FIXED]: "=" };
 const at = (config, path) => path.reduce((node, key) => node?.[key], config.cheatConfig);
 const nest = (path, value) => path.reduceRight((inner, key) => ({ [key]: inner }), value);
 
-/** "Breeding: Egg incubation speed. (lower is better)" -> "Egg incubation speed". */
-const settingLabel = (description) => {
+/**
+ * A setting's name in the panel: its short name (`short` in its cheat row), or its description cut down,
+ * "Breeding: Egg incubation speed. (lower is better)" -> "Egg incubation speed".
+ */
+const settingLabel = (key, description) => {
+    if (configShortNames[key]) return configShortNames[key];
     const words = description
         .replace(/^[^:]{1,30}:\s*/, "")
         .split(/\.\s|\s\(|!/)[0]
@@ -65,7 +69,7 @@ const settingsOf = (command, config) => {
         if (value === undefined) continue;
         const on = typeof value === "boolean" ? true : configSwitches[key];
         if (on !== undefined) {
-            settings.push({ path, label: settingLabel(description), on });
+            settings.push({ path, label: settingLabel(key, description), on });
             continue;
         }
         const parsed = typeof value === "number" ? null : parseFunction(value);
@@ -84,7 +88,7 @@ const settingsOf = (command, config) => {
             more++;
             continue;
         }
-        settings.push({ path, label: settingLabel(description), op });
+        settings.push({ path, label: settingLabel(key, description), op });
     }
     return { settings, more };
 };
