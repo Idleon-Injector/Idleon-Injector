@@ -232,7 +232,11 @@ async function listPngs(dir) {
     return entries
         .map((f) => f.split("\\").join("/"))
         .filter(
-            (f) => f.endsWith(".png") && !f.startsWith("diff/") && (!args.only || f.split("/")[1].includes(args.only))
+            (f) =>
+                f.endsWith(".png") &&
+                !f.startsWith("diff/") &&
+                widths.some(({ width }) => f.startsWith(`${width}/`)) &&
+                (!args.only || f.split("/")[1].includes(args.only))
         )
         .map((f) => f.slice(0, -4))
         .filter((name) => !pickedShots || isPickedShot(name));
@@ -241,6 +245,8 @@ async function listPngs(dir) {
 async function main() {
     if (args.only && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --only.");
     if (args.pages && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --pages.");
+    if (args.widths && args["update-baseline"])
+        throw new Error("--update-baseline needs a full run, without --widths.");
     const threshold = Number(args.threshold);
     const picked = args.pages ? new Set(args.pages.split(",").map((id) => id.trim())) : null;
     if (!(threshold >= 0 && threshold < 1)) throw new Error("--threshold is a share of pixels, like 0.001.");

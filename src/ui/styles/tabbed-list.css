@@ -672,7 +672,7 @@
         width: 100%;
     }
     /* The save mark (✓, Undo) goes to the end of the name's line, so the fields start under the name. */
-    .viewport .value-row .save-state {
+    .viewport .value-row > .account-row__controls > .save-state {
         position: absolute;
         top: 10px;
         right: 14px;
@@ -716,7 +716,7 @@
         width: 100%;
     }
     /* The save mark (✓, Undo) goes to the end of the name's line, so the fields start under the name. */
-    .viewport .value-table--wide .value-row .save-state {
+    .viewport .value-table--wide .value-row > .account-row__controls > .save-state {
         position: absolute;
         top: 10px;
         right: 14px;
