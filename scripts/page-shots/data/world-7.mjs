@@ -50,7 +50,8 @@ export default () => ({
             8: list(8, (i) => (i < 5 ? 1 : 0)),
             11: list(12, (i) => level(i, 20)),
             13: list(10, (i) => level(i, 30)),
-            16: TROPHIES.slice(0, 4),
+            // The gallery holds trophy numbers (Trophy1 is 1), -1 for an empty slot.
+            16: [1, 2, -1, 4, -1, -1],
             17: list(30, (i) => (i === 28 ? 12 : i % 5)),
             18: list(LEGEND_TALENTS, (i) => level(i, 10)),
             45: list(30, (i) => level(i, 10)),

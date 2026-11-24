@@ -4,15 +4,15 @@ import { definePage } from "../../../menu/menuModel.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { getOrCreateState, writeVerified } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
 const BUTTON_FIELDS = [
-    { index: 594, label: "Presses Done", formatted: true },
-    { index: 595, label: "Insta Skips", formatted: true },
+    { index: 594, label: "Presses done", formatted: true },
+    { index: 595, label: "Insta skips", formatted: true },
 ];
 
 const ButtonRow = ({ field, fieldState, onWrite }) =>
@@ -20,7 +20,6 @@ const ButtonRow = ({ field, fieldState, onWrite }) =>
         field,
         fieldState,
         onWrite,
-        rowClass: "account-row--wide-controls",
         controlsClass: "account-row__controls--xl",
     });
 
@@ -45,16 +44,12 @@ const ButtonPage = () => {
         return true;
     };
 
+    // Two unrelated numbers, not a list, so no Set all (checks.mjs' NOT_LISTS).
     const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "BUTTON",
-            note: "OptionsListAccount[594] / [595]",
-            body: div(
-                { class: "account-item-stack" },
-                ...BUTTON_FIELDS.map((field) =>
-                    ButtonRow({ field, fieldState: getOrCreateState(fieldStates, field.index), onWrite })
-                )
+        { class: "account-list account-list--tabbed" },
+        ListPanel({
+            body: BUTTON_FIELDS.map((field) =>
+                ButtonRow({ field, fieldState: getOrCreateState(fieldStates, field.index), onWrite })
             ),
         })
     );
@@ -62,16 +57,14 @@ const ButtonPage = () => {
     load();
 
     return PersistentAccountListPage({
-        title: "THE BUTTON",
-        description: "Set W7 Button presses done and remaining charges from OptionsListAccount[594] and [595].",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "The Button",
+        description: "Presses done and insta skips of World 7's Button.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING BUTTON",
-        errorTitle: "BUTTON READ FAILED",
-        initialWrapperClass: "scrollable-panel",
+        loadingText: "Reading the Button",
+        errorTitle: "Couldn't read the Button",
+        initialWrapperClass: "account-list",
         body,
     });
 };

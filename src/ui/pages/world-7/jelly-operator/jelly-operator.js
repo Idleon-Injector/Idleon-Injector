@@ -7,23 +7,25 @@ import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    bonusText,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { renderTabNav } from "../../../components/views/account/tabShared.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 import { UpgradeDoublerButton, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
 
 const { div, span } = van.tags;
 const CELL_NAMES = ["Amoeba", "Plasmid", "Ribosome", "Organelle", "Immunoid", "Virus", "Mitochondria", "Gigacyst"];
 const CELL_LEVEL_LIMIT = Math.floor(Math.log(Number.MAX_VALUE / 20) / Math.log(1.3)) - 1;
-const PANES = [
-    { id: "upgrades", label: "UPGRADES" },
-    { id: "cells", label: "CELLS" },
+const TABS = [
+    { id: "upgrades", label: "Upgrades", keywords: ["Jelly Upgrades", "Bloodcells", "Operations", "Doublers"] },
+    { id: "cells", label: "Cells", keywords: ["Jelly Cells"] },
 ];
 
 const validLevel = (raw, max) => {
@@ -33,53 +35,38 @@ const validLevel = (raw, max) => {
     return Number.isSafeInteger(value) && value <= max ? value : null;
 };
 
+// A level row: the bonus first where the game has one, its state word ("Locked") before the field. A level without a
+// shown cap keeps Max's room before its doubler, so the fields line up.
 const LevelRow = ({
-    id,
     name,
-    description,
+    bonus = "",
     valueState,
     max,
     displayMax = false,
     write,
     locked = false,
-    statusLabel = null,
-    note = null,
     renderExtraActions = null,
-    rowClass = "account-row--wide-controls jelly-level-row",
-}) => {
-    const writeError = van.state("");
-    return EditableNumberRow({
+}) =>
+    EditableNumberRow({
         valueState,
         normalize: (raw) => validLevel(raw, max),
-        write: async (next) => {
-            writeError.val = "";
-            try {
-                return await write(next);
-            } catch (error) {
-                writeError.val = error.message;
-                throw error;
-            }
-        },
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${id}`),
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, name),
-                description ? span({ class: "account-row__sub-label", title: description }, description) : null,
-                note ? span({ class: "account-row__sub-label" }, note) : null,
-                span({ class: "account-row__sub-label", role: "status" }, () => writeError.val)
-            ),
-        ],
-        // The level and its cap are in the field; the badge keeps only the state.
-        renderBadge: () => (statusLabel ? statusLabel() : locked ? "Locked" : ""),
+        write,
+        renderInfo: () => (bonus ? RowTitles({ bonus, name }) : span({ class: "account-row__name" }, name)),
+        renderBadge: () => ((typeof locked === "function" ? locked() : locked) ? "Locked" : ""),
         cap: displayMax ? max : null,
         adjustInput: (raw, delta, current) =>
             Math.max(0, Math.min(max, (validLevel(raw, max) ?? current ?? 0) + delta)),
-        rowClass,
         controlsClass: "account-row__controls--xl",
-        renderExtraActions,
+        rowClass: renderExtraActions ? "doubler-row" : "",
+        renderExtraActions:
+            renderExtraActions &&
+            (() => [
+                displayMax ? null : span({ class: "account-row__max-slot", "aria-hidden": "true" }),
+                renderExtraActions(),
+            ]),
+        // A line of its tab's Set all, saved through its own write (a cache to clear, a cell's XP to reset).
+        setAll: { refuse: (value) => (value > max ? `max ${max}` : null) },
     });
-};
 
 /** Jelly Operator account editor backed by current Research and JellyUPG definitions. */
 const JellyTab = () => {
@@ -88,14 +75,12 @@ const JellyTab = () => {
         { path: "Spelunk[53]", ownedMethod: "JellyOpDoublersOwned", eligiblePath: "Research[61]" },
         loading
     );
-    const activePane = van.state("upgrades");
     const bloodcells = van.state(0);
     const operationsLeft = van.state(0);
-    const upgradeCount = van.state(0);
     const upgradeStates = new Map();
     const cellStates = new Map();
-    const upgradeList = div({ class: "account-item-stack" });
-    const cellList = div({ class: "account-item-stack" });
+    const upgradeList = div();
+    const cellList = div();
     const reconcileUpgrades = createStaticRowReconciler(upgradeList);
     const reconcileCells = createStaticRowReconciler(cellList);
 
@@ -145,7 +130,7 @@ const JellyTab = () => {
                         id,
                         orderIndex,
                         name: cleanName(definition[0], `Upgrade ${id}`),
-                        description: cleanName(definition[5]),
+                        bonus: bonusText(definition[5]),
                         max: gameCap <= 998 ? gameCap : safeCap,
                         displayMax: gameCap <= 998,
                         locked:
@@ -154,14 +139,12 @@ const JellyTab = () => {
                     };
                 })
                 .filter(Boolean);
-            upgradeCount.val = entries.length;
             reconcileUpgrades(
                 entries.map((entry) => `${entry.id}:${entry.name}:${entry.max}:${entry.locked}`).join("|"),
                 () =>
                     entries.map((entry) =>
                         LevelRow({
                             ...entry,
-                            rowClass: "account-row--wide-controls jelly-level-row minigame-upgrade-row",
                             valueState: getOrCreateState(upgradeStates, entry.id),
                             renderExtraActions: () =>
                                 UpgradeDoublerButton({
@@ -182,17 +165,14 @@ const JellyTab = () => {
             reconcileCells(CELL_NAMES.join("|"), () =>
                 CELL_NAMES.map((name, id) =>
                     LevelRow({
-                        id,
                         name,
-                        note: "Setting a level resets this cell's XP to 0.",
-                        statusLabel: () =>
-                            id <
+                        // Locked until the upgrades own this many cells; nothing shows once it's unlocked.
+                        locked: () =>
+                            id >=
                             CELL_NAMES.reduce(
                                 (owned, _, upgradeId) => owned + getOrCreateState(upgradeStates, upgradeId).val,
                                 0
-                            )
-                                ? "Unlocked"
-                                : "Locked",
+                            ),
                         valueState: getOrCreateState(cellStates, id),
                         max: CELL_LEVEL_LIMIT,
                         write: async (next) => {
@@ -230,51 +210,59 @@ const JellyTab = () => {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "BLOODCELLS",
-            body: SimpleNumberRow({
-                entry: { name: "Bloodcells", path: "Research[7][11]", formatted: true, float: true },
-                valueState: bloodcells,
-            }),
-        }),
-        AccountSection({
-            title: "OPERATIONS LEFT",
-            body: SimpleNumberRow({
-                entry: { name: "Operations left", path: "Research[7][10]" },
-                valueState: operationsLeft,
-            }),
-        }),
-        div(
-            { class: () => (activePane.val === "upgrades" ? "" : "is-hidden-until-ready") },
+    // A stat keeps Max's room and the doubler's, so its value stands in the upgrades' column.
+    const keepRoom = () => [
+        span({ class: "account-row__max-slot", "aria-hidden": "true" }),
+        span({ class: "upgrade-doubler-slot" }),
+    ];
+    const content = {
+        upgrades: div(
+            { class: "field-columns" },
             AccountSection({
-                title: "UPGRADES",
-                note: () =>
-                    `${upgradeCount.val} upgrades · ${doublers.selected.val.length}/${doublers.capacity.val} doubled`,
+                title: "Stats",
+                body: [
+                    SimpleNumberRow({
+                        entry: { name: "Bloodcells", path: "Research[7][11]", formatted: true, float: true },
+                        valueState: bloodcells,
+                        renderExtraActions: keepRoom,
+                    }),
+                    SimpleNumberRow({
+                        entry: { name: "Operations left", path: "Research[7][10]" },
+                        valueState: operationsLeft,
+                        renderExtraActions: keepRoom,
+                    }),
+                ],
+            }),
+            AccountSection({
+                title: "Upgrades",
+                note: () => `${doublers.selected.val.length} of ${doublers.capacity.val} doubled`,
                 body: upgradeList,
             })
         ),
-        div(
-            { class: () => (activePane.val === "cells" ? "" : "is-hidden-until-ready") },
-            AccountSection({ title: "CELLS", note: "8 cells", body: cellList })
-        )
-    );
+        cells: cellList,
+    };
+
     return PersistentAccountListPage({
-        title: "JELLY OPERATOR",
-        description: "Set Bloodcells, operations left, upgrade levels, and cell levels; choose doubled upgrades.",
+        rootClass: "tab-container scroll-container",
+        title: "Jelly Operator",
+        description: "Bloodcells, upgrades and cells. A typed cell level resets that cell's XP.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
-        subNav: renderTabNav({
-            tabs: PANES,
-            activeId: activePane,
-            navClass: "account-nested-sub-nav",
-            buttonClass: "account-nested-sub-tab-btn",
-        }),
         state: { loading, error },
-        loadingText: "READING JELLY OPERATOR",
-        errorTitle: "JELLY OPERATOR READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the Jelly Operator",
+        errorTitle: "Couldn't read the Jelly Operator",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Jelly Operator",
+                page: "w7.jellyoperator",
+                tabs: TABS.map((tab) => ({ id: tab.id, label: tab.label, content: content[tab.id] })),
+                setAll: {
+                    word: (n, tab) => (tab === "cells" ? (n === 1 ? "cell" : "cells") : n === 1 ? "line" : "lines"),
+                    placeholder: (tab) => (tab === "cells" ? "Level" : "Value"),
+                },
+            })
+        ),
     });
 };
 
@@ -284,5 +272,6 @@ export default definePage({
     system: "Jelly Operator",
     description: "Bloodcells, operations left, upgrade and cell levels, and which upgrades are doubled.",
     keywords: ["Jelly", "Bloodcells", "Upgrades", "Cells"],
+    tabs: TABS,
     component: JellyTab,
 });

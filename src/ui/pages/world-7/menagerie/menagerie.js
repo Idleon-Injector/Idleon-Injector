@@ -23,15 +23,15 @@ import {
     writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { renderTabNav } from "../../../components/views/account/tabShared.js";
+import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 const PANES = [
-    { id: "overview", label: "OVERVIEW" },
-    { id: "unlocks", label: "UNLOCKS" },
-    { id: "upgrades", label: "BOOSTS" },
-    { id: "missions", label: "MISSIONS" },
-    { id: "jellies", label: "SIDE JELLIES" },
+    { id: "overview", label: "Lumi", keywords: ["Overview", "Lumi balance", "Shell EXP", "Shell rank"] },
+    { id: "unlocks", label: "Unlocks", keywords: ["Menagerie Unlocks"] },
+    { id: "upgrades", label: "Boosts", keywords: ["Menagerie Boosts"] },
+    { id: "missions", label: "Missions", keywords: ["Menagerie Missions"] },
+    { id: "jellies", label: "Side jellies", keywords: ["Side Jellies", "Jellyfish"] },
 ];
 const YELLOW_NAMES = [
     "Build rate bonus level",
@@ -52,13 +52,12 @@ const numericInput = (raw, integer) => {
 
 const MenagerieTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Menagerie" });
-    const activePane = van.state("overview");
     const saving = van.state(false);
     const lumiRate = van.state(0);
     const states = new Map();
     const missionProgress = new Map();
     const missionTargets = new Map();
-    const lists = Object.fromEntries(PANES.map(({ id }) => [id, div({ class: "account-item-stack" })]));
+    const lists = Object.fromEntries(PANES.map(({ id }) => [id, div()]));
     const reconcilers = Object.fromEntries(PANES.map(({ id }) => [id, createStaticRowReconciler(lists[id])]));
     const state = (path) => getOrCreateState(states, path);
     // Fields and switches stay usable while a save runs (and while it reads the game again after); only a load of the
@@ -66,7 +65,7 @@ const MenagerieTab = () => {
     const disabled = () => loading.val && !saving.val;
     // A write asked for while another runs waits its turn, then reads the game again.
     const inTurn = oneAtATime();
-    let unlockCount = 0;
+    const unlockCount = van.state(0);
 
     const load = async () =>
         run(async () => {
@@ -111,7 +110,7 @@ const MenagerieTab = () => {
             ) {
                 throw new Error("Menagerie data is uninitialized or does not match this game version.");
             }
-            unlockCount = unlocks.length;
+            unlockCount.val = unlocks.length;
             for (let group = 0; group < 8; group++) {
                 menagerie[group].forEach((value, index) => {
                     state(`Menagerie[${group}][${index}]`).val = Number(value);
@@ -132,65 +131,57 @@ const MenagerieTab = () => {
                 numberRow("Lumi balance", "Menagerie[0][0]", false, null, true),
                 numberRow("Unspent Shell EXP", "Menagerie[0][1]", false, null, true),
                 numberRow("Shell rank", "Menagerie[0][2]", true, null, true),
-                div(
-                    { class: "account-row" },
-                    div({ class: "account-row__info" }, span({ class: "account-row__name" }, "Lumi per hour")),
-                    span({ class: "account-row__badge" }, () => formatNumber(lumiRate.val))
-                ),
             ]);
             reconcilers.unlocks(JSON.stringify(unlocks), () =>
-                unlocks.map((text, i) => toggleRow(description(text), `Menagerie[2][${i}]`, `Unlock #${i}`))
+                unlocks.map((text, i) => toggleRow(description(text), `Menagerie[2][${i}]`))
             );
             reconcilers.upgrades(JSON.stringify(upgrades), () =>
-                upgrades.map((text, i) =>
-                    numberRow(cleanNameEffect(description(text)), `Menagerie[3][${i}]`, true, `Upgrade #${i}`)
-                )
+                upgrades.map((text, i) => numberRow(cleanNameEffect(description(text)), `Menagerie[3][${i}]`, true))
             );
             reconcilers.missions(JSON.stringify(missions), () => missions.map((text, i) => missionRow(text, i)));
             reconcilers.jellies(JSON.stringify(caves), () => [
                 AccountSection({
-                    title: "PURPLE / PINK JELLYFISH",
+                    title: "Purple / Pink Jellyfish",
                     body: [
                         numberRow("Shell purchase count", "Menagerie[0][3]"),
                         numberRow("Lumi bonus level", "Menagerie[0][4]"),
                     ],
                 }),
                 AccountSection({
-                    title: "BLUE JELLYFISH",
+                    title: "Blue Jellyfish",
                     body: numberRow("Deposited ladles", "Menagerie[0][5]", false),
                 }),
                 AccountSection({
-                    title: "RED JELLYFISH",
-                    note: "Readings consume all accumulated rest days. Deposited materials persist.",
+                    title: "Red Jellyfish",
+                    note: "A reading uses up all rest days; deposits stay",
                     body: [
                         numberRow("Accumulated rest days", "Menagerie[0][6]"),
                         ...Array.from({ length: 14 }, (_, i) =>
                             numberRow(
                                 `${/^Name\d*$/i.test(String(caves[i])) ? `Cave ${i + 1}` : cleanName(caves[i], `Cave ${i + 1}`)} deposited materials`,
                                 `Menagerie[4][${i}]`,
-                                false,
-                                `Material #${i}`
+                                false
                             )
                         ),
                     ],
                 }),
                 AccountSection({
-                    title: "SILVER JELLYFISH",
+                    title: "Silver Jellyfish",
                     body: [
                         numberRow("Miscellaneous Obol multiplier level", "Menagerie[0][9]", true, "Normal cap: 100"),
                         numberRow("Obol auto-trash rate level", "Menagerie[0][10]", true, "Normal cap: 190"),
                     ],
                 }),
                 AccountSection({
-                    title: "YELLOW JELLYFISH",
+                    title: "Yellow Jellyfish",
                     body: [
                         ...YELLOW_NAMES.map((name, i) => numberRow(name, `Menagerie[0][${11 + i}]`)),
                         numberRow("Accumulated build progress", "Menagerie[0][15]", false),
                     ],
                 }),
                 AccountSection({
-                    title: "GREEN JELLYFISH",
-                    note: "Collect the nametag in-game at 12 progress.",
+                    title: "Green Jellyfish",
+                    note: "Collect the nametag in the game at 12",
                     body: numberRow("Spelunking progress", "Spelunk[17][28]"),
                 }),
             ]);
@@ -223,28 +214,28 @@ const MenagerieTab = () => {
                 return Math.max(0, value + delta * (formatted ? formattedStep(value) : 1));
             },
             disabled,
-            rowClass: "account-row--wide-controls",
             controlsClass: "account-row__controls--xl",
             inputMode: integer ? "int" : "float",
             inputProps: {
                 "aria-label": name,
                 ...(formatted ? { formatter: largeFormatter, parser: largeParser } : {}),
             },
+            // A line of its tab's Set all, written where it lives.
+            setAll: {
+                path,
+                refuse: (value) => (integer && !Number.isSafeInteger(value) ? "whole numbers only" : null),
+            },
         });
 
     // Saves on flip, then reads the game again; a failed save says why on the switch.
-    const toggleRow = (name, path, note) => {
+    const toggleRow = (name, path) => {
         const { status, run: write } = useWriteStatus();
         return AccountRow({
             status,
-            info: div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, name),
-                span({ class: "account-row__sub-label" }, note)
-            ),
+            info: span({ class: "account-row__name" }, name),
             controls: StateSwitch({
                 checked: () => state(path).val >= 1,
-                words: ["On", "Off"],
+                words: ["Unlocked", ""],
                 name,
                 disabled,
                 status, // nothing else on the row reads out saving and saved
@@ -263,7 +254,6 @@ const MenagerieTab = () => {
             normalize: (raw) => numericInput(raw, true),
             write: (next) => save(() => writeVerified(`Menagerie[1][${index}]`, next)),
             renderInfo: () => [
-                span({ class: "account-row__index" }, `#${index}`),
                 div(
                     { class: "account-row__name-group" },
                     span({ class: "account-row__name" }, () =>
@@ -281,9 +271,12 @@ const MenagerieTab = () => {
             ],
             adjustInput: (raw, delta, current) => Math.max(0, (numericInput(raw, true) ?? current) + delta),
             disabled,
-            rowClass: "account-row--wide-controls",
             controlsClass: "account-row__controls--xl",
             inputProps: { "aria-label": `Mission ${index} completions` },
+            setAll: {
+                path: `Menagerie[1][${index}]`,
+                refuse: (value) => (Number.isSafeInteger(value) ? null : "whole numbers only"),
+            },
         });
 
     const bulk = useWriteStatus();
@@ -299,7 +292,7 @@ const MenagerieTab = () => {
                 () =>
                     save(() =>
                         writeManyVerified(
-                            Array.from({ length: unlockCount }, (_, i) => ({
+                            Array.from({ length: unlockCount.val }, (_, i) => ({
                                 path: `Menagerie[2][${i}]`,
                                 value: 1,
                             }))
@@ -317,57 +310,49 @@ const MenagerieTab = () => {
         },
     });
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        ...PANES.map(({ id, label: title }) =>
-            div(
-                {
-                    "data-menagerie-pane": id,
-                    class: () => (activePane.val === id ? "content-stack" : "is-hidden-until-ready"),
-                },
-                AccountSection({
-                    title,
-                    note:
-                        id === "missions"
-                            ? "Set completion counts directly. Edit Shell EXP separately in Overview."
-                            : null,
-                    meta:
-                        id === "unlocks"
-                            ? [
-                                  unlockAll,
-                                  // Said only while it holds: a flip or an undo since takes it back.
-                                  span({ class: "account-write-feedback", role: "status" }, () =>
-                                      bulkMessage.val === ALL_SAVED &&
-                                      Array.from(
-                                          { length: unlockCount },
-                                          (_, i) => state(`Menagerie[2][${i}]`).val
-                                      ).some((value) => !(value >= 1))
-                                          ? ""
-                                          : bulkMessage.val
-                                  ),
-                              ]
-                            : null,
-                    body: lists[id],
-                })
+    // Unlock all only raises, so it runs on one press; its result is read out (the switches show it).
+    const unlockTools = () =>
+        div(
+            { class: "tabbed-list__tool-group" },
+            unlockAll,
+            span({ class: "account-write-feedback", role: "status" }, () =>
+                bulkMessage.val === ALL_SAVED &&
+                Array.from({ length: unlockCount.val }, (_, i) => state(`Menagerie[2][${i}]`).val).some(
+                    (value) => !(value >= 1)
+                )
+                    ? ""
+                    : bulkMessage.val
             )
-        )
-    );
+        );
+
     load();
     return PersistentAccountListPage({
-        title: "LUMINOUS MENAGERIE",
-        description: "Edit progression directly. Normal caps and unlock requirements do not restrict these editors.",
+        rootClass: "tab-container scroll-container",
+        title: "Menagerie",
+        description: "Unlocks, boosts, missions and side jellies. The game's normal caps don't apply here.",
+        // What the game makes of it, read only, beside the title.
+        total: span(
+            { class: "amount-left" },
+            span({ class: "amount-left__value" }, () => formatNumber(lumiRate.val)),
+            " Lumi per hour"
+        ),
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || saving.val }),
-        subNav: renderTabNav({
-            tabs: PANES,
-            activeId: activePane,
-            navClass: "account-nested-sub-nav",
-            buttonClass: "account-nested-sub-tab-btn",
-        }),
         state: { loading, error },
-        loadingText: "READING MENAGERIE",
-        errorTitle: "MENAGERIE READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the menagerie",
+        errorTitle: "Couldn't read the menagerie",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Menagerie",
+                page: "w7.menagerie",
+                tabs: PANES.map(({ id, label }) => ({ id, label, content: lists[id] })),
+                tools: toolsPerTab({ unlocks: unlockTools }),
+                toolsOn: (id) => id === "unlocks",
+                toolsLabel: (activeId) => (activeId.val === "unlocks" ? `All ${unlockCount.val} unlocks` : ""),
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
+            })
+        ),
     });
 };
 
@@ -376,6 +361,7 @@ export default definePage({
     world: 7,
     system: "Menagerie",
     description: "Menagerie progress: unlocks, boosts, missions and side jellies.",
-    keywords: ["Overview", "Unlocks", "Boosts", "Missions", "Side Jellies"],
+    keywords: ["Luminous Menagerie"],
+    tabs: PANES,
     component: MenagerieTab,
 });

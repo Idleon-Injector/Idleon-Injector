@@ -2,30 +2,38 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { EditableFieldsRow, StackedNumberField } from "../../../components/views/account/EditableFieldsRow.js";
+import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { AllToTool } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import {
-    adjustFormattedIntInput,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
-    largeFormatter,
-    largeParser,
-    resolveNumberInput,
+    runBulkSet,
     toInt,
-    writeManyVerified,
+    useWriteStatus,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const SUSHI_RESOURCES_PATH = "Sushi[4]";
 const SUSHI_PERFECT_PATH = "Sushi[5]";
 const SUSHI_XP_PATH = "Sushi[6]";
 const SUSHI_LEVEL_PATH = "Sushi[7]";
+
+// A sushi's state as the game keeps it in Sushi[5]: -1 never made, 0 made, 1 made perfect.
+const STATES = [
+    { value: -1, label: "Locked" },
+    { value: 0, label: "Unlocked" },
+    { value: 1, label: "Perfect" },
+];
 
 const RESOURCE_FIELDS = [
     { id: "fuel", index: 0, label: "Fuel", mode: "currency" },
@@ -35,44 +43,18 @@ const RESOURCE_FIELDS = [
     { id: "saffron", index: 7, label: "Saffron Shaker", mode: "int" },
 ];
 
+// A sushi's line: its state, its Knowledge XP and its level, each in its column.
 const KNOWLEDGE_FIELDS = [
-    {
-        id: "perfect",
-        label: "Perfect / Unlocked",
-        path: SUSHI_PERFECT_PATH,
-        inputMode: "int",
-        normalize: (raw) => Math.min(1, toInt(raw, { min: -1 })),
-        adjust: (raw, delta, current) => Math.max(-1, Math.min(1, toInt(raw, current ?? 0) + delta)),
-        format: (value) => String(Math.min(1, toInt(value, { min: -1 }))),
-        clampDraft: (raw) => {
-            const text = String(raw ?? "");
-            if (text === "" || text === "-") return text;
-            return String(Math.max(-1, Math.min(1, toInt(text, { min: -1 }))));
-        },
-    },
-    {
-        id: "xp",
-        label: "Knowledge XP",
-        path: SUSHI_XP_PATH,
-        inputMode: "float",
-        normalize: (raw) => resolveNumberInput(raw, { formatted: true, float: true, min: 0, fallback: null }),
-        adjust: (raw, delta, current) => adjustFormattedIntInput(raw, delta, current ?? 0, { min: 0 }),
-        format: largeFormatter,
-        inputProps: {
-            formatter: largeFormatter,
-            parser: largeParser,
-        },
-    },
-    {
-        id: "level",
-        label: "Knowledge Level",
-        path: SUSHI_LEVEL_PATH,
-        inputMode: "int",
-        normalize: (raw) => toInt(raw, { min: 0 }),
-        adjust: (raw, delta, current) => Math.max(0, toInt(raw, current ?? 0) + delta),
-        format: (value) => String(toInt(value, { min: 0 })),
-    },
+    { key: "perfect", label: "State", path: SUSHI_PERFECT_PATH, steps: STATES },
+    { key: "xp", label: "Knowledge XP", path: SUSHI_XP_PATH, formatted: true },
+    { key: "level", label: "Level", path: SUSHI_LEVEL_PATH },
 ];
+const readKnowledge = (field, raw) =>
+    field.key === "perfect"
+        ? Math.min(1, toInt(raw, { min: -1 }))
+        : field.key === "xp"
+          ? Number(raw ?? 0)
+          : toInt(raw, { min: 0 });
 
 const ResourceRow = ({ field, valueState }) => {
     const isCurrency = field.mode === "currency";
@@ -82,6 +64,7 @@ const ResourceRow = ({ field, valueState }) => {
             ...field,
             path: `${SUSHI_RESOURCES_PATH}[${field.index}]`,
             name: field.label,
+            showIndex: false,
             formatted: isCurrency,
             float: isCurrency,
         },
@@ -89,69 +72,20 @@ const ResourceRow = ({ field, valueState }) => {
     });
 };
 
+// Only what the player changed is written: the others hold the page's last read, which the game may have moved past.
 const KnowledgeRow = ({ entry, fieldStates }) =>
-    EditableFieldsRow({
+    ValueTableRow({
+        name: entry.name,
+        info: RowTitles({ bonus: entry.name, name: `Tier ${entry.index + 1}` }),
         fields: KNOWLEDGE_FIELDS.map((field) => ({
             ...field,
-            key: field.id,
-            valueState: getOrCreateState(fieldStates[field.id], entry.index),
-            toDraft: field.format,
+            valueState: getOrCreateState(fieldStates[field.key], entry.index),
+            paths: [`${field.path}[${entry.index}]`],
         })),
-        normalize: (rawValues) => {
-            const nextValues = {};
-            for (const field of KNOWLEDGE_FIELDS) {
-                const nextValue = field.normalize(rawValues[field.id]);
-                if (nextValue === null || nextValue === undefined || Number.isNaN(nextValue)) return null;
-                nextValues[field.id] = nextValue;
-            }
-            return nextValues;
+        read: async () => {
+            const values = await Promise.all(KNOWLEDGE_FIELDS.map((field) => gga(`${field.path}[${entry.index}]`)));
+            return Object.fromEntries(KNOWLEDGE_FIELDS.map((field, i) => [field.key, readKnowledge(field, values[i])]));
         },
-        write: async (nextValues) => {
-            // Only what the player changed: the others hold the page's last read, which the game may have moved past.
-            await writeManyVerified(
-                KNOWLEDGE_FIELDS.filter(
-                    (field) => nextValues[field.id] !== getOrCreateState(fieldStates[field.id], entry.index).val
-                ).map((field) => ({
-                    path: `${field.path}[${entry.index}]`,
-                    value: nextValues[field.id],
-                }))
-            );
-            return nextValues;
-        },
-        info: [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            span({ class: "account-row__name" }, entry.name),
-        ],
-        badge: `Tier ${entry.index + 1}`,
-        rowClass: "sushi-knowledge-row",
-        controlsClass: "account-row__controls--stack-action",
-        renderControls: ({ draftStates, getDraftValue, resetDraft, setFieldFocused }) =>
-            div(
-                { class: "account-stacked-fields" },
-                ...KNOWLEDGE_FIELDS.map((field) => {
-                    const valueState = getOrCreateState(fieldStates[field.id], entry.index);
-                    return StackedNumberField({
-                        field: {
-                            ...field,
-                            key: field.id,
-                            adjustDraft: (raw, delta) => field.adjust(raw, delta, valueState.val),
-                            inputProps: {
-                                ...(field.inputProps ?? {}),
-                                oninput: (e) => {
-                                    if (typeof field.clampDraft !== "function") return;
-                                    const nextDraft = field.clampDraft(e.target.value);
-                                    e.target.value = nextDraft;
-                                    draftStates[field.id].val = nextDraft;
-                                },
-                            },
-                        },
-                        draftStates,
-                        getDraftValue,
-                        setFieldFocused,
-                        resetDraft,
-                    });
-                })
-            ),
     });
 
 function SushiGeneralTab() {
@@ -163,7 +97,9 @@ function SushiGeneralTab() {
         xp: new Map(),
         level: new Map(),
     };
-    const knowledgeListNode = div({ class: "account-item-stack" });
+    const knowledgeListNode = div();
+    const rowOf = new Map();
+    const bulk = useWriteStatus();
     const reconcileKnowledgeRows = createStaticRowReconciler(knowledgeListNode);
 
     const buildSushiEntries = (rawNames) =>
@@ -182,7 +118,11 @@ function SushiGeneralTab() {
 
     const reconcileRows = () => {
         reconcileKnowledgeRows(sushiEntries.val.map((entry) => entry.rawId).join("|"), () =>
-            sushiEntries.val.map((entry) => KnowledgeRow({ entry, fieldStates }))
+            sushiEntries.val.map((entry) => {
+                const row = KnowledgeRow({ entry, fieldStates });
+                rowOf.set(entry.index, row);
+                return row;
+            })
         );
     };
 
@@ -209,52 +149,81 @@ function SushiGeneralTab() {
                         : toInt(resources[field.index], { min: 0 });
             }
 
-            for (const entry of sushiEntries.val) {
-                getOrCreateState(fieldStates.perfect, entry.index).val = Math.min(
-                    1,
-                    toInt(perfect[entry.index], { min: -1 })
-                );
-                getOrCreateState(fieldStates.xp, entry.index).val = Number(xp[entry.index] ?? 0);
-                getOrCreateState(fieldStates.level, entry.index).val = toInt(levels[entry.index], { min: 0 });
-            }
+            const held = { perfect, xp, level: levels };
+            for (const entry of sushiEntries.val)
+                for (const field of KNOWLEDGE_FIELDS)
+                    getOrCreateState(fieldStates[field.key], entry.index).val = readKnowledge(
+                        field,
+                        held[field.key][entry.index]
+                    );
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "RESOURCES",
-            note: "Sushi[4]",
-            body: div(
-                { class: "account-item-stack" },
-                ...RESOURCE_FIELDS.map((field) =>
-                    ResourceRow({
-                        field,
-                        valueState: resourceStates.get(field.id),
-                    })
-                )
-            ),
-        }),
-        AccountSection({
-            title: "KNOWLEDGE",
-            note: () => `${sushiEntries.val.length} SUSHI TYPES`,
-            body: knowledgeListNode,
-        })
-    );
+    // All to: every sushi the top bar's search shows to one state; lowering one asks first.
+    const shown = () => sushiEntries.val.filter((entry) => shownBySearch(rowOf.get(entry.index)));
+    const tools = (_activeId, ask) =>
+        div(
+            { class: "tabbed-list__tool-group" },
+            AllToTool({
+                ask,
+                bulk,
+                steps: STATES,
+                ordered: true,
+                lines: shown,
+                pickedOf: (entry) => getOrCreateState(fieldStates.perfect, entry.index).val,
+                word: () => "sushi",
+                disabled: () => loading.val,
+                write: (lines, value) =>
+                    runBulkSet({
+                        entries: lines,
+                        getTargetValue: () => value,
+                        getValueState: (entry) => getOrCreateState(fieldStates.perfect, entry.index),
+                        getPath: (entry) => `${SUSHI_PERFECT_PATH}[${entry.index}]`,
+                    }),
+            })
+        );
 
     return PersistentAccountListPage({
-        title: "SUSHI GENERAL",
-        description: "Edit Sushi resources from Sushi[4], and per-tier unlock, XP, and knowledge levels.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container sushi-general-tab",
+        title: "General",
+        description: "Sushi resources, and each sushi's state, Knowledge XP and level.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING SUSHI GENERAL",
-        errorTitle: "SUSHI GENERAL READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading sushi",
+        errorTitle: "Couldn't read sushi",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                tools,
+                // Set all is for the resources; a sushi's state has All to: the line names both.
+                toolsLabel: () =>
+                    `${RESOURCE_FIELDS.length} resources · ${shown().length}${isSearching() ? " matching" : ""} sushi`,
+                setAll: { word: (n) => (n === 1 ? "resource" : "resources"), placeholder: "Value" },
+                body: [
+                    AccountSection({
+                        title: "Resources",
+                        body: div(
+                            { class: "field-columns" },
+                            ...RESOURCE_FIELDS.map((field) =>
+                                ResourceRow({ field, valueState: resourceStates.get(field.id) })
+                            )
+                        ),
+                    }),
+                    AccountSection({
+                        title: "Knowledge",
+                        body: [
+                            ValueTableHead({
+                                name: "Sushi",
+                                columns: KNOWLEDGE_FIELDS.map((field) => field.label),
+                            }),
+                            knowledgeListNode,
+                        ],
+                    }),
+                ],
+            })
+        ),
     });
 }
 

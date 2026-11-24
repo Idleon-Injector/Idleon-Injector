@@ -14,7 +14,9 @@ import {
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountToggleRow } from "../../../components/views/account/components/AccountToggleRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
@@ -49,19 +51,10 @@ const UnlockRow = ({ unlockedState }) => {
     };
 
     return AccountToggleRow({
-        info: [
-            span({ class: "account-row__index" }, "426+433"),
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, "Coral Kid Unlock"),
-                span({ class: "account-row__sub-label" }, "NPC unlock and secret W5 move flag")
-            ),
-        ],
+        info: span({ class: "account-row__name" }, "Coral Kid"),
         words: ["Unlocked", "Locked"],
         name: "Coral Kid",
-        rowClass: "divinity-toggle-row",
         checked: () => Boolean(unlockedState.val),
-        title: "Toggle Coral Kid unlock and secret unlock",
         write: writeToggle,
     });
 };
@@ -76,8 +69,10 @@ const buildCoralKidEntries = (rawOptions, rawDescriptions) =>
             ...field,
             key: String(field.index),
             path: `OptionsListAccount[${field.index}]`,
-            description,
-            subLabel: description,
+            // The game's words for it under its name, when they say more than the name.
+            info:
+                description && description !== field.name ? RowTitles({ bonus: field.name, name: description }) : null,
+            showIndex: false,
             level: toInt(rawOptions[String(field.index)] ?? 0, { min: 0 }),
         };
     });
@@ -87,7 +82,8 @@ const buildSingularityEntries = (rawOptions) =>
         ...field,
         key: String(field.index),
         path: `OptionsListAccount[${field.index}]`,
-        subLabel: field.description,
+        info: RowTitles({ bonus: field.name, name: field.description }),
+        showIndex: false,
         level: toInt(rawOptions[String(field.index)] ?? 0, { min: 0 }),
     }));
 
@@ -97,8 +93,8 @@ const CoralKidTab = () => {
     const unlockedState = van.state(0);
     const levelStates = new Map();
     const singularityLevelStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
-    const singularityListNode = div({ class: "account-item-stack" });
+    const listNode = div();
+    const singularityListNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
     const reconcileSingularityRows = createStaticRowReconciler(singularityListNode);
 
@@ -146,37 +142,26 @@ const CoralKidTab = () => {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "UNLOCK",
-            note: "OptionsListAccount[426] + [433]",
-            body: div({ class: "account-item-stack" }, UnlockRow({ unlockedState })),
-        }),
-        AccountSection({
-            title: "UPGRADES",
-            note: "OptionsListAccount[427-432]",
-            body: listNode,
-        }),
-        AccountSection({
-            title: "SINGULARITY UPGRADES",
-            note: "OptionsListAccount[616-621] · currency: Singularity Spirals (CKsing)",
-            body: singularityListNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "CORAL KID",
-        description: "Toggle Coral Kid unlock flags and edit Coral Kid upgrade levels from OptionsListAccount.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Coral Kid",
+        description: "Coral Kid's unlock and his upgrade levels.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING CORAL KID",
-        errorTitle: "CORAL KID READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading Coral Kid",
+        errorTitle: "Couldn't read Coral Kid",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                setAll: { word: (n) => (n === 1 ? "upgrade" : "upgrades") },
+                body: [
+                    AccountSection({ title: "Unlock", body: UnlockRow({ unlockedState }) }),
+                    AccountSection({ title: "Upgrades", body: listNode }),
+                    AccountSection({ title: "Singularity", body: singularityListNode }),
+                ],
+            })
+        ),
     });
 };
 

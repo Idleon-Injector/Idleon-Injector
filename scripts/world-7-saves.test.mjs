@@ -83,12 +83,14 @@ const refuseWrites = (list, index) => {
 };
 
 const OBSERVATIONS = "src/ui/pages/world-7/research/observations.js";
-const observationTiles = (root) => byClass(root, "observation-tile");
+// An observation's line: its Insight Lv and Insight EXP fields, then its Unlocked switch.
+const observationTiles = (root) =>
+    byClass(root, "account-row").filter((row) => elements(row).some((node) => node.attributes.role === "switch"));
 
 test("Observations: leaving Insight Lv or Insight EXP saves what was typed", async () => {
     const root = await openPage(OBSERVATIONS, (node) => observationTiles(node).length > 3);
     const tile = observationTiles(root)[1];
-    const [, level, exp] = inputs(tile);
+    const [level, exp] = inputs(tile);
     focus(level);
     type(level, 42);
     leave(tile, level);
@@ -108,7 +110,7 @@ test("Observations: leaving Insight Lv or Insight EXP saves what was typed", asy
 test("Observations: saving Insight Lv keeps the Insight EXP the game gained since the page read", async () => {
     const root = await openPage(OBSERVATIONS, (node) => observationTiles(node).length > 3);
     const tile = observationTiles(root)[2];
-    const [, level] = inputs(tile);
+    const [level] = inputs(tile);
     Research[3][2] = 99999;
     const start = requests.length;
     focus(level);
@@ -121,21 +123,22 @@ test("Observations: saving Insight Lv keeps the Insight EXP the game gained sinc
     assert.equal(writesSince(start).length, 1, "only Insight Lv is written");
 });
 
-test("Sushi General: saving Perfect keeps the knowledge XP and level the game gained since the page read", async () => {
+test("Sushi General: picking Perfect keeps the knowledge XP and level the game gained since the page read", async () => {
     // The game keeps one value per tier here (src/cheats/cheats/sushi/knowledge.js).
     Sushi[6] = Array.from({ length: 20 }, (_, i) => i * 100);
     Sushi[7] = Array.from({ length: 20 }, (_, i) => i % 7);
     const tierRows = (root) => byClass(root, "account-row").filter((row) => text(row).includes("Tier "));
     const root = await openPage("src/ui/pages/world-7/sushi-station/1-general.js", (node) => tierRows(node).length > 3);
     const row = tierRows(root)[2];
-    const [perfect] = inputs(row);
-    await until(() => perfect.attributes.value === String(Sushi[5][2]), "the tier to show the game's values");
+    const step = (label) =>
+        elements(row).find((node) => node.attributes.role === "radio" && text(node).trim() === label);
+    const picked = () =>
+        elements(row).find((node) => node.attributes.role === "radio" && node.attributes["aria-checked"] === "true");
+    await until(() => picked(), "the sushi to show the game's state");
     Sushi[6][2] = 987654;
     Sushi[7][2] = 9;
     const next = Sushi[5][2] === 1 ? 0 : 1;
-    focus(perfect);
-    type(perfect, next);
-    press(row, perfect, "Enter");
+    step(next === 1 ? "Perfect" : "Unlocked").listeners.click({});
     await settled(row);
     assert.equal(stateOf(row), "success");
     assert.equal(Sushi[5][2], next);
@@ -143,25 +146,33 @@ test("Sushi General: saving Perfect keeps the knowledge XP and level the game ga
     assert.equal(Sushi[7][2], 9, "the level the game gained stays");
 });
 
-test("Sushi Station: a slot save the game refuses shows the game's tier again and says why", async () => {
-    const tiles = (root) => byClass(root, "sushi-station-tile");
-    const root = await openPage(
-        "src/ui/pages/world-7/sushi-station/2-station.js",
-        (node) => tiles(node).length > 10 && inputs(tiles(node)[1])[0].attributes.value === String(Sushi[0][1] + 1)
-    );
-    const tile = tiles(root)[1];
-    const [field] = inputs(tile);
-    const shown = field.attributes.value;
+// Station: a slot picked opens its row under the board, its tier field there.
+const STATION = "src/ui/pages/world-7/sushi-station/2-station.js";
+const stationSlots = (root) => byClass(root, "sushi-station-tile");
+// Read once a slot can be picked: until then every slot is one not unlocked.
+const stationRead = (root) => stationSlots(root).some((slot) => slot.attributes.disabled === false);
+const openSlot = async (root, index) => {
+    stationSlots(root)[index].listeners.click({});
+    const row = () => byClass(byClass(root, "sushi-station-editor")[0], "account-row")[0];
+    await until(row, "the slot's row");
+    return row();
+};
+
+test("Sushi Station: a slot save the game refuses says why beside the field, and the game keeps its tier", async () => {
+    const root = await openPage(STATION, stationRead);
+    const row = await openSlot(root, 1);
+    const [field] = inputs(row);
+    const shown = String(Sushi[0][1] + 1);
+    await until(() => field.attributes.value === shown, "the field to show the slot's tier");
     const restore = refuseWrites(Sushi[0], 1);
     try {
-        field.listeners.focus({ target: field });
-        field.value = String(Number(shown) + 1);
-        field.listeners.input({ target: field });
-        field.listeners.blur({ target: field });
-        const region = () =>
-            elements(globalThis.document.body).find((node) => node.attributes.role === "status")?.textContent ?? "";
-        await until(() => region().startsWith("Slot 1 not saved"), "the failure to be said");
-        await until(() => field.attributes.value === shown, "the field to show the game's tier");
+        focus(field);
+        type(field, Number(shown) + 1);
+        leave(row, field);
+        await settled(row);
+        assert.equal(stateOf(row), "error", "the row says it wasn't saved");
+        assert.notEqual(text(byClass(row, "save-state__label")[0]).trim(), "", "and why, beside the field");
+        assert.equal(String(Sushi[0][1] + 1), shown, "the game keeps its tier");
     } finally {
         restore();
     }
@@ -169,29 +180,25 @@ test("Sushi Station: a slot save the game refuses shows the game's tier again an
 
 // Review of #125: the earlier save, ending, put its tier over the one the player had typed since.
 test("Sushi Station: a tier typed while the last one saves stays in the field", async () => {
-    const tiles = (root) => byClass(root, "sushi-station-tile");
     Sushi[0][2] = 1; // tier 2
-    const root = await openPage(
-        "src/ui/pages/world-7/sushi-station/2-station.js",
-        (node) => tiles(node).length > 10 && inputs(tiles(node)[2])[0].attributes.value === "2"
-    );
-    const [field] = inputs(tiles(root)[2]);
+    const root = await openPage(STATION, stationRead);
+    const row = await openSlot(root, 2);
+    const [field] = inputs(row);
+    await until(() => field.attributes.value === "2", "the field to show tier 2");
     const release = hold("/write");
     try {
-        field.listeners.focus({ target: field });
-        field.value = "1";
-        field.listeners.input({ target: field });
-        field.listeners.blur({ target: field });
-        field.listeners.focus({ target: field });
-        field.value = "2";
-        field.listeners.input({ target: field });
+        focus(field);
+        type(field, 1);
+        leave(row, field);
+        focus(field);
+        type(field, 2);
     } finally {
         release();
     }
     await until(() => Sushi[0][2] === 0, "tier 1 to save");
     await tick();
     assert.equal(field.attributes.value, "2", "the field keeps the tier typed since");
-    field.listeners.blur({ target: field });
+    leave(row, field);
     await until(() => Sushi[0][2] === 1, "the tier typed since to save on leaving");
 });
 
@@ -199,11 +206,13 @@ test("Research Grid: Refresh while a level saves keeps the typed level, and leav
     const GRID = "src/ui/pages/world-7/research/grid.js";
     const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
     const root = await openPage(GRID, (node) => tiles(node).length > 3);
-    const card = () => byClass(root, "research-grid-detail__edit-row")[0];
-    tiles(root)[3].listeners.click({});
-    await until(card, "the tile's card");
-    const index = Number(/Tile (\d+)/.exec(text(byClass(root, "research-grid-detail__index")[0]))[1]) - 1;
-    const max = Number(/\/ (\d+)/.exec(text(byClass(root, "research-grid-detail__preview-level")[0]))[1]);
+    // A square picked opens its row under the board.
+    const card = () => byClass(byClass(root, "research-grid-editor")[0], "account-row")[0];
+    const tile = tiles(root)[3];
+    tile.listeners.click({});
+    await until(card, "the square's row");
+    const index = Number(tile.attributes["data-index"]);
+    const max = Number(game.gga.CustomLists.h.ResGridSquares[index][1]);
     const next = Research[0][index] === max ? 0 : max;
     const [field] = inputs(card());
 
@@ -224,86 +233,6 @@ test("Research Grid: Refresh while a level saves keeps the typed level, and leav
     await tick();
     assert.deepEqual(writesSince(start), [], "leaving the untouched field writes nothing");
     assert.equal(Research[0][index], next);
-});
-
-test("Spelunking Caves: Remove asks Click again first, and the second press takes the object off the list", async (t) => {
-    const removeButtons = (root) =>
-        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
-    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 1);
-    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
-    const click = (node) => node.listeners.click({ preventDefault() {} });
-    const [remove, other] = removeButtons(root);
-    const row = byClass(root, "account-row").find((node) => elements(node).includes(remove));
-    const read = [...Spelunk[6]];
-    const start = requests.length;
-
-    // The first press only asks; the ask runs out after a few seconds, and the press after that asks again.
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-    try {
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the first press asks");
-        assert.equal(
-            remove.attributes["aria-label"],
-            `Click again to remove ${text(byClass(row, "account-row__name")[0])}.`
-        );
-        t.mock.timers.tick(4000);
-        assert.equal(remove.attributes["data-again"], undefined, "the ask runs out");
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the press after that asks again");
-    } finally {
-        t.mock.timers.reset();
-    }
-    click(other);
-    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own object");
-    assert.deepEqual(writesSince(start), [], "nothing was written");
-    assert.deepEqual([...Spelunk[6]], read);
-
-    await click(remove);
-    await until(() => Spelunk[6].length === read.length - 1, "the second press to remove the object");
-    assert.equal(Spelunk[6].includes(read[0]), false);
-});
-
-test("Spelunking Caves: Add and Remove keep objects the game destroyed since the page read", async () => {
-    const removeButtons = (root) =>
-        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
-    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 0);
-    const read = [...Spelunk[6]];
-    Spelunk[6].push("Rock_5_1");
-    await buttonNamed(root, "Add").listeners.click({ preventDefault() {} });
-    await until(() => Spelunk[6].length === read.length + 2, "the object to be added");
-    assert.ok(Spelunk[6].includes("Rock_5_1"), "Add keeps the game's new object");
-    await until(
-        () => removeButtons(root).length === Spelunk[6].length && removeButtons(root)[0].attributes.disabled === false,
-        "the page to show the game's list"
-    );
-
-    Spelunk[6].push("Rock_6_2");
-    const first = Spelunk[6][0];
-    removeButtons(root)[0].listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
-    await removeButtons(root)[0].listeners.click({ preventDefault() {} });
-    await until(() => !Spelunk[6].includes(first), "the first object to be removed");
-    assert.ok(Spelunk[6].includes("Rock_6_2"), "Remove keeps the game's new object");
-    assert.equal(removeButtons(root).length, Spelunk[6].length);
-});
-
-test("Spelunking Caves: a Remove the game refuses says so on the row", async () => {
-    const removeButtons = (root) =>
-        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
-    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 0);
-    const kept = Spelunk[6];
-    const frozen = [...kept];
-    Object.defineProperty(Spelunk, 6, { get: () => frozen, set() {}, configurable: true });
-    try {
-        removeButtons(root)[0].listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
-        await removeButtons(root)[0].listeners.click({ preventDefault() {} });
-        await until(
-            () => removeButtons(root).some((node) => classes(node).includes("account-btn--error")),
-            "the refusal to show on a Remove button"
-        );
-        assert.equal(removeButtons(root).length, frozen.length, "the object stays listed");
-    } finally {
-        Object.defineProperty(Spelunk, 6, { value: kept, writable: true, configurable: true });
-    }
 });
 
 test("Sushi Tools: Refresh during a settings save keeps the typed setting, and the next save doesn't undo it", async () => {
@@ -342,6 +271,9 @@ test("Sushi Tools: Refresh during a settings save keeps the typed setting, and t
 
 const MENAGERIE = "src/ui/pages/world-7/menagerie/menagerie.js";
 const menagerieRead = (node) => Boolean(findRow(node, "Lumi balance"));
+// The unlocks are the page's switches, in the game's order.
+const unlockRow = (root, n) =>
+    byClass(root, "account-row").filter((row) => elements(row).some((node) => node.attributes.role === "switch"))[n];
 
 test("Menagerie: fields stay usable while a save runs, and a second Enter saves too", async () => {
     const root = await openPage(MENAGERIE, menagerieRead);
@@ -396,7 +328,7 @@ test("Menagerie: switching an unlock off takes back the line saying all were sav
     const line = () => byClass(root, "account-write-feedback").find((node) => text(node).includes("All 25"));
     await buttonNamed(root, "Unlock all").listeners.click({ preventDefault() {} });
     await until(line, "the bulk line");
-    const row = byClass(root, "account-row").find((node) => text(node).includes("Unlock #3"));
+    const row = unlockRow(root, 3);
     await until(() => inputs(row)[0].attributes.disabled === false, "the page to read again");
     inputs(row)[0].listeners.change({ target: { checked: false } });
     await until(() => Menagerie[2][3] === 0, "the unlock to switch off");
@@ -411,7 +343,6 @@ const unlockLine = (root) => {
         .map(text)
         .join("");
 };
-const unlockRow = (root, n) => byClass(root, "account-row").find((node) => text(node).includes(`Unlock #${n}`));
 
 test("Menagerie: an unlock switched off while Unlock all saves doesn't leave 'All 25 unlocks saved.'", async () => {
     const root = await openPage(MENAGERIE, menagerieRead);
@@ -448,13 +379,54 @@ test("Menagerie: Undo all after Unlock all takes back 'All 25 unlocks saved.'", 
     assert.equal(unlockLine(root), "");
 });
 
-test("Spelunking Caves: a refused Remove stays red on its row when the game added an object meanwhile", async () => {
-    const removeButtons = (root) =>
-        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
-    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 0);
-    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
+// Caves: every object with a Discovered switch (the Hat Rack's way). A flip is a click: the change log hears it first.
+const CAVES = "src/ui/pages/world-7/spelunking/1-caves.js";
+const { startChangeLog } = await importRepo("src/ui/services/changeLog.js");
+const { default: appStore } = await importRepo("src/ui/state/store.js");
+const clicks = globalThis.document.createElement("div");
+startChangeLog(appStore.app, clicks);
+const switchOf = (row) => elements(row).find((node) => node.attributes.role === "switch");
+const objectRows = (root) => byClass(root, "account-row").filter((row) => switchOf(row));
+const objectRow = (root, id) =>
+    objectRows(root).find((row) => text(byClass(row, "account-row__name")[0]) === id.replace(/_/g, " "));
+const flip = (row, on) => {
+    clicks.listeners.pointerdown({ target: switchOf(row) });
+    return switchOf(row).listeners.change({ target: { checked: on } });
+};
+const wordsOf = (row) => text(byClass(row, "state-switch__words")[0]);
+const cavesRead = (node) => objectRows(node).length > 3;
+
+test("Spelunking Caves: switching an object off takes it off the game's list at once", async () => {
+    const root = await openPage(CAVES, cavesRead);
+    const read = [...Spelunk[6]];
+    await flip(objectRow(root, read[0]), false);
+    await until(() => Spelunk[6].length === read.length - 1, "the object to come off");
+    assert.equal(Spelunk[6].includes(read[0]), false);
+    assert.deepEqual([...Spelunk[6]], read.slice(1), "the others stay");
+    Spelunk[6] = read;
+});
+
+test("Spelunking Caves: discovering and taking off keep objects the game destroyed since the page read", async () => {
+    const root = await openPage(CAVES, cavesRead);
+    const read = [...Spelunk[6]];
+    const off = objectRows(root).find((row) => wordsOf(row) === "");
+    Spelunk[6].push("Rock_5_1");
+    await flip(off, true);
+    await until(() => Spelunk[6].length === read.length + 2, "the object to be added");
+    assert.ok(Spelunk[6].includes("Rock_5_1"), "the switch keeps the game's new object");
+
+    Spelunk[6].push("Rock_6_2");
+    const first = Spelunk[6][0];
+    await flip(objectRow(root, first), false);
+    await until(() => !Spelunk[6].includes(first), "the first object to come off");
+    assert.ok(Spelunk[6].includes("Rock_6_2"), "taking one off keeps the game's new object");
+    Spelunk[6] = read;
+});
+
+test("Spelunking Caves: a refused switch goes back and says why on its row", async () => {
+    const root = await openPage(CAVES, cavesRead);
     const before = [...Spelunk[6]];
-    const remove = removeButtons(root)[0];
+    const row = objectRow(root, before[0]);
     const realFetch = globalThis.fetch;
     globalThis.fetch = async (url, options) => {
         if (!String(url).includes("/write")) return realFetch(url, options);
@@ -464,61 +436,45 @@ test("Spelunking Caves: a refused Remove stays red on its row when the game adde
             headers: { "content-type": "application/json" },
         });
     };
+    const realError = console.error;
+    console.error = () => {};
     try {
-        remove.listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
-        await remove.listeners.click({ preventDefault() {} });
-        await until(() => removeButtons(root).length === before.length + 1, "the page to show the game's list");
+        await flip(row, false);
+        await until(() => !["Discovered", ""].includes(wordsOf(row)), "the refusal to show");
     } finally {
         globalThis.fetch = realFetch;
+        console.error = realError;
     }
-    assert.ok(removeButtons(root).includes(remove), "the row that asked is still on the page");
-    assert.match(classes(remove), /account-btn--error/);
+    assert.ok(objectRows(root).includes(row), "the row that asked is still on the page");
+    assert.ok(Spelunk[6].includes(before[0]), "the object is still on the game's list");
     Spelunk[6] = before;
 });
 
-test("Spelunking Caves: an Add or Remove the game no longer needs writes nothing and doesn't say saved", async () => {
-    const removeButtons = (root) =>
-        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
-    const root = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (node) => removeButtons(node).length > 1);
-    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
+test("Spelunking Caves: a switch the game no longer needs writes nothing", async () => {
+    const root = await openPage(CAVES, cavesRead);
     const before = [...Spelunk[6]];
     const start = requests.length;
-
-    const remove = removeButtons(root)[0];
+    const row = objectRow(root, before[0]);
     Spelunk[6] = before.slice(1); // the game no longer lists it
-    remove.listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
-    await remove.listeners.click({ preventDefault() {} });
-    assert.doesNotMatch(classes(remove), /account-btn--success/, "no ✓ on Remove");
-
-    const add = buttonNamed(root, "Add");
-    await until(() => add.attributes.disabled === false, "Add to be ready");
-    const picked = elements(root).find((node) => node.nodeName === "select");
-    Spelunk[6] = [...Spelunk[6], String(picked.attributes.value)]; // the game destroyed it meanwhile
-    await add.listeners.click({ preventDefault() {} });
-    assert.doesNotMatch(classes(add), /account-btn--success/, "no ✓ on Add");
+    await flip(row, false);
+    const off = objectRows(root).find((other) => wordsOf(other) === "");
+    const id = text(byClass(off, "account-row__name")[0]).replace(/ /g, "_");
+    Spelunk[6] = [...Spelunk[6], id]; // the game destroyed it meanwhile
+    await flip(off, true);
     assert.deepEqual(writesSince(start), [], "nothing was written");
     Spelunk[6] = before;
 });
 
-test("Spelunking Caves: an object removed down to an empty list and added back gets a new row", async () => {
-    const removeButtons = (root) =>
-        elements(root).filter((node) => node.nodeName === "button" && text(node).trim() === "Remove");
+test("Spelunking Caves: Add all discovers every object left in one write, and keeps the game's", async () => {
+    const root = await openPage(CAVES, cavesRead);
     const before = [...Spelunk[6]];
-    Spelunk[6] = [before[0]];
-    const root = await openPage(
-        "src/ui/pages/world-7/spelunking/1-caves.js",
-        (node) => removeButtons(node).length === 1
+    const start = requests.length;
+    await buttonNamed(root, "Add all").listeners.click({ preventDefault() {} });
+    await until(
+        () => objectRows(root).every((row) => wordsOf(row) === "Discovered"),
+        "every object to show discovered"
     );
-    await until(() => removeButtons(root)[0].attributes.disabled === false, "Remove to be ready");
-    const [remove] = removeButtons(root);
-    remove.listeners.click({ preventDefault() {} }); // Remove asks "Click again" first
-    await remove.listeners.click({ preventDefault() {} });
-    await until(() => removeButtons(root).length === 0, "the list to be empty");
-    const picker = elements(root).find((node) => node.nodeName === "select");
-    picker.listeners.change({ target: { value: before[0] } }); // the same object again
-    await buttonNamed(root, "Add").listeners.click({ preventDefault() {} });
-    assert.deepEqual([...Spelunk[6]], [before[0]]);
-    await until(() => removeButtons(root).length === 1, "the object to show again");
-    assert.notEqual(removeButtons(root)[0], remove, "a new row, without the removed one's state");
+    assert.deepEqual([...Spelunk[6]].slice(0, before.length), before, "the game's own stay first");
+    assert.equal(writesSince(start).length, 1, "one write");
     Spelunk[6] = before;
 });

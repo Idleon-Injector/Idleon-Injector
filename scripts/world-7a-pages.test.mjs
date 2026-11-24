@@ -96,74 +96,53 @@ const gameCache = (key, sum) => () => {
     return dnsm[key];
 };
 
-test("Trophy Add all that stops part-way shows the trophies that landed, and Add fills the next empty slot", async (t) => {
+// The gallery is one list of every trophy, each with an In gallery switch (the Hat Rack's way).
+const openGallery = () =>
+    openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) => byClass(root, "account-row").length >= 10);
+const switchOf = (row) => elements(row).find((node) => node.attributes.role === "switch");
+// A flip is a click: the change log hears it first, so its save is its own action (as in the menu).
+const { startChangeLog } = await importRepo("src/ui/services/changeLog.js");
+const clicks = globalThis.document.createElement("div");
+startChangeLog(store.app, clicks);
+const flip = (row, on) => {
+    clicks.listeners.pointerdown({ target: switchOf(row) });
+    return switchOf(row).listeners.change({ target: { checked: on } });
+};
+const switchWords = (row) => text(byClass(row, "state-switch__words")[0]);
+const trophyRows = (page) => byClass(page, "account-row");
+
+test("Trophy Add all that stops part-way shows the trophies that landed, and a switch fills the next empty slot", async (t) => {
     gga.Spelunk[16] = [1, -1, -1, -1, -1, -1];
-    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
-        text(root).includes("CURRENT SLOTS")
-    );
-    const shown = () => byClass(page, "account-row").length;
-    assert.equal(shown(), 1);
+    const page = await openGallery();
+    const inGallery = () => trophyRows(page).filter((row) => switchWords(row) === "In gallery").length;
+    assert.equal(inGallery(), 1);
 
     const restore = failWrites(2); // Trophy2 lands in slot 1, Trophy3 fails for slot 2
     t.after(restore);
-    button(page, "Add all").listeners.click({ preventDefault() {} });
-    await until(() => shown() === 2, "the page to show the trophy that landed");
+    await button(page, "Add all").listeners.click({ preventDefault() {} });
+    await until(() => inGallery() === 2, "the page to show the trophy that landed");
     restore();
     assert.deepEqual(gga.Spelunk[16], [1, 2, -1, -1, -1, -1]);
 
-    const select = elements(page).find((node) => node.nodeName === "select");
-    select.listeners.change({ target: { value: "Trophy3" } });
-    button(page, "Add").listeners.click({ preventDefault() {} });
-    await until(() => shown() === 3, "the added trophy");
-    assert.deepEqual(gga.Spelunk[16], [1, 2, 3, -1, -1, -1], "Add keeps Trophy2 and fills the next empty slot");
+    await flip(trophyRows(page)[2], true);
+    await until(() => inGallery() === 3, "the switched-on trophy");
+    assert.deepEqual(gga.Spelunk[16], [1, 2, 3, -1, -1, -1], "the switch keeps Trophy2 and fills the next empty slot");
 });
 
-test("Trophy Remove asks Click again first, and the second press clears the slot", async (t) => {
+test("Trophy: switching one off empties its slot at once, and the other slots stay", async () => {
     gga.Spelunk[16] = [1, 2, -1, -1, -1, -1];
-    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
-        text(root).includes("CURRENT SLOTS")
-    );
-    const [first, second] = byClass(page, "account-row");
-    const remove = button(first, "Remove");
-    const click = (node) => node.listeners.click({ preventDefault() {} });
-    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
-    const before = writes();
-
-    // The first press only asks; the ask runs out after a few seconds, and the press after that asks again.
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-    try {
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the first press asks");
-        assert.equal(
-            remove.attributes["aria-label"],
-            `Click again to remove ${text(byClass(first, "account-row__name")[0])}.`
-        );
-        t.mock.timers.tick(4000);
-        assert.equal(remove.attributes["data-again"], undefined, "the ask runs out");
-        click(remove);
-        assert.equal(remove.attributes["data-again"], "Click again", "the press after that asks again");
-    } finally {
-        t.mock.timers.reset();
-    }
-    const other = button(second, "Remove");
-    click(other);
-    assert.equal(other.attributes["data-again"], "Click again", "another row's Remove asks for its own trophy");
-    assert.equal(writes(), before, "nothing was written");
-    assert.deepEqual(gga.Spelunk[16], [1, 2, -1, -1, -1, -1]);
-
-    click(remove);
-    await until(() => byClass(page, "account-row").length === 1, "the second press to clear the slot");
+    const page = await openGallery();
+    await flip(trophyRows(page)[0], false);
+    await until(() => gga.Spelunk[16][0] === -1, "the slot to empty");
     assert.deepEqual(gga.Spelunk[16], [-1, 2, -1, -1, -1, -1]);
+    await until(() => switchWords(trophyRows(page)[0]) === "", "the switch to show it out");
+    assert.equal(switchWords(trophyRows(page)[1]), "In gallery");
 });
 
-test("a refused Trophy Remove stays red on its row", async () => {
+test("a refused Trophy switch goes back and says why on its row", async () => {
     gga.Spelunk[16] = [1, 2, -1, -1, -1, -1];
-    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
-        text(root).includes("CURRENT SLOTS")
-    );
-    const [first] = byClass(page, "account-row");
-    const remove = button(first, "Remove");
-    const click = (node) => node.listeners.click({ preventDefault() {} });
+    const page = await openGallery();
+    const [first] = trophyRows(page);
     const realFetch = globalThis.fetch;
     globalThis.fetch = async (url, options) =>
         String(url).includes("/write")
@@ -175,42 +154,35 @@ test("a refused Trophy Remove stays red on its row", async () => {
     const realError = console.error;
     console.error = () => {};
     try {
-        click(remove);
-        await click(remove);
-        await until(() => /account-btn--error/.test(String(remove.attributes.class)), "the refusal to show");
-        await new Promise((resolve) => setTimeout(resolve, 50)); // the read after it
+        await flip(first, false);
+        await until(() => !["In gallery", ""].includes(switchWords(first)), "the refusal to show");
     } finally {
         globalThis.fetch = realFetch;
         console.error = realError;
     }
-    assert.ok(byClass(page, "account-row").includes(first), "the row that asked is still on the page");
-    assert.match(String(remove.attributes.class), /account-btn--error/);
+    assert.ok(trophyRows(page).includes(first), "the row that asked is still on the page");
+    assert.notEqual(switchWords(first), "", "it says why instead of showing it out");
     assert.deepEqual(gga.Spelunk[16], [1, 2, -1, -1, -1, -1]);
 });
 
-test("a trophy removed down to an empty list and added back gets a new row, not the removed one", async () => {
-    gga.Spelunk[16] = [1, -1, -1, -1, -1, -1];
-    const page = await openPage("src/ui/pages/world-7/gallery/1-trophy.js", (root) =>
-        text(root).includes("CURRENT SLOTS")
-    );
-    const [removed] = byClass(page, "account-row");
-    const remove = button(removed, "Remove");
-    const click = (node) => node.listeners.click({ preventDefault() {} });
-    click(remove);
-    await click(remove);
-    await until(() => byClass(page, "account-row").length === 0, "the list to be empty");
-    gga.Spelunk[16] = [1, -1, -1, -1, -1, -1]; // the game has it again
-    await click(button(page, "Refresh"));
-    await until(() => byClass(page, "account-row").length === 1, "the trophy to show again");
-    assert.notEqual(byClass(page, "account-row")[0], removed, "a new row, without the removed one's state");
+test("Trophy: switching one on with no empty slot writes nothing and says why", async () => {
+    gga.Spelunk[16] = [1, 2];
+    const page = await openGallery();
+    const writes = () => requests.filter((entry) => entry.includes("/write")).length;
+    const before = writes();
+    await flip(trophyRows(page)[2], true);
+    await until(() => switchWords(trophyRows(page)[2]) !== "", "the reason to show");
+    assert.match(switchWords(trophyRows(page)[2]), /No empty slot/);
+    assert.equal(writes(), before, "nothing was written");
+    assert.deepEqual(gga.Spelunk[16], [1, 2]);
 });
 
 test("Nametag 6 (the game's EquipmentNametag6b) has its row", async () => {
     gga.Spelunk[17][6] = 3;
-    const page = await openPage("src/ui/pages/world-7/gallery/2-nametag.js", (root) =>
-        byClass(root, "account-row").some((row) => text(byClass(row, "account-row__index")[0]) === "#6")
-    );
-    const row = byClass(page, "account-row").find((node) => text(byClass(node, "account-row__index")[0]) === "#6");
+    // Its name is the game's EquipmentNametag6b's.
+    const name = gga.ItemDefinitionsGET.h.EquipmentNametag6b.h.displayName.replace(/_/g, " ");
+    const page = await openPage("src/ui/pages/world-7/gallery/2-nametag.js", (root) => findRow(root, name));
+    const row = findRow(page, name);
     assert.equal(input(row).attributes.value, "3");
 });
 

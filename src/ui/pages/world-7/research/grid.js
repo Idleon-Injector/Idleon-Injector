@@ -1,15 +1,30 @@
+/**
+ * W7 - Research: Grid
+ *
+ * The game's research board, its squares where the game puts them, each showing its level. A square picked opens its
+ * row under the board, in the same panel (the cog board's way, #251): its bonus first, its level up to its max. The
+ * same square again or Escape closes it.
+ *
+ * Data sources:
+ *   gga.Research[0][n]             - square n's level
+ *   cList.ResGridSquares[n]        - [0] name, [1] max level (-1 for a square not in use), [2] bonus value, [5] bonus
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga } from "../../../services/api.js";
-import { NumberInput } from "../../../components/NumberInput.js";
 import { toIndexedArray } from "../../../utils/index.js";
+import { EmptyState } from "../../../components/EmptyState.js";
+import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { cleanName, writeVerified } from "../../../components/views/account/accountShared.js";
-import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { cleanName } from "../../../components/views/account/accountShared.js";
 
-const { div, button, p, span } = van.tags;
+const { div, button, span } = van.tags;
 
 const GRID_WIDTH = 20;
 const GRID_HEIGHT = 12;
@@ -31,21 +46,23 @@ const getTileFillPercent = (level, maxLevel) => {
     return Math.max(0, Math.min(100, (Number(level) / Number(maxLevel)) * 100));
 };
 
+// A square: its level where the game puts it, a faint wash rising with it. A square not in use can't be picked.
 const GridTile = ({ index, tileState, onSelect }) =>
     button(
         {
             class: () =>
                 [
                     "research-grid-tile",
-                    tileState.maxLevel.val >= 0 ? "research-grid-tile--active" : "research-grid-tile--inactive",
-                    tileState.level.val > 0 ? "research-grid-tile--leveled" : "",
-                    tileState.selected?.val ? "research-grid-tile--selected" : "",
+                    tileState.maxLevel.val < 0 && "research-grid-tile--inactive",
+                    tileState.selected.val && "research-grid-tile--selected",
                 ]
                     .filter(Boolean)
                     .join(" "),
             disabled: () => tileState.maxLevel.val < 0,
+            "data-index": index,
+            "aria-pressed": () => String(tileState.selected.val),
+            "aria-label": () => `${tileState.name.val}, level ${tileState.level.val} of ${tileState.maxLevel.val}`,
             onclick: () => onSelect(index),
-            title: () => tileState.name.val,
             type: "button",
             style: () => `--research-column: ${tileState.gridColumn.val}; --research-row: ${tileState.gridRow.val};`,
         },
@@ -53,44 +70,31 @@ const GridTile = ({ index, tileState, onSelect }) =>
             class: "research-grid-tile__fill",
             style: () => `--research-fill: ${getTileFillPercent(tileState.level.val, tileState.maxLevel.val)}%;`,
         }),
-        div(
-            { class: "research-grid-tile__content" },
-            span({ class: "research-grid-tile__level" }, () =>
-                tileState.maxLevel.val >= 0 ? `${tileState.level.val}/${tileState.maxLevel.val}` : "--"
-            )
+        span({ class: "research-grid-tile__level" }, () =>
+            tileState.maxLevel.val >= 0 ? String(tileState.level.val) : ""
         )
     );
 
 const GridTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Research Grid" });
     const selectedIndex = van.state(null);
-    const detailInput = van.state("0");
-    // The selected tile's level saves on Enter or on leaving the field.
-    const detailSave = useAutoSave({
-        subject: () => selectedIndex.val,
-        prepare: () => {
-            const index = selectedIndex.val;
-            const tile = index === null ? null : gridStates[index];
-            if (!tile || tile.maxLevel.val < 0) return { unchanged: true };
-            const raw = String(detailInput.val ?? "").trim();
-            if (raw === "") throw new Error("enter a number");
-            const typed = Number(raw);
-            if (!Number.isInteger(typed)) throw new Error("whole numbers only");
-            if (typed < 0) throw new Error("min 0");
-            if (typed > tile.maxLevel.val) throw new Error(`max ${tile.maxLevel.val}`);
-            if (typed === tile.level.val) return { unchanged: true };
-            return {
-                write: async () => {
-                    await writeVerified(`Research[0][${index}]`, typed);
-                    tile.level.val = typed;
-                },
-            };
-        },
-        revert: () => {
-            const tile = selectedIndex.val === null ? null : gridStates[selectedIndex.val];
-            if (tile) detailInput.val = String(tile.level.val);
-        },
-    });
+    // A square's row, built the first time it's picked and kept, so its save state and Undo stay with it.
+    const rowOf = new Map();
+    const SquareRow = (index) => {
+        const tile = gridStates[index];
+        return ClampedLevelRow({
+            valueState: tile.level,
+            writePath: `Research[0][${index}]`,
+            max: () => tile.maxLevel.val,
+            integerMode: "round",
+            // Its bonus first, the name under it; a square without its own words shows its name alone.
+            renderInfo: () =>
+                tile.description.val && tile.description.val !== tile.name.val
+                    ? RowTitles({ bonus: tile.description.val, name: tile.name.val })
+                    : span({ class: "account-row__name" }, tile.name.val),
+            maxAction: true,
+        });
+    };
 
     const gridStates = Array.from({ length: GRID_TILE_COUNT }, () => ({
         name: van.state(""),
@@ -106,29 +110,24 @@ const GridTab = () => {
     const visibleColumnCount = van.state(0);
     const visibleRowCount = van.state(0);
 
-    const currentTile = van.derive(() => {
-        const index = selectedIndex.val;
-        return index === null ? null : (gridStates[index] ?? null);
-    });
-
     const syncSelectedFlags = (nextIndex) => {
         for (let i = 0; i < gridStates.length; i++) {
             gridStates[i].selected.val = i === nextIndex;
         }
     };
 
-    const selectTile = (index) => {
-        const tile = gridStates[index];
-        if (!tile || tile.maxLevel.val < 0) return;
-        selectedIndex.val = index;
-        syncSelectedFlags(index);
-        detailInput.val = String(tile.level.val);
-    };
-
     const closeDetail = () => {
         selectedIndex.val = null;
         syncSelectedFlags(null);
-        detailInput.val = "0";
+    };
+    // The same square again closes its row.
+    const selectTile = (index) => {
+        const tile = gridStates[index];
+        if (!tile || tile.maxLevel.val < 0) return;
+        if (selectedIndex.val === index) return closeDetail();
+        if (!rowOf.has(index)) rowOf.set(index, SquareRow(index));
+        selectedIndex.val = index;
+        syncSelectedFlags(index);
     };
 
     const load = async () =>
@@ -187,131 +186,51 @@ const GridTab = () => {
 
             syncSelectedFlags(selectedIndex.val);
 
-            if (selectedIndex.val !== null) {
-                const selectedTile = gridStates[selectedIndex.val];
-                if (!selectedTile || selectedTile.maxLevel.val < 0) closeDetail();
-                // A save running now holds the player's typed level; this read may predate it.
-                else if (!detailSave.isBusy()) detailInput.val = String(selectedTile.level.val);
-            }
+            if (selectedIndex.val !== null && gridStates[selectedIndex.val].maxLevel.val < 0) closeDetail();
         });
 
     load();
 
-    const board = div(
-        { class: "research-grid-shell" },
-        div(
-            { class: "research-grid-layout" },
-            div({ class: "research-grid-board-wrap" }, () =>
-                visibleTileIndexes.val.length === 0
-                    ? div(
-                          { class: "research-grid-detail__empty" },
-                          span({ class: "research-grid-detail__empty-title" }, "NO ACTIVE GRID TILES"),
-                          p(
-                              { class: "research-grid-detail__empty-text" },
-                              "All research grid squares are currently inactive."
-                          )
-                      )
-                    : div(
-                          {
-                              class: "research-grid-board",
-                              style: `--research-columns: ${visibleColumnCount.val}; --research-rows: ${visibleRowCount.val};`,
-                          },
-                          ...visibleTileIndexes.val.map((index) =>
-                              GridTile({
-                                  index,
-                                  tileState: gridStates[index],
-                                  onSelect: selectTile,
-                              })
-                          )
-                      )
-            ),
-            div({ class: "research-grid-detail" }, () => {
-                const tile = currentTile.val;
+    const board = div({ class: "research-grid-board-wrap" }, () =>
+        visibleTileIndexes.val.length === 0
+            ? EmptyState({ title: "No squares in use yet" })
+            : div(
+                  {
+                      class: "research-grid-board",
+                      style: `--research-columns: ${visibleColumnCount.val}; --research-rows: ${visibleRowCount.val};`,
+                  },
+                  ...visibleTileIndexes.val.map((index) =>
+                      GridTile({ index, tileState: gridStates[index], onSelect: selectTile })
+                  )
+              )
+    );
+    // The picked square's row, under the board; Escape closes it.
+    const editor = div(
+        {
+            class: "research-grid-editor",
+            onkeydown: (e) => {
+                if (e.key !== "Escape" || selectedIndex.val === null) return;
                 const index = selectedIndex.val;
-
-                if (!tile || index === null) {
-                    return div(
-                        { class: "research-grid-detail__empty" },
-                        span({ class: "research-grid-detail__empty-title" }, "NO TILE SELECTED"),
-                        p(
-                            { class: "research-grid-detail__empty-text" },
-                            "Click any active square in the grid to inspect its details and set its level."
-                        )
-                    );
-                }
-
-                return div(
-                    { class: "research-grid-detail__card" },
-                    div(
-                        { class: "research-grid-detail__preview" },
-                        div({
-                            class: "research-grid-detail__preview-fill",
-                            style: () => `--research-fill: ${getTileFillPercent(tile.level.val, tile.maxLevel.val)}%;`,
-                        }),
-                        div(
-                            { class: "research-grid-detail__preview-content" },
-                            span({ class: "research-grid-detail__preview-name" }, () => tile.name.val),
-                            span(
-                                { class: "research-grid-detail__preview-level" },
-                                () => `LV ${tile.level.val} / ${tile.maxLevel.val}`
-                            )
-                        )
-                    ),
-                    div({ class: "research-grid-detail__index" }, `Tile ${index + 1}`),
-                    div(
-                        { class: "research-grid-detail__description" },
-                        () => tile.description.val || "No description available."
-                    ),
-                    div(
-                        { class: "research-grid-detail__meta" },
-                        div(
-                            { class: "research-grid-detail__meta-row" },
-                            span({ class: "research-grid-detail__meta-label" }, "Current Level"),
-                            span({ class: "research-grid-detail__meta-value" }, () => String(tile.level.val))
-                        ),
-                        div(
-                            { class: "research-grid-detail__meta-row" },
-                            span({ class: "research-grid-detail__meta-label" }, "Max Level"),
-                            span({ class: "research-grid-detail__meta-value" }, () => String(tile.maxLevel.val))
-                        )
-                    ),
-                    div(
-                        {
-                            class: () =>
-                                `research-grid-detail__edit-row ${saveStateClass(detailSave.status.val, detailSave.undo)}`,
-                            ...detailSave.handlers,
-                        },
-                        span({ class: "research-grid-detail__edit-label" }, "Level"),
-                        SaveState(detailSave),
-                        NumberInput({
-                            mode: "int",
-                            value: detailInput,
-                            oninput: (e) => (detailInput.val = e.target.value),
-                            onDecrement: () =>
-                                (detailInput.val = String(Math.max(0, (Number(detailInput.val) || 0) - 1))),
-                            onIncrement: () =>
-                                (detailInput.val = String(
-                                    Math.min(tile.maxLevel.val, Math.max(0, (Number(detailInput.val) || 0) + 1))
-                                )),
-                        })
-                    )
-                );
-            })
-        )
+                closeDetail();
+                board.querySelector?.(`[data-index="${index}"]`)?.focus();
+            },
+        },
+        () =>
+            selectedIndex.val === null
+                ? span()
+                : AccountSection({ title: `Square ${selectedIndex.val + 1}`, body: rowOf.get(selectedIndex.val) })
     );
 
     return PersistentAccountListPage({
-        title: "GRID",
-        description: "Browse all 240 research squares. Click an active tile to inspect it and set its current level.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Grid",
+        description: "The research board. Pick a square to set its level.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING RESEARCH GRID",
-        errorTitle: "GRID READ FAILED",
-        initialWrapperClass: "research-grid-shell",
-        body: board,
+        loadingText: "Reading the research grid",
+        errorTitle: "Couldn't read the research grid",
+        initialWrapperClass: "account-list",
+        body: div({ class: "account-list account-list--tabbed" }, ListPanel({ body: [board, editor] })),
     });
 };
 

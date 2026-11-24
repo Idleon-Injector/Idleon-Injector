@@ -1,286 +1,92 @@
 /* W7 Research */
 
-.research-grid-shell {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    padding: 14px;
-}
-
-.research-grid-layout {
-    display: grid;
-    grid-template-columns: minmax(360px, 1fr) minmax(280px, 360px);
-    gap: 12px;
-    flex: 1;
-    min-height: 0;
-}
-
-.research-grid-board-wrap,
-.research-grid-detail {
-    min-height: 0;
-    overflow: auto;
-    background: var(--c-panel-dim);
-    border: 1px solid var(--c-border);
-    padding: 12px;
+/* Grid: the game's board, centred in the panel; where it doesn't fit (a phone) it scrolls inside its own box. */
+.research-grid-board-wrap {
+    overflow-x: auto;
+    padding: 16px 12px;
 }
 
 .research-grid-board {
     display: grid;
-    grid-template-columns: repeat(var(--research-columns), 44px);
-    grid-template-rows: repeat(var(--research-rows), 44px);
-    gap: 3px;
+    grid-template-columns: repeat(var(--research-columns), 40px);
+    grid-template-rows: repeat(var(--research-rows), 40px);
+    gap: 4px;
     width: max-content;
     margin-inline: auto;
 }
 
+/* A square: its level on a value's well, a faint lavender wash rising with it. Quiet until pointed at. */
 .research-grid-tile {
     grid-column: var(--research-column);
     grid-row: var(--research-row);
     position: relative;
-    width: 44px;
-    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
     overflow: hidden;
     border: 1px solid var(--c-border);
-    background: var(--c-panel);
+    border-radius: 9px;
+    background: var(--c-well-hover);
     color: var(--c-text-main);
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     cursor: pointer;
+    transition:
+        border-color 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.research-grid-tile:hover:not(:disabled) {
+    border-color: var(--c-border-strong);
 }
 
 .research-grid-tile--inactive {
-    opacity: 0.35;
+    background: transparent;
+    border-color: var(--c-border-faint);
     cursor: default;
 }
 
-.research-grid-tile--selected {
+/* The picked square: the lavender ring, so it shows which square the row under the board is for. */
+.research-grid-tile--selected,
+.research-grid-tile--selected:hover:not(:disabled) {
     border-color: var(--c-accent);
-    box-shadow: 0 0 0 1px var(--c-accent);
+    box-shadow: 0 0 0 1px var(--c-accent) inset;
+}
+
+.research-grid-tile:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
 }
 
 .research-grid-tile__fill {
-    height: var(--research-fill);
     position: absolute;
     inset: auto 0 0;
-    background: var(--c-accent-40);
-}
-
-.research-grid-tile__content {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+    height: var(--research-fill);
+    background: var(--c-accent-20);
+    pointer-events: none;
 }
 
 .research-grid-tile__level {
-    font-family: var(--font-mono);
-    font-size: 0.815rem;
-}
-
-.research-grid-detail__empty,
-.research-grid-detail__card {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.research-grid-detail__empty {
-    align-items: center;
-    justify-content: center;
-    min-height: 180px;
-    color: var(--c-text-muted);
-    text-align: center;
-}
-
-.research-grid-detail__empty-title,
-.research-grid-detail__preview-name {
-    color: var(--c-text-main);
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-}
-
-.research-grid-detail__empty-text,
-.research-grid-detail__description {
-    margin: 0;
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-}
-
-.research-grid-detail__preview {
     position: relative;
-    min-height: 92px;
-    overflow: hidden;
-    border: 1px solid var(--c-border);
-    background: var(--c-panel);
 }
 
-.research-grid-detail__preview-fill {
-    height: var(--research-fill);
-    position: absolute;
-    inset: auto 0 0;
-    background: var(--c-accent-25);
-}
+/* On a phone the squares come down a size, so the board fits the panel's width; a wider one scrolls in its box. */
+@media (max-width: 600px) {
+    .research-grid-board {
+        grid-template-columns: repeat(var(--research-columns), 26px);
+        grid-template-rows: repeat(var(--research-rows), 26px);
+        gap: 3px;
+    }
 
-.research-grid-detail__preview-content {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px;
-}
-
-.research-grid-detail__preview-level,
-.research-grid-detail__index,
-.research-grid-detail__meta-label,
-.research-grid-detail__meta-value,
-.research-grid-detail__edit-label {
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-}
-
-.research-grid-detail__index,
-.research-grid-detail__meta-label,
-.research-grid-detail__edit-label {
-    color: var(--c-text-muted);
-}
-
-.research-grid-detail__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.research-grid-detail__meta-row,
-.research-grid-detail__edit-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.research-grid-detail__edit-row .number-input-wrapper {
-    width: 120px;
-}
-
-.research-grid-detail__edit-row .save-state {
-    --save-state-bg: var(--c-panel-dim);
-    margin-left: auto;
-}
-
-.observations-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 8px;
-}
-
-.observation-tile {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    background: var(--c-panel);
-    border: 1px solid var(--c-border);
-    padding: 10px;
-}
-
-.observation-tile > .account-row__info:empty {
-    display: none;
-}
-
-.observation-tile .account-row__info,
-.observation-tile__body {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-}
-
-/* The tile's ✓ sits in its bottom-right corner, level with the last field; its words and Undo lie to its left, in the
-   room beside that field's value (#290). */
-.observation-tile__body > .save-state {
-    position: absolute;
-    right: 12px;
-    bottom: 21px;
-}
-
-.observation-tile--unlocked {
-    border-color: var(--c-success-40);
-}
-
-.observation-tile__header,
-.observation-tile__stats,
-.observation-stat__controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.observation-tile__header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    justify-content: space-between;
-    width: 100%;
-}
-
-.observation-tile__title-group {
-    min-width: 0;
-    text-align: left;
-}
-
-.observation-tile__name {
-    display: block;
-    color: var(--c-text-main);
-    font-size: 0.875rem;
-    font-weight: 700;
-    line-height: 1.35;
-    text-align: left;
-}
-
-/* The two stats stack, so a tile never runs past its column and the room right of the last field takes the save
-   state's words and Undo (#290). */
-.observation-tile__stats {
-    flex-direction: column;
-    align-items: stretch;
-}
-
-.observation-stat {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.observation-stat__label,
-.observation-stat__value {
-    color: var(--c-text-muted);
-    font-size: 0.815rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-.observation-stat__controls .number-input-wrapper {
-    width: 104px;
-}
-
-.observation-tile__toggle {
-    justify-self: end;
-}
-
-.observation-tile__toggle .state-switch__words {
-    min-width: 0;
-}
-
-.observation-tile__body .account-btn {
-    align-self: flex-end;
-}
-
-@media (max-width: 980px) {
-    .research-grid-layout {
-        grid-template-columns: 1fr;
+    .research-grid-tile {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        font-size: 0.75rem;
     }
 }

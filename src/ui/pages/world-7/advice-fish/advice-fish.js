@@ -5,8 +5,8 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -31,7 +31,7 @@ const BigFishTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Big Fish" });
     const entriesState = van.state([]);
     const levelStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
     const buildEntries = (rawDefinitions) =>
@@ -47,6 +47,7 @@ const BigFishTab = () => {
                     rawName,
                     name: cleanName(rawName, `Big Fish ${index}`),
                     formatted: false,
+                    showIndex: false,
                 };
             })
             .filter(Boolean);
@@ -75,27 +76,22 @@ const BigFishTab = () => {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "NPC BONUSES",
-            note: () => `${entriesState.val.length} BIG FISH BONUSES`,
-            body: listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "BIG FISH",
-        description: "Set Big Fish NPC bonus levels from Spelunk[11]. Names and bonuses come from Spelunky[18].",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Advice Fish",
+        description: "Big Fish bonus levels.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING BIG FISH",
-        errorTitle: "BIG FISH READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the Big Fish",
+        errorTitle: "Couldn't read the Big Fish",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: listNode,
+                setAll: { word: (n) => (n === 1 ? "Big Fish bonus" : "Big Fish bonuses") },
+            })
+        ),
     });
 };
 

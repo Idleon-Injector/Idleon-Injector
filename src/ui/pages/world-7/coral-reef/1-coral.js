@@ -5,11 +5,11 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { createStaticRowReconciler, getOrCreateState, toInt } from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const CORAL_LEVELS_PATH = "Spelunk[13]";
 const CORAL_FIELDS = [
@@ -26,12 +26,7 @@ const CoralRow = ({ entry, levelState }) =>
         writePath: `${CORAL_LEVELS_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
+        name: entry.name,
         maxAction: true,
     });
 
@@ -39,7 +34,7 @@ const CoralTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Coral Reef" });
     const entriesState = van.state([]);
     const levelStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
     const buildEntries = (rawDefinitions, pillarUpgradeOwned) => {
@@ -88,27 +83,16 @@ const CoralTab = () => {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "CORAL LEVELS",
-            note: () => `${entriesState.val.length} IMPLEMENTED CORALS`,
-            body: listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "CORAL REEF",
-        description: "Set W7 Coral Reef levels from Spelunk[13]. Max levels include Menagerie upgrades.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Coral",
+        description: "Coral levels. Menagerie upgrades raise their max.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING CORAL REEF",
-        errorTitle: "CORAL REEF READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the coral reef",
+        errorTitle: "Couldn't read the coral reef",
+        initialWrapperClass: "account-list",
+        body: div({ class: "account-list account-list--tabbed" }, ListPanel({ body: listNode })),
     });
 };
 

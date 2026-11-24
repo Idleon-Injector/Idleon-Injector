@@ -6,10 +6,11 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { executeCheatAction } from "../../../services/api.js";
+import { NumberInput } from "../../../components/NumberInput.js";
 import { AccountTabHeader } from "../../../components/views/account/components/AccountTabHeader.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
-const { div, label, input, p, span } = van.tags;
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+const { div, span } = van.tags;
 
 function SushiToolsTab() {
     const pending = van.state(false);
@@ -37,46 +38,49 @@ function SushiToolsTab() {
             pending.val = false;
         }
     }
-    const numberField = (title, value) =>
-        label(
-            { class: "sushi-setting" },
-            span({ class: "sushi-setting__title" }, title),
-            input({
-                "aria-label": title,
-                type: "number",
-                min: 1,
-                step: 1,
-                value,
-                oninput: (e) => {
-                    value.val = e.target.value;
-                },
-            })
+    // The tool's own numbers sit in the tray with it (like Populate's units), each in the shared field.
+    const numberField = (title, value) => {
+        const step = (delta) => (value.val = String(Math.max(1, (Number.parseInt(value.val, 10) || 1) + delta)));
+        return div(
+            { class: "account-setall-row" },
+            span({ class: "account-setall-row__label" }, title),
+            div(
+                { class: "account-setall-row__input" },
+                NumberInput({
+                    value,
+                    mode: "int",
+                    "aria-label": title,
+                    oninput: (e) => (value.val = e.target.value),
+                    onDecrement: () => step(-1),
+                    onIncrement: () => step(1),
+                })
+            )
         );
+    };
     return div(
-        { class: "tab-container" },
+        { class: "tab-container scroll-container" },
         AccountTabHeader({
-            title: "SUSHI TOOLS",
-            description: "Adds crafting-tree Knowledge XP. Auto Play has to be off.",
+            title: "Tools",
+            description:
+                "Adds crafting-tree Knowledge XP; the board and fuel stay. Needs Knowledge, with Auto Play off.",
             automation: { page: "automation.sushi" },
         }),
         div(
-            { class: "scrollable-panel", "aria-busy": () => pending.val },
-            AccountSection({
-                title: "KNOWLEDGE XP",
-                rootClass: "sushi-automation-controls sushi-knowledge",
-                body: [
-                    p({ class: "sushi-setting__help" }, "Requires Knowledge. Adds crafting-tree XP only."),
+            { class: "account-list account-list--tabbed", "aria-busy": () => pending.val },
+            ListPanel({
+                tools: () => [
+                    numberField("Tier", knowledgeTier),
+                    numberField("Quantity", knowledgeQuantity),
                     div(
-                        { class: "sushi-settings-grid" },
-                        numberField("Simulation tier", knowledgeTier),
-                        numberField("Simulation quantity", knowledgeQuantity)
-                    ),
-                    p({ class: "sushi-setting__help" }, "Each click adds XP again; board and fuel stay unchanged."),
-                    ActionButton({ label: "Add Knowledge XP", disabled: () => pending.val, onClick: addXp }),
-                    p({ role: "status", "aria-live": "polite", class: "sushi-automation-status" }, () =>
-                        pending.val ? "Working…" : feedback.val
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({ label: "Add Knowledge XP", disabled: () => pending.val, onClick: addXp }),
+                        span({ class: "account-write-feedback", role: "status" }, () =>
+                            pending.val ? "Working…" : feedback.val
+                        )
                     ),
                 ],
+                // The game's answer to the last press (why it couldn't, or what it added), where the tool is.
+                toolsLabel: () => (pending.val ? "Working…" : feedback.val || "Each press adds the XP again"),
             })
         )
     );

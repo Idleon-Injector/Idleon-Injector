@@ -485,15 +485,16 @@ test("Undo stays with the tile or slot it saved: it goes when the fields move on
 test("the research grid's Undo goes when another tile is picked", async () => {
     const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
     const root = await openPage("src/ui/pages/world-7/research/grid.js", (node) => tiles(node).length > 1);
-    const card = () => byClass(root, "research-grid-detail__edit-row")[0];
+    // A square picked opens its own row under the board.
+    const card = () => byClass(byClass(root, "research-grid-editor")[0], "account-row")[0];
     const [first, second] = tiles(root);
     first.listeners.click({});
-    await until(card, "the tile's card");
+    await until(card, "the tile's row");
     const [field] = elements(card()).filter((node) => node.nodeName === "input");
     await saveRow(card(), String(field.attributes.value) === "0" ? 1 : 0);
     assert.ok(undoOffered(card()), "Undo beside the save");
     second.listeners.click({});
-    await until(() => !undoOffered(card()), "the other tile's card without that Undo");
+    await until(() => card() && !undoOffered(card()), "the other tile's row without that Undo");
 });
 
 // A 3D Printer slot: its title opens the items in place, and an item there is picked by its name (it saves at once).

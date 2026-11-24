@@ -5,8 +5,8 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -28,7 +28,7 @@ const GlimboTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Glimbo" });
     const entriesState = van.state([]);
     const levelStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
     const buildEntries = async (rawItemIds) => {
@@ -50,8 +50,8 @@ const GlimboTab = () => {
                     definition.displayName ?? definition.DisplayName ?? definition.Name ?? definition.name,
                     itemId
                 ),
-                subLabel: itemId,
                 formatted: false,
+                showIndex: false,
             };
         });
     };
@@ -80,27 +80,19 @@ const GlimboTab = () => {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "GLIMBO TRADE LEVELS",
-            note: () => `${entriesState.val.length} ITEM TRADES`,
-            body: listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "GLIMBO",
-        description: "Set W7 Glimbo trade levels from Research[12]. Item names come from Research[27] item IDs.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Glimbo",
+        description: "Glimbo's trade levels, one per item.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING GLIMBO",
-        errorTitle: "GLIMBO READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading Glimbo",
+        errorTitle: "Couldn't read Glimbo",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({ body: listNode, setAll: { word: (n) => (n === 1 ? "trade" : "trades") } })
+        ),
     });
 };
 

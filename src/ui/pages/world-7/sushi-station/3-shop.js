@@ -7,6 +7,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -15,7 +16,7 @@ import {
 } from "../../../components/views/account/accountShared.js";
 import { UpgradeDoublerButton, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const SUSHI_SHOP_PATH = "Sushi[2]";
 
@@ -25,12 +26,8 @@ const ShopUpgradeRow = ({ entry, levelState, doublers }) =>
         writePath: `${SUSHI_SHOP_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        rowClass: "account-row--wide-controls minigame-upgrade-row",
-        controlsClass: "account-row__controls--xl",
+        name: entry.name,
+        rowClass: "doubler-row",
         maxAction: true,
         renderExtraActions: () => UpgradeDoublerButton({ doublers, index: entry.index, name: entry.name }),
     });
@@ -76,7 +73,7 @@ function SushiShopTab() {
     );
     const upgradeEntries = van.state([]);
     const levelStates = new Map();
-    const shopListNode = div({ class: "account-item-stack" });
+    const shopListNode = div();
     const reconcileShopRows = createStaticRowReconciler(shopListNode);
 
     const reconcileRows = () => {
@@ -112,28 +109,25 @@ function SushiShopTab() {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "SHOP UPGRADES",
-            note: () =>
-                `${upgradeEntries.val.length} UPGRADES · ${doublers.selected.val.length}/${doublers.capacity.val} DOUBLED`,
-            body: shopListNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "SUSHI SHOP",
-        description: "Set Sushi shop upgrade levels and choose which upgrades are doubled.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Shop",
+        description: "Sushi shop upgrade levels, and which upgrades are doubled.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING SUSHI SHOP",
-        errorTitle: "SUSHI SHOP READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the sushi shop",
+        errorTitle: "Couldn't read the sushi shop",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: AccountSection({
+                    title: "Upgrades",
+                    note: () => `${doublers.selected.val.length} of ${doublers.capacity.val} doubled`,
+                    body: shopListNode,
+                }),
+            })
+        ),
     });
 }
 

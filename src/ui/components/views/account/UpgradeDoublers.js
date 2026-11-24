@@ -70,26 +70,33 @@ export const useUpgradeDoublers = ({ path, ownedMethod, eligiblePath }, loading)
     return { selected, eligible, capacity, lastIndex, status, writeError, disabled, load, toggle };
 };
 
+/**
+ * A doubler is a setting on its line (DESIGN.md's row toggle, like Omni Jade): a quiet "2×" that is lavender while the
+ * upgrade is doubled. A line that can't be doubled keeps the button's room, so the fields line up. Why a press didn't
+ * save is said before the button.
+ */
 export const UpgradeDoublerButton = ({ doublers, index, name }) => {
+    const { span } = van.tags;
     const status = () => (doublers.lastIndex.val === index ? doublers.status.val : null);
-    return van.tags.span(
-        { class: "upgrade-doubler-slot" },
-        ActionButton({
-            label: "2×",
-            variant: "switch",
-            className: "upgrade-doubler-button",
-            status,
-            buttonProps: {
-                hidden: () => !doublers.eligible.val.includes(index),
-                "aria-label": `Double ${name}`,
-                "aria-pressed": () => doublers.selected.val.includes(index),
-            },
-            disabled: () => doublers.disabled(index),
-            // Only a failed save says why under the pointer; the page's "2/3 doubled" says the rest.
-            tooltip: () => (status() === "error" ? `Not saved: ${doublers.writeError.val}` : ""),
-            onClick: () => void doublers.toggle(index),
-        }),
-        van.tags.span({ class: "account-write-feedback", role: "status" }, () => {
+    return span(
+        { class: "row-toggle" },
+        span({ class: "row-toggle__failure" }, () => (status() === "error" ? doublers.writeError.val : "")),
+        span(
+            { class: "upgrade-doubler-slot" },
+            ActionButton({
+                label: "2×",
+                status,
+                className: "row-toggle__button",
+                buttonProps: {
+                    hidden: () => !doublers.eligible.val.includes(index),
+                    "aria-label": `Double ${name}`,
+                    "aria-pressed": () => String(doublers.selected.val.includes(index)),
+                },
+                disabled: () => doublers.disabled(index),
+                onClick: () => void doublers.toggle(index),
+            })
+        ),
+        span({ class: "account-write-feedback", role: "status" }, () => {
             if (status() === "loading") return `${name}: saving doubler.`;
             if (status() === "success") return `${name}: doubler saved.`;
             if (status() === "error") return `${name}: ${doublers.writeError.val}`;

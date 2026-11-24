@@ -7,6 +7,8 @@ import { RefreshButton } from "../../../components/views/account/components/Acco
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { EmptyState } from "../../../components/EmptyState.js";
 import { cleanName, toInt } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
@@ -17,11 +19,9 @@ const LORE_PAGES_PER_CHAPTER = 4;
 const LorePageRow = ({ entry }) =>
     SimpleNumberRow({
         entry: {
-            name: `Chapter ${entry.chapterNumber} - Page ${entry.pageNumber}`,
+            name: `Page ${entry.pageNumber}`,
             path: `${LORE_LEVELS_PATH}[${entry.levelIndex}]`,
-            indexLabel: `#${entry.levelIndex + 1}`,
             formatted: false,
-            rowClass: "spelunking-lore-row",
         },
         valueState: entry.levelState,
     });
@@ -96,45 +96,34 @@ function SpelunkingLoreTab() {
 
     load();
 
-    const body = div({ class: "scrollable-panel content-stack" }, () => {
+    // A chapter is a quiet group of its pages.
+    const body = () => {
         const groups = loreGroups.val;
         return groups.length === 0
-            ? div({ class: "tab-empty" }, "No Spelunking lore chapter definitions were found.")
+            ? EmptyState({ title: "No lore chapters found" })
             : div(
-                  { class: "account-item-stack account-item-stack--dense" },
                   ...groups.map((group) =>
                       AccountSection({
-                          title: `CHAPTER ${group.chapterNumber}`,
-                          note: () =>
-                              `${group.pages.reduce(
-                                  (sum, page) => sum + toInt(page.levelState.val, { min: 0 }),
-                                  0
-                              )} TOTAL LEVELS`,
-                          body: div(
-                              { class: "spelunking-lore-chapter" },
-                              div(
-                                  { class: "account-item-stack account-item-stack--dense" },
-                                  ...group.pages.map((page) => LorePageRow({ entry: page }))
-                              )
-                          ),
+                          title: `Chapter ${group.chapterNumber}`,
+                          body: group.pages.map((page) => LorePageRow({ entry: page })),
                       })
                   )
               );
-    });
+    };
 
     return PersistentAccountListPage({
-        title: "SPELUNKING LORE",
-        description:
-            "Set Lore Journal chapter page levels from Spelunk[8]. Each SpelunkChapters entry maps to four consecutive page levels.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Lore",
+        description: "Lore Journal page levels, by chapter.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING SPELUNKING LORE",
-        errorTitle: "SPELUNKING LORE READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the lore journal",
+        errorTitle: "Couldn't read the lore journal",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({ body, setAll: { word: (n) => (n === 1 ? "lore page" : "lore pages") } })
+        ),
     });
 }
 

@@ -8,6 +8,7 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -34,9 +35,15 @@ const MineheadStatRow = ({ stat, valueState }) => {
             ...stat,
             path: `${MINEHEAD_STATS_PATH}[${stat.index}]`,
             name: stat.label,
+            showIndex: false,
             formatted: isCurrency,
         },
         valueState,
+        // Max's room and the doubler's, so the stats' values stand in the upgrades' column.
+        renderExtraActions: () => [
+            span({ class: "account-row__max-slot", "aria-hidden": "true" }),
+            span({ class: "upgrade-doubler-slot" }),
+        ],
     });
 };
 
@@ -46,12 +53,8 @@ const MineheadUpgradeRow = ({ entry, levelState, doublers }) =>
         writePath: `${MINEHEAD_UPGRADES_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        rowClass: "account-row--wide-controls minigame-upgrade-row",
-        controlsClass: "account-row__controls--xl",
+        name: entry.name,
+        rowClass: "doubler-row",
         maxAction: true,
         renderExtraActions: () => UpgradeDoublerButton({ doublers, index: entry.index, name: entry.name }),
     });
@@ -65,7 +68,7 @@ const MineheadTab = () => {
     const statStates = new Map(MINEHEAD_STATS.map((stat) => [stat.id, van.state(0)]));
     const upgradeEntries = van.state([]);
     const upgradeStates = new Map();
-    const upgradeListNode = div({ class: "account-item-stack" });
+    const upgradeListNode = div();
     const reconcileRows = createStaticRowReconciler(upgradeListNode);
 
     const buildUpgradeEntries = (rawDefinitions) =>
@@ -124,41 +127,35 @@ const MineheadTab = () => {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "MINEHEAD STATS",
-            note: "Research[7]",
-            body: div(
-                { class: "account-item-stack" },
-                ...MINEHEAD_STATS.map((stat) =>
-                    MineheadStatRow({
-                        stat,
-                        valueState: statStates.get(stat.id),
-                    })
-                )
-            ),
-        }),
-        AccountSection({
-            title: "MINEHEAD UPGRADES",
-            note: () =>
-                `${upgradeEntries.val.length} UPGRADES · ${doublers.selected.val.length}/${doublers.capacity.val} DOUBLED`,
-            body: upgradeListNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "MINEHEAD",
-        description: "Set Minehead stats and upgrade levels, and choose which upgrades are doubled.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Minehead",
+        description: "Minehead's stats, its upgrade levels and which upgrades are doubled.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING MINEHEAD",
-        errorTitle: "MINEHEAD READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading Minehead",
+        errorTitle: "Couldn't read Minehead",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
+                body: [
+                    AccountSection({
+                        title: "Stats",
+                        body: MINEHEAD_STATS.map((stat) =>
+                            MineheadStatRow({ stat, valueState: statStates.get(stat.id) })
+                        ),
+                    }),
+                    AccountSection({
+                        title: "Upgrades",
+                        note: () => `${doublers.selected.val.length} of ${doublers.capacity.val} doubled`,
+                        body: upgradeListNode,
+                    }),
+                ],
+            })
+        ),
     });
 };
 

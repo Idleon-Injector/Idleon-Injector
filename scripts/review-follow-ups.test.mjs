@@ -207,15 +207,17 @@ test("levels: a save that reads first keeps its Undo while another row's save wa
 
 // #126 (#125): an older save's refusal said "not saved" after a newer save of the slot landed.
 test("sushi station: an older save's failure says nothing once a newer one of the slot saved", async () => {
+    // A slot picked opens its row under the board; its tier saves on Enter, like any row.
     const root = await openPage("src/ui/pages/world-7/sushi-station/2-station.js", (r) =>
-        byClass(r, "sushi-station-tile").some((tile) => !classes(tile).includes("--locked"))
+        byClass(r, "sushi-station-tile").some((tile) => tile.attributes.disabled === false)
     );
-    const tile = byClass(root, "sushi-station-tile").find((node) => !classes(node).includes("--locked"));
+    byClass(root, "sushi-station-tile")[0].listeners.click({});
+    await until(() => byClass(byClass(root, "sushi-station-editor")[0], "account-row")[0], "the slot's row");
+    const tile = byClass(byClass(root, "sushi-station-editor")[0], "account-row")[0];
     const [input] = inputs(tile);
     const type = (value) => {
-        input.listeners.focus({ target: input });
         input.listeners.input({ target: Object.assign(input, { value }) });
-        input.listeners.blur({ target: input });
+        tile.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
     };
     const realFetch = globalThis.fetch;
     let release;
@@ -236,16 +238,17 @@ test("sushi station: an older save's failure says nothing once a newer one of th
             type("3");
             await until(() => !first, "the first save to reach the game");
             type("4");
-            await until(() => gga.Sushi[0][0] === 3, "the newer save to land");
-            await until(() => classes(tile).includes("--success"), "the tile to show it saved");
+            // The row saves one at a time: the older save's refusal comes back, then the newer one saves.
             release();
+            await until(() => gga.Sushi[0][0] === 3, "the newer save to land");
+            await until(() => /save-state--success/.test(saveState(tile)), "the row to show it saved");
             await new Promise((resolve) => setTimeout(resolve, 50));
         });
     } finally {
         globalThis.fetch = realFetch;
         release();
     }
-    assert.doesNotMatch(classes(tile), /--error/, "the older failure isn't shown");
+    assert.doesNotMatch(saveState(tile), /save-state--error/, "the older failure isn't shown");
     assert.doesNotMatch(text(globalThis.document.body), /not saved/, "nor said");
     gga.Sushi[0][0] = before;
 });
