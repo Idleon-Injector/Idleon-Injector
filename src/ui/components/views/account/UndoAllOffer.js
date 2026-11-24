@@ -1,6 +1,7 @@
 /**
  * "↶ Undo all" beside the control that made a bulk change (MAX ALL, RESET ALL, SET ALL, a page's own button):
- * one action, many values, one undo. A switch or a step picker gets none: flipping or picking again undoes it (#81).
+ * one action, many values, one undo. A switch, − / +, a step picker or a dropdown pick gets none: using it again undoes
+ * it (#81).
  * It lies over the space beside that control, out of the layout, so nothing moves; it stays for UNDO_MS (longer
  * while the pointer or focus is on it), then goes. Undoing shows "saving…", then confirms in place (an accent wash
  * and ✓); a refusal says why there and pulses twice.

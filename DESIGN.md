@@ -286,9 +286,11 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
 - **A tool that stops on an error says why** on the tray's first line, where a question goes, in the soft red ("Character
   changed. Refresh."), and screen readers hear it with the tool's name. It stays until that tool's next try (Lumi,
   #241).
-- **Undo shows where the old value is gone:** after a typed number, Max, and bulk actions (Set all, Max all, All to,
-  the tray's tools). Not after a switch or a step pick: flipping or picking again undoes them. History keeps every
-  change with its Undo (Lumi, #81).
+- **Undo shows where the old value is gone:** a row offers Undo only after a typed number, Max, a bulk action (Set
+  all, Max all, Reset all, All to, the tray's tools) or a one-click wipe (Reset, Clear, Relock, × remove). Not after a
+  switch, the − / + beside a field, a step pick or a dropdown pick: using it again undoes it. A row with a switch and
+  fields (Research's observations) follows the control that saved it. History > Changes keeps every change with its
+  own Undo (Lumi, #81).
 - **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
   tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
   tools; only with no room anywhere does it take its old place.
