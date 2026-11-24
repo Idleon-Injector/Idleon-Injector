@@ -1,6 +1,6 @@
 // Save copies (#32) on the fake game: the real hook on the game's cloud save, the real server routes, and copies on
-// disk in a temporary folder. Done when copies appear and old ones go on schedule, and a restore never writes the
-// values that are never rolled back.
+// disk in a temporary folder. Done when copies appear and old ones go on schedule, and a restore's writes never hold the
+// values that are never rolled back (the page writes them: save-copies-page.test.mjs).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -178,6 +178,7 @@ test("compare lists every difference by save key and marks the values that are n
     gga.Money = 999;
     gga.Cards.h.Bat = 7;
     gga.Cards.h.Owl = 1;
+    delete gga.Cards.h.Frog;
     gga.Lv0.push(4);
     gga.StampLevel[1] = [3, 4, 5];
     gga.GemsOwned = 0;
@@ -199,15 +200,24 @@ test("compare lists every difference by save key and marks the values that are n
             g.changes.map((c) => [c.path, [g.key, c.copy, c.now, c.neverRestored, c.restorable]])
         )
     );
+    const ownProgress = body.groups.flatMap((g) => g.changes.filter((c) => c.onItsOwn).map((c) => c.path));
+    assert.deepEqual(
+        ownProgress.sort(),
+        ["CloudsaveTimer", "PlayerDATABASE.h.Bob.h.PlayerAwayTime", "TimeAway.h.Forge", "TimeAway.h.Player"],
+        "the game's own progress is marked"
+    );
     assert.deepEqual(byPath, {
         Money: ["Money", 100, 999, false, true],
         "Cards.h.Bat": ["Cards", 3, 7, false, true],
         // Only in the save now: a restore can't take it away.
         "Cards.h.Owl": ["Cards", undefined, 1, false, false],
+        // Only in the copy: a restore would add it, and an undo couldn't take it away.
+        "Cards.h.Frog": ["Cards", 1, undefined, false, false],
         "Lv0[3]": ["Lv0", undefined, 4, false, false],
         // Below the top level an array that changed length is put back whole.
         "StampLevel[1]": ["StampLevel", [3, 4], [3, 4, 5], false, true],
-        GemsOwned: ["GemsOwned", 50, 0, false, true],
+        // Gems were bought since the copy (ServerGemsReceived went up): putting back 50 would lose them.
+        GemsOwned: ["GemsOwned", 50, 0, false, false],
         ServerGemsReceived: ["ServerGemsReceived", 500, 900, true, false],
         "BundlesReceived.h.bun_b": ["BundlesReceived", undefined, 1, true, false],
         "TimeAway.h.Forge": ["TimeAway", 900, 990, true, false],
@@ -219,19 +229,10 @@ test("compare lists every difference by save key and marks the values that are n
     });
 });
 
-test("restore writes the selected values through the game's write, checks them, and never the protected ones", async () => {
+test("the writes put back the selected values, never the protected ones, and write nothing themselves", async () => {
     const app = server();
     const id = await cloudSave(app);
     const atCopy = { bat: gga.Cards.h.Bat, money: gga.Money, bob: gga.PlayerDATABASE.h.Bob.h.Money };
-    const protectedNow = () =>
-        structuredClone({
-            ServerGemsReceived: gga.ServerGemsReceived,
-            BundlesReceived: gga.BundlesReceived,
-            TimeAway: gga.TimeAway,
-            CloudsaveTimer: gga.CloudsaveTimer,
-            BobAway: gga.PlayerDATABASE.h.Bob.h.PlayerAwayTime,
-        });
-    const cardsMap = gga.Cards;
     gga.Money = 1;
     gga.Cards.h.Bat = 99;
     gga.PlayerDATABASE.h.Bob.h.Money = 1;
@@ -240,92 +241,64 @@ test("restore writes the selected values through the game's write, checks them, 
     gga.TimeAway.h.Forge += 50;
     gga.CloudsaveTimer += 1;
     gga.PlayerDATABASE.h.Bob.h.PlayerAwayTime += 50;
-    const before = protectedNow();
 
     // Only the cards.
     expressions.length = 0;
-    let res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Cards"] });
+    let res = await request(app.router, "POST", "/api/save-copies/writes", { id, select: ["Cards"] });
     assert.equal(res.statusCode, 200, JSON.stringify(res.body));
-    assert.deepEqual(res.body, { ok: true, results: [{ path: "gga.Cards.h.Bat", ok: true }] });
-    assert.deepEqual(writesSent(), ["gga.Cards.h.Bat"]);
-    assert.equal(gga.Cards.h.Bat, atCopy.bat);
-    assert.equal(gga.Cards, cardsMap, "written into the game's map, not replacing it");
-    assert.equal(gga.Money, 1);
+    assert.deepEqual(res.body, { writes: [{ path: "gga.Cards.h.Bat", value: atCopy.bat }] });
 
-    // Everything.
-    expressions.length = 0;
-    res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: "all" });
-    assert.equal(res.body.ok, true, JSON.stringify(res.body));
-    assert.equal(gga.Money, atCopy.money);
-    assert.equal(gga.PlayerDATABASE.h.Bob.h.Money, atCopy.bob);
-    const written = writesSent();
-    assert.ok(written.length > 0);
-    for (const p of written) {
+    // Everything: another character's values in the form the change log reads as theirs.
+    res = await request(app.router, "POST", "/api/save-copies/writes", { id, select: "all" });
+    const byPath = Object.fromEntries(res.body.writes.map((w) => [w.path, w.value]));
+    assert.equal(byPath["gga.Money"], atCopy.money);
+    assert.equal(byPath["gga.PlayerDATABASE.h[Bob].h.Money"], atCopy.bob);
+    for (const p of Object.keys(byPath)) {
         assert.ok(
-            !/^gga\.(ServerGemsReceived|BundlesReceived|TimeAway|CloudsaveTimer)\b/.test(p) &&
+            !/^gga\.(ServerGemsReceived|BundlesReceived|TimeAway|CloudsaveTimer|GemsOwned)\b/.test(p) &&
                 !/PlayerAwayTime$/.test(p),
             `${p} must never be written by a restore`
         );
     }
-    assert.deepEqual(protectedNow(), before, "the never-rolled-back values are as they were");
-
-    // A second click finds nothing left to put back.
-    expressions.length = 0;
-    res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: "all" });
-    assert.deepEqual(res.body, { ok: true, results: [] });
-    assert.deepEqual(writesSent(), []);
+    assert.deepEqual(writesSent(), [], "the page writes them, so the restore is logged");
 });
 
-test("restore checks each value as the write left it: a value the game keeps raising lands, a refused one fails", async () => {
-    const app = server();
-    const id = await cloudSave(app);
-    const atCopy = gga.Money;
-    gga.Money += 5;
-    // The game raises Money on every tick, and ticks only between game calls (#78).
-    const tick = game.runtime.evaluate;
-    game.runtime.evaluate = async (options) => {
-        const result = await tick(options);
-        gga.Money += 10;
-        return result;
-    };
-    try {
-        let res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Money"] });
-        assert.deepEqual(res.body, { ok: true, results: [{ path: "gga.Money", ok: true }] });
-        assert.ok(gga.Money >= atCopy);
-
-        gga.Cards.h.Bat = 99;
-        Object.defineProperty(gga.Cards.h, "Bat", { get: () => 99, set() {}, configurable: true });
-        res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Cards"] });
-        assert.deepEqual(res.body, {
-            ok: false,
-            results: [{ path: "gga.Cards.h.Bat", ok: false, error: "Write mismatch" }],
-        });
-    } finally {
-        game.runtime.evaluate = tick;
-        Object.defineProperty(gga.Cards.h, "Bat", { value: 3, writable: true, configurable: true, enumerable: true });
-    }
-});
-
-test("a selection matching only protected values writes nothing", async () => {
+test("a selection matching only protected values has nothing to write", async () => {
     const app = server();
     const id = await cloudSave(app);
     gga.ServerGemsReceived += 1;
     gga.TimeAway.h.Forge += 1;
-    expressions.length = 0;
-    const res = await request(app.router, "POST", "/api/save-copies/restore", {
+    const res = await request(app.router, "POST", "/api/save-copies/writes", {
         id,
         select: ["ServerGemsReceived", "TimeAway", "BundlesReceived", "CloudsaveTimer", "PlayerDATABASE"],
     });
-    assert.deepEqual(res.body, { ok: true, results: [] });
-    assert.deepEqual(writesSent(), []);
+    assert.deepEqual(res.body, { writes: [] });
 });
 
-test("compare and restore refuse a copy taken while playing another character", async () => {
+test("gems bought since a copy: its GemsOwned and gem purchases are kept; without, they can be put back", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const gems = gga.GemsOwned;
+    gga.GemsOwned += 300;
+    let res = await request(app.router, "POST", "/api/save-copies/compare", { id });
+    let change = res.body.groups.find((g) => g.key === "GemsOwned").changes[0];
+    assert.deepEqual([change.restorable, change.gemsBought], [true, false], "gems spent or cheated, none bought");
+
+    gga.ServerGemsReceived += 300;
+    res = await request(app.router, "POST", "/api/save-copies/compare", { id });
+    change = res.body.groups.find((g) => g.key === "GemsOwned").changes[0];
+    assert.deepEqual([change.restorable, change.gemsBought], [false, true]);
+    res = await request(app.router, "POST", "/api/save-copies/writes", { id, select: ["GemsOwned"] });
+    assert.deepEqual(res.body, { writes: [] });
+    gga.GemsOwned = gems;
+});
+
+test("compare and the writes refuse a copy taken while playing another character", async () => {
     const app = server();
     const id = await cloudSave(app);
     gga.UserInfo[0] = "Bob";
     try {
-        for (const route of ["compare", "restore"]) {
+        for (const route of ["compare", "writes"]) {
             expressions.length = 0;
             const res = await request(app.router, "POST", `/api/save-copies/${route}`, { id, select: "all" });
             assert.equal(res.statusCode, 409);
@@ -345,7 +318,7 @@ test("bad requests: an unknown or malformed id, or a bad selection", async () =>
         assert.ok([400, 404].includes(res.statusCode), JSON.stringify(res.body));
     }
     for (const select of [undefined, "some", [], [""], [1]]) {
-        const res = await request(app.router, "POST", "/api/save-copies/restore", { id, select });
+        const res = await request(app.router, "POST", "/api/save-copies/writes", { id, select });
         assert.equal(res.statusCode, select?.length === 0 ? 200 : 400, `select ${JSON.stringify(select)}`);
     }
 });

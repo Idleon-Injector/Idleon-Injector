@@ -8,6 +8,11 @@
     gap: 12px;
 }
 
+/* A notice that isn't showing (an empty placeholder) takes no gap. */
+.history-pane > span:empty {
+    display: none;
+}
+
 .change-log {
     display: flex;
     flex-direction: column;
@@ -199,6 +204,232 @@
     outline-offset: -2px;
 }
 
+/*
+ * History › Save copies (#32): one row per copy, as a change's head reads (when, whose). The character in play's copies
+ * open in place to the compare: one box per save key, the game's own progress in one closed box, Restore at each
+ * box's end and Restore all under them. Another character's copies stay quiet with a hint to switch.
+ */
+.save-copy__undo[hidden],
+.save-copy__bar[hidden],
+.save-copies__older[hidden],
+.save-copies__older > .change-log[hidden] {
+    display: none;
+}
+
+.save-copy__head {
+    width: 100%;
+    margin: 0;
+    border-width: 0;
+    border-radius: 10px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+button.save-copy__head {
+    cursor: pointer;
+    transition: background-color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+button.save-copy__head:hover {
+    background: var(--c-panel-hover);
+}
+
+.save-copy.is-open .save-copy__head {
+    border-bottom: 1px solid var(--c-border);
+    border-radius: 10px 10px 0 0;
+}
+
+.save-copy__head:focus-visible,
+.save-key__toggle:focus-visible,
+.save-key__more:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+}
+
+[aria-expanded="true"] > .group-chevron {
+    transform: rotate(90deg);
+}
+
+.save-copy__ago {
+    min-width: 7.5em;
+    color: var(--c-text-main);
+}
+
+.save-copy.is-other .save-copy__head > :not(.save-copy__hint) {
+    opacity: 0.5;
+}
+
+.save-copy.is-other .save-copy__head {
+    padding-left: 40px;
+}
+
+.save-copy__hint {
+    margin-left: auto;
+    color: var(--c-text-faint);
+    font-size: 0.8125rem;
+}
+
+.save-copy__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 0 8px;
+}
+
+.save-copy__note {
+    padding: 6px 12px;
+    color: var(--c-text-muted);
+    font-size: 0.8125rem;
+}
+
+.save-copies__none {
+    padding: 0;
+}
+
+.save-copy__note.is-failed {
+    color: var(--c-warning);
+}
+
+/* A save key: a line that opens to its values, with Restore (or why not) at its end. */
+.save-key__head {
+    display: flex;
+    gap: 4px 12px;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 12px 0 0;
+}
+
+.save-key__toggle {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 10px;
+    align-items: center;
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 0 0 12px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.save-key__toggle:hover .save-key__name {
+    color: var(--c-accent);
+}
+
+.save-key__name {
+    overflow: hidden;
+    color: var(--c-text-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.save-key__count,
+.save-copy__status {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.save-key__count {
+    flex: none;
+    color: var(--c-text-muted);
+}
+
+.save-key__why {
+    flex: 0 1 auto;
+    color: var(--c-text-faint);
+    font-size: 0.8125rem;
+    text-align: right;
+}
+
+.save-key__restore {
+    flex: none;
+}
+
+.save-key__body {
+    padding: 0 0 6px 26px;
+}
+
+/* The game's own progress: one quiet box, its keys inside on a hairline. */
+.save-key.is-itself {
+    margin-top: 4px;
+    border-top: 1px solid var(--c-hairline);
+    padding-top: 4px;
+}
+
+.save-key.is-itself > .save-key__head .save-key__name {
+    color: var(--c-text-muted);
+    font-weight: 500;
+}
+
+.save-key.is-itself > .save-key__body {
+    padding: 0 0 4px 14px;
+}
+
+.change-entry.is-kept-entry .change-entry__values {
+    opacity: 0.6;
+}
+
+/* Restore all and what the last restore did, under the boxes. */
+.save-copy__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 4px;
+    padding: 8px 12px 0;
+    border-top: 1px solid var(--c-hairline);
+}
+
+.save-copy__status {
+    color: var(--c-text-muted);
+}
+
+.save-copy__status:empty {
+    display: none;
+}
+
+.save-copy__status.is-refused {
+    color: var(--c-warning);
+    animation: refusal-pulse 760ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.save-copy__warning {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--c-warning);
+    font-size: 0.8125rem;
+}
+
+.save-copy__warning svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+}
+
+.save-copies__older {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.save-key__more {
+    width: max-content;
+    border: 0;
+    background: none;
+}
+
 /* The in-game overlay: a value's path takes its own line above old → new. */
 @media (max-width: 760px) {
     .change-group__head {
@@ -218,11 +449,44 @@
     .change-entry__who {
         text-align: right;
     }
+
+    .save-copy.is-other .save-copy__head {
+        padding-left: 10px;
+    }
+
+    .save-copy__hint {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
+
+    .save-key__head {
+        flex-wrap: wrap;
+    }
+
+    .save-key__toggle {
+        flex: 1 1 0;
+    }
+
+    .save-key__why {
+        flex-basis: 100%;
+        padding: 0 0 6px 38px;
+        text-align: left;
+    }
+
+    .save-key__body {
+        padding-left: 10px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .change-group.is-undone,
-    .change-group.is-refused .change-group__reason {
+    .change-group.is-refused .change-group__reason,
+    .save-copy__status.is-refused {
         animation: none;
+    }
+
+    button.save-copy__head,
+    .save-key__name {
+        transition: none;
     }
 }

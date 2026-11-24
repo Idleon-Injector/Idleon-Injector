@@ -382,13 +382,15 @@ Source: [command registration](../src/cheats/core/registration.js), [cheat route
 
 Decision: a hook on the game's cloud save keeps a copy of the save in the page; the server takes it over CDP every
 30 seconds and stores one gzipped file per copy, named by time and character. It keeps every copy from the last 24
-hours and the newest of each day for 30 days. A restore compares the copy with the save now and writes the selected
-values back through the same game helper as the write-many route, each read back and checked. Gems and bundles
-received from the server, the time-away stamps and the cloud save counter are never restored.
+hours and the newest of each day for 30 days. A restore compares the copy with the save now; the server hands the
+selected values to the History page, which writes them as one page save (read back and checked, logged in Changes, so
+Undo takes a restore back). Gems and bundles received from the server, the time-away stamps and the cloud save counter
+are never restored, and neither are the gems owned or bought once gems came from the server after the copy.
 
 Why: game-side code makes no network calls, and the server already talks to the game through `Runtime.evaluate`, so
 a pull needs no new channel. Writing into the game's own maps and arrays keeps the injector's proxies and the game's
-classes, and the values the game reconciles with its server on load would otherwise be granted twice.
+classes, and the values the game reconciles with its server on load would otherwise be granted twice (or, for gems
+bought since the copy, lost). Writing through the page's own save keeps one way to change the game, with its log.
 
 Alternative: a CDP binding that tells the server at once (a second way to talk to the game for one feature), or the
 Monitor's WebSocket (a listed exception for its own feature). A one-click restore of the whole save waits until a test

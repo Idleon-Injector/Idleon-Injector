@@ -13,7 +13,7 @@ const gunzip = promisify(zlib.gunzip);
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-// About 400 copies of 20-70 KB: ~20 MB. The cap is only a safety net for unusually large saves.
+// About 400 copies of ~120 KB (the test account, gzipped): ~47 MB. The cap is a safety net for larger saves.
 const MAX_TOTAL_BYTES = 100 * 1024 * 1024;
 
 /**
@@ -44,6 +44,56 @@ const NEVER_RESTORED = [
 const isNeverRestored = (keys) =>
     NEVER_RESTORED.some((pattern) => pattern.every((key, i) => key === "*" || key === keys[i]));
 
+/**
+ * Gems the player bought on the server since the copy: ServerGemsReceived went up, and the game added them to
+ * GemsOwned (see NEVER_RESTORED). Putting back the copy's GemsOwned or gem purchases would lose them for good, since
+ * the game never hands out gems it already counted.
+ */
+const GEM_KEYS = new Set(["GemsOwned", "GemsPacksPurchased", "GemItemsPurchased"]);
+
+/**
+ * The values the game moves by itself while the player is away or idle (timers, progress bars, away gains), so the
+ * History page can keep them out of the way. Each is a path as diffSave writes it, with any character's name as "*".
+ * Measured on the test accounts: every one changed in at least half of the 4-minute gaps between idle saves.
+ * ponytail: a hand list from two accounts; a bigger account moves more, which then shows with the player's own changes.
+ */
+const ON_ITS_OWN = new RegExp(
+    `^(${[
+        "TimeAway\\b.*",
+        "CloudsaveTimer",
+        "Exp0\\[\\d+\\]",
+        "PlayerDATABASE\\.h\\.\\*\\.h\\.(Exp0\\[\\d+\\]|PldTraps\\[\\d+\\]\\[2\\]|PlayerAwayTime)",
+        "PlacedTraps\\[\\d+\\]\\[2\\]",
+        "FarmPlot\\[\\d+\\]\\[6\\]",
+        "Territory\\[\\d+\\]\\[0\\]",
+        "Breeding\\[25\\]\\[\\d+\\]",
+        "Refinery\\[[02]\\]\\[\\d+\\]",
+        "AnvilPA\\[\\d+\\]\\[2\\]",
+        "CauldronInfo\\[[56]\\]\\[\\d+\\]",
+        "CauldronP2W\\[4\\]\\[\\d+\\]",
+        "Bubba\\[0\\]\\[\\d+\\]",
+        "GamingSprout\\[\\d+\\]\\[1\\]",
+        "Gaming\\[14\\]",
+        "Summon\\[[23]\\]\\[\\d+\\]",
+        "Spelunk\\[3\\]\\[\\d+\\]",
+        "Research\\[3\\]\\[(6|13|14|15)\\]",
+        "Research\\[7\\]\\[5\\]",
+        "Holes\\[(2|9|11|25|27)\\]\\[\\d+\\]",
+        "Holes\\[(18|33)\\]\\[0\\]",
+        "TowerInfo\\[(6[2-5]|7[1-9]|8[0-7])\\]",
+        "CookMaster\\[1\\]\\[1\\]",
+        "Meals\\[[12]\\]\\[0\\]",
+        "Menagerie\\[0\\]\\[15\\]",
+        "Ninja\\[102\\]\\[2\\]",
+        "Sushi\\[4\\]\\[[03]\\]",
+        "ForgeIntervalProgress\\[\\d+\\]",
+        // Timers and running totals kept in the account options: they moved in every idle gap, on both accounts.
+        "OptionsListAccount\\[(45|87|124|253|263|288|289|305|423|439)\\]",
+    ].join("|")})$`
+);
+const isOnItsOwn = (filePath) =>
+    ON_ITS_OWN.test(filePath.replace(/^PlayerDATABASE\.h\.[^.]+\./, "PlayerDATABASE.h.*."));
+
 const isObject = (value) => value !== null && typeof value === "object";
 const isMap = (value) => isObject(value) && !Array.isArray(value);
 // The path resolver splits on these, so a key holding one can't be written.
@@ -56,18 +106,26 @@ const writableKey = (key) => !/[.[\]]/.test(key);
  * Objects are compared key by key, so maps and the injector's proxies are written into, never replaced. Below the
  * top level an array whose length changed is one change (written whole); a top-level array is compared by index.
  * The character in play has its data in the top-level keys, so its PlayerDATABASE entry is left out.
+ * `gemsBought` marks the gem values a restore leaves alone because gems were bought since the copy (GEM_KEYS), and
+ * `onItsOwn` the values the game moves by itself (ON_ITS_OWN).
  *
  * @param {{ character: string, save: object }} copy
  * @param {{ character: string, save: object }} now
- * @returns {Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, restorable: boolean }> }>}
+ * @returns {Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, gemsBought: boolean, onItsOwn: boolean, restorable: boolean }> }>}
  */
 function diffSave(copy, now) {
     const groups = new Map();
+    const boughtGems = (now.save.ServerGemsReceived ?? 0) > (copy.save.ServerGemsReceived ?? 0);
     const add = (keys, filePath, copyValue, nowValue) => {
         const neverRestored = isNeverRestored(keys);
+        const gemsBought = boughtGems && GEM_KEYS.has(keys[0]);
         const restorable =
             copyValue !== undefined &&
+            // Not in the save now (a map key the game dropped, a shorter array): a restore would add it, and an undo
+            // couldn't take it away again.
+            nowValue !== undefined &&
             !neverRestored &&
+            !gemsBought &&
             keys.every(writableKey) &&
             // A map can't be rebuilt from JSON (the game's maps are objects of its own class), and a top-level value
             // that is an object may be one of the injector's proxies.
@@ -75,7 +133,15 @@ function diffSave(copy, now) {
             !isMap(nowValue) &&
             !(keys.length === 1 && isObject(nowValue));
         if (!groups.has(keys[0])) groups.set(keys[0], []);
-        groups.get(keys[0]).push({ path: filePath, copy: copyValue, now: nowValue, neverRestored, restorable });
+        groups.get(keys[0]).push({
+            path: filePath,
+            copy: copyValue,
+            now: nowValue,
+            neverRestored,
+            gemsBought,
+            onItsOwn: isOnItsOwn(filePath),
+            restorable,
+        });
     };
     const walk = (a, b, keys, filePath) => {
         if (a === b) return;
@@ -103,7 +169,8 @@ function diffSave(copy, now) {
 /**
  * The writes that put the selected changes back: "all", or a list of paths, each selecting itself and everything
  * under it ("Cards" selects every card, "PlayerDATABASE.h.Bob" one character). Changes a restore may not write are
- * never in it.
+ * never in it. Another character's values are written as `PlayerDATABASE.h[name].h…`, the form the WebUI's change log
+ * reads as that character's (so an undo puts them back on that character).
  * @param {ReturnType<typeof diffSave>} groups
  * @param {"all" | string[]} select
  * @returns {Array<{ path: string, value: any }>}
@@ -114,7 +181,10 @@ function restoreWrites(groups, select) {
     return groups
         .flatMap((group) => group.changes)
         .filter((change) => change.restorable && selected(change.path))
-        .map((change) => ({ path: `gga.${change.path}`, value: change.copy }));
+        .map((change) => ({
+            path: `gga.${change.path.replace(/^PlayerDATABASE\.h\.([^.]+)\.h\./, "PlayerDATABASE.h[$1].h.")}`,
+            value: change.copy,
+        }));
 }
 
 // <ISO time with - for :>_<character>.json.gz, e.g. 2026-11-20T01-02-03-456Z_Luumii.json.gz

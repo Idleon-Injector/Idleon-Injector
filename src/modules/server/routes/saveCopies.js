@@ -1,8 +1,6 @@
-const { isDeepStrictEqual } = require("util");
 const { createLogger } = require("../../utils/logger");
 const { getRuntimePath } = require("../../utils/runtimePaths");
 const { diffSave, restoreWrites, writeCopy, listCopies, readCopy, pruneCopies } = require("../../saveCopies");
-const { normalizeReadValue, writeGamePaths } = require("./game");
 
 const log = createLogger("Save copies");
 
@@ -103,11 +101,11 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
     });
 
     /**
-     * { id, select: "all" | paths } -> { ok, results: [{ path, ok, error? }] }. Writes through the same game helper
-     * as the write-many route, and checks every path holds the copy's value, as the game read it back in that
-     * same call (a later read could see a game tick first, #78).
+     * { id, select: "all" | paths } -> { writes: [{ path, value }] }: the writes that put the selected values back,
+     * from the save as it is now. The WebUI writes them (writeManyVerified), so a restore is logged in History like
+     * any save and Undo can take it back.
      */
-    app.post("/api/save-copies/restore", async (req, res) => {
+    app.post("/api/save-copies/writes", async (req, res) => {
         try {
             const { id, select } = await req.json();
             if (select !== "all" && !(Array.isArray(select) && select.every((s) => typeof s === "string" && s))) {
@@ -115,23 +113,9 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
             }
             const both = await copyAndNow(id, res);
             if (!both) return;
-            const writes = restoreWrites(diffSave(both.copy, both.now), select);
-            if (writes.length === 0) return res.json({ ok: true, results: [] });
-
-            const written = await writeGamePaths(gameBridge, writes);
-            const results = writes.map((write, i) => {
-                const wrote = written.results?.[i];
-                if (!wrote?.ok) return { path: write.path, ok: false, error: wrote?.error ?? "Write failed" };
-                if (!isDeepStrictEqual(normalizeReadValue(wrote.value), write.value)) {
-                    return { path: write.path, ok: false, error: "Write mismatch" };
-                }
-                return { path: write.path, ok: true };
-            });
-            const failed = results.filter((r) => !r.ok).length;
-            log.info(`Restored ${writes.length - failed} of ${writes.length} values from save copy ${id}`);
-            res.json({ ok: failed === 0, results });
+            res.json({ writes: restoreWrites(diffSave(both.copy, both.now), select) });
         } catch (error) {
-            log.error("Error in /api/save-copies/restore:", error);
+            log.error("Error in /api/save-copies/writes:", error);
             res.status(500).json({ error: error.message });
         }
     });

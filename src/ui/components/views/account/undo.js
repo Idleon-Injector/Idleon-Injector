@@ -74,7 +74,7 @@ const CACHES = [
 ];
 // Resolves to false when the game didn't clear one: the values are back by then, so that is a warning, not a
 // failure, and nothing is tried again (a Refresh reads the totals the game holds).
-const clearCaches = (paths) => {
+export const clearCaches = (paths) => {
     const caches = CACHES.filter(([pattern]) => paths.some((path) => pattern.test(path))).map(([, cache]) => cache);
     return Promise.all(caches.map((cache) => deleteGga(cache))).then(
         () => true,

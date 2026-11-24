@@ -487,11 +487,12 @@ export async function fetchSaveCopies() {
 
 /**
  * Every difference between a save copy and the save now, by top-level save key. Values marked `neverRestored`
- * (gems and bundles received from the server, the time-away stamps) and others not `restorable` are shown only.
+ * (gems and bundles received from the server, the time-away stamps), `gemsBought` (gems bought since the copy) and
+ * others not `restorable` are shown only; `onItsOwn` marks the values the game moves by itself.
  * Rejects when the copy was taken while playing another character.
  *
  * @param {string} id
- * @returns {Promise<{ id: string, character: string, groups: Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, restorable: boolean }> }> }>}
+ * @returns {Promise<{ id: string, character: string, groups: Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, gemsBought: boolean, onItsOwn: boolean, restorable: boolean }> }> }>}
  */
 // Compare and restore go through the whole save, which can take longer than a request's usual limit.
 export async function compareSaveCopy(id) {
@@ -507,16 +508,17 @@ export async function compareSaveCopy(id) {
 }
 
 /**
- * Put a save copy's values back, through the same game write as ggaMany, each read back and checked.
- * `select` is "all" or a list of paths from compareSaveCopy (a path selects everything under it, e.g. "Cards").
+ * The writes that put a save copy's values back, from the save as it is now (the page writes them with
+ * writeManyVerified, so a restore is logged and can be undone). `select` is "all" or a list of paths from
+ * compareSaveCopy (a path selects everything under it, e.g. "Cards").
  *
  * @param {string} id
  * @param {"all" | string[]} select
- * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }> }>}
+ * @returns {Promise<{ writes: Array<{ path: string, value: any }> }>}
  */
-export async function restoreSaveCopy(id, select) {
+export async function saveCopyWrites(id, select) {
     return _request(
-        "/save-copies/restore",
+        "/save-copies/writes",
         {
             method: "POST",
             headers: { "Content-Type": "application/json" },

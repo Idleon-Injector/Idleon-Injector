@@ -68,7 +68,7 @@ test("API setup retains every endpoint and does not evaluate the game during reg
             "POST /api/game/gga/write-many",
             "POST /api/open-url",
             "POST /api/save-copies/compare",
-            "POST /api/save-copies/restore",
+            "POST /api/save-copies/writes",
             "POST /api/search",
             "POST /api/toggle",
             "POST /api/update/apply",

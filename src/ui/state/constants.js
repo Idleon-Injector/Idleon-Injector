@@ -46,6 +46,11 @@ export const VIEWS = {
         label: "HISTORY",
         sidebarLabel: "HISTORY",
     },
+    SAVE_COPIES: {
+        id: "save-copies-tab",
+        label: "SAVE COPIES",
+        sidebarLabel: "SAVE COPIES",
+    },
 };
 
 // Order in which tabs appear in the sidebar
