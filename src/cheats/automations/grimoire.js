@@ -4,14 +4,14 @@
  */
 
 import { defineAutomation } from "../core/automations.js";
-import { grimoireStatus, runGrimoire, startGrimoire } from "../helpers/automation/grimoire.js";
+import { grimoire } from "../helpers/automation/grimoire.js";
 
 defineAutomation({
     id: "classes.automation.grimoire",
     cheat: "automation grimoire",
     label: "Grimoire",
     interval: 1000,
-    tick: runGrimoire,
-    status: grimoireStatus,
-    start: startGrimoire,
+    tick: grimoire.run,
+    status: () => grimoire.status(),
+    start: grimoire.start,
 });
