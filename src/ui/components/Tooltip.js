@@ -85,6 +85,8 @@ let tooltipElement = null;
 let shownFor = null;
 // Counts shows and hides, so a frame queued by an older show can't bring back a tooltip hidden since.
 let shows = 0;
+// The element a click pinned its tooltip open for; other labels wait until it closes.
+let pinnedFor = null;
 
 export const showTooltip = (targetEl, text, position = "top") => {
     shownFor = targetEl;
@@ -136,20 +138,50 @@ export const TooltipContainer = () => {
  * @param {string | (() => string)} text - Tooltip text (can be reactive function)
  * @param {string} position - Position preference: 'top', 'bottom', 'left', 'right'
  * @param {boolean | (() => boolean)} enabled - Whether the tooltip is enabled
+ * @param {boolean} pinnable - A click (or Enter/Space) keeps it open until a click elsewhere, Escape or a second click
  * @returns {HTMLElement} The same element with tooltip attached
  */
-export const withTooltip = (element, text, position = "top", enabled = true) => {
+export const withTooltip = (element, text, position = "top", enabled = true, pinnable = false) => {
     const show = () => {
         const isEnabled = typeof enabled === "function" ? enabled() : enabled;
         const tooltipText = typeof text === "function" ? text() : text;
-        if (isEnabled && tooltipText) showTooltip(element, tooltipText, position);
+        if (!pinnedFor && isEnabled && tooltipText) showTooltip(element, tooltipText, position);
     };
+    const hide = () => pinnedFor === element || hideTooltip(element);
+    const onOutside = (e) => element.contains(e.target) || unpin();
+    const onEscape = (e) => e.key === "Escape" && unpin();
+    const unpin = () => {
+        pinnedFor = null;
+        element.setAttribute("aria-expanded", "false");
+        document.removeEventListener("pointerdown", onOutside, true);
+        document.removeEventListener("keydown", onEscape, true);
+        hideTooltip(element);
+    };
+    const isShown = () => shownFor === element && tooltipState.val.visible;
+    const pin = () => {
+        // Already showing from the hover or keyboard focus: keep it where it is instead of measuring again.
+        if (!isShown()) show();
+        if (!isShown()) return;
+        pinnedFor = element;
+        element.setAttribute("aria-expanded", "true");
+        document.addEventListener("pointerdown", onOutside, true);
+        document.addEventListener("keydown", onEscape, true);
+    };
+
+    if (pinnable) element.setAttribute("aria-expanded", "false");
     element.addEventListener("mouseenter", show);
     // A label the pointer gets also shows for the keyboard, never after a click.
     element.addEventListener("focus", () => element.matches(":focus-visible") && show());
-    element.addEventListener("mouseleave", () => hideTooltip(element));
-    element.addEventListener("blur", () => hideTooltip(element));
-    element.addEventListener("click", () => hideTooltip(element));
+    element.addEventListener("mouseleave", hide);
+    // Focus moving to another control (Tab away) closes a pinned list too; a blur to nothing (another window) doesn't.
+    element.addEventListener("blur", (e) =>
+        pinnedFor === element ? e?.relatedTarget && unpin() : hideTooltip(element)
+    );
+    element.addEventListener("click", () => {
+        if (!pinnable) hideTooltip(element);
+        else if (pinnedFor === element) unpin();
+        else pin();
+    });
 
     return element;
 };

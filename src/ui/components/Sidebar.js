@@ -414,7 +414,8 @@ export const Sidebar = () => {
                 ),
                 SHORTCUTS_TOOLTIP_TEXT,
                 "right",
-                () => !isRail()
+                () => !isRail(),
+                true
             ),
             withTooltip(
                 button(

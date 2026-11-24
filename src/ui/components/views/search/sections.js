@@ -200,7 +200,6 @@ const ResultItem = ({ result: initialResult, ui, handlers }) => {
                     {
                         type: "button",
                         class: "btn-quiet btn-sm result-action-btn edit-btn",
-                        title: "Edit value",
                         onclick: handleStartEdit,
                     },
                     "Edit"
@@ -280,7 +279,6 @@ export const KeysSection = ({ ui, handlers }) =>
                         type: "button",
                         class: "btn-quiet btn-sm",
                         onclick: () => handlers.selectKeys(handlers.getValidFavorites()),
-                        title: "Select all favorites",
                     },
                     "Favorites"
                 ),
@@ -289,7 +287,7 @@ export const KeysSection = ({ ui, handlers }) =>
                         type: "button",
                         class: "btn-quiet btn-sm",
                         onclick: handlers.clearSelection,
-                        title: "Clear selection",
+                        "aria-label": "Clear selection",
                     },
                     "Clear"
                 )
@@ -572,7 +570,7 @@ export const ResultsSection = ({ ui, handlers }) =>
                                   type: "button",
                                   class: "btn-quiet btn-sm",
                                   onclick: handlers.clearResultsFilter,
-                                  title: "Clear results filter",
+                                  "aria-label": "Clear results filter",
                               },
                               "Clear"
                           )
@@ -836,7 +834,6 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                     {
                         type: "button",
                         class: "btn-quiet btn-sm result-action-btn edit-btn",
-                        title: "Edit value",
                         onclick: handleStartEdit,
                     },
                     "Edit"
@@ -873,7 +870,6 @@ const SavedResultItem = ({ entry: initialEntry, ui, handlers }) => {
                     {
                         type: "button",
                         class: "btn-danger btn-sm result-action-btn remove-btn",
-                        title: "Remove from saved list",
                         onclick: handleRemove,
                     },
                     "Remove"
@@ -953,7 +949,6 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                     class: "btn-quiet btn-sm refresh-btn",
                     onclick: handlers.refreshSavedResults,
                     disabled: () => ui.isRefreshingSavedResults || ui.savedResults.length === 0,
-                    title: "Refresh saved values",
                 },
                 "Refresh"
             ),
@@ -981,7 +976,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                             handlers.clearSavedResults();
                         },
                         disabled: () => ui.savedResults.length === 0,
-                        title: "Clear saved list",
+                        "aria-label": "Clear saved list",
                     },
                     "Clear"
                 )
@@ -1007,7 +1002,7 @@ export const SavedResultsSection = ({ ui, handlers }) => {
                                   type: "button",
                                   class: "btn-quiet btn-sm",
                                   onclick: handlers.clearSavedFilter,
-                                  title: "Clear saved filter",
+                                  "aria-label": "Clear saved filter",
                               },
                               "Clear"
                           )
