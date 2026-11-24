@@ -255,8 +255,22 @@ export const definePage = (page) => {
         )
     )
         throw new Error(`${where}: tabs must be a list of { id, label, keywords }`);
-    return Object.freeze({ keywords: [], ...page });
+    const component = () => {
+        buildingSystem = page.system;
+        try {
+            return page.component();
+        } finally {
+            buildingSystem = null;
+        }
+    };
+    return Object.freeze({ keywords: [], ...page, component });
 };
+
+/**
+ * The system of the page whose component is being built, else null. A page's title shows its system's drawing, like
+ * its entry in the sidebar, so a system's other pages (Breeding's Pets, Alchemy's Bubbles) don't go by their own name.
+ */
+export let buildingSystem = null;
 
 /** A page's title: its tab name when its system has several pages, else the system name. */
 // Page id -> what runs each time that page is shown again (see whenShown).

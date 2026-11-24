@@ -1,5 +1,6 @@
-/* The Gem shop group above the stamp tabs holds one row: it keeps its own height, and the tabs take the rest. */
-.viewport .stamps-gem-shop {
+/* The Gem shop group above the stamp tabs holds one row: it keeps its own height, and the tabs take the rest. The
+   selector outranks `.account-list > .tabbed-list`, which lets tabbed panels shrink. */
+.viewport .account-list > .tabbed-list.stamps-gem-shop {
     flex: none;
     min-height: 0;
     margin-bottom: 12px;
