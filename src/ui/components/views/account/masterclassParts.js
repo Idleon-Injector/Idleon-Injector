@@ -261,7 +261,7 @@ export const UpgradesPart = ({
  * A masterclass page: one sidebar entry, the game's screens as `tabs` ({ id, label, part }), each part built with
  * `{ pending, reload, bulk }`. One read of the game fills every tab. A tab with a line without a max has Set all in
  * its tray; it shares `bulk` with the tabs' own tools, so one bulk write runs at a time. `automation` links the page's
- * automation beside the title ({ page }).
+ * automation beside the title ({ page, tab }).
  */
 export const MasterclassPage = ({ name, page, description, tabs, wrap = false, automation = null }) => {
     const parts = new Map();

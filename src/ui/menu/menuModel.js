@@ -140,7 +140,7 @@ export const WORLDS = [
             "Summoning",
             "Sushi Station",
             "Clickers",
-            "Grimoire",
+            "Masterclasses",
             "Shops",
         ],
     },
@@ -159,7 +159,9 @@ export const MOVED_PAGES = {
     "w6.sneaking.automation": "automation.sneaking",
     "w6.summoning.automation": "automation.summoning",
     "account.clickers.automation": "automation.clickers",
-    "classes.grimoire.automation": "automation.grimoire",
+    "classes.grimoire.automation": "automation.masterclasses",
+    // The Grimoire's page became the Masterclasses page's first tab.
+    "automation.grimoire": "automation.masterclasses",
 };
 
 /** The areas next to the worlds. `view` names a key of VIEWS; `words` are the names search also knows. */

@@ -8,7 +8,7 @@ import { createFakeApi } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
 const GRIMOIRE = "src/ui/pages/classes/grimoire/1-grimoire.js";
-const GRIMOIRE_AUTOMATION = "src/ui/pages/automation/grimoire/grimoire.js";
+const MASTERCLASS_AUTOMATION = "src/ui/pages/automation/masterclasses/masterclasses.js";
 const COMPASS = "src/ui/pages/classes/compass/compass.js";
 const TESSERACT = "src/ui/pages/classes/tesseract/tesseract.js";
 const ROYAL_ARMORY = "src/ui/pages/classes/royal-armory/royal-armory.js";
@@ -194,10 +194,10 @@ const watchTakenOut = (node) => {
 
 // ---- The menu ----------------------------------------------------------------------------------------------------
 
-test("Classes is four systems, each with the game's screens as tabs; the Grimoire automation is in Automation", async () => {
+test("Classes is four systems, each with the game's screens as tabs; their automation is in Automation", async () => {
     const { buildMenuTree } = await importRepo("src/ui/menu/menuModel.js");
     const pages = await Promise.all(
-        [GRIMOIRE, GRIMOIRE_AUTOMATION, COMPASS, TESSERACT, ROYAL_ARMORY].map(
+        [GRIMOIRE, MASTERCLASS_AUTOMATION, COMPASS, TESSERACT, ROYAL_ARMORY].map(
             async (file) => (await importRepo(file)).default
         )
     );
@@ -213,8 +213,8 @@ test("Classes is four systems, each with the game's screens as tabs; the Grimoir
     );
     const tabsOf = (id) => pages.find((page) => page.id === id).tabs.map((tab) => tab.label);
     assert.deepEqual(tabsOf("classes.grimoire"), ["Upgrades", "Bones"]);
-    const automation = pages.find((page) => page.id === "automation.grimoire");
-    assert.equal(automation.world, "automation", "the Grimoire automation lives in the Automation section");
+    const automation = pages.find((page) => page.id === "automation.masterclasses");
+    assert.equal(automation.world, "automation", "the masterclass automation lives in the Automation section");
     assert.deepEqual(tabsOf("classes.compass"), [
         "Elemental",
         "Fighter",
