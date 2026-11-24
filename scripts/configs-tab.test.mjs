@@ -86,9 +86,9 @@ test("Use switches and the page reads the settings again; a cheat that didn't st
     assert.match(text(row("AFK")), /w7 sushitools didn't start\. Keep the in-game Sushi board open\./);
 });
 
-test("Delete asks once more before it deletes", async () => {
+test("Delete asks once more before it deletes, and leaves the settings in use alone", async () => {
     const asked = fakeRoute(() => ({ configs: list("Light", []) }));
-    const { row, press } = open(list("Light"));
+    const { row, press, changed } = open(list("Light"));
     await until(() => row("My config"), "the rows");
     press("My config", "Delete");
     await new Promise((resolve) => setTimeout(resolve, 30));
@@ -96,6 +96,7 @@ test("Delete asks once more before it deletes", async () => {
     press("My config", "Delete");
     await until(() => !row("My config"), "the row to go");
     assert.deepEqual(asked, [{ action: "remove", name: "My config" }]);
+    assert.equal(changed(), 0, "the settings in use are not read again, so unsaved edits stay");
 });
 
 test("a refused name is said beside the field, and the field keeps it", async () => {

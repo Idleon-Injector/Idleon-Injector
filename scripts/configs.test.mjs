@@ -343,3 +343,27 @@ test("after a switch the game refused, the game's old settings don't come back i
     assert.deepEqual(app.game.calls.at(-1), ["config", true]);
     assert.deepEqual(app.config.getCheatConfig().automation.shops, []);
 });
+
+test("a switch whose game update throws, or answers with an Error text, counts as not taken", async (t) => {
+    useInstall(t, `exports.cheatConfig = { automation: { shops: [{ id: "0:1", on: true }] } };`);
+    const game = fakeGame();
+    let answer = "throw";
+    game.callHelper = async () => ({ value: JSON.stringify({ automation: { shops: [{ id: "0:1", on: true }] } }) });
+    game.updateConfig = async (config) => {
+        if (answer === "throw") throw new Error("Execution context was destroyed.");
+        if (answer === "text") return { value: "Error: updateCheatConfig function not found in game context." };
+        game.callHelper = async () => ({ value: JSON.stringify({ automation: { shops: config.automation.shops } }) });
+        return { value: "Config updated in game." };
+    };
+    const app = start(game);
+    await app.change("use", "Light");
+    await app.read();
+    assert.deepEqual(app.config.getCheatConfig().automation.shops, [], "after a throw");
+    answer = "text";
+    await app.read();
+    await app.change("saveAs", "Copy");
+    assert.deepEqual(app.config.getCheatConfig().automation.shops, [], "after an Error text");
+    answer = "ok";
+    await app.read();
+    assert.deepEqual(app.config.getCheatConfig().automation.shops, [], "once taken, the game holds Light's list");
+});

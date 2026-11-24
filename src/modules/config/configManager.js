@@ -301,17 +301,22 @@ async function applyConfigChange(action, name, gameBridge) {
     return { configs: listConfigs(), game };
 }
 
+// updateConfig's answer when the game took the config: no error, and not its "Error: …" text (no updateCheatConfig).
+const tookConfig = (result) => !result.error && !String(result.value).startsWith("Error:");
+
 /**
  * Put the config just switched to into the running game: its settings in place of the old ones (a map key the old
  * config had would stay with a merge), then the old config's cheats off and the new one's on. Cheats the player
  * turned on by hand stay as they are. A game that isn't there gets it all when it's injected again.
  */
 async function switchGame(gameBridge, before) {
+    // Behind until the game says it took the new config; a throw or an error answer leaves it so.
+    gameBehind = true;
     try {
         if (!(await gameBridge.isAttached())) return { gameApplied: false, contextLost: true };
         const result = await gameBridge.updateConfig(cheatConfig, true);
-        gameBehind = !!result.error;
-        if (result.error) return { gameApplied: false, details: result.error.text };
+        if (!tookConfig(result)) return { gameApplied: false, details: result.error?.text ?? result.value };
+        gameBehind = false;
         const failed = [];
         const run = async (command, on) => {
             const response = await gameBridge.executeCheat(command, on);
@@ -415,7 +420,7 @@ async function readGameConfig(gameBridge, cheatConfig) {
     try {
         // The game still has the config switched away from: give it this one first, or read nothing.
         if (gameBehind) {
-            if ((await gameBridge.updateConfig(cheatConfig, true)).error) return false;
+            if (!tookConfig(await gameBridge.updateConfig(cheatConfig, true))) return false;
             gameBehind = false;
         }
         const result = await gameBridge.callHelper("readCheatConfig");

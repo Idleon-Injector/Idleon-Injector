@@ -10,8 +10,9 @@ const cheatCount = (n) => (n === 0 ? "No cheats" : n === 1 ? "1 cheat" : `${n} c
  * The Configs tab of Settings (#198): the shipped configs and the player's own, one row each. Use switches to a config,
  * Reset puts a changed shipped one back, Delete removes one of the player's own, and the field at the end keeps the
  * settings in use as a new config. `configs` is a state holding the server's list ({ active, list }); `onChanged()`
- * runs after a change, for the page to read the settings again; `hasUnsavedEdits()` makes a switch ask first, as it
- * drops them.
+ * runs after a change that replaced the settings in use (Use, Reset of the config in use), for the page to read them
+ * again; `hasUnsavedEdits()` makes those two ask first, as they drop unsaved edits. Delete, Reset of another config
+ * and Save current as new leave the settings in use and their unsaved edits alone.
  */
 const DONE = { use: "in use", reset: "reset", remove: "deleted" };
 const WAITING = { use: "Switching…", reset: "Resetting…", remove: "Deleting…" };
@@ -26,10 +27,11 @@ export const Configs = ({ configs, onChanged, hasUnsavedEdits = () => false }) =
     const run = async (action, name, where, pressed) => {
         saidOn.val = where;
         say("waiting", WAITING[action]);
+        const replacesSettings = action === "use" || (action === "reset" && configs.val.active === name);
         try {
             const { configs: next, game } = await changeConfigs(action, name);
             configs.val = next;
-            await onChanged();
+            if (replacesSettings) await onChanged();
             if (game?.failed?.length) {
                 saidOn.val = where;
                 // One line per cheat; the line shows them joined with a dot.
@@ -129,7 +131,6 @@ export const Configs = ({ configs, onChanged, hasUnsavedEdits = () => false }) =
             nameSaid.clear();
             replay(saveButton, "confirmed");
             announce(`${next.active} saved and in use.`);
-            await onChanged();
         } catch (error) {
             nameSaid.say("failed", error.message);
         }
