@@ -397,6 +397,7 @@ defineCheat({
         { name: "endercaptains", message: "100% ender captains (requires Emporium bonus unlock)" },
         { name: "gaming", message: "gaming cheats" },
         { name: "betternuggets", message: "bigger nuggets from the gaming shovel (see config)" },
+        { name: "instantnuggets", message: "finish nugget batches immediately; keeps visuals and the shovel cooldown" },
         { name: "divinity", message: "divinity cheats" },
         { name: "collider", message: "collider cheats" },
         { name: "holes", message: "holes cheats" },
