@@ -94,7 +94,7 @@ export const WORLDS = [
         id: 7,
         code: "W7",
         label: "World 7",
-        name: "Equinox Valley",
+        name: "Shimmerfin Deep",
         folder: "world-7",
         systems: [
             "Spelunking",

@@ -10,7 +10,7 @@
 
 .viewport .statue-cells {
     display: grid;
-    grid-template-columns: 9.5rem 9.5rem 16rem 7.5rem;
+    grid-template-columns: 9.5rem 9.5rem 16rem 10rem;
     align-items: center;
     gap: 10px;
 }
@@ -93,11 +93,13 @@
 }
 
 .statue-head__flair .state-switch {
-    gap: 0;
+    gap: 8px;
 }
 
-.statue-head__flair .state-switch__words:empty {
-    display: none;
+/* The switch's word (Unlocked / Locked) sits in the head, so it reads like the column names beside it. */
+.viewport .statue-head__flair .state-switch__words {
+    min-width: 0;
+    font-size: inherit;
 }
 
 /* The first row sits under the head's hairline. */
