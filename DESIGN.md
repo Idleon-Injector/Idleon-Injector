@@ -224,6 +224,11 @@ game's.
   ranked. Each result is a name with a small muted line under it, in Fira Sans: a cheat by its command and what it
   does, a setting by what it does with its cheat and key under it. The picked row (pointer or arrow keys) takes the
   sidebar's where-you-are fill; focus stays in the field, so no box and no ring.
+- **The icon rail** (the folded sidebar and the narrow overlay) is one column on Home's centre line: 32 px entries 2 px
+  apart, full-width hairlines with 10 px on each side, and at the bottom expand as one more entry under the same
+  hairline. The status shows there only when something is wrong. A world's code rests in a calmer tone of its colour
+  (`--c-world-w1-rest` and on, one lightness and chroma for all seven) and takes its full colour when pointed at or
+  where you are.
 - **Hover labels** only where there are no words: the icon rail's codes and drawings, an icon-only button, the Keys
   list, and a question or refusal said at the control ("Click again to …"). A small rounded surface one step up, in
   normal case, no edge. A label the pointer gets also shows on keyboard focus.

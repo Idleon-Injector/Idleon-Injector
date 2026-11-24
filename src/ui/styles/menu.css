@@ -264,7 +264,8 @@
 
 /* --- NARROW: the in-game overlay --- */
 @media (max-width: 760px) {
-    .sidebar-toggle {
+    .sidebar-toggle,
+    .sidebar-collapsed .sidebar-foot {
         display: none;
     }
 
@@ -547,8 +548,10 @@
     color: #ffffff;
     font-weight: 600;
 }
+/* No gap in the rail: the folded-away words kept 10 px beside the code, which pushed every code 5 px left of Home. */
 .sidebar-collapsed .tab-button.menu-nav-btn {
     justify-content: center;
+    gap: 0;
     padding: 0;
 }
 

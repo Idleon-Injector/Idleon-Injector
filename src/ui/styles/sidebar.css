@@ -19,18 +19,20 @@
     overflow: visible;
 }
 
-/* The rail (narrow overlay, or folded): the codes alone, centred. */
+/* The rail (narrow overlay, or folded): the codes alone, centred. The last entry ends as far from the bottom as Home
+   starts from the top. */
 .sidebar-collapsed {
     width: 60px;
-    padding: 14px 8px;
+    padding: 14px 8px 17px;
 }
 
+/* Home's line has the separators' spacing: 10 px above, 10 px below. The folded words keep the brand 34 px high, a
+   pixel under Home, so 9 px reads as 10. */
 .sidebar-collapsed .brand {
     justify-content: center;
     gap: 0;
-    padding-bottom: 10px;
     margin-bottom: 10px;
-    padding: 2px 0 14px;
+    padding: 2px 0 9px;
 }
 
 .sidebar-collapsed .brand-main {
@@ -105,13 +107,9 @@
     overflow: hidden;
 }
 
-/* Collapse / expand: a quiet round button holding the chevron, centred in the rail. */
+/* Collapse: a quiet round button holding the chevron, at the right of the last line. In the rail it's an entry. */
 .sidebar-toggle {
     margin-left: auto;
-}
-
-.sidebar-collapsed .sidebar-toggle {
-    margin-right: auto;
 }
 
 /* --- BRAND --- */
@@ -381,6 +379,62 @@
 .sidebar-foot .btn-quiet {
     color: var(--c-text-muted);
 }
+
+/* --- THE ICON RAIL ---
+   One column on Home's centre line: Home, then the entries, each 32 px high with a 2 px gap, the groups split by
+   full-width hairlines with 10 px either side. */
+.sidebar-collapsed .menu-nav-sep {
+    margin: 8px 0;
+}
+
+/* A code takes its world's colour when pointed at or where you are; at rest it has the rail's (--rail-code). */
+.sidebar-collapsed .menu-nav-code {
+    color: var(--rail-code, var(--c-text-faint));
+    transition: color 150ms var(--ease-soft);
+}
+.sidebar-collapsed .menu-nav-btn:hover .menu-nav-code,
+.sidebar-collapsed .menu-nav-btn:focus-visible .menu-nav-code {
+    color: var(--world-color, var(--c-text-main));
+}
+.sidebar-collapsed .menu-nav-btn.active .menu-nav-code {
+    color: var(--world-color, var(--c-accent));
+}
+
+/* The bottom: the same hairline as the wide sidebar's, then the status only when something is wrong (a calm
+   "online" dot says nothing), then expand as one more entry. In the narrow overlay there is no expand. */
 .sidebar-collapsed .system-status {
-    border-top: 0;
+    margin-top: auto;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--c-border);
+}
+.sidebar-collapsed .system-status.is-online {
+    display: none;
+}
+.sidebar-collapsed .system-status-main {
+    width: 100%;
+    height: 32px;
+    border-radius: 10px;
+    transition: background-color 150ms var(--ease-soft);
+}
+.sidebar-collapsed .system-status-main:not(:disabled):hover {
+    background: #19172b;
+}
+.sidebar-collapsed .sidebar-foot {
+    margin-top: 2px;
+    padding: 0;
+}
+.sidebar-collapsed .system-status.is-online + .sidebar-foot {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--c-border);
+}
+.sidebar-collapsed .sidebar-toggle.btn-icon {
+    width: 100%;
+    height: 32px;
+    margin: 0;
+    border-radius: 10px;
+}
+.sidebar-collapsed .sidebar-toggle.btn-icon:hover {
+    background: #19172b;
+    color: #ffffff;
 }
