@@ -243,6 +243,8 @@ export const ValueTableRow = ({
                                     formatted: field.formatted,
                                     // + leaves a value the game holds above the cap; − takes one off it.
                                     adjustDraft: (raw, delta) => {
+                                        // A blank `toDraft` box (an Empty node) is already the lowest: − leaves it.
+                                        if (field.toDraft && delta < 0 && String(raw ?? "").trim() === "") return "";
                                         if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
                                         const value = toInt(raw, { min: 0 });
                                         if (value > maxOf(field)) return delta > 0 ? value : value - 1;

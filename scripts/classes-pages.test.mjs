@@ -837,6 +837,38 @@ test("nodes: Empty all asks in the tray; Refill all runs on one press; a typed a
     }
 });
 
+// Empty is already the lowest: − on an Empty node's blank box leaves it Empty; + takes it to 1.
+test("nodes: − leaves an Empty node Empty, + fills it to 1", async () => {
+    const saved = copy(gga.RoyalG[4]);
+    try {
+        gga.RoyalG[4][0] = -1;
+        const { root, pane } = await openPane(ROYAL_ARMORY, "Nodes");
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
+        const first = rowsIn(pane)[0];
+        const box = fieldsOf(first)[1];
+        await until(() => showing(box) === "", "node 1's blank box");
+        const press = (label) =>
+            elements(box.parentNode)
+                .find((node) => node.nodeName === "button" && node.attributes["aria-label"] === label)
+                .listeners.click({ preventDefault() {}, currentTarget: null });
+        const before = writes();
+        focus(box);
+        press("Lower");
+        first.listeners.keydown({ key: "Enter", target: box, preventDefault() {} });
+        await tick();
+        assert.equal(showing(box), "");
+        assert.equal(writes(), before, "nothing written");
+        assert.equal(gga.RoyalG[4][0], -1);
+
+        press("Raise");
+        first.listeners.keydown({ key: "Enter", target: box, preventDefault() {} });
+        await until(() => gga.RoyalG[4][0] === 1, "+ to fill it to 1");
+    } finally {
+        saved.forEach((amount, i) => (gga.RoyalG[4][i] = amount));
+    }
+});
+
 // An Empty node's Collected box is blank (0 is full): left blank it keeps the node Empty, and 0 typed in fills it.
 test("nodes: an Empty node shows a blank box; its grade saves alone, and 0 typed in fills it", async () => {
     const saved = copy(gga.RoyalG[4]);
