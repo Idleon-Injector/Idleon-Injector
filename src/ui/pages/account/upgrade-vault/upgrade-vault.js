@@ -34,10 +34,7 @@ import {
 const { div, span } = van.tags;
 
 // realMaxState follows every load; the row itself stays, so its save and undo feedback stays with it.
-const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
-    const maxLabel = () =>
-        realMaxState.val !== baseMax ? `${realMaxState.val} (base ${baseMax})` : String(realMaxState.val);
-
+const VaultRow = ({ index, name, realMaxState, levelState }) => {
     return ClampedLevelRow({
         valueState: levelState,
         writePath: `UpgVault[${index}]`,
@@ -47,7 +44,6 @@ const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
         cap: () => realMaxState.val,
         maxAction: {
             value: () => realMaxState.val,
-            tooltip: () => `Set to max level (${maxLabel()})`,
         },
     });
 };
@@ -149,13 +145,11 @@ const UpgradeVaultTab = () => {
                     label: "Max all",
                     status: maxAllStatus,
                     disabled: () => loading.val || Boolean(error.val) || !data.val?.upgrades.length,
-                    tooltip: "Set all vault upgrades to their real max levels",
                     onClick: doMaxAll,
                 },
             ],
             refresh: {
                 onClick: load,
-                tooltip: "Re-read vault levels from game memory",
                 disabled: () => maxAllStatus.val === "loading",
             },
         }),

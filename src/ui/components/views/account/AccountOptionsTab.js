@@ -10,7 +10,6 @@ import { EmptyState } from "../../EmptyState.js";
 import { SearchBar } from "../../SearchBar.js";
 import { NumberInput } from "../../NumberInput.js";
 import { Icons } from "../../../assets/icons.js";
-import { withTooltip } from "../../Tooltip.js";
 import { RefreshButton } from "./components/AccountPageChrome.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
 import { gga } from "../../../services/api.js";
@@ -244,25 +243,21 @@ export const AccountOptionsTab = () => {
         description: "Raw OptionsListAccount editor. Writes bypass normal in-game safety checks.",
         actions: RefreshButton({
             onRefresh: loadAccountOptions,
-            tooltip: "Reload from game memory",
         }),
         toolbar: [
             SearchBar({
                 placeholder: "FILTER_INDEX",
                 onInput: (val) => (ui.filterText = val),
             }),
-            withTooltip(
-                label(
-                    { class: "toggle-switch account-toggle" },
-                    input({
-                        type: "checkbox",
-                        checked: () => ui.hideAI,
-                        onchange: (e) => (ui.hideAI = e.target.checked),
-                    }),
-                    span({ class: "slider" }),
-                    span({ class: "label" }, "HIDE AI")
-                ),
-                "Hide AI-generated options"
+            label(
+                { class: "toggle-switch account-toggle" },
+                input({
+                    type: "checkbox",
+                    checked: () => ui.hideAI,
+                    onchange: (e) => (ui.hideAI = e.target.checked),
+                }),
+                span({ class: "slider" }),
+                span({ class: "label" }, "HIDE AI")
             ),
         ],
         state: { loading, error },

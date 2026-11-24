@@ -30,6 +30,8 @@ export const StepPicker = ({ name, steps, picked, onPick, className = "" }) => {
                         isPicked(step) && "is-picked"
                     ),
                 "aria-checked": () => String(isPicked(step)),
+                // The picked word's bold width, kept by every step, so picking one never moves its neighbours.
+                "data-label": step.label,
                 tabindex: () => (isPicked(step) || (index === 0 && !steps.some(isPicked)) ? "0" : "-1"),
                 onclick: () => {
                     if (!isPicked(step)) onPick(step.value);

@@ -163,7 +163,6 @@ const AnvilTab = () => {
         total: AmountLeft({ value: pointsLeft }),
         actions: RefreshButton({
             onRefresh: load,
-            tooltip: "Re-read anvil stats from game memory",
         }),
         state: { loading, error },
         loadingText: "Reading the anvil",

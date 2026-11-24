@@ -135,7 +135,6 @@ export const EditableNumberRow = ({
             variant,
             className,
             buttonProps: action.hidden ? { hidden: action.hidden } : {},
-            tooltip: action.tooltip ?? null,
             disabled: actionDisabled,
             onClick: (e) => {
                 e.preventDefault();
