@@ -748,7 +748,11 @@ test("Max on a row whose save reads the game before writing offers Undo", async 
 // #290: Observations makes its tiles inside a list that redraws when what it reads changes; a save must not redraw
 // it (a new tile has no Undo).
 test("an observation tile keeps its Undo: the save doesn't rebuild the tiles", async () => {
-    const tiles = (root) => byClass(root, "observation-tile");
+    // An observation's line: its fields, then its Unlocked switch.
+    const tiles = (root) =>
+        byClass(root, "account-row").filter((row) =>
+            elements(row).some((node) => node.nodeName === "input" && node.attributes.role === "switch")
+        );
     const root = await openPage("src/ui/pages/world-7/research/observations.js", (node) => tiles(node).length > 0);
     const tile = tiles(root)[0];
     const [field] = elements(tile).filter((node) => node.nodeName === "input" && node.attributes.type !== "checkbox");
