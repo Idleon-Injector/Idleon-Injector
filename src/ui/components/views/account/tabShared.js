@@ -226,7 +226,11 @@ export const TabbedList = ({
             tabs,
             activeId,
             renderContent: (tab) => tab.content,
-            getPaneProps: (tab) => ({ id: paneId(tab), role: "tabpanel", "aria-labelledby": tabId(tab) }),
+            // With a pick there are no tabs to name a pane: each pane is a group named for its part.
+            getPaneProps: (tab) =>
+                pick
+                    ? { id: paneId(tab), role: "group", "aria-label": tab.label }
+                    : { id: paneId(tab), role: "tabpanel", "aria-labelledby": tabId(tab) },
         })
     );
     const { nav, buttons } = buildTabNav({
