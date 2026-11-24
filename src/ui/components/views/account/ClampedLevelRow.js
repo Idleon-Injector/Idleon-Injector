@@ -33,6 +33,7 @@ export const ClampedLevelRow = ({
     maxAction = null,
     renderExtraActions = null,
     unset = null,
+    inputProps = {},
 }) => {
     const clamp = (value, fallback = null, { strict = false } = {}) => {
         const minValue = toBound(resolveValue(min), 0);
@@ -100,6 +101,7 @@ export const ClampedLevelRow = ({
         maxAction: resolvedMaxAction,
         renderExtraActions,
         unset,
+        inputProps,
         // A line its list's Set all acts on; a level that lives in one place saves with the others in one write.
         setAll: { min, path: typeof write === "function" ? null : writePath },
     });
