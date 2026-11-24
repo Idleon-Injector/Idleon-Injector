@@ -285,7 +285,8 @@ const SystemStatus = () => {
         if (open.val && !e.target.closest?.(".system-status")) open.val = false;
     });
 
-    return [toggle, panel];
+    // The tone on the line itself lets the icon rail drop a calm "online" dot that says nothing.
+    return div({ class: () => `system-status ${tone()}` }, toggle, panel);
 };
 
 export const Sidebar = () => {
@@ -374,7 +375,7 @@ export const Sidebar = () => {
             )
         ),
         MenuNav(),
-        div({ class: "system-status" }, ...SystemStatus()),
+        SystemStatus(),
 
         // GitHub and Keys share the last line with the collapse chevron; the rail keeps only the chevron.
         div(

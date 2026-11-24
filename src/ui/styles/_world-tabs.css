@@ -94,24 +94,31 @@
 
 .w1-world-tab {
     --world-color: var(--c-world-w1);
+    --rail-code: var(--c-world-w1-rest);
 }
 .w2-world-tab {
     --world-color: var(--c-world-w2);
+    --rail-code: var(--c-world-w2-rest);
 }
 .w3-world-tab {
     --world-color: var(--c-world-w3);
+    --rail-code: var(--c-world-w3-rest);
 }
 .w4-world-tab {
     --world-color: var(--c-world-w4);
+    --rail-code: var(--c-world-w4-rest);
 }
 .w5-world-tab {
     --world-color: var(--c-world-w5);
+    --rail-code: var(--c-world-w5-rest);
 }
 .w6-world-tab {
     --world-color: var(--c-world-w6);
+    --rail-code: var(--c-world-w6-rest);
 }
 .w7-world-tab {
     --world-color: var(--c-world-w7);
+    --rail-code: var(--c-world-w7-rest);
 }
 
 /* ── World tab shell ─────────────────────────────────────────────────────── */
