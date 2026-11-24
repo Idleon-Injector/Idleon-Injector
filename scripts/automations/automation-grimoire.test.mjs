@@ -54,7 +54,7 @@ const run = async (items, saving) => {
     await cheat("automation grimoire", false);
 };
 
-test("the Grimoire tab reads the bones, what each saves for, and every upgrade but the placeholders", () => {
+test("the Grimoire tab reads the bones its upgrades use, what each saves for, and every upgrade but the placeholders", () => {
     setGrimoireGame();
     setGrimoire([
         { id: 1, on: true, save: true },
@@ -64,8 +64,6 @@ test("the Grimoire tab reads the bones, what each saves for, and every upgrade b
     assert.deepEqual(bones, [
         { name: "femur", owned: 100, goal: { id: 1, cost: 15 } },
         { name: "ribcage", owned: 100, goal: null },
-        { name: "cranium", owned: 0, goal: null },
-        { name: "bovinae", owned: 0, goal: null },
     ]);
     assert.deepEqual(
         upgrades.map(({ id, bone, max, cost, unlockAt, unlocked }) => [id, bone, max, cost, unlockAt, unlocked]),
