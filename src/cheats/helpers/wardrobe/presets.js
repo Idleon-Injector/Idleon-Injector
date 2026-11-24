@@ -42,7 +42,7 @@ export const wardrobePresets = [
         chips: [21, 20, 18, 17, 15, 16, 10],
         cards: ["w7b7", "babaMummy", "w7b9", "wolfB", "w6d2", "Boss6A", "mini6a", "w7a12"],
         cardSet: 7,
-        cardSetName: "Smoulderin' Plateau",
+        cardSetName: "Smolderin' Plateau",
         prayers: [4, 7, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
         prayersWithCheat: [4, 0, 2, 12, 7, 16, 8, 15, 5, 18, 11, 13],
         obols: {
