@@ -6,7 +6,7 @@ import { withTooltip } from "./Tooltip.js";
 import { WORLDS, AREAS, worldClass } from "../menu/menuModel.js";
 import { menuError, menuTree } from "../menu/pageRegistry.js";
 import { isRail, menuLevel, levelHead, LevelItems, DRILL_AREAS } from "./MenuLevels.js";
-import { Said, plainReason, replay, useSaid } from "./inPlace.js";
+import { replay } from "./inPlace.js";
 
 const { nav, div, button, span, a, p, ul, li } = van.tags;
 
@@ -52,7 +52,7 @@ const MenuBtn = ({ code, label, tip = label, active, onclick, colorClass = "", k
 
 /*
  * The menu drills down. Picking a world (or Account, Classes, Advanced) opens it and slides the list
- * over to its systems; the row at the top goes back. The logo above and the active cheats, status and keys below
+ * over to its systems; the row at the top goes back. Home above and the status and keys below
  * stay put while the middle slides. In the icon rail a world just opens; its list is the line above the page.
  */
 let focusFirst = false; // a pick moves focus to the first entry of the new list
@@ -85,13 +85,6 @@ const sep = () => div({ class: "menu-nav-sep", role: "separator" });
 const TopList = () =>
     div(
         { class: "menu-panel" },
-        MenuBtn({
-            code: "HOM",
-            label: "HOME",
-            tip: "Home",
-            active: () => store.app.activeTab === VIEWS.HOME.id,
-            onclick: () => store.openMenu({ view: "HOME" }),
-        }),
         ...WORLDS.filter((world) => !world.apart).map(WorldBtn),
         // Automation is its own place, between the game's places and the injector's: a player who only wants
         // automation finds it without crossing a cheat page (#249).
@@ -192,42 +185,6 @@ const MenuNav = () => {
         });
     });
     return box;
-};
-
-/**
- * Turn an active cheat off. It leaving the list says it worked; a failure is said under the list (`line`, a
- * `useSaid()`) until that cheat turns off.
- */
-export const turnOff = async (cheat, { said, say, clear }) => {
-    const result = await store.executeCheat(cheat, false);
-    if (!result.ok) return say("failed", `${cheat}: ${plainReason(result.message)}`);
-    if (said.val?.text.startsWith(`${cheat}: `)) clear();
-};
-
-const ActiveCheatList = () => {
-    const line = useSaid();
-    return div(
-        { class: "active-cheats" },
-        div({ class: "active-cheats-header" }, "ACTIVE CHEATS"),
-        () => {
-            const activeCheats = store.getActiveCheats();
-
-            if (activeCheats.length === 0) {
-                return div({ class: "active-cheats-list" }, span({ class: "no-active-cheats" }, "None"));
-            }
-
-            return div(
-                { class: "active-cheats-list" },
-                ...activeCheats.map((cheat) =>
-                    span(
-                        { class: "active-cheat-item", onclick: () => turnOff(cheat, line) },
-                        span({ class: "active-cheat-text" }, cheat)
-                    )
-                )
-            );
-        },
-        Said({ said: line.said, className: "said--line" })
-    );
 };
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -348,7 +305,24 @@ export const Sidebar = () => {
             { class: "brand" },
             div(
                 { class: "brand-main" },
-                div({ class: "brand-logo" }, Icons.Logo()),
+                // Home is the first thing at the top, where the logo was: on the menu's code column, so it lines up
+                // with every entry and stays put in the rail (Lumi, 2026-11-24).
+                withTooltip(
+                    button(
+                        {
+                            type: "button",
+                            class: () =>
+                                `tab-button menu-nav-btn brand-home ${store.app.activeTab === VIEWS.HOME.id ? "active" : ""}`,
+                            "aria-label": "Home",
+                            "aria-current": () => (store.app.activeTab === VIEWS.HOME.id ? "page" : "false"),
+                            onclick: () => store.openMenu({ view: "HOME" }),
+                        },
+                        span({ class: "menu-nav-code", "aria-hidden": "true" }, Icons.System({ name: "Home" }))
+                    ),
+                    "Home",
+                    "right",
+                    isRail
+                ),
                 div(
                     { class: "brand-text" },
                     span("IDLEON"),
@@ -400,7 +374,6 @@ export const Sidebar = () => {
             )
         ),
         MenuNav(),
-        ActiveCheatList(),
         div({ class: "system-status" }, ...SystemStatus()),
 
         // GitHub and Keys share the last line with the collapse chevron; the rail keeps only the chevron.

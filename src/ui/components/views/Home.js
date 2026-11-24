@@ -1,20 +1,22 @@
 /**
- * Home: every page by world, as a contents page, and the cheats that are on. The menu search sits above it.
+ * Home: every page by world, as a contents page, and the player's own cheats beside it. The menu search sits above it.
+ * It stands in the same frame as a system page (Pages.js): the contents are the page column, one group whose worlds are
+ * its rows, and My cheats is the column on the right, the sibling of a page's cheats panel. Where the window has no
+ * room for the column, My cheats folds into one line under the title.
  */
 
 import van from "../../vendor/van-1.6.0.js";
 import store from "../../state/store.js";
 import { Loader } from "../Loader.js";
-import { AccountSection } from "./account/components/AccountSection.js";
 import { menuTree } from "../../menu/pageRegistry.js";
 import { WORLDS, worldClass } from "../../menu/menuModel.js";
 import { Icons } from "../../assets/icons.js";
-import { Said, useSaid } from "../inPlace.js";
-import { turnOff } from "../Sidebar.js";
+import { MyCheats } from "../MyCheats.js";
+import { balanceFrame, framed } from "./Pages.js";
 
 const { div, button, span, h3, p } = van.tags;
 
-/** One world as a contents entry: its name opens it, its systems are plain words under it. */
+/** One world as a row of the contents: its name opens it, its systems stand in a grid beside it. */
 const WorldEntry = (world) =>
     div(
         { class: `home-world ${world.systems.length ? "" : "is-unmoved"}` },
@@ -24,8 +26,11 @@ const WorldEntry = (world) =>
                 { class: `home-world__code ${worldClass(world)}`, "aria-hidden": "true" },
                 Icons.System({ name: world.label }) ?? WORLDS.find((w) => w.id === world.id)?.code ?? ""
             ),
-            span({ class: "home-world__label" }, world.label),
-            span({ class: "home-world__name" }, world.name)
+            span(
+                { class: "home-world__words" },
+                span({ class: "home-world__label" }, world.label),
+                span({ class: "home-world__name" }, world.name)
+            )
         ),
         world.systems.length
             ? div(
@@ -44,50 +49,11 @@ const WorldEntry = (world) =>
             : null
     );
 
-const ActiveCheats = () => {
-    // Turning one off is a toggle: it leaves the list. Only a failure is said, under the list.
-    const line = useSaid();
-    return div(
-        { class: "menu-home-cheats" },
-        () => {
-            const active = store.getActiveCheats();
-            if (!active.length)
-                return div(
-                    { class: "menu-home-cheats__empty" },
-                    span({ class: "no-active-cheats" }, "No cheats are on."),
-                    button(
-                        {
-                            type: "button",
-                            class: "btn-quiet btn-sm",
-                            onclick: () => store.openMenu({ view: "CHEATS" }),
-                        },
-                        "Open cheats"
-                    )
-                );
-            return div(
-                { class: "menu-home-cheats__list" },
-                ...active.map((cheat) =>
-                    button(
-                        {
-                            type: "button",
-                            class: "active-cheat-item",
-                            title: `Turn off ${cheat}`,
-                            onclick: () => turnOff(cheat, line),
-                        },
-                        span({ class: "active-cheat-text" }, cheat)
-                    )
-                )
-            );
-        },
-        Said({ said: line.said, className: "said--line" })
-    );
-};
-
-export const Home = () =>
-    div(
+export const Home = () => {
+    const root = div(
         { id: "home-tab", class: "tab-pane" },
         div(
-            { class: "scroll-container menu-home" },
+            { class: () => `menu-home ${framed.val ? "is-framed" : ""}` },
             div(
                 { class: "account-header account-tab-header" },
                 span({ class: "account-tab-header__icon", "aria-hidden": "true" }, Icons.System({ name: "Home" })),
@@ -98,16 +64,19 @@ export const Home = () =>
                 )
             ),
             div(
-                { class: "home-body" },
-                () =>
-                    menuTree.val
-                        ? div({ class: "home-contents" }, ...menuTree.val.map(WorldEntry))
-                        : div({ class: "account-loader" }, Loader({ text: "Loading pages" })),
-                AccountSection({
-                    title: "Cheats that are on",
-                    note: () => (store.getActiveCheats().length ? "Click one to turn it off." : ""),
-                    body: ActiveCheats(),
-                })
+                { class: "home-frame" },
+                div(
+                    { class: "account-section tabbed-list no-tabs home-list" },
+                    div({ class: "tabbed-list__body home-list__body" }, () =>
+                        menuTree.val
+                            ? div({ class: "home-contents" }, ...menuTree.val.map(WorldEntry))
+                            : div({ class: "account-loader" }, Loader({ text: "Loading pages" }))
+                    )
+                ),
+                MyCheats(framed)
             )
         )
     );
+    balanceFrame(root);
+    return root;
+};

@@ -1,8 +1,7 @@
 // Review fixes on the menu's shared pieces (#168): tabs linked to their panes, Escape on the tray showing, a tray
 // question dropped when the page search changes, the search skipping rows a hidden box holds, and the sidebar's
-// section tracking ignoring the page's own scroll. Home's active cheat rows are plain, like the sidebar's (#148).
+// section tracking ignoring the page's own scroll.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
@@ -168,18 +167,4 @@ test("the sidebar ignores the page's own scroll, whose target is the document", 
     globalThis.document.querySelectorAll = () => [{ getBoundingClientRect: () => ({ top: 0 }), dataset: {} }];
     globalThis.document.contains = () => true;
     assert.doesNotThrow(() => fire("scroll", { target: globalThis.document }));
-});
-
-test("Home's active cheat rows have no fill, like the sidebar's", () => {
-    const css = readFileSync(new URL("../src/ui/styles/menu.css", import.meta.url), "utf8");
-    const rule = css.match(/^\.menu-home-cheats \.active-cheat-item \{([^}]*)\}/m)?.[1];
-    assert.ok(rule, "menu.css styles Home's active cheat rows");
-    assert.match(rule, /^\s*background: transparent;$/m);
-    // The menu look's rule in sidebar.css wins over menu.css, so it must be plain too: no fill and no pill.
-    const sidebar = readFileSync(new URL("../src/ui/styles/sidebar.css", import.meta.url), "utf8");
-    const look = sidebar.match(/^\.viewport \.menu-home-cheats \.active-cheat-item \{([^}]*)\}/m)?.[1];
-    assert.ok(look, "sidebar.css styles Home's active cheat rows");
-    assert.match(look, /^\s*background: transparent;$/m);
-    assert.match(look, /^\s*border: 0;$/m);
-    assert.doesNotMatch(look, /border-radius: 999px/);
 });

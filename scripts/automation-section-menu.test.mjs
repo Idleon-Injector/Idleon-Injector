@@ -8,7 +8,10 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 const require = createRequire(import.meta.url);
 const TinyRouter = require("../src/modules/server/tinyRouter");
 
-const { store } = await loadUi(new TinyRouter());
+const router = new TinyRouter();
+// The sidebar's My cheats reads the startup cheats from the config.
+router.get("/api/config", (req, res) => res.json({ startupCheats: [] }));
+const { store } = await loadUi(router);
 // The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
 globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
 globalThis.document.addEventListener = () => {};

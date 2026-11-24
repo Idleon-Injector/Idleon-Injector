@@ -39,6 +39,15 @@ export async function cheat(action, context, on) {
     return runCheat(action, context, on);
 }
 
+// The switches that turned on a whole family of cheats are gone (#23); typed, they say where the cheats are now.
+const GONE = {
+    godlike: "in Cheats › Combat",
+    upstones: "in Cheats › Items & drops",
+    unlock: "in the Cheats area and on their pages",
+    wide: "in the Cheats area and on their pages",
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((n) => [`w${n}`, `on the World ${n} pages`])),
+};
+
 /**
  * Run a cheat command now. Parses the action string to find matching cheat commands,
  * passing remaining parts as parameters.
@@ -50,7 +59,10 @@ export async function cheat(action, context, on) {
  */
 export function runCheat(action, context, on) {
     try {
-        const command = action.split(" ");
+        const gone = GONE[action.trim()];
+        if (gone) return { ok: false, message: `${action.trim()} is gone. Its cheats are ${gone}.` };
+        // Renamed commands keep their old names working: a startup list or a habit still types them.
+        const command = action.replace(/^w5 collider(?= |$)/, "w3 collider").split(" ");
         const params = [];
         let foundCheat = cheats[command.join(" ")];
 
@@ -102,7 +114,10 @@ export const cheatRows = [];
  * @param {Function} [row.suggestions] - Returns CLI/WebUI choices using current game data
  * @param {object} [row.config] - This cheat's settings, cheatConfig[name]: each setting is
  *   `{ default, description }`, or `{ example, description }` for one config.js only shows commented out, or
- *   `{ description }` alone for one the cheat sets at runtime. Nest plain objects for groups of settings.
+ *   `{ description }` alone for one the cheat sets at runtime. Nest plain objects for groups of settings. An on/off
+ *   setting adds `on`, the value the game checks for (`on: 1` for `1 == MainframeBonus(5)`): the WebUI then shows a
+ *   switch that writes `(t) => on` or the game's own value. A true/false setting is a switch without it. A setting
+ *   whose description would wrap in a page's cheats panel adds `short`, the name the panel shows instead.
  */
 export function defineCheat(row) {
     cheatRows.push(row);
@@ -121,11 +136,22 @@ export function defineCheat(row) {
  * @param {boolean} [cheatDef.needsParam=false] - Whether this cheat needs/accepts a parameter input
  * @param {Function} [cheatDef.suggestions] - Returns CLI/WebUI choices using current game data
  * @param {boolean} [cheatDef.dangerous] - Can damage the account
+ * @param {boolean} [cheatDef.toggle] - An on/off cheat (a row with no `fn`), not a command that runs once
  */
-function registerCheat({ name, fn, message, category = "general", needsParam = false, suggestions, dangerous }) {
+function registerCheat({
+    name,
+    fn,
+    message,
+    category = "general",
+    needsParam = false,
+    suggestions,
+    dangerous,
+    toggle,
+}) {
     cheats[name] = { fn, message, category, needsParam };
     if (suggestions) cheats[name].suggestions = suggestions;
     if (dangerous) cheats[name].dangerous = true;
+    if (toggle) cheats[name].toggle = true;
 }
 
 /**
@@ -245,6 +271,7 @@ function registerCheats(cheatMap, higherKeys = [], parentCategory = null, parent
             needsParam,
             suggestions: cheatMap.suggestions,
             dangerous,
+            toggle: !("fn" in cheatMap),
         });
     }
 

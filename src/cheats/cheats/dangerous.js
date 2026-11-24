@@ -242,6 +242,7 @@ function alchFn(params) {
 // No fn: this is a toggle, read by the equip hooks
 defineCheat({
     name: "equipall",
+    category: "Dangerous",
     dangerous: true,
     message: "!danger! Equip any item at any class/level",
 });
@@ -249,6 +250,7 @@ defineCheat({
 // Wipe commands
 defineCheat({
     name: "wipe",
+    category: "Dangerous",
     dangerous: true,
     message: "Wipe certain stuff from your account. Use with caution!",
     registerParent: false,
@@ -280,8 +282,8 @@ defineCheat({
 // Bulk drop - drop all items of a given type
 defineCheat({
     name: "bulk",
+    category: "Dangerous",
     dangerous: true,
-    category: "bulk",
     message: "Drop a collection of items at once. Usage: bulk [type] [amount]",
     needsParam: true,
     fn: (params) => {
@@ -310,8 +312,8 @@ defineCheat({
 // Class change - change character class by name
 defineCheat({
     name: "class",
+    category: "Dangerous",
     dangerous: true,
-    category: "class",
     message: "!danger! Change character class. Usage: class [class_name]",
     needsParam: true,
     suggestions: () => {
@@ -321,7 +323,6 @@ defineCheat({
             choices.push({
                 value: `class ${name.toLowerCase()}`,
                 message: `Change to ${name} (ID: ${id})`,
-                category: "class",
             });
         }
         return choices;
@@ -425,8 +426,8 @@ function handleSkillLevel(name, lvl) {
 // Level change - unified handler for skills, alchemy, and custom changers
 defineCheat({
     name: "lvl",
+    category: "Dangerous",
     dangerous: true,
-    category: "lvl",
     message: "Change the lvl of a skill or alchemy type to this value",
     needsParam: true,
     suggestions: () => {
@@ -434,7 +435,6 @@ defineCheat({
             {
                 value: "lvl class",
                 message: "Change class level",
-                category: "lvl",
                 needsParam: true,
             },
         ];
@@ -443,7 +443,6 @@ defineCheat({
             choices.push({
                 value: `lvl ${name.toLowerCase()}`,
                 message: `Change ${name} level`,
-                category: "lvl",
                 needsParam: true,
             });
         }
@@ -451,7 +450,6 @@ defineCheat({
             choices.push({
                 value: `lvl ${name}`,
                 message: `Change all ${name} levels`,
-                category: "lvl",
                 needsParam: true,
             });
         }
@@ -493,6 +491,7 @@ defineCheat({
 // > chng bEngine.getGameAttribute("QuestComplete").h["Secretkeeper1"]=1
 defineCheat({
     name: "chng",
+    category: "Dangerous",
     dangerous: true,
     message: "!danger! Execute arbitrary code. Caution advised. Consider chromedebug instead",
     fn: (params) => {

@@ -21,8 +21,10 @@ import { recalculateWardrobe } from "../helpers/wardrobe/index.js";
 // Wide (account-wide) cheats
 defineCheat({
     name: "wide",
+    category: "Costs & limits",
     message: "all account-wide cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "storagecap", message: "uncapped storage stacks; pauses Atom Collider conversion" },
         { name: "gembuylimit", message: "set max gem item purchases", configurable: true },
@@ -32,24 +34,28 @@ defineCheat({
         { name: "task", message: "task cost nullification" },
         { name: "quest", message: "quest item requirement nullification" },
         { name: "star", message: "star point requirement nullification" },
-        { name: "giant", message: "100% giant mob spawn rate" },
+        { name: "giant", category: "Combat", message: "100% giant mob spawn rate" },
         { name: "gems", message: "freezes current gem amount" },
-        { name: "plunderous", message: "100% plunderous mob spawn rate" },
+        { name: "plunderous", category: "Combat", message: "100% plunderous mob spawn rate" },
         { name: "candy", message: "candy use everywhere" },
         { name: "candytime", message: "buffs 1 hr candys in minutes", configurable: true },
-        { name: "nodmg", message: "no damage numbers" },
-        { name: "nogamingpop", message: "no gaming popups (bits, nuggets, acorns, cactus); nuggets still count" },
-        { name: "hidenames", message: "hide player names in world and UI" },
-        { name: "noanim", message: "stop all game animations" },
-        { name: "bigmodel", message: "set all player model sizes on spawn", configurable: true },
+        { name: "nodmg", category: "Display", message: "no damage numbers" },
+        {
+            name: "nogamingpop",
+            category: "Display",
+            message: "no gaming popups (bits, nuggets, acorns, cactus); nuggets still count",
+        },
+        { name: "hidenames", category: "Display", message: "hide player names in world and UI" },
+        { name: "noanim", category: "Display", message: "stop all game animations" },
+        { name: "bigmodel", category: "Display", message: "set all player model sizes on spawn", configurable: true },
         { name: "eventitems", message: "unlimited event item drops" },
-        { name: "autoloot", message: "autoloot immeditely to chest. Check config for more" },
-        { name: "autoparty", message: "Automatically add on screen players to your party" },
+        { name: "autoloot", category: "Items & drops", message: "autoloot immeditely to chest. Check config for more" },
+        { name: "autoparty", category: "Tools", message: "Automatically add on screen players to your party" },
         { name: "arcade", message: "arcade cost nullify" },
         { name: "eventspins", message: "Infinite event spins" },
         { name: "hoopshop", message: "hoopshop cost nullify" },
         { name: "dartshop", message: "dartshop cost nullify" },
-        { name: "autoboss", message: "automatically reload defeated boss maps" },
+        { name: "autoboss", category: "Combat", message: "automatically reload defeated boss maps" },
         {
             name: "guildpoints",
             message: "Adds guild points to the guild (max 1200 per week)",
@@ -62,6 +68,7 @@ defineCheat({
         },
         {
             name: "perfectobols",
+            category: "Items & drops",
             message: "Roll all obols perfectly for class. Family and inventory obols update on character change",
             fn: function () {
                 cheatState.wide.perfectobols = !cheatState.wide.perfectobols;
@@ -73,6 +80,7 @@ defineCheat({
         },
         {
             name: "perfectequipped",
+            category: "Dangerous",
             message: "Permanently rebuild current gear for your class; increase food stacks.",
             // It replaces the rolls of the gear worn, with no way back from the command line.
             dangerous: true,
@@ -98,7 +106,7 @@ defineCheat({
             },
         },
         { name: "cardpassive", message: "all cards always give bonus (passive)" },
-        { name: "votebonus", message: "all Ballot and Meritocracy bonuses active" },
+        { name: "votebonus", category: "Unlocks", message: "all Ballot and Meritocracy bonuses active" },
         { name: "attire", message: "the bonuses of the outfits chosen on the Attire Rack page" },
         {
             name: "attirestats",

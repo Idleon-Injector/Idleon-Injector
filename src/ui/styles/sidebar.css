@@ -1,6 +1,6 @@
 /**
  * Sidebar Component
- * Brand, navigation menu, tabs, active cheats, system status
+ * Brand, navigation menu, tabs, system status
  */
 
 /* --- SIDEBAR --- */
@@ -34,6 +34,7 @@
 }
 
 .sidebar-collapsed .brand-main {
+    width: 100%;
     justify-content: center;
     gap: 0;
 }
@@ -46,7 +47,6 @@
 }
 
 .tab-button svg,
-.brand-logo svg,
 .status-dot {
     flex-shrink: 0;
     display: block;
@@ -122,7 +122,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2px 6px 18px;
+    padding: 0 6px 16px 0;
 }
 
 .brand-main {
@@ -131,10 +131,17 @@
     gap: 12px;
 }
 
-.brand-logo {
-    font-size: 30px;
-    color: var(--c-accent);
-    text-shadow: none;
+/* Home, where the logo was: a menu entry with only its code column, so its drawing sits on the entries' column and
+   its fill starts on their left edge. Where you are, it has their fill and its drawing turns lavender. */
+.brand .tab-button.menu-nav-btn.brand-home {
+    flex: none;
+    justify-content: center;
+    width: 46px;
+    height: 32px;
+    padding: 0;
+}
+.sidebar-collapsed .brand .tab-button.menu-nav-btn.brand-home {
+    width: 100%;
 }
 
 .brand-text {
@@ -254,87 +261,6 @@
     opacity: 1;
 }
 
-/* --- ACTIVE CHEATS --- */
-.active-cheats {
-    margin-top: 12px;
-    padding-top: 15px;
-    border-top: 1px solid var(--c-border);
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    transition:
-        opacity 0.2s var(--ease-tech),
-        max-height 0.2s var(--ease-tech);
-    overflow: hidden;
-    padding: 14px 6px 0;
-}
-
-.sidebar-collapsed .active-cheats {
-    opacity: 0;
-    max-height: 0;
-    pointer-events: none;
-}
-
-.active-cheats-header {
-    font-size: 0.6875rem;
-    color: var(--c-text-faint);
-    letter-spacing: 0.12em;
-    margin-bottom: 8px;
-    font-weight: 600;
-    font-family: var(--font-display);
-}
-
-.active-cheats-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    overflow-y: auto;
-    flex: 1;
-    scrollbar-width: thin;
-    scrollbar-color: var(--c-border) transparent;
-    overflow-x: hidden;
-}
-
-/* An active cheat is just its name in a quiet row, lined up under the heading: no bar, no box. */
-.active-cheat-item {
-    font-size: 0.875rem;
-    font-family: var(--font-mono);
-    color: var(--c-text-muted);
-    padding: 4px 0;
-    min-height: 22px;
-    flex-shrink: 0;
-    line-height: 1.2;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    border-radius: 8px;
-}
-
-.active-cheat-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    font-family: var(--font-display);
-    font-size: 0.8125rem;
-    color: var(--c-text-body);
-}
-
-.active-cheat-item:hover {
-    filter: brightness(1.2);
-    box-shadow: 0 0 8px var(--c-accent-dim);
-    background: #1b1930;
-}
-
-.no-active-cheats {
-    font-size: 0.875rem;
-    font-family: var(--font-mono);
-    color: var(--c-text-muted);
-    font-style: italic;
-}
-
 /* --- SYSTEM STATUS --- */
 .system-status {
     margin-top: auto;
@@ -446,10 +372,6 @@
     overflow-x: hidden;
     overflow-y: auto;
 }
-.sidebar:not(.sidebar-collapsed) .active-cheats {
-    flex: 0 0 auto;
-    max-height: 30vh;
-}
 #system-status-text {
     font-family: var(--font-display);
     font-size: 0.75rem;
@@ -461,24 +383,4 @@
 }
 .sidebar-collapsed .system-status {
     border-top: 0;
-}
-/* Home's active cheats read like the sidebar's list: plain words, no pill (Lumi's pick). */
-.viewport .menu-home-cheats .active-cheat-item {
-    height: 32px;
-    padding: 0 6px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    font-family: var(--font-display);
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--c-text-body);
-    transition: color 150ms var(--ease-soft);
-}
-.viewport .menu-home-cheats .active-cheat-item:hover {
-    background: transparent;
-    color: #ffffff;
-}
-.viewport .menu-home-cheats .active-cheat-text {
-    font-family: var(--font-display);
 }

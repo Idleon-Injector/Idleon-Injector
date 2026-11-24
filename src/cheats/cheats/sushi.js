@@ -38,7 +38,6 @@ const commands = {
 for (const [action, { fn, message, needsParam = false }] of Object.entries(commands)) {
     defineCheat({
         name: action ? "w7 sushitools " + action : "w7 sushitools",
-        category: "w7",
         needsParam,
         message,
         fn: (params, on) => {

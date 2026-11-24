@@ -20,6 +20,7 @@ const { getRuntimePath } = require("../utils/runtimePaths");
 const os = require("os");
 const { isDeepStrictEqual } = require("util");
 const { createLogger } = require("../utils/logger");
+const removedGroups = require("./removedGroups");
 
 const log = createLogger("Config");
 
@@ -66,6 +67,28 @@ function migrateAutomationShape(automation = {}) {
         if (value.target !== undefined) automation[`${key}Target`] = value.target;
     }
 }
+
+/** `w5 collider` became `w3 collider` (#23): a file written before it keeps its collider settings under w5. */
+function migrateColliderRename(cheats) {
+    if (!cheats?.w5?.collider) return;
+    cheats.w3 = { ...cheats.w3, collider: { ...cheats.w5.collider, ...cheats.w3?.collider } };
+    delete cheats.w5.collider;
+}
+
+/**
+ * The family switches (w1-w7, wide, godlike, unlock, upstones) are gone (#23): a startup list that holds one gets the
+ * cheats it turned on in its place, each once. Returns the new list, or null when there was nothing to replace.
+ */
+function expandRemovedGroups(list) {
+    if (!list.some((command) => command in removedGroups)) return null;
+    return [...new Set(list.flatMap((command) => removedGroups[command] ?? [command]))];
+}
+
+/**
+ * The save that wrote a startup list without its family switches, while it runs (null when the load had none); tests
+ * wait for it.
+ */
+let startupMigration = null;
 
 /**
  * Load and merge configuration from base config and custom config files
@@ -114,6 +137,7 @@ function loadConfiguration() {
             }
 
             if (customConfig.cheatConfig) {
+                migrateColliderRename(customConfig.cheatConfig);
                 validateConfig(config.cheatConfig, customConfig.cheatConfig, "");
                 config.cheatConfig = deepMerge(config.cheatConfig, customConfig.cheatConfig);
             }
@@ -121,12 +145,23 @@ function loadConfiguration() {
             log.debug("Loaded custom config overrides");
         }
 
+        const expanded = expandRemovedGroups(config.startupCheats);
+        if (expanded) config.startupCheats = expanded;
+
         injectorConfig = config.injectorConfig;
         startupCheats = config.startupCheats;
         cheatConfig = config.cheatConfig;
         migrateAutomationShape(cheatConfig.automation);
         migrateAutomationPriority(cheatConfig);
         savedAutomation = plain(cheatConfig.automation ?? {});
+
+        // Once: the file gets the new list, so the next start reads it as it is.
+        startupMigration =
+            expanded && !customConfigBroken
+                ? saveConfiguration({ startupCheats: [...startupCheats] })
+                      .then(() => log.info("Startup cheats: the family switches were replaced by their cheats"))
+                      .catch((error) => log.error(`Couldn't save the new startup cheats: ${error.message}`))
+                : null;
 
         return config;
     } catch (error) {
@@ -433,4 +468,6 @@ module.exports = {
     getWebPort,
     isLinux,
     getLinuxTimeout,
+    expandRemovedGroups,
+    startupMigrationDone: () => startupMigration,
 };

@@ -56,7 +56,7 @@ export const MenuSearch = () => {
     const { said, say, clear } = useSaid(6000);
     let runs = 0;
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
-    const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions));
+    const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions, menuTree.val));
     const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
     // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu.
     const openPage = van.derive(() =>

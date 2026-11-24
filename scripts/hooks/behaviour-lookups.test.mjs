@@ -104,7 +104,7 @@ const lookups = [
     ["w3.globalshrines", 579, "_customBlock_Sailing", ["ArtifactBonus", 0, 0], BASE],
     ["w5.gaming", 579, "_customBlock_GamingStatType", ["SproutCapacity"], lookup("w5.gaming")],
     ["w5.divinity", 579, "_customBlock_Divinity", ["StyleLvReq"], lookup("w5.divinity")],
-    ["w5.collider", 579, "_customBlock_AtomCollider", ["AtomCost"], lookup("w5.collider")],
+    ["w3.collider", 579, "_customBlock_AtomCollider", ["AtomCost"], lookup("w3.collider")],
     ["w3.instantdreams", 579, "_customBlock_Dreamstuff", ["BarFillReq"], 0],
     ["wide.plunderous", 579, "_customBlock_TalentEnh", [318], 100],
     ["w6.farming", 579, "_customBlock_FarmingStuffs", ["GrowthReq"], lookup("w6.farming")],
