@@ -9,6 +9,7 @@ import { CATEGORY_ORDER } from "../../state/constants.js";
 import { CheatItem } from "../CheatItem.js";
 import { LazyCategory } from "../LazyCategory.js";
 import { revealFound } from "../../utils/index.js";
+import { isPageCheat } from "../../menu/pageCheats.js";
 import { Said, plainReason, replay, useSaid } from "../inPlace.js";
 
 const { div, button, h3, p, span } = van.tags;
@@ -121,6 +122,8 @@ const getGroupedCheats = (list, term) => {
 
     for (let i = 0; i < list.length; i++) {
         const cheat = list[i];
+        // A system's own cheats are on its page.
+        if (isPageCheat(cheat.value)) continue;
 
         // Filter: match term against value or message
         if (searchTerm) {
@@ -205,7 +208,7 @@ export const Cheats = () => {
     van.derive(() => {
         const { cheat: value, setting, focus, n } = store.app.cheatFocus;
         const cheats = store.data.cheats;
-        if (!n || n === shownFocus || !cheats.length) return;
+        if (!n || n === shownFocus || !cheats.length || isPageCheat(value)) return;
         shownFocus = n;
         const category = cheats.find((cheat) => cheat.value === value)?.category || "general";
         const inCategory = cheats.filter((cheat) => (cheat.category || "general") === category);
@@ -246,10 +249,11 @@ export const Cheats = () => {
                 button(
                     {
                         type: "button",
-                        class: () => `tab-btn ${ui.activeCategory === cat ? "active" : ""}`,
+                        class: () =>
+                            `tab-btn ${cat === "Dangerous" ? "is-dangerous" : ""} ${ui.activeCategory === cat ? "active" : ""}`,
                         onclick: () => handleCategorySwitch(cat),
                     },
-                    cat
+                    cat === "Dangerous" ? [Icons.Warning(), cat] : cat
                 )
             )
         );

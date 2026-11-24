@@ -39,7 +39,11 @@ defineCheat({
         { name: "candy", message: "candy use everywhere" },
         { name: "candytime", message: "buffs 1 hr candys in minutes", configurable: true },
         { name: "nodmg", category: "Display", message: "no damage numbers" },
-        { name: "nogamingpop", category: "Display", message: "no gaming popups (bits, nuggets, acorns, cactus); nuggets still count" },
+        {
+            name: "nogamingpop",
+            category: "Display",
+            message: "no gaming popups (bits, nuggets, acorns, cactus); nuggets still count",
+        },
         { name: "hidenames", category: "Display", message: "hide player names in world and UI" },
         { name: "noanim", category: "Display", message: "stop all game animations" },
         { name: "bigmodel", category: "Display", message: "set all player model sizes on spawn", configurable: true },

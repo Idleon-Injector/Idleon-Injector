@@ -31,7 +31,7 @@ function addChoices(choices, source, formatter) {
 
 /**
  * Get autocomplete suggestions for the CLI/WebUI.
- * @returns {Array<{value: string, message: string, category: string, needsParam?: boolean, dangerous?: boolean}>}
+ * @returns {Array<{value: string, message: string, category: string, needsParam?: boolean, toggle?: boolean, dangerous?: boolean}>}
  */
 export function getAutoCompleteSuggestions() {
     const choices = [];
@@ -61,6 +61,7 @@ export function getAutoCompleteSuggestions() {
             value: name,
             message: def.message || "",
             ...(def.needsParam && { needsParam: true }),
+            ...(def.toggle && { toggle: true }),
         };
     });
 

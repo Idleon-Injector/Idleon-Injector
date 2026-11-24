@@ -5,6 +5,8 @@
  * The server lists that folder (GET /api/pages); the menu imports every module and builds itself from them.
  */
 
+import { isPageCheat, pageRowOf } from "./pageCheats.js";
+
 /**
  * The worlds and their systems in game order, with IdleonToolbox names. A page's `system` must be one of these.
  * ponytail: a new game system is a core edit here; pages themselves only add files.
@@ -366,8 +368,18 @@ const categoryName = (category) =>
  * - A Setting belongs to the longest command its path starts with, the one whose gear shows it; settings no
  *   command owns (unban, maxval, ...) live on the Settings page and stay out.
  */
-export const cheatSearchEntries = (cheats, descriptions) => {
+export const cheatSearchEntries = (cheats, descriptions, tree = null) => {
     const values = new Set(cheats.map((cheat) => cheat.value));
+    // A system's own cheat is found on its page, in its cheats panel (#23): the tab it shows on, else the first page.
+    const pageOf = (value) => {
+        const row = pageRowOf(value);
+        const [worldId, systemName] = row?.key.split(":") ?? [];
+        const world = tree?.find((w) => String(w.id) === worldId);
+        const system = world?.systems.find((sys) => sys.name === systemName);
+        if (!system) return null;
+        const page = system.pages.find((p) => p.tab === row.tab) ?? system.pages[0];
+        return { world, page, place: `${world.label} › ${pageTitle(page, system)}` };
+    };
     // Equal matches list by command, in the game's order: "candy" gives every candy to drop, then to nomore.
     const groups = new Map();
     for (const cheat of cheats)
@@ -375,10 +387,23 @@ export const cheatSearchEntries = (cheats, descriptions) => {
     const out = cheats.map((cheat) => {
         const value = cheat.value;
         const base = value.split(" ")[0];
-        const place = `Cheats › ${categoryName(cheat.category || "general")}`;
+        const onPage = pageOf(value);
+        const place = onPage?.place ?? `Cheats › ${categoryName(cheat.category || "general")}`;
         const message = cheat.message || "";
         const hiddenBase = value.includes(" ") && !values.has(base);
-        if (!cheat.needsParam && !hiddenBase) {
+        if (onPage && !cheat.needsParam && !hiddenBase) {
+            return {
+                kind: "Cheat",
+                group: groups.get(base),
+                label: value,
+                where: `Cheat · ${place}`,
+                command: value,
+                description: message,
+                target: { world: onPage.world.id, page: onPage.page.id, cheat: value },
+            };
+        }
+        // A cheat a page runs itself (an automation, a bundle) has no row anywhere: it runs from the command box.
+        if (!cheat.needsParam && !hiddenBase && !(tree && isPageCheat(value))) {
             return {
                 kind: "Cheat",
                 group: groups.get(base),

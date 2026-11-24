@@ -51,7 +51,7 @@ export async function cheat(action, context, on) {
 export function runCheat(action, context, on) {
     try {
         // Renamed commands keep their old names working: a startup list or a habit still types them.
-        const command = action.replace(/^w5 collider/, "w3 collider").split(" ");
+        const command = action.replace(/^w5 collider(?= |$)/, "w3 collider").split(" ");
         const params = [];
         let foundCheat = cheats[command.join(" ")];
 
@@ -122,11 +122,22 @@ export function defineCheat(row) {
  * @param {boolean} [cheatDef.needsParam=false] - Whether this cheat needs/accepts a parameter input
  * @param {Function} [cheatDef.suggestions] - Returns CLI/WebUI choices using current game data
  * @param {boolean} [cheatDef.dangerous] - Can damage the account
+ * @param {boolean} [cheatDef.toggle] - An on/off cheat (a row with no `fn`), not a command that runs once
  */
-function registerCheat({ name, fn, message, category = "general", needsParam = false, suggestions, dangerous }) {
+function registerCheat({
+    name,
+    fn,
+    message,
+    category = "general",
+    needsParam = false,
+    suggestions,
+    dangerous,
+    toggle,
+}) {
     cheats[name] = { fn, message, category, needsParam };
     if (suggestions) cheats[name].suggestions = suggestions;
     if (dangerous) cheats[name].dangerous = true;
+    if (toggle) cheats[name].toggle = true;
 }
 
 /**
@@ -246,6 +257,7 @@ function registerCheats(cheatMap, higherKeys = [], parentCategory = null, parent
             needsParam,
             suggestions: cheatMap.suggestions,
             dangerous,
+            toggle: !("fn" in cheatMap),
         });
     }
 

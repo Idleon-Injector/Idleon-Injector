@@ -462,3 +462,22 @@ Alternative: keep each automation as a tab or sidebar entry under its system, or
 Trade-off: a system's automation sits away from its cheat page, so the cheat page carries a link to it.
 
 Source: [menu model](../src/ui/menu/menuModel.js), [pages](../src/ui/pages/automation/).
+
+## Put a system's cheats on its page
+
+Decision: a cheat that belongs to one system (W4 Breeding's egg slots, the W3 Atom Collider) leaves the Cheats area
+and shows in a cheats panel beside that system's page, or folded under its title where there is no room. A tabbed
+system shows the open tab's cheats and those for every tab. The rest of the Cheats area falls into nine groups (Combat,
+Multipliers, Items & drops, Costs & limits, Unlocks, Minigames, Display, Tools, and Dangerous last, marked). A panel
+switch is on until the injector restarts; its pin puts the cheat in the startup cheats.
+
+Why: a player on a system's page looks for its cheats there, and the old Cheats tabs (w1-w7, wide, unlock) mixed a
+world's systems with each other (#23). Same two-audiences reasoning as the automation section.
+
+Alternative: keep every cheat in the Cheats area and link from the page (one more trip per cheat), or put each cheat
+on every page it touches (two places to keep in step).
+
+Trade-off: which page owns a cheat is a hand-kept list (`src/ui/menu/pageCheats.js`); a test checks every command in
+it is real and every cheat outside it is in one of the nine groups.
+
+Source: [page cheats](../src/ui/menu/pageCheats.js), [panel](../src/ui/components/SystemCheats.js).

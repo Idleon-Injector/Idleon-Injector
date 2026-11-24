@@ -381,3 +381,28 @@
     font-weight: 600;
     color: var(--c-text-main);
 }
+
+/* Dangerous (#23): can break or wipe the account. Last, set apart from the groups above, its name marked. */
+#cheat-buttons .cheat-category.is-dangerous {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+}
+.cheat-category.is-dangerous summary,
+.viewport .tab-btn.is-dangerous {
+    color: var(--c-danger);
+}
+.cheat-category__name {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.viewport .tab-btn.is-dangerous {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 12px;
+}
+.viewport .tab-btn.is-dangerous.active {
+    background: var(--c-danger-tint);
+    color: var(--c-danger);
+}

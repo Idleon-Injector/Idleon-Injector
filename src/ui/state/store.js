@@ -458,7 +458,8 @@ const store = {
     },
 
     /**
-     * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }` (page "" or null = the world's first page).
+     * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }` (page "" or null = the world's first page;
+     * with `cheat`, its cheats panel shows that cheat's row).
      * `{ view: "CHEATS", cheat, setting, focus }` shows that cheat's row, and with `setting` opens its settings drawer;
      * `focus` (picked by keyboard) also focuses the row or the setting's field. It never runs the cheat.
      */
@@ -476,6 +477,14 @@ const store = {
         }
         appState.menuWorld = target.world;
         appState.menuPage = target.page || "";
+        // A cheat found on a page: its cheats panel shows the row (SystemCheats).
+        if (target.cheat)
+            appState.cheatFocus = {
+                cheat: target.cheat,
+                setting: "",
+                focus: Boolean(target.focus),
+                n: appState.cheatFocus.n + 1,
+            };
         // A search hit on a page's own tab opens the page there; any other way in leaves the page as it was.
         tabRequest.val = target.tab ? { page: target.page, tab: target.tab } : null;
         appState.activeTab = VIEWS.PAGES.id;

@@ -1,14 +1,22 @@
 /*
- * A system's own cheats (#23, concept; SystemCheats.js). The same quiet group as a page's "Gem shop": the panel's
+ * A system's own cheats (#23; SystemCheats.js). The same quiet group as a page's "Gem shop": the panel's
  * surface and edge, a quiet line naming it, rows with what each cheat does first and its command under it, a switch at
  * the end. Beside the page it stands in the room on the right, its top on the title's line; folded (the overlay, a
  * phone) it is one line under the title that opens the same rows in place.
  */
-.viewport .system-cheats {
+.viewport .system-cheats,
+.viewport .system-cheats > .tabbed-list {
     min-height: 0;
     flex: none;
 }
+/* The group is the panel (the page's quiet group look), so a search that hides the group hides the whole panel. */
+.viewport .system-cheats > .tabbed-list {
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-group);
+    background: var(--c-void-soft);
+}
 .viewport .system-cheats .account-section__header {
+    flex: none;
     align-items: baseline;
     gap: 10px;
     padding: 14px 16px 10px;
@@ -40,14 +48,118 @@
     width: var(--cheats-width, 20rem);
     max-height: calc(100% - var(--cheats-top, 0px) - 24px);
 }
+.viewport .system-cheats.is-side {
+    display: flex;
+    flex-direction: column;
+}
 .viewport .system-cheats.is-side .account-section {
     display: flex;
     flex-direction: column;
+    flex: 0 1 auto;
     min-height: 0;
 }
 .viewport .system-cheats.is-side .system-cheats__rows {
     min-height: 0;
     overflow-y: auto;
+}
+
+/* Each row: its short label leads; the command it runs sits small and grey under it. */
+.viewport .system-cheats .account-row__titles .account-row__name {
+    font-size: var(--size-index);
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.viewport .system-cheats__titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+/* What a run said, on its own line under the command, so a reason reads in full at 400 px. */
+.viewport .system-cheats__said.said--empty {
+    display: none;
+}
+.viewport .system-cheats__said {
+    margin-top: 4px;
+}
+.viewport .system-cheats__said .said__text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* The controls: a field first when the cheat takes a value, then the pin and the switch, or Run. */
+.viewport .system-cheats__controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.viewport .system-cheats__value {
+    flex: none;
+    width: 7rem;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-sm);
+    background: var(--c-void);
+    color: var(--c-text-main);
+    font: 500 var(--size-small) var(--font-display);
+}
+.viewport .system-cheats__value::placeholder {
+    color: var(--c-text-muted);
+}
+.viewport .system-cheats__value:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 1px;
+}
+
+/* The pin: quiet until touched. Unpinned it shows when the row is pointed at or holds focus (always on a touch
+   screen); pinned it stays, in the accent, its body filled. */
+.viewport .system-cheats__pin {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--c-text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: 0;
+    transition:
+        opacity 0.16s ease-out,
+        color 0.16s ease-out,
+        background-color 0.16s ease-out;
+}
+.viewport .system-cheats .account-row:hover .system-cheats__pin,
+.viewport .system-cheats .account-row:focus-within .system-cheats__pin,
+.viewport .system-cheats__pin.is-pinned {
+    opacity: 1;
+}
+@media (hover: none) {
+    .viewport .system-cheats__pin {
+        opacity: 1;
+    }
+}
+.viewport .system-cheats__pin:hover:not(:disabled) {
+    background: var(--c-white-03);
+    color: var(--c-text-main);
+}
+.viewport .system-cheats__pin.is-pinned {
+    color: var(--c-accent);
+}
+.viewport .system-cheats__pin.is-pinned .icon-pin path:first-child {
+    fill: currentColor;
+}
+.viewport .system-cheats__pin:disabled {
+    cursor: default;
+}
+.viewport .system-cheats__pin:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+}
+.viewport .system-cheats__run {
+    min-width: 3.5rem;
 }
 
 /* Rows: the cheat's words take the line; the switch keeps its own room at the end. */
@@ -109,7 +221,7 @@
 .viewport .system-cheats .system-cheats__setting > .account-row__badge {
     flex: none;
     align-self: center;
-    margin-right: -8px;
+    margin-right: 0;
     padding-top: 0;
     color: var(--c-text-muted);
     font-size: 1rem;
@@ -118,7 +230,7 @@
     position: relative;
     flex: none;
     flex-wrap: nowrap;
-    width: 6.75rem;
+    width: 5.5rem;
 }
 /* The ✓ and Undo take the sign's place (the sign steps aside while they show), on the line, at every width. */
 .viewport .system-cheats .system-cheats__setting .save-state {
@@ -155,4 +267,43 @@
 .viewport .system-cheats.is-folded.is-open .system-cheats__toggle {
     border-bottom: 1px solid var(--c-border);
     border-radius: 0;
+}
+
+/* A cheat whose settings the panel can't edit (lists, words, formulas) sends you to them on the Config page. */
+.viewport .system-cheats__more {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-top: 1px solid var(--c-hairline);
+    background: transparent;
+    color: var(--c-text-muted);
+    font: 500 var(--size-small) var(--font-display);
+    text-align: left;
+    cursor: pointer;
+}
+.viewport .system-cheats__more:first-child {
+    border-top: 0;
+}
+.viewport .system-cheats__more:hover {
+    color: var(--c-text-main);
+}
+.viewport .system-cheats__more:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+}
+
+/*
+ * The page and its cheats column, one layout (Pages.js): where the window holds both, the pair is balanced in it, the
+ * page column in the same place on every page, and the search above spans both columns.
+ */
+.viewport.pages-frame .menu-top,
+.viewport.pages-frame #tab-content > #pages-tab {
+    padding-left: calc(var(--page-pad) + var(--page-inset, 0px));
+}
+.viewport.pages-frame .menu-bar {
+    max-width: var(--frame-width, var(--page-measure));
 }
