@@ -82,7 +82,11 @@ const ConstructionAutomationTab = () => {
             save: true,
             stopAtTitle: "Stop at level",
             values: [
-                { name: "Level", text: () => (building.val ? `${building.val.level} / ${building.val.max}` : "") },
+                {
+                    name: "Level",
+                    text: () => building.val?.level ?? "",
+                    cap: () => building.val?.max ?? null,
+                },
                 {
                     name: "Next level",
                     quiet: true,

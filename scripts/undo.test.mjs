@@ -720,6 +720,49 @@ test("a switch, − / +, a step pick or a dropdown pick offers no Undo; a typed 
     ola[254] = old;
 });
 
+// #290: a row's Max is a button click (an action of its own) that doesn't wait for the row's save. A save that reads
+// the game before it writes (Library, Prayers) still logs under it, so its row offers Undo.
+test("Max on a row whose save reads the game before writing offers Undo", async () => {
+    const { useAutoSave } = await importRepo("src/ui/components/views/account/autoSave.js");
+    const old = ola[254];
+    const save = useAutoSave({
+        prepare: () => ({
+            write: async () => {
+                await new Promise((resolve) => setTimeout(resolve, 5)); // the page's read of who is in play
+                return writeVerified("OptionsListAccount[254]", old + 3);
+            },
+        }),
+    });
+    let turn;
+    withAction({ label: "Max" }, () => {
+        turn = save.save();
+    });
+    await turn;
+    assert.ok(save.undo.offer.rawVal, "Undo beside Max's save");
+    assert.equal((await newest()).entries.length, 1, "the click's action holds the save");
+    await save.undo.run();
+    assert.equal(ola[254], old, "Undo puts the old value back");
+});
+
+// #290: Observations makes its tiles inside a list that redraws when what it reads changes; a save must not redraw
+// it (a new tile has no Undo).
+test("an observation tile keeps its Undo: the save doesn't rebuild the tiles", async () => {
+    const tiles = (root) => byClass(root, "observation-tile");
+    const root = await openPage("src/ui/pages/world-7/research/observations.js", (node) => tiles(node).length > 0);
+    const tile = tiles(root)[0];
+    const [field] = elements(tile).filter((node) => node.nodeName === "input" && node.attributes.type !== "checkbox");
+    const before = String(field.attributes.value);
+    field.value = before === "3" ? "4" : "3";
+    field.listeners.input({ target: field });
+    tile.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+    await until(() => /save-state--(success|error)/.test(saveState(tile)), "the save to finish");
+    await new Promise((resolve) => setTimeout(resolve, 20)); // VanJS redraws on its next tick
+    assert.equal(tiles(root)[0], tile, "the same tile");
+    assert.ok(undoOffered(tile), "Undo beside the save");
+    await clickUndo(tile);
+    await until(() => String(field.attributes.value) === before, "Undo to put the old value back");
+});
+
 test("Undo all isn't offered beside a switch, − / +, a step picker or a dropdown pick", async () => {
     await importRepo("src/ui/components/views/account/UndoAllOffer.js");
     const parent = globalThis.document.createElement("div");

@@ -183,27 +183,41 @@ export const startChangeLog = (appState, root) => {
  * Inside another action it joins that one. `kind` "row" means a field row offers the undo; "bulk" means the toast.
  */
 export const withAction = ({ label = "", kind = "bulk", anchor = null } = {}, fn) => {
+    // A row save joining a click's action (Max) keeps it open until the save ends, even when the click's handler
+    // didn't wait for it: a save that reads the game before it writes (Library, Prayers) still logs under it (#290).
     if (current) {
-        if (kind === "row") current.kind = "row";
-        return fn(current);
+        const joined = current;
+        if (kind === "row") joined.kind = "row";
+        if (!open.has(joined)) return fn(joined);
+        joined.holds++;
+        return keepOpen(joined, () => fn(joined));
     }
     const action = newAction(label || gesture.label, kind, anchor || gesture.target);
     open.add(action);
+    action.holds = 1;
     current = action;
-    let result;
     try {
-        result = fn(action);
-    } catch (error) {
-        open.delete(action);
-        throw error;
+        return keepOpen(action, () => fn(action));
     } finally {
         current = null;
     }
+};
+
+// Runs `fn`; once its result settles the action lets go of one hold, and closes when none is left.
+const keepOpen = (action, fn) => {
     // A bulk action's Undo all is offered once all of its writes landed, so it puts back all of them.
     const done = () => {
+        if (--action.holds > 0) return;
         open.delete(action);
         if (action.kind !== "row" && action.entries > 0) lastBulkAction.val = { action };
     };
+    let result;
+    try {
+        result = fn();
+    } catch (error) {
+        done();
+        throw error;
+    }
     Promise.resolve(result).then(done, done);
     return result;
 };
