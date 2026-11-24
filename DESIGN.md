@@ -219,6 +219,14 @@ game's.
   cauldron's Pay 2 Win upgrades; Liquids holds the four liquids and their Pay 2 Win upgrades with the Draconic count;
   Vials and player holds the Pay 2 Win upgrades that belong to no cauldron. Each tab's tray has Max all; Liquids
   also has Set all for the liquids' amounts.
+- **Search results** drop over the page like the character picker's names (the panel, its hairline, the menu's
+  shadow), in quiet groups, pages first: Pages, then Cheats, Settings and Commands in the order their best result
+  ranked. Each result is a name with a small muted line under it, in Fira Sans: a cheat by its command and what it
+  does, a setting by what it does with its cheat and key under it. The picked row (pointer or arrow keys) takes the
+  sidebar's where-you-are fill; focus stays in the field, so no box and no ring.
+- **Hover labels** only where there are no words: the icon rail's codes and drawings, an icon-only button, the Keys
+  list, and a question or refusal said at the control ("Click again to …"). A small rounded surface one step up, in
+  normal case, no edge. A label the pointer gets also shows on keyboard focus.
 
 ## Page layout
 

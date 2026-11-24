@@ -316,6 +316,16 @@
         background-color 150ms var(--ease-soft),
         color 150ms var(--ease-soft);
 }
+/* Each step keeps room for its word in the picked weight (a hidden copy, out of the accessibility tree), so the picked
+   one getting bolder never widens it or moves the steps beside it. */
+.step-picker__step::after {
+    content: attr(data-label);
+    display: block;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 650;
+}
 .step-picker__step:first-child {
     border-left: 0;
     border-radius: 10px 0 0 10px;

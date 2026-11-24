@@ -515,7 +515,6 @@ const AttireRackPage = () => {
                     variant: "quiet",
                     status: choiceWrite.status,
                     disabled: () => busy() || !outfits.val.length,
-                    tooltip: "Give every outfit's bonus, including outfits a game update adds",
                     onClick: () => writeChoice(() => new Set(outfits.val.map(({ id }) => id))),
                 },
                 // Removes: a danger button that asks in place.
@@ -524,7 +523,6 @@ const AttireRackPage = () => {
                     variant: "danger",
                     status: choiceWrite.status,
                     disabled: busy,
-                    tooltip: "Stop giving outfit bonuses, now and at start",
                     onClick: (event) => clearChoice(event.currentTarget),
                 },
             ],
@@ -551,7 +549,6 @@ const AttireRackPage = () => {
                         variant: "danger",
                         status: bulkWrite.status,
                         disabled: () => busy() || !everyone.val,
-                        tooltip: "Every character wears the chosen outfit",
                         onClick: (event) => giveEveryone(event.currentTarget),
                     }),
                 ],

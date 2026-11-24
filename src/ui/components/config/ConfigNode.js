@@ -3,7 +3,6 @@ import store from "../../state/store.js";
 import { Icons } from "../../assets/icons.js";
 import { NumberInput, setNumberInputValue } from "../NumberInput.js";
 import { FunctionInput } from "../FunctionInput.js";
-import { withTooltip } from "../Tooltip.js";
 import { isFunction } from "../../utils/functionParser.js";
 import { configDescriptions } from "../../config/configDescriptions.js";
 import { StateSwitch } from "../views/account/components/StateSwitch.js";
@@ -295,23 +294,20 @@ const ConfigItem = ({ data, key, fullPath, initialValue }) => {
         ),
         div(
             { class: "config-item-control" },
-            withTooltip(
-                button(
-                    {
-                        type: "button",
-                        class: () => `btn-quiet btn-sm config-reset-btn ${isModified.val ? "" : "hidden"}`,
-                        onclick: () => {
-                            if (isFn && typeof defaultVal === "function") {
-                                data[key] = defaultVal.toString();
-                            } else {
-                                data[key] = defaultVal;
-                            }
-                            localTextState.val = getStringValue(defaultVal);
-                        },
+            button(
+                {
+                    type: "button",
+                    class: () => `btn-quiet btn-sm config-reset-btn ${isModified.val ? "" : "hidden"}`,
+                    onclick: () => {
+                        if (isFn && typeof defaultVal === "function") {
+                            data[key] = defaultVal.toString();
+                        } else {
+                            data[key] = defaultVal;
+                        }
+                        localTextState.val = getStringValue(defaultVal);
                     },
-                    "Reset"
-                ),
-                "Reset to default"
+                },
+                "Reset"
             ),
             renderInputByType()
         )

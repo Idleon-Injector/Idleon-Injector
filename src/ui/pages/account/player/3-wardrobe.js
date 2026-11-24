@@ -472,7 +472,6 @@ const WardrobePage = () => {
                     variant: "danger",
                     status: perfectWrite.status,
                     disabled: () => busy() || !status.val,
-                    tooltip: "Rebuild the gear in play with the best stones and crafting bonuses you have",
                     confirm: () =>
                         status.val
                             ? `rebuild ${status.val.character}'s gear. The upgrades it has now are replaced.`
@@ -507,7 +506,6 @@ const WardrobePage = () => {
                                 variant: "danger",
                                 status: applyWrite.status,
                                 disabled: () => busy() || previewing.val || !preview.val,
-                                tooltip: "Put this loadout on the character in play",
                                 confirm: applyQuestion,
                                 // Two saved loadouts can share a name: the question is about this one's plan.
                                 confirmTargets: () => preview.val && [selected.val, preview.val.fingerprint],
@@ -520,7 +518,6 @@ const WardrobePage = () => {
                                           variant: "danger",
                                           status: deleteWrite.status,
                                           disabled: busy,
-                                          tooltip: "Delete this saved loadout",
                                           confirm: () => `delete the saved loadout ${choiceName()}.`,
                                           onClick: deleteSaved,
                                       })
@@ -556,7 +553,6 @@ const WardrobePage = () => {
                             variant: "quiet",
                             status: saveWrite.status,
                             disabled: () => busy() || !status.val,
-                            tooltip: "Save what the character in play wears and uses as a loadout",
                             onClick: saveCurrent,
                         })
                     ),

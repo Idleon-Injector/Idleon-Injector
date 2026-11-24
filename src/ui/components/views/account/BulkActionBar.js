@@ -47,7 +47,6 @@ export const BulkActionBar = ({ leading = null, actions = [], refresh = null }) 
                     variant: action.variant ?? "quiet",
                     className: action.extraClass ?? "",
                     disabled: action.disabled ?? false,
-                    tooltip: action.tooltip ?? null,
                     onClick: (e) => action.onClick(e),
                     preventMouseDown: action.preventMouseDown !== false,
                     confirm: action.confirm ?? null,
@@ -57,7 +56,6 @@ export const BulkActionBar = ({ leading = null, actions = [], refresh = null }) 
         refresh
             ? RefreshButton({
                   onRefresh: refresh.onClick,
-                  tooltip: refresh.tooltip ?? null,
                   disabled: refresh.disabled ?? false,
               })
             : null
