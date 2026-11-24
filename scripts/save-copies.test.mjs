@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 const TinyRouter = require("../src/modules/server/tinyRouter");
 const { createGameBridge } = require("../src/modules/game/gameBridge");
 const { setupSaveCopyRoutes } = require("../src/modules/server/routes/saveCopies");
-const { listCopies, pickExpired, pruneCopies, writeCopy } = require("../src/modules/saveCopies");
+const { diffSave, listCopies, pickExpired, pruneCopies, writeCopy } = require("../src/modules/saveCopies");
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "save-copies-test-"));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -143,6 +143,22 @@ test("retention over 31 days of saves every 4 minutes: the last 24 hours, then t
     assert.ok(kept.reduce((sum, c) => sum + c.size, 0) < 25e6, "about 20 MB at 50 KB a copy");
 });
 
+test("a value the game keeps in another shape while it runs is never restored in its saved shape", () => {
+    // OptionsList[11] is 0 in the save and a list in play; CauldronInfo[8] is [] until the game builds it.
+    const [group] = diffSave(
+        { character: "Ann", save: { OptionsList: [0, [], 0] } },
+        { character: "Ann", save: { OptionsList: [[596, 10], [[1, 2]], 7] } }
+    );
+    assert.deepEqual(
+        group.changes.map((c) => [c.path, c.restorable]),
+        [
+            ["OptionsList[0]", false],
+            ["OptionsList[1]", false],
+            ["OptionsList[2]", true],
+        ]
+    );
+});
+
 test("retention keeps a restore's own copies their 30 days, and drops them last for the size cap", () => {
     const now = Date.parse("2026-11-20T12:00:00Z");
     const DAY = 24 * 3600e3;
@@ -196,6 +212,7 @@ test("compare lists every difference by save key and marks the values that are n
     gga.Cards.h.Owl = 1;
     delete gga.Cards.h.Frog;
     gga.Lv0.push(4);
+    gga.StampLevel[0] = [1];
     gga.StampLevel[1] = [3, 4, 5];
     gga.GemsOwned = 0;
     gga.ServerGemsReceived = 900;
@@ -231,7 +248,9 @@ test("compare lists every difference by save key and marks the values that are n
         "Cards.h.Frog": ["Cards", 1, undefined, false, false],
         "Lv0[3]": ["Lv0", undefined, 4, false, false],
         // Below the top level an array that changed length is put back whole.
-        "StampLevel[1]": ["StampLevel", [3, 4], [3, 4, 5], false, true],
+        "StampLevel[0]": ["StampLevel", [1, 2], [1], false, true],
+        // Never a shorter list: the game reads the entries it has now.
+        "StampLevel[1]": ["StampLevel", [3, 4], [3, 4, 5], false, false],
         // Gems were bought since the copy (ServerGemsReceived went up): putting back 50 would lose them.
         GemsOwned: ["GemsOwned", 50, 0, false, false],
         ServerGemsReceived: ["ServerGemsReceived", 500, 900, true, false],

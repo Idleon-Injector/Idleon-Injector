@@ -121,9 +121,16 @@ function diffSave(copy, now) {
         const gemsBought = boughtGems && GEM_KEYS.has(keys[0]);
         const restorable =
             copyValue !== undefined &&
-            // Not in the save now (a map key the game dropped, a shorter array): a restore would add it, and an undo
+            // Not in the save now (a map key the game dropped, a shorter array): a restore would add it, and going back
             // couldn't take it away again.
             nowValue !== undefined &&
+            // The game keeps some values in another shape while it runs than in its save (OptionsList[11] is 0 in
+            // the save, a list in play; CauldronInfo[8] is [] until it's built): writing the saved shape breaks the
+            // game's code that reads it (seen in game: its cloud saves stopped). Only a value of the same kind is
+            // written, and never a shorter list.
+            Array.isArray(copyValue) === Array.isArray(nowValue) &&
+            isObject(copyValue) === isObject(nowValue) &&
+            !(Array.isArray(copyValue) && copyValue.length < nowValue.length) &&
             !neverRestored &&
             !gemsBought &&
             keys.every(writableKey) &&

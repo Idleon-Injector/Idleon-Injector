@@ -158,6 +158,7 @@ test("Restore is a fork: a copy before and after, listed on top; going back is r
     await openById(root, before.id);
     await byClass(keyHead(root, "Cards"), "save-key__restore")[0].listeners.click({});
     await until(() => gga.Cards[0].h.mob0 === now.mob0, "the cards to go back");
+    await until(() => /To go back/.test(byClass(root, "save-copy__status").map(text).join()), "its copy after");
     assert.equal(gga.Cards[0].h.mob1, now.mob1);
 });
 
@@ -197,6 +198,7 @@ test("Restore all writes everything, the game's own progress too, never the prot
         .flatMap((bar) => byClass(bar, "save-key__restore"))[0]
         .listeners.click({});
     await until(() => gga.Money === now.money, "the money to go back");
+    await until(() => /To go back/.test(byClass(root, "save-copy__status").map(text).join()), "its copy after");
     assert.equal(gga.FarmPlot[0][6], farmNow);
     assert.equal(gga.Cards[0].h.mob0, now.mob0);
 });
