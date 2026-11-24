@@ -7,6 +7,7 @@
  *   npm run page-shots -- --update-baseline  then make this run the new baseline (after the release check)
  *   npm run page-shots -- --only world-1     only the areas whose name contains "world-1"
  *   npm run page-shots -- --pages w1.anvil,w5.gaming   only these pages (a PR's summary shoots the pages it touches)
+ *   npm run page-shots -- --widths 400,740,1024,1440   other window widths (default 1440,400)
  *
  * Screenshots go to .scratch/page-shots/current (with report.json and, for changed shots, a diff image);
  * the baseline is .scratch/page-shots/baseline. Both stay outside git. Needs Chrome, Edge or Chromium
@@ -55,8 +56,12 @@ const { values: args } = parseArgs({
         only: { type: "string" },
         pages: { type: "string" },
         threshold: { type: "string", default: String(DIFF_THRESHOLD) },
+        widths: { type: "string" },
     },
 });
+const widths = args.widths
+    ? args.widths.split(",").map((w) => ({ width: Number(w), height: Number(w) > 1000 ? 900 : 800 }))
+    : WIDTHS;
 
 async function launchBrowser() {
     const exe = process.env.CHROME_PATH || BROWSERS.find((path) => existsSync(path));
@@ -227,7 +232,11 @@ async function listPngs(dir) {
     return entries
         .map((f) => f.split("\\").join("/"))
         .filter(
-            (f) => f.endsWith(".png") && !f.startsWith("diff/") && (!args.only || f.split("/")[1].includes(args.only))
+            (f) =>
+                f.endsWith(".png") &&
+                !f.startsWith("diff/") &&
+                widths.some(({ width }) => f.startsWith(`${width}/`)) &&
+                (!args.only || f.split("/")[1].includes(args.only))
         )
         .map((f) => f.slice(0, -4))
         .filter((name) => !pickedShots || isPickedShot(name));
@@ -236,6 +245,8 @@ async function listPngs(dir) {
 async function main() {
     if (args.only && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --only.");
     if (args.pages && args["update-baseline"]) throw new Error("--update-baseline needs a full run, without --pages.");
+    if (args.widths && args["update-baseline"])
+        throw new Error("--update-baseline needs a full run, without --widths.");
     const threshold = Number(args.threshold);
     const picked = args.pages ? new Set(args.pages.split(",").map((id) => id.trim())) : null;
     if (!(threshold >= 0 && threshold < 1)) throw new Error("--threshold is a share of pixels, like 0.001.");
@@ -303,9 +314,9 @@ async function main() {
         };
 
         // Only its own: the width folders, the diffs and the report. Anything else kept in the folder stays.
-        for (const own of [...WIDTHS.map(({ width }) => String(width)), "diff", "report.json"])
+        for (const own of [...widths.map(({ width }) => String(width)), "diff", "report.json"])
             await rm(join(args.out, own), { recursive: true, force: true });
-        for (const { width, height } of WIDTHS) {
+        for (const { width, height } of widths) {
             const metrics = (h) =>
                 Emulation.setDeviceMetricsOverride({ width, height: h, deviceScaleFactor: 1, mobile: false });
             await metrics(height);

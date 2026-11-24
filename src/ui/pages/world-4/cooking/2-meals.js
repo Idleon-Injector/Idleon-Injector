@@ -163,7 +163,7 @@ const MealsTab = () => {
         body: div(
             { class: "account-list account-list--tabbed" },
             ListPanel({
-                className: "meals-table",
+                className: "meals-table value-table--wide",
                 setAll: { word: (n) => `meal${n === 1 ? "" : "s"}` },
                 body: [ValueTableHead({ name: "Meal", columns: ["Level", "Amount", "Ribbon", "Mastery"] }), listNode],
             })

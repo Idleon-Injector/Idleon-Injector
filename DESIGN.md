@@ -210,7 +210,7 @@ game's.
   never crosses a cheat page. Its code column shows a drawn loop, not "AUT" (Lumi, #255). Picking it opens its list,
   like a world (Lumi, #255); its Overview comes first, whose line is "Does what you'd do by hand, with your own
   resources." (never "safe"). Then the systems by world (Alchemy, Construction, Cooking, Sneaking, Summoning,
-  Sushi Station), then Clickers, Grimoire and Shops. A system's page whose automation moved there keeps one quiet way
+  Sushi Station), then Clickers, Masterclasses and Shops. A system's page whose automation moved there keeps one quiet way
   to it beside its title, "Automation" with an arrow, muted words that get the quiet fill only when pointed at; an automation page never
   links back.
 - **A first tab never repeats its entry's name.**
@@ -306,8 +306,9 @@ words that keep one width (Page layout).
 
 - **A thing with several values is one line,** like a table: its name, then each value in its own column (Statues:
   Level, Deposited, Tier, Flair). The column names are said once, in a head that stays at the top of the list while
-  it scrolls; the fields keep their names for screen readers. On a phone a line folds into a small grid and each field
-  shows its name again.
+  it scrolls; the fields keep their names for screen readers. Where the name and the columns don't fit side by side (a
+  phone, and up to 1023px with the sidebar; up to 1279px for four or more columns, `value-table--wide`) a line folds
+  into a small grid and each field shows its name again.
 - **A page without parts** uses `ListPanel`: the same panel, tray, question and scrolling list as `TabbedList`, with no
   tab row.
 - **A pick out of a few** (a tier: Stone, Gold, Onyx, Zenith) is a `StepPicker`: one joined shape, one press, no
@@ -428,7 +429,8 @@ Every automation page is `AutomationPage` in `automation.js`: a table at the wid
 - **Enable all | Disable all are the tray's tool**, acting on what the tray's line names ("All 9 Orion upgrades",
   "All 7 shop items in W2": the open tab only, Lumi's pick for Shops too); Disable all asks in the tray, Enable all
   runs on one press.
-- **On a phone** an item's own switch stays at the end of its name's line; its other cells fold two to a line.
+- **Where the table folds** (a phone, and up to 1023px with the sidebar) an item's own switch stays at the end of its
+  name's line; its other cells fold two to a line.
 - **The automation's switch row says why it is on** when an item's switch turned it on ("On, since an upgrade was
   switched on"), and an open page follows a running automation every few seconds, without Refresh (#214).
 
@@ -495,8 +497,9 @@ The masterclasses use the World 6 pieces and the Page standards; one page builde
 
 - **Each masterclass is one sidebar entry, its screens as tabs:** Grimoire (Upgrades, Bones), Compass (a tab per path:
   Elemental, Fighter, Survival, Nomadic, Abominations; then Dust), Tesseract (Upgrades, Tachyons, Map Bonuses) and
-  Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop). The Grimoire automation is its
-  own entry in the Automation section; the Grimoire page links to it beside its title.
+  Royal Armory (Upgrades, Resources, Nodes, Royal Statues, Outposts, Lil' Orblet Shop). Their automation is one entry
+  in the Automation section, Masterclasses, with a tab per masterclass (Lumi, 2026-11-24); each masterclass page links
+  to its own tab beside its title.
 - **An upgrade list is the game's list in its order,** the bonus first, without the game's placeholders. An upgrade
   without a real max (999,999 in the game) shows its level alone and has no Max; Max all fills only the ones with a max.
 - **An outpost opens as a band under its line,** edge to edge, so its rank EXP, type, slots and units sit in the

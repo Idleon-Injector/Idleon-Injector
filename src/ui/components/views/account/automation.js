@@ -51,7 +51,7 @@ import { RefreshButton } from "./components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 import { StepPicker } from "./components/StepPicker.js";
 import { ValueTableHead } from "./EditableFieldsRow.js";
-import { toNodes, useWriteStatus } from "./accountShared.js";
+import { joinClasses, toNodes, useWriteStatus } from "./accountShared.js";
 import { AllToTool } from "./BulkActionBar.js";
 import { useAccountLoad } from "./accountLoadPolicy.js";
 import { ListPanel, TabbedList } from "./tabShared.js";
@@ -784,6 +784,8 @@ export const automationColumns = ({ values = [], selects = [], save = false, sto
         stopAt: values.length + selects.length,
         on: columns.length - 1,
         widths: columns.map(([, width]) => width).join(" "),
+        // Five columns (four values and the switch) need about 1280px beside the sidebar: the list folds below that.
+        wide: columns.length >= 5,
         head: (name) => ValueTableHead({ name, columns: columns.map(([column]) => column) }),
     };
 };
@@ -1118,7 +1120,13 @@ export const AutomationPage = ({
     body = null,
 }) => {
     const table = (cols, rows) =>
-        div({ class: "automation-rows", style: `--value-columns: ${cols.widths}` }, ...toNodes(rows));
+        div(
+            {
+                class: joinClasses("automation-rows", cols.wide && "value-table--wide"),
+                style: `--value-columns: ${cols.widths}`,
+            },
+            ...toNodes(rows)
+        );
     const list = tabs
         ? TabbedList({
               name: `Automation: ${what}`,
