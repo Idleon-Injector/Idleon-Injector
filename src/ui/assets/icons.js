@@ -380,6 +380,65 @@ const SYSTEM_ICONS = {
     ],
     // The emperor's crown: three soft points over a band.
     Emperor: ["M5 17 3.8 8.2l4.6 3.6L12 5.5l3.6 6.3 4.6-3.6L19 17z", "M5 20.5h14", [12, 13.6, 0.9]],
+    // World 7 (drawn with the move to the shared pieces, 2026-11-24; for Lumi's look).
+    // Spelunking: a pickaxe, its curved head over the handle.
+    Spelunking: ["M5 19 15.2 8.8", "M9.8 5.2Q16.6 4.4 18.8 14.2"],
+    // Research: an eye, for the observations.
+    Research: ["M3 12c2.5-4.2 5.6-6.3 9-6.3s6.5 2.1 9 6.3c-2.5 4.2-5.6 6.3-9 6.3S5.5 16.2 3 12z", [12, 12, 2.6]],
+    // Menagerie: a jellyfish, its bell and three trailing tentacles.
+    Menagerie: ["M5.5 12a6.5 6.5 0 0 1 13 0z", "M8.5 12v3q0 2.2-1.2 4", "M12 12v7", "M15.5 12v3q0 2.2 1.2 4"],
+    // Jelly Operator: a cell, its nucleus and a speck.
+    "Jelly Operator": [
+        [12, 12, 8],
+        [10.4, 10.6, 2.6],
+        [15.2, 15, 0.9],
+    ],
+    // Gallery: a trophy cup with its handles, on a stem and base.
+    Gallery: [
+        "M8 4.5h8V9a4 4 0 0 1-8 0z",
+        "M8 6.5H5.8a2.6 2.6 0 0 0 2.6 3.6",
+        "M16 6.5h2.2a2.6 2.6 0 0 1-2.6 3.6",
+        "M12 13v4",
+        "M8.5 19.5h7",
+    ],
+    // Legend Talents: a medal hung from its ribbon.
+    "Legend Talents": [[12, 14.5, 4.6], "M9.3 10.6 7.5 4.5h3l1.5 3.5 1.5-3.5h3l-1.8 6.1"],
+    // Coral Reef: a branching coral on the sea floor.
+    "Coral Reef": [
+        "M7.5 20.5h9",
+        "M12 20.5V12.5c0-2.6-2.6-3.6-2.6-7",
+        "M12 15.5c2.6-.8 4.2-2.8 4.2-6.5",
+        "M12 18c-2.4-.4-4.2-2-4.8-4.6",
+        "M9.6 9.2 7 7.8",
+        "M15.9 11.6 18.4 10.4",
+    ],
+    // Zenith Market: a price tag with its hole.
+    "Zenith Market": ["M4.5 12.4V5.5a1 1 0 0 1 1-1h6.9l7.2 7.2-8 8z", [8.6, 8.6, 1.3]],
+    // Clam Work: a clam, its ribs fanning from the hinge.
+    "Clam Work": ["M4 15.5a8 8 0 0 1 16 0z", "M12 15.5V8", "M9 15.5 7.6 9.6", "M15 15.5l1.4-5.9", "M10 15.5l2 3 2-3"],
+    // Advice Fish: a fish, its tail and eye.
+    "Advice Fish": [
+        "M5 12c2.4-3.4 5.2-5 8.2-5 3 0 5.2 1.8 6.8 5-1.6 3.2-3.8 5-6.8 5-3 0-5.8-1.6-8.2-5z",
+        "M5 12 2.8 8.8M5 12l-2.2 3.2",
+        [15.6, 11, 0.9],
+    ],
+    // Minehead: the flag a minesweeper plants on a mine.
+    Minehead: ["M8.5 20V4.5", "M8.5 5h9l-2.6 3.6 2.6 3.6h-9", "M5.5 20h6"],
+    // Glimbo: a trade, two arrows passing each other.
+    Glimbo: ["M5 9h13", "M15.5 6 18.5 9l-3 3", "M19 15H6", "M8.5 12 5.5 15l3 3"],
+    // The Button: a round button, pressed into its base.
+    "The Button": [
+        "M4.5 16a7.5 3 0 1 0 15 0 7.5 3 0 1 0-15 0z",
+        "M8 15.4V11",
+        "M16 15.4V11",
+        "M8 11a4 1.6 0 1 0 8 0 4 1.6 0 1 0-8 0z",
+    ],
+    // Sushi Station: a piece of nigiri, the fish over its rice.
+    "Sushi Station": [
+        "M5 15.5A2.5 2.5 0 0 1 7.5 13h9a2.5 2.5 0 0 1 2.5 2.5v.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z",
+        "M4.5 12.6C6.6 9.4 17.4 9.4 19.5 12.6",
+        "M12 10.2V18",
+    ],
     // Classes (Lumi: put all four in, 2026-11-23).
     // The Grimoire: a closed book held shut by a clasp, a small skull on its cover.
     Grimoire: [
