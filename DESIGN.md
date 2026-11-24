@@ -67,15 +67,16 @@ more than a small fix goes on `KNOWN_BREAKS` there with its issue, and that list
 
 ## Buttons
 
-There are three kinds of button, all pills (`border-radius: 999px`) set in Fira Sans 600 (`--font-display`).
+There are three kinds of button, all pills (`border-radius: 999px`) set in Fira Sans 600 (`--font-display`). On a page
+(inside `.viewport`) each has a little body, a fill and a faint edge, so it reads as something to press:
 
-| Kind   | At rest                           | On hover                                 |
-| ------ | --------------------------------- | ---------------------------------------- |
-| Main   | the accent on a faint accent wash | the wash gets stronger, the text lighter |
-| Quiet  | plain words, no shape             | a soft light fill                        |
-| Danger | plain words, the same as quiet    | coral words on a faint coral wash        |
+| Kind   | At rest                                      | On hover                                      |
+| ------ | -------------------------------------------- | --------------------------------------------- |
+| Main   | dark words on the lavender accent, no edge   | a lighter lavender                            |
+| Quiet  | light words on a dark fill with a faint edge | the fill and edge lighten, the words go white |
+| Danger | the same as quiet                            | the same as quiet; red only in a row (below)  |
 
-Quiet buttons are plain words at rest on purpose: the maintainer chose that over a faint outline or a faint fill.
+The new menu look (#168) gave quiet buttons that body; before it they were plain words with no shape.
 
 Which kind a button is:
 
@@ -84,7 +85,7 @@ Which kind a button is:
 - **Quiet is every other action,** row buttons and bulk ones alike: Max, Max all, Register, Refresh, Undo, Undo all.
 - **Danger is anything that removes or lowers:** Reset, Zero, Clear, Remove, Disable, Lock, Unequip. A button that
   switches between two actions (Enable / Disable) takes the kind of the action it shows.
-- **The − / + beside a value field** are quiet round buttons holding the minus and plus icons.
+- **The − / + beside a value field** are quiet buttons holding the minus and plus icons.
 - **Labels are in normal case,** like "Max all omega" or "Save settings": no `text-transform: uppercase` on a button and no
   capitals typed into a label. Proper names keep theirs (Auto Play, Pets+).
 - **A quiet toggle that is on** (Watching, Saved, the Config drawer) keeps its hover fill.
@@ -92,17 +93,25 @@ Which kind a button is:
   on hover, and its wash drains away. A list with tabs asks in its tray instead (Lists with tabs, below).
 - Tabs, navigation, on/off switches and tiles aren't action buttons. An on/off state is a switch (see Page layout).
 
-Values:
+Values (on a page):
 
-- **Size:** 36 px high with 18 px side padding and 16 px text; the small size is 28 px high, 13 px padding and 14.5 px
-  text.
-- **Main:** the accent (`--c-accent`) on `--c-accent-dim`. On hover, `--c-accent-hover` on `--c-accent-20`.
-- **Quiet and danger:** muted text, no background. Quiet on hover: main text on `--c-white-05`. Danger on hover:
-  `--c-danger-soft-text` on `--c-danger-10`.
-- **Disabled:** `--c-text-disabled`. A disabled main button keeps a `--c-white-04` pill.
-- **Focus:** a 2 px accent outline, 2 px out.
-- **Press:** `scale(0.94)`.
-- **Motion:** colours and scale ease over 160 ms with `cubic-bezier(0.2, 0.7, 0.2, 1)`.
+- **Size:** 36 px high with 18 px side padding and 16 px text; the small size (`.btn-sm`, rows and page headers) is
+  30 px high, 14 px padding and 13 px (`0.8125rem`) text.
+- **Main:** `--c-accent-ink` words on `--c-accent`, a transparent edge. On hover, `--c-accent-hover`.
+- **Quiet and danger:** `--c-text-body` words on `--c-btn`, a 1 px `--c-btn-edge` edge. On hover, white words on
+  `--c-btn-hover` with a `--c-btn-edge-hover` edge.
+- **In a row** (Max, Reset, Relock in `.account-row__controls`): no edge, filled `--c-panel-dim` like the value's well
+  beside them, so a list isn't a column of outlined boxes. Quiet on hover: `--c-well-hover`. Danger on hover:
+  `--c-danger-soft-text` on a faint red wash.
+- **Icon-only buttons** stay bare (no fill, no edge) until pointed at. The − / + beside a value field rest as muted
+  glyphs and take a small round fill on hover.
+- **Disabled:** quiet and danger lose their fill and keep a `--c-hairline` edge; `cursor: not-allowed`.
+- **Focus:** a 2 px accent outline, 2 px out, on keyboard focus only (`:focus-visible`).
+- **Press:** `scale(0.95)`.
+- **Motion:** colours ease over 150 ms and the press over 120 ms, with `--ease-soft`.
+
+Outside a page (the sidebar's Keys, the collapse button) buttons keep the first look: plain muted words, a soft light
+fill on hover, and a 28 px small size.
 
 In the code the kinds are `.btn-main`, `.btn-quiet` and `.btn-danger`, with `.btn-sm` and `.btn-icon`, in
 `src/ui/styles/_buttons.css`; an `ActionButton`'s `variant` is `main`, `quiet` or `danger` (or `switch` for an on/off

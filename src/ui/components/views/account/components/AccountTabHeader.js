@@ -1,6 +1,7 @@
 import van from "../../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../../assets/icons.js";
 import { toNodes } from "../accountShared.js";
+import { buildingSystem } from "../../../../menu/menuModel.js";
 
 const { button, div, h3, p, span } = van.tags;
 
@@ -44,7 +45,9 @@ export const AccountTabHeader = ({
     div(
         { class: "account-header account-tab-header" },
         (() => {
-            const icon = typeof title === "string" ? Icons.System({ name: title }) : null;
+            // A menu page shows its system's drawing; a view outside the menu (Save copies) goes by its title.
+            const name = buildingSystem ?? (typeof title === "string" ? title : null);
+            const icon = name ? Icons.System({ name }) : null;
             return icon ? span({ class: "account-tab-header__icon", "aria-hidden": "true" }, icon) : null;
         })(),
         div(
