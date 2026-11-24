@@ -90,10 +90,13 @@ test("a fresh install has nothing on, in My config, with Light and AFK to pick",
 test("Light is quality of life only, and AFK is Light plus idling help without the risky cheats", () => {
     for (const cheat of ["wide autoloot", "wide nodmg", "wide nogamingpop", "unlock quickref", "unlock presets"])
         assert.ok(SHIPPED.Light.startupCheats.includes(cheat), cheat);
-    for (const cheat of ["unlock storagecrafting", "minigame instawheel", "unlock teleports", "wide candy"])
+    for (const cheat of ["minigame instawheel", "unlock teleports", "wide candy"])
         assert.ok(SHIPPED.Light.startupCheats.includes(cheat), cheat);
     for (const cheat of SHIPPED.Light.startupCheats) assert.ok(SHIPPED.AFK.startupCheats.includes(cheat), cheat);
     const risky = /^(multiply|cloudz|w3$|w3 freeworship|minigame (?!instawheel)|w5 sailing)/;
+    // Her picks (2026-11-24): permanent unlocks stay out of Light; Sushi stays out of AFK (it needs the board open).
+    assert.ok(!SHIPPED.AFK.startupCheats.includes("unlock storagecrafting"));
+    assert.ok(!SHIPPED.AFK.startupCheats.includes("w7 sushitools"));
     for (const cheat of SHIPPED.AFK.startupCheats) assert.doesNotMatch(cheat, risky);
     // Orion's resets stay off: its shipped list has them, switched off.
     const config = require("../config.js");

@@ -9,7 +9,6 @@ const LIGHT = [
     "wide candy",
     "unlock quickref",
     "unlock presets",
-    "unlock storagecrafting",
     "unlock teleports",
     "minigame instawheel",
 ];
@@ -26,7 +25,6 @@ const AFK = [
     "w4 fasteggs",
     "w4 mealspeed",
     "w4 recipespeed",
-    "w7 sushitools",
     "automation shops",
     "automation orion",
     "automation bubbles",
