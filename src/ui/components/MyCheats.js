@@ -104,7 +104,6 @@ const Row = (cheat, { said, say, clear, linger }) => {
                 type: "button",
                 class: "my-cheat__name",
                 "aria-pressed": () => String(isOn()),
-                title: () => (isOn() ? `${cheat}: on` : `${cheat}: off`),
                 onclick: flip,
             },
             cheat
@@ -113,11 +112,14 @@ const Row = (cheat, { said, say, clear, linger }) => {
             {
                 type: "button",
                 class: "my-cheat__move",
-                "aria-label": () =>
-                    isAuto() ? `${cheat}: don't start with the injector` : `${cheat}: start with the injector`,
                 // Started through its group ("w4" starts every W4 cheat): only the group's own row changes that.
+                "aria-label": () =>
+                    throughGroup(cheat)
+                        ? `${cheat}: starts with ${groupOf(cheat)}`
+                        : isAuto()
+                          ? `${cheat}: don't start with the injector`
+                          : `${cheat}: start with the injector`,
                 disabled: () => startup.val === null || throughGroup(cheat),
-                title: () => (throughGroup(cheat) ? `Starts with ${groupOf(cheat)}` : ""),
                 onclick: flipAuto,
             },
             () => (isAuto() ? "remove" : "autostart")
