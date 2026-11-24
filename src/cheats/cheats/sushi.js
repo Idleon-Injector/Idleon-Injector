@@ -6,13 +6,9 @@ import { simulateSushiKnowledge } from "./sushi/knowledge.js";
 defineAutomation({
     id: "w7.sushi",
     cheat: "w7 sushitools",
-    label: "Sushi Auto Play",
-    // It starts only with the in-game Sushi board open, which it never is at launch.
-    whenOff: "Starts only with the Sushi board open in game.",
-    startup: false,
     interval: 50,
     tick,
-    status: () => getSushiStatus().message,
+    status: getSushiStatus,
     start,
     stop,
 });
