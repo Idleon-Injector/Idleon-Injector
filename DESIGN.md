@@ -558,3 +558,25 @@ Every cheat that isn't on a system's page, in the same pieces (`views/Cheats.js`
   drops the question.
 - **No Quick access:** no favorites, no recents, no stars (Lumi). Cheats that are on are in Home's My cheats.
 - **Its drawing** is a game controller.
+
+### World 7 on the same pieces (decided 2026-11-26)
+
+World 7 uses the World 6 pieces and the Page standards. The menu stays as it was (Lumi: keep the structure until she
+decides on on-page tabs): Spelunking, Research, Gallery, Coral Reef and Sushi Station keep their parts as sidebar
+entries; Jelly Operator and Menagerie keep theirs as tabs, now `TabbedList` tabs found by search.
+
+- **A board picks, a row edits** (the cog board's way, #251): the Research grid and the Sushi station show the game's
+  board, each square or slot with its value; picking one opens its row under the board in the same panel (the bonus
+  first, the value up to its max). The same one again or Escape closes it. On a phone the grid's squares come down a
+  size; the station, wider than a phone, scrolls in its box.
+- **Has or hasn't is a switch list** (the Hat Rack's way): Gallery's trophies ("In gallery") and Caves' destroyed
+  objects ("Discovered", grouped by cave), with Add all in the tray, instead of a dropdown and Remove buttons.
+- **A doubler is a row toggle** ("2×", lavender while on), after Max; a line that can't be doubled keeps its room, and
+  the stats above the upgrades keep Max's and the doubler's room, so the values stand in one column. "2 of 3 doubled"
+  sits on the upgrades' heading.
+- **A sushi's state is a step picker** (Locked | Unlocked | Perfect) in its table column, with All to in the tray.
+- **A tool's own numbers sit in its tray**: Sushi Tools' tier and quantity, beside Add Knowledge XP; the game's answer
+  to the last press is the tray's line.
+- **A read-only number the game works out** (Menagerie's Lumi per hour) sits beside the title.
+- **World 7's fourteen systems have drawings**, for Lumi's look: a pickaxe, an eye, a jellyfish, a cell, a trophy, a
+  medal, a coral, a price tag, a clam, a fish, a minesweeper's flag, two passing arrows, a button and a nigiri.
