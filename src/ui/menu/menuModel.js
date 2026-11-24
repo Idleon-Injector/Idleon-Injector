@@ -182,12 +182,14 @@ export const AREAS = [
             { label: "DevTools", view: "DEVTOOLS", words: ["ChromeDebug"] },
         ],
     },
-    // Save copies (#32) become its second tab.
     {
         id: "history",
         code: "HIS",
         label: "History",
-        tabs: [{ label: "Changes", view: "HISTORY", words: ["Undo", "Change log", "Undo all"] }],
+        tabs: [
+            { label: "Changes", view: "HISTORY", words: ["Undo", "Change log", "Undo all"] },
+            { label: "Save copies", view: "SAVE_COPIES", words: ["Backup", "Restore", "Cloud save", "Rollback"] },
+        ],
     },
 ];
 
