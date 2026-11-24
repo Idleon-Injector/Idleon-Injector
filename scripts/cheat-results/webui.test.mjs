@@ -36,7 +36,7 @@ setupCheatRoutes(router, bridge);
 const { store, requests } = await loadUi(router);
 const { CheatItem } = await importRepo("src/ui/components/CheatItem.js");
 // The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
-globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
+globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
 globalThis.document.addEventListener = () => {};
 const { Sidebar } = await importRepo("src/ui/components/Sidebar.js");
 const { Home } = await importRepo("src/ui/components/views/Home.js");

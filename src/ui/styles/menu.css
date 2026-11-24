@@ -798,6 +798,7 @@
     flex-direction: column;
 }
 .my-cheat {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -850,9 +851,15 @@
     border-radius: 4px;
 }
 /* The move word: text only, faint and a step smaller than the name, shown while the row is pointed at or holds focus;
-   it reaches the name's colour only when pointed at itself. */
+   it reaches the name's colour only when pointed at itself. Hidden, it takes no room but stays in the Tab order, so
+   Shift+Tab reaches it too. */
 .my-cheat__move {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
     flex: none;
     padding: 0;
     border: 0;
@@ -876,12 +883,20 @@
 }
 .my-cheat:hover .my-cheat__move,
 .my-cheat:focus-within .my-cheat__move {
-    display: block;
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
 }
 /* No pointer to point with: the word shows on every row. */
 @media (hover: none) {
     .my-cheat__move {
-        display: block;
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip-path: none;
     }
 }
 .my-cheats__empty {
