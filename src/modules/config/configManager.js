@@ -330,7 +330,6 @@ async function catchUpGame(gameBridge) {
     const result = await gameBridge.updateConfig(cheatConfig, true);
     if (!tookConfig(result)) return { gameApplied: false, details: result.error?.text ?? result.value };
     const before = gameBehind;
-    gameBehind = null;
     const failed = [];
     const run = async (command, on) => {
         const response = await gameBridge.executeCheat(command, on);
@@ -339,6 +338,8 @@ async function catchUpGame(gameBridge) {
     };
     for (const command of before.filter((c) => !startupCheats.includes(c))) await run(command, false);
     for (const command of startupCheats) await run(command, true);
+    // Only now: a command that threw (the game went away) leaves it behind, and the next read tries it all again.
+    gameBehind = null;
     return { gameApplied: true, failed };
 }
 

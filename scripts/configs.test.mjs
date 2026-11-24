@@ -381,3 +381,36 @@ test("a switch whose game update throws, or answers with an Error text, counts a
     await app.read();
     assert.deepEqual(app.config.getCheatConfig().automation.shops, [], "once taken, the game holds Light's list");
 });
+
+test("a cheat command that throws during the catch-up is tried again by the next read", async (t) => {
+    useInstall(t, `exports.startupCheats = ["godlike reach"];`);
+    const game = fakeGame();
+    let refuse = true;
+    let throwOnce = true;
+    game.updateConfig = async (config, replace) => {
+        game.calls.push(["config", replace]);
+        return refuse ? { error: { text: "busy" } } : { value: "Config updated in game." };
+    };
+    const execute = game.executeCheat;
+    game.executeCheat = async (command, on) => {
+        if (throwOnce && command === "godlike reach") {
+            throwOnce = false;
+            throw new Error("Execution context was destroyed.");
+        }
+        return execute(command, on);
+    };
+    const app = start(game);
+    await app.change("use", "Light");
+    refuse = false;
+    game.calls.length = 0;
+    await app.read(); // the catch-up throws on its first command
+    await app.read(); // and is tried again
+    assert.deepEqual(game.calls.slice(-1 - SHIPPED.Light.startupCheats.length - 1), [
+        ["config", true],
+        ["godlike reach", false],
+        ...SHIPPED.Light.startupCheats.map((cheat) => [cheat, true]),
+    ]);
+    game.calls.length = 0;
+    await app.read();
+    assert.deepEqual(game.calls, [], "in step again");
+});
