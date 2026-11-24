@@ -211,8 +211,7 @@
  */
 .save-copy__undo[hidden],
 .save-copy__bar[hidden],
-.save-copies__older[hidden],
-.save-copies__older > .change-log[hidden] {
+.save-copies__day > .change-log[hidden] {
     display: none;
 }
 
@@ -418,10 +417,58 @@ button.save-copy__head:hover {
     height: 16px;
 }
 
-.save-copies__older {
+/* The copies by day: a quiet line that folds the day's copies, today's open. */
+.save-copies {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.save-copies__day {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.save-copies__day-toggle {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: max-content;
+    min-height: 32px;
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    color: var(--c-text-body);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.save-copies__day-toggle:hover .save-copies__day-name {
+    color: var(--c-accent);
+}
+
+.save-copies__day-toggle:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+}
+
+.save-copies__day-name {
+    transition: color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.save-copies__day-count {
+    color: var(--c-text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.save-copies__day > .change-log {
+    padding-bottom: 8px;
 }
 
 .save-key__more {
@@ -486,7 +533,8 @@ button.save-copy__head:hover {
     }
 
     button.save-copy__head,
-    .save-key__name {
+    .save-key__name,
+    .save-copies__day-name {
         transition: none;
     }
 }

@@ -69,13 +69,15 @@ const gemsCopy = structuredClone(copy);
 gemsCopy.save.ServerGemsReceived = 100;
 const gemsId = await writeCopy(dir, copyTime - 60e3, JSON.stringify(gemsCopy));
 await writeCopy(dir, copyTime - 120e3, JSON.stringify({ ...copy, character: "Lumi_Alt" }));
+const oldTime = Date.now() - 3 * 24 * 3600e3;
+await writeCopy(dir, oldTime, JSON.stringify(copy));
 
 const now = { mob0: gga.Cards[0].h.mob0, mob1: gga.Cards[0].h.mob1, money: gga.Money };
 
 async function openPage() {
     store.app.activeTab = "save-copies-tab";
     const root = SaveCopies();
-    await until(() => byClass(root, "save-copy").length === 3, "the copies to list");
+    await until(() => byClass(root, "save-copy").length === 4, "the copies to list");
     return root;
 }
 const heads = (root) => byClass(root, "save-copy__head");
@@ -95,6 +97,20 @@ test("the list: newest first, the character in play's copies open, another's is 
     assert.ok(classes(rows[2]).includes("is-other"));
     assert.equal(heads(root)[2].nodeName, "div", "another character's copy doesn't open");
     assert.match(text(rows[2]), /Switch to Lumi_Alt to compare/);
+
+    // By day, newest first: today's copies open, an older day's folded.
+    const days = byClass(root, "save-copies__day");
+    assert.ok(days.length >= 2);
+    const toggle = (day) => byClass(day, "save-copies__day-toggle")[0];
+    assert.match(text(toggle(days[0])), /^(Today|Yesterday)\d+ cop/);
+    assert.equal(toggle(days[0]).attributes["aria-expanded"], "true");
+    assert.equal(
+        text(byClass(days.at(-1), "save-copies__day-name")[0]),
+        new Date(oldTime).toLocaleDateString([], { month: "short", day: "numeric" })
+    );
+    assert.equal(toggle(days.at(-1)).attributes["aria-expanded"], "false");
+    await toggle(days.at(-1)).listeners.click({});
+    assert.equal(toggle(days.at(-1)).attributes["aria-expanded"], "true", "an older day opens");
 });
 
 test("a copy opens to one box per key; the game's own progress waits in its own box", async () => {

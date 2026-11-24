@@ -18,8 +18,15 @@ import { SHOWN, shown } from "./History.js";
 
 const { div, span, button, time } = van.tags;
 
-// The newest copies show; the rest open under "N older".
-const COPIES_SHOWN = 12;
+const dayKey = (at) => new Date(at).toDateString();
+/** A day's name in the list: "Today", "Yesterday", then the date ("Nov 22"). */
+const dayName = (at) => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (dayKey(at) === dayKey(Date.now())) return "Today";
+    if (dayKey(at) === yesterday.toDateString()) return "Yesterday";
+    return new Date(at).toLocaleDateString([], { month: "short", day: "numeric" });
+};
 
 const MINUTE = 60e3;
 const ago = (at) => {
@@ -392,13 +399,42 @@ export const SaveCopies = () => {
     const count = van.state(0);
     const active = van.state(null);
     const openId = van.state(null);
-    const olderOpen = van.state(false);
-    const olderCount = van.state(0);
-    const list = div({ class: "change-log save-copies" });
-    const olderList = div({ class: "change-log", hidden: () => !olderOpen.val });
+    const list = div({ class: "save-copies" });
+
+    // One folding group per day, newest first; today's starts open. A group keeps its node (and whether the player
+    // opened it) when the list is read again.
+    const days = new Map();
+    const dayGroup = (key, today) => {
+        if (days.has(key)) return days.get(key);
+        const open = van.state(today);
+        const name = van.state("");
+        const copies = van.state(0);
+        const rows = div({ class: "change-log", hidden: () => !open.val });
+        const node = div(
+            { class: "save-copies__day" },
+            button(
+                {
+                    type: "button",
+                    class: "save-copies__day-toggle",
+                    "aria-expanded": () => String(open.val),
+                    onclick: () => (open.val = !open.val),
+                },
+                Icons.Chevron({ dir: "right", class: "group-chevron" }),
+                span({ class: "save-copies__day-name" }, () => name.val),
+                span({ class: "save-copies__day-count" }, () => `${copies.val} ${copies.val === 1 ? "copy" : "copies"}`)
+            ),
+            rows
+        );
+        days.set(key, { node, rows, name, copies });
+        return days.get(key);
+    };
 
     // Rows keep their node (an open compare, focus) when the list is read again; new copies go on top.
     const rows = new Map();
+    const place = (into, node, i) => {
+        const at = into.children[i] ?? null;
+        if (at !== node) into.insertBefore(node, at);
+    };
     const sync = (all) => {
         const ids = new Set(all.map((copy) => copy.id));
         for (const [id, node] of rows)
@@ -406,17 +442,30 @@ export const SaveCopies = () => {
                 node.remove();
                 rows.delete(id);
             }
-        all.forEach((copy, i) => {
-            if (!rows.has(copy.id))
-                rows.set(
-                    copy.id,
-                    CopyRow(copy, active, openId, () => void load())
-                );
-            const into = i < COPIES_SHOWN ? list : olderList;
-            const at = into.children[i < COPIES_SHOWN ? i : i - COPIES_SHOWN] ?? null;
-            if (at !== rows.get(copy.id)) into.insertBefore(rows.get(copy.id), at);
+        const byDay = new Map();
+        for (const copy of all) {
+            if (!byDay.has(dayKey(copy.time))) byDay.set(dayKey(copy.time), []);
+            byDay.get(dayKey(copy.time)).push(copy);
+        }
+        for (const [key, group] of days)
+            if (!byDay.has(key)) {
+                group.node.remove();
+                days.delete(key);
+            }
+        [...byDay].forEach(([key, copies], i) => {
+            const group = dayGroup(key, key === dayKey(Date.now()));
+            group.name.val = dayName(copies[0].time);
+            group.copies.val = copies.length;
+            place(list, group.node, i);
+            copies.forEach((copy, j) => {
+                if (!rows.has(copy.id))
+                    rows.set(
+                        copy.id,
+                        CopyRow(copy, active, openId, () => void load())
+                    );
+                place(group.rows, rows.get(copy.id), j);
+            });
         });
-        olderCount.val = Math.max(0, all.length - COPIES_SHOWN);
     };
 
     let newest = 0;
@@ -459,8 +508,7 @@ export const SaveCopies = () => {
                 { class: "account-sub-tab-pane active history-pane" },
                 AccountTabHeader({
                     title: "HISTORY - SAVE COPIES",
-                    description:
-                        "A copy of the save at every cloud save, kept on this PC. Open one to see copy → now and put values back.",
+                    description: "Copies of your save from every cloud save. Open one to compare and restore.",
                 }),
                 () =>
                     warning.val
@@ -480,21 +528,7 @@ export const SaveCopies = () => {
                                     "The game saves to the cloud every few minutes. Each save leaves a copy here.",
                             })
                           : span(),
-                list,
-                div(
-                    { class: "save-copies__older", hidden: () => !olderCount.val },
-                    button(
-                        {
-                            type: "button",
-                            class: "change-group__more-toggle save-key__more",
-                            "aria-expanded": () => String(olderOpen.val),
-                            onclick: () => (olderOpen.val = !olderOpen.val),
-                        },
-                        Icons.Chevron({ dir: "right", class: "group-chevron" }),
-                        () => span(`${olderCount.val} older`)
-                    ),
-                    olderList
-                )
+                list
             )
         )
     );
