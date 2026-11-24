@@ -8,9 +8,9 @@
  * Built from the page's own pieces: the quiet group (`ListPanel` + the section header, like Stamps' "Gem shop"), a row
  * per cheat with its short label first and its command small under it (`RowTitles`), the one on/off switch
  * (`StateSwitch`), and a cheat's settings in the row it opens (`row-opener`, `row-detail`) as the shared value rows
- * (`EditableNumberRow`), an on/off setting with the same switch. A switch runs the cheat the way the Cheats area does (`store.executeCheat`), so it is on until
- * the injector restarts. A command (a reset, an unlock)
- * gets a Run button instead, with a field when it takes a value.
+ * (`EditableNumberRow`), an on/off setting with the same switch. A switch runs the cheat the way the Cheats area does
+ * (`store.executeCheat`), so it is on until the injector restarts. A command (a reset, an unlock) gets a Run button
+ * instead, with a field when it takes a value.
  */
 
 import van from "../vendor/van-1.6.0.js";
