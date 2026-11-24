@@ -43,7 +43,8 @@ const values = (n) => `${n} ${n === 1 ? "value" : "values"}`;
 /**
  * Put back a copy's selected values ("all" or paths from the compare) as one action named `label`, on the copy's
  * character only. Resolves to { action, warning } (action null when nothing differed any more); a write that
- * failed rejects with the Error, carrying the action its landed values were logged under.
+ * failed rejects with the Error, carrying the action its landed values were logged under. A value that moved since
+ * the server planned the writes (gems bought a moment ago) is refused, "changed since"; the others still land.
  */
 export const restoreCopy = async (copy, select, label) => {
     const { writes } = await saveCopyWrites(copy.id, select);
@@ -56,6 +57,12 @@ export const restoreCopy = async (copy, select, label) => {
         });
     } catch (error) {
         error.action = action;
+        // The values that landed (or that the game kept differently) still change the totals built from them.
+        await clearCaches(
+            (error.results ?? [])
+                .filter((result) => result.ok || result.error === "Write mismatch")
+                .map((result) => result.path.replace(/^gga\./, ""))
+        );
         throw error;
     }
     const cleared = await clearCaches(writes.map((write) => write.path.replace(/^gga\./, "")));

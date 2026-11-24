@@ -246,7 +246,8 @@ test("the writes put back the selected values, never the protected ones, and wri
     expressions.length = 0;
     let res = await request(app.router, "POST", "/api/save-copies/writes", { id, select: ["Cards"] });
     assert.equal(res.statusCode, 200, JSON.stringify(res.body));
-    assert.deepEqual(res.body, { writes: [{ path: "gga.Cards.h.Bat", value: atCopy.bat }] });
+    // Each carries the value it was planned from: the game refuses it if that moved since.
+    assert.deepEqual(res.body, { writes: [{ path: "gga.Cards.h.Bat", value: atCopy.bat, expect: 99 }] });
 
     // Everything: another character's values in the form the change log reads as theirs.
     res = await request(app.router, "POST", "/api/save-copies/writes", { id, select: "all" });

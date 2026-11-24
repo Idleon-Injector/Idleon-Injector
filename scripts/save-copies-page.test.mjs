@@ -32,7 +32,7 @@ const gga = game.gga;
 const { readSave } = await importRepo("src/cheats/core/saveCopy.js");
 const { fetchChanges } = await importRepo("src/ui/services/api.js");
 const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
-const { SaveCopies, copyName } = await importRepo("src/ui/components/views/SaveCopies.js");
+const { SaveCopies, copyName, restoreCopy } = await importRepo("src/ui/components/views/SaveCopies.js");
 
 const text = (node) =>
     typeof node === "string" ? node : node?.nodeType === 3 ? node.data : (node?.childNodes ?? []).map(text).join("");
@@ -179,4 +179,34 @@ test("without gems bought since, a copy's GemsOwned is restorable", async () => 
     assert.equal(gems.restorable, true);
     assert.equal(gems.gemsBought, false);
     assert.ok(gemsId);
+});
+
+test("a gem bought between the plan and the write is kept: that value is refused, the others land", async () => {
+    const gems = gga.GemsOwned;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        // The purchase lands after the server planned the writes, before the game writes them.
+        if (String(url).includes("/game/gga/write-many")) gga.GemsOwned += 50;
+        return realFetch(url, options);
+    };
+    let error;
+    try {
+        await restoreCopy({ id, time: copyTime, character: "Lumi_Main" }, ["GemsOwned", "Money"], "test").catch(
+            (e) => (error = e)
+        );
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+    assert.ok(error, "the restore says a value wasn't put back");
+    assert.deepEqual(
+        error.results.map((result) => [result.path, result.ok, result.error ?? ""]),
+        [
+            ["gga.GemsOwned", false, "changed since"],
+            ["gga.Money", true, ""],
+        ]
+    );
+    assert.equal(gga.GemsOwned, gems + 50, "the bought gems stay");
+    assert.equal(gga.Money, atCopy.money);
+    gga.Money = now.money;
+    gga.GemsOwned = gems;
 });

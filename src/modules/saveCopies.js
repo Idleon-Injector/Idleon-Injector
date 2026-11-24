@@ -173,7 +173,7 @@ function diffSave(copy, now) {
  * reads as that character's (so an undo puts them back on that character).
  * @param {ReturnType<typeof diffSave>} groups
  * @param {"all" | string[]} select
- * @returns {Array<{ path: string, value: any }>}
+ * @returns {Array<{ path: string, value: any, expect?: any }>}
  */
 function restoreWrites(groups, select) {
     const selected = (p) =>
@@ -184,6 +184,10 @@ function restoreWrites(groups, select) {
         .map((change) => ({
             path: `gga.${change.path.replace(/^PlayerDATABASE\.h\.([^.]+)\.h\./, "PlayerDATABASE.h[$1].h.")}`,
             value: change.copy,
+            // Refused in the game if the value moved since this plan (a gem bought a moment ago). The game's own
+            // progress moves every second, so its writes go unguarded (the History page restores it on its own: in
+            // the game, an unguarded write in a batch with guarded ones waits on all of them).
+            ...(change.onItsOwn ? {} : { expect: change.now }),
         }));
 }
 
