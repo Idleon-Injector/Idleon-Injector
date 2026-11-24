@@ -175,6 +175,7 @@ test("automation shops buys switched-on items into the chest each second, cheape
     assert.deepEqual(
         readComputed("automation", "list").value.map(({ id, label, on }) => [id, label, on]),
         [
+            ["w7.sushi", "Sushi Auto Play", false],
             ["w7.automation.bubba", "Bubba", false],
             ["w2.automation.bubbles", "Bubbles", false],
             ["w1.automation.orion", "Orion", false],
@@ -187,7 +188,7 @@ test("automation shops buys switched-on items into the chest each second, cheape
             ["w6.automation.sneaking", "Sneaking", false],
             ["w6.automation.summoning", "Summoning", false],
         ],
-        "the overview lists only the automation toggles"
+        "the overview lists the automations with a label (autoboss stays a cheat)"
     );
 
     mock.timers.tick(1000);

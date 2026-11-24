@@ -31,7 +31,12 @@ export async function automationTabKit() {
         failSave: false,
         serverCopyOnly: false,
         startup: [],
+        // The automation settings the game holds but the file doesn't, as the server's config read says them: an
+        // update the game took adds its keys, a file save that works writes them all.
+        fileLacks: [],
     };
+    const gameTook = (body) =>
+        (fake.fileLacks = [...new Set([...fake.fileLacks, ...Object.keys(body.cheatConfig?.automation ?? {})])]);
     router.routes.POST.set("/api/toggle", async (req, res) => {
         const { action, on } = await req.json();
         commands.push([action, on]);
@@ -39,10 +44,12 @@ export async function automationTabKit() {
     });
     const update = router.routes.POST.get("/api/config/update");
     router.routes.POST.set("/api/config/update", async (req, res) => {
-        updates.push(await req.json());
+        const body = await req.json();
+        updates.push(body);
         await fake.holdUpdates;
         if (fake.dropNextUpdate) {
             fake.dropNextUpdate = false;
+            gameTook(body);
             await update(req, { status: () => ({ json() {} }), json() {} }); // the game takes it...
             return res.status(500).json({ error: "the connection dropped" }); // ...but the answer is lost
         }
@@ -50,12 +57,14 @@ export async function automationTabKit() {
             if (fake.refuseNextUpdates > 0) fake.refuseNextUpdates--;
             return res.json({ message: "Config update failed", details: "the game is busy" });
         }
+        gameTook(body);
         return update(req, res);
     });
     router.routes.POST.set("/api/config/save", async (req, res) => {
         if (fake.failSave) return res.status(500).json({ error: "the disk is full" });
         const body = await req.json();
         saves.push(body);
+        fake.fileLacks = [];
         fake.startup = body.startupCheats ?? fake.startup; // the server merges a partial save into the file
         res.json({ ok: true });
     });
@@ -70,7 +79,7 @@ export async function automationTabKit() {
             },
             json: (data) => (read = data),
         });
-        const copy = { ...read, startupCheats: [...fake.startup] };
+        const copy = { ...read, startupCheats: [...fake.startup], unsavedAutomation: [...fake.fileLacks] };
         res.json(structuredClone(fake.serverCopyOnly ? { ...copy, gameRead: false } : copy));
     });
     await loadUi(router);

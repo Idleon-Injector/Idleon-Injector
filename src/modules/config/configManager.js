@@ -18,6 +18,7 @@ const {
 const { existsSync, promises: fs } = require("fs");
 const { getRuntimePath } = require("../utils/runtimePaths");
 const os = require("os");
+const { isDeepStrictEqual } = require("util");
 const { createLogger } = require("../utils/logger");
 
 const log = createLogger("Config");
@@ -29,6 +30,9 @@ let startupCheats = null;
 let cheatConfig = null;
 // config.custom.js exists but couldn't be loaded; the next save keeps it under another name.
 let customConfigBroken = false;
+// cheatConfig.automation as the config file gives it (over the defaults): as loaded, then as each save wrote it.
+let savedAutomation = null;
+const plain = (value) => JSON.parse(JSON.stringify(value ?? null));
 
 const CDP_PORT = 32123;
 const WEB_PORT = 8080;
@@ -130,6 +134,7 @@ function loadConfiguration() {
         cheatConfig = config.cheatConfig;
         migrateAutomationShape(cheatConfig.automation);
         migrateAutomationPriority(cheatConfig);
+        savedAutomation = plain(cheatConfig.automation ?? {});
 
         return config;
     } catch (error) {
@@ -305,6 +310,7 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
     }
     await fs.rename(tempPath, savePath);
     customConfigBroken = false;
+    savedAutomation = plain(mergedCheatConfig.automation ?? {});
     log.info(`Configuration saved to ${savePath}`);
 
     // Only a list the save sent replaces it: without one, uiStartupCheats is this same array, which clearing would empty.
@@ -322,6 +328,20 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
         return { gameApplied: false, contextLost: true };
     });
     return { brokenFileKeptAs, game };
+}
+
+/**
+ * The keys of `cheatConfig.automation` (the session, which follows the game) whose value the config file doesn't
+ * hold: a change the game took while the file save after it failed. Any save that works writes them all.
+ * @param {Object} cheatConfig - The injector's live cheat config
+ * @returns {string[]}
+ */
+function unsavedAutomation(cheatConfig) {
+    if (!savedAutomation) return []; // no file loaded (the fake game's server)
+    const automation = cheatConfig.automation ?? {};
+    return Object.keys(automation).filter(
+        (key) => !isDeepStrictEqual(plain(automation[key]), savedAutomation[key] ?? null)
+    );
 }
 
 /**
@@ -412,6 +432,7 @@ module.exports = {
     updateSessionConfiguration,
     pullGameConfig,
     saveConfiguration,
+    unsavedAutomation,
     getInjectorConfig,
     getStartupCheats,
     getCheatConfig,

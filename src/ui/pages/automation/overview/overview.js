@@ -1,7 +1,7 @@
 /**
- * Automation › Overview, the section's home: every automation (an "automation …" toggle) with its switch and what it is doing,
- * so everything running can be seen and stopped in one place. A new system shows here by declaring its automation;
- * this page needs no edit. Each one's own page says what it buys.
+ * Automation › Overview, the section's home: every automation declared with a label, with its switch and what it is
+ * doing, so everything running can be seen and stopped in one place. A new system shows here by declaring its
+ * automation; this page needs no edit. Each one's own page says what it buys.
  */
 
 import van from "../../../vendor/van-1.6.0.js";
@@ -59,8 +59,10 @@ const OverviewPage = () => {
     };
     const load = () => run(() => inTurn(read, waiting.onLate));
 
-    // For the buttons: off now or at start (a startup save that failed, say) still needs the switch.
-    const behind = (on) => list.val.filter((automation) => automation.on !== on || automation.atStart !== on);
+    // For the buttons: off now or at start (a startup save that failed, say) still needs the switch. One that can't
+    // start at launch (Sushi) is never wanted at start.
+    const behind = (on) =>
+        list.val.filter((automation) => automation.on !== on || automation.atStart !== (on && automation.startup));
     // Enable all runs on one click; Disable all asks "Click again" first (#25). Which automations it switches is decided
     // when its step runs; the list is read back after it, so each row shows what runs, and a failure is said.
     const setAll = (on) =>
