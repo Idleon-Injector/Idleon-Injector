@@ -107,7 +107,7 @@ export const UpgradesPart = ({
         if (!now || !before) return tried;
         return tried.filter((upgrade) => Number(now[upgrade.n] ?? 0) !== Number(before[upgrade.n] ?? 0));
     };
-    // With a hook, a row's save and a bulk take turns: no save lands between the bulk's read of the levels and its write.
+    // A row's save (one with a hook) and a bulk take turns: none lands between the bulk's read of the levels and its write.
     const saves = oneAtATime();
     // The upgrades whose afterBulk failed: the next Max all or Reset all runs it for them, though no level changes.
     const owed = new Map();
