@@ -1454,6 +1454,24 @@
     min-width: 240px;
 }
 
+/* In the narrow overlay the label takes its own line and the list gets the line under it, with its buttons, so a long
+   name in the list can't push the row past the window. */
+@media (max-width: 600px) {
+    .tab-add-row,
+    .tab-add-row--dual-action {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
+    .tab-add-row__label {
+        grid-column: 1 / -1;
+    }
+
+    .tab-add-row__select {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
 /* A column's heading reads like a section heading (#26): its name over a thin rule. The name keeps the column's
  * colour, which says which cauldron or liquid the column is. */
 .col-header {
