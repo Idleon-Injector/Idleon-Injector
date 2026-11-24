@@ -232,7 +232,9 @@ switches, picking the first option each time.
 - **Values show once.** A number lives in its field, and so does its cap: the field reads `2 / 15`, with `/ 15` muted
   and a step smaller after the value. The cap is never part of the typed text; Enter or leaving the field saves only
   the number, and a typed value over the cap is refused beside the field (`max 15`). A row with a cap but no field shows
-  the same `2 / 15` as text, without the box. Nothing repeats the field.
+  the same `2 / 15` as text, without the box. Nothing repeats the field. A value above its cap (a level the game holds
+  past its max, Library's `200 / 150`) shows in the warning colour, "over max" on hover, in a field or as text; it is
+  a mark only and changes nothing (`NumberInput`, so every capped value has it).
 - **A slash means a real cap.** `/ N` only ever stands for a real limit, the value Max or Max all fills up to (a
   prayer's max level, Library's book cap). A number that isn't a limit never gets a slash: a stamp's own max level
   rises as it is levelled, so Stamps shows the level alone, with no note.
