@@ -14,6 +14,33 @@ export const configDescriptions = {
     "cheatConfig.maxval.totaltach": "Maximum limit for total tachyon across all characters",
     "cheatConfig.maxval.creditcap": "Maximum credit capacity for dungeons",
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
+    "cheatConfig.automation.gamingAutoHarvest":
+        "Harvest when every unlocked plot contains a plant; does not wait for evolution.",
+    "cheatConfig.automation.gamingAutoDig":
+        "Dig whenever nuggets are available, including while earlier animations finish.",
+    "cheatConfig.automation.gamingAutoBuy":
+        "Continuously buy the cheapest affordable selected upgrade with actual bits.",
+    "cheatConfig.automation.gamingFertilizerValue": "Buy fertilizer bit-value upgrades.",
+    "cheatConfig.automation.gamingFertilizerSpeed": "Buy fertilizer growth-speed upgrades.",
+    "cheatConfig.automation.gamingFertilizerCapacity": "Buy fertilizer capacity upgrades; stop at 24 plots.",
+    "cheatConfig.automation.gamingMutation": "Buy mutation-chance upgrades.",
+    "cheatConfig.automation.gamingImport0": "Buy Gaming import 0; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingImport1": "Buy Gaming import 1; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingImport2": "Buy Gaming import 2; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingImport3": "Buy Gaming import 3; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingImport4": "Buy Gaming import 4; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingImport5": "Buy Gaming import 5; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingImport7": "Buy Gaming import 7; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingImport8": "Buy Gaming import 8; requires the import to be unlocked.",
+    "cheatConfig.automation.gamingGrowthStopSeconds":
+        "Stop buying growth speed at this effective seconds per sprout; 0 disables the limit.",
+    "cheatConfig.automation.gamingPurchaseBatch":
+        "Maximum upgrades per 100ms tick (0 to 500); each tick also has an 8ms purchase budget.",
+    "cheatConfig.automation.gamingNuggetBiasEnabled": "Bias native nugget size rolls toward their upper bound.",
+    "cheatConfig.automation.gamingNuggetBias":
+        "Nugget RNG bias exponent, 1 to 20; 1 leaves the native distribution unchanged.",
+    "cheatConfig.automation.gamingHideEffects":
+        "Hide transient Gaming effects without changing their timers or rewards.",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
     "cheatConfig.automation.orion":

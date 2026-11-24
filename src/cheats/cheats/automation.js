@@ -20,6 +20,7 @@ defineCheat({
     message: "automation",
     registerParent: false,
     subcheats: [
+        { name: "gaming", message: "harvest, dig and buy selected Gaming upgrades with bits" },
         { name: "shops", message: "buy switched-on town shop items into the chest with chest coins" },
         { name: "orion", message: "buy switched-on Orion upgrades with feathers" },
         { name: "poppy", message: "buy switched-on Poppy upgrades with fish while her menu is open" },
@@ -36,6 +37,50 @@ defineCheat({
         { name: "grimoire", message: "buy switched-on Grimoire upgrades with bones" },
     ],
     config: {
+        gamingAutoHarvest: {
+            default: true,
+            description: "Harvest when every unlocked plot contains a plant; does not wait for evolution.",
+        },
+        gamingAutoDig: {
+            default: true,
+            description: "Dig whenever nuggets are available, including while earlier animations finish.",
+        },
+        gamingAutoBuy: {
+            default: true,
+            description: "Continuously buy the cheapest affordable selected upgrade with actual bits.",
+        },
+        gamingFertilizerValue: { default: true, description: "Buy fertilizer bit-value upgrades." },
+        gamingFertilizerSpeed: { default: true, description: "Buy fertilizer growth-speed upgrades." },
+        gamingFertilizerCapacity: { default: true, description: "Buy fertilizer capacity upgrades; stop at 24 plots." },
+        gamingMutation: { default: true, description: "Buy mutation-chance upgrades." },
+        gamingImport0: { default: true, description: "Buy Gaming import 0; requires the import to be unlocked." },
+        gamingImport1: { default: true, description: "Buy Gaming import 1; requires the import to be unlocked." },
+        gamingImport2: { default: true, description: "Buy Gaming import 2; requires the import to be unlocked." },
+        gamingImport3: { default: true, description: "Buy Gaming import 3; requires the import to be unlocked." },
+        gamingImport4: { default: true, description: "Buy Gaming import 4; requires the import to be unlocked." },
+        gamingImport5: { default: true, description: "Buy Gaming import 5; requires the import to be unlocked." },
+        gamingImport7: { default: true, description: "Buy Gaming import 7; requires the import to be unlocked." },
+        gamingImport8: { default: true, description: "Buy Gaming import 8; requires the import to be unlocked." },
+        gamingGrowthStopSeconds: {
+            default: 0,
+            description: "Stop buying growth speed at this effective seconds per sprout; 0 disables the limit.",
+        },
+        gamingPurchaseBatch: {
+            default: 50,
+            description: "Maximum upgrades per 100ms tick (0 to 500); each tick also has an 8ms purchase budget.",
+        },
+        gamingNuggetBiasEnabled: {
+            default: false,
+            description: "Bias native nugget size rolls toward their upper bound.",
+        },
+        gamingNuggetBias: {
+            default: 3,
+            description: "Nugget RNG bias exponent, 1 to 20; 1 leaves the native distribution unchanged.",
+        },
+        gamingHideEffects: {
+            default: false,
+            description: "Hide transient Gaming effects without changing their timers or rewards.",
+        },
         shops: {
             default: [],
             description:
