@@ -1341,12 +1341,16 @@ test("outposts: an older type pick that fails after a newer one saved says nothi
     let release;
     const gate = new Promise((resolve) => (release = resolve));
     let first = true;
+    // The older pick's read back, once its write was refused: its save ends right after.
+    let readBack = false;
     globalThis.fetch = async (url, options) => {
-        if (String(url).endsWith("/gga/write") && String(options?.body).includes("RoyalMaps[1][10]") && first) {
+        const body = String(options?.body ?? "");
+        if (String(url).endsWith("/gga/write") && body.includes("RoyalMaps[1][10]") && first) {
             first = false;
             await gate;
             return new Response(JSON.stringify({ error: "the game refused" }), { status: 500 });
         }
+        if (!first && String(url).endsWith("/gga/read") && body.includes("RoyalMaps[1][10]")) readBack = true;
         return realFetch(url, options);
     };
     try {
@@ -1355,8 +1359,9 @@ test("outposts: an older type pick that fails after a newer one saved says nothi
         click(stepNamed(line, "Savage"));
         await until(() => gga.RoyalMaps[1][10] === 2, "the newer pick to save");
         release();
-        await until(() => /account-row--error/.test(attr(line, "class")), "the older pick to fail");
-        await tick();
+        await until(() => readBack, "the older pick's save to read the game back");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.doesNotMatch(attr(line, "class"), /account-row--error/, "the line isn't shown failed");
         assert.doesNotMatch(says(outpost), /not saved/, "the older failure isn't said");
         assert.equal(picked(line), "Savage");
     } finally {
