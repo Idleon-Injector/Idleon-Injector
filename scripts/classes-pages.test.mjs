@@ -836,21 +836,44 @@ test("nodes: Empty all asks in the tray; Refill all runs on one press; a typed a
     }
 });
 
-// #252: a node Refill all couldn't fill shows the amount the game kept, not a full node.
-test("nodes: a node Refill all couldn't fill shows the amount the game kept", async () => {
+// #252: a node whose own save failed while Refill all ran shows the amount the game holds after it, not a full node.
+test("nodes: a node saved meanwhile shows the amount the game holds after Refill all", async () => {
     const saved = copy(gga.RoyalG[4]);
-    const restore = refuseWrites(gga.RoyalG[4], 1);
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let held = 0;
     try {
         const { root, pane } = await openPane(ROYAL_ARMORY, "Nodes");
         const row = rowsIn(pane)[1];
         await until(() => showing(fieldsOf(row)[1]) === "97", "node 2's 97");
+        globalThis.fetch = async (url, options) => {
+            const body = String(options?.body ?? "");
+            if (!String(url).endsWith("/write-many") || !body.includes("RoyalG[4][1]")) return realFetch(url, options);
+            // Node 2's own save never reaches the game.
+            if (!body.includes("RoyalG[4][2]"))
+                return new Response(JSON.stringify({ error: "the connection dropped" }), { status: 500 });
+            // Refill all's write lands, then the game collects 2 from node 2 before the page reads it.
+            held++;
+            await gate;
+            const response = await realFetch(url, options);
+            gga.RoyalG[4][1] = 2;
+            return response;
+        };
         const refill = buttonNamed(root, "Refill all");
         click(refill);
+        await until(() => held === 1, "Refill all's write to reach the game");
+        typeAndEnter(row, 50, fieldsOf(row)[1]);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        release();
         await until(() => /account-btn--(success|error)/.test(classes(refill)), "Refill all to finish");
-        assert.equal(gga.RoyalG[4][2], 0, "the other nodes filled");
-        assert.equal(showing(fieldsOf(row)[1]), "97", "node 2 shows what the game kept");
+        // Escape puts the line back on what it holds for the node (the failed save left the typed 50).
+        row.listeners.keydown({ key: "Escape", target: fieldsOf(row)[1], preventDefault() {} });
+        await until(() => showing(fieldsOf(row)[1]) === "2", "node 2 to show the 2 the game holds");
     } finally {
-        restore();
+        globalThis.fetch = realFetch;
+        release();
         saved.forEach((amount, i) => (gga.RoyalG[4][i] = amount));
     }
 });
