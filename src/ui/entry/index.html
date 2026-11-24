@@ -20,6 +20,9 @@
             import van from "/vendor/van-1.6.0.js";
             import { App } from "/components/App.js";
 
+            // In the game's overlay (a frame), the page leaves room for the overlay's CLOSE button (_layout.css).
+            if (window.parent !== window) document.documentElement.classList.add("in-overlay");
+
             // Mount the application
             van.add(document.body, App());
         </script>
