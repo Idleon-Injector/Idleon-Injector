@@ -1,23 +1,20 @@
 /**
- * My cheats (concept): the sidebar's list of the player's own cheats, where "Active cheats" was. Lumi: every cheat on
- * now plus every cheat set to start with the injector; effectively your favourites. Second pass (her words: "on/off if
- * you press on the name and it turns grey and white depending on the state. a autostart option if its not in autostart
- * already?"): the quiet look of the old list, names only, at the sidebar's own width.
+ * My cheats (concept, third pass): the sidebar's list of the player's own cheats, where "Active cheats" was, in the old
+ * list's quiet look. Two small sections, each hidden while empty: Starts with injector (the startup cheats, the same
+ * list Settings › Startup edits) and This session (on now, not starting with the injector). A name is white when its
+ * cheat is on and grey when off, and pressing it turns the cheat on or off. Lumi: no dots or marks on rows; moving a
+ * row between sections is one faint word shown while the row is pointed at.
  *
- * A cheat gets in by being turned on anywhere (a page's cheats panel, the Cheats area, the command box) or by being in
- * the startup cheats (Settings › Startup). It arrives with the accent wash draining from its row. Autostart is the
- * same startup list Settings › Startup edits; changing it never turns the cheat on or off now.
- *
- * Rows keep one order (by name) and stay put while the pointer or focus is in the list, so a cheat turned off here
- * doesn't leave from under the cursor; it goes when the pointer leaves. In the icon rail (a narrow window, a folded
- * sidebar) the list opens from a "MY" entry at the rail's foot, over the page, like the status details do.
+ * A cheat gets in by being turned on anywhere (a page's cheats panel, the Cheats area, the command box); its name
+ * arrives in the accent and fades to white. While the pointer or focus is in the list nothing moves: a cheat turned off
+ * here stays, and a row moved to the other section goes there, when the pointer leaves. In the icon rail (a narrow
+ * window, a folded sidebar) the list opens from a "MY" entry at the rail's foot, over the page.
  */
 
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
 import { withNewNames } from "../menu/pageCheats.js";
-import { Icons } from "../assets/icons.js";
 import { isRail } from "./MenuLevels.js";
 import { Said, plainReason, useSaid } from "./inPlace.js";
 
@@ -44,9 +41,9 @@ const arrive = (el) => {
 
 /**
  * A row is the cheat's name, and the name is the switch: pressing it turns the cheat on or off (white on, grey off).
- * A cheat that starts with the injector has a small dot at the row's end. Pointing at the row (or focus in it) shows
- * "Autostart" there instead, a quiet toggle: plain words when it doesn't autostart, with a tick and the soft fill when
- * it does. Each row's presses save one at a time, in order, and the row shows the newest one while they run.
+ * Pointing at the row (or focus in it) shows one faint word at its end that moves it to the other section:
+ * "autostart" in This session, "remove" in Starts with injector. Each row's presses save one at a time, in order, and
+ * the row shows the newest one while they run.
  */
 const Row = (cheat, { say, linger }) => {
     const wantOn = van.state(null);
@@ -90,7 +87,7 @@ const Row = (cheat, { say, linger }) => {
 
     return div(
         {
-            class: () => `my-cheat${isOn() ? " is-on" : ""}${isAuto() ? " is-auto" : ""}`,
+            class: () => `my-cheat${isOn() ? " is-on" : ""}`,
             "data-cheat": cheat,
         },
         button(
@@ -103,20 +100,18 @@ const Row = (cheat, { say, linger }) => {
             },
             cheat
         ),
-        span({ class: "my-cheat__mark", "aria-hidden": "true" }),
         button(
             {
                 type: "button",
-                class: "my-cheat__auto",
-                "aria-pressed": () => String(isAuto()),
-                "aria-label": `${cheat}: autostart`,
+                class: "my-cheat__move",
+                "aria-label": () =>
+                    isAuto() ? `${cheat}: don't start with the injector` : `${cheat}: start with the injector`,
                 // Started through its group ("w4" starts every W4 cheat): only the group's own row changes that.
                 disabled: () => startup.val === null || throughGroup(cheat),
                 title: () => (throughGroup(cheat) ? `Starts with ${groupOf(cheat)}` : ""),
                 onclick: flipAuto,
             },
-            () => (isAuto() ? Icons.Check() : span()),
-            "Autostart"
+            () => (isAuto() ? "remove" : "autostart")
         )
     );
 };
@@ -125,10 +120,16 @@ export const MyCheats = () => {
     const { said, say } = useSaid();
     // Cheats switched off here that stay in the list until the pointer (or focus) leaves it.
     const lingering = van.state([]);
+    // While the player works in the list, every row keeps its section; a row whose autostart changed moves on leaving.
+    const held = van.state(false);
     const linger = (cheat) => {
+        held.val = true;
         if (!lingering.val.includes(cheat)) lingering.val = [...lingering.val, cheat];
     };
-    const letGo = () => lingering.val.length && (lingering.val = []);
+    const letGo = () => {
+        held.val = false;
+        if (lingering.val.length) lingering.val = [];
+    };
 
     const shown = () =>
         [...new Set([...store.getActiveCheats(), ...(startup.val ?? []), ...lingering.val])].sort((a, b) =>
@@ -163,37 +164,65 @@ export const MyCheats = () => {
         span({ class: "menu-nav-code", "aria-hidden": "true" }, "MY")
     );
 
-    // One element per cheat, kept while it is listed, so a switch keeps its state; a new one arrives with the wash.
-    const list = div({ class: "my-cheats__list" });
-    // A list longer than its room fades at the foot while more is below.
-    const cut = () => list.classList.toggle("is-cut", list.scrollTop + list.clientHeight < list.scrollHeight - 2);
-    list.addEventListener("scroll", cut);
-    new ResizeObserver(cut).observe(list);
+    // Two sections, each hidden while empty: the cheats that start with the injector, then the ones on this session.
+    const autoList = div({ class: "my-cheats__list" });
+    const sessionList = div({ class: "my-cheats__list" });
+    const autoCount = van.state(0);
+    const sessionCount = van.state(0);
+    const section = (title, list, n) =>
+        div({ class: "my-cheats__section", hidden: () => !n.val }, div({ class: "my-cheats__sub" }, title), list);
+    // The sections scroll together; a list longer than its room fades at the foot while more is below.
+    const body = div(
+        { class: "my-cheats__body" },
+        section("STARTS WITH INJECTOR", autoList, autoCount),
+        section("THIS SESSION", sessionList, sessionCount)
+    );
+    const cut = () => body.classList.toggle("is-cut", body.scrollTop + body.clientHeight < body.scrollHeight - 2);
+    body.addEventListener("scroll", cut);
+    new ResizeObserver(cut).observe(body);
+
+    // One element per cheat, kept while it is listed, so a row keeps its state; a new one arrives in the accent.
     const rows = new Map();
+    const placed = new Map(); // the section each row sits in: true for Starts with injector
     let ready = false;
     const firstStates = store.data.activeCheatStates;
     van.derive(() => {
         const names = shown();
+        const keep = held.val;
         for (const [name, el] of rows)
             if (!names.includes(name)) {
                 el.remove();
                 rows.delete(name);
+                placed.delete(name);
             }
-        names.forEach((name, i) => {
+        const lists = { true: [], false: [] };
+        for (const name of names) {
             let el = rows.get(name);
-            if (!el) {
+            const isNew = !el;
+            if (isNew) {
                 el = Row(name, { say, linger });
                 rows.set(name, el);
-                if (ready) {
-                    arrive(el);
-                    // Folded in the rail: its "MY" takes the wash instead.
-                    if (isRail() && !open.val) arrive(railButton);
-                    requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" }));
-                }
             }
+            const auto = keep && placed.has(name) ? placed.get(name) : autostarts(name);
+            const moved = placed.has(name) && placed.get(name) !== auto;
+            placed.set(name, auto);
+            lists[auto].push(el);
+            if (ready && (isNew || moved)) {
+                arrive(el);
+                // Folded in the rail: its "MY" takes the accent instead.
+                if (isNew && isRail() && !open.val) arrive(railButton);
+                // A new cheat is shown; a moved one isn't scrolled to, so the list stays where the player left it.
+                if (isNew) requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" }));
+            }
+        }
+        for (const [list, els, n] of [
+            [autoList, lists.true, autoCount],
+            [sessionList, lists.false, sessionCount],
+        ]) {
             // Moved only when out of place: moving a row that holds focus would drop it.
-            if (list.children[i] !== el) list.insertBefore(el, list.children[i] ?? null);
-        });
+            els.forEach((el, i) => list.children[i] !== el && list.insertBefore(el, list.children[i] ?? null));
+            n.val = els.length;
+        }
         requestAnimationFrame(cut);
         // Not until the startup list and the game's first cheat states are in: what was on at start doesn't "arrive".
         if (startup.val !== null && store.data.activeCheatStates !== firstStates) ready = true;
@@ -217,7 +246,7 @@ export const MyCheats = () => {
             },
         },
         div({ class: "my-cheats__head" }, "MY CHEATS"),
-        list,
+        body,
         div({ class: "my-cheats__empty" }, "Cheats you turn on show here."),
         Said({ said, className: "said--line" })
     );

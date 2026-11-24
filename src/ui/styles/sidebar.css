@@ -437,10 +437,10 @@
     font-family: var(--font-display);
 }
 
-/* --- MY CHEATS (concept, second pass) ---
- * The old Active cheats look, kept: the same box, heading and type. A row is the cheat's name, and the name is its
- * switch: the row-name colour when on, the faint colour when off. A cheat that starts with the injector has a small dot
- * at the row's end; pointing at a row shows its quiet "Autostart" toggle there instead. */
+/* --- MY CHEATS (concept, third pass) ---
+ * The old Active cheats look, kept: the same box, heading and type. Two small sections under quieter headings. A row is
+ * the cheat's name, and the name is its switch: the row-name colour when on, the faint colour when off. Pointing at a
+ * row shows one faint word at its end that moves it to the other section. */
 .my-cheats {
     flex: 0 0 auto;
     max-height: 30vh;
@@ -469,6 +469,9 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+.my-cheats__body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -477,9 +480,28 @@
     scrollbar-color: var(--c-border) transparent;
 }
 
-.my-cheats__list.is-cut {
+.my-cheats__body.is-cut {
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}
+
+.my-cheats__section[hidden] {
+    display: none;
+}
+
+.my-cheats__section + .my-cheats__section {
+    margin-top: 10px;
+}
+
+/* The section headings: the MY CHEATS heading, a step smaller and quieter. */
+.my-cheats__sub {
+    margin-bottom: 2px;
+    font-family: var(--font-display);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--c-text-faint);
+    opacity: 0.75;
 }
 
 .my-cheat {
@@ -535,90 +557,53 @@
 }
 
 .my-cheat__name:focus-visible,
-.my-cheat__auto:focus-visible {
+.my-cheat__move:focus-visible {
     outline: 2px solid var(--c-accent);
     outline-offset: 2px;
     border-radius: 4px;
 }
 
-/* The autostart dot: the status line's dot, smaller. */
-.my-cheat__mark {
+/* The move word: text only, in the faint colour a step smaller than the name, shown while the row is pointed at or
+   holds focus; it reaches the name's colour only when pointed at itself. */
+.my-cheat__move {
     display: none;
     flex: none;
-    width: 4px;
-    height: 4px;
     margin-right: 4px;
-    border-radius: 50%;
-    background: var(--c-text-faint);
-}
-
-.my-cheat.is-auto .my-cheat__mark {
-    display: block;
-}
-
-/* "Autostart": a quiet toggle, only while the row is pointed at or holds focus. On, it has a tick and keeps the soft
-   fill (a quiet toggle that is on keeps its hover fill). */
-.my-cheat__auto {
-    display: none;
-    flex: none;
-    align-items: center;
-    gap: 3px;
-    height: 20px;
-    /* Taller than the name's line: it overhangs the row's padding, so showing it never moves the rows below. */
-    margin-block: -4px;
-    padding: 0 7px;
+    padding: 0;
     border: 0;
-    border-radius: 999px;
     background: none;
     font-family: var(--font-display);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 500;
+    line-height: 1.2;
     letter-spacing: 0;
     text-transform: none;
     color: var(--c-text-faint);
+    opacity: 0.8;
     cursor: pointer;
     transition:
         color 160ms var(--ease-soft),
-        background-color 160ms var(--ease-soft);
+        opacity 160ms var(--ease-soft);
 }
 
-.my-cheat__auto svg {
-    width: 12px;
-    height: 12px;
+.my-cheat__move:hover:not(:disabled) {
+    color: var(--c-text-body);
+    opacity: 1;
 }
 
-.my-cheat__auto[aria-pressed="true"] {
-    color: var(--c-text-muted);
-    background: var(--c-white-05);
-}
-
-.my-cheat__auto:hover:not(:disabled) {
-    color: var(--c-text-main);
-    background: var(--c-white-05);
-}
-
-.my-cheat__auto:disabled {
+.my-cheat__move:disabled {
     cursor: default;
 }
 
-.my-cheat:hover .my-cheat__auto,
-.my-cheat:focus-within .my-cheat__auto {
-    display: inline-flex;
+.my-cheat:hover .my-cheat__move,
+.my-cheat:focus-within .my-cheat__move {
+    display: block;
 }
 
-.my-cheat:hover .my-cheat__mark,
-.my-cheat:focus-within .my-cheat__mark {
-    display: none;
-}
-
-/* No pointer to point with: the toggle shows on every row. */
+/* No pointer to point with: the word shows on every row. */
 @media (hover: none) {
-    .my-cheat__auto {
-        display: inline-flex;
-    }
-
-    .my-cheat.is-auto .my-cheat__mark {
-        display: none;
+    .my-cheat__move {
+        display: block;
     }
 }
 
