@@ -220,6 +220,7 @@ const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation
 
 // Every automation the game declares with a label, in the overview's order.
 const ALL_LABELS = [
+    "Sushi Auto Play",
     "Bubba",
     "Bubbles",
     "Orion",
@@ -2144,4 +2145,33 @@ test("after a reload, a change the config file lacks is said again until Enter s
         () => !/Not saved to the config file/.test(said()),
         () => `the line to go, not "${said()}"`
     );
+});
+
+// #92: Sushi Auto Play sits on the overview. It starts only with the in-game Sushi board open (closed in the fake
+// game), so its row says so while off, Enable all tries it and says why it couldn't, and it never goes in the startup
+// cheats: at launch the board is never open.
+test("Sushi Auto Play on the overview: off it says it needs the board, and Enable all leaves it out of the start", async () => {
+    const { pageShown } = await importRepo("src/ui/menu/menuModel.js");
+    const sushiLine = () => text(byClass(row(overview, "Sushi Auto Play"), "automation-row__status")[0]);
+    pageShown("automation.overview");
+    await until(
+        () => sushiLine() === "Off. Starts only with the Sushi board open in game.",
+        () => `the row to say what it needs, not "${sushiLine()}"`
+    );
+    await until(() => button(overview, "Enable all") && !button(overview, "Enable all").disabled, "Enable all");
+    const since = commands.length;
+    await button(overview, "Enable all").listeners.click({ preventDefault() {} });
+    // Sushi's own refusal (the fake game's Sushi settings don't load, so it refuses before it looks for the board).
+    const failed = () => byClass(overview, "said--failed").map(text).join(" ");
+    await until(
+        () => /target tier/.test(failed()),
+        () => `the page to say why, not "${failed()}"`
+    );
+    assert.ok(
+        commands.slice(since).some(([cheat, on]) => cheat === "w7 sushitools" && on),
+        "Enable all tried Sushi"
+    );
+    assert.ok(shopsOn(), "the rest still switched on");
+    assert.ok(!startup().includes("w7 sushitools"), "never in the startup cheats");
+    for (const { id } of getAutomations()) switchAutomation(id, false);
 });
