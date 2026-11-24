@@ -512,6 +512,13 @@ button.save-copy__head:hover {
         margin-left: 0;
     }
 
+    /* A restore's own copy says what it is on a line of its own, under the time. */
+    .save-copy__label {
+        flex-basis: 100%;
+        order: 1;
+        padding-left: 28px;
+    }
+
     .save-key__head {
         flex-wrap: wrap;
     }
