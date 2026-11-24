@@ -1075,5 +1075,6 @@ export default definePage({
             description: "The Royal Guardian's armory, resources, statues and outposts.",
             tabs: TABS,
             wrap: true,
+            automation: { page: "automation.masterclasses", tab: "armory" },
         }),
 });

@@ -192,6 +192,25 @@
     border-color: var(--c-danger);
 }
 
+/* In the narrow overlay the tier pick and Set all take a line of their own under the region's name. */
+@media (max-width: 600px) {
+    .card-region__toggle {
+        min-height: 86px;
+        padding: 7px 12px 47px;
+    }
+
+    .card-region--unresolved .card-region__toggle {
+        min-height: 46px;
+        padding-bottom: 7px;
+    }
+
+    .card-region__tier {
+        top: 46px;
+        left: 37px;
+        right: auto;
+    }
+}
+
 @media (max-width: 760px) {
     .card-row__controls {
         flex-wrap: wrap;

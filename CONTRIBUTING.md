@@ -37,11 +37,13 @@ page and game-side code, and a comment on every PR sums up what it touches, with
 
 ## The pull request
 
-The template asks three things:
+The template asks four things:
 
 1. What the player sees.
 2. Tested in game: yes or no, and the game version.
 3. A screenshot.
+4. A release line and its kind, for the release notes, such as `Pets: token picker per pet.` and `new`. This one is
+   optional: if you leave it out, the maintainer writes it.
 
 PRs are squash-merged, so your branch name and the commit messages inside the PR don't matter. The PR title does: it
 becomes the commit on `master`, and a check fails until it looks like `type(scope): description`:

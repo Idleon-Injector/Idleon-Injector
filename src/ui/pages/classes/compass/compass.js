@@ -86,6 +86,7 @@ export default definePage({
             name: "Compass",
             page: "classes.compass",
             description: "The Wind Walker's Compass upgrades and dust.",
+            automation: { page: "automation.masterclasses", tab: "compass" },
             tabs: TABS,
         }),
 });

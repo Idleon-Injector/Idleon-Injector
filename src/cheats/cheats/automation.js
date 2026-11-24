@@ -35,6 +35,13 @@ defineCheat({
         { name: "summoning", message: "buy switched-on summoning board upgrades with essence" },
         { name: "bubba", message: "buy switched-on Bubba upgrades with meat once the run's gift is picked" },
         { name: "grimoire", message: "buy switched-on Grimoire upgrades with bones" },
+        { name: "compass", message: "buy switched-on Compass upgrades the Compass shows with dust" },
+        { name: "tesseract", message: "buy switched-on Tesseract upgrades with tachyons" },
+        {
+            name: "armory",
+            message:
+                "buy switched-on Royal Armory upgrades with royal resources and roll switched-on statues with parchments",
+        },
     ],
     config: {
         gaming: {
@@ -130,6 +137,38 @@ defineCheat({
             default: 10,
             description:
                 "Automation: while a bone type saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        compass: {
+            default: [],
+            description: `Automation: Compass upgrades to buy with dust, { id: row, on, stopAt, save }; stopAt is a level, ${SAVE}. Only upgrades the Compass shows are bought.`,
+        },
+        compassSaving: {
+            default: 10,
+            description:
+                "Automation: while a dust saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        tesseract: {
+            default: [],
+            description: `Automation: Tesseract upgrades to buy with tachyons, { id: row, on, stopAt, save }; stopAt is a level, ${SAVE}.`,
+        },
+        tesseractSaving: {
+            default: 10,
+            description:
+                "Automation: while a tachyon saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        armory: {
+            default: [],
+            description: `Automation: Royal Armory upgrades to buy with royal resources, { id: upgrade, on, stopAt, save }; stopAt is a level, ${SAVE}.`,
+        },
+        armorySaving: {
+            default: 10,
+            description:
+                "Automation: while a royal resource saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        statues: {
+            default: [],
+            description:
+                "Automation: unlocked Royal Statues to roll with Parchments of Enchantment, { id: statue, on, stopAt }; the lowest level rolls first, up to stopAt.",
         },
     },
 });

@@ -100,12 +100,14 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
         getAutomations().map(({ id, on }) => [id, on]),
         [
             ["w7.sushi", false],
+            ["classes.automation.armory", false],
             ["wide.autoboss", false],
             ["w7.automation.bubba", false],
             ["w2.automation.bubbles", false],
             ["w1.automation.orion", false],
             ["w2.automation.poppy", false],
             ["w2.automation.tarpit", false],
+            ["classes.automation.compass", false],
             ["w3.automation.construction", false],
             ["w4.automation.cooking", false],
             ["w5.automation.gaming", false],
@@ -113,6 +115,7 @@ test("the toggle cheat starts and stops its automation, which ticks only while o
             ["account.automation.shops", false],
             ["w6.automation.sneaking", false],
             ["w6.automation.summoning", false],
+            ["classes.automation.tesseract", false],
             ["fixture.steady", true],
             ["fixture.flaky", true],
             ["fixture.picky", false],
@@ -192,12 +195,14 @@ test("every automation's cheat is a command, and the folder holds the real ones"
             .filter((id) => !id.startsWith("fixture")),
         [
             "w7.sushi",
+            "classes.automation.armory",
             "wide.autoboss",
             "w7.automation.bubba",
             "w2.automation.bubbles",
             "w1.automation.orion",
             "w2.automation.poppy",
             "w2.automation.tarpit",
+            "classes.automation.compass",
             "w3.automation.construction",
             "w4.automation.cooking",
             "w5.automation.gaming",
@@ -205,6 +210,7 @@ test("every automation's cheat is a command, and the folder holds the real ones"
             "account.automation.shops",
             "w6.automation.sneaking",
             "w6.automation.summoning",
+            "classes.automation.tesseract",
         ]
     );
 });

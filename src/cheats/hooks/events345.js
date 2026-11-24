@@ -15,7 +15,7 @@
  */
 
 import { cheatConfig, cheatState } from "../core/state.js";
-import { events } from "../core/globals.js";
+import { events, gga } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
 import { getMultiplyValue } from "../helpers/values.js";
 
@@ -95,9 +95,16 @@ defineHook(
 
         const base = callOriginal();
 
-        if (cheatState.w4.eggcap && key === "TotalEggCapacity") return 13;
-        if (cheatState.w4.fenceyard && key === "FenceYardSlots") return 27;
-        if (cheatState.w4.battleslots && key === "PetBattleSlots") return 6;
+        if (cheatState.w4.eggcap && key === "TotalEggCapacity") {
+            if (args[1] !== "UsingEggInv") return Math.max(base, 13);
+            // "UsingEggInv" is how many egg items one drag uses: the free slots, or every slot once the last is
+            // taken. The game counts them inside its own capacity; count them inside the raised one.
+            const capacity = Math.max(callOriginal([key, "0", 0, 0]), 13);
+            const eggs = gga.Breeding[0];
+            return eggs[capacity - 1] !== 0 ? capacity : eggs.slice(0, capacity).filter((egg) => egg === 0).length;
+        }
+        if (cheatState.w4.fenceyard && key === "FenceYardSlots") return Math.max(base, 27);
+        if (cheatState.w4.battleslots && key === "PetBattleSlots") return Math.max(base, 6);
         if (cheatState.w4.petchance && key === "TotalBreedChance") return cheatConfig.w4.petchance(base);
         if (cheatState.w4.genes && key === "GeneticCost") return 0;
         if (cheatState.w4.fasteggs && key === "TotalTimeForEgg") return cheatConfig.w4.fasteggs(base);

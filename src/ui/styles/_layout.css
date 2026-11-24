@@ -160,3 +160,11 @@
         padding-top: 14px;
     }
 }
+
+/* In the game's overlay its CLOSE button (src/cheats/ui/overlay.js: 20px from the top, 30px from the right, 36px tall)
+   lies where the top bar ends on a window under about 1200px wide, so there the page starts under it. */
+@media (max-width: 1199px) {
+    .in-overlay .viewport {
+        padding-top: 64px;
+    }
+}

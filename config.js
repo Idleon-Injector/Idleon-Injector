@@ -48,6 +48,13 @@ exports.cheatConfig = {
         bubbaSaving: 10, // Automation: while Bubba saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
         grimoire: [], // Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
         grimoireSaving: 10, // Automation: while a bone type saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        compass: [], // Automation: Compass upgrades to buy with dust, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it". Only upgrades the Compass shows are bought.
+        compassSaving: 10, // Automation: while a dust saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        tesseract: [], // Automation: Tesseract upgrades to buy with tachyons, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
+        tesseractSaving: 10, // Automation: while a tachyon saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        armory: [], // Automation: Royal Armory upgrades to buy with royal resources, { id: upgrade, on, stopAt, save }; stopAt is a level, save true is "Save for it".
+        armorySaving: 10, // Automation: while a royal resource saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        statues: [], // Automation: unlocked Royal Statues to roll with Parchments of Enchantment, { id: statue, on, stopAt }; the lowest level rolls first, up to stopAt.
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)

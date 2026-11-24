@@ -221,11 +221,13 @@ const shopsOn = () => getAutomations().find(({ cheat }) => cheat === "automation
 // Every automation the game declares with a label, in the overview's order.
 const ALL_LABELS = [
     "Sushi Auto Play",
+    "Royal Armory",
     "Bubba",
     "Bubbles",
     "Orion",
     "Poppy",
     "Tar Pit",
+    "Compass",
     "Construction",
     "Cooking",
     "Gaming",
@@ -233,13 +235,16 @@ const ALL_LABELS = [
     "Shops",
     "Sneaking",
     "Summoning",
+    "Tesseract",
 ];
 const ALL_CHEATS = [
+    "automation armory",
     "automation bubba",
     "automation bubbles",
     "automation orion",
     "automation poppy",
     "automation tarpit",
+    "automation compass",
     "automation construction",
     "automation cooking",
     "automation gaming",
@@ -247,6 +252,7 @@ const ALL_CHEATS = [
     "automation shops",
     "automation sneaking",
     "automation summoning",
+    "automation tesseract",
 ];
 const overview = (await importRepo("src/ui/pages/automation/overview/overview.js")).default.component();
 await until(() => row(overview, "Shops"), "the overview to list Shops");

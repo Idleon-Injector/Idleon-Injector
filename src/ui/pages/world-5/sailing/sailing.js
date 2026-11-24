@@ -377,7 +377,7 @@ const CaptainsPart = ({ pending, reload }) => {
 
     return {
         content: div(
-            { class: "sailing-captains" },
+            { class: "sailing-captains value-table--wide" },
             AccountSection({ title: "Captains", body: [head(), ownedNode] }),
             div(
                 { hidden: () => !poolCount.val },

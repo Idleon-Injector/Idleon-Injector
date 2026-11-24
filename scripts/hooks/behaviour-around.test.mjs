@@ -328,9 +328,6 @@ test("breeding: pet quantity rolls, capacities, chances and costs", () => {
     assert.equal(cheatState.rng, false);
     set("w4.petrng", false);
     for (const [cheat, key, expected] of [
-        ["w4.eggcap", "TotalEggCapacity", 13],
-        ["w4.fenceyard", "FenceYardSlots", 27],
-        ["w4.battleslots", "PetBattleSlots", 6],
         ["w4.petchance", "TotalBreedChance", cheatConfig.w4.petchance(10)],
         ["w4.genes", "GeneticCost", 0],
         ["w4.fasteggs", "TotalTimeForEgg", cheatConfig.w4.fasteggs(10)],
@@ -341,6 +338,45 @@ test("breeding: pet quantity rolls, capacities, chances and costs", () => {
         assert.equal(br._customBlock_Breeding(key), expected, cheat);
         set(cheat, false);
     }
+});
+
+test("slot cheats never lower a late account; a dropped egg item fills the raised incubator", () => {
+    const br = events(345);
+    let capacity;
+    const free = 4; // what the game says one dragged egg item uses, counted inside its own capacity
+    game.returns._customBlock_Breeding = (key, using) => (using === "UsingEggInv" ? free : capacity);
+    for (const [cheat, key, floor] of [
+        ["w4.eggcap", "TotalEggCapacity", 13],
+        ["w4.fenceyard", "FenceYardSlots", 27],
+        ["w4.battleslots", "PetBattleSlots", 6],
+    ]) {
+        capacity = 2;
+        assert.equal(br._customBlock_Breeding(key, "0", 0, 0), 2, `${cheat} off`);
+        set(cheat);
+        assert.equal(br._customBlock_Breeding(key, "0", 0, 0), floor, `${cheat} raises an early account`);
+        capacity = floor + 2;
+        assert.equal(br._customBlock_Breeding(key, "0", 0, 0), floor + 2, `${cheat} keeps a late account`);
+        set(cheat, false);
+    }
+
+    gga.Breeding = [[3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+    capacity = 5;
+    assert.equal(
+        br._customBlock_Breeding("TotalEggCapacity", "UsingEggInv", 0, 0),
+        free,
+        "cheat off: the game's count"
+    );
+    set("w4.eggcap");
+    assert.equal(br._customBlock_Breeding("TotalEggCapacity", "UsingEggInv", 0, 0), 11, "free slots inside 13");
+    capacity = 15;
+    assert.equal(br._customBlock_Breeding("TotalEggCapacity", "UsingEggInv", 0, 0), 13, "free slots inside 15");
+    gga.Breeding[0].fill(1, 0, 15);
+    assert.equal(
+        br._customBlock_Breeding("TotalEggCapacity", "UsingEggInv", 0, 0),
+        15,
+        "full: every slot, as the game"
+    );
+    set("w4.eggcap", false);
 });
 
 test("better cogs: a cog rolls high while the workbench makes it", () => {

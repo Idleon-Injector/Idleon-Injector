@@ -34,3 +34,30 @@
     min-width: 10ch;
     font-size: 0.875rem;
 }
+
+/* In the narrow overlay a cave's fields take the line under its name and its whole width: each field's name on the
+   left, the field on the right. */
+@media (max-width: 600px) {
+    .spelunking-cave-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        row-gap: 6px;
+    }
+
+    .spelunking-cave-row > .account-row__controls {
+        grid-column: 1 / -1;
+        align-items: stretch;
+    }
+
+    .spelunking-cave-metric .account-inline-field__head {
+        flex: 1;
+    }
+
+    .spelunking-cave-metric__label {
+        width: auto;
+        text-align: left;
+    }
+
+    .spelunking-cave-metric .number-input-wrapper {
+        width: 160px;
+    }
+}

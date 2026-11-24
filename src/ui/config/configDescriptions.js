@@ -63,6 +63,20 @@ export const configDescriptions = {
         'Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
     "cheatConfig.automation.grimoireSaving":
         "Automation: while a bone type saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+    "cheatConfig.automation.compass":
+        'Automation: Compass upgrades to buy with dust, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it". Only upgrades the Compass shows are bought.',
+    "cheatConfig.automation.compassSaving":
+        "Automation: while a dust saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+    "cheatConfig.automation.tesseract":
+        'Automation: Tesseract upgrades to buy with tachyons, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
+    "cheatConfig.automation.tesseractSaving":
+        "Automation: while a tachyon saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+    "cheatConfig.automation.armory":
+        'Automation: Royal Armory upgrades to buy with royal resources, { id: upgrade, on, stopAt, save }; stopAt is a level, save true is "Save for it".',
+    "cheatConfig.automation.armorySaving":
+        "Automation: while a royal resource saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+    "cheatConfig.automation.statues":
+        "Automation: unlocked Royal Statues to roll with Parchments of Enchantment, { id: statue, on, stopAt }; the lowest level rolls first, up to stopAt.",
     "cheatConfig.godlike.respawn": "Mob respawn time (lower is faster)",
     "cheatConfig.minigame.fishing.skipWhale":
         "Fishing: the fish aimbot skips the whale (turn off for megalodon farming)",
