@@ -226,8 +226,14 @@ export function pageBreaks(node, page, title) {
     if (heading && words(heading) !== title)
         breaks.push(`Title: the page says "${words(heading)}", its sidebar entry "${title}"`);
 
-    // Search: a page's declared tabs are its real tabs; a limited gem shop buy is found by the shop's words.
-    const tabLabels = tabsOf(node).map(words);
+    // Search: a page's declared tabs are its real tabs (or its pick's parts: Caverns); a limited gem shop buy is found by
+    // the shop's words.
+    const tabLabels = [
+        ...tabsOf(node),
+        ...elements(node)
+            .filter((el) => classes(el).includes("tabbed-list__pick"))
+            .flatMap((pick) => elements(pick).filter((el) => attr(el, "role") === "option")),
+    ].map(words);
     for (const tab of page.tabs ?? [])
         if (!tabLabels.some((label) => label.startsWith(tab.label)))
             breaks.push(`Search: definePage names a tab "${tab.label}" the page doesn't have`);

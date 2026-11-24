@@ -15,6 +15,7 @@ const { SetAllTool, setAllLines } = await importRepo("src/ui/components/views/ac
 const { ValueTableRow } = await importRepo("src/ui/components/views/account/EditableFieldsRow.js");
 const { AccountSection } = await importRepo("src/ui/components/views/account/components/AccountSection.js");
 const { AccountTabHeader } = await importRepo("src/ui/components/views/account/components/AccountTabHeader.js");
+const { PickInPlace } = await importRepo("src/ui/components/views/account/components/PickInPlace.js");
 const { div, span, button, input, select, label } = van.tags;
 
 const declared = (extra = {}) => ({ id: "w1.test", world: 1, system: "Stamps", keywords: [], ...extra });
@@ -164,6 +165,24 @@ test("Search: a declared tab the page lacks, and a Gem shop group search can't f
     assert.deepEqual(only(breaksOf(node, decl), "Search"), [
         `Search: definePage names a tab "Imports" the page doesn't have`,
         `Search: the Gem shop group isn't found by "limited", "fomo"`,
+    ]);
+});
+
+test("Search: a page's pick of parts (Caverns) counts as its tabs; a row's own pick doesn't", () => {
+    const decl = declared({ tabs: [{ id: "imports", label: "Imports" }] });
+    const parts = TabbedList({
+        name: "Parts",
+        pick: "Part",
+        tabs: [
+            { id: "garden", label: "Garden", content: level("Bits") },
+            { id: "imports", label: "Imports", content: level("Acorns") },
+        ],
+    });
+    assert.deepEqual(only(breaksOf(page("Stamps", parts), decl), "Search"), []);
+    const rowPick = PickInPlace({ name: "Item", opener: "Imports", options: () => [{ id: "1", label: "Imports" }] });
+    const node = page("Stamps", line("Bits", rowPick.opener, rowPick.panel));
+    assert.deepEqual(only(breaksOf(node, decl), "Search"), [
+        `Search: definePage names a tab "Imports" the page doesn't have`,
     ]);
 });
 

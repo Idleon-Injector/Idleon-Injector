@@ -383,6 +383,7 @@ const DeathNoteTab = () => {
         { class: "account-list account-list--tabbed" },
         TabbedList({
             name: "Death Note",
+            wrap: true,
             // The minibosses' kills are lines; a world's mobs hold their characters' kills, so they have none.
             setAll: { word: (n) => `miniboss${n === 1 ? "" : "es"}`, placeholder: "Kills" },
             tabs: DN_SUBTABS.map((tab) => ({
