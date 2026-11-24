@@ -43,7 +43,8 @@ const heldText = (value) => formatNumber(value < 1000 ? Math.floor(value) : valu
 const capital = (word) => word[0].toUpperCase() + word.slice(1);
 const upgradeName = (name) => cleanName(name, "", { stripMarker: true });
 
-// One tab per masterclass: `unit` is how a cost names its currency ("15 femur"), `title` its line's name.
+// One tab per masterclass: `unit` is how a cost names its currency ("15 femur"), `held` how the title's stats do (unit
+// when not given), `title` its line's name.
 const TABS = [
     {
         id: "grimoire",
@@ -67,7 +68,9 @@ const TABS = [
         label: "Tesseract",
         cheat: "automation tesseract",
         words: ["Tesseract upgrade", "Tesseract upgrades"],
-        unit: (name) => `${name} tachyons`,
+        // A cost says just the colour, to fit a phone; what is held, beside the title, says tachyons.
+        unit: (name) => name,
+        held: (name) => `${name} tachyons`,
         title: (name) => `${capital(name)} tachyons`,
     },
     {
@@ -222,7 +225,7 @@ const MasterclassPart = ({ spec, tab, entry, switchNode }) => {
         stats: () => [
             ...currencies.val
                 .filter((currency) => spec.id !== "armory" || onWith(currency.name))
-                .map(({ name, owned }) => [heldText(owned), spec.unit(name)]),
+                .map(({ name, owned }) => [heldText(owned), (spec.held ?? spec.unit)(name)]),
             ...(statues ? statues.stats() : []),
         ],
         body: [

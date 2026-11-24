@@ -161,13 +161,13 @@ test("the Compass tab marks what it doesn't show yet; those can still be switche
     assert.equal(kit.running("automation compass"), true);
 });
 
-test("the Tesseract tab names its tachyons in the cost, and its saving % saves to its own key", async () => {
+test("the Tesseract tab names the tachyon colour in the cost, and its saving % saves to its own key", async () => {
     const tesseract = await readComputed("automation", "tesseract");
     const buyable = tesseract.upgrades.find(({ open, level, max }) => open && level < (max ?? Infinity));
     const tesseractTab = tabRows(2);
     assert.match(
         value(named(tesseractTab, cleanUpgrade(buyable.name)), "Next level"),
-        new RegExp(`^[0-9.,KMB]+ ${buyable.currency} tachyons$`)
+        new RegExp(`^[0-9.,KMB]+ ${buyable.currency}$`)
     );
     await kit.type(named(tesseractTab, "While saving"), "30");
     assert.equal(sent("tesseractSaving"), 30);
