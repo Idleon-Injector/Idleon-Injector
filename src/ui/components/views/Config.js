@@ -321,8 +321,7 @@ export const Config = () => {
                 { class: () => `config-sub-tab-pane ${activeSubTab.val === "configs" ? "active" : ""}` },
                 SettingsTop({
                     title: "CONFIGS",
-                    description:
-                        "A config is a set of startup cheats and settings. Changes save to the one in use.",
+                    description: "A config is a set of startup cheats and settings. Changes save to the one in use.",
                 }),
                 Configs({ configs, onChanged: configChanged, hasUnsavedEdits })
             ),
