@@ -247,3 +247,38 @@ test("library.js: typing a level into a locked talent and leaving the field sets
     assert.equal(shown(row), "50");
     assert.equal(text(badgeOf(row)), "", "it isn't locked any more");
 });
+
+test("library.js: a max level the game holds above the book cap is marked over max, and nothing is written", async () => {
+    const libraryRows = async () => byClass(await openPage("src/ui/pages/world-3/library/library.js"), "talent-row");
+    const idOf = (row) => Number(text(byClass(row, "account-row__index")[0]).slice(1));
+    const wrapperOf = (row) => byClass(row, "number-input-wrapper")[0];
+    const marked = (row) =>
+        classes(wrapperOf(row)).includes("number-input-wrapper--over-max") &&
+        inputOf(row).attributes.title === "over max";
+    const row = (await libraryRows()).find((candidate) => capOf(candidate) !== "" && text(badgeOf(candidate)) === "");
+    assert.ok(row, "a book talent is listed");
+    assert.ok(!marked(row), "a level at or under the cap isn't marked");
+    const talentId = idOf(row);
+    const bookCap = Number(capOf(row).replace("/ ", ""));
+    const kept = game.gga.SkillLevelsMAX[talentId];
+    game.gga.SkillLevelsMAX[talentId] = bookCap + 50;
+    try {
+        const before = sent.length;
+        const over = (await libraryRows()).find((candidate) => idOf(candidate) === talentId);
+        assert.equal(shown(over), String(bookCap + 50), "the value is shown as the game holds it");
+        assert.ok(marked(over), "the field is marked over max");
+        assert.deepEqual(writesSince(before), [], "the mark never writes");
+    } finally {
+        game.gga.SkillLevelsMAX[talentId] = kept;
+    }
+});
+
+test("CappedValue: a value with no field above its cap is marked over max", async () => {
+    const { CappedValue } = await importRepo("src/ui/components/NumberInput.js");
+    const over = CappedValue({ value: 20, cap: 15 });
+    assert.ok(classes(over).includes("capped-value--over-max"));
+    assert.equal(over.attributes.title, "over max");
+    const at = CappedValue({ value: 15, cap: 15 });
+    assert.ok(!classes(at).includes("capped-value--over-max"));
+    assert.ok(!classes(CappedValue({ value: 20, cap: null })).includes("capped-value--over-max"), "no cap, no mark");
+});
