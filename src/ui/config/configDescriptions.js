@@ -14,6 +14,13 @@ export const configDescriptions = {
     "cheatConfig.maxval.totaltach": "Maximum limit for total tachyon across all characters",
     "cheatConfig.maxval.creditcap": "Maximum credit capacity for dungeons",
     "cheatConfig.maxval.flurbocap": "Maximum flurbo capacity for dungeons",
+    "cheatConfig.automation.gaming":
+        'Automation: Gaming upgrades to buy with bits, { id: "fertilizer0", on, stopAt, save }; stopAt is a level, save true is "Save for it".',
+    "cheatConfig.automation.gamingSaving":
+        "Automation: while Gaming saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.",
+    "cheatConfig.automation.gamingAutoHarvest":
+        "Automation: while Gaming is open, harvest a full garden, leaving the plant types locked on the Mutation tab.",
+    "cheatConfig.automation.gamingAutoDig": "Automation: while Gaming is open, dig once the shovel is ready.",
     "cheatConfig.automation.shops":
         'Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.',
     "cheatConfig.automation.orion":
@@ -235,6 +242,8 @@ export const configDescriptions = {
     "cheatConfig.w4.meals.Liquid34": "Meals: liquid capacity (liquids 3 and 4) bonus. No change until you set it",
     "cheatConfig.w4.meals.Sailing": "Meals: sailing speed bonus. No change until you set it",
     "cheatConfig.w4.meals.GamingExp": "Meals: gaming EXP bonus. No change until you set it",
+    "cheatConfig.w5.betternuggets":
+        "Gaming: how strongly dug nuggets lean toward big ones, 1 (the game's own odds) to 20",
     "cheatConfig.w5.sailing.IslandDistance": "Sailing: Island distance (lower is closer)",
     "cheatConfig.w5.sailing.MaxChests":
         "Sailing: Maximum chest limit (Warning: too high may break cloud saves). No change until you set it",

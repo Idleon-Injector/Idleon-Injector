@@ -1,13 +1,13 @@
 /**
  * Behavior script hooks (com.stencyl.behavior.Script)
  *
- * - randomFloatBetween, randomInt, randomFloat: RNG manipulation, and the max VIP book
+ * - randomFloatBetween, randomInt, randomFloat: RNG manipulation, the max VIP book, and better nuggets
  * - runLater: instant divine intervention
  * - runPeriodically: instant bubo poison
  * - createRecycledActor: no damage text; the "+n" popup of a bubble raised by automation bubbles
  */
 
-import { cheatState } from "../core/state.js";
+import { cheatConfig, cheatState } from "../core/state.js";
 import { behavior, gga } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
 import { noteBubblePopup } from "../helpers/automation/bubbles.js";
@@ -22,6 +22,14 @@ defineHook(
         return callOriginal();
     }
 );
+
+// w5 betternuggets: a dug nugget is worth bonus / roll^0.64, its roll randomFloatBetween(1E-5, 1), the game's only call
+// with those bounds. Raising the roll's place in that range to the configured power leans it low, so nuggets come out
+// bigger, still within the game's own range.
+defineHook({ id: "w5.betternuggets", target: () => behavior, method: "randomFloatBetween" }, (base, min, max) => {
+    if (!cheatState.w5.betternuggets || min !== 1e-5 || max !== 1) return base;
+    return min + (max - min) * ((base - min) / (max - min)) ** cheatConfig.w5.betternuggets;
+});
 
 // Around: a forced roll replaces the game's random number, so the game's roll must not run.
 defineHook(
