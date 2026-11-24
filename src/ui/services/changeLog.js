@@ -131,10 +131,12 @@ const noteGesture = (target) => {
 export const gestureTarget = () => gesture.target;
 
 /**
- * A switch or a step picker (a tier) undoes itself: flipping again, or picking the old step, puts it back. Its save
- * offers no Undo; History still has it (Lumi, #81).
+ * A switch, a field's − / +, a step picker (a tier) or a pick from a list (a dropdown, a pick in place) undoes itself:
+ * flipping again, pressing the other one or picking the old one puts it back. Its save offers no row Undo; History
+ * still has it with its own Undo (Lumi, #81). A row with a switch and fields follows the control that saved it.
  */
-export const undoesItself = (control) => Boolean(control?.closest?.(".toggle-switch, .step-picker"));
+export const undoesItself = (control) =>
+    Boolean(control?.closest?.(".toggle-switch, .number-input-btn, .step-picker, select, .pick-in-place"));
 
 /**
  * Keep what asked for a write, for a write that runs later (one waiting its turn): `inGesture(fn)` runs `fn` as if

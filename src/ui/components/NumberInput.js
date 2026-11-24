@@ -9,11 +9,23 @@ const keepFocus = (e) => e.preventDefault();
 
 let capIds = 0;
 
-// A cap's text through the field's formatter, or "" for none: null, empty, Infinity and NaN are no cap.
-const capText = (cap, formatter) => () => {
+// A cap's number, or null for none: null, empty, Infinity and NaN are no cap.
+const capValue = (cap) => {
     const raw = typeof cap === "function" ? cap() : cap;
     const value = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
-    return Number.isFinite(value) ? (formatter ? formatter(String(value)) : String(value)) : "";
+    return Number.isFinite(value) ? value : null;
+};
+
+// A cap's text through the field's formatter, or "" for none.
+const capText = (cap, formatter) => () => {
+    const value = capValue(cap);
+    return value === null ? "" : formatter ? formatter(String(value)) : String(value);
+};
+
+// A value above its cap (a level the game holds past its max): marked in the warning colour, never changed.
+const overCap = (value, cap) => {
+    const max = capValue(cap);
+    return max !== null && Number(value) > max;
 };
 
 /**
@@ -22,8 +34,8 @@ const capText = (cap, formatter) => () => {
  * function returning one, or null for none; it shows through the field's formatter (1.03K / 2.5M). Only a real cap
  * gets the slash: the value Max fills up to. A number that isn't a limit is left out.
  */
-const Cap = (cap, formatter, inputRef) => {
-    if (cap === null || cap === undefined) return { node: null, describedBy: {}, wrapperClass: "number-input-wrapper" };
+const Cap = (cap, formatter, inputRef, value) => {
+    if (cap === null || cap === undefined) return { node: null, inputAttrs: {}, wrapperClass: "number-input-wrapper" };
     const id = `number-input-cap-${++capIds}`;
     const text = capText(cap, formatter);
     const node = span(
@@ -38,8 +50,14 @@ const Cap = (cap, formatter, inputRef) => {
         span({ "aria-hidden": "true" }, () => `/ ${text()}`),
         span({ id, class: "sr-only" }, () => `of ${text()}`)
     );
-    const wrapperClass = () => (text() ? "number-input-wrapper number-input-wrapper--capped" : "number-input-wrapper");
-    return { node, describedBy: { "aria-describedby": id }, wrapperClass };
+    const over = () => overCap(value.val, cap);
+    const wrapperClass = () =>
+        !text()
+            ? "number-input-wrapper"
+            : over()
+              ? "number-input-wrapper number-input-wrapper--capped number-input-wrapper--over-max"
+              : "number-input-wrapper number-input-wrapper--capped";
+    return { node, inputAttrs: { "aria-describedby": id, title: () => (over() ? "over max" : "") }, wrapperClass };
 };
 
 /**
@@ -48,12 +66,14 @@ const Cap = (cap, formatter, inputRef) => {
  */
 export const CappedValue = ({ value, cap, formatter = null }) => {
     const text = capText(cap, formatter);
-    const shown = () => {
-        const current = typeof value === "function" ? value() : value;
-        return formatter ? formatter(String(current ?? 0)) : String(current ?? 0);
-    };
+    const current = () => (typeof value === "function" ? value() : value);
+    const shown = () => (formatter ? formatter(String(current() ?? 0)) : String(current() ?? 0));
+    const over = () => overCap(current(), cap);
     return span(
-        { class: "capped-value" },
+        {
+            class: () => (over() ? "capped-value capped-value--over-max" : "capped-value"),
+            title: () => (over() ? "over max" : ""),
+        },
         span(shown),
         span(
             { class: "number-input__cap", hidden: () => !text() },
@@ -167,10 +187,10 @@ export const NumberInput = ({
         // Hold a direct DOM reference so we can write inputEl.value ourselves.
         // If we used a reactive `value:` VanJS prop, any state change would let
         // VanJS overwrite input.value mid-keystroke, resetting the cursor.
-        const capped = Cap(cap, formatter, () => inputEl);
+        const capped = Cap(cap, formatter, () => inputEl, value);
         const inputEl = input({
             type: "text",
-            ...capped.describedBy,
+            ...capped.inputAttrs,
             ...restInputProps,
 
             onfocus(e) {
@@ -290,14 +310,14 @@ export const NumberInput = ({
         if (userOninput) userOninput(e);
     };
 
-    const capped = Cap(cap, null, () => inputEl);
+    const capped = Cap(cap, null, () => inputEl, value);
     const inputEl = input({
         type: "text",
         value,
         oninput: handleInput,
         onfocus: userOnfocus,
         onblur: userOnblur,
-        ...capped.describedBy,
+        ...capped.inputAttrs,
         ...restInputProps,
     });
 
