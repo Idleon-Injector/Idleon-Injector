@@ -83,12 +83,6 @@ const sep = () => div({ class: "menu-nav-sep", role: "separator" });
 const TopList = () =>
     div(
         { class: "menu-panel" },
-        MenuBtn({
-            code: "HOM",
-            label: "HOME",
-            active: () => store.app.activeTab === VIEWS.HOME.id,
-            onclick: () => store.openMenu({ view: "HOME" }),
-        }),
         ...WORLDS.filter((world) => !world.apart).map(WorldBtn),
         // Automation is its own place, between the game's places and the injector's: a player who only wants
         // automation finds it without crossing a cheat page (#249).
@@ -308,7 +302,24 @@ export const Sidebar = () => {
             { class: "brand" },
             div(
                 { class: "brand-main" },
-                div({ class: "brand-logo" }, Icons.Logo()),
+                // Home is the first thing at the top, where the logo was: on the menu's code column, so it lines up
+                // with every entry and stays put in the rail (Lumi, 2026-11-24).
+                withTooltip(
+                    button(
+                        {
+                            type: "button",
+                            class: () =>
+                                `tab-button menu-nav-btn brand-home ${store.app.activeTab === VIEWS.HOME.id ? "active" : ""}`,
+                            "aria-label": "Home",
+                            "aria-current": () => (store.app.activeTab === VIEWS.HOME.id ? "page" : "false"),
+                            onclick: () => store.openMenu({ view: "HOME" }),
+                        },
+                        span({ class: "menu-nav-code", "aria-hidden": "true" }, Icons.System({ name: "Home" }))
+                    ),
+                    "Home",
+                    "right",
+                    isRail
+                ),
                 div(
                     { class: "brand-text" },
                     span("IDLEON"),
