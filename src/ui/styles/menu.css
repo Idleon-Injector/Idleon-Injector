@@ -387,7 +387,9 @@
     flex-direction: column;
     gap: 2px;
 }
-.syslist-toggle:focus-visible {
+.syslist-toggle:focus-visible,
+.home-world__system:focus-visible,
+.home-world__title:focus-visible {
     outline: 2px solid var(--c-accent);
     outline-offset: 2px;
 }
@@ -651,508 +653,124 @@
     overflow-y: auto;
     overscroll-behavior: contain;
 }
-/*
- * Home (concept): Atlas, Today and Search share these pieces. Every place to press is quiet until touched: plain words
- * at rest, the row's hover fill under the pointer, and a system's drawing taking its world's colour.
- */
-.home-row,
-.home-code,
-.home-atlas__head,
-.home-atlas__system,
-.home-today__link,
-.home-launch__page {
+.home-contents {
+    display: flex;
+    flex-direction: column;
+}
+
+/* A world: its name in a column of its own, its systems in a grid beside it, the hairline between worlds. */
+.home-world {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start;
+    padding: 12px 12px 12px 8px;
+}
+.home-world + .home-world {
+    border-top: 1px solid var(--c-hairline);
+}
+.home-world__title,
+.home-world__system {
     border: 0;
     background: transparent;
     font-family: var(--font-display);
-    text-align: left;
     cursor: pointer;
     transition:
-        background-color 160ms var(--ease-soft),
-        color 160ms var(--ease-soft);
+        background 0.16s var(--ease-slide),
+        color 0.16s var(--ease-slide);
 }
-.home-row:focus-visible,
-.home-code:focus-visible,
-.home-atlas__head:focus-visible,
-.home-atlas__system:focus-visible,
-.home-today__link:focus-visible,
-.home-launch__page:focus-visible {
-    outline: 2px solid var(--c-accent);
-    outline-offset: -2px;
-}
-
-/* A row of a list: the drawing in its column, the name, a quiet note, the world's code at the end. */
-.home-row {
+.home-world__title {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    min-height: 40px;
-    padding: 0 16px;
-    color: var(--c-text-body);
-}
-.home-row:hover {
-    background: var(--c-panel-hover);
-    color: var(--c-text-main);
-}
-.home-row__mark {
-    display: flex;
-    flex: none;
-    justify-content: center;
-    width: 20px;
-    color: var(--c-text-faint);
-    transition: color 160ms var(--ease-soft);
-}
-.home-row__mark svg {
-    width: 18px;
-    height: 18px;
-}
-.home-row:hover .home-row__mark,
-.home-launch__page:hover .home-row__mark {
-    color: var(--c-text-main);
-}
-.home-row__name {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-.home-row__note {
-    flex: 1 1 0;
-    min-width: 0;
-    overflow: hidden;
-    font-size: 0.8125rem;
-    color: var(--c-text-faint);
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-.home-row__where {
-    flex: none;
-    margin-left: auto;
-    font-family: var(--font-mark);
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--world-color, var(--c-text-faint));
-}
-
-/* The world codes: the sidebar's marks, each opening its world. */
-.home-codes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-}
-.home-code {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 38px;
-    height: 34px;
-    padding: 0 8px;
-    border-radius: 9px;
-    font-family: var(--font-mark);
-    font-size: 0.9375rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--world-color, var(--c-text-faint));
-}
-.home-code svg {
-    width: 18px;
-    height: 18px;
-}
-.home-code:hover {
-    background: var(--c-panel-hover);
-}
-
-/* ---- Atlas: every page by world, as an index in columns with hairlines between them. ---- */
-.home-atlas {
-    column-count: 4;
-    column-gap: 0;
-    column-rule: 1px solid var(--c-hairline);
-    padding: 4px 0 0;
-}
-.home-atlas__world {
-    break-inside: avoid;
-    padding: 4px 8px 14px;
-}
-.home-atlas__head {
-    display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     gap: 10px;
     width: 100%;
-    padding: 7px 10px;
+    padding: 7px 10px 8px;
     border-radius: 10px;
+    text-align: left;
 }
-.home-atlas__code {
+.home-world__code {
     flex: none;
+    min-width: 26px;
     font-family: var(--font-mark);
-    font-size: 1.625rem;
+    font-size: 0.9375rem;
     font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.01em;
-    color: var(--world-color, var(--c-text-muted));
+    line-height: 1.375rem;
+    color: var(--world-color, var(--c-text-faint));
 }
-.home-atlas__code svg {
-    width: 22px;
-    height: 22px;
-    vertical-align: -2px;
+.home-world__code svg {
+    width: 18px;
+    height: 18px;
+    vertical-align: -3px;
 }
-.home-atlas__name {
+.home-world__words {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
     min-width: 0;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    line-height: 1.25;
-    color: var(--c-text-muted);
 }
-.home-atlas__head:hover {
-    background: var(--c-panel-hover);
-}
-.home-atlas__head:hover .home-atlas__name {
+.home-world__label {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.375rem;
     color: var(--c-text-main);
 }
-.home-atlas__system {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 26px;
-    padding: 0 10px;
-    border-radius: 8px;
-    font-size: 0.875rem;
+.home-world__name {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--c-text-faint);
+}
+.home-world.is-unmoved .home-world__label {
+    color: var(--c-text-muted);
+}
+
+/* The systems line up in columns, each a cell the size of what it opens, so they read as places, not loose words. */
+.home-world__systems {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.75rem, 1fr));
+    gap: 4px;
+}
+.home-world__system {
+    height: 36px;
+    padding: 0 11px;
+    overflow: hidden;
+    border-radius: 9px;
+    background: var(--c-white-02);
+    font-size: 0.9375rem;
     font-weight: 500;
     color: var(--c-text-body);
-}
-.home-atlas__system > span:last-child {
-    min-width: 0;
-    overflow: hidden;
+    text-align: left;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
-.home-atlas__mark {
-    display: flex;
-    flex: none;
-    color: var(--c-text-faint);
-    transition: color 160ms var(--ease-soft);
-}
-.home-atlas__mark svg {
-    width: 16px;
-    height: 16px;
-}
-.home-atlas__system:hover {
+.home-world__title:hover {
     background: var(--c-panel-hover);
-    color: var(--c-text-main);
 }
-.home-atlas__system:hover .home-atlas__mark {
-    color: var(--world-color, var(--c-accent));
-}
-.home-atlas__apart {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding: 6px 8px;
-    border-top: 1px solid var(--c-hairline);
-}
-.home-atlas__apart .home-atlas__head {
-    flex: none;
-    width: auto;
-    align-items: center;
-}
-.home-atlas__line {
-    display: flex;
-    flex-wrap: wrap;
-    min-width: 0;
-}
-.home-atlas__line .home-atlas__system {
-    width: auto;
-    padding: 0 8px;
-    font-size: 0.8125rem;
-    color: var(--c-text-muted);
-}
-.home-atlas__none {
-    margin: 0;
-    padding: 2px 10px;
-    font-size: 0.8125rem;
-    color: var(--c-text-faint);
-}
-
-/* ---- Today: the line under the title says how things are; the group lists what happened lately. ---- */
-.home-status {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 20px;
-}
-.home-status__part {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-.home-status__part:empty {
-    display: none;
-}
-.home-status .status-dot {
-    width: 7px;
-    height: 7px;
-}
-.home-status .status-dot.is-online {
-    background: var(--c-accent);
-}
-.home-today__section + .home-today__section {
-    border-top: 1px solid var(--c-hairline);
-}
-.home-today__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 44px;
-    padding: 6px 10px 0 16px;
-}
-.home-today__title {
-    font-family: var(--font-display);
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--c-text-main);
-}
-.home-today__link {
-    height: 28px;
-    padding: 0 10px;
-    border-radius: 999px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--c-text-muted);
-}
-.home-today__link:hover {
+.home-world__system:hover {
     background: var(--c-white-05);
     color: var(--c-text-main);
 }
-.home-today__quiet {
-    margin: 0;
-    padding: 2px 16px 16px 48px;
-    font-size: 0.875rem;
-    color: var(--c-text-faint);
-}
-.home-rows {
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 8px;
-}
-.home-change__time {
-    flex: none;
-    width: 20px;
-    margin-right: 14px;
-    font-size: 0.8125rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--c-text-faint);
-}
-.home-change__count {
-    flex: none;
-    margin-left: auto;
-    font-size: 0.8125rem;
-    color: var(--c-text-muted);
-}
-.home-status__part {
-    white-space: nowrap;
-}
-.home-jump {
-    margin: -4px 0 12px -8px;
-}
-/* The group ends with what it lists; it scrolls only when that is taller than the window. */
-.viewport .home-frame .home-today {
-    flex: 0 1 auto;
-    align-self: start;
-    max-height: 100%;
-}
-
-/* ---- Search: the top bar is the page; under it the pages opened lately and the worlds, large. ---- */
-body.home-hero .viewport .menu-top {
-    padding-top: clamp(40px, 22vh, 220px);
-    padding-bottom: 30px;
-}
-body.home-hero .viewport .menu-search-input {
-    height: 60px;
-    padding-left: 56px !important;
-    border-radius: 16px;
-    font-size: 1.125rem;
-}
-body.home-hero .viewport .menu-bar .search-icon {
-    left: 22px;
-}
-body.home-hero .viewport .menu-bar .search-icon svg {
-    width: 20px;
-    height: 20px;
-}
-body.home-hero .viewport .menu-bar__kbd {
-    right: 16px;
-}
-.home-launch {
-    display: flex;
-    flex-direction: column;
-    gap: 34px;
-    min-width: 0;
-}
-.home-launch__recent {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-height: 34px;
-}
-.home-launch__label {
-    flex: none;
-    width: 4.5rem;
-    padding-left: 4px;
-    font-family: var(--font-display);
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--c-text-faint);
-}
-.home-launch__pages {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    min-width: 0;
-}
-.home-launch__page {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 34px;
-    padding: 0 12px 0 9px;
-    border-radius: 10px;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--c-text-body);
-}
-.home-launch__page:hover {
-    background: var(--c-panel-hover);
-    color: var(--c-text-main);
-}
-.home-launch__page .home-row__mark {
-    width: auto;
-}
-.home-launch__none {
-    font-size: 0.875rem;
-    color: var(--c-text-faint);
-}
-/* The worlds as one joined strip, a cell each, hairlines between them, like a tray's joined tools. */
-.home-codes.is-large {
-    flex-wrap: nowrap;
-    gap: 0;
-    overflow: hidden;
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius-group);
-    background: var(--c-void-soft);
-}
-.home-codes.is-large .home-code {
-    flex: 1 1 0;
-    min-width: 0;
-    height: 76px;
-    padding: 0;
-    border-radius: 0;
-    font-size: 1.625rem;
-}
-.home-codes.is-large .home-code + .home-code {
-    border-left: 1px solid var(--c-hairline);
-}
-.home-codes.is-large .home-code svg {
-    width: 26px;
-    height: 26px;
-}
-.home-launch__named {
-    min-height: 1.4em;
-    margin: 12px 0 0;
-    padding-left: 4px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--c-text-muted);
-}
-
-/* The concept switch, only on Home, at the window's foot. */
-.home-concept {
-    position: fixed;
-    right: 20px;
-    bottom: 16px;
-    z-index: 1400;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 5px 5px 5px 14px;
-    border: 1px solid var(--c-border);
-    border-radius: 12px;
-    background: var(--c-sidebar-bg);
-}
-.home-concept[hidden] {
-    display: none;
-}
-.home-concept__label {
-    font-family: var(--font-display);
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--c-text-faint);
-}
-.home-concept .step-picker {
-    height: 30px;
-    border-radius: 8px;
-}
-.home-concept .step-picker__step {
-    padding: 0 12px;
-    font-size: 0.8125rem;
+.home-world__title:active,
+.home-world__system:active {
+    transform: scale(0.97);
 }
 
 @media (max-width: 760px) {
-    .home-atlas {
-        column-count: 2;
+    .home-world {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 6px;
+        padding: 10px 8px 12px;
     }
-    .home-atlas__world {
-        padding: 4px 4px 14px;
+    .home-world__title {
+        align-items: center;
     }
-    .home-atlas__head {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-    .home-concept__label {
-        display: none;
-    }
-    .home-concept {
-        padding-left: 5px;
-    }
-    .home-row {
-        padding: 0 12px;
-    }
-    .home-change .home-row__note {
-        display: none;
-    }
-    body.home-hero .viewport .menu-top {
-        padding-top: 28px;
-        padding-bottom: 20px;
-    }
-    body.home-hero .viewport .menu-search-input {
-        height: 52px;
-        font-size: 1rem;
-    }
-    .home-launch__recent {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-    .home-codes.is-large {
-        flex-wrap: wrap;
-    }
-    .home-codes.is-large .home-code {
-        flex: 1 1 20%;
-        height: 60px;
-        font-size: 1.375rem;
-        border-bottom: 1px solid var(--c-hairline);
-    }
-    .home-codes.is-large .home-code:nth-child(5n + 1) {
-        border-left: 0;
-    }
-    .home-concept {
-        right: 10px;
-        bottom: 10px;
+    .home-world__words {
+        flex-direction: row;
+        align-items: baseline;
         gap: 8px;
-        padding-left: 10px;
+    }
+    .home-world__systems {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
