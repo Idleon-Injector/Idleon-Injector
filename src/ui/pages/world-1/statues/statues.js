@@ -277,7 +277,7 @@ const StatuesTab = () => {
     // Statue Flair is unlocked in the game by one value; off keeps the saved Flair levels and their bonuses.
     const flairSwitch = StateSwitch({
         checked: flairUnlocked,
-        words: ["", ""],
+        words: ["Unlocked", "Locked"],
         name: "Statue Flair unlocked",
         ownStatus: true,
         disabled: () => loading.val,

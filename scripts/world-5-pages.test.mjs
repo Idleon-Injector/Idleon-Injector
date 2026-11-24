@@ -96,10 +96,15 @@ const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on
 const trayLine = (root) => text(byClass(root, "tabbed-list__tools-label")[0]);
 const yes = (root) => click(byClass(root, "tabbed-list__yes")[0]);
 const radio = (root, label) => elements(root).find((node) => node.attributes.role === "radio" && text(node) === label);
-const openTab = (root, label) =>
-    elements(root)
-        .find((node) => node.attributes.role === "tab" && text(node).trim().startsWith(label))
-        .listeners.click({});
+// A tab, or a part in a page's pick (Caverns): both open by a click.
+const partNamed = (root, label) =>
+    elements(root).find(
+        (node) => ["tab", "option"].includes(node.attributes.role) && text(node).trim().startsWith(label)
+    );
+const openTab = (root, label) => {
+    const part = partNamed(root, label);
+    (part.listeners.click ?? part.onclick)({});
+};
 
 const stateOf = (row) => /save-state--(\w+)/.exec(classes(byClass(row, "save-state")[0]))?.[1] ?? null;
 const settled = (row) => until(() => ["success", "error"].includes(stateOf(row)), "the save to finish");
@@ -369,7 +374,8 @@ test("Palette: a colour's level saves on Enter", async () => {
 
 // A tab's pane: the rows of one cavern or villager screen (two tabs can hold a row of the same name).
 const paneOf = (root, label) => {
-    const tab = elements(root).find((node) => node.attributes.role === "tab" && text(node).trim().startsWith(label));
+    const tab = partNamed(root, label);
+    if (tab.attributes.role === "option") return elements(root).find((node) => node.attributes["aria-label"] === label);
     return elements(root).find((node) => node.attributes.id === tab.attributes["aria-controls"]);
 };
 const openPane = async (file, label) => {
@@ -420,12 +426,13 @@ test("Villagers › Engineer: Unlock all waits for a switch's save, never writin
     await until(() => gga.Holes[13].every((built) => built === 1), "every schematic unlocked");
 });
 
-test("Caverns: a tab per cavern in the game's order, and Fountain's parts are groups in its list, not tabs", async () => {
+test("Caverns: one Cavern pick in the game's order, and Fountain's parts are groups in its list, not tabs", async () => {
     const root = await openPage(CAVERNS);
-    const tabs = elements(root)
-        .filter((node) => node.attributes.role === "tab")
+    assert.equal(elements(root).filter((node) => node.attributes.role === "tab").length, 0, "no tabs");
+    const caverns = elements(root)
+        .filter((node) => node.attributes.role === "option")
         .map((node) => text(node).trim());
-    assert.deepEqual(tabs, [
+    assert.deepEqual(caverns, [
         "The Well",
         "Motherlode",
         "The Den",
@@ -446,8 +453,8 @@ test("Caverns: a tab per cavern in the game's order, and Fountain's parts are gr
         "The Cove",
     ]);
     openTab(root, "Fountain");
+    await until(() => text(byClass(root, "pick-in-place__opener")[0]).includes("Fountain"), "the pick on Fountain");
     const pane = paneOf(root, "Fountain");
-    assert.equal(elements(pane).filter((node) => node.attributes.role === "tab").length, 0, "no tabs in a tab");
     assert.deepEqual(byClass(pane, "account-section__title").map(text), [
         "Coins",
         "Lucky coins",
