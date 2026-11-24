@@ -4,7 +4,7 @@ import { formattedStep } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "./EditableNumberRow.js";
 import { joinClasses, largeFormatter, largeParser, resolveNumberInput, writeVerified } from "./accountShared.js";
 
-const { span } = van.tags;
+const { div, span } = van.tags;
 
 /**
  * Shared EditableNumberRow adapter for clicker-style OptionsListAccount fields.
@@ -23,8 +23,14 @@ export const ClickerRow = ({ field, fieldState, onWrite, warnBadgeClass, rowClas
             });
         },
         renderInfo: () => [
-            span({ class: "account-row__name" }, field.label),
-            field.description ? span({ class: "account-row__sub-label" }, field.description) : null,
+            // A description sits under the name, as SimpleNumberRow's sub-label.
+            field.description
+                ? div(
+                      { class: "account-row__name-group" },
+                      span({ class: "account-row__name" }, field.label),
+                      span({ class: "account-row__sub-label" }, field.description)
+                  )
+                : span({ class: "account-row__name" }, field.label),
             field.warn ? span({ class: warnBadgeClass }, Icons.Warning(), ` ${field.warn}`) : null,
         ],
         rowClass: () => joinClasses(field.warn ? "has-warning" : "", rowClass),

@@ -200,7 +200,13 @@ test("Artifacts: Max all brings every tier to Verisimilitude, one above it too; 
 
 test("Garden: a plant's Log Book count saves its letter and keeps a plant found in game since", async () => {
     const { root } = await openPane(GAMING, "Garden");
-    const row = rowNamed(root, "Plant 7");
+    const row = rowNamed(root, "Evergreen");
+    assert.equal(
+        text(byClass(row, "account-row__sub-label")[0]),
+        "Plant 7",
+        "the wiki's name, the Log Book's number under it"
+    );
+    assert.ok(rowNamed(root, "Plant 10"), "the plant the wiki names none of keeps its number");
     gga.Gaming[11] = "ajjhhe";
     typeAndEnter(row, byTag(row, "input")[0], 4);
     await settled(row);
@@ -212,8 +218,8 @@ test("Rat King: a crown's switch keeps a crown reclaimed in game since; Clear al
     const before = [...gga.Research[11]];
     t.after(() => (gga.Research[11] = before));
     const { root, pane } = await openPane(GAMING, "Rat King");
-    // The Garden's Log Book has a "Plant 5" too: this one is the Rat King's.
-    const plant = rowNamed(pane, "Plant 5");
+    // The Garden's Log Book has a "Voraci" too: this one is the Rat King's.
+    const plant = rowNamed(pane, "Voraci");
     click(byClass(plant, "row-opener")[0]);
     gga.Research[11] = [...gga.Research[11], "9i"];
     flip(rowNamed(plant, "Base form"), true);
@@ -235,7 +241,7 @@ test("Rat King: Reclaim all reclaims only the plants the search shows", async (t
     });
     gga.Research[11] = [];
     const { root, pane } = await openPane(GAMING, "Rat King");
-    searchHits.val = new Set([rowNamed(pane, "Plant 2")]);
+    searchHits.val = new Set([rowNamed(pane, "Bonsai")]);
     await until(() => trayLine(root) === "0 of 10 crowns reclaimed", "the count of the shown plant");
     click(buttonNamed(root, "Reclaim all"));
     await until(() => gga.Research[11].length > 0, "the crowns to save");
@@ -260,7 +266,7 @@ test("Rat King: a plant's All switch says Saving and Saved", async (t) => {
     t.after(() => (gga.Research[11] = before));
     gga.Research[11] = [];
     const { pane } = await openPane(GAMING, "Rat King");
-    const plant = rowNamed(pane, "Plant 3");
+    const plant = rowNamed(pane, "Cactus");
     // The row's first switch is its All switch (the crowns' own come after, in the closed detail).
     const said = () => text(byClass(byClass(plant, "state-switch")[0], "account-write-feedback")[0]);
     flip(plant, true);
@@ -273,8 +279,8 @@ test("Garden: two plants' Log Book counts saved together both land (one string)"
     t.after(() => (gga.Gaming[11] = before));
     gga.Gaming[11] = "ajjhhe";
     const { root } = await openPane(GAMING, "Garden");
-    const seven = rowNamed(root, "Plant 7");
-    const eight = rowNamed(root, "Plant 8");
+    const seven = rowNamed(root, "Evergreen");
+    const eight = rowNamed(root, "Chemical");
     const release = holdWrites();
     try {
         typeAndEnter(seven, byTag(seven, "input")[0], 4);
