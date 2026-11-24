@@ -766,19 +766,28 @@ test("stamps: a switch's old failure goes once a refresh shows the game holds so
     }
 });
 
-test("stamps: a refused Undo of a switch flip is said once, and the next save's ✓ follows it", async () => {
+test("stamps: a switch flip offers no Undo (#81); a refused Undo is said once, and the next save's ✓ follows it", async () => {
     try {
         const { row, levels, before } = await openStampA1();
-        await flip(row, true);
         const undoButton = byClass(row, "save-state__undo")[0];
-        await until(() => exalted() && undoButton.attributes.hidden === false, "the flip's Undo");
-        cleanups.push(refuseWrites(game.gga.Compass, 4));
+        // The flip's save is tagged as the switch's ("switch"), so it offers none: flipping again undoes it.
+        await flip(row, true);
+        await until(exalted, "the flip");
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        assert.notEqual(undoButton.attributes.hidden, false, "no Undo after a switch");
+
+        let field = typeLevel(row, before + 1);
+        row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
+        await until(() => levels[0] === before + 1 && undoButton.attributes.hidden === false, "the level's Undo");
+        const allowWrites = refuseWrites(levels, 0);
+        cleanups.push(allowWrites);
         await undoButton.listeners.click();
         await until(() => !["", "saving…", "saved"].includes(saveWordsOf(row)), "the refusal");
+        allowWrites();
 
-        const field = typeLevel(row, before + 1);
+        field = typeLevel(row, before + 2);
         row.listeners.keydown({ key: "Enter", target: field, preventDefault() {} });
-        await until(() => levels[0] === before + 1, "the level to save");
+        await until(() => levels[0] === before + 2, "the level to save");
         await until(() => saveWordsOf(row) === "saved", "the level's ✓");
     } finally {
         await runCleanups();

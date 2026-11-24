@@ -1,12 +1,13 @@
 /**
  * "↶ Undo all" beside the control that made a bulk change (MAX ALL, RESET ALL, SET ALL, a page's own button):
- * one action, many values, one undo. It lies over the space beside that control, out of the layout, so nothing
- * moves; it stays for UNDO_MS (longer while the pointer or focus is on it), then goes. Undoing shows "saving…",
- * then confirms in place (an accent wash and ✓); a refusal says why there and pulses twice.
+ * one action, many values, one undo. A switch or a step picker gets none: flipping or picking again undoes it (#81).
+ * It lies over the space beside that control, out of the layout, so nothing moves; it stays for UNDO_MS (longer
+ * while the pointer or focus is on it), then goes. Undoing shows "saving…", then confirms in place (an accent wash
+ * and ✓); a refusal says why there and pulses twice.
  */
 import van from "../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../assets/icons.js";
-import { lastBulkAction } from "../../../services/changeLog.js";
+import { lastBulkAction, undoesItself } from "../../../services/changeLog.js";
 import { UNDO_MS } from "./autoSave.js";
 import { undoAction } from "./undo.js";
 
@@ -51,20 +52,6 @@ export const place = (node, anchor) => {
     if (!node.offsetParent) return false;
     const natural = node.offsetWidth;
     const container = node.offsetParent.clientWidth;
-    // A switch: the offer lies over the switch's words (Owned, Locked), on the surface they sit on.
-    const words = anchor.querySelector?.(".state-switch__words");
-    if (words) {
-        const parent = node.offsetParent;
-        const base = parent.getBoundingClientRect();
-        const box = words.getBoundingClientRect();
-        const width = Math.max(natural, box.width);
-        node.style.setProperty("--undo-all-bg", surfaceOf(words));
-        node.style.top = `${box.top - base.top - parent.clientTop + parent.scrollTop + box.height / 2}px`;
-        node.style.left = `${box.right - base.left - parent.clientLeft + parent.scrollLeft - width}px`;
-        node.style.width = `${width}px`;
-        node.style.height = `${box.height}px`;
-        return true;
-    }
     // A line of tools that asks for it (data-undo-at-end, a tabbed list's tools) keeps its controls whole: the offer
     // sits at a line's free right end. First the anchor's line; on a phone, where the tools wrap and that line is full
     // (#241), the line above the tools (the tray's words), then any other line of tools.
@@ -208,7 +195,7 @@ const offer = (action, anchor) => {
 van.derive(() => {
     const action = lastBulkAction.val?.action;
     const anchor = action?.anchor;
-    if (!anchor || !anchor.isConnected || !anchor.parentElement) return;
+    if (!anchor || !anchor.isConnected || !anchor.parentElement || undoesItself(anchor)) return;
     // An action made by a click or key logs as its writes land: the newest count replaces the offer.
     if (shown) {
         clearTimeout(shown.timer);

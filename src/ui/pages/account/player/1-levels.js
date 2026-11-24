@@ -46,7 +46,7 @@ const PlayerTab = () => {
         },
         info: () =>
             selected.val === current.val
-                ? "ACTIVE CHARACTER"
+                ? ""
                 : "SAVED CHARACTER. Open this character in-game before closing to save level edits.",
     });
 

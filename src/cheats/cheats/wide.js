@@ -23,7 +23,8 @@ defineCheat({
     name: "wide",
     category: "Costs & limits",
     message: "all account-wide cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "storagecap", message: "uncapped storage stacks; pauses Atom Collider conversion" },
         { name: "gembuylimit", message: "set max gem item purchases", configurable: true },

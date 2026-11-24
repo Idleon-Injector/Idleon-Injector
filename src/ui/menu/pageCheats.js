@@ -17,6 +17,7 @@ export const PAGE_CHEATS = {
         { cheat: "wide eventspins", label: "Unlimited event spins" },
     ],
     "account:Task Board": [{ cheat: "wide task", label: "Free tasks" }],
+    "account:Bundles": [{ cheat: "buy", label: "Buy a gem shop pack" }],
     "account:Clickers": [
         { cheat: "w1 owl", label: "Orion boosts", tab: "Orion" },
         { cheat: "w2 roo", label: "Poppy boosts", tab: "Poppy" },
@@ -29,6 +30,7 @@ export const PAGE_CHEATS = {
     "classes:Tesseract": [{ cheat: "w6 arcane", label: "Arcane Cultist boosts" }],
 
     "1:Stamps": [{ cheat: "w1 stampcost", label: "Cheaper stamp upgrades" }],
+    "1:Star Signs": [{ cheat: "wide star", label: "Star signs need no star points" }],
     "1:Anvil": [
         { cheat: "w1 anvil", label: "Free, faster anvil" },
         { cheat: "w1 smith", label: "Free smithing" },
@@ -99,7 +101,7 @@ export const PAGE_CHEATS = {
         { cheat: "w4 labpx", label: "Longer lab connections" },
         { cheat: "w4 mainframe", label: "Mainframe boosts" },
         { cheat: "w4 chipbonuses", label: "Chip boosts", tab: "Chips" },
-        { cheat: "w4 chips", label: "Add lab chips", tab: "Chips", hint: "chip amount" },
+        { cheat: "w4 chips", label: "Add lab chips", tab: "Chips" },
     ],
     "4:Cooking": [
         { cheat: "w4 mealspeed", label: "Faster cooking", tab: "Tables" },
@@ -127,7 +129,7 @@ export const PAGE_CHEATS = {
         { cheat: "w5 lantern", label: "No daily lantern limit", tab: "Caverns" },
         { cheat: "w5 lanternreset", label: "Reset today's lantern uses", tab: "Caverns" },
         { cheat: "w5 skillcaverns", label: "No daily cavern node limit", tab: "Caverns" },
-        { cheat: "w5 jargems", label: "Add jar gems", tab: "Caverns", hint: "gem amount" },
+        { cheat: "w5 jargems", label: "Add jar gems", tab: "Caverns" },
     ],
 
     "6:Farming": [{ cheat: "w6 farming", label: "Farming boosts" }],
@@ -139,7 +141,7 @@ export const PAGE_CHEATS = {
     "6:Summoning": [
         { cheat: "w6 summoning", label: "Summoning boosts" },
         { cheat: "w6 endless", label: "Easy endless runs" },
-        { cheat: "w6 sumunit", label: "Always the same unit", hint: "unit" },
+        { cheat: "w6 sumunit", label: "Always the same unit" },
     ],
     "6:Emperor": [{ cheat: "w6 emperor", label: "Unlimited emperor tries" }],
 
@@ -169,11 +171,10 @@ export const PAGE_CHEATS = {
 
 /**
  * Cheats a page runs itself (its own switch, button or picker), so they leave the Cheats area with no panel row:
- * the automation pages, Bundles' buy, the Attire Rack and Wardrobe, the Pets companions and the Sushi tools.
+ * the automation pages, the Attire Rack and Wardrobe, the Pets companions and the Sushi tools.
  */
 export const PAGE_RUNS = {
     automation: "Automation",
-    buy: "Bundles",
     "wide attire": "Attire Rack",
     "wide attirestats": "Attire Rack",
     "wide wardrobestats": "Wardrobe",
@@ -207,10 +208,3 @@ export const cheatsOfPage = (page) =>
 
 /** Old command names that still run (the game side maps them in runCheat): search finds a cheat by them too. */
 export const OLD_NAMES = { "w5 collider": "w3 collider" };
-
-/** A startup list with old names put as the new ones, so a pin reads what runs at start. */
-export const withNewNames = (list) =>
-    list.map((command) => {
-        const old = Object.keys(OLD_NAMES).find((name) => command === name || command.startsWith(`${name} `));
-        return old ? OLD_NAMES[old] + command.slice(old.length) : command;
-    });

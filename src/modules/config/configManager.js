@@ -18,7 +18,9 @@ const {
 const { existsSync, promises: fs } = require("fs");
 const { getRuntimePath } = require("../utils/runtimePaths");
 const os = require("os");
+const { isDeepStrictEqual } = require("util");
 const { createLogger } = require("../utils/logger");
+const removedGroups = require("./removedGroups");
 
 const log = createLogger("Config");
 
@@ -29,6 +31,9 @@ let startupCheats = null;
 let cheatConfig = null;
 // config.custom.js exists but couldn't be loaded; the next save keeps it under another name.
 let customConfigBroken = false;
+// cheatConfig.automation as the config file gives it (over the defaults): as loaded, then as each save wrote it.
+let savedAutomation = null;
+const plain = (value) => JSON.parse(JSON.stringify(value ?? null));
 
 const CDP_PORT = 32123;
 const WEB_PORT = 8080;
@@ -69,6 +74,21 @@ function migrateColliderRename(cheats) {
     cheats.w3 = { ...cheats.w3, collider: { ...cheats.w5.collider, ...cheats.w3?.collider } };
     delete cheats.w5.collider;
 }
+
+/**
+ * The family switches (w1-w7, wide, godlike, unlock, upstones) are gone (#23): a startup list that holds one gets the
+ * cheats it turned on in its place, each once. Returns the new list, or null when there was nothing to replace.
+ */
+function expandRemovedGroups(list) {
+    if (!list.some((command) => command in removedGroups)) return null;
+    return [...new Set(list.flatMap((command) => removedGroups[command] ?? [command]))];
+}
+
+/**
+ * The save that wrote a startup list without its family switches, while it runs (null when the load had none); tests
+ * wait for it.
+ */
+let startupMigration = null;
 
 /**
  * Load and merge configuration from base config and custom config files
@@ -125,11 +145,23 @@ function loadConfiguration() {
             log.debug("Loaded custom config overrides");
         }
 
+        const expanded = expandRemovedGroups(config.startupCheats);
+        if (expanded) config.startupCheats = expanded;
+
         injectorConfig = config.injectorConfig;
         startupCheats = config.startupCheats;
         cheatConfig = config.cheatConfig;
         migrateAutomationShape(cheatConfig.automation);
         migrateAutomationPriority(cheatConfig);
+        savedAutomation = plain(cheatConfig.automation ?? {});
+
+        // Once: the file gets the new list, so the next start reads it as it is.
+        startupMigration =
+            expanded && !customConfigBroken
+                ? saveConfiguration({ startupCheats: [...startupCheats] })
+                      .then(() => log.info("Startup cheats: the family switches were replaced by their cheats"))
+                      .catch((error) => log.error(`Couldn't save the new startup cheats: ${error.message}`))
+                : null;
 
         return config;
     } catch (error) {
@@ -305,6 +337,7 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
     }
     await fs.rename(tempPath, savePath);
     customConfigBroken = false;
+    savedAutomation = plain(mergedCheatConfig.automation ?? {});
     log.info(`Configuration saved to ${savePath}`);
 
     // Only a list the save sent replaces it: without one, uiStartupCheats is this same array, which clearing would empty.
@@ -322,6 +355,20 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
         return { gameApplied: false, contextLost: true };
     });
     return { brokenFileKeptAs, game };
+}
+
+/**
+ * The keys of `cheatConfig.automation` (the session, which follows the game) whose value the config file doesn't
+ * hold: a change the game took while the file save after it failed. Any save that works writes them all.
+ * @param {Object} cheatConfig - The injector's live cheat config
+ * @returns {string[]}
+ */
+function unsavedAutomation(cheatConfig) {
+    if (!savedAutomation) return []; // no file loaded (the fake game's server)
+    const automation = cheatConfig.automation ?? {};
+    return Object.keys(automation).filter(
+        (key) => !isDeepStrictEqual(plain(automation[key]), savedAutomation[key] ?? null)
+    );
 }
 
 /**
@@ -412,6 +459,7 @@ module.exports = {
     updateSessionConfiguration,
     pullGameConfig,
     saveConfiguration,
+    unsavedAutomation,
     getInjectorConfig,
     getStartupCheats,
     getCheatConfig,
@@ -420,4 +468,6 @@ module.exports = {
     getWebPort,
     isLinux,
     getLinuxTimeout,
+    expandRemovedGroups,
+    startupMigrationDone: () => startupMigration,
 };

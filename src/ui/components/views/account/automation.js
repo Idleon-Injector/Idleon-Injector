@@ -22,7 +22,7 @@
  *   PickRow({ picks, id, name, badge })                      // an item: stop-at (Enter or leaving it) and switch
  *   AutomationRow({ entry: automation, onSwitched: load })   // the system's own switch and status line
  *   const load = () => run(() => inTurn(async () => {        // a page's read is a step too (run: useAccountLoad)
- *       const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);   // direct reads only
+ *       const [list, config] = await Promise.all([readAutomations(), readConfig()]);   // direct reads only
  *       showAutomation(automation, list.find(({ cheat }) => cheat === CHEAT) ?? null);
  *       picks.sync(config.cheatConfig.automation.sneaking);   // the accepted list; queued edits still show
  *       error.val = null;                                    // the newest read worked: an older failure goes
@@ -62,6 +62,18 @@ const { div, input, label, span } = van.tags;
 
 /** Every automation, with its status while it runs. A direct read: inside a step it gives the settled answer. */
 export const readAutomations = () => readComputed("automation", "list");
+
+// The config file lacks an automation setting the game holds: a file save failed after the game took the change. It
+// is one file, so any save that works writes it all again; the pages' reads (readConfig) and saves keep this up to date.
+const fileBehind = van.state(false);
+const FILE_BEHIND = "Not saved to the config file. Press Enter on a value to save it again.";
+
+/** Read the config, and whether the file holds every automation setting the game does (it says after a reload too). */
+export const readConfig = async () => {
+    const config = await fetchConfig();
+    fileBehind.val = config.unsavedAutomation.length > 0;
+    return config;
+};
 
 /**
  * How long a step may wait for the game before its caller is told it is still waiting (`timeoutMs`), and how often an
@@ -190,9 +202,10 @@ const toggle = async (cheat, on, entry) => {
     }
 };
 
-const switchNow = async (cheat, on, entry = null) => {
+// `startup` false (an automation that can't start at launch, its entry's `startup`): never in the startup cheats.
+const switchNow = async (cheat, on, entry = null, startup = true) => {
     await toggle(cheat, on, entry);
-    await changeStartup(cheat, on);
+    await changeStartup(cheat, on && startup);
 };
 
 const findAutomation = async (cheat) =>
@@ -225,9 +238,9 @@ export const switchAll = (on, entryOf = () => null, onLate = null) =>
     inTurn(async () => {
         const [automations, { startupCheats = [] }] = await Promise.all([readAutomations(), fetchConfig()]);
         let failure = null;
-        for (const { cheat, on: running } of automations) {
-            if (running === on && startupCheats.includes(cheat) === on) continue;
-            await switchNow(cheat, on, entryOf(cheat)).catch((error) => (failure ??= error));
+        for (const { cheat, on: running, startup } of automations) {
+            if (running === on && startupCheats.includes(cheat) === (on && startup)) continue;
+            await switchNow(cheat, on, entryOf(cheat), startup).catch((error) => (failure ??= error));
         }
         if (failure) throw failure;
     }, onLate);
@@ -264,7 +277,7 @@ export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
                     try {
                         await inTurn(() => {
                             known.why = null; // an item's save queued before this click may have set it again
-                            return switchNow(cheat, on, entry).finally(() => {
+                            return switchNow(cheat, on, entry, entry.val.startup).finally(() => {
                                 known.clicks.splice(known.clicks.indexOf(click), 1);
                                 redraw(entry);
                             });
@@ -287,11 +300,11 @@ export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
         },
     });
     const line = () => {
-        const { on, status: said, error } = entry.val;
+        const { on, status: said, error, whenOff } = entry.val;
         // Not knowing whether it runs comes first: an older tick error says nothing about that.
         if (on === null) return "Unknown: press Refresh";
         if (error) return `Last error: ${error}`;
-        if (!on) return "Off";
+        if (!on) return whenOff ? `Off. ${whenOff}` : "Off";
         // Switched on by an item's save, not its own switch: say so, so it isn't a surprise (#214).
         const { why } = switchesOf(entry);
         if (why) return said ? `On, since ${why} was switched on. ${said}` : `On, since ${why} was switched on`;
@@ -360,7 +373,6 @@ export const createAutomationPicks = (
     const items = new Map(); // id -> the states its row shows
     let accepted = new Map(); // id -> { on, stopAt }: what the game holds, as far as the page knows
     const queued = []; // [id, patch] of the edits whose step hasn't ended, oldest first
-    const fileBehind = van.state(false); // the game may hold a list the config file doesn't
     let synced = false; // a read of the list has landed: before it, a save would send a list without the saved items
 
     const get = (id) => {
@@ -452,7 +464,7 @@ export const createAutomationPicks = (
             // what the game holds; if that read fails, the accepted list stands.
             for (const edit of mine) queued.splice(queued.indexOf(edit), 1);
             const before = accepted;
-            const read = await fetchConfig().catch(() => null);
+            const read = await readConfig().catch(() => null);
             const held = read?.cheatConfig.automation[group];
             if (held) sync(held);
             // The game didn't answer the save, so it may or may not have taken it, and the game itself couldn't be
@@ -530,7 +542,6 @@ export const createAutomationPicks = (
 export const createAutomationSetting = (key, { afterSave = null } = {}) => {
     let accepted = null; // what the game holds, as far as the page knows
     const queued = []; // [index, value] of the edits whose step hasn't ended, oldest first
-    const fileBehind = van.state(false);
     let synced = false; // as for the picks: before a read, a save would overwrite what the game holds
     const fields = new Map(); // index -> { value, draft }
 
@@ -587,7 +598,7 @@ export const createAutomationSetting = (key, { afterSave = null } = {}) => {
             for (const edit of mine) queued.splice(queued.indexOf(edit), 1);
             // As for the picks: a read of the game is the truth; the server's copy took a refused edit before the
             // game did, so there a refused edit stays refused.
-            const read = await fetchConfig().catch(() => null);
+            const read = await readConfig().catch(() => null);
             if (read && (read.gameRead || accepted === next)) accepted = read.cheatConfig.automation[key] ?? accepted;
             // As for the picks: an unanswered save without a read of the game leaves the game unknown until one.
             if (failure?.unknown && !read?.gameRead) synced = false;
@@ -1055,7 +1066,13 @@ export const usePicksBulk = ({
         );
         return allTos.length ? [switches, ...allTos] : switches;
     };
-    return { tools, label, said: bulkSaid.said, busy };
+    // A bulk failure, else the file still lacking a save (after a reload too).
+    const said = {
+        get val() {
+            return bulkSaid.said.val ?? (fileBehind.val ? { kind: "failed", text: FILE_BEHIND } : null);
+        },
+    };
+    return { tools, label, said, busy };
 };
 
 /**
@@ -1156,14 +1173,14 @@ export const useAutomationTab = ({ label, cheats, read, switchColumn = null, sho
     // After a switch row's click: the automations, and the startup list it changed too (Enable all reads it).
     const readSwitches = () =>
         inTurn(async () => {
-            const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);
+            const [list, config] = await Promise.all([readAutomations(), readConfig()]);
             cheats.forEach((cheat, i) =>
                 showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null)
             );
             startup.val = config.startupCheats ?? [];
         }, waiting.onLate);
     const readTab = async (afterSave = false) => {
-        const [list, config] = await Promise.all([readAutomations(), fetchConfig()]);
+        const [list, config] = await Promise.all([readAutomations(), readConfig()]);
         cheats.forEach((cheat, i) => showAutomation(entries[i], list.find((found) => found.cheat === cheat) ?? null));
         startup.val = config.startupCheats ?? [];
         if (!switches.firstChild && entries.every((entry) => entry.val))

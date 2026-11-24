@@ -241,9 +241,9 @@ switches, picking the first option each time.
 - **Sections** are a plain heading in small muted capitals over a thin rule, with the rows straight under it. No box
   inside the page box. The heading's row can carry the section's own controls (Set all) on the right.
 - **On/off is one switch** (`StateSwitch`) with the game's own word for the state beside it: Owned / Not owned,
-  Unlocked / Locked, On / Off. It saves on flip; the row shows saving, the ✓ and Undo like any save, and the switch
-  goes back if the game refuses. The words keep one width, so the switches in a list line up. A switch is reachable
-  and flips from the keyboard; it has no glow.
+  Unlocked / Locked, On / Off. It saves on flip; the row shows saving and the ✓ like any save, with no Undo (flipping
+  again undoes it), and the switch goes back if the game refuses. The words keep one width, so the switches in a list
+  line up. A switch is reachable and flips from the keyboard; it has no glow.
 - **In the narrow overlay** a value row keeps its name and state word on the first line and puts the field and its
   buttons on the line under it.
 - **A search with no results** shows the shared empty state (`EmptyState`), and a save's error shows next to its field.
@@ -284,6 +284,9 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
 - **A tool that stops on an error says why** on the tray's first line, where a question goes, in the soft red ("Character
   changed. Refresh."), and screen readers hear it with the tool's name. It stays until that tool's next try (Lumi,
   #241).
+- **Undo shows where the old value is gone:** after a typed number, Max, and bulk actions (Set all, Max all, All to,
+  the tray's tools). Not after a switch or a step pick: flipping or picking again undoes them. History keeps every
+  change with its Undo (Lumi, #81).
 - **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
   tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
   tools; only with no room anywhere does it take its old place.
@@ -443,8 +446,8 @@ World 5 uses the same pieces; two shared pages moved onto them:
   the sidebar (Lumi: "gaming needs subtabs instead of the submenus"). A tab keeps what its page had, its tools show on
   it only, and search finds each tab by its old name and words (`tabs` in `definePage`) and opens the page on it. A
   tab's own parts (Superbits' boards) are groups in its list. The Hole is two pages, like the game's village on top and caverns below:
-  Villagers (tabs Villagers, Opals, Engineer, Conjuror, Measurer, Librarian) and Caverns (a tab per cavern, in the
-  game's order). A cavern with parts of its own (Fountain) shows them as groups in its list, never tabs in a tab.
+  Villagers (tabs Villagers, Opals, Engineer, Conjuror, Measurer, Librarian) and Caverns (one "Cavern" pick, its 18
+  caverns in the game's order; Lumi, #28). A cavern with parts of its own (Fountain) shows them as groups in its list, never tabs in a tab.
 - **The Slab holds the Greenstacks** as its second tab (the game shows them on the Slab); each tab keeps its list, its
   "Missing only" filter and its tools. A captain's opened row can remove it, asking in place first; it does what the
   game's discard does and, like the game, refuses a captain on a boat or the last one.
@@ -455,8 +458,11 @@ World 5 uses the same pieces; two shared pages moved onto them:
 - **A pick in a table gets its own column** (`ValueTableRow`'s `steps` field): Palette is a table, a colour's Level and
   Black Stars under their heads, so nothing in a line moves with its neighbour's width (Lumi: "it looks off, not
   aligned"). A number beside a control (the Rat King's "3 / 10") keeps one width for the same reason.
-- **Many tabs wrap** (`TabbedList`'s `wrap`, Caverns' 18): the rows of tabs fill the panel's width. The open tab runs
-  down into the list from the last row; on a row above, it is a block rounded all round.
+- **Many tabs wrap** (`TabbedList`'s `wrap`, Death Note's eight on a phone): the rows of tabs fill the panel's width. The
+  open tab runs down into the list from the last row; on a row above, it is a block rounded all round.
+- **Far more parts than tabs hold** (Caverns' 18) are one pick instead (`TabbedList`'s `pick`): "Cavern [The Well]",
+  the caverns opening over the page like a character's names. While the top bar searches the page, each cavern in the
+  list and the pick itself say how many of its rows match ("Fountain · 12 matching").
 - **A limited gem shop buy sits on its system's page** in a quiet "Gem shop" group: Davey Jones Training on Boats,
   Rupie Slugs on The Jars, both found by "gem shop", "limited" and "fomo".
 

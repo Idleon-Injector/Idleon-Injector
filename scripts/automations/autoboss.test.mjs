@@ -83,20 +83,3 @@ test("turning it off, leaving the map, or a map without a boss cancels the reloa
     assert.deepEqual(reloads.slice(start), [`${Date.now()} 266 out 0.4 0, in 0.5 0`]);
     await cheat("wide autoboss", false);
 });
-
-test("turning on every wide cheat turns on autoboss too", async () => {
-    const start = reloads.length;
-    gga.CurrentMap = 165;
-    assert.deepEqual(await cheat("wide", true), { ok: true, message: "Activated all account-wide cheats" });
-    gga.BossHP = 1;
-    seconds(1);
-    gga.BossHP = 0;
-    seconds(6);
-    assert.equal(reloads.length, start + 1);
-    await cheat("wide", false);
-    gga.BossHP = 1;
-    seconds(1);
-    gga.BossHP = 0;
-    seconds(6);
-    assert.equal(reloads.length, start + 1);
-});

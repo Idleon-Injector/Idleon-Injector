@@ -6,6 +6,7 @@
  */
 
 import { OLD_NAMES, isPageCheat, pageRowOf } from "./pageCheats.js";
+import { VALUE_COMMANDS, valueCommandOf, valueOf } from "./valueCommands.js";
 
 /**
  * The worlds and their systems in game order, with IdleonToolbox names. A page's `system` must be one of these.
@@ -96,7 +97,7 @@ export const WORLDS = [
         id: 7,
         code: "W7",
         label: "World 7",
-        name: "Equinox Valley",
+        name: "Shimmerfin Deep",
         folder: "world-7",
         systems: [
             "Spelunking",
@@ -390,7 +391,26 @@ export const cheatSearchEntries = (cheats, descriptions, tree = null) => {
         const onPage = pageOf(value);
         const place = onPage?.place ?? `Cheats › ${categoryName(cheat.category || "general")}`;
         const message = cheat.message || "";
-        const hiddenBase = value.includes(" ") && !values.has(base);
+        // A suggestion for a command the list only has suggestions of ("drop Copper"); an on/off cheat is its own row,
+        // its group's switch or not (#23 took those away).
+        const hiddenBase = value.includes(" ") && !values.has(base) && !cheat.toggle;
+        // A value of a command that takes one from a list ("spawn rift2", "Rift Slug"), or the command itself: its one
+        // row (in the Cheats area or a page's panel), with the value put in its field (#23).
+        const valueCommand = VALUE_COMMANDS[value] ? value : valueCommandOf(value);
+        if (valueCommand) {
+            const fill = value === valueCommand ? "" : valueOf(valueCommand, cheat).name;
+            return {
+                kind: "Cheat",
+                group: groups.get(base),
+                label: fill ? `${valueCommand} · ${fill}` : valueCommand,
+                where: `Cheat · ${place}`,
+                command: value,
+                description: fill ? "" : message,
+                target: onPage
+                    ? { world: onPage.world.id, page: onPage.page.id, cheat: valueCommand, fill }
+                    : { view: "CHEATS", cheat: valueCommand, fill },
+            };
+        }
         if (onPage && !cheat.needsParam && !hiddenBase) {
             return {
                 kind: "Cheat",

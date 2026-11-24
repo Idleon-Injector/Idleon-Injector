@@ -8,7 +8,7 @@
 
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { fetchConfig, readComputed } from "../../../services/api.js";
+import { readComputed } from "../../../services/api.js";
 import { formatNumber } from "../../../utils/numberFormat.js";
 import { Said } from "../../../components/inPlace.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
@@ -26,6 +26,7 @@ import {
     createAutomationPicks,
     inTurn,
     readAutomations,
+    readConfig,
     readWhileRunning,
     showAutomation,
     usePicksBulk,
@@ -48,7 +49,7 @@ const ShopsPage = () => {
     // It reads the startup cheats too: an item switched on puts Shops in them, and Enable all asks whether it is.
     const readSwitch = () =>
         inTurn(async () => {
-            const [found, config] = await Promise.all([findShops(), fetchConfig()]);
+            const [found, config] = await Promise.all([findShops(), readConfig()]);
             showAutomation(automation, found);
             atStart.val = (config.startupCheats ?? []).includes(CHEAT);
         }, waiting.onLate);
@@ -71,7 +72,7 @@ const ShopsPage = () => {
     const read = async () => {
         const [shops, config, found] = await Promise.all([
             readComputed("automation", "shops"),
-            fetchConfig(),
+            readConfig(),
             findShops(),
         ]);
         showAutomation(automation, found);

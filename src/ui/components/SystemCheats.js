@@ -8,18 +8,20 @@
  * Built from the page's own pieces: the quiet group (`ListPanel` + the section header, like Stamps' "Gem shop"), a row
  * per cheat with its short label first and its command small under it (`RowTitles`), the one on/off switch
  * (`StateSwitch`), and a cheat's settings in the row it opens (`row-opener`, `row-detail`) as the shared value rows
- * (`EditableNumberRow`). A switch runs the cheat the way the Cheats area does (`store.executeCheat`), so it is on until
- * the injector restarts; a cheat turned on here arrives in Home's My cheats, whose Autostart keeps it on at
- * every start (concept, replacing the pin). A command (a reset, an unlock) gets a Run button instead, with a field
- * when it takes a value.
+ * (`EditableNumberRow`), an on/off setting with the same switch. A switch runs the cheat the way the Cheats area does
+ * (`store.executeCheat`), so it is on until the injector restarts; a cheat turned on here arrives in Home's My cheats,
+ * whose Autostart keeps it on at every start (concept, replacing the pin). A command (a reset, an unlock) gets a Run
+ * button instead, with a field when it takes a value.
  */
 
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart } from "../services/api.js";
 import { parseFunction, generateFunctionString, FUNCTION_TYPES } from "../utils/functionParser.js";
-import { configDescriptions } from "../config/configDescriptions.js";
+import { configDescriptions, configSwitches } from "../config/configDescriptions.js";
 import { cheatsOfPage } from "../menu/pageCheats.js";
+import { VALUE_COMMANDS } from "../menu/valueCommands.js";
+import { ValueFields } from "./ValueFields.js";
 import { whenShown } from "../menu/menuModel.js";
 import { revealFound } from "../utils/index.js";
 import { Icons } from "../assets/icons.js";
@@ -28,7 +30,7 @@ import { StateSwitch } from "./views/account/components/StateSwitch.js";
 import { EditableNumberRow } from "./views/account/EditableNumberRow.js";
 import { Said, plainReason, replay, useSaid } from "./inPlace.js";
 
-const { aside, button, datalist, div, input, option, span } = van.tags;
+const { aside, button, div, input, span } = van.tags;
 
 const { MULTIPLY, DIVIDE, FIXED, PASSTHROUGH } = FUNCTION_TYPES;
 const SIGN = { [MULTIPLY]: "×", [DIVIDE]: "÷", [FIXED]: "=" };
@@ -48,8 +50,9 @@ const settingLabel = (description) => {
 
 /**
  * A cheat's settings, from the setting descriptions: every setting under its command's path ("w3 buildspd" ->
- * cheatConfig.w3.buildspd, "w3 worshipspeed" -> cheatConfig.w3.WorshipSpeed). Each is `{ path, label, op }` when the
- * panel edits it (× ÷ =, or a plain number), or counted in `more` for the Config page (lists, words, formulas).
+ * cheatConfig.w3.buildspd, "w3 worshipspeed" -> cheatConfig.w3.WorshipSpeed). Each is `{ path, label, on }` for an
+ * on/off one (true/false, or `on` in its cheat row: the value the game checks for), `{ path, label, op }` when the
+ * panel edits its number (× ÷ =, or a plain number), or counted in `more` for the Config page (lists, words, formulas).
  * ponytail: matched by name, so a setting kept under another name than its command shows only on the Config page.
  */
 const settingsOf = (command, config) => {
@@ -61,6 +64,11 @@ const settingsOf = (command, config) => {
         if (!words.every((word, i) => path[i]?.toLowerCase() === word)) continue;
         const value = at(config, path);
         if (value === undefined) continue;
+        const on = typeof value === "boolean" ? true : configSwitches[key];
+        if (on !== undefined) {
+            settings.push({ path, label: settingLabel(description), on });
+            continue;
+        }
         const parsed = typeof value === "number" ? null : parseFunction(value);
         const lowerIsBetter = description.includes("lower is better");
         const op =
@@ -107,38 +115,50 @@ const SettingRow = (setting, valueState) =>
         rowClass: "system-cheats__setting",
     });
 
+/** Whether an on/off setting is on: true, or `(t) => on`; the game's own value (`(t) => t`) is off. */
+const settingIsOn = (setting, value) => {
+    if (setting.on === true) return value === true;
+    const parsed = parseFunction(value);
+    return parsed.type === FIXED && parsed.value === setting.on;
+};
+
+/** An on/off setting: the panel's one switch, saved to the config file on flip and read back. */
+const SettingSwitch = (setting, onState) =>
+    AccountRow({
+        rowClass: "system-cheats__setting",
+        info: span({ class: "account-row__name" }, setting.label),
+        controls: StateSwitch({
+            checked: () => onState.val,
+            words: ["On", ""],
+            name: setting.label,
+            ownStatus: true,
+            onFlip: async (next) => {
+                const value =
+                    setting.on === true ? next : generateFunctionString(next ? FIXED : PASSTHROUGH, setting.on);
+                const { config } = await saveConfigPart(() => ({ cheatConfig: nest(setting.path, value) }));
+                onState.val = settingIsOn(setting, at(config, setting.path));
+                return onState.val === next ? { ok: true } : { ok: false, error: new Error("Not saved") };
+            },
+        }),
+    });
+
 const isOn = (command) => store.getActiveCheats().includes(command);
 
 /** "toggle" for an on/off cheat, "run" for a command, "" until the cheat list has loaded. */
 const kindOf = (command) => {
+    if (VALUE_COMMANDS[command]) return "run";
     const row = store.data.cheats.find((cheat) => cheat.value === command);
     return row ? (row.toggle ? "toggle" : "run") : "";
 };
 
-/** A command's value field, with the command's own choices (chips, gems, units) from the cheat list. */
-const ValueField = (cheat) => {
-    const listId = `cheat-choices-${cheat.cheat.replace(/\W+/g, "-")}`;
-    const prefix = `${cheat.cheat} `;
-    const choices = datalist({ id: listId });
-    // The cheat list may load after the panel.
-    van.derive(() =>
-        choices.replaceChildren(
-            ...store.data.cheats
-                .filter((row) => row.value.startsWith(prefix))
-                .map((row) => option({ value: row.value.slice(prefix.length) }))
-        )
-    );
-    return {
-        field: input({
-            type: "text",
-            class: "system-cheats__value",
-            placeholder: cheat.hint,
-            "aria-label": `${cheat.label}: ${cheat.hint}`,
-            list: listId,
-        }),
-        choices,
-    };
-};
+/** A command's value field (a ribbon level, a twin's number), for a value the panel has no list of. */
+const ValueField = (cheat) =>
+    input({
+        type: "text",
+        class: "system-cheats__value",
+        placeholder: cheat.hint,
+        "aria-label": `${cheat.label}: ${cheat.hint}`,
+    });
 
 /**
  * A cheat: its label and its command, then what it takes: a switch for an on/off cheat, a Run button
@@ -155,7 +175,9 @@ const CheatRow = (cheat, { openId, config }) => {
             Said({ said, className: "system-cheats__said" })
         );
     const kind = van.derive(() => kindOf(cheat.cheat));
-    const { field, choices } = cheat.hint ? ValueField(cheat) : { field: null, choices: null };
+    // A command that takes a value from a list (a chip, a pack) suggests them; one with a plain value has a field.
+    const fields = VALUE_COMMANDS[cheat.cheat] ? ValueFields(cheat.cheat, cheat.label) : null;
+    const field = cheat.hint ? ValueField(cheat) : null;
     const value = () => field?.value.trim() ?? "";
 
     // A second press while it runs is let go: a command like "add chips" would run twice.
@@ -167,9 +189,16 @@ const CheatRow = (cheat, { openId, config }) => {
             replay(field, "refused");
             return say("refused", `Needs ${cheat.hint === "1-25" ? "a number" : `a ${cheat.hint.split(" ")[0]}`}`);
         }
+        const read = fields?.read();
+        if (read?.refuse) {
+            replay(read.field, "refused");
+            return say("refused", read.refuse);
+        }
         running = true;
         try {
-            const result = await store.executeCheat(field ? `${cheat.cheat} ${value()}` : cheat.cheat);
+            const result = await store.executeCheat(
+                read?.action ?? (field ? `${cheat.cheat} ${value()}` : cheat.cheat)
+            );
             if (!result.ok) return say("failed", plainReason(result.message));
             replay(runButton, "confirmed");
             say("done", result.message);
@@ -193,8 +222,7 @@ const CheatRow = (cheat, { openId, config }) => {
                     next && field ? `${cheat.cheat} ${value()}` : cheat.cheat,
                     next
                 );
-                if (!result.ok) return { ok: false, error: new Error(plainReason(result.message)) };
-                return { ok: true };
+                return result.ok ? { ok: true } : { ok: false, error: new Error(plainReason(result.message)) };
             },
         });
 
@@ -207,12 +235,13 @@ const CheatRow = (cheat, { openId, config }) => {
         const key = setting.path.join(".");
         if (!values.has(key)) values.set(key, van.state(""));
         const state = values.get(key);
-        state.val = String(shownNumber(at(config.val, setting.path)));
+        const stored = at(config.val, setting.path);
+        state.val = "on" in setting ? settingIsOn(setting, stored) : String(shownNumber(stored));
         return state;
     };
 
     const row = AccountRow({
-        rowClass: () => `system-cheats__row${isOpen() ? " is-open" : ""}`,
+        rowClass: () => `system-cheats__row${fields ? " system-cheats__row--value" : ""}${isOpen() ? " is-open" : ""}`,
         rowProps: { "data-cheat": cheat.cheat },
         info: () =>
             hasDetail.val
@@ -231,7 +260,7 @@ const CheatRow = (cheat, { openId, config }) => {
             div(
                 { class: "system-cheats__controls" },
                 field,
-                choices,
+                fields?.element,
                 kind.val === "toggle"
                     ? toggle()
                     : kind.val === "run"
@@ -243,7 +272,7 @@ const CheatRow = (cheat, { openId, config }) => {
         div({ class: "row-detail", hidden: () => !isOpen() }, () => {
             const { settings, more } = found();
             return div(
-                ...settings.map((setting) => SettingRow(setting, valueOf(setting))),
+                ...settings.map((setting) => ("on" in setting ? SettingSwitch : SettingRow)(setting, valueOf(setting))),
                 more
                     ? button(
                           {
@@ -278,8 +307,8 @@ export const SystemCheats = (page, content) => {
     const side = van.state(false);
     const open = van.state(false);
     const openId = van.state(null);
-    // The config: the settings' numbers, read again each time the page is shown (the Config page
-    // may have changed them). Each save reads its own back.
+    // The config: the settings' numbers, read again each time the page is shown (the Config page may have changed
+    // them). Each save reads its own back.
     const config = van.state(null);
     const loadFailed = van.state(false);
     const load = () =>
@@ -339,7 +368,7 @@ export const SystemCheats = (page, content) => {
 
     // A search hit on one of these cheats: open the list where it folds, and show the row.
     van.derive(() => {
-        const { cheat, focus, n } = store.app.cheatFocus;
+        const { cheat, focus, fill, n } = store.app.cheatFocus;
         if (!n || n === shownFocus || !cheats.some((row) => row.cheat === cheat)) return;
         shownFocus = n;
         // Once the panel is in the page (a page the hit opens places it a frame or two later): VanJS drops the bindings
@@ -348,13 +377,21 @@ export const SystemCheats = (page, content) => {
             if (!panel.isConnected) return requestAnimationFrame(show);
             open.val = true;
             const row = rows.querySelector(`[data-cheat="${CSS.escape(cheat)}"]`);
+            // A value the search found ("Copper Ore"): it waits in the row's field, to run.
+            const choice = fill && row?.querySelector(".value-fields__choice");
+            if (choice) {
+                choice.value = fill;
+                choice.dispatchEvent(new Event("input"));
+            }
             revealFound(() => row);
             // Keyboard: focus goes to what the row is for (its name that opens it, its switch, its field or Run).
             if (focus)
                 setTimeout(
                     () =>
                         row
-                            ?.querySelector(".row-opener, [role=switch], .system-cheats__value, .system-cheats__run")
+                            ?.querySelector(
+                                ".row-opener, [role=switch], .value-fields__choice, .system-cheats__value, .system-cheats__run"
+                            )
                             ?.focus(),
                     120
                 );
