@@ -1,5 +1,13 @@
 const { prepareConfigForJson } = require("../../utils/helpers");
-const { pullGameConfig, saveConfiguration, updateSessionConfiguration } = require("../../config/configManager");
+const {
+    pullGameConfig,
+    saveConfiguration,
+    updateSessionConfiguration,
+    changeConfigs,
+    listConfigs,
+    ConfigError,
+} = require("../../config/configManager");
+const { broadcastCheatStates } = require("../wsServer");
 const { createLogger } = require("../../utils/logger");
 
 const log = createLogger("API");
@@ -24,6 +32,7 @@ function setupConfigRoutes(app, gameBridge, config) {
                 cheatConfig: serializableCheatConfig,
                 injectorConfig: injectorConfig,
                 defaultConfig: serializableDefaultConfig,
+                configs: listConfigs(),
                 gameRead,
             };
             res.json(fullConfigResponse);
@@ -64,6 +73,21 @@ function setupConfigRoutes(app, gameBridge, config) {
                 error: "Internal server error while updating configuration",
                 details: apiError.message,
             });
+        }
+    });
+
+    // Configs (#198): `{ action: "use" | "saveAs" | "reset" | "remove", name }`. Answers the configs after it, and
+    // for a switch how the game took it ({ gameApplied, failed: [{ cheat, reason }] for cheats that didn't start }).
+    app.post("/api/configs", async (req, res) => {
+        const { action, name } = (await req.json()) || {};
+        if (typeof name !== "string") return res.status(400).json({ error: "Missing config name" });
+        try {
+            res.json(await changeConfigs(action, name, gameBridge));
+            if (action === "use" || action === "reset") broadcastCheatStates();
+        } catch (error) {
+            if (error instanceof ConfigError) return res.status(400).json({ error: error.message });
+            log.error("Error in /api/configs:", error);
+            res.status(500).json({ error: "Couldn't change configs", details: error.message });
         }
     });
 

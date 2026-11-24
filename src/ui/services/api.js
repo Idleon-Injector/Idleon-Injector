@@ -158,6 +158,24 @@ export async function saveConfigFile(configToSave) {
     }).finally(() => configSaves++);
 }
 
+/**
+ * Change configs (#198), in the config turn: `action` is "use", "saveAs", "reset" or "remove", with a config's name.
+ * Answers `{ configs, game }`. A switch turns the old config's cheats off and the new one's on in the game, one by one,
+ * so it gets longer than other requests.
+ */
+export const changeConfigs = (action, name) =>
+    inConfigTurn(() =>
+        _request(
+            "/configs",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, name }),
+            },
+            { timeoutMs: 30000 }
+        ).finally(() => configSaves++)
+    );
+
 let configTurn = Promise.resolve();
 /** Run `task` after every config read or save the menu asked for before it, so they run one at a time, in order. */
 export const inConfigTurn = (task) => {

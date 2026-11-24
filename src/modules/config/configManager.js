@@ -20,15 +20,31 @@ const { getRuntimePath } = require("../utils/runtimePaths");
 const os = require("os");
 const { createLogger } = require("../utils/logger");
 
+const SHIPPED = require("./shippedConfigs");
+
+// A config by name, from the object's own keys only: "constructor" is a name, not what every object has.
+const own = (configs, name) => (Object.hasOwn(configs, name) ? configs[name] : undefined);
+
 const log = createLogger("Config");
 
+// The config in use when config.custom.js names none: a fresh install's, or one saved before configs (#198).
+const FIRST_CONFIG = "My config";
+
 let config = null;
+// The config in use: its settings are the live startupCheats and cheatConfig, saved at the top of config.custom.js.
+let activeConfig = FIRST_CONFIG;
+// The other configs by name, each { startupCheats, cheatConfig } as config.custom.js keeps them (what differs from
+// config.js). A shipped config is here only once the player changed it.
+let otherConfigs = {};
 let defaultConfig = null;
 let injectorConfig = null;
 let startupCheats = null;
 let cheatConfig = null;
 // config.custom.js exists but couldn't be loaded; the next save keeps it under another name.
 let customConfigBroken = false;
+// A switched config the running game hasn't taken yet: the startup cheats the game still runs, or null. Reading the
+// game meanwhile would bring the old config's settings back.
+let gameBehind = null;
 
 const CDP_PORT = 32123;
 const WEB_PORT = 8080;
@@ -53,8 +69,8 @@ function migrateAutomationPriority(cheats) {
  * The draft builds before #104 kept each automation list as { saving, target, items }; it is now the list itself, with
  * the saving % beside it as `<key>Saving` (`kitchenSaving` for kitchens) and the bubbles target as `bubblesTarget`.
  */
-function migrateAutomationShape(automation = {}) {
-    for (const [key, value] of Object.entries(automation)) {
+function migrateAutomationShape(automation) {
+    for (const [key, value] of Object.entries(automation ?? {})) {
         if (!value || Array.isArray(value) || !Array.isArray(value.items)) continue;
         automation[key] = value.items;
         if (value.saving !== undefined)
@@ -122,11 +138,209 @@ function loadConfiguration() {
         cheatConfig = config.cheatConfig;
         migrateAutomationShape(cheatConfig.automation);
         migrateAutomationPriority(cheatConfig);
+        readConfigs(customConfig || {});
 
         return config;
     } catch (error) {
         throw new Error(`Failed to load configuration: ${error.message}`);
     }
+}
+
+const isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
+
+/**
+ * Take `activeConfig` and `configs` from config.custom.js. A file from before configs has neither, so its settings
+ * become "My config". A broken entry is left out with an error, like a wrong setting is.
+ */
+function readConfigs(customConfig) {
+    const { activeConfig: name, configs = {} } = customConfig;
+    activeConfig = FIRST_CONFIG;
+    otherConfigs = {};
+    if (typeof name === "string" && name.trim()) activeConfig = name.trim();
+    else if (name !== undefined) log.error("activeConfig must be a name, so the config in use is called My config");
+
+    if (!isPlainObject(configs)) return log.error("configs must be an object, so the other configs are not loaded");
+    for (const [key, entry] of Object.entries(configs)) {
+        const cheats = entry?.startupCheats ?? [];
+        const settings = entry?.cheatConfig ?? {};
+        if (key === activeConfig) {
+            log.error(`configs has "${key}", the config in use; its settings at the top of the file are used`);
+        } else if (!isPlainObject(entry) || !Array.isArray(cheats) || !cheats.every((c) => typeof c === "string")) {
+            log.error(`configs["${key}"] needs startupCheats as a list of cheats, so it is not loaded`);
+        } else if (!isPlainObject(settings)) {
+            log.error(`configs["${key}"].cheatConfig must be an object, so it is not loaded`);
+        } else {
+            validateConfig(defaultConfig.cheatConfig, settings, `configs["${key}"]`);
+            migrateAutomationShape(settings.automation);
+            migrateAutomationPriority(settings);
+            otherConfigs[key] = { startupCheats: cheats, cheatConfig: settings };
+        }
+    }
+}
+
+/**
+ * The config in use as config.custom.js keeps it: its cheats and what its settings change from config.js. Empty before
+ * loadConfiguration, which only the fake game (page shots) skips.
+ */
+const activeEntry = () => ({
+    startupCheats: [...(startupCheats ?? [])],
+    cheatConfig: getDeepDiff(cheatConfig, defaultConfig?.cheatConfig) || {},
+});
+
+// ponytail: compares written source, so the same settings in another key order count as changed.
+const sameConfig = (a, b) =>
+    JSON.stringify([...a.startupCheats].sort()) === JSON.stringify([...b.startupCheats].sort()) &&
+    objToString(a.cheatConfig) === objToString(b.cheatConfig);
+
+/**
+ * The configs Settings lists: the shipped ones first, then the player's own by name. `changed` is a shipped config
+ * the player edited (Reset puts it back); `cheats` is how many cheats it starts.
+ */
+function listConfigs() {
+    const entry = (name) => (name === activeConfig ? activeEntry() : own(otherConfigs, name) || own(SHIPPED, name));
+    const ownNames = [activeConfig, ...Object.keys(otherConfigs)]
+        .filter((name) => !own(SHIPPED, name))
+        .sort((a, b) => a.localeCompare(b));
+    return {
+        active: activeConfig,
+        list: [
+            ...Object.keys(SHIPPED).map((name) => ({
+                name,
+                shipped: true,
+                about: SHIPPED[name].about,
+                changed: !sameConfig(entry(name), SHIPPED[name]),
+                cheats: entry(name).startupCheats.length,
+            })),
+            ...ownNames.map((name) => ({ name, shipped: false, cheats: entry(name).startupCheats.length })),
+        ],
+    };
+}
+
+/** A config name as typed, or the reason it can't be one. */
+function checkNewName(name) {
+    const trimmed = typeof name === "string" ? name.trim() : "";
+    if (!trimmed) throw new ConfigError("Type a name.");
+    if (trimmed.length > 40) throw new ConfigError("Use 40 letters or fewer.");
+    // An object key that would set the prototype instead of naming a config.
+    if (trimmed === "__proto__") throw new ConfigError("Pick another name.");
+    const taken = [activeConfig, ...Object.keys(otherConfigs), ...Object.keys(SHIPPED)];
+    if (taken.some((n) => n.toLowerCase() === trimmed.toLowerCase())) throw new ConfigError("That name is taken.");
+    return trimmed;
+}
+
+/** A refusal the player can act on; the routes answer it as a 400 with its words. */
+class ConfigError extends Error {}
+
+/**
+ * Change configs (#198), one step at a time with the saves:
+ * - `use`: switch to the config `name`. The one in use is kept as it is now, its game-made changes included.
+ * - `saveAs`: keep the settings in use as a new config `name`, and use it.
+ * - `reset`: put a changed shipped config back as shipped (and into the game, when it is in use).
+ * - `remove`: delete one of the player's configs that isn't in use.
+ * The file is written first; only then do the live settings and the game change.
+ * @returns {Promise<{ configs: Object, game?: Object }>} The configs after it, and how the game took a switch
+ */
+function changeConfigs(action, name, gameBridge) {
+    const change = () => applyConfigChange(action, name, gameBridge);
+    return (saving = saving.then(change, change));
+}
+
+async function applyConfigChange(action, name, gameBridge) {
+    if (gameBridge) await readGameConfig(gameBridge, cheatConfig);
+    const nextOthers = { ...otherConfigs };
+    let nextActive = activeConfig;
+    let next = null; // the settings to use now, when they change
+
+    if (action === "use") {
+        if (name === activeConfig) return { configs: listConfigs() };
+        next = own(otherConfigs, name) || own(SHIPPED, name);
+        if (!next) throw new ConfigError("That config is gone. Refresh.");
+        const current = activeEntry();
+        delete nextOthers[name];
+        if (!(own(SHIPPED, activeConfig) && sameConfig(current, SHIPPED[activeConfig])))
+            nextOthers[activeConfig] = current;
+        nextActive = name;
+    } else if (action === "saveAs") {
+        nextActive = checkNewName(name);
+        const current = activeEntry();
+        if (!(own(SHIPPED, activeConfig) && sameConfig(current, SHIPPED[activeConfig])))
+            nextOthers[activeConfig] = current;
+    } else if (action === "reset") {
+        if (!own(SHIPPED, name)) throw new ConfigError("Only shipped configs reset.");
+        delete nextOthers[name];
+        if (name === activeConfig) next = SHIPPED[name];
+    } else if (action === "remove") {
+        if (own(SHIPPED, name)) throw new ConfigError("Shipped configs stay. Reset it instead.");
+        if (name === activeConfig) throw new ConfigError("Switch to another config first.");
+        if (!own(otherConfigs, name)) throw new ConfigError("That config is gone. Refresh.");
+        delete nextOthers[name];
+    } else {
+        throw new ConfigError(`Unknown config action: ${action}`);
+    }
+
+    const nextCheats = next ? [...next.startupCheats] : [...startupCheats];
+    const nextSettings = next
+        ? deepMerge(deepClone(defaultConfig.cheatConfig), deepClone(next.cheatConfig))
+        : deepClone(cheatConfig);
+    await writeCustomFile({
+        activeConfig: nextActive,
+        configs: nextOthers,
+        startupCheats: nextCheats,
+        cheatConfig: nextSettings,
+        injectorConfig,
+    });
+
+    const before = [...startupCheats];
+    activeConfig = nextActive;
+    otherConfigs = nextOthers;
+    if (!next) return { configs: listConfigs() };
+
+    startupCheats.splice(0, startupCheats.length, ...nextCheats);
+    for (const key of Object.keys(cheatConfig)) delete cheatConfig[key];
+    Object.assign(cheatConfig, nextSettings);
+    const game = gameBridge ? await switchGame(gameBridge, before) : undefined;
+    return { configs: listConfigs(), game };
+}
+
+// updateConfig's answer when the game took the config: no error, and not its "Error: …" text (no updateCheatConfig).
+const tookConfig = (result) => !result.error && !String(result.value).startsWith("Error:");
+
+/**
+ * Put the config just switched to into the running game. Until the game confirms it (a throw or an error answer
+ * doesn't), the game counts as behind, and the next read of the game tries again first. A game that isn't there gets
+ * it all when it's injected again.
+ */
+async function switchGame(gameBridge, before) {
+    gameBehind ??= before; // still behind an earlier switch: the game runs that config's cheats
+    try {
+        if (!(await gameBridge.isAttached())) return { gameApplied: false, contextLost: true };
+        return await catchUpGame(gameBridge);
+    } catch (error) {
+        log.debug(`The game didn't take the switched config: ${error.message}`);
+        return { gameApplied: false, contextLost: true };
+    }
+}
+
+/**
+ * Give a game that is behind the config in use: its settings in place of the old ones (a map key the old config had
+ * would stay with a merge), then the old config's cheats off and the new one's on. Cheats the player turned on by hand
+ * stay as they are.
+ */
+async function catchUpGame(gameBridge) {
+    const result = await gameBridge.updateConfig(cheatConfig, true);
+    if (!tookConfig(result)) return { gameApplied: false, details: result.error?.text ?? result.value };
+    const before = gameBehind;
+    const failed = [];
+    const run = async (command, on) => {
+        const response = await gameBridge.executeCheat(command, on);
+        if (response.error || !response.value?.ok)
+            failed.push({ cheat: command, reason: response.error?.text ?? response.value?.message ?? "" });
+    };
+    for (const command of before.filter((c) => !startupCheats.includes(c))) await run(command, false);
+    for (const command of startupCheats) await run(command, true);
+    // Only now: a command that threw (the game went away) leaves it behind, and the next read tries it all again.
+    gameBehind = null;
+    return { gameApplied: true, failed };
 }
 
 /**
@@ -215,6 +429,8 @@ function pullGameConfig(gameBridge, cheatConfig) {
 
 async function readGameConfig(gameBridge, cheatConfig) {
     try {
+        // The game still has the config switched away from: give it this one first (settings and cheats), or read nothing.
+        if (gameBehind && !(await catchUpGame(gameBridge)).gameApplied) return false;
         const result = await gameBridge.callHelper("readCheatConfig");
         if (result.error || typeof result.value !== "string") return false;
         deepMerge(cheatConfig, reviveRegExps(dropEmptyObjects(JSON.parse(result.value))));
@@ -266,38 +482,13 @@ async function writeConfiguration(receivedFullConfig, gameBridge) {
         filterByTemplate(uiInjectorConfig, injectorTemplate) || {}
     );
 
-    const cheatConfigDiff = getDeepDiff(mergedCheatConfig, defaultConfig?.cheatConfig) || {};
-    const injectorConfigDiff = getDeepDiff(filteredInjectorConfig, defaultConfig?.injectorConfig) || {};
-    const startupCheatsDiff =
-        JSON.stringify(uiStartupCheats) !== JSON.stringify(defaultConfig?.startupCheats) ? uiStartupCheats : [];
-
-    const fileContentString = `
-/****************************************************************************************************
- * This file is generated by the Idleon Cheat Injector UI.
- * Only user overrides are saved here - defaults are inherited from config.js.
- * Manual edits might be overwritten when saving from the UI.
- ****************************************************************************************************/
-
-exports.startupCheats = ${JSON.stringify(startupCheatsDiff, null, "\t")};
-
-exports.cheatConfig = ${objToString(cheatConfigDiff)};
-
-exports.injectorConfig = ${objToString(injectorConfigDiff)};
-`;
-    const savePath = getRuntimePath("config.custom.js");
-
-    // Write a temporary file and rename it over the old one, so a crash can't leave a half-written file.
-    const tempPath = `${savePath}.tmp`;
-    await fs.writeFile(tempPath, fileContentString.trim());
-    let brokenFileKeptAs;
-    if (customConfigBroken && existsSync(savePath)) {
-        brokenFileKeptAs = `config.custom.broken-${new Date().toISOString().replace(/[:.]/g, "-")}.js`;
-        await fs.copyFile(savePath, getRuntimePath(brokenFileKeptAs));
-        log.warn(`config.custom.js couldn't be loaded, so it was kept as ${brokenFileKeptAs}`);
-    }
-    await fs.rename(tempPath, savePath);
-    customConfigBroken = false;
-    log.info(`Configuration saved to ${savePath}`);
+    const brokenFileKeptAs = await writeCustomFile({
+        activeConfig,
+        configs: otherConfigs,
+        startupCheats: uiStartupCheats,
+        cheatConfig: mergedCheatConfig,
+        injectorConfig: filteredInjectorConfig,
+    });
 
     // Only a list the save sent replaces it: without one, uiStartupCheats is this same array, which clearing would empty.
     if (receivedFullConfig.startupCheats) {
@@ -314,6 +505,50 @@ exports.injectorConfig = ${objToString(injectorConfigDiff)};
         return { gameApplied: false, contextLost: true };
     });
     return { brokenFileKeptAs, game };
+}
+
+/**
+ * Write config.custom.js: the config in use (only what differs from config.js), the injector's own settings, and the
+ * player's other configs. A temporary file is renamed over the old one, so a crash can't leave a half-written file; a
+ * file that failed to load is kept under another name first.
+ * @returns {Promise<string|undefined>} Where a config.custom.js that failed to load was kept
+ */
+async function writeCustomFile({ activeConfig, configs, startupCheats, cheatConfig, injectorConfig }) {
+    const cheatConfigDiff = getDeepDiff(cheatConfig, defaultConfig.cheatConfig) || {};
+    const injectorConfigDiff = getDeepDiff(injectorConfig, defaultConfig.injectorConfig) || {};
+
+    const fileContentString = `
+/****************************************************************************************************
+ * This file is generated by the Idleon Cheat Injector UI.
+ * Only user overrides are saved here - defaults are inherited from config.js.
+ * Manual edits might be overwritten when saving from the UI.
+ ****************************************************************************************************/
+
+// The config in use (switch it in Settings). Its cheats and settings are the next two.
+exports.activeConfig = ${JSON.stringify(activeConfig)};
+
+exports.startupCheats = ${JSON.stringify(startupCheats, null, "	")};
+
+exports.cheatConfig = ${objToString(cheatConfigDiff)};
+
+exports.injectorConfig = ${objToString(injectorConfigDiff)};
+
+// Your other configs, each kept as it was when you switched away from it.
+exports.configs = ${objToString(configs)};
+`;
+    const savePath = getRuntimePath("config.custom.js");
+    const tempPath = `${savePath}.tmp`;
+    await fs.writeFile(tempPath, fileContentString.trim());
+    let brokenFileKeptAs;
+    if (customConfigBroken && existsSync(savePath)) {
+        brokenFileKeptAs = `config.custom.broken-${new Date().toISOString().replace(/[:.]/g, "-")}.js`;
+        await fs.copyFile(savePath, getRuntimePath(brokenFileKeptAs));
+        log.warn(`config.custom.js couldn't be loaded, so it was kept as ${brokenFileKeptAs}`);
+    }
+    await fs.rename(tempPath, savePath);
+    customConfigBroken = false;
+    log.info(`Configuration saved to ${savePath}`);
+    return brokenFileKeptAs;
 }
 
 /**
@@ -404,6 +639,9 @@ module.exports = {
     updateSessionConfiguration,
     pullGameConfig,
     saveConfiguration,
+    changeConfigs,
+    listConfigs,
+    ConfigError,
     getInjectorConfig,
     getStartupCheats,
     getCheatConfig,

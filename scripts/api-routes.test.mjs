@@ -58,6 +58,7 @@ test("API setup retains every endpoint and does not evaluate the game during reg
             "POST /api/changes/undone",
             "POST /api/config/save",
             "POST /api/config/update",
+            "POST /api/configs",
             "POST /api/game/computed/read",
             "POST /api/game/computed/read-many",
             "POST /api/game/gga/delete",

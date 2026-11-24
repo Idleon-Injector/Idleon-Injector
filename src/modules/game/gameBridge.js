@@ -48,10 +48,11 @@ function createGameBridge(runtime, context) {
             return !!result.value;
         },
 
-        updateConfig(config) {
+        /** Merge `config` into the game's, or with `replace` put it in place of the game's (a config switch). */
+        updateConfig(config, replace = false) {
             return evaluate(
                 `if (typeof updateCheatConfig === 'function') {
-                    updateCheatConfig(${objToString(config)});
+                    updateCheatConfig(${objToString(config)}, ${replace});
                     'Config updated in game.';
                 } else {
                     'Error: updateCheatConfig function not found in game context.';
