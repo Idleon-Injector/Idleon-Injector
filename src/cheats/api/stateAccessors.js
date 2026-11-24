@@ -19,6 +19,7 @@ import { getAutomationBubbles } from "../helpers/automation/bubbles.js";
 import { getAutomationClicker } from "../helpers/automation/clickers.js";
 import { getAutomationConstruction } from "../helpers/automation/construction.js";
 import { getAutomationCooking } from "../helpers/automation/cooking.js";
+import { getAutomationGaming } from "../helpers/automation/gaming.js";
 import { getAutomationGrimoire } from "../helpers/automation/grimoire.js";
 import { getAutomationShops } from "../helpers/automation/shops.js";
 import { getAutomationSneaking } from "../helpers/automation/sneaking.js";
@@ -75,6 +76,7 @@ const AUTOMATION_TABS = {
     sneaking: getAutomationSneaking,
     summoning: getAutomationSummoning,
     cooking: getAutomationCooking,
+    gaming: getAutomationGaming,
     bubbles: getAutomationBubbles,
     construction: getAutomationConstruction,
 };

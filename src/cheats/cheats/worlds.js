@@ -369,6 +369,7 @@ defineCheat({
         { name: "sailing", message: "sailing cheats" },
         { name: "endercaptains", message: "100% ender captains (requires Emporium bonus unlock)" },
         { name: "gaming", message: "gaming cheats" },
+        { name: "betternuggets", message: "bigger nuggets from the gaming shovel (see config)" },
         { name: "divinity", message: "divinity cheats" },
         { name: "collider", message: "collider cheats" },
         { name: "holes", message: "holes cheats" },
@@ -435,6 +436,10 @@ defineCheat({
         },
     ],
     config: {
+        betternuggets: {
+            default: 3,
+            description: "Gaming: how strongly dug nuggets lean toward big ones, 1 (the game's own odds) to 20",
+        },
         sailing: {
             IslandDistance: { default: (t) => t / 2, description: "Sailing: Island distance (lower is closer)" },
             MaxChests: {

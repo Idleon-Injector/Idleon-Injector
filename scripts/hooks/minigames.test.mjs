@@ -81,7 +81,7 @@ const new670 = gameClass(
         },
     }
 );
-const new577 = gameClass(577, ["_event_Gaming", "_customEvent_W5stuffzz", "_event_3"], {
+const new577 = gameClass(577, ["_event_Gaming", "_customEvent_W5stuffzz"], {
     _event_Gaming() {
         this._GenINFO[58][1] = 55; // the game moves the AI paddle
         return this._GenINFO[58][1];

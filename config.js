@@ -20,26 +20,10 @@ exports.cheatConfig = {
         flurbocap: 1000000, // Maximum flurbo capacity for dungeons
     },
     automation: {
-        gamingAutoHarvest: true, // Harvest when every unlocked plot contains a plant; does not wait for evolution.
-        gamingAutoDig: true, // Dig whenever nuggets are available, including while earlier animations finish.
-        gamingAutoBuy: true, // Continuously buy the cheapest affordable selected upgrade with actual bits.
-        gamingFertilizerValue: true, // Buy fertilizer bit-value upgrades.
-        gamingFertilizerSpeed: true, // Buy fertilizer growth-speed upgrades.
-        gamingFertilizerCapacity: true, // Buy fertilizer capacity upgrades; stop at 24 plots.
-        gamingMutation: true, // Buy mutation-chance upgrades.
-        gamingImport0: true, // Buy Gaming import 0; requires the import to be unlocked.
-        gamingImport1: true, // Buy Gaming import 1; requires the import to be unlocked.
-        gamingImport2: true, // Buy Gaming import 2; requires the import to be unlocked.
-        gamingImport3: true, // Buy Gaming import 3; requires the import to be unlocked.
-        gamingImport4: true, // Buy Gaming import 4; requires the import to be unlocked.
-        gamingImport5: true, // Buy Gaming import 5; requires the import to be unlocked.
-        gamingImport7: true, // Buy Gaming import 7; requires the import to be unlocked.
-        gamingImport8: true, // Buy Gaming import 8; requires the import to be unlocked.
-        gamingGrowthStopSeconds: 0, // Stop buying growth speed at this effective seconds per sprout; 0 disables the limit.
-        gamingPurchaseBatch: 50, // Maximum upgrades per 100ms tick (0 to 500); each tick also has an 8ms purchase budget.
-        gamingNuggetBiasEnabled: false, // Bias native nugget size rolls toward their upper bound.
-        gamingNuggetBias: 3, // Nugget RNG bias exponent, 1 to 20; 1 leaves the native distribution unchanged.
-        gamingHideEffects: false, // Hide transient Gaming effects without changing their timers or rewards.
+        gaming: [], // Automation: Gaming upgrades to buy with bits, { id: "fertilizer0", on, stopAt, save }; stopAt is a level, save true is "Save for it".
+        gamingSaving: 10, // Automation: while Gaming saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
+        gamingAutoHarvest: true, // Automation: while Gaming is open, harvest a full garden, leaving the plant types locked on the Mutation tab.
+        gamingAutoDig: true, // Automation: while Gaming is open, dig once the shovel is ready.
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
         orion: [
             { id: "8", on: false, save: true },
@@ -276,6 +260,7 @@ exports.cheatConfig = {
         },
     },
     w5: {
+        betternuggets: 3, // Gaming: how strongly dug nuggets lean toward big ones, 1 (the game's own odds) to 20
         sailing: {
             IslandDistance: (t) => t / 2, // Sailing: Island distance (lower is closer)
             MaxChests: (t) => t, // Sailing: Maximum chest limit (Warning: too high may break cloud saves)
