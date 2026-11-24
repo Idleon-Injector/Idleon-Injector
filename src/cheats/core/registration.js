@@ -114,7 +114,9 @@ export const cheatRows = [];
  * @param {Function} [row.suggestions] - Returns CLI/WebUI choices using current game data
  * @param {object} [row.config] - This cheat's settings, cheatConfig[name]: each setting is
  *   `{ default, description }`, or `{ example, description }` for one config.js only shows commented out, or
- *   `{ description }` alone for one the cheat sets at runtime. Nest plain objects for groups of settings.
+ *   `{ description }` alone for one the cheat sets at runtime. Nest plain objects for groups of settings. An on/off
+ *   setting adds `on`, the value the game checks for (`on: 1` for `1 == MainframeBonus(5)`): the WebUI then shows a
+ *   switch that writes `(t) => on` or the game's own value. A true/false setting is a switch without it.
  */
 export function defineCheat(row) {
     cheatRows.push(row);

@@ -686,3 +686,17 @@ export const configDescriptions = {
     "injectorConfig.browserUserDataDir": "Browser user data dir for web injection (optional)",
     "injectorConfig.gameExePath": "Optional: set this to override EXE search on Windows",
 };
+// The on/off settings, with the value each holds when on. The WebUI shows them as switches.
+export const configSwitches = {
+    "cheatConfig.w4.mainframe.5": 1,
+    "cheatConfig.w4.mainframe.7": 2,
+    "cheatConfig.w4.mainframe.12": 1,
+    "cheatConfig.w4.chipbonuses.card1": 1,
+    "cheatConfig.w4.chipbonuses.card2": 1,
+    "cheatConfig.w4.chipbonuses.star": 1,
+    "cheatConfig.w4.chipbonuses.pend": 1,
+    "cheatConfig.w4.chipbonuses.key1": 1,
+    "cheatConfig.w4.chipbonuses.troph": 1,
+    "cheatConfig.w6.summoning.EndlessUnlocked": 1,
+    "cheatConfig.w6.royal.Statue_CanAfford": 1,
+};

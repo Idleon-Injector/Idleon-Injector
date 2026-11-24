@@ -152,12 +152,16 @@
     margin-right: 4px;
 }
 
-/* A cheat's settings open under it, a step in on the page's ground, the shared value rows at the panel's size. */
+/*
+ * A cheat's settings open under it on the page's ground, across the panel's whole width and padded like the cheat
+ * rows, so a setting's switch or field ends on the same line as the switches above. The name takes what's left.
+ */
 .viewport .system-cheats .account-row > .row-detail {
-    flex-basis: 100%;
-    margin: 4px 0 2px;
+    flex-basis: calc(100% + 28px);
+    margin: 4px -12px -7px -16px;
     padding: 2px 0;
-    border-radius: 10px;
+    border-top: 1px solid var(--c-hairline);
+    border-radius: 0;
     background: var(--c-void);
 }
 .viewport .system-cheats .system-cheats__row.is-open {
@@ -165,7 +169,7 @@
 }
 .viewport .system-cheats .row-detail > .account-row {
     min-height: 44px;
-    padding: 4px 8px 4px 14px;
+    padding: 4px 12px 4px 16px;
     border: 0;
 }
 .viewport .system-cheats .row-detail > .account-row + .account-row {
@@ -187,7 +191,12 @@
     position: relative;
     flex: none;
     flex-wrap: nowrap;
-    width: 5.5rem;
+}
+/* The panel's field: room for a setting's few digits and its − / +, so the names keep the width. */
+.viewport .system-cheats .system-cheats__setting .number-input-wrapper:not(.number-input-wrapper--capped) {
+    flex: none;
+    width: 6.5rem;
+    max-width: none;
 }
 /* The ✓ and Undo take the sign's place (the sign steps aside while they show), on the line, at every width. */
 .viewport .system-cheats .system-cheats__setting .save-state {
@@ -195,6 +204,12 @@
     top: 50%;
     right: calc(100% + 6px);
     transform: translateY(-50%);
+}
+/* The ✓ lies on the settings' ground, so its fill covers the sign under it instead of crossing it. */
+.viewport .system-cheats .row-detail .system-cheats__setting .save-state--success {
+    --save-state-bg: var(--c-void);
+    height: 20px;
+    background: var(--save-state-bg);
 }
 
 /* Folded: one line under the title, the group's surface, that opens the rows in place. */
@@ -233,7 +248,7 @@
     gap: 6px;
     width: 100%;
     min-height: 40px;
-    padding: 0 14px;
+    padding: 0 12px 0 16px;
     border: 0;
     border-top: 1px solid var(--c-hairline);
     background: transparent;

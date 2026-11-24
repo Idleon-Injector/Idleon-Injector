@@ -8,7 +8,7 @@
  * Built from the page's own pieces: the quiet group (`ListPanel` + the section header, like Stamps' "Gem shop"), a row
  * per cheat with its short label first and its command small under it (`RowTitles`), the one on/off switch
  * (`StateSwitch`), and a cheat's settings in the row it opens (`row-opener`, `row-detail`) as the shared value rows
- * (`EditableNumberRow`). A switch runs the cheat the way the Cheats area does (`store.executeCheat`), so it is on until
+ * (`EditableNumberRow`), an on/off setting with the same switch. A switch runs the cheat the way the Cheats area does (`store.executeCheat`), so it is on until
  * the injector restarts. A command (a reset, an unlock)
  * gets a Run button instead, with a field when it takes a value.
  */
@@ -17,7 +17,7 @@ import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart } from "../services/api.js";
 import { parseFunction, generateFunctionString, FUNCTION_TYPES } from "../utils/functionParser.js";
-import { configDescriptions } from "../config/configDescriptions.js";
+import { configDescriptions, configSwitches } from "../config/configDescriptions.js";
 import { cheatsOfPage } from "../menu/pageCheats.js";
 import { VALUE_COMMANDS } from "../menu/valueCommands.js";
 import { ValueFields } from "./ValueFields.js";
@@ -49,8 +49,9 @@ const settingLabel = (description) => {
 
 /**
  * A cheat's settings, from the setting descriptions: every setting under its command's path ("w3 buildspd" ->
- * cheatConfig.w3.buildspd, "w3 worshipspeed" -> cheatConfig.w3.WorshipSpeed). Each is `{ path, label, op }` when the
- * panel edits it (× ÷ =, or a plain number), or counted in `more` for the Config page (lists, words, formulas).
+ * cheatConfig.w3.buildspd, "w3 worshipspeed" -> cheatConfig.w3.WorshipSpeed). Each is `{ path, label, on }` for an
+ * on/off one (true/false, or `on` in its cheat row: the value the game checks for), `{ path, label, op }` when the
+ * panel edits its number (× ÷ =, or a plain number), or counted in `more` for the Config page (lists, words, formulas).
  * ponytail: matched by name, so a setting kept under another name than its command shows only on the Config page.
  */
 const settingsOf = (command, config) => {
@@ -62,6 +63,11 @@ const settingsOf = (command, config) => {
         if (!words.every((word, i) => path[i]?.toLowerCase() === word)) continue;
         const value = at(config, path);
         if (value === undefined) continue;
+        const on = typeof value === "boolean" ? true : configSwitches[key];
+        if (on !== undefined) {
+            settings.push({ path, label: settingLabel(description), on });
+            continue;
+        }
         const parsed = typeof value === "number" ? null : parseFunction(value);
         const lowerIsBetter = description.includes("lower is better");
         const op =
@@ -106,6 +112,33 @@ const SettingRow = (setting, valueState) =>
         renderInfo: () => span({ class: "account-row__name" }, setting.label),
         renderBadge: () => SIGN[setting.op] ?? "",
         rowClass: "system-cheats__setting",
+    });
+
+/** Whether an on/off setting is on: true, or `(t) => on`; the game's own value (`(t) => t`) is off. */
+const settingIsOn = (setting, value) => {
+    if (setting.on === true) return value === true;
+    const parsed = parseFunction(value);
+    return parsed.type === FIXED && parsed.value === setting.on;
+};
+
+/** An on/off setting: the panel's one switch, saved to the config file on flip and read back. */
+const SettingSwitch = (setting, onState) =>
+    AccountRow({
+        rowClass: "system-cheats__setting",
+        info: span({ class: "account-row__name" }, setting.label),
+        controls: StateSwitch({
+            checked: () => onState.val,
+            words: ["On", ""],
+            name: setting.label,
+            ownStatus: true,
+            onFlip: async (next) => {
+                const value =
+                    setting.on === true ? next : generateFunctionString(next ? FIXED : PASSTHROUGH, setting.on);
+                const { config } = await saveConfigPart(() => ({ cheatConfig: nest(setting.path, value) }));
+                onState.val = settingIsOn(setting, at(config, setting.path));
+                return onState.val === next ? { ok: true } : { ok: false, error: new Error("Not saved") };
+            },
+        }),
     });
 
 const isOn = (command) => store.getActiveCheats().includes(command);
@@ -201,7 +234,8 @@ const CheatRow = (cheat, { openId, config }) => {
         const key = setting.path.join(".");
         if (!values.has(key)) values.set(key, van.state(""));
         const state = values.get(key);
-        state.val = String(shownNumber(at(config.val, setting.path)));
+        const stored = at(config.val, setting.path);
+        state.val = "on" in setting ? settingIsOn(setting, stored) : String(shownNumber(stored));
         return state;
     };
 
@@ -237,7 +271,7 @@ const CheatRow = (cheat, { openId, config }) => {
         div({ class: "row-detail", hidden: () => !isOpen() }, () => {
             const { settings, more } = found();
             return div(
-                ...settings.map((setting) => SettingRow(setting, valueOf(setting))),
+                ...settings.map((setting) => ("on" in setting ? SettingSwitch : SettingRow)(setting, valueOf(setting))),
                 more
                     ? button(
                           {
