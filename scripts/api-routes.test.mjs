@@ -69,6 +69,7 @@ test("API setup retains every endpoint and does not evaluate the game during reg
             "POST /api/open-url",
             "POST /api/save-copies/compare",
             "POST /api/save-copies/restore",
+            "POST /api/save-copies/since",
             "POST /api/search",
             "POST /api/toggle",
             "POST /api/update/apply",

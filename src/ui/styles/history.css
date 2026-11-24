@@ -8,6 +8,11 @@
     gap: 12px;
 }
 
+/* A notice that isn't showing (an empty placeholder) takes no gap. */
+.history-pane > span:empty {
+    display: none;
+}
+
 .change-log {
     display: flex;
     flex-direction: column;
@@ -199,7 +204,315 @@
     outline-offset: -2px;
 }
 
-/* The in-game overlay: a value's path takes its own line above old → new. */
+/*
+ * History › Save copies (#32): a timeline in the shared list panel. Each copy is one line: its time, then what changed
+ * since the copy before it (the line a player scans), then how long ago or what a restore's copy is. Days fold, today
+ * open; other characters' copies wait in one folded group at the end. A copy opens in place, like a row that holds a
+ * list: one line per save key with its Restore, the game's own progress in one closed line, Restore all at the foot.
+ */
+.save-copies-page > * {
+    max-width: var(--page-measure);
+}
+.save-copies__panel {
+    flex: none;
+}
+.save-copies__panel[hidden],
+.save-copies__rows[hidden],
+.save-key__under[hidden],
+.save-copy__bar[hidden] {
+    display: none;
+}
+
+/* A day: the panel's quiet group line, pressed to fold; its arrow sits where the copies' arrows do. */
+.viewport .tabbed-list .save-copies__day-toggle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 16px 16px 8px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.viewport .tabbed-list .save-copies__day-toggle[aria-expanded="false"] {
+    padding-bottom: 16px;
+}
+.save-copies__day-toggle::after {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin-left: auto;
+    margin-right: 14px;
+    border-right: 1.5px solid var(--c-text-muted);
+    border-bottom: 1.5px solid var(--c-text-muted);
+    transform: translateY(-2px) rotate(45deg);
+}
+.save-copies__day-toggle[aria-expanded="true"]::after {
+    transform: translateY(1px) rotate(-135deg);
+}
+.save-copies__day-toggle .account-section__title {
+    transition: color 150ms var(--ease-soft);
+}
+.save-copies__day-toggle:hover .account-section__title {
+    color: var(--c-text-body);
+}
+.save-copies__day-toggle .account-section__note {
+    margin-left: 10px;
+    font-variant-numeric: tabular-nums;
+}
+.save-copies__day-toggle:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+    border-radius: 6px;
+}
+
+/* A copy: time, what changed, when. The line has no controls, so its opener takes the whole row. */
+.viewport .tabbed-list .save-copy {
+    grid-template-columns: minmax(0, 1fr);
+}
+.save-copy .save-copy__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    min-height: 39px;
+}
+.save-copy .save-copy__head::after {
+    margin-left: 0;
+}
+.save-copy div.save-copy__head {
+    padding-right: 32px; /* the opener's arrow and its room, so "when" lines up on every line */
+}
+.save-copy__time {
+    flex: none;
+    width: 3.25rem;
+    font-size: var(--size-name);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--c-text-muted);
+}
+.save-copy__what {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--size-name);
+    font-weight: 600;
+    color: var(--c-text-body);
+}
+.save-copy__what.is-quiet,
+.save-copy.is-other .save-copy__what {
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.save-copy__when {
+    flex: none;
+    font-size: var(--size-small);
+    font-weight: 500;
+    color: var(--c-text-faint);
+}
+.save-copy__when.is-label {
+    color: var(--c-text-muted);
+}
+.save-copy__head:hover .save-copy__time,
+.save-copy.is-open .save-copy__time {
+    color: var(--c-text-body);
+}
+
+/* The opened copy, on the page's own ground under its line: a line per key, then the foot. Restore keeps one column,
+   so every line's arrow sits in one place, with or without a button. */
+.viewport .tabbed-list .save-copy > .save-copy__open {
+    margin-bottom: 2px;
+}
+.viewport .tabbed-list .save-copy__keys > .account-row,
+.viewport .tabbed-list .save-copy__itself > .account-row {
+    grid-template-columns: minmax(0, 1fr) 5.5rem;
+    min-height: 50px;
+    border-width: 0;
+    border-radius: 0;
+    background: transparent;
+}
+.viewport .tabbed-list .save-copy__keys > .account-row + .account-row,
+.viewport .tabbed-list .save-copy__itself > .account-row + .account-row {
+    border-top: 1px solid var(--c-hairline);
+}
+.viewport .tabbed-list .save-copy__keys > .account-row:hover,
+.viewport .tabbed-list .save-copy__itself > .account-row:hover {
+    background: transparent;
+}
+.viewport .tabbed-list .save-copy__itself > .account-row {
+    padding-right: 0;
+}
+.save-key__toggle:hover .save-key__name {
+    color: var(--c-text-main);
+}
+.save-key.is-itself .save-key__name,
+.save-key.is-kept .save-key__name {
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.viewport .save-key .account-row__controls {
+    justify-content: flex-end;
+}
+.save-key__kept {
+    padding: 0 13px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.save-key__under {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+.save-copy__itself {
+    margin: 0 0 4px 12px;
+}
+
+/* A key's values: where each sits, the copy's value (what Restore puts back), and the value now, smaller. */
+.save-values {
+    display: flex;
+    flex-direction: column;
+    padding: 0 0 10px;
+}
+.save-value {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(3.5rem, auto) minmax(5.5rem, auto);
+    gap: 16px;
+    align-items: baseline;
+    padding: 3px 0;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+.save-value__place {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--c-text-faint);
+}
+.save-value__copy {
+    text-align: right;
+    font-weight: 600;
+    color: var(--c-text-main);
+}
+.save-value__now {
+    text-align: right;
+    font-size: var(--size-small);
+    color: var(--c-text-muted);
+}
+.save-value.is-kept .save-value__copy {
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+.save-value__kept {
+    grid-column: 2 / -1;
+    text-align: right;
+    font-size: var(--size-small);
+    color: var(--c-text-faint);
+}
+.save-value__kept:empty {
+    display: none;
+}
+.save-values__more {
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--c-text-muted);
+    font: inherit;
+    font-size: var(--size-small);
+    font-weight: 600;
+    cursor: pointer;
+}
+.save-values__more:hover {
+    color: var(--c-text-body);
+}
+.save-values__more:focus-visible,
+.save-key__toggle:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* The foot: what the last restore did on the left, Restore all on the right. */
+.save-copy__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(--c-hairline);
+}
+.save-copy__status {
+    flex: 1 1 14rem;
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+}
+.save-copy__status.is-refused {
+    color: var(--c-danger-soft-text);
+}
+.save-copy__restore-all {
+    margin-left: auto;
+}
+.save-copy__note {
+    padding: 14px 16px;
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+}
+.save-copy__note.is-failed {
+    color: var(--c-danger-soft-text);
+}
+
+.save-copy__warning {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--c-warning);
+    font-size: var(--size-small);
+}
+.save-copy__warning svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+}
+.save-copies__none {
+    font-size: 0.875rem;
+    color: var(--c-text-muted);
+}
+
+/* A phone, or the in-game overlay: when goes under what changed, so neither is cut short. */
+@media (max-width: 600px) {
+    .save-copy .save-copy__head {
+        display: grid;
+        grid-template-columns: 3rem minmax(0, 1fr) auto;
+        column-gap: 10px;
+        row-gap: 1px;
+    }
+    .save-copy div.save-copy__head {
+        padding-right: 0;
+    }
+    .save-copy__time {
+        grid-row: 1 / span 2;
+        width: auto;
+    }
+    .save-copy__what,
+    .save-copy__when {
+        grid-column: 2;
+    }
+    .save-copy__when:empty {
+        display: none;
+    }
+    .save-copy .save-copy__head::after {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+    }
+    .save-value {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 12px;
+    }
+}
+
+/* The in-game overlay: a change's value path takes its own line above old → new. */
 @media (max-width: 760px) {
     .change-group__head {
         padding: 7px 10px;
@@ -224,5 +537,9 @@
     .change-group.is-undone,
     .change-group.is-refused .change-group__reason {
         animation: none;
+    }
+
+    .save-copies__day-toggle .account-section__title {
+        transition: none;
     }
 }

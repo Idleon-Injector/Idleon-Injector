@@ -1,6 +1,6 @@
 // Save copies (#32) on the fake game: the real hook on the game's cloud save, the real server routes, and copies on
-// disk in a temporary folder. Done when copies appear and old ones go on schedule, and a restore never writes the
-// values that are never rolled back.
+// disk in a temporary folder. Done when copies appear and old ones go on schedule, and a restore's writes never hold the
+// values that are never rolled back (the page writes them: save-copies-page.test.mjs).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 const TinyRouter = require("../src/modules/server/tinyRouter");
 const { createGameBridge } = require("../src/modules/game/gameBridge");
 const { setupSaveCopyRoutes } = require("../src/modules/server/routes/saveCopies");
-const { listCopies, pickExpired, pruneCopies, writeCopy } = require("../src/modules/saveCopies");
+const { diffSave, listCopies, pickExpired, pruneCopies, writeCopy } = require("../src/modules/saveCopies");
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "save-copies-test-"));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -59,7 +59,7 @@ game.runtime.evaluate = (options) => {
 const writesSent = () =>
     expressions
         .filter((e) => e.startsWith("writeGamePath"))
-        .flatMap((e) => JSON.parse(e.slice(e.indexOf("(") + 1, -1)))
+        .flatMap((e) => JSON.parse(`[${e.slice(e.indexOf("(") + 1, -1)}]`)[0])
         .map((w) => w.path);
 
 // The real hook on the game's cloud save, on a FirebaseStorage whose commitSave answers "saved".
@@ -143,6 +143,38 @@ test("retention over 31 days of saves every 4 minutes: the last 24 hours, then t
     assert.ok(kept.reduce((sum, c) => sum + c.size, 0) < 25e6, "about 20 MB at 50 KB a copy");
 });
 
+test("a value the game keeps in another shape while it runs is never restored in its saved shape", () => {
+    // OptionsList[11] is 0 in the save and a list in play; CauldronInfo[8] is [] until the game builds it.
+    const [group] = diffSave(
+        { character: "Ann", save: { OptionsList: [0, [], 0] } },
+        { character: "Ann", save: { OptionsList: [[596, 10], [[1, 2]], 7] } }
+    );
+    assert.deepEqual(
+        group.changes.map((c) => [c.path, c.restorable]),
+        [
+            ["OptionsList[0]", false],
+            ["OptionsList[1]", false],
+            ["OptionsList[2]", true],
+        ]
+    );
+});
+
+test("retention keeps a restore's own copies their 30 days, and drops them last for the size cap", () => {
+    const now = Date.parse("2026-11-20T12:00:00Z");
+    const DAY = 24 * 3600e3;
+    const copy = (id, age, label = null) => ({ id, time: now - age, character: "Ann", size: 40, label });
+    const copies = [
+        copy("new", 0),
+        copy("plain", 3 * DAY - 2000),
+        copy("after", 3 * DAY - 1000, { kind: "restored", from: 0, what: "Cards" }),
+        copy("before", 3 * DAY, { kind: "before" }),
+        copy("old", 31 * DAY, { kind: "before" }),
+    ];
+    assert.deepEqual(pickExpired(copies, now, 1e6).expired, ["old"], "the newest of their day or not");
+    assert.deepEqual(pickExpired(copies.slice(0, 4), now, 120), { expired: ["plain"], trimmed: 1 });
+    assert.deepEqual(pickExpired(copies.slice(0, 4), now, 50).expired, ["plain", "before", "after"]);
+});
+
 test("retention: over the size cap the oldest copies go first, the newest always stays", () => {
     const now = Date.now();
     const copies = [0, 1, 2, 3].map((i) => ({ id: `c${i}`, time: now - i * 60e3, character: "Ann", size: 40 }));
@@ -178,7 +210,9 @@ test("compare lists every difference by save key and marks the values that are n
     gga.Money = 999;
     gga.Cards.h.Bat = 7;
     gga.Cards.h.Owl = 1;
+    delete gga.Cards.h.Frog;
     gga.Lv0.push(4);
+    gga.StampLevel[0] = [1];
     gga.StampLevel[1] = [3, 4, 5];
     gga.GemsOwned = 0;
     gga.ServerGemsReceived = 900;
@@ -199,15 +233,27 @@ test("compare lists every difference by save key and marks the values that are n
             g.changes.map((c) => [c.path, [g.key, c.copy, c.now, c.neverRestored, c.restorable]])
         )
     );
+    const ownProgress = body.groups.flatMap((g) => g.changes.filter((c) => c.onItsOwn).map((c) => c.path));
+    assert.deepEqual(
+        ownProgress.sort(),
+        ["CloudsaveTimer", "PlayerDATABASE.h.Bob.h.PlayerAwayTime", "TimeAway.h.Forge", "TimeAway.h.Player"],
+        "the game's own progress is marked"
+    );
     assert.deepEqual(byPath, {
         Money: ["Money", 100, 999, false, true],
         "Cards.h.Bat": ["Cards", 3, 7, false, true],
         // Only in the save now: a restore can't take it away.
         "Cards.h.Owl": ["Cards", undefined, 1, false, false],
+        // Only in the copy: a restore would add it, and an undo couldn't take it away.
+        "Cards.h.Frog": ["Cards", 1, undefined, false, false],
         "Lv0[3]": ["Lv0", undefined, 4, false, false],
         // Below the top level an array that changed length is put back whole.
-        "StampLevel[1]": ["StampLevel", [3, 4], [3, 4, 5], false, true],
-        GemsOwned: ["GemsOwned", 50, 0, false, true],
+        // A list only at its length now: a shorter one drops entries the game reads, and "Before restore" couldn't
+        // take back a longer one.
+        "StampLevel[0]": ["StampLevel", [1, 2], [1], false, false],
+        "StampLevel[1]": ["StampLevel", [3, 4], [3, 4, 5], false, false],
+        // Gems were bought since the copy (ServerGemsReceived went up): putting back 50 would lose them.
+        GemsOwned: ["GemsOwned", 50, 0, false, false],
         ServerGemsReceived: ["ServerGemsReceived", 500, 900, true, false],
         "BundlesReceived.h.bun_b": ["BundlesReceived", undefined, 1, true, false],
         "TimeAway.h.Forge": ["TimeAway", 900, 990, true, false],
@@ -219,10 +265,52 @@ test("compare lists every difference by save key and marks the values that are n
     });
 });
 
-test("restore writes the selected values through the game's write, checks them, and never the protected ones", async () => {
+/** A stored copy's save, by id. */
+const saveOf = (app, id) => JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(app.dir, `${id}.json.gz`)))).save;
+const restore = (app, id, select) => request(app.router, "POST", "/api/save-copies/restore", { id, select });
+
+test("a restore is a fork: a copy before, the values written into the game, a copy after", async () => {
     const app = server();
     const id = await cloudSave(app);
+    const copyTime = (await listCopies(app.dir))[0].time;
     const atCopy = { bat: gga.Cards.h.Bat, money: gga.Money, bob: gga.PlayerDATABASE.h.Bob.h.Money };
+    const cardsMap = gga.Cards;
+    gga.Money = 1;
+    gga.Cards.h.Bat = 99;
+    gga.PlayerDATABASE.h.Bob.h.Money = 1;
+
+    // Only the cards.
+    let res = await restore(app, id, ["Cards"]);
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    assert.deepEqual(res.body.results, [{ path: "gga.Cards.h.Bat", ok: true }]);
+    assert.equal(res.body.ok, true);
+    assert.equal(gga.Cards.h.Bat, atCopy.bat);
+    assert.equal(gga.Cards, cardsMap, "written into the game's map, not replacing it");
+    assert.equal(gga.Money, 1);
+    const [after, before] = await listCopies(app.dir);
+    assert.deepEqual([after.id, before.id], [res.body.after, res.body.before], "both listed, newest first");
+    assert.deepEqual(before.label, { kind: "before" });
+    assert.deepEqual(after.label, { kind: "restored", from: copyTime, what: "Cards" });
+    assert.equal(saveOf(app, before.id).Cards.h.Bat, 99, "the save as it was before");
+    assert.equal(saveOf(app, after.id).Cards.h.Bat, atCopy.bat, "and as it is after");
+
+    // Going back is restoring "Before restore", the same action.
+    res = await restore(app, before.id, ["Cards"]);
+    assert.equal(res.body.ok, true);
+    assert.equal(gga.Cards.h.Bat, 99);
+    assert.deepEqual((await listCopies(app.dir))[0].label, { kind: "restored", from: before.time, what: "Cards" });
+
+    // A second click finds nothing left to put back, and makes no copies.
+    const copies = (await listCopies(app.dir)).length;
+    res = await restore(app, before.id, ["Cards"]);
+    assert.deepEqual(res.body, { ok: true, results: [], before: null, after: null, afterError: null });
+    assert.equal((await listCopies(app.dir)).length, copies);
+});
+
+test("Restore all writes everything restorable, the game's own progress too, and never the protected values", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const atCopy = { money: gga.Money, bob: gga.PlayerDATABASE.h.Bob.h.Money };
     const protectedNow = () =>
         structuredClone({
             ServerGemsReceived: gga.ServerGemsReceived,
@@ -231,10 +319,8 @@ test("restore writes the selected values through the game's write, checks them, 
             CloudsaveTimer: gga.CloudsaveTimer,
             BobAway: gga.PlayerDATABASE.h.Bob.h.PlayerAwayTime,
         });
-    const cardsMap = gga.Cards;
-    gga.Money = 1;
-    gga.Cards.h.Bat = 99;
-    gga.PlayerDATABASE.h.Bob.h.Money = 1;
+    gga.Money = atCopy.money + 5;
+    gga.PlayerDATABASE.h.Bob.h.Money = atCopy.bob + 5;
     gga.ServerGemsReceived += 100;
     gga.BundlesReceived.h.bun_c = 1;
     gga.TimeAway.h.Forge += 50;
@@ -242,82 +328,125 @@ test("restore writes the selected values through the game's write, checks them, 
     gga.PlayerDATABASE.h.Bob.h.PlayerAwayTime += 50;
     const before = protectedNow();
 
-    // Only the cards.
     expressions.length = 0;
-    let res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Cards"] });
-    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
-    assert.deepEqual(res.body, { ok: true, results: [{ path: "gga.Cards.h.Bat", ok: true }] });
-    assert.deepEqual(writesSent(), ["gga.Cards.h.Bat"]);
-    assert.equal(gga.Cards.h.Bat, atCopy.bat);
-    assert.equal(gga.Cards, cardsMap, "written into the game's map, not replacing it");
-    assert.equal(gga.Money, 1);
-
-    // Everything.
-    expressions.length = 0;
-    res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: "all" });
+    const res = await restore(app, id, "all");
     assert.equal(res.body.ok, true, JSON.stringify(res.body));
     assert.equal(gga.Money, atCopy.money);
     assert.equal(gga.PlayerDATABASE.h.Bob.h.Money, atCopy.bob);
-    const written = writesSent();
-    assert.ok(written.length > 0);
-    for (const p of written) {
+    for (const p of writesSent()) {
         assert.ok(
-            !/^gga\.(ServerGemsReceived|BundlesReceived|TimeAway|CloudsaveTimer)\b/.test(p) &&
+            !/^gga\.(ServerGemsReceived|BundlesReceived|TimeAway|CloudsaveTimer|GemsOwned)\b/.test(p) &&
                 !/PlayerAwayTime$/.test(p),
             `${p} must never be written by a restore`
         );
     }
     assert.deepEqual(protectedNow(), before, "the never-rolled-back values are as they were");
-
-    // A second click finds nothing left to put back.
-    expressions.length = 0;
-    res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: "all" });
-    assert.deepEqual(res.body, { ok: true, results: [] });
-    assert.deepEqual(writesSent(), []);
+    assert.equal((await listCopies(app.dir))[0].label.what, "all");
 });
 
-test("restore checks each value as the write left it: a value the game keeps raising lands, a refused one fails", async () => {
-    const app = server();
-    const id = await cloudSave(app);
-    const atCopy = gga.Money;
-    gga.Money += 5;
-    // The game raises Money on every tick, and ticks only between game calls (#78).
-    const tick = game.runtime.evaluate;
-    game.runtime.evaluate = async (options) => {
-        const result = await tick(options);
-        gga.Money += 10;
-        return result;
-    };
-    try {
-        let res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Money"] });
-        assert.deepEqual(res.body, { ok: true, results: [{ path: "gga.Money", ok: true }] });
-        assert.ok(gga.Money >= atCopy);
-
-        gga.Cards.h.Bat = 99;
-        Object.defineProperty(gga.Cards.h, "Bat", { get: () => 99, set() {}, configurable: true });
-        res = await request(app.router, "POST", "/api/save-copies/restore", { id, select: ["Cards"] });
-        assert.deepEqual(res.body, {
-            ok: false,
-            results: [{ path: "gga.Cards.h.Bat", ok: false, error: "Write mismatch" }],
-        });
-    } finally {
-        game.runtime.evaluate = tick;
-        Object.defineProperty(gga.Cards.h, "Bat", { value: 3, writable: true, configurable: true, enumerable: true });
-    }
-});
-
-test("a selection matching only protected values writes nothing", async () => {
+test("a selection matching only protected values has nothing to restore", async () => {
     const app = server();
     const id = await cloudSave(app);
     gga.ServerGemsReceived += 1;
     gga.TimeAway.h.Forge += 1;
     expressions.length = 0;
-    const res = await request(app.router, "POST", "/api/save-copies/restore", {
-        id,
-        select: ["ServerGemsReceived", "TimeAway", "BundlesReceived", "CloudsaveTimer", "PlayerDATABASE"],
-    });
-    assert.deepEqual(res.body, { ok: true, results: [] });
+    const res = await restore(app, id, [
+        "ServerGemsReceived",
+        "TimeAway",
+        "BundlesReceived",
+        "CloudsaveTimer",
+        "PlayerDATABASE",
+    ]);
+    assert.deepEqual(res.body, { ok: true, results: [], before: null, after: null, afterError: null });
     assert.deepEqual(writesSent(), []);
+});
+
+test("gems bought since a copy: its GemsOwned and gem purchases are kept; without, they can be put back", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const gems = gga.GemsOwned;
+    gga.GemsOwned += 300;
+    let res = await request(app.router, "POST", "/api/save-copies/compare", { id });
+    let change = res.body.groups.find((g) => g.key === "GemsOwned").changes[0];
+    assert.deepEqual([change.restorable, change.gemsBought], [true, false], "gems spent or cheated, none bought");
+
+    gga.ServerGemsReceived += 300;
+    res = await request(app.router, "POST", "/api/save-copies/compare", { id });
+    change = res.body.groups.find((g) => g.key === "GemsOwned").changes[0];
+    assert.deepEqual([change.restorable, change.gemsBought], [false, true]);
+    res = await restore(app, id, ["GemsOwned"]);
+    assert.deepEqual(res.body.results, []);
+    assert.equal(gga.GemsOwned, gems + 300);
+    gga.GemsOwned = gems;
+});
+
+test("a gem bought between the plan and the write refuses the restore, and the gems stay", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const gems = gga.GemsOwned;
+    gga.GemsOwned += 300;
+    gga.Money += 7;
+    const money = gga.Money;
+    const real = game.runtime.evaluate;
+    game.runtime.evaluate = (options) => {
+        if (options.expression.startsWith("writeGamePaths(")) gga.GemsOwned += 50;
+        return real(options);
+    };
+    let res;
+    try {
+        res = await restore(app, id, ["GemsOwned", "Money"]);
+    } finally {
+        game.runtime.evaluate = real;
+    }
+    assert.equal(res.body.ok, false);
+    assert.ok(
+        res.body.results.every((r) => !r.ok && r.error === "changed since"),
+        JSON.stringify(res.body)
+    );
+    assert.equal(gga.GemsOwned, gems + 350, "the bought gems stay");
+    assert.equal(gga.Money, money, "and nothing else is written");
+    assert.equal(res.body.after, null);
+    gga.GemsOwned = gems;
+});
+
+test("a restore that landed says so even when its copy after can't be made", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const bat = gga.Cards.h.Bat;
+    gga.Cards.h.Bat = 77;
+    const real = game.runtime.evaluate;
+    let wrote = false;
+    game.runtime.evaluate = (options) => {
+        if (options.expression.startsWith("writeGamePaths(")) wrote = true;
+        else if (wrote && options.expression.startsWith("readSave(")) throw new Error("the game is busy");
+        return real(options);
+    };
+    let res;
+    try {
+        res = await restore(app, id, ["Cards"]);
+    } finally {
+        game.runtime.evaluate = real;
+    }
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    assert.equal(res.body.ok, true);
+    assert.ok(res.body.before, "the way back is there");
+    assert.equal(res.body.after, null);
+    assert.match(res.body.afterError, /busy/);
+    assert.equal(gga.Cards.h.Bat, bat);
+});
+
+test("two quick restores each get their own before-copy, taken after the first restore", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const atCopy = { bat: gga.Cards.h.Bat, money: gga.Money };
+    gga.Cards.h.Bat = 55;
+    gga.Money = 2;
+    const [first, second] = await Promise.all([restore(app, id, ["Cards"]), restore(app, id, ["Money"])]);
+    assert.notEqual(first.body.before, second.body.before);
+    assert.equal(saveOf(app, first.body.before).Cards.h.Bat, 55);
+    assert.equal(saveOf(app, second.body.before).Cards.h.Bat, atCopy.bat, "the second one starts from the first's");
+    assert.equal(saveOf(app, second.body.before).Money, 2);
+    assert.equal(gga.Money, atCopy.money);
 });
 
 test("compare and restore refuse a copy taken while playing another character", async () => {

@@ -49,10 +49,11 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
     const timer = setInterval(pullSaveCopy, PULL_EVERY_MS);
     timer.unref();
 
+    /** The save now, as the game's JSON. */
     const readSaveNow = async () => {
         const result = await gameBridge.callHelper("readSave");
         if (result.error) throw new Error(`Couldn't read the save: ${result.error.text}`);
-        return JSON.parse(result.value);
+        return result.value;
     };
 
     /** The copy and the save now, or null when an HTTP error was sent. */
@@ -68,7 +69,8 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
             res.status(404).json({ error: error.message });
             return null;
         }
-        const now = await readSaveNow();
+        const nowJson = await readSaveNow();
+        const now = JSON.parse(nowJson);
         // A character's values sit in the top-level keys only while it's in play, so they only line up then.
         if (copy.character !== now.character) {
             res.status(409).json({
@@ -76,7 +78,7 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
             });
             return null;
         }
-        return { copy, now };
+        return { copy, now, nowJson };
     }
 
     /** Every stored copy, newest first, and the last failure to store one (null when the last copy went fine). */
@@ -86,6 +88,58 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
         } catch (error) {
             // The folder can't be read (a file in its place, no permission): no copies, and say why.
             res.json({ copies: [], warning: warning ?? `The save copies in ${dir} can't be read: ${error.message}` });
+        }
+    });
+
+    /**
+     * What changed between each copy and the one before it of the same character, so the list can say it ("Cards,
+     * Stamps, 3 more"). Copies never change, so each answer is kept for the run. A copy with no earlier one is `first`.
+     */
+    const sinceCache = new Map(); // id -> { keys: [{ key, n }], itself, first } | null
+    const parsed = new Map(); // a few read copies: the list asks newest first, so each one is the next one's older
+    const readParsed = async (id) => {
+        if (!parsed.has(id)) {
+            if (parsed.size >= 4) parsed.delete(parsed.keys().next().value);
+            parsed.set(id, await readCopy(dir, id));
+        }
+        return parsed.get(id);
+    };
+    const sinceBefore = async (copies, id) => {
+        if (sinceCache.has(id)) return sinceCache.get(id);
+        const at = copies.findIndex((c) => c.id === id);
+        if (at < 0) return null;
+        const older = copies.slice(at + 1).find((c) => c.character === copies[at].character);
+        let since;
+        if (!older) since = { keys: [], itself: 0, first: true };
+        else {
+            const counts = new Map();
+            let itself = 0;
+            for (const { key, changes } of diffSave(await readParsed(older.id), await readParsed(id))) {
+                const own = changes.filter((change) => !change.onItsOwn).length;
+                itself += changes.length - own;
+                if (own) counts.set(key, own);
+            }
+            const keys = [...counts].sort((a, b) => b[1] - a[1]).map(([key, n]) => ({ key, n }));
+            since = { keys, itself, first: false };
+        }
+        sinceCache.set(id, since);
+        return since;
+    };
+
+    /** { ids } -> { since: { [id]: { keys: [{ key, n }], itself, first } | null } }, null for a copy that can't be read */
+    app.post("/api/save-copies/since", async (req, res) => {
+        try {
+            const { ids } = await req.json();
+            if (!Array.isArray(ids)) return res.status(400).json({ error: "ids must be a list" });
+            const copies = await listCopies(dir);
+            const since = {};
+            for (const id of ids.slice(0, 50)) {
+                since[id] = await sinceBefore(copies, id).catch(() => null);
+            }
+            res.json({ since });
+        } catch (error) {
+            log.error("Error in /api/save-copies/since:", error);
+            res.status(500).json({ error: error.message });
         }
     });
 
@@ -103,33 +157,73 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
     });
 
     /**
-     * { id, select: "all" | paths } -> { ok, results: [{ path, ok, error? }] }. Writes through the same game helper
-     * as the write-many route, and checks every path holds the copy's value, as the game read it back in that
-     * same call (a later read could see a game tick first, #78).
+     * A restore is a fork: first a copy of the save as it is ("Before restore", the way back), then the copy's values
+     * are written through the same game helper as the write-many route, each checked as the game read it back in that
+     * same call (#78), then a copy of the save after it ("Restored from <copy> (<what>)"). One restore runs at a time,
+     * so two quick ones each get their own before-copy.
      */
-    app.post("/api/save-copies/restore", async (req, res) => {
-        try {
-            const { id, select } = await req.json();
-            if (select !== "all" && !(Array.isArray(select) && select.every((s) => typeof s === "string" && s))) {
-                return res.status(400).json({ error: 'select must be "all" or a list of paths' });
-            }
-            const both = await copyAndNow(id, res);
-            if (!both) return;
-            const writes = restoreWrites(diffSave(both.copy, both.now), select);
-            if (writes.length === 0) return res.json({ ok: true, results: [] });
+    async function restore(req, res) {
+        const { id, select } = await req.json();
+        if (select !== "all" && !(Array.isArray(select) && select.every((s) => typeof s === "string" && s))) {
+            return res.status(400).json({ error: 'select must be "all" or a list of paths' });
+        }
+        const both = await copyAndNow(id, res);
+        if (!both) return;
+        const writes = restoreWrites(diffSave(both.copy, both.now), select);
+        if (writes.length === 0)
+            return res.json({ ok: true, results: [], before: null, after: null, afterError: null });
 
-            const written = await writeGamePaths(gameBridge, writes);
-            const results = writes.map((write, i) => {
-                const wrote = written.results?.[i];
-                if (!wrote?.ok) return { path: write.path, ok: false, error: wrote?.error ?? "Write failed" };
-                if (!isDeepStrictEqual(normalizeReadValue(wrote.value), write.value)) {
-                    return { path: write.path, ok: false, error: "Write mismatch" };
-                }
-                return { path: write.path, ok: true };
-            });
-            const failed = results.filter((r) => !r.ok).length;
-            log.info(`Restored ${writes.length - failed} of ${writes.length} values from save copy ${id}`);
-            res.json({ ok: failed === 0, results });
+        const before = await writeCopy(dir, Date.now(), both.nowJson, { kind: "before" });
+        let written;
+        try {
+            // Only while the copy's character is in play, checked by the game as it writes.
+            written = await writeGamePaths(gameBridge, writes, both.copy.character);
+        } catch (error) {
+            if (error.refused) return res.status(409).json({ error: error.message, before });
+            throw error;
+        }
+        const results = writes.map((write, i) => {
+            const wrote = written.results?.[i];
+            if (!wrote?.ok) return { path: write.path, ok: false, error: wrote?.error ?? "Write failed" };
+            if (!isDeepStrictEqual(normalizeReadValue(wrote.value), write.value)) {
+                return { path: write.path, ok: false, error: "Write mismatch" };
+            }
+            return { path: write.path, ok: true };
+        });
+        const landed = results.filter((r) => r.ok).length;
+        log.info(`Restored ${landed} of ${writes.length} values from save copy ${id}`);
+        let after = null;
+        let afterError = null;
+        if (landed) {
+            const keys = [...new Set(writes.map((write) => write.path.slice(4).split(/[.[]/)[0]))];
+            const what = select === "all" ? "all" : keys.length === 1 ? keys[0] : `${keys.length} keys`;
+            try {
+                const copyTime = (await listCopies(dir)).find((c) => c.id === id)?.time ?? null;
+                after = await writeCopy(dir, Date.now(), await readSaveNow(), {
+                    kind: "restored",
+                    from: copyTime,
+                    what,
+                });
+            } catch (error) {
+                // The values are written by now: the restore stands, only its copy after is missing.
+                afterError = error.message;
+                log.warn(`The copy after a restore couldn't be made: ${error.message}`);
+            }
+        }
+        res.json({ ok: landed === writes.length, results, before, after, afterError });
+    }
+
+    /**
+     * { id, select: "all" | paths } -> { ok, results: [{ path, ok, error? }], before, after, afterError }: the ids of
+     * the copies taken before and after (null when nothing was left to restore, or nothing landed), and why the copy
+     * after is missing when the restore landed but it couldn't be made.
+     */
+    let running = Promise.resolve();
+    app.post("/api/save-copies/restore", async (req, res) => {
+        const turn = running.then(() => restore(req, res));
+        running = turn.catch(() => {});
+        try {
+            await turn;
         } catch (error) {
             log.error("Error in /api/save-copies/restore:", error);
             res.status(500).json({ error: error.message });

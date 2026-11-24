@@ -13,7 +13,7 @@ const gunzip = promisify(zlib.gunzip);
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-// About 400 copies of 20-70 KB: ~20 MB. The cap is only a safety net for unusually large saves.
+// About 400 copies of ~120 KB (the test account, gzipped): ~47 MB. The cap is a safety net for larger saves.
 const MAX_TOTAL_BYTES = 100 * 1024 * 1024;
 
 /**
@@ -44,6 +44,60 @@ const NEVER_RESTORED = [
 const isNeverRestored = (keys) =>
     NEVER_RESTORED.some((pattern) => pattern.every((key, i) => key === "*" || key === keys[i]));
 
+/**
+ * Gems the player bought on the server since the copy: ServerGemsReceived went up, and the game added them to
+ * GemsOwned (see NEVER_RESTORED). Putting back the copy's GemsOwned or gem purchases would lose them for good, since
+ * the game never hands out gems it already counted.
+ */
+const GEM_KEYS = new Set(["GemsOwned", "GemsPacksPurchased", "GemItemsPurchased"]);
+
+/**
+ * The values the game moves by itself while the player is away or idle (timers, progress bars, away gains), so the
+ * History page can keep them out of the way. Each is a path as diffSave writes it, with any character's name as "*".
+ * Measured on the test accounts: every one changed in at least half of the 4-minute gaps between idle saves.
+ * ponytail: a hand list from two accounts; a bigger account moves more, which then shows with the player's own changes.
+ */
+const ON_ITS_OWN = new RegExp(
+    `^(${[
+        "TimeAway\\b.*",
+        "CloudsaveTimer",
+        "Exp0\\[\\d+\\]",
+        "PlayerDATABASE\\.h\\.\\*\\.h\\.(Exp0\\[\\d+\\]|PldTraps\\[\\d+\\]\\[2\\]|PlayerAwayTime)",
+        "PlacedTraps\\[\\d+\\]\\[2\\]",
+        "FarmPlot\\[\\d+\\]\\[6\\]",
+        "Territory\\[\\d+\\]\\[[014]\\]",
+        "Breeding\\[25\\]\\[\\d+\\]",
+        "Refinery\\[[02]\\]\\[\\d+\\]",
+        "AnvilPA\\[\\d+\\]\\[[0-3]\\]",
+        "CauldronInfo\\[[56]\\]\\[\\d+\\]",
+        "CauldronP2W\\[4\\]\\[\\d+\\]",
+        "Bubba\\[0\\]\\[\\d+\\]",
+        "GamingSprout\\[\\d+\\]\\[[13]\\]",
+        "Gaming\\[14\\]",
+        "Summon\\[[23]\\]\\[\\d+\\]",
+        "Spelunk\\[3\\]\\[\\d+\\]",
+        "Research\\[3\\]\\[(6|13|14|15)\\]",
+        "Research\\[7\\]\\[5\\]",
+        "Holes\\[(2|9|11|25|27)\\]\\[\\d+\\]",
+        "Holes\\[(18|33)\\]\\[0\\]",
+        "TowerInfo\\[(6[2-5]|7[1-9]|8[0-7])\\]",
+        "CookMaster\\[1\\]\\[1\\]",
+        "Meals\\[[12]\\]\\[0\\]",
+        "Menagerie\\[0\\]\\[15\\]",
+        "Ninja\\[102\\]\\[2\\]",
+        "Sushi\\[4\\]\\[[03]\\]",
+        "ForgeIntervalProgress\\[\\d+\\]",
+        "ForgeItemQuantity\\[\\d+\\]",
+        // Timers and running totals kept in the account options: they moved in every idle gap, on both accounts.
+        "OptionsListAccount\\[(45|87|124|253|263|288|289|305|423|439)\\]",
+        // The storage chest, where idle loot lands: on the bigger test account the same items rose in every gap. A
+        // storage change the player made shows here too.
+        "ChestQuantity\\[\\d+\\]",
+    ].join("|")})$`
+);
+const isOnItsOwn = (filePath) =>
+    ON_ITS_OWN.test(filePath.replace(/^PlayerDATABASE\.h\.[^.]+\./, "PlayerDATABASE.h.*."));
+
 const isObject = (value) => value !== null && typeof value === "object";
 const isMap = (value) => isObject(value) && !Array.isArray(value);
 // The path resolver splits on these, so a key holding one can't be written.
@@ -54,20 +108,37 @@ const writableKey = (key) => !/[.[\]]/.test(key);
  * resolver reads it, without "gga."), the copy's value, the value now, and whether a restore may write it.
  *
  * Objects are compared key by key, so maps and the injector's proxies are written into, never replaced. Below the
- * top level an array whose length changed is one change (written whole); a top-level array is compared by index.
+ * top level an array whose length changed is one change, shown but never written; a top-level array is compared by
+ * index. So a restore only ever writes single values, never a whole list.
  * The character in play has its data in the top-level keys, so its PlayerDATABASE entry is left out.
+ * `gemsBought` marks the gem values a restore leaves alone because gems were bought since the copy (GEM_KEYS), and
+ * `onItsOwn` the values the game moves by itself (ON_ITS_OWN).
  *
  * @param {{ character: string, save: object }} copy
  * @param {{ character: string, save: object }} now
- * @returns {Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, restorable: boolean }> }>}
+ * @returns {Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, gemsBought: boolean, onItsOwn: boolean, restorable: boolean }> }>}
  */
 function diffSave(copy, now) {
     const groups = new Map();
+    const boughtGems = (now.save.ServerGemsReceived ?? 0) > (copy.save.ServerGemsReceived ?? 0);
     const add = (keys, filePath, copyValue, nowValue) => {
         const neverRestored = isNeverRestored(keys);
+        const gemsBought = boughtGems && GEM_KEYS.has(keys[0]);
         const restorable =
             copyValue !== undefined &&
+            // Not in the save now (a map key the game dropped, a shorter array): a restore would add it, and going back
+            // couldn't take it away again.
+            nowValue !== undefined &&
+            // The game keeps some values in another shape while it runs than in its save (OptionsList[11] is 0 in
+            // the save, a list in play; CauldronInfo[8] is [] until it's built): writing the saved shape breaks the
+            // game's code that reads it (seen in game: its cloud saves stopped). Only a value of the same kind is
+            // written, and a list only at its length now: a shorter one drops entries the game reads, a longer one
+            // couldn't be taken back by restoring "Before restore".
+            Array.isArray(copyValue) === Array.isArray(nowValue) &&
+            isObject(copyValue) === isObject(nowValue) &&
+            !(Array.isArray(copyValue) && copyValue.length !== nowValue.length) &&
             !neverRestored &&
+            !gemsBought &&
             keys.every(writableKey) &&
             // A map can't be rebuilt from JSON (the game's maps are objects of its own class), and a top-level value
             // that is an object may be one of the injector's proxies.
@@ -75,7 +146,15 @@ function diffSave(copy, now) {
             !isMap(nowValue) &&
             !(keys.length === 1 && isObject(nowValue));
         if (!groups.has(keys[0])) groups.set(keys[0], []);
-        groups.get(keys[0]).push({ path: filePath, copy: copyValue, now: nowValue, neverRestored, restorable });
+        groups.get(keys[0]).push({
+            path: filePath,
+            copy: copyValue,
+            now: nowValue,
+            neverRestored,
+            gemsBought,
+            onItsOwn: isOnItsOwn(filePath),
+            restorable,
+        });
     };
     const walk = (a, b, keys, filePath) => {
         if (a === b) return;
@@ -106,7 +185,7 @@ function diffSave(copy, now) {
  * never in it.
  * @param {ReturnType<typeof diffSave>} groups
  * @param {"all" | string[]} select
- * @returns {Array<{ path: string, value: any }>}
+ * @returns {Array<{ path: string, value: any, expect?: any }>}
  */
 function restoreWrites(groups, select) {
     const selected = (p) =>
@@ -114,29 +193,41 @@ function restoreWrites(groups, select) {
     return groups
         .flatMap((group) => group.changes)
         .filter((change) => change.restorable && selected(change.path))
-        .map((change) => ({ path: `gga.${change.path}`, value: change.copy }));
+        .map((change) => ({
+            path: `gga.${change.path}`,
+            value: change.copy,
+            // A gem bought between this plan and the write: the game refuses the restore rather than lose it (in the
+            // game, the unguarded writes of a batch wait on its guarded ones).
+            ...(GEM_KEYS.has(change.path.split(/[.[]/)[0]) ? { expect: change.now } : {}),
+        }));
 }
 
-// <ISO time with - for :>_<character>.json.gz, e.g. 2026-11-20T01-02-03-456Z_Luumii.json.gz
-const FILE = /^(\d{4}-\d\d-\d\dT\d\d)-(\d\d)-(\d\d)-(\d{3}Z)_(\w+)\.json\.gz$/;
+// <ISO time with - for :>_<character>[~<label>].json.gz, e.g. 2026-11-20T01-02-03-456Z_Luumii.json.gz. The label
+// (base64url JSON) marks the copies a restore makes: { kind: "before" } or { kind: "restored", from, what }.
+const FILE = /^(\d{4}-\d\d-\d\dT\d\d)-(\d\d)-(\d\d)-(\d{3}Z)_(\w+?)(?:~([\w-]+))?\.json\.gz$/;
 
 /**
- * Store a copy (the JSON from the game) and return its id. Written to a temporary file and renamed, so a crash
- * can't leave half a copy.
+ * Store a copy (the JSON from the game), with an optional label, and return its id. Written to a temporary file and
+ * renamed, so a crash can't leave half a copy; a copy never replaces another taken in the same millisecond.
  */
-async function writeCopy(dir, time, json) {
+async function writeCopy(dir, time, json, label = null) {
     const character = String(JSON.parse(json).character).replace(/\W/g, "_");
-    const id = `${new Date(time).toISOString().replace(/[:.]/g, "-")}_${character}`;
-    const file = path.join(dir, `${id}.json.gz`);
+    const tag = label ? `~${Buffer.from(JSON.stringify(label)).toString("base64url")}` : "";
     await fs.mkdir(dir, { recursive: true });
+    const taken = new Set(await fs.readdir(dir));
+    let at = time;
+    const idAt = (t) => `${new Date(t).toISOString().replace(/[:.]/g, "-")}_${character}`;
+    while ([...taken].some((name) => name.startsWith(`${idAt(at)}.`) || name.startsWith(`${idAt(at)}~`))) at++;
+    const id = `${idAt(at)}${tag}`;
+    const file = path.join(dir, `${id}.json.gz`);
     await fs.writeFile(`${file}.tmp`, await gzip(json));
     await fs.rename(`${file}.tmp`, file);
     return id;
 }
 
 /**
- * Every stored copy, newest first.
- * @returns {Promise<Array<{ id: string, time: number, character: string, size: number }>>}
+ * Every stored copy, newest first; `label` is null for a copy of a cloud save.
+ * @returns {Promise<Array<{ id: string, time: number, character: string, size: number, label: object|null }>>}
  */
 async function listCopies(dir) {
     let names;
@@ -151,11 +242,18 @@ async function listCopies(dir) {
         const m = FILE.exec(name);
         if (!m) continue;
         const { size } = await fs.stat(path.join(dir, name));
+        let label = null;
+        try {
+            label = m[6] ? JSON.parse(Buffer.from(m[6], "base64url").toString("utf8")) : null;
+        } catch {
+            label = null;
+        }
         copies.push({
             id: name.slice(0, -".json.gz".length),
             time: Date.parse(`${m[1]}:${m[2]}:${m[3]}.${m[4]}`),
             character: m[5],
             size,
+            label,
         });
     }
     return copies.sort((a, b) => b.time - a.time);
@@ -174,7 +272,8 @@ const localDay = (time) => new Date(time).toDateString();
 
 /**
  * Which copies to delete: keep every copy from the last 24 hours and the newest copy of each day for 30 days, then
- * drop the oldest kept ones while the total is over the size cap.
+ * drop the oldest kept ones while the total is over the size cap. A restore's own copies (labelled: "Before restore"
+ * is the way back from it) stay their 30 days, and go last for the size cap.
  * @param {Awaited<ReturnType<typeof listCopies>>} copies - newest first
  * @returns {{ expired: string[], trimmed: number }} the ids to delete; `trimmed` of them only for the size cap
  */
@@ -186,14 +285,15 @@ function pickExpired(copies, now, maxBytes = MAX_TOTAL_BYTES) {
         const age = now - copy.time;
         const newestOfDay = !seenDays.has(localDay(copy.time));
         seenDays.add(localDay(copy.time));
-        if (age < DAY || (newestOfDay && age < 30 * DAY)) kept.push(copy);
+        if (age < DAY || ((newestOfDay || copy.label) && age < 30 * DAY)) kept.push(copy);
         else expired.push(copy.id);
     }
     let total = kept.reduce((sum, copy) => sum + copy.size, 0);
     let trimmed = 0;
-    // The newest copy always stays, whatever its size.
+    // The newest copy always stays, whatever its size; the oldest cloud-save copies go before a restore's own.
     while (total > maxBytes && kept.length > 1) {
-        const oldest = kept.pop();
+        const at = kept.findLastIndex((copy, i) => i > 0 && !copy.label);
+        const [oldest] = kept.splice(at > 0 ? at : kept.length - 1, 1);
         total -= oldest.size;
         expired.push(oldest.id);
         trimmed++;

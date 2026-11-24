@@ -486,12 +486,27 @@ export async function fetchSaveCopies() {
 }
 
 /**
+ * What changed in each copy since the one before it of the same character: the save keys the player changed, most
+ * values first, and how many values moved on their own. `first` when there's no earlier copy; null when unreadable.
+ * @param {string[]} ids - up to 50
+ * @returns {Promise<{ since: Record<string, { keys: Array<{ key: string, n: number }>, itself: number, first: boolean } | null> }>}
+ */
+export async function fetchCopiesSince(ids) {
+    return _request(
+        "/save-copies/since",
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) },
+        { timeoutMs: 0 }
+    );
+}
+
+/**
  * Every difference between a save copy and the save now, by top-level save key. Values marked `neverRestored`
- * (gems and bundles received from the server, the time-away stamps) and others not `restorable` are shown only.
+ * (gems and bundles received from the server, the time-away stamps), `gemsBought` (gems bought since the copy) and
+ * others not `restorable` are shown only; `onItsOwn` marks the values the game moves by itself.
  * Rejects when the copy was taken while playing another character.
  *
  * @param {string} id
- * @returns {Promise<{ id: string, character: string, groups: Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, restorable: boolean }> }> }>}
+ * @returns {Promise<{ id: string, character: string, groups: Array<{ key: string, changes: Array<{ path: string, copy: any, now: any, neverRestored: boolean, gemsBought: boolean, onItsOwn: boolean, restorable: boolean }> }> }>}
  */
 // Compare and restore go through the whole save, which can take longer than a request's usual limit.
 export async function compareSaveCopy(id) {
@@ -507,12 +522,13 @@ export async function compareSaveCopy(id) {
 }
 
 /**
- * Put a save copy's values back, through the same game write as ggaMany, each read back and checked.
- * `select` is "all" or a list of paths from compareSaveCopy (a path selects everything under it, e.g. "Cards").
+ * Put a save copy's values back. The injector first copies the save as it is ("Before restore", the way back), and
+ * after the writes copies it again ("Restored from …"). `select` is "all" or a list of paths from compareSaveCopy (a
+ * path selects everything under it, e.g. "Cards").
  *
  * @param {string} id
  * @param {"all" | string[]} select
- * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }> }>}
+ * @returns {Promise<{ ok: boolean, results: Array<{ path: string, ok: boolean, error?: string }>, before: string|null, after: string|null }>}
  */
 export async function restoreSaveCopy(id, select) {
     return _request(
