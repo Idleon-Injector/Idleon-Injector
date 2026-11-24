@@ -220,6 +220,8 @@ export const Icons = {
 const ELLIPSE = "M3 12a9 3.6 0 1 0 18 0 9 3.6 0 1 0-18 0z";
 const SYSTEM_ICONS = {
     Home: ["M4 10.5 12 4l8 6.5", "M6 9v10.5h4.5V15h3v4.5H18V9"],
+    // A copy of the save at each cloud save (History): a clock whose hand runs back.
+    "Save copies": ["M4 12a8 8 0 1 0 2.35-5.65L4 8.7", "M4 4.5v4.2h4.2", "M12 8v4.2l2.9 1.8"],
     // Work that repeats (the glossary's automation): two arrows chasing each other round a loop.
     Automation: [
         "M16.5 3.5 19.5 6.5l-3 3",

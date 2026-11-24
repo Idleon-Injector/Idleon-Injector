@@ -91,6 +91,58 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
         }
     });
 
+    /**
+     * What changed between each copy and the one before it of the same character, so the list can say it ("Cards,
+     * Stamps, 3 more"). Copies never change, so each answer is kept for the run. A copy with no earlier one is `first`.
+     */
+    const sinceCache = new Map(); // id -> { keys: [{ key, n }], itself, first } | null
+    const parsed = new Map(); // a few read copies: the list asks newest first, so each one is the next one's older
+    const readParsed = async (id) => {
+        if (!parsed.has(id)) {
+            if (parsed.size >= 4) parsed.delete(parsed.keys().next().value);
+            parsed.set(id, await readCopy(dir, id));
+        }
+        return parsed.get(id);
+    };
+    const sinceBefore = async (copies, id) => {
+        if (sinceCache.has(id)) return sinceCache.get(id);
+        const at = copies.findIndex((c) => c.id === id);
+        if (at < 0) return null;
+        const older = copies.slice(at + 1).find((c) => c.character === copies[at].character);
+        let since;
+        if (!older) since = { keys: [], itself: 0, first: true };
+        else {
+            const counts = new Map();
+            let itself = 0;
+            for (const { key, changes } of diffSave(await readParsed(older.id), await readParsed(id))) {
+                const own = changes.filter((change) => !change.onItsOwn).length;
+                itself += changes.length - own;
+                if (own) counts.set(key, own);
+            }
+            const keys = [...counts].sort((a, b) => b[1] - a[1]).map(([key, n]) => ({ key, n }));
+            since = { keys, itself, first: false };
+        }
+        sinceCache.set(id, since);
+        return since;
+    };
+
+    /** { ids } -> { since: { [id]: { keys: [{ key, n }], itself, first } | null } }, null for a copy that can't be read */
+    app.post("/api/save-copies/since", async (req, res) => {
+        try {
+            const { ids } = await req.json();
+            if (!Array.isArray(ids)) return res.status(400).json({ error: "ids must be a list" });
+            const copies = await listCopies(dir);
+            const since = {};
+            for (const id of ids.slice(0, 50)) {
+                since[id] = await sinceBefore(copies, id).catch(() => null);
+            }
+            res.json({ since });
+        } catch (error) {
+            log.error("Error in /api/save-copies/since:", error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
     /** { id } -> { id, character, groups: [{ key, changes: [{ path, copy, now, neverRestored, restorable }] }] } */
     app.post("/api/save-copies/compare", async (req, res) => {
         try {

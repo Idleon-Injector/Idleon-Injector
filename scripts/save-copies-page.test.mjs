@@ -1,7 +1,8 @@
-// History › Save copies (#32) on the fake game: the real page and server over copies on disk. Done when a copy of the
-// character in play opens to its compare (the game's own progress in its own box), Restore puts one key back with a
-// copy before and after (going back is restoring "Before restore"), Restore all never writes the protected values, gems
-// bought since a copy are kept, and another character's copy is listed greyed with a hint to switch.
+// History › Save copies (#32) on the fake game: the real page and server over copies on disk. Done when each copy says
+// what changed since the copy before it, a copy of the character in play opens to its compare (the game's own progress
+// in its own line), Restore puts one key back with a copy before and after (going back is restoring "Before restore"),
+// Restore all never writes the protected values, gems bought since a copy are kept, and another character's copy waits
+// in its own group at the end.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -82,43 +83,50 @@ async function openPage() {
 const heads = (root) => byClass(root, "save-copy__head");
 async function openCopy(root, index) {
     await heads(root)[index].listeners.click({});
-    await until(() => byClass(root, "save-key__head").length > 0, "the compare to show");
+    await until(() => byClass(root, "save-key").length > 0, "the compare to show");
 }
-const keyHead = (root, key) =>
-    byClass(root, "save-key__head").find((head) => text(byClass(head, "save-key__name")[0]) === key);
+const keyHead = (root, key) => byClass(root, "save-key").find((row) => text(byClass(row, "save-key__name")[0]) === key);
+const what = (row) => text(byClass(row, "save-copy__what")[0]);
 
-test("the list: newest first, the character in play's copies open, another's is greyed with a hint", async () => {
+test("the list: by day, newest first, each copy saying what changed; another character's at the end", async () => {
     const root = await openPage();
     const rows = byClass(root, "save-copy");
     assert.match(text(rows[0]), /12 min ago/);
-    assert.match(text(rows[0]), /Lumi_Main/);
     assert.equal(heads(root)[0].nodeName, "button");
-    assert.ok(classes(rows[2]).includes("is-other"));
-    assert.equal(heads(root)[2].nodeName, "div", "another character's copy doesn't open");
-    assert.match(text(rows[2]), /Switch to Lumi_Alt to compare/);
+    // Since the copy before it, only the gems the server handed out changed.
+    await until(() => what(rows[0]) !== "", "what changed since the copy before");
+    assert.equal(what(rows[0]), "Gems received");
+
+    // Another character's copy waits in the last group, named, and doesn't open.
+    const other = rows.at(-1);
+    assert.ok(classes(other).includes("is-other"));
+    assert.equal(what(other), "Lumi_Alt");
+    assert.equal(byClass(other, "save-copy__head")[0].nodeName, "div", "another character's copy doesn't open");
 
     // By day, newest first: today's copies open, an older day's folded.
     const days = byClass(root, "save-copies__day");
-    assert.ok(days.length >= 2);
     const toggle = (day) => byClass(day, "save-copies__day-toggle")[0];
     assert.match(text(toggle(days[0])), /^(Today|Yesterday)\d+ cop/);
     assert.equal(toggle(days[0]).attributes["aria-expanded"], "true");
+    assert.equal(text(byClass(days.at(-1), "save-copies__day-name")[0]), "Other characters");
+    const older = days.at(-2);
     assert.equal(
-        text(byClass(days.at(-1), "save-copies__day-name")[0]),
+        text(byClass(older, "save-copies__day-name")[0]),
         new Date(oldTime).toLocaleDateString([], { month: "short", day: "numeric" })
     );
-    assert.equal(toggle(days.at(-1)).attributes["aria-expanded"], "false");
-    await toggle(days.at(-1)).listeners.click({});
-    assert.equal(toggle(days.at(-1)).attributes["aria-expanded"], "true", "an older day opens");
+    assert.equal(toggle(older).attributes["aria-expanded"], "false");
+    await toggle(older).listeners.click({});
+    assert.equal(toggle(older).attributes["aria-expanded"], "true", "an older day opens");
+    await until(() => what(byClass(older, "save-copy")[0]) === "Oldest copy", "the oldest copy to say so");
 });
 
-test("a copy opens to one box per key; the game's own progress waits in its own box", async () => {
+test("a copy opens to one line per key; the game's own progress waits in its own line", async () => {
     const root = await openPage();
     await openCopy(root, 0);
     const names = byClass(root, "save-key__name").map(text);
     assert.ok(names.includes("Cards") && names.includes("Money"), names.join());
-    assert.ok(names.includes("Changed on its own"));
-    assert.ok(!names.includes("FarmPlot"), "the farm's progress is in the closed box");
+    assert.ok(names.includes("Game's own progress"));
+    assert.ok(!names.includes("Farming plots"), "the farm's progress is in the closed line");
     assert.match(text(keyHead(root, "Cards")), /2 values/);
 });
 
@@ -126,8 +134,11 @@ test("a copy opens to one box per key; the game's own progress waits in its own 
 async function openById(root, copyId) {
     const { copies } = await fetchSaveCopies();
     await until(() => byClass(root, "save-copy").length === copies.length, "the list to show every copy");
-    await heads(root)[copies.findIndex((c) => c.id === copyId)].listeners.click({});
-    await until(() => byClass(root, "save-key__head").length > 0, "the compare to show");
+    const row = byClass(root, "save-copy").find((r) =>
+        elements(r).some((node) => node.attributes.id === `save-copy-${copyId}`)
+    );
+    await byClass(row, "save-copy__head")[0].listeners.click({});
+    await until(() => byClass(root, "save-key").length > 0, "the compare to show");
 }
 const status = (root) => text(byClass(root, "save-copy__status")[0]);
 
@@ -140,7 +151,7 @@ test("Restore is a fork: a copy before and after, listed on top; going back is r
     // A quick second press while the first runs does nothing.
     await Promise.all([restore.listeners.click({}), restore.listeners.click({})]);
     await until(() => /Restored Cards\./.test(status(root)), "the restore to finish");
-    assert.match(status(root), /To go back, restore "Before restore"\./);
+    assert.match(status(root), /“Before restore” on top undoes it\./);
     assert.equal(gga.Cards[0].h.mob0, atCopy.mob0);
     assert.equal(gga.Cards[0].h.mob1, atCopy.mob1);
     assert.equal(gga.Money, now.money, "only the cards");
@@ -149,8 +160,10 @@ test("Restore is a fork: a copy before and after, listed on top; going back is r
     const { copies } = await fetchSaveCopies();
     assert.equal(copies.length, listed + 2, "one restore, two copies");
     await until(() => byClass(root, "save-copy").length === copies.length, "the new copies to list");
-    const labels = byClass(root, "save-copy__label").map(text);
-    assert.deepEqual(labels.slice(0, 2), [`Restored from ${copyName(copyTime)} (Cards)`, "Before restore"]);
+    const labels = byClass(root, "save-copy__when").map(text);
+    assert.deepEqual(labels.slice(0, 2), [`Restored from ${copyName(copyTime)}`, "Before restore"]);
+    // The restore's copy says what it put back.
+    await until(() => what(byClass(root, "save-copy")[0]) === "Cards", "the restore's copy to say Cards");
     assert.equal((await fetchChanges()).actions.length, logged, "a restore is no change with an Undo");
 
     // Going back: the same Restore, on "Before restore".
@@ -158,15 +171,15 @@ test("Restore is a fork: a copy before and after, listed on top; going back is r
     await openById(root, before.id);
     await byClass(keyHead(root, "Cards"), "save-key__restore")[0].listeners.click({});
     await until(() => gga.Cards[0].h.mob0 === now.mob0, "the cards to go back");
-    await until(() => /To go back/.test(byClass(root, "save-copy__status").map(text).join()), "its copy after");
+    await until(() => /undoes it/.test(byClass(root, "save-copy__status").map(text).join()), "its copy after");
     assert.equal(gga.Cards[0].h.mob1, now.mob1);
 });
 
 test("Restore all writes everything, the game's own progress too, never the protected values; gems bought since are kept", async () => {
     const root = await openPage();
     await openById(root, gemsId);
-    assert.match(text(keyHead(root, "GemsOwned")), /Gems were bought since this copy/);
-    assert.equal(byClass(keyHead(root, "GemsOwned"), "save-key__restore").length, 0);
+    assert.match(text(keyHead(root, "Gems")), /Gems bought since/);
+    assert.equal(byClass(keyHead(root, "Gems"), "save-key__restore").length, 0);
     const protectedNow = structuredClone({
         gems: gga.GemsOwned,
         server: gga.ServerGemsReceived,
@@ -174,7 +187,7 @@ test("Restore all writes everything, the game's own progress too, never the prot
         timer: gga.CloudsaveTimer,
     });
     const farmNow = gga.FarmPlot[0][6];
-    const [all] = byClass(root, "save-copy__bar").flatMap((bar) => byClass(bar, "save-key__restore"));
+    const [all] = byClass(root, "save-copy__restore-all");
     await all.listeners.click({});
     await until(() => /Restored everything\./.test(status(root)), "Restore all to finish");
     assert.equal(gga.Money, atCopy.money);
@@ -194,11 +207,9 @@ test("Restore all writes everything, the game's own progress too, never the prot
 
     // Back, with Restore all on "Before restore".
     await openById(root, copies[1].id);
-    await byClass(root, "save-copy__bar")
-        .flatMap((bar) => byClass(bar, "save-key__restore"))[0]
-        .listeners.click({});
+    await byClass(root, "save-copy__restore-all")[0].listeners.click({});
     await until(() => gga.Money === now.money, "the money to go back");
-    await until(() => /To go back/.test(byClass(root, "save-copy__status").map(text).join()), "its copy after");
+    await until(() => /undoes it/.test(byClass(root, "save-copy__status").map(text).join()), "its copy after");
     assert.equal(gga.FarmPlot[0][6], farmNow);
     assert.equal(gga.Cards[0].h.mob0, now.mob0);
 });

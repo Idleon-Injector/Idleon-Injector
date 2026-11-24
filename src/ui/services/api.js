@@ -486,6 +486,20 @@ export async function fetchSaveCopies() {
 }
 
 /**
+ * What changed in each copy since the one before it of the same character: the save keys the player changed, most
+ * values first, and how many values moved on their own. `first` when there's no earlier copy; null when unreadable.
+ * @param {string[]} ids - up to 50
+ * @returns {Promise<{ since: Record<string, { keys: Array<{ key: string, n: number }>, itself: number, first: boolean } | null> }>}
+ */
+export async function fetchCopiesSince(ids) {
+    return _request(
+        "/save-copies/since",
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) },
+        { timeoutMs: 0 }
+    );
+}
+
+/**
  * Every difference between a save copy and the save now, by top-level save key. Values marked `neverRestored`
  * (gems and bundles received from the server, the time-away stamps), `gemsBought` (gems bought since the copy) and
  * others not `restorable` are shown only; `onItsOwn` marks the values the game moves by itself.
