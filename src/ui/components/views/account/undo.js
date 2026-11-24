@@ -69,6 +69,8 @@ const CACHES = [
     [/^Research\[17\](\[[89]\])?$/, "DNSM.h.JellySlotz"],
     [/^Spelunk\[49\](\[|$)/, "DNSM.h.PaletteBonz"],
     [/^OptionsListAccount\[319\]$|^Summon\[1\](\[|$)/, "DNSM.h.SummWinBonus"],
+    [/^Grimoire(\[|$)/, "DNSM.h.GrimoireTotLV"],
+    [/^MapBon(\[|$)/, "DNSM.h.ArcMultBon"],
 ];
 // Resolves to false when the game didn't clear one: the values are back by then, so that is a warning, not a
 // failure, and nothing is tried again (a Refresh reads the totals the game holds).

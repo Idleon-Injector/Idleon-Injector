@@ -384,6 +384,139 @@ test("grimoire: Max all with every upgrade at its max writes nothing", async () 
     }
 });
 
+// #252: a row save and Max all take turns, so a level a row save lowers while Max all waits is filled again, and the
+// game counts its levels again after Max all's own write.
+test("grimoire: Max all pressed while a row save runs waits for it, then fills that upgrade too", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root, pane } = await openPane(GRIMOIRE, "Upgrades");
+        await click(buttonNamed(root, "Max all"));
+        await until(() => gga.Grimoire[5] === 50, "every capped upgrade at its max");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const row = rowNamed(pane, "Ribbon Winning");
+        const from = requests.length;
+        const hold = holdWritesTo((url, body) => url.endsWith("/gga/write") && body.includes("Grimoire[5]"));
+        try {
+            typeAndEnter(row, 3);
+            await until(() => hold.held() === 1, "the row save to reach the game");
+            click(buttonNamed(root, "Max all"));
+            await tick();
+        } finally {
+            hold.release();
+        }
+        await until(() => gga.Grimoire[5] === 50, "Max all to fill it again after the row save");
+        await until(() => stateOf(row) === "success", "the row save to end");
+        // The row's write, then Max all's, then the total goes after it.
+        const after = requests.slice(from).filter((entry) => /\/gga\/(write|write-many|delete)$/.test(entry));
+        const bulk = after.findIndex((entry) => entry.endsWith("/write-many"));
+        assert.ok(after.findIndex((entry) => entry.endsWith("/gga/write")) < bulk, "the row save first");
+        await until(
+            () => requests.slice(from).filter((entry) => entry.endsWith("/gga/delete")).length >= 2,
+            "the total to go after Max all's write too"
+        );
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+// #252: a Max all that saved the levels but couldn't clear the game's total clears it on the next press.
+test("grimoire: a total Max all couldn't clear is cleared by the next Max all, with no level to change", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root } = await openPane(GRIMOIRE, "Upgrades");
+        gga.Grimoire[5] = 3;
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
+        gga.DNSM.h.GrimoireTotLV = 77;
+        const restore = failRoute("/gga/delete");
+        const maxAll = buttonNamed(root, "Max all");
+        try {
+            click(maxAll);
+            await until(() => /account-btn--error/.test(classes(maxAll)), "Max all to fail");
+        } finally {
+            restore();
+        }
+        assert.equal(gga.Grimoire[5], 50, "the levels saved");
+        assert.equal(gga.DNSM.h.GrimoireTotLV, 77, "the total stayed");
+        await click(maxAll);
+        await until(() => gga.DNSM.h.GrimoireTotLV === undefined, "the next press to clear it");
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+// #252: when Max all's write and the clearing of the total both fail, the write's failure is the one said.
+test("grimoire: a Max all whose write and clearing both fail says the write's failure", async () => {
+    const saved = copy(gga.Grimoire);
+    try {
+        const { root } = await openPane(GRIMOIRE, "Upgrades");
+        gga.Grimoire[4] = 0;
+        gga.Grimoire[5] = 3;
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
+        const refuse = refuseWrites(gga.Grimoire, 5);
+        const restore = failRoute("/gga/delete");
+        const maxAll = buttonNamed(root, "Max all");
+        try {
+            click(maxAll);
+            await until(() => /account-btn--error/.test(classes(maxAll)), "Max all to fail");
+            await tick();
+            assert.match(text(root), /Write mismatch at Grimoire\[5\]/, "the refused write is said");
+            assert.doesNotMatch(text(root), /the game refused/, "not the clearing's failure");
+        } finally {
+            restore();
+            refuse();
+        }
+    } finally {
+        saved.forEach((level, n) => (gga.Grimoire[n] = level));
+    }
+});
+
+// #252: the shared Set all waits for a read that works, as the tabs' own tools do.
+test("grimoire: Set all waits while the page's read failed", async () => {
+    const { root } = await openPane(GRIMOIRE, "Upgrades");
+    const setAll = buttonNamed(
+        byClass(root, "account-setall-row").find((node) => !attr(node, "hidden")),
+        "Set all"
+    );
+    const restore = failRoute("/gga/read");
+    try {
+        click(buttonNamed(root, "Refresh"));
+        await until(() => attr(setAll, "aria-disabled") === "true", "Set all to wait");
+        assert.equal(attr(buttonNamed(root, "Max all"), "aria-disabled"), "true", "as Max all does");
+    } finally {
+        restore();
+    }
+    await click(buttonNamed(root, "Refresh"));
+    await until(() => attr(setAll, "aria-disabled") === "false", "a read that works to let it go");
+});
+
+// #252: an Undo of a Grimoire level (or a map's kills) clears the game's total built from it, as a save does.
+test("an undo of a Grimoire level or a map bonus clears the game's total built from it", async () => {
+    const { withAction } = await importRepo("src/ui/services/changeLog.js");
+    const { writeVerified } = await importRepo("src/ui/components/views/account/accountShared.js");
+    const { undoAction } = await importRepo("src/ui/components/views/account/undo.js");
+    const { fetchChanges } = await importRepo("src/ui/services/api.js");
+    const [level, kills] = [gga.Grimoire[1], gga.MapBon[1][0]];
+    try {
+        for (const [path, value, cache] of [
+            ["Grimoire[1]", level + 1, "GrimoireTotLV"],
+            ["MapBon[1][0]", kills + 1, "ArcMultBon"],
+        ]) {
+            await withAction({ label: path }, () => writeVerified(path, value));
+            const [action] = (await fetchChanges()).actions;
+            gga.DNSM.h[cache] = 99;
+            await undoAction(action.id);
+            assert.equal(gga.DNSM.h[cache], undefined, `${cache} is cleared`);
+        }
+        assert.equal(gga.Grimoire[1], level);
+        assert.equal(gga.MapBon[1][0], kills);
+    } finally {
+        gga.Grimoire[1] = level;
+        gga.MapBon[1][0] = kills;
+    }
+});
+
 test("grimoire: Reset all asks in the tray, writes nothing until the answer, then resets", async () => {
     const saved = copy(gga.Grimoire);
     try {
@@ -574,6 +707,25 @@ test("map bonuses: a save whose sums the game can't clear says so on its line", 
     }
 });
 
+// #252: a refused save that still changed the kills clears the sums too, and the save's failure is said.
+test("map bonuses: a refused save that still changed the kills clears the game's sums", async () => {
+    const before = copy(gga.MapBon[1]);
+    const { pane } = await openPane(TESSERACT, "Map Bonuses");
+    const row = mapRow(pane, 1);
+    const restore = refuseWrites(gga.MapBon[1], 0, (value) => value - 2);
+    try {
+        gga.DNSM.h.ArcMultBon = [75];
+        typeAndEnter(row, 4000, fieldsOf(row)[0]);
+        await settled(row);
+        assert.equal(stateOf(row), "error");
+        assert.equal(gga.MapBon[1][0], 3998, "the game kept another number");
+        assert.equal(gga.DNSM.h.ArcMultBon, undefined, "the sums are gone");
+    } finally {
+        restore();
+        gga.MapBon[1] = before;
+    }
+});
+
 test("map bonuses: Set all raising runs on one press; lowering asks in the tray first", async () => {
     const saved = copy(gga.MapBon);
     try {
@@ -684,6 +836,25 @@ test("nodes: Empty all asks in the tray; Refill all runs on one press; a typed a
     }
 });
 
+// #252: a node Refill all couldn't fill shows the amount the game kept, not a full node.
+test("nodes: a node Refill all couldn't fill shows the amount the game kept", async () => {
+    const saved = copy(gga.RoyalG[4]);
+    const restore = refuseWrites(gga.RoyalG[4], 1);
+    try {
+        const { root, pane } = await openPane(ROYAL_ARMORY, "Nodes");
+        const row = rowsIn(pane)[1];
+        await until(() => showing(fieldsOf(row)[1]) === "97", "node 2's 97");
+        const refill = buttonNamed(root, "Refill all");
+        click(refill);
+        await until(() => /account-btn--(success|error)/.test(classes(refill)), "Refill all to finish");
+        assert.equal(gga.RoyalG[4][2], 0, "the other nodes filled");
+        assert.equal(showing(fieldsOf(row)[1]), "97", "node 2 shows what the game kept");
+    } finally {
+        restore();
+        saved.forEach((amount, i) => (gga.RoyalG[4][i] = amount));
+    }
+});
+
 // ---- Royal Armory › Outposts -------------------------------------------------------------------------------------
 
 const unitArrays = () => copy([6, 7, 8, 9, 10, 11, 12, 13].map((index) => gga.RoyalG[index]));
@@ -764,10 +935,13 @@ test("outposts: a slot pick whose answer is lost shows what the game holds, not 
         });
     };
     try {
-        click(stepNamed(lineIn(outpost, "Slot 1"), "Surveyor"));
-        await until(() => String(gga.RoyalMaps[1][11])[0] === "5", "the game to take it");
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        assert.equal(picked(lineIn(outpost, "Slot 1")), "Surveyor");
+        const line = lineIn(outpost, "Slot 1");
+        click(stepNamed(line, "Surveyor"));
+        // The pick's save has ended, its lost answer handled, before it is checked.
+        await until(() => /account-row--(success|error)/.test(attr(line, "class")), "the pick's save to end");
+        assert.match(attr(line, "class"), /account-row--success/);
+        assert.equal(String(gga.RoyalMaps[1][11])[0], "5", "the game took it");
+        assert.equal(picked(line), "Surveyor");
         assert.doesNotMatch(says(outpost), /not saved/);
     } finally {
         globalThis.fetch = realFetch;
@@ -1130,6 +1304,135 @@ test("outposts: Reset with no upgrade levels read back writes nothing", async ()
         assert.deepEqual(unitArrays(), placed, "the units stay");
     } finally {
         globalThis.fetch = realFetch;
+        putUnitArrays(saved);
+    }
+});
+
+// #252: an older type pick that fails after a newer one saved says nothing over the newer one.
+test("outposts: an older type pick that fails after a newer one saved says nothing over it", async () => {
+    const before = gga.RoyalMaps[1][10];
+    const { pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const line = lineIn(outpost, "Type");
+    const realFetch = globalThis.fetch;
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    let first = true;
+    globalThis.fetch = async (url, options) => {
+        if (String(url).endsWith("/gga/write") && String(options?.body).includes("RoyalMaps[1][10]") && first) {
+            first = false;
+            await gate;
+            return new Response(JSON.stringify({ error: "the game refused" }), { status: 500 });
+        }
+        return realFetch(url, options);
+    };
+    try {
+        click(stepNamed(line, "Resource Depot"));
+        await tick();
+        click(stepNamed(line, "Savage"));
+        await until(() => gga.RoyalMaps[1][10] === 2, "the newer pick to save");
+        release();
+        await until(() => /account-row--error/.test(attr(line, "class")), "the older pick to fail");
+        await tick();
+        assert.doesNotMatch(says(outpost), /not saved/, "the older failure isn't said");
+        assert.equal(picked(line), "Savage");
+    } finally {
+        globalThis.fetch = realFetch;
+        release();
+        gga.RoyalMaps[1][10] = before;
+    }
+});
+
+// #252: Reset to the game's and a slot pick take turns, so the pick isn't put back by Reset's slot value.
+test("outposts: a slot pick made while Reset to the game's saves runs after it, and keeps the pick", async () => {
+    const saved = unitArrays();
+    const before = copy(gga.RoyalMaps[1]);
+    gga.RoyalMaps[1][0] = 1;
+    gga.RoyalMaps[1][11] = 211111111;
+    const { root, pane } = await openOutposts();
+    const outpost = opened(outpostRow(pane, "Grassy Path"));
+    const hold = holdWritesTo((url, body) => url.endsWith("/write-many") && body.includes("RoyalMaps[1][11]"));
+    try {
+        click(buttonNamed(root, "Reset to the game's"));
+        await tick();
+        await yes(root);
+        await until(() => hold.held() === 1, "Reset's write to reach the game");
+        click(stepNamed(lineIn(outpost, "Slot 1"), "Trader"));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        hold.release();
+        await until(() => gga.RoyalMaps[1][11] === 321111111, "the pick on top of Reset's slots");
+    } finally {
+        hold.release();
+        gga.RoyalMaps[1] = before;
+        putUnitArrays(saved);
+    }
+});
+
+// #252: Reset says how many units it takes away, as Populate does, and stops when more would go by the time it runs.
+test("outposts: Reset says how many units it removes, and stops when more would go by then", async () => {
+    const saved = unitArrays();
+    const maps = copy(gga.RoyalMaps);
+    try {
+        gga.RoyalG[6] = Array(30).fill(4);
+        gga.RoyalG[7] = Array(30).fill(1);
+        const { root } = await openOutposts();
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
+        click(buttonNamed(root, "Reset to the game's"));
+        await tick();
+        assert.match(trayLine(root), /^Put every map unit back where the game puts it, and remove \d+ map units\?$/);
+        gga.RoyalG[6] = Array(40).fill(4);
+        gga.RoyalG[7] = Array(40).fill(1);
+        const placed = unitArrays();
+        await yes(root);
+        const reset = buttonNamed(root, "Reset to the game's");
+        await until(() => /account-btn--(success|error)/.test(classes(reset)), "Reset to finish");
+        assert.match(classes(reset), /account-btn--error/);
+        assert.deepEqual(unitArrays(), placed, "no unit is taken away");
+    } finally {
+        gga.RoyalMaps = maps;
+        putUnitArrays(saved);
+    }
+});
+
+// #252: Populate counts what it removes from the unit counts, and refuses a huge count before it builds anything.
+test("outposts: Populate refuses more than 100 of a kind per outpost, and writes nothing", async () => {
+    const saved = unitArrays();
+    try {
+        const { root } = await openOutposts();
+        const field = elements(root).find(
+            (node) => node.nodeName === "input" && /per outpost$/.test(String(node.attributes["aria-label"] ?? ""))
+        );
+        field.value = "1000000";
+        field.listeners.input({ target: field });
+        const before = writes();
+        const populate = buttonNamed(root, "Populate");
+        click(populate);
+        await until(() => /account-btn--(success|error)/.test(classes(populate)), "Populate to finish");
+        assert.match(classes(populate), /account-btn--error/);
+        assert.match(text(root), /max 100 of each/);
+        assert.equal(writes(), before, "nothing written");
+    } finally {
+        putUnitArrays(saved);
+    }
+});
+
+// #252: Populate takes the outposts built when it runs, not those of the page's last read.
+test("outposts: Populate puts units on an outpost built since the page read them", async () => {
+    const saved = unitArrays();
+    const maps = copy(gga.RoyalMaps);
+    try {
+        gga.RoyalG[6] = [];
+        gga.RoyalG[7] = [];
+        const { root } = await openOutposts();
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
+        gga.RoyalMaps[3] = [...gga.RoyalMaps[1]];
+        await click(buttonNamed(root, "Populate"));
+        await until(() => gga.RoyalG[7].includes(3), "units on the new outpost");
+        assert.equal(gga.RoyalG[6].length, 33, "eleven on each of the three outposts");
+    } finally {
+        gga.RoyalMaps = maps;
         putUnitArrays(saved);
     }
 });

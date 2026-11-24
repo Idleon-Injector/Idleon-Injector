@@ -21,6 +21,7 @@ import {
     createIndexedStateGetter,
     normalCase,
     createStaticRowReconciler,
+    oneAtATime,
     runBulkSet,
     toInt,
     useWriteStatus,
@@ -106,6 +107,10 @@ export const UpgradesPart = ({
         if (!now || !before) return tried;
         return tried.filter((upgrade) => Number(now[upgrade.n] ?? 0) !== Number(before[upgrade.n] ?? 0));
     };
+    // With a hook, a row's save and a bulk take turns: no save lands between the bulk's read of the levels and its write.
+    const saves = oneAtATime();
+    // The upgrades whose afterBulk failed: the next Max all or Reset all runs it for them, though no level changes.
+    const owed = new Map();
 
     const UpgradeRow = (upgrade) => {
         const row = ClampedLevelRow({
@@ -116,19 +121,20 @@ export const UpgradesPart = ({
             renderInfo: () => RowTitles({ bonus: upgrade.bonus, name: upgrade.name }),
             writePath: afterSave ? null : pathOf(upgrade),
             write: afterSave
-                ? async (level) => {
-                      const before = await readLevels();
-                      try {
-                          await writeVerified(pathOf(upgrade), level);
-                      } catch (error) {
-                          // A failed save that still changed the level: its cache goes too, and the failure is said.
-                          if ((await changedOf([upgrade], before)).length)
-                              await Promise.resolve(afterSave(upgrade)).catch(() => {});
-                          throw error;
-                      }
-                      await afterSave(upgrade);
-                      return level;
-                  }
+                ? (level) =>
+                      saves(async () => {
+                          const before = await readLevels();
+                          try {
+                              await writeVerified(pathOf(upgrade), level);
+                          } catch (error) {
+                              // A failed save that still changed the level: its cache goes too, and the failure is said.
+                              if ((await changedOf([upgrade], before)).length)
+                                  await Promise.resolve(afterSave(upgrade)).catch(() => {});
+                              throw error;
+                          }
+                          await afterSave(upgrade);
+                          return level;
+                      })
                 : null,
         });
         rowOf.set(upgrade.n, row);
@@ -138,26 +144,42 @@ export const UpgradesPart = ({
     const shown = () => upgrades.val.filter((upgrade) => shownBySearch(rowOf.get(upgrade.n)));
     const capped = () => shown().filter((upgrade) => upgrade.max !== null);
     const setLevels = async (entries, targetOf) => {
-        const result = await bulk.run(async () => {
-            // Nothing to change (every upgrade shown already at its max): no write, and no cache to clear.
-            const toChange = () => entries.filter((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade));
-            if (!toChange().length) return { cancelled: true };
-            const before = afterBulk ? await readLevels() : null;
-            // Taken after the read, so a row saved meanwhile is in the writes and the hook alike.
-            const tried = toChange();
-            try {
-                await runBulkSet({
-                    entries: tried,
-                    getTargetValue: targetOf,
-                    getValueState: (upgrade) => getLevel(upgrade.n),
-                    getPath: pathOf,
-                });
-            } finally {
-                // Worked or not, the upgrades whose level changed (or can't be read) go to the hook, and only those.
-                const changed = afterBulk ? await changedOf(tried, before) : [];
-                if (changed.length) await afterBulk(changed);
-            }
-        });
+        const result = await bulk.run(() =>
+            saves(async () => {
+                // The levels it replaces, read once the rows' saves before it ended (they wait for it after): the rows
+                // show them, so what it writes and what goes to the hook both start from them.
+                const before = await readLevels();
+                if (before)
+                    entries.forEach((upgrade) => (getLevel(upgrade.n).val = toInt(before[upgrade.n], { min: 0 })));
+                const tried = entries.filter((upgrade) => getLevel(upgrade.n).val !== targetOf(upgrade));
+                // Nothing to change (every upgrade already at its max) and no hook owed: no write.
+                if (!tried.length && !owed.size) return { cancelled: true };
+                let writeError = null;
+                if (tried.length)
+                    await runBulkSet({
+                        entries: tried,
+                        getTargetValue: targetOf,
+                        getValueState: (upgrade) => getLevel(upgrade.n),
+                        getPath: pathOf,
+                    }).catch((error) => (writeError = error));
+                if (afterBulk) {
+                    // Worked or not, the upgrades whose level changed (or can't be read) go to the hook, and only those,
+                    // with any a failed hook still owes.
+                    const changed = tried.length ? await changedOf(tried, before) : [];
+                    const due = [...new Map([...owed.values(), ...changed].map((upgrade) => [upgrade.n, upgrade]))];
+                    if (due.length)
+                        try {
+                            await afterBulk(due.map(([, upgrade]) => upgrade));
+                            owed.clear();
+                        } catch (hookError) {
+                            due.forEach(([n, upgrade]) => owed.set(n, upgrade));
+                            // The write's own failure is the one said.
+                            if (!writeError) throw hookError;
+                        }
+                }
+                if (writeError) throw writeError;
+            })
+        );
         // Some of it may have landed: the rows show what the game holds.
         if (!result.ok && !result.cancelled) await reload();
     };
@@ -286,6 +308,8 @@ export const MasterclassPage = ({ name, page, description, tabs, wrap = false, a
                     word: (n, tab) => parts.get(tab).setAllWord?.(n) ?? (n === 1 ? "line" : "lines"),
                     placeholder: (tab) => parts.get(tab).setAllPlaceholder ?? "Value",
                     bulk,
+                    // As the tabs' own tools: it waits for a read that works.
+                    disabled: pending,
                 },
             })
         ),
