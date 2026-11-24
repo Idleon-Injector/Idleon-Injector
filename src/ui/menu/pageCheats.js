@@ -123,7 +123,10 @@ export const PAGE_CHEATS = {
         { cheat: "w5 divinity", label: "Divinity boosts" },
         { cheat: "unlock divinitypearl", label: "Pearls past level 50" },
     ],
-    "5:Gaming": [{ cheat: "w5 gaming", label: "Gaming boosts" }],
+    "5:Gaming": [
+        { cheat: "w5 gaming", label: "Gaming boosts" },
+        { cheat: "w5 betternuggets", label: "Bigger nuggets" },
+    ],
     "5:Hole": [
         { cheat: "w5 holes", label: "Hole boosts" },
         { cheat: "w5 lantern", label: "No daily lantern limit", tab: "Caverns" },

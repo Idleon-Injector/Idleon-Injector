@@ -30,6 +30,7 @@ defineCheat({
             message: "build switched-on W3 buildings and pay their salt, as the build button does",
         },
         { name: "cooking", message: "level switched-on kitchen upgrades with spices and meals with themselves" },
+        { name: "gaming", message: "harvest a full garden, dig and buy switched-on Gaming upgrades with bits" },
         { name: "sneaking", message: "buy switched-on Ninja Knowledge upgrades with jade coins" },
         { name: "summoning", message: "buy switched-on summoning board upgrades with essence" },
         { name: "bubba", message: "buy switched-on Bubba upgrades with meat once the run's gift is picked" },
@@ -43,6 +44,20 @@ defineCheat({
         },
     ],
     config: {
+        gaming: {
+            default: [],
+            description: `Automation: Gaming upgrades to buy with bits, { id: "fertilizer0", on, stopAt, save }; stopAt is a level, ${SAVE}.`,
+        },
+        gamingSaving: saving("Gaming"),
+        gamingAutoHarvest: {
+            default: true,
+            description:
+                "Automation: while Gaming is open, harvest a full garden, leaving the plant types locked on the Mutation tab.",
+        },
+        gamingAutoDig: {
+            default: true,
+            description: "Automation: while Gaming is open, dig once the shovel is ready.",
+        },
         shops: {
             default: [],
             description:

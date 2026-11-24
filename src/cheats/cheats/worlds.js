@@ -460,6 +460,7 @@ defineCheat({
         { name: "sailing", message: "sailing cheats" },
         { name: "endercaptains", message: "100% ender captains (requires Emporium bonus unlock)" },
         { name: "gaming", message: "gaming cheats" },
+        { name: "betternuggets", message: "bigger nuggets from the gaming shovel (see config)" },
         { name: "divinity", message: "divinity cheats" },
         { name: "holes", message: "holes cheats" },
         { name: "lantern", message: "no daily limit on Blinding Lantern uses" },
@@ -523,6 +524,11 @@ defineCheat({
         },
     ],
     config: {
+        betternuggets: {
+            default: 3,
+            short: "Big nugget odds",
+            description: "Gaming: how strongly dug nuggets lean toward big ones, 1 (the game's own odds) to 20",
+        },
         sailing: {
             IslandDistance: { default: (t) => t / 2, description: "Sailing: Island distance (lower is closer)" },
             MaxChests: {

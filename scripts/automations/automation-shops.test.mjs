@@ -185,6 +185,7 @@ test("automation shops buys switched-on items into the chest each second, cheape
             ["classes.automation.compass", "Compass", false],
             ["w3.automation.construction", "Construction", false],
             ["w4.automation.cooking", "Cooking", false],
+            ["w5.automation.gaming", "Gaming", false],
             ["classes.automation.grimoire", "Grimoire", false],
             ["account.automation.shops", "Shops", true],
             ["w6.automation.sneaking", "Sneaking", false],
