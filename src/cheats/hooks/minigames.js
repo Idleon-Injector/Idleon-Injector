@@ -20,6 +20,7 @@
  * - Event Wheel (ActorEvents_670) - Land on the bonus line, then the bonus wheel jackpot
  *
  * Also here, because it hooks Poing's method: wide nogamingpop (ActorEvents_577) - hides the gaming popups.
+ * And w5 instantnuggets (ActorEvents_577 and runLater) - the shovel's nugget rolls all at once.
  */
 
 import { cheatState, cheatConfig } from "../core/state.js";
@@ -487,6 +488,59 @@ defineHook({ id: "wide.nogamingpop", target: () => events(577).prototype, method
     }
     return base;
 });
+
+// The shovel queues its nugget rolls first (one every 1600 ms), then its animation and 6 s lock reset.
+// Keep native callbacks and their order; remove the reveal spacing independently of popup hiding.
+let instantShovel = null;
+// Around: identify the shovel's scheduling calls before the native click handler queues them.
+defineHook(
+    { id: "w5.instantnuggets", target: () => events(577).prototype, method: "_customEvent_W5stuffzz", around: true },
+    function (callOriginal) {
+        if (!cheatState.w5.instantnuggets || this._TRIGGEREDtext !== "j1" || this._GenINFO[43][1] !== 0)
+            return callOriginal();
+        const previous = instantShovel;
+        instantShovel = { station: this, next: 0 };
+        try {
+            return callOriginal();
+        } finally {
+            instantShovel = previous;
+        }
+    }
+);
+
+// The other runLater hook, godlike.intervention, is in hooks/behavior.js; the two never change the same timer.
+// Around: shorten only nugget callback delays, leaving shovel movement and its unlock timer unchanged.
+defineHook(
+    { id: "w5.instantnuggets", target: () => behavior, method: "runLater", around: true },
+    (callOriginal, ...args) => {
+        if (
+            instantShovel &&
+            args[2] === instantShovel.station.actor &&
+            instantShovel.next < instantShovel.station._DN1 &&
+            args[0] === 1600 * instantShovel.next
+        ) {
+            instantShovel.next++;
+            args[0] = 0;
+            const station = instantShovel.station;
+            const callback = args[1];
+            args[1] = function (...values) {
+                const index = station._GenINFO[39].length;
+                const result = Reflect.apply(callback, this, values);
+                const nugget = station._GenINFO[39][index];
+                // The game saves a record (and resets Dream) in _event_3 when the popup fades. Saving it right after
+                // the roll, before the next one, is what the game does with wide nogamingpop on. The popup stays,
+                // and the game's own check later finds the record already saved.
+                if (Number(nugget[5]) > Number(gga.Gaming[8])) {
+                    gga.Gaming[8] = nugget[5];
+                    if (events(579)._customBlock_Thingies("LegendPTS_bonus", 35, 0) < 1)
+                        gga.OptionsListAccount[192] = 0;
+                }
+                return result;
+            };
+        }
+        return callOriginal(args);
+    }
+);
 
 // log card reveal
 defineHook({ id: "minigame", target: () => events(577).prototype, method: "_customEvent_W5stuffzz" }, function (base) {

@@ -126,6 +126,7 @@ export const PAGE_CHEATS = {
     "5:Gaming": [
         { cheat: "w5 gaming", label: "Gaming boosts" },
         { cheat: "w5 betternuggets", label: "Bigger nuggets" },
+        { cheat: "w5 instantnuggets", label: "Instant nuggets" },
     ],
     "5:Hole": [
         { cheat: "w5 holes", label: "Hole boosts" },
