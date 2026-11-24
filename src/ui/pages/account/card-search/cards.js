@@ -276,7 +276,6 @@ const CardSection = ({
                       label: "Set all",
                       status,
                       disabled: () => region.cards.length === 0,
-                      tooltip: "Set every card in this region to the picked tier",
                       confirm: () => lowerQuestion(region, tierPick.val),
                       onClick: () => setRegionTier(region, tierPick.val, pickNode),
                   })
@@ -405,7 +404,6 @@ const CardsTab = () => {
         description: () => `${totalCards.val} cards grouped by Card Region. Edit amounts or set exact tier minimums.`,
         actions: RefreshButton({
             onRefresh: load,
-            tooltip: "Re-read live cards and definitions from the running game.",
             disabled: () => loading.val || bulkStatus.val === "loading",
         }),
         state: { loading, error },

@@ -2,6 +2,7 @@ import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { Icons } from "../assets/icons.js";
 import { Said, plainReason, replay, useSaid } from "./inPlace.js";
+import { ValueFields } from "./ValueFields.js";
 
 const { div, input, button, span } = van.tags;
 
@@ -12,7 +13,9 @@ const { div, input, button, span } = van.tags;
  * @returns {Element} Cheat item DOM element
  */
 export const CheatItem = (cheat) => {
-    const needsValue = cheat.needsParam === true;
+    // A command that takes a value from a list ("spawn"): one row, its fields suggest the values (#23).
+    const fields = cheat.valueCommand ? ValueFields(cheat.value, cheat.message) : null;
+    const needsValue = cheat.needsParam === true && !fields;
     const hasConfig = store.hasConfigEntry(cheat.value);
     const { said, say } = useSaid();
     // A result or a refusal is short and rides on the row's end; a failure gets its own line under the row,
@@ -41,12 +44,23 @@ export const CheatItem = (cheat) => {
     };
 
     const handleExecute = async () => {
+        if (fields) {
+            const read = fields.read();
+            if (read.refuse) {
+                replay(read.field, "refused");
+                return say("refused", read.refuse);
+            }
+            return run(read.action);
+        }
         let finalAction = cheat.value;
         const val = getInputValue();
         // Turning a cheat off takes no value: a bare click on one that is on turns it off.
         if (needsValue && !val && !store.getActiveCheats().includes(cheat.value)) return refuse("needs a value");
         if (val) finalAction = `${cheat.value} ${val}`;
+        return run(finalAction);
+    };
 
+    const run = async (finalAction) => {
         const result = await store.executeCheat(finalAction);
         if (result.ok) {
             replay(runButton, "confirmed");
@@ -62,6 +76,11 @@ export const CheatItem = (cheat) => {
     };
 
     const handleFavorite = () => {
+        if (fields) {
+            const read = fields.read();
+            if (read.refuse) return say("refused", "pick a value to favorite it");
+            return store.toggleFavorite(read.action);
+        }
         if (needsValue) {
             const val = getInputValue();
             if (!val) return refuse("enter a value to favorite it");
@@ -72,6 +91,11 @@ export const CheatItem = (cheat) => {
     };
 
     const isFavorited = () => {
+        if (fields) {
+            fields.typed.val;
+            const read = fields.read();
+            return !read.refuse && store.isFavorite(read.action);
+        }
         if (needsValue) {
             const val = getInputValue();
             if (!val) return false;
@@ -105,11 +129,13 @@ export const CheatItem = (cheat) => {
 
     return div(
         {
-            class: () => `cheat-item-container ${said.val?.kind === "refused" ? "is-waiting-value" : ""}`,
+            class: () =>
+                `cheat-item-container ${fields ? "has-values" : ""} ${said.val?.kind === "refused" ? "is-waiting-value" : ""}`,
             "data-cheat": cheat.value,
         },
         runButton,
         inputRef,
+        fields?.element,
         button(
             {
                 class: () => `favorite-btn ${isFavorited() ? "is-favorite" : ""}`,

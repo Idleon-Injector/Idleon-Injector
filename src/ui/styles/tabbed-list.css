@@ -316,6 +316,16 @@
         background-color 150ms var(--ease-soft),
         color 150ms var(--ease-soft);
 }
+/* Each step keeps room for its word in the picked weight (a hidden copy, out of the accessibility tree), so the picked
+   one getting bolder never widens it or moves the steps beside it. */
+.step-picker__step::after {
+    content: attr(data-label);
+    display: block;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 650;
+}
 .step-picker__step:first-child {
     border-left: 0;
     border-radius: 10px 0 0 10px;
@@ -658,9 +668,9 @@
     border-top-width: 0;
 }
 
-/* On a phone each line folds: its name, then its fields two to a line (room for a value and its − / +), each showing
-   its name again. */
-@media (max-width: 760px) {
+/* Where a line's name and its columns don't fit side by side (a phone, and up to 1023px with the sidebar), each line
+   folds: its name, then its fields two to a line (room for a value and its − / +), each showing its name again. */
+@media (max-width: 1023px) {
     .viewport .tabbed-list .value-row {
         position: relative;
         grid-template-columns: minmax(0, 1fr);
@@ -672,7 +682,7 @@
         width: 100%;
     }
     /* The save mark (✓, Undo) goes to the end of the name's line, so the fields start under the name. */
-    .viewport .value-row .save-state {
+    .viewport .value-row > .account-row__controls > .save-state {
         position: absolute;
         top: 10px;
         right: 14px;
@@ -698,6 +708,50 @@
         color: var(--c-text-muted);
     }
     .viewport .tabbed-list .value-head {
+        display: none;
+    }
+}
+
+/* A table with four or more columns (value-table--wide: Captains, Meals) needs about 1280px with the sidebar, so it
+   folds the same way below that. */
+@media (max-width: 1279px) {
+    .viewport .value-table--wide .value-row {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 10px;
+    }
+    .viewport .value-table--wide .value-row .account-row__info,
+    .viewport .value-table--wide .value-row .account-row__controls {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+    /* The save mark (✓, Undo) goes to the end of the name's line, so the fields start under the name. */
+    .viewport .value-table--wide .value-row > .account-row__controls > .save-state {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+    }
+    .viewport .value-table--wide .value-cells {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+    /* A pick's column on a phone: its name over it, like a number's. */
+    .viewport .value-table--wide .value-cell--steps {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .value-table--wide .value-cell__label {
+        position: static;
+        width: auto;
+        height: auto;
+        padding-left: 12px;
+        overflow: visible;
+        clip: auto;
+        font-size: 0.75rem;
+        color: var(--c-text-muted);
+    }
+    .viewport .value-table--wide .value-head {
         display: none;
     }
 }

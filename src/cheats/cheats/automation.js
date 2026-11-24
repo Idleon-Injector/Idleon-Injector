@@ -30,12 +30,34 @@ defineCheat({
             message: "build switched-on W3 buildings and pay their salt, as the build button does",
         },
         { name: "cooking", message: "level switched-on kitchen upgrades with spices and meals with themselves" },
+        { name: "gaming", message: "harvest a full garden, dig and buy switched-on Gaming upgrades with bits" },
         { name: "sneaking", message: "buy switched-on Ninja Knowledge upgrades with jade coins" },
         { name: "summoning", message: "buy switched-on summoning board upgrades with essence" },
         { name: "bubba", message: "buy switched-on Bubba upgrades with meat once the run's gift is picked" },
         { name: "grimoire", message: "buy switched-on Grimoire upgrades with bones" },
+        { name: "compass", message: "buy switched-on Compass upgrades the Compass shows with dust" },
+        { name: "tesseract", message: "buy switched-on Tesseract upgrades with tachyons" },
+        {
+            name: "armory",
+            message:
+                "buy switched-on Royal Armory upgrades with royal resources and roll switched-on statues with parchments",
+        },
     ],
     config: {
+        gaming: {
+            default: [],
+            description: `Automation: Gaming upgrades to buy with bits, { id: "fertilizer0", on, stopAt, save }; stopAt is a level, ${SAVE}.`,
+        },
+        gamingSaving: saving("Gaming"),
+        gamingAutoHarvest: {
+            default: true,
+            description:
+                "Automation: while Gaming is open, harvest a full garden, leaving the plant types locked on the Mutation tab.",
+        },
+        gamingAutoDig: {
+            default: true,
+            description: "Automation: while Gaming is open, dig once the shovel is ready.",
+        },
         shops: {
             default: [],
             description:
@@ -115,6 +137,38 @@ defineCheat({
             default: 10,
             description:
                 "Automation: while a bone type saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        compass: {
+            default: [],
+            description: `Automation: Compass upgrades to buy with dust, { id: row, on, stopAt, save }; stopAt is a level, ${SAVE}. Only upgrades the Compass shows are bought.`,
+        },
+        compassSaving: {
+            default: 10,
+            description:
+                "Automation: while a dust saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        tesseract: {
+            default: [],
+            description: `Automation: Tesseract upgrades to buy with tachyons, { id: row, on, stopAt, save }; stopAt is a level, ${SAVE}.`,
+        },
+        tesseractSaving: {
+            default: 10,
+            description:
+                "Automation: while a tachyon saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        armory: {
+            default: [],
+            description: `Automation: Royal Armory upgrades to buy with royal resources, { id: upgrade, on, stopAt, save }; stopAt is a level, ${SAVE}.`,
+        },
+        armorySaving: {
+            default: 10,
+            description:
+                "Automation: while a royal resource saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.",
+        },
+        statues: {
+            default: [],
+            description:
+                "Automation: unlocked Royal Statues to roll with Parchments of Enchantment, { id: statue, on, stopAt }; the lowest level rolls first, up to stopAt.",
         },
     },
 });

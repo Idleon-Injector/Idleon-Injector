@@ -11,6 +11,7 @@ import { defineCheat } from "../core/registration.js";
 // Stat multiplier cheats
 defineCheat({
     name: "multiply",
+    category: "Multipliers",
     message:
         "Multiplies stats by the number (or applies function) given. use reasonably, ridiculous numbers can cause shadowbanning!",
     registerParent: false,

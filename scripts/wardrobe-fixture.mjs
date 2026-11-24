@@ -100,7 +100,7 @@ export const wardrobeLists = () => ({
     RANDOlist: { 9: ["1", "50", "100", "200", "300", "400", "600", "800"] },
     PrayerInfo: list(20, (i) => [`Prayer_${["of_Zeal", "of_Might", "of_Luck", "of_Haste"][i % 4]}_${i}`]),
     ChipDesc: list(25, (i) => [`Chip_${["Grounded", "Silkrode", "Gold", "Omega"][i % 4]}_${i}`]),
-    // Set 7 (Smoulderin' Plateau) holds the first cards.
+    // Set 7 (Smolderin' Plateau) holds the first cards.
     CardStuff: list(8, (s) => (s === 7 ? CARDS.map((id) => [id, "0", "5"]) : [["Blank", "0", "0"]])),
     CardSets: list(8, (s) => [`{%_Card_Set_${s}`, "6"]),
     ObolShapes: ["Circle", "Square", "Hexagon", "Sparkle"],

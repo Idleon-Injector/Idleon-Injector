@@ -49,9 +49,13 @@ test("commands that change the save answer as before and change the same values"
 });
 
 test("toggles, groups and value cheats set the same state and config", async () => {
-    assert.deepEqual(await run("godlike", true), { ok: true, message: "Activated all godlike powers" });
-    assert.ok(Object.values(cheatState.godlike).every(Boolean));
-    assert.equal(cheatState.godlikes, true);
+    // One switch for the whole family is gone (#23): it says where the cheats are and turns nothing on.
+    assert.deepEqual(await run("godlike", true), {
+        ok: false,
+        message: "godlike is gone. Its cheats are in Cheats › Combat.",
+    });
+    assert.equal(cheatState.godlike.reach, false);
+    assert.deepEqual(await run("godlike reach", true), { ok: true, message: "Activated reach set to 666." });
     assert.deepEqual(await run("godlike reach", false), { ok: true, message: "Deactivated reach set to 666." });
     assert.equal(cheatState.godlike.reach, false);
     assert.deepEqual(await run("godlike reach"), { ok: true, message: "Activated reach set to 666." });
@@ -90,9 +94,7 @@ test("toggles, groups and value cheats set the same state and config", async () 
 test("refusals and errors come back as before", async () => {
     assert.deepEqual(await run("bogus"), { ok: false, message: "bogus is not a valid option." });
     assert.deepEqual(await run("w1 anvil 5"), { ok: false, message: "This cheat doesn't accept values" });
-    const wrong = await run("w1 nope");
-    assert.equal(wrong.ok, false);
-    assert.match(wrong.message, /^Wrong subcommand, use one of these:\nw1 anvil \(anvil cost and duration/);
+    assert.deepEqual(await run("w1 nope"), { ok: false, message: "w1 is not a valid option." });
     assert.deepEqual(await run("chng 1+1"), {
         ok: true,
         message: "chng command is currently disabled in config.js Enable it ONLY if you know what you are doing.",
@@ -116,7 +118,7 @@ test("refusals and errors come back as before", async () => {
 
 test("the cheats command lists every command", async () => {
     const lines = (await run("cheats")).message.split("\n");
-    assert.equal(lines.length, 278);
+    assert.equal(lines.length, 272);
     assert.ok(lines.includes("automation shops (buy switched-on town shop items into the chest with chest coins)"));
     assert.ok(lines.includes("drop (drop items)"));
     assert.ok(lines.includes("wide attire (the bonuses of the outfits chosen on the Attire Rack page)"));

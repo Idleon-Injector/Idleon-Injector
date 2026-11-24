@@ -1,5 +1,5 @@
 // Save settings writes config.custom.js and also sends the settings to the running game (docs/config.md), and the
-// Config page says so where the player saves.
+// Config page says so on the page, not in a hover label (no hover label explains a button: DESIGN.md).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
@@ -28,8 +28,6 @@ async function until(check, what) {
 
 test("Config says Save settings also sends the settings to the running game", async () => {
     const { Config } = await importRepo("src/ui/components/views/Config.js");
-    const { TooltipContainer } = await importRepo("src/ui/components/Tooltip.js");
-    const tooltip = TooltipContainer();
     const root = Config();
 
     await until(
@@ -40,11 +38,7 @@ test("Config says Save settings also sends the settings to the running game", as
         "the help line above the cheat settings"
     );
     const save = elements(root).find((node) => node.attributes.id === "save-config-button");
-    save.listeners.mouseenter({ target: save });
-    await until(
-        () => text(tooltip) === "Save to config file and send to the running game",
-        "the Save settings tooltip"
-    );
+    assert.equal(save.listeners.mouseenter, undefined, "Save settings has no hover label");
 });
 
 // #112: the config read says whether it reached the game (`gameRead`); the save sends the settings without it.

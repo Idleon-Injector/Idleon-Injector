@@ -20,6 +20,10 @@ exports.cheatConfig = {
         flurbocap: 1000000, // Maximum flurbo capacity for dungeons
     },
     automation: {
+        gaming: [], // Automation: Gaming upgrades to buy with bits, { id: "fertilizer0", on, stopAt, save }; stopAt is a level, save true is "Save for it".
+        gamingSaving: 10, // Automation: while Gaming saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
+        gamingAutoHarvest: true, // Automation: while Gaming is open, harvest a full garden, leaving the plant types locked on the Mutation tab.
+        gamingAutoDig: true, // Automation: while Gaming is open, dig once the shovel is ready.
         shops: [], // Automation: town shop items to buy, { id: "shop:item", on, stopAt }; stopAt is how many the chest should hold.
         orion: [
             { id: "8", on: false, save: true },
@@ -44,6 +48,13 @@ exports.cheatConfig = {
         bubbaSaving: 10, // Automation: while Bubba saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the others.
         grimoire: [], // Automation: Grimoire upgrades to buy with bones, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
         grimoireSaving: 10, // Automation: while a bone type saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        compass: [], // Automation: Compass upgrades to buy with dust, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it". Only upgrades the Compass shows are bought.
+        compassSaving: 10, // Automation: while a dust saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        tesseract: [], // Automation: Tesseract upgrades to buy with tachyons, { id: row, on, stopAt, save }; stopAt is a level, save true is "Save for it".
+        tesseractSaving: 10, // Automation: while a tachyon saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        armory: [], // Automation: Royal Armory upgrades to buy with royal resources, { id: upgrade, on, stopAt, save }; stopAt is a level, save true is "Save for it".
+        armorySaving: 10, // Automation: while a royal resource saves for an upgrade, it keeps (100 − this)% of its cost, and only what is above that buys the other upgrades.
+        statues: [], // Automation: unlocked Royal Statues to roll with Parchments of Enchantment, { id: statue, on, stopAt }; the lowest level rolls first, up to stopAt.
     },
     godlike: {
         respawn: (t) => Math.min(t, 1), // Mob respawn time (lower is faster)
@@ -147,6 +158,12 @@ exports.cheatConfig = {
         towerdamage: (t) => t * 10, // Tower Defense: Tower damage
         refineryspeed: (t) => Math.max(1, Math.floor(t / 10)), // Refinery: Cycle speed. Don't go below 1! (lower is better)
         trapping: (t) => t * 10, // Trapping: Trap timer speed
+        collider: {
+            AtomsUnlocked: (t) => t, // Collider: Number of unlocked atoms (max 10). No change until you set it
+            AtomCost: (t) => 0, // Collider: Atom collider upgrade costs. (lower is better)
+            AtomBonuses: (t) => t, // Collider: Bonuses provided by atoms. No change until you set it
+            AtomBubbleUpgCost: (t) => 0, // Collider: Atom bubble upgrade costs. (lower is better)
+        },
     },
     w4: {
         fasteggs: (t) => t / 4, // Breeding: Egg incubation speed. (lower is better)
@@ -256,6 +273,7 @@ exports.cheatConfig = {
         },
     },
     w5: {
+        betternuggets: 3, // Gaming: how strongly dug nuggets lean toward big ones, 1 (the game's own odds) to 20
         sailing: {
             IslandDistance: (t) => t / 2, // Sailing: Island distance (lower is closer)
             MaxChests: (t) => t, // Sailing: Maximum chest limit (Warning: too high may break cloud saves). No change until you set it
@@ -312,12 +330,6 @@ exports.cheatConfig = {
             Bonus_Minor: (t) => t * 2, // Divinity: Minor god bonuses
             OfferingCost: (t) => 0, // Divinity: Offering costs. (lower is better)
             OfferingOdds: (t) => 1, // Divinity: Success probability for offerings
-        },
-        collider: {
-            AtomsUnlocked: (t) => t, // Collider: Number of unlocked atoms (max 10). No change until you set it
-            AtomCost: (t) => 0, // Collider: Atom collider upgrade costs. (lower is better)
-            AtomBonuses: (t) => t, // Collider: Bonuses provided by atoms. No change until you set it
-            AtomBubbleUpgCost: (t) => 0, // Collider: Atom bubble upgrade costs. (lower is better)
         },
         holes: {
             VillagerExpPerHour: (t) => t * 2, // Sneaking: Villager XP gain speed

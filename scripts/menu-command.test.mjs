@@ -13,8 +13,10 @@ const SUGGESTIONS = [
     { value: "wide", message: "all account-wide cheats", category: "wide" },
     { value: "wide candy", message: "candy use everywhere", category: "wide" },
     { value: "wipe inv", message: "Wipe your inventory", category: "wipe", dangerous: true },
+    { value: "wide candytime", message: "buffs 1 hr candys in minutes", category: "wide", needsParam: true },
+    { value: "fix_save", message: "Save a game attribute to memory", category: "Dangerous", needsParam: true },
+    // An item: search opens the drop row with it filled in, not the command box (#23).
     { value: "drop Timecandy1", message: "24 Hr Time Candy", category: "drop", needsParam: true },
-    { value: "nomore Timecandy1", message: "24 Hr Time Candy", category: "nomore" },
 ];
 
 const ran = [];
@@ -24,7 +26,7 @@ setupCheatRoutes(router, {
     executeCheat: async (action) => {
         ran.push(action);
         if (action.endsWith(" 99")) await new Promise((resolve) => setTimeout(resolve, 100)); // a slow command
-        if (action.startsWith("nomore")) return { value: { ok: false, message: "the item list isn't loaded yet" } };
+        if (action.startsWith("fix_save")) return { value: { ok: false, message: "the item list isn't loaded yet" } };
         return { value: { ok: true, message: `${action} (ran)` } };
     },
 });
@@ -62,47 +64,68 @@ const resultLine = () => {
 test("picking a command fills the box without running it; Enter runs it once, with the amount typed", async () => {
     await type("candy");
     const list = results();
-    assert.equal(list[0], "wide candyCheat · Cheats › Wide", "the cheat first");
-    const drop = list.findIndex((row) => row.startsWith("drop · 24 Hr Time Candy"));
-    assert.ok(drop > 0, "then the candy drop");
+    assert.equal(list[0], "wide candyCandy use everywhere", "the cheat first, with what it does under it");
+    const time = list.findIndex((row) => row.startsWith("wide candytime"));
+    assert.ok(time > 0, "then the command that takes a value");
 
-    for (let i = 0; i < drop; i++) await key("ArrowDown");
+    for (let i = 0; i < time; i++) await key("ArrowDown");
     await key("Enter");
-    assert.equal(field.value, "drop Timecandy1 ");
+    assert.equal(field.value, "wide candytime ");
     assert.ok(isCommandBox(), "the box is a command box");
-    assert.match(hint(), /24 Hr Time Candy/);
-    assert.match(hint(), /Amount optional · Enter runs · Esc cancels/);
+    assert.match(hint(), /buffs 1 hr candys in minutes/);
+    assert.match(hint(), /Enter runs · Esc cancels/);
     assert.deepEqual(ran, [], "picking doesn't run it");
 
-    await type("drop Timecandy1 5");
+    await type("wide candytime 5");
     await key("Enter");
     await key("Enter");
     await settle();
-    assert.deepEqual(ran, ["drop Timecandy1 5"], "Enter runs it once, through /api/toggle");
+    assert.deepEqual(ran, ["wide candytime 5"], "Enter runs it once, through /api/toggle");
     assert.equal(field.value, "");
     assert.ok(!isCommandBox(), "back to searching");
     const line = resultLine();
     assert.ok(line.shown, "the result shows in a line under the box");
-    assert.equal(line.text, "drop Timecandy1 5drop Timecandy1 5 (ran)", "the command, then what it said");
+    assert.equal(line.text, "wide candytime 5wide candytime 5 (ran)", "the command, then what it said");
     assert.match(line.tone, /said--done/);
 
     await type("c");
     assert.ok(!resultLine().shown, "typing again puts the search back in its place");
 });
 
+test("results come in groups, each together, and the arrow keys follow the order shown", async () => {
+    await type("candy");
+    const groups = find(bar, (node) => node.attributes?.role === "group");
+    assert.deepEqual(
+        groups.map((group) => group.attributes["aria-label"]),
+        ["Cheats", "Commands"],
+        "the cheat's group first, where its best result ranked"
+    );
+    const shown = groups.flatMap((group) => find(group, (node) => node.attributes?.role === "option").map(text));
+    assert.deepEqual(shown, results(), "every result sits in its group, in the listbox's order");
+    await key("ArrowDown");
+    const picked = find(
+        bar,
+        (node) => node.attributes?.role === "option" && node.attributes["aria-selected"] === "true"
+    );
+    assert.equal(text(picked[0]), shown[1], "ArrowDown picks the next row shown");
+    await key("Escape");
+});
+
 test("a command that fails says why in the line under the box", async () => {
     ran.length = 0;
-    await type("nomore");
-    const nomore = results().findIndex((row) => row.startsWith("nomore"));
-    assert.ok(nomore >= 0);
-    for (let i = 0; i < nomore; i++) await key("ArrowDown");
+    await type("fix_save");
+    const at = results().findIndex((row) => row.startsWith("fix_save"));
+    assert.ok(at >= 0);
+    for (let i = 0; i < at; i++) await key("ArrowDown");
+    await key("Enter");
+    await type("fix_save Lv0");
     await key("Enter");
     await key("Enter");
     await settle();
-    assert.deepEqual(ran, ["nomore Timecandy1"]);
+    assert.deepEqual(ran, ["fix_save Lv0"]);
     const line = resultLine();
     assert.ok(line.shown);
-    assert.equal(line.text, "nomore Timecandy1the item list isn't loaded yet");
+    assert.equal(line.text, "fix_save Lv0the item list isn't loaded yet");
     assert.match(line.tone, /said--failed/);
 });
 
@@ -148,8 +171,7 @@ test("a held Enter can't pick, arm and run a dangerous command: each step needs 
 
 test("an Enter that confirms IME input doesn't run the command", async () => {
     ran.length = 0;
-    await type("candy");
-    await key("ArrowDown");
+    await type("candytime");
     await key("Enter");
     assert.ok(isCommandBox());
     await key("Enter", { isComposing: true });
@@ -191,8 +213,7 @@ test("an unrelated load in progress doesn't stop the retry, and two focuses load
 
 test("Esc in the command box goes back to an empty search", async () => {
     ran.length = 0;
-    await type("candy");
-    await key("ArrowDown");
+    await type("candytime");
     await key("Enter");
     assert.ok(isCommandBox());
     await key("Escape");
@@ -211,13 +232,27 @@ test("a slow command that ends after a later one doesn't say its result over the
         for (let i = 0; i < at; i++) await key("ArrowDown");
         await key("Enter");
     };
-    await pick("drop");
-    await type("drop Timecandy1 99");
+    await pick("wide candytime");
+    await type("wide candytime 99");
     await key("Enter"); // runs, slowly
-    await pick("nomore");
+    await pick("fix_save");
+    await type("fix_save Lv0");
     await key("Enter"); // runs and fails at once
     await new Promise((resolve) => setTimeout(resolve, 150));
-    assert.deepEqual(ran, ["drop Timecandy1 99", "nomore Timecandy1"]);
-    assert.equal(resultLine().text, "nomore Timecandy1the item list isn't loaded yet", "the later failure stays");
+    assert.deepEqual(ran, ["wide candytime 99", "fix_save Lv0"]);
+    assert.equal(resultLine().text, "fix_save Lv0the item list isn't loaded yet", "the later failure stays");
     assert.match(resultLine().tone, /said--failed/);
+});
+
+test("picking an item opens the drop row with it in the field, and runs nothing", async () => {
+    ran.length = 0;
+    await type("24 Hr Time");
+    const at = results().findIndex((row) => row.startsWith("drop · 24 Hr Time Candy"));
+    assert.ok(at >= 0, "found by the item's name");
+    for (let i = 0; i < at; i++) await key("ArrowDown");
+    await key("Enter");
+    assert.ok(!isCommandBox(), "no command box");
+    assert.equal(store.app.cheatFocus.cheat, "drop");
+    assert.equal(store.app.cheatFocus.fill, "24 Hr Time Candy");
+    assert.deepEqual(ran, []);
 });

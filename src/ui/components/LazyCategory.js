@@ -2,7 +2,7 @@ import van from "../vendor/van-1.6.0.js";
 import { CheatItem } from "./CheatItem.js";
 import { Icons } from "../assets/icons.js";
 
-const { div, details, summary } = van.tags;
+const { div, details, span, summary } = van.tags;
 
 /**
  * Lazy Rendering Category
@@ -16,16 +16,21 @@ const { div, details, summary } = van.tags;
 export const LazyCategory = ({ category, isOpen, cheats }) => {
     const isExpanded = van.state(isOpen);
 
+    // Dangerous: marked and kept apart (#23); these can break or wipe the account.
+    const dangerous = category === "Dangerous";
     return details(
         {
-            class: "cheat-category",
+            class: dangerous ? "cheat-category is-dangerous" : "cheat-category",
             "data-category": category,
             open: isOpen,
             ontoggle: (e) => {
                 isExpanded.val = e.target.open;
             },
         },
-        summary(category, Icons.Chevron({ dir: "right", class: "group-chevron" })),
+        summary(
+            dangerous ? span({ class: "cheat-category__name" }, Icons.Warning(), category) : category,
+            Icons.Chevron({ dir: "right", class: "group-chevron" })
+        ),
         () => {
             if (!isExpanded.val) {
                 return div({ class: "cheat-category-content hidden" });

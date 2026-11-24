@@ -22,6 +22,27 @@ import { pageNow, worldNow } from "./views/Pages.js";
 
 const { div, input, span, button, kbd } = van.tags;
 
+// The results come in quiet groups, pages first: each group where its best result ranked, its results in rank order.
+const GROUP_NAMES = { Page: "Pages", Cheat: "Cheats", Setting: "Settings", Command: "Commands" };
+const groupOf = (result) => result.kind ?? "Page";
+const inGroups = (hits) => {
+    const order = [...new Set(hits.map(groupOf))];
+    return order.flatMap((group) => hits.filter((hit) => groupOf(hit) === group));
+};
+
+const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+// "Cheat · Cheats › W1" -> "Cheats › W1": the group already says what it is.
+const place = (result) => result.where.replace(/^\w+ · /, "");
+/** A result's two lines: its name in the page's own words, then where it is or what it does, small. */
+const resultLines = (result, showWord) => {
+    if (result.kind === "Setting")
+        // A setting by what it does, when it says; its key and the cheat it belongs to under it.
+        return [result.description || result.label, `${result.target.cheat} · ${result.label}`];
+    if (result.kind === "Command" && result.named) return [result.label, result.command];
+    if (result.kind) return [result.label, result.description ? capital(result.description) : place(result)];
+    return [result.label, [result.where, showWord ? `matches "${result.matched}"` : ""].filter(Boolean).join(" · ")];
+};
+
 export const MenuSearch = () => {
     const query = van.state("");
     const open = van.state(false);
@@ -35,7 +56,7 @@ export const MenuSearch = () => {
     const { said, say, clear } = useSaid(6000);
     let runs = 0;
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
-    const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions));
+    const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions, menuTree.val));
     const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
     // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu.
     const openPage = van.derive(() =>
@@ -44,7 +65,9 @@ export const MenuSearch = () => {
     const pageSearch = createPageSearch();
     const mode = van.state("page");
     const searchingPage = () => pageSearch.hasRows.val && mode.val === "page";
-    const results = van.derive(() => (command.val || searchingPage() ? [] : searchMenu(entries.val, query.val)));
+    const results = van.derive(() =>
+        command.val || searchingPage() ? [] : inGroups(searchMenu(entries.val, query.val))
+    );
     // Another page starts fresh, on its own rows; the page left behind shows all of them again.
     van.derive(() => {
         pageSearch.follow(openPage.val?.id ?? "");
@@ -152,9 +175,11 @@ export const MenuSearch = () => {
                 e.preventDefault();
                 open.val = true;
                 highlight.val = (highlight.val + 1) % count;
+                shownOptions[highlight.val]?.scrollIntoView({ block: "nearest" });
             } else if (e.key === "ArrowUp" && count) {
                 e.preventDefault();
                 highlight.val = (highlight.val - 1 + count) % count;
+                shownOptions[highlight.val]?.scrollIntoView({ block: "nearest" });
             } else if (e.key === "Enter" && count) {
                 e.preventDefault();
                 go(results.val[Math.min(highlight.val, count - 1)], true);
@@ -168,7 +193,54 @@ export const MenuSearch = () => {
         },
     });
 
-    const showWord = (result) => result.matched && !result.label.toLowerCase().includes(result.matched.toLowerCase());
+    const showWord = (result) =>
+        !result.kind && result.matched && !result.label.toLowerCase().includes(result.matched.toLowerCase());
+
+    const Result = (result, i) => {
+        const [name, note] = resultLines(result, showWord(result));
+        return (shownOptions[i] = button(
+            {
+                type: "button",
+                id: `menu-search-${i}`,
+                role: "option",
+                tabindex: "-1",
+                class: () => `menu-search-result ${i === highlight.val ? "is-hi" : ""}`,
+                "aria-selected": () => String(i === highlight.val),
+                // mousedown, not click: the result must win before the field's blur closes the list.
+                onmousedown: (e) => {
+                    e.preventDefault();
+                    go(result);
+                },
+                onmouseenter: () => (highlight.val = i),
+            },
+            span({ class: "menu-search-result__label" }, name),
+            note ? span({ class: "menu-search-result__where" }, note) : null
+        ));
+    };
+
+    // The rows on show, so the arrow keys can keep the picked one in view when the list scrolls.
+    let shownOptions = [];
+    const Results = () => {
+        const list = results.val;
+        shownOptions = [];
+        if (!list.length)
+            return div({ class: "menu-search-none" }, `Nothing in the menu matches "${query.val.trim()}".`);
+        const groups = [];
+        list.forEach((result, i) => {
+            const group = groupOf(result);
+            if (groups[groups.length - 1]?.group !== group) groups.push({ group, rows: [] });
+            groups[groups.length - 1].rows.push(Result(result, i));
+        });
+        return div(
+            ...groups.map(({ group, rows }) =>
+                div(
+                    { class: "menu-search-group", role: "group", "aria-label": GROUP_NAMES[group] },
+                    div({ class: "menu-search-group__head", "aria-hidden": "true" }, GROUP_NAMES[group]),
+                    ...rows
+                )
+            )
+        );
+    };
 
     // The command box's line under the field: what the command does, then what Enter and Esc do.
     const CommandHint = () => {
@@ -218,54 +290,7 @@ export const MenuSearch = () => {
                 open.val && command.val
                     ? CommandHint()
                     : open.val && query.val.trim() && !searchingPage()
-                      ? div(
-                            // mousedown, not click: the result must win before the field's blur closes the list.
-                            { id: "menu-search-results", class: "menu-search-results", role: "listbox" },
-                            results.val.length
-                                ? div(
-                                      ...results.val.map((result, i) =>
-                                          button(
-                                              {
-                                                  type: "button",
-                                                  id: `menu-search-${i}`,
-                                                  role: "option",
-                                                  tabindex: "-1",
-                                                  class: () =>
-                                                      `menu-search-result ${i === highlight.val ? "is-hi" : ""}`,
-                                                  "aria-selected": () => String(i === highlight.val),
-                                                  onmousedown: (e) => {
-                                                      e.preventDefault();
-                                                      go(result);
-                                                  },
-                                                  onmouseenter: () => (highlight.val = i),
-                                              },
-                                              span(
-                                                  {
-                                                      class: `menu-search-result__label${
-                                                          result.kind && !result.named
-                                                              ? " menu-search-result__label--command"
-                                                              : ""
-                                                      }`,
-                                                  },
-                                                  result.label,
-                                                  showWord(result)
-                                                      ? span(
-                                                            { class: "menu-search-result__matched" },
-                                                            `matches "${result.matched}"`
-                                                        )
-                                                      : null
-                                              ),
-                                              result.where
-                                                  ? span({ class: "menu-search-result__where" }, result.where)
-                                                  : null
-                                          )
-                                      )
-                                  )
-                                : div(
-                                      { class: "menu-search-none" },
-                                      `Nothing in the menu matches "${query.val.trim()}".`
-                                  )
-                        )
+                      ? div({ id: "menu-search-results", class: "menu-search-results", role: "listbox" }, Results())
                       : span(),
             // Always in the page, so screen readers hear the result; shown while the box is open and empty.
             div(

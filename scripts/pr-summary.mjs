@@ -23,6 +23,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { collectNames } from "./game-names.mjs";
 import { checkPr, githubApi, readCorePaths } from "./pr-rules.mjs";
+import { parseReleaseLine } from "./release-notes.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -190,7 +191,14 @@ const items = (values, format = (v) => `\`${v}\``) =>
           (values.length > SHOWN ? ` and ${values.length - SHOWN} more` : "")
         : "none";
 
-export function renderComment({ data, rules, check, runUrl, shotsUrl }) {
+// The PR's release line, in a code span (the PR's own words), or a gentle note: a missing line never fails a check.
+function releaseLine({ line, kind, problem }) {
+    if (!line) return "- Release line: none yet (see the PR template).";
+    const shown = `\`${line.slice(0, LIMITS.line).replace(/`/g, "'")}\``;
+    return kind ? `- Release line (${kind}): ${shown}.` : `- Release line: ${shown}, but ${problem}.`;
+}
+
+export function renderComment({ data, rules, check, runUrl, shotsUrl, release = {} }) {
     const ruleLines = rules.problems.length
         ? ["- PR rules: not met.", ...rules.problems.map((p) => `  - ${p}`)]
         : ["- PR rules: met."];
@@ -199,6 +207,7 @@ export function renderComment({ data, rules, check, runUrl, shotsUrl }) {
         MARKER,
         "### PR summary",
         "",
+        releaseLine(release),
         `- Kind: ${rules.kind}.`,
         ...ruleLines,
         `- The check: ${checkWord}.`,
@@ -246,7 +255,8 @@ export async function post({ dir, run, repo, github, core }) {
     const check = (await github.runJobs(run.id)).find((j) => j.name === "check")?.conclusion;
     const shots = data.pages.length ? (await github.runArtifacts(run.id)).find((a) => a.name === "page-shots") : null;
     const shotsUrl = shots && `https://github.com/${repo}/actions/runs/${run.id}/artifacts/${shots.id}`;
-    const body = renderComment({ data, rules, check, runUrl: run.html_url, shotsUrl });
+    const release = parseReleaseLine(pr.body);
+    const body = renderComment({ data, rules, check, runUrl: run.html_url, shotsUrl, release });
     const mine = (await github.comments(pr.number)).find(
         (c) => c.user?.login === "github-actions[bot]" && c.body?.startsWith(MARKER)
     );

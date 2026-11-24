@@ -700,6 +700,7 @@ const GamingTab = () => {
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container gaming-tab",
         title: "Gaming",
+        automation: { page: "automation.gaming" },
         description: "The garden, imports, the Rat King, superbits and the palette.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy() }),
         state: { loading, error },

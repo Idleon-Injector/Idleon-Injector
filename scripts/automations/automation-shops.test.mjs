@@ -176,17 +176,21 @@ test("automation shops buys switched-on items into the chest each second, cheape
         readComputed("automation", "list").value.map(({ id, label, on }) => [id, label, on]),
         [
             ["w7.sushi", "Sushi Auto Play", false],
+            ["classes.automation.armory", "Royal Armory", false],
             ["w7.automation.bubba", "Bubba", false],
             ["w2.automation.bubbles", "Bubbles", false],
             ["w1.automation.orion", "Orion", false],
             ["w2.automation.poppy", "Poppy", false],
             ["w2.automation.tarpit", "Tar Pit", false],
+            ["classes.automation.compass", "Compass", false],
             ["w3.automation.construction", "Construction", false],
             ["w4.automation.cooking", "Cooking", false],
+            ["w5.automation.gaming", "Gaming", false],
             ["classes.automation.grimoire", "Grimoire", false],
             ["account.automation.shops", "Shops", true],
             ["w6.automation.sneaking", "Sneaking", false],
             ["w6.automation.summoning", "Summoning", false],
+            ["classes.automation.tesseract", "Tesseract", false],
         ],
         "the overview lists the automations with a label (autoboss stays a cheat)"
     );

@@ -36,10 +36,9 @@ setupCheatRoutes(router, bridge);
 const { store, requests } = await loadUi(router);
 const { CheatItem } = await importRepo("src/ui/components/CheatItem.js");
 // The Sidebar reads the window size when it loads, and its status line listens on the document for outside clicks.
-globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
+globalThis.window = { matchMedia: () => ({ matches: false, addEventListener() {} }), addEventListener() {} };
 globalThis.document.addEventListener = () => {};
-const { Sidebar, turnOff } = await importRepo("src/ui/components/Sidebar.js");
-const { useSaid } = await importRepo("src/ui/components/inPlace.js");
+const { Sidebar } = await importRepo("src/ui/components/Sidebar.js");
 const { Home } = await importRepo("src/ui/components/views/Home.js");
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
@@ -156,48 +155,23 @@ test("a cheat that needs a value lights its star once that value is a favorite",
     store.toggleFavorite("fixture nested deep 7");
 });
 
-for (const [where, render] of [
-    ["the sidebar", () => Sidebar()],
-    ["Home", () => Home()],
-]) {
-    test(`clicking a cheat in ${where}'s active list turns exactly that cheat off, at any depth`, async () => {
-        await game.cheat("fixture nested deep", true);
-        await game.cheat("godlike crit", true);
-        await store.loadCheatStates();
-        const page = render();
-        await settle();
-        const items = find(page, (node) => node.attributes?.class === "active-cheat-item");
-        const names = items.map((item) => item.childNodes[0].childNodes.map((text) => text.data ?? text).join(""));
-        assert.deepEqual([...names].sort(), ["fixture nested deep", "godlike crit"]);
+// My cheats is Home's right column: a row per cheat, its name the switch.
+test("My cheats lists the cheats that are on, and pressing a name turns exactly that cheat off", async () => {
+    await game.cheat("godlike crit", true);
+    await store.loadCheatStates();
+    const home = Home();
+    await settle();
+    const rows = find(home, (node) => node.attributes?.["data-cheat"]);
+    const names = rows.map((row) => row.attributes["data-cheat"]);
+    assert.ok(names.includes("godlike crit"), names.join(", "));
 
-        sent.length = 0;
-        await items[names.indexOf("fixture nested deep")].listeners.click();
-        await items[names.indexOf("fixture nested deep")].listeners.click(); // a double click
-        assert.deepEqual(sent, [
-            ["fixture nested deep", false],
-            ["fixture nested deep", false],
-        ]);
-        assert.equal(game.state.cheatState.fixture.nested.deep, false);
-        assert.equal(crit(), true, "the other active cheat stays on");
-    });
-}
-
-test("a failed turn-off is said until that cheat turns off; another cheat's failure stays", async (t) => {
-    const results = [];
-    t.mock.method(store, "executeCheat", async () => results.shift());
-    const line = useSaid();
-
-    results.push({ ok: false, message: "the game didn't answer" });
-    await turnOff("godlike crit", line);
-    assert.equal(line.said.val.text, "godlike crit: the game didn't answer");
-
-    results.push({ ok: true, message: "done" });
-    await turnOff("wide candy", line);
-    assert.equal(line.said.val.text, "godlike crit: the game didn't answer", "another cheat working says nothing");
-
-    results.push({ ok: true, message: "done" });
-    await turnOff("godlike crit", line);
-    assert.equal(line.said.val, null, "the retry worked, so the failure goes");
+    sent.length = 0;
+    const name = find(rows[names.indexOf("godlike crit")], (node) => /my-cheat__name/.test(classOf(node)))[0];
+    assert.equal(name.attributes["aria-pressed"], "true");
+    name.listeners.click();
+    await settle();
+    assert.deepEqual(sent, [["godlike crit", false]]);
+    assert.equal(crit(), false);
 });
 
 test("the version button says a failed update check, and says 'the latest' only after a check that worked", async (t) => {

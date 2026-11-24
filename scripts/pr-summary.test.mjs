@@ -141,6 +141,7 @@ test("the summary from a fixture diff", () => {
             MARKER,
             "### PR summary",
             "",
+            "- Release line: none yet (see the PR template).",
             "- Kind: a page and game-side code mixed.",
             "- PR rules: not met.",
             "  - Split it.",
@@ -164,6 +165,21 @@ test("the summary from a fixture diff", () => {
     });
     assert.match(quiet, /- PR rules: met\.\n- The check: failed\.\n- Pages it touches: none\./);
     assert.doesNotMatch(quiet, /Screenshots/);
+});
+
+test("the comment shows the PR's release line and kind, or a gentle note, and never fails for it", () => {
+    const { data } = fixtureSummary();
+    const rules = { kind: "a page", problems: [] };
+    const shown = (release) => renderComment({ data, rules, check: "success", runUrl: "u", release }).split("\n")[3];
+    assert.equal(
+        shown({ line: "Pets: token picker per pet.", kind: "new" }),
+        "- Release line (new): `Pets: token picker per pet.`."
+    );
+    assert.equal(
+        shown({ line: "Pets: `x`.", problem: "no kind picked" }),
+        "- Release line: `Pets: 'x'.`, but no kind picked."
+    );
+    assert.equal(shown({ problem: "no release line" }), "- Release line: none yet (see the PR template).");
 });
 
 test("stage 2 accepts a good artifact and keeps only the known fields", () => {
@@ -289,6 +305,12 @@ test("stage 2 posts one comment, then updates its own", async () => {
         fresh.writes[0].body,
         /\[page-shots\]\(https:\/\/github\.com\/o\/r\/actions\/runs\/77\/artifacts\/2\)/
     );
+    assert.match(fresh.writes[0].body, /- Release line: none yet/);
+
+    // The release line comes from the PR's description, read from the API.
+    const lined = fakeGithub({ pr: { ...PR, body: "**Release line:** Anvil: x.\r\n**Release kind:** fixed" } });
+    await run(dir, lined);
+    assert.match(lined.writes[0].body, /- Release line \(fixed\): `Anvil: x\.`\./);
 
     const comments = [
         { id: 5, user: { login: "someone" }, body: `${MARKER} a contributor's copy` },
