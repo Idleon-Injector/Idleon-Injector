@@ -290,7 +290,8 @@ export const configDescriptions = {
     "cheatConfig.w5.holes.MaxRerolls": "Bravery: Max rerolls allowed",
     "cheatConfig.w5.holes.MaxRevisions": "Bravery: Max revisions allowed",
     "cheatConfig.w5.holes.Bravery_MonsterHP": "Bravery: Monster HP. (lower is better)",
-    "cheatConfig.w5.holes.Bravery_BlueChestChanceDEC": "Bravery: Probability of blue chest spawn. (lower is better)",
+    "cheatConfig.w5.holes.Bravery_BlueChestChanceDEC":
+        "Bravery: Blue chest chance (higher is better). No change until you set it",
     "cheatConfig.w5.holes.BellCosts": "Sneaking: Bell improvement costs. (lower is better)",
     "cheatConfig.w5.holes.BellBonuss": "Sneaking: Bell bonuses",
     "cheatConfig.w5.holes.BellExpPerHR": "Sneaking: Bell XP gain speed",

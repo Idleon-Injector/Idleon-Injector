@@ -628,8 +628,8 @@ defineCheat({
             MaxRevisions: { default: (t) => Math.max(t, 5), description: "Bravery: Max revisions allowed" },
             Bravery_MonsterHP: { default: (t) => t / 2, description: "Bravery: Monster HP. (lower is better)" },
             Bravery_BlueChestChanceDEC: {
-                default: (t) => 0.5,
-                description: "Bravery: Probability of blue chest spawn. (lower is better)",
+                default: (t) => t,
+                description: "Bravery: Blue chest chance (higher is better). No change until you set it",
             },
             BellCosts: { default: (t) => t / 2, description: "Sneaking: Bell improvement costs. (lower is better)" },
             BellBonuss: { default: (t) => t * 2, description: "Sneaking: Bell bonuses" },
