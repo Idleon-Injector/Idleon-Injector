@@ -1,0 +1,158 @@
+/*
+ * A system's own cheats (#23, concept; SystemCheats.js). The same quiet group as a page's "Gem shop": the panel's
+ * surface and edge, a quiet line naming it, rows with what each cheat does first and its command under it, a switch at
+ * the end. Beside the page it stands in the room on the right, its top on the title's line; folded (the overlay, a
+ * phone) it is one line under the title that opens the same rows in place.
+ */
+.viewport .system-cheats {
+    min-height: 0;
+    flex: none;
+}
+.viewport .system-cheats .account-section__header {
+    align-items: baseline;
+    gap: 10px;
+    padding: 14px 16px 10px;
+}
+/* Its name is the one word that says what this is, so it reads in the main colour; the note stays faint. */
+.viewport .system-cheats .account-section__title {
+    font-size: 0.875rem;
+    font-weight: 650;
+    color: var(--c-text-main);
+}
+/* Only "On" shows, so the words take no fixed room; the switches still end on one line. */
+.viewport .system-cheats .state-switch__words {
+    min-width: 0;
+}
+.viewport .system-cheats .account-section__note {
+    font-size: 0.8125rem;
+}
+.viewport .system-cheats__count {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+/* Beside the page: placed by SystemCheats.js in the room right of the page; only its rows scroll. */
+.viewport .system-cheats.is-side {
+    position: absolute;
+    top: var(--cheats-top, 0);
+    left: var(--cheats-left, 0);
+    width: var(--cheats-width, 20rem);
+    max-height: calc(100% - var(--cheats-top, 0px) - 24px);
+}
+.viewport .system-cheats.is-side .account-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.viewport .system-cheats.is-side .system-cheats__rows {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Rows: the cheat's words take the line; the switch keeps its own room at the end. */
+.viewport .system-cheats .account-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px 7px 16px;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-radius: 0;
+    background: transparent;
+}
+.viewport .system-cheats .account-section__header + .account-row,
+.viewport .system-cheats .system-cheats__rows > .account-row:first-child {
+    border-radius: 0;
+}
+.viewport .system-cheats .account-row__info {
+    flex: 1;
+    min-width: 0;
+}
+.viewport .system-cheats .account-row__controls {
+    flex: none;
+    margin-left: auto;
+}
+.viewport .system-cheats .account-row__titles {
+    min-width: 0;
+}
+.viewport .system-cheats .account-row__bonus {
+    overflow-wrap: anywhere;
+}
+.viewport .system-cheats .row-opener::after {
+    margin-right: 4px;
+}
+
+/* A cheat's settings open under it, a step in on the page's ground, the shared value rows at the panel's size. */
+.viewport .system-cheats .account-row > .row-detail {
+    flex-basis: 100%;
+    margin: 4px 0 2px;
+    padding: 2px 0;
+    border-radius: 10px;
+    background: var(--c-void);
+}
+.viewport .system-cheats .system-cheats__row.is-open {
+    flex-wrap: wrap;
+}
+.viewport .system-cheats .row-detail > .account-row {
+    min-height: 44px;
+    padding: 4px 8px 4px 14px;
+    border: 0;
+}
+.viewport .system-cheats .row-detail > .account-row + .account-row {
+    border-top: 1px solid var(--c-hairline);
+}
+.viewport .system-cheats .system-cheats__setting .account-row__name {
+    font-size: 0.875rem;
+    color: var(--c-text-body);
+}
+.viewport .system-cheats .system-cheats__setting > .account-row__badge {
+    flex: none;
+    align-self: center;
+    margin-right: -8px;
+    padding-top: 0;
+    color: var(--c-text-muted);
+    font-size: 1rem;
+}
+.viewport .system-cheats .system-cheats__setting > .account-row__controls {
+    position: relative;
+    flex: none;
+    flex-wrap: nowrap;
+    width: 6.75rem;
+}
+/* The ✓ and Undo take the sign's place (the sign steps aside while they show), on the line, at every width. */
+.viewport .system-cheats .system-cheats__setting .save-state {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 6px);
+    transform: translateY(-50%);
+}
+
+/* Folded: one line under the title, the group's surface, that opens the rows in place. */
+.viewport .system-cheats.is-folded {
+    max-width: var(--page-measure);
+    margin: 0 0 14px;
+}
+.viewport .system-cheats__toggle.account-section__header {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 16px;
+    align-items: center;
+    border-radius: inherit;
+}
+.viewport .system-cheats__toggle:hover {
+    background: var(--c-white-03);
+}
+/* The count keeps to the end, the arrow right after it. */
+.viewport .system-cheats__toggle::after {
+    margin-left: 14px;
+}
+/* Opened, the rows keep to half the window and scroll, so the page's own list still shows under them. */
+.viewport .system-cheats.is-folded .system-cheats__rows {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+.viewport .system-cheats.is-folded.is-open .system-cheats__toggle {
+    border-bottom: 1px solid var(--c-border);
+    border-radius: 0;
+}

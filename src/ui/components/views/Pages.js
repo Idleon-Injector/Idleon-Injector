@@ -10,6 +10,7 @@ import { menuTree, menuError } from "../../menu/pageRegistry.js";
 import { pageLeft, pageShown, worldClass } from "../../menu/menuModel.js";
 import { VIEWS } from "../../state/constants.js";
 import { renderLazyPanes } from "./account/tabShared.js";
+import { SystemCheats } from "../SystemCheats.js";
 // Undo all, offered beside a page's bulk control after it changed values.
 import "./account/UndoAllOffer.js";
 
@@ -55,7 +56,12 @@ const WorldFrame = (tree) => {
                 activeId: activePage,
                 paneClass: "world-sub-pane",
                 dataAttr: "data-page",
-                renderContent: (page) => page.component(),
+                // A system's own cheats stand beside its page, or fold under its title (#23, concept).
+                renderContent: (page) => {
+                    const content = page.component();
+                    SystemCheats(page, content);
+                    return content;
+                },
             })
         )
     );
