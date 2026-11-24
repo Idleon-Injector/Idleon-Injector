@@ -230,9 +230,9 @@ export function pageBreaks(node, page, title) {
     // the shop's words.
     const tabLabels = [
         ...tabsOf(node),
-        ...elements(node).filter(
-            (el) => attr(el, "role") === "option" && classes(el).includes("pick-in-place__option")
-        ),
+        ...elements(node)
+            .filter((el) => classes(el).includes("tabbed-list__pick"))
+            .flatMap((pick) => elements(pick).filter((el) => attr(el, "role") === "option")),
     ].map(words);
     for (const tab of page.tabs ?? [])
         if (!tabLabels.some((label) => label.startsWith(tab.label)))

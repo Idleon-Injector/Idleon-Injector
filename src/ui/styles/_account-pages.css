@@ -1576,10 +1576,14 @@
     border: 0;
 }
 
-/* The list scrolls; its rows keep their full height (a row folded onto two lines at 400px isn't squeezed back). */
+/* The list scrolls; its rows keep their full height (a row folded onto two lines at 400px isn't squeezed back). A
+   tabbed panel still shrinks to the room left, so only its rows scroll, under its tabs and tools. */
 .viewport .account-list > * {
     flex-shrink: 0;
     max-width: var(--page-measure);
+}
+.viewport .account-list > .tabbed-list {
+    flex-shrink: 1;
 }
 
 /* Section headings: plain words in normal case, space above, no rule and no box. */
