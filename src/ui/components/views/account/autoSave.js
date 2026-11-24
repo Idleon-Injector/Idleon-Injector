@@ -1,6 +1,13 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { Icons } from "../../../assets/icons.js";
-import { captureGesture, labelOf, releaseAction, withAction } from "../../../services/changeLog.js";
+import {
+    captureGesture,
+    gestureTarget,
+    labelOf,
+    releaseAction,
+    undoesItself,
+    withAction,
+} from "../../../services/changeLog.js";
 import { undoAction } from "./undo.js";
 
 const { span, button } = van.tags;
@@ -41,7 +48,9 @@ const isRowField = (node) =>
  * Status: null, "loading" (saving…), "success" (read back from the game) or "error" (with `reason`). A failure of the
  * field stays until the field saves (or no longer needs to): a switch's ✓ beside it doesn't take it away.
  *
- * After a save, `undo.offer` holds its logged action for UNDO_MS: SaveState shows "↶ Undo" beside the ✓. Undo puts
+ * After a save, `undo.offer` holds its logged action for UNDO_MS: SaveState shows "↶ Undo" beside the ✓. A save made
+ * by a switch, − / +, a step pick or a dropdown pick offers none, as using it again undoes it (undoesItself, #81).
+ * A typed number, Max and a row button (Reset, Clear, Relock, ×) offer it. Undo puts
  * the old values back (on the character they were saved on) with the same saving…/✓ states, then the page reads
  * the game again, so the row shows what the game now holds. When the fields edit one of several things (the selected
  * tile, say), `subject()` names it: Undo stays with the thing it saved, so it goes when the fields move on.
@@ -109,7 +118,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             }, successMs);
     };
 
-    const saveOnce = async (drafts) => {
+    const saveOnce = async (drafts, quiet) => {
         let plan;
         try {
             plan = prepare(drafts);
@@ -122,14 +131,15 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             if (status.val === "error" && held?.by === "save") settle(null);
             return { ok: false, cancelled: true };
         }
-        return runNow(plan.write, "save");
+        return runNow(plan.write, "save", quiet);
     };
 
-    const runNow = (task, by, savedFor = subject?.(), named = label) =>
+    // `quiet`: a switch, − / +, a step pick or a dropdown pick made it, so it offers no Undo.
+    const runNow = (task, by, quiet, savedFor = subject?.(), named = label) =>
         withAction({ label: named, kind: "row" }, async (action) => {
             const outcome = await track(task, by);
             // No Undo beside the field's failure: it would offer to put back another write.
-            if (outcome.ok && !held && action.entries > 0 && subject?.() === savedFor) startOffer(action);
+            if (outcome.ok && !quiet && !held && action.entries > 0 && subject?.() === savedFor) startOffer(action);
             return outcome;
         });
 
@@ -159,6 +169,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
      */
     const run = (task, by = "button") => {
         const savedFor = subject?.();
+        const quiet = by === "switch" || by === "toggle" || undoesItself(gestureTarget());
         let named = label;
         // A write that waits its turn doesn't keep its click's action open meanwhile (the running save's writes would
         // then be logged apart, with no Undo); it opens its own when its turn comes, named after the same click.
@@ -167,7 +178,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             named = "";
         }
         lastSave = null; // a save asked for after this runs after it
-        return inTurn(() => runNow(task, by, savedFor, named));
+        return inTurn(() => runNow(task, by, quiet, savedFor, named));
     };
 
     const track = async (task, by, failKind = null) => {
@@ -192,9 +203,10 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
     // A save asked for while the newest thing queued is a save joins it (it saves once more when that one ends, so
     // the last value is the one saved); after a switch, a button or Undo, it waits its own turn behind them. Each
     // keeps the drafts and the click of its own last commit, so a commit made after a switch never saves before
-    // that switch, and its save is named and logged after its own click.
-    const save = () => {
-        const commit = { drafts: capture?.(), inGesture: captureGesture(), after: commits };
+    // that switch, and its save is named and logged after its own click. `from` is the field or control that asked
+    // (by default the one clicked last): a switch, − / +, a step picker or a dropdown pick offers no Undo.
+    const save = (from = gestureTarget()) => {
+        const commit = { drafts: capture?.(), inGesture: captureGesture(), after: commits, quiet: undoesItself(from) };
         if (lastSave) {
             lastSave.again = true;
             lastSave.commit = commit;
@@ -206,8 +218,8 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             let outcome = { ok: false, cancelled: true };
             do {
                 loop.again = false;
-                const { drafts, inGesture, after } = loop.commit;
-                if (after === commits) outcome = await inGesture(() => saveOnce(drafts));
+                const { drafts, inGesture, after, quiet } = loop.commit;
+                if (after === commits) outcome = await inGesture(() => saveOnce(drafts, quiet));
             } while (loop.again);
             return outcome;
         }).finally(() => {
@@ -261,7 +273,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
             label = labelOf(e.target) || label;
             if (e.key === "Enter") {
                 e.preventDefault();
-                void save();
+                void save(e.target);
             } else if (e.key === "Escape") {
                 cancel();
             }
@@ -270,7 +282,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         onclick: (e) => {
             if (typeof e.target?.closest === "function" && e.target.closest(".number-input-btn")) {
                 label = labelOf(e.target) || label;
-                void save();
+                void save(e.target);
             }
         },
         // Moving between the row's own fields keeps editing, but says at once why the drafts can't be saved (or
@@ -288,7 +300,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
                 return;
             }
             if (isEditField(e.target)) label = labelOf(e.target) || label;
-            void save();
+            void save(e.target);
         },
     };
 

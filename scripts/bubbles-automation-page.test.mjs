@@ -48,7 +48,7 @@ test("Alchemy's tabs are Bubbles, Cauldrons, Vials and Sigils; its automation is
             ["Summoning", "automation.summoning"],
             ["Sushi Station", "automation.sushi"],
             ["Clickers", "automation.clickers"],
-            ["Grimoire", "automation.grimoire"],
+            ["Masterclasses", "automation.masterclasses"],
             ["Shops", "automation.shops"],
         ]
     );

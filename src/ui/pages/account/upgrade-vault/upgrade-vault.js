@@ -37,8 +37,6 @@ const { div, span } = van.tags;
 const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
     const maxLabel = () =>
         realMaxState.val !== baseMax ? `${realMaxState.val} (base ${baseMax})` : String(realMaxState.val);
-    // The game keeps a level above its real max; the value shows it in the warning colour.
-    const overMax = () => toNum(levelState.val) > realMaxState.val;
 
     return ClampedLevelRow({
         valueState: levelState,
@@ -47,8 +45,6 @@ const VaultRow = ({ index, name, baseMax, realMaxState, levelState }) => {
         indexLabel: `#${index}`,
         name,
         cap: () => realMaxState.val,
-        rowClass: () => (overMax() ? "account-row--over-max" : ""),
-        inputProps: { title: () => (overMax() ? "over max" : "") },
         maxAction: {
             value: () => realMaxState.val,
             tooltip: () => `Set to max level (${maxLabel()})`,

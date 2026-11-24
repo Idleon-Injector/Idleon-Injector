@@ -127,6 +127,17 @@ const noteGesture = (target) => {
     gesture = { count: gesture.count + 1, label: labelOf(target), target: control || target };
 };
 
+/** The control the newest click or key landed on (a switch, a button, a field). */
+export const gestureTarget = () => gesture.target;
+
+/**
+ * A switch, a field's − / +, a step picker (a tier) or a pick from a list (a dropdown, a pick in place) undoes itself:
+ * flipping again, pressing the other one or picking the old one puts it back. Its save offers no row Undo; History
+ * still has it with its own Undo (Lumi, #81). A row with a switch and fields follows the control that saved it.
+ */
+export const undoesItself = (control) =>
+    Boolean(control?.closest?.(".toggle-switch, .number-input-btn, .step-picker, select, .pick-in-place"));
+
 /**
  * Keep what asked for a write, for a write that runs later (one waiting its turn): `inGesture(fn)` runs `fn` as if
  * then were now. Its save joins the action that asked for it (a bulk button's), or is named after, and offers Undo
@@ -158,7 +169,10 @@ export const startChangeLog = (appState, root) => {
     root.addEventListener(
         "keydown",
         (e) => {
-            if (e.key === "Enter" || e.key === " ") noteGesture(e.target);
+            // A step picker's arrow keys pick too; the picker is the control, as the step isn't picked yet.
+            const picker = /^(Arrow|Home$|End$)/.test(e.key) ? e.target?.closest?.(".step-picker") : null;
+            if (picker) noteGesture(picker);
+            else if (e.key === "Enter" || e.key === " ") noteGesture(e.target);
         },
         true
     );

@@ -139,6 +139,7 @@ const CaveRow = ({ row, metricStates }) => {
             div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, row.name)),
         ],
         badge: "Cave",
+        rowClass: "spelunking-cave-row",
         controlsClass: "account-row__controls--stack",
         controls: CAVE_METRICS.map((metric) =>
             InlineEditableNumberField({
