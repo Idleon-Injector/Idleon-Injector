@@ -66,6 +66,19 @@ const HELD = [
     { key: 5, name: "DNA" },
 ];
 const SPROUT_UPGRADES = [1, 2, 3];
+// The game draws its plants and names none in the garden, but its achievements call them "Chemical-type", "Voraci-type"
+// and "Bonsai-type" plants. These nine are the community wiki's names (idleon.wiki, Data:Gaming Notes, 2026-11-24), in
+// the Log Book's order (the plant a sprout mutates into, Fungi first). The wiki names no tenth plant, so Plant 10 keeps
+// its number. A named plant keeps its number under its name, so "Plant 3" still finds it.
+const PLANT_NAMES = ["Fungi", "Bonsai", "Cactus", "Blossom", "Voraci", "Berri Bush", "Evergreen", "Chemical", "Royale"];
+const plantNumber = (plant) => `Plant ${plant + 1}`;
+const plantName = (plant) => PLANT_NAMES[plant] ?? plantNumber(plant);
+const PlantTitle = (plant) =>
+    div(
+        { class: "account-row__name-group" },
+        span({ class: "account-row__name" }, plantName(plant)),
+        PLANT_NAMES[plant] ? span({ class: "account-row__sub-label" }, plantNumber(plant)) : null
+    );
 
 const GardenPart = () => {
     const getState = createIndexedStateGetter(0);
@@ -114,7 +127,7 @@ const GardenPart = () => {
             write: (found) => writeFound(plant, found),
             max: LETTERS.length - 1,
             integerMode: "trunc",
-            name: `Plant ${plant + 1}`,
+            renderInfo: () => PlantTitle(plant),
         })
     );
 
@@ -259,7 +272,7 @@ const RatKingPart = ({ pending, reload }) => {
             .flatMap(plantCrowns);
 
     const PlantRow = (plant) => {
-        const name = `Plant ${plant + 1}`;
+        const name = plantName(plant);
         const isOpen = () => openPlant.val === plant;
         const crownRows = FORMS.map((form) => {
             const id = `${plant}${form}`;
@@ -279,7 +292,7 @@ const RatKingPart = ({ pending, reload }) => {
                     "aria-expanded": () => String(isOpen()),
                     onclick: () => (openPlant.val = isOpen() ? -1 : plant),
                 },
-                span({ class: "account-row__name" }, name)
+                PlantTitle(plant)
             ),
             controls: [
                 span({ class: "rat-king-count" }, () => `${countOf(plant)} / ${FORMS.length}`),
