@@ -16,9 +16,8 @@ export const KINDS = ["new", "improved", "fixed", "internal"];
 const HEADINGS = { new: "New", improved: "Improved", fixed: "Fixed" };
 export const UNDER_THE_HOOD = "Under the hood";
 
-// The team, whose lines carry no name. ponytail: the org's memberships are private, so GITHUB_TOKEN can't list them
-// (orgs/<org>/members comes back empty and a PR's author_association says CONTRIBUTOR); keep this in step by hand.
-export const TEAM = ["lumi-fiona", "crip-torium"];
+// Whose lines carry no name: only the maintainer (Lumi's pick, 2026-11-24: every other author gets credit, team too).
+export const TEAM = ["lumi-fiona"];
 
 // "**Release line:** x", "**Release line**: x", "Release kind: new" or "## Release line" (case and bold don't matter).
 const LABEL = /^\s*(?:#{1,6}\s*)?\**\s*release (line|kind)\b\s*\**\s*:?\s*\**\s*(.*)$/i;
