@@ -142,11 +142,19 @@ export const buildVanillaUnitArrays = (royalG, order = []) => {
     return { rebuilt, summaries, sovereigntyCount };
 };
 
+// How many map units a reset to the game's takes away: each world's units over the ones it puts back.
+export const vanillaUnitsRemoved = (royalG, order) =>
+    Object.values(buildVanillaUnitArrays(royalG, order).rebuilt).reduce(
+        (sum, entry) => sum + Math.max(0, toIndexedArray(royalG?.[entry.typeArray] ?? []).length - entry.types.length),
+        0
+    );
+
 export const refreshRoyalGuardUnitCaches = async () => {
     await deleteGga("DNSM.h.TotUnitzAllMapz");
 };
 
-export const resetRoyalGuardUnitsToVanilla = async () => {
+/** `removesAtMost`: the units the player was told it removes; more by the time it runs, and nothing is written. */
+export const resetRoyalGuardUnitsToVanilla = async ({ removesAtMost = Infinity } = {}) => {
     const [rawRoyalG, rawRoyalMaps, rawOrder] = await Promise.all([
         gga("RoyalG"),
         gga("RoyalMaps"),
@@ -155,6 +163,8 @@ export const resetRoyalGuardUnitsToVanilla = async () => {
     const royalG = toIndexedArray(rawRoyalG ?? []);
     // The units come from the shelf levels: without them (a read with no value), nothing is written.
     if (royalG[2] === null || royalG[2] === undefined) throw new Error("Couldn't read the upgrade levels. Try again.");
+    if (vanillaUnitsRemoved(royalG, rawOrder) > removesAtMost)
+        throw new Error("Map units changed in game. Press Reset again.");
     const royalMaps = toIndexedArray(rawRoyalMaps ?? []);
     const { rebuilt } = buildVanillaUnitArrays(royalG, rawOrder);
     const writes = [];
