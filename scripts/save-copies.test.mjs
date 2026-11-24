@@ -248,8 +248,9 @@ test("compare lists every difference by save key and marks the values that are n
         "Cards.h.Frog": ["Cards", 1, undefined, false, false],
         "Lv0[3]": ["Lv0", undefined, 4, false, false],
         // Below the top level an array that changed length is put back whole.
-        "StampLevel[0]": ["StampLevel", [1, 2], [1], false, true],
-        // Never a shorter list: the game reads the entries it has now.
+        // A list only at its length now: a shorter one drops entries the game reads, and "Before restore" couldn't
+        // take back a longer one.
+        "StampLevel[0]": ["StampLevel", [1, 2], [1], false, false],
         "StampLevel[1]": ["StampLevel", [3, 4], [3, 4, 5], false, false],
         // Gems were bought since the copy (ServerGemsReceived went up): putting back 50 would lose them.
         GemsOwned: ["GemsOwned", 50, 0, false, false],
@@ -302,7 +303,7 @@ test("a restore is a fork: a copy before, the values written into the game, a co
     // A second click finds nothing left to put back, and makes no copies.
     const copies = (await listCopies(app.dir)).length;
     res = await restore(app, before.id, ["Cards"]);
-    assert.deepEqual(res.body, { ok: true, results: [], before: null, after: null });
+    assert.deepEqual(res.body, { ok: true, results: [], before: null, after: null, afterError: null });
     assert.equal((await listCopies(app.dir)).length, copies);
 });
 
@@ -356,7 +357,7 @@ test("a selection matching only protected values has nothing to restore", async 
         "CloudsaveTimer",
         "PlayerDATABASE",
     ]);
-    assert.deepEqual(res.body, { ok: true, results: [], before: null, after: null });
+    assert.deepEqual(res.body, { ok: true, results: [], before: null, after: null, afterError: null });
     assert.deepEqual(writesSent(), []);
 });
 
@@ -406,6 +407,32 @@ test("a gem bought between the plan and the write refuses the restore, and the g
     assert.equal(gga.Money, money, "and nothing else is written");
     assert.equal(res.body.after, null);
     gga.GemsOwned = gems;
+});
+
+test("a restore that landed says so even when its copy after can't be made", async () => {
+    const app = server();
+    const id = await cloudSave(app);
+    const bat = gga.Cards.h.Bat;
+    gga.Cards.h.Bat = 77;
+    const real = game.runtime.evaluate;
+    let wrote = false;
+    game.runtime.evaluate = (options) => {
+        if (options.expression.startsWith("writeGamePaths(")) wrote = true;
+        else if (wrote && options.expression.startsWith("readSave(")) throw new Error("the game is busy");
+        return real(options);
+    };
+    let res;
+    try {
+        res = await restore(app, id, ["Cards"]);
+    } finally {
+        game.runtime.evaluate = real;
+    }
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    assert.equal(res.body.ok, true);
+    assert.ok(res.body.before, "the way back is there");
+    assert.equal(res.body.after, null);
+    assert.match(res.body.afterError, /busy/);
+    assert.equal(gga.Cards.h.Bat, bat);
 });
 
 test("two quick restores each get their own before-copy, taken after the first restore", async () => {

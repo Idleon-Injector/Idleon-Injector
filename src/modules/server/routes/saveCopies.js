@@ -118,7 +118,8 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
         const both = await copyAndNow(id, res);
         if (!both) return;
         const writes = restoreWrites(diffSave(both.copy, both.now), select);
-        if (writes.length === 0) return res.json({ ok: true, results: [], before: null, after: null });
+        if (writes.length === 0)
+            return res.json({ ok: true, results: [], before: null, after: null, afterError: null });
 
         const before = await writeCopy(dir, Date.now(), both.nowJson, { kind: "before" });
         let written;
@@ -140,18 +141,30 @@ function setupSaveCopyRoutes(app, gameBridge, dir = getRuntimePath("save-copies"
         const landed = results.filter((r) => r.ok).length;
         log.info(`Restored ${landed} of ${writes.length} values from save copy ${id}`);
         let after = null;
+        let afterError = null;
         if (landed) {
             const keys = [...new Set(writes.map((write) => write.path.slice(4).split(/[.[]/)[0]))];
             const what = select === "all" ? "all" : keys.length === 1 ? keys[0] : `${keys.length} keys`;
-            const copyTime = (await listCopies(dir)).find((c) => c.id === id)?.time ?? null;
-            after = await writeCopy(dir, Date.now(), await readSaveNow(), { kind: "restored", from: copyTime, what });
+            try {
+                const copyTime = (await listCopies(dir)).find((c) => c.id === id)?.time ?? null;
+                after = await writeCopy(dir, Date.now(), await readSaveNow(), {
+                    kind: "restored",
+                    from: copyTime,
+                    what,
+                });
+            } catch (error) {
+                // The values are written by now: the restore stands, only its copy after is missing.
+                afterError = error.message;
+                log.warn(`The copy after a restore couldn't be made: ${error.message}`);
+            }
         }
-        res.json({ ok: landed === writes.length, results, before, after });
+        res.json({ ok: landed === writes.length, results, before, after, afterError });
     }
 
     /**
-     * { id, select: "all" | paths } -> { ok, results: [{ path, ok, error? }], before, after }: the ids of the copies
-     * taken before and after (null when nothing was left to restore, or nothing landed).
+     * { id, select: "all" | paths } -> { ok, results: [{ path, ok, error? }], before, after, afterError }: the ids of
+     * the copies taken before and after (null when nothing was left to restore, or nothing landed), and why the copy
+     * after is missing when the restore landed but it couldn't be made.
      */
     let running = Promise.resolve();
     app.post("/api/save-copies/restore", async (req, res) => {

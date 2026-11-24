@@ -197,7 +197,7 @@ const CopyBody = (copy, onRestored) => {
         status.val = "";
         const what = name === "all" ? "everything" : name;
         try {
-            const { ok, results, before, warning } = await restoreCopy(copy, select);
+            const { ok, results, before, afterError, warning } = await restoreCopy(copy, select);
             const missed = results.filter((entry) => !entry.ok).length;
             refused.val = !ok;
             status.val = !before
@@ -206,7 +206,7 @@ const CopyBody = (copy, onRestored) => {
                   ? "Gems came in just now. Try again."
                   : missed === results.length
                     ? "Couldn't restore. Try again."
-                    : `${missed ? `${missed} of ${results.length} not restored. ` : ""}${warning ?? `Restored ${what}.`} To go back, restore "Before restore".`;
+                    : `${missed ? `${missed} of ${results.length} not restored. ` : ""}${warning ?? `Restored ${what}.`} To go back, restore "Before restore".${afterError ? " The copy after it couldn't be saved." : ""}`;
         } catch (error) {
             status.val = error?.message || "Couldn't restore. Try again.";
             refused.val = true;

@@ -108,7 +108,8 @@ const writableKey = (key) => !/[.[\]]/.test(key);
  * resolver reads it, without "gga."), the copy's value, the value now, and whether a restore may write it.
  *
  * Objects are compared key by key, so maps and the injector's proxies are written into, never replaced. Below the
- * top level an array whose length changed is one change (written whole); a top-level array is compared by index.
+ * top level an array whose length changed is one change, shown but never written; a top-level array is compared by
+ * index. So a restore only ever writes single values, never a whole list.
  * The character in play has its data in the top-level keys, so its PlayerDATABASE entry is left out.
  * `gemsBought` marks the gem values a restore leaves alone because gems were bought since the copy (GEM_KEYS), and
  * `onItsOwn` the values the game moves by itself (ON_ITS_OWN).
@@ -131,10 +132,11 @@ function diffSave(copy, now) {
             // The game keeps some values in another shape while it runs than in its save (OptionsList[11] is 0 in
             // the save, a list in play; CauldronInfo[8] is [] until it's built): writing the saved shape breaks the
             // game's code that reads it (seen in game: its cloud saves stopped). Only a value of the same kind is
-            // written, and never a shorter list.
+            // written, and a list only at its length now: a shorter one drops entries the game reads, a longer one
+            // couldn't be taken back by restoring "Before restore".
             Array.isArray(copyValue) === Array.isArray(nowValue) &&
             isObject(copyValue) === isObject(nowValue) &&
-            !(Array.isArray(copyValue) && copyValue.length < nowValue.length) &&
+            !(Array.isArray(copyValue) && copyValue.length !== nowValue.length) &&
             !neverRestored &&
             !gemsBought &&
             keys.every(writableKey) &&
