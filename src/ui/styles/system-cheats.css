@@ -92,6 +92,8 @@
     align-items: center;
     gap: 6px;
 }
+.viewport .system-cheats .value-fields__choice,
+.viewport .system-cheats .value-fields__amount,
 .viewport .system-cheats__value {
     flex: none;
     width: 7rem;
@@ -103,9 +105,11 @@
     color: var(--c-text-main);
     font: 500 var(--size-small) var(--font-display);
 }
+.viewport .system-cheats .value-fields input::placeholder,
 .viewport .system-cheats__value::placeholder {
     color: var(--c-text-muted);
 }
+.viewport .system-cheats .value-fields input:focus-visible,
 .viewport .system-cheats__value:focus-visible {
     outline: 2px solid var(--c-accent);
     outline-offset: 1px;
@@ -274,4 +278,27 @@
 }
 .viewport .system-cheats__failed[hidden] {
     display: none;
+}
+
+/* A list command's row: its fields and Run take a line under its words; the value takes the room, the amount a
+   number's width. */
+.viewport .system-cheats .system-cheats__row--value {
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+.viewport .system-cheats .system-cheats__row--value > .account-row__controls {
+    flex: 1 1 100%;
+    margin-left: 0;
+}
+.viewport .system-cheats .system-cheats__row--value .system-cheats__controls,
+.viewport .system-cheats .system-cheats__row--value .value-fields {
+    flex: 1;
+    min-width: 0;
+}
+.viewport .system-cheats .value-fields__choice {
+    flex: 1;
+    min-width: 0;
+}
+.viewport .system-cheats .value-fields__amount {
+    width: 5rem;
 }

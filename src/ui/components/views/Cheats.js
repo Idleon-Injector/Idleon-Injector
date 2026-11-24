@@ -10,6 +10,7 @@ import { CheatItem } from "../CheatItem.js";
 import { LazyCategory } from "../LazyCategory.js";
 import { revealFound } from "../../utils/index.js";
 import { isPageCheat } from "../../menu/pageCheats.js";
+import { VALUE_COMMANDS, valueCommandOf } from "../../menu/valueCommands.js";
 import { Said, plainReason, replay, useSaid } from "../inPlace.js";
 
 const { div, button, h3, p, span } = van.tags;
@@ -119,6 +120,7 @@ const QuickAccessSection = () => {
 const getGroupedCheats = (list, term) => {
     const groups = {};
     const searchTerm = term.toLowerCase();
+    const shownValueCommands = new Set();
 
     for (let i = 0; i < list.length; i++) {
         const cheat = list[i];
@@ -134,6 +136,21 @@ const getGroupedCheats = (list, term) => {
 
         const category = cheat.category || "general";
         if (!groups[category]) groups[category] = [];
+        // Each value of a command that takes one from a list ("spawn rift2") is one row for the command, which
+        // suggests its values (#23); a value the search found shows that row.
+        const command = valueCommandOf(cheat.value);
+        if (command) {
+            if (shownValueCommands.has(command)) continue;
+            shownValueCommands.add(command);
+            groups[category].push({
+                value: command,
+                message: VALUE_COMMANDS[command].label,
+                category,
+                valueCommand: true,
+                ...(cheat.dangerous && { dangerous: true }),
+            });
+            continue;
+        }
         groups[category].push(cheat);
     }
 
@@ -206,12 +223,15 @@ export const Cheats = () => {
     const searchBar = SearchBar({ placeholder: "Search cheats", onInput: handleSearch });
     let shownFocus = 0;
     van.derive(() => {
-        const { cheat: value, setting, focus, n } = store.app.cheatFocus;
+        const { cheat: value, setting, focus, fill, n } = store.app.cheatFocus;
         const cheats = store.data.cheats;
         if (!n || n === shownFocus || !cheats.length || isPageCheat(value)) return;
         shownFocus = n;
-        const category = cheats.find((cheat) => cheat.value === value)?.category || "general";
-        const inCategory = cheats.filter((cheat) => (cheat.category || "general") === category);
+        // A value command's row has no entry of its own in the list: its values carry its group.
+        const category =
+            (cheats.find((cheat) => cheat.value === value) ?? cheats.find((cheat) => valueCommandOf(cheat.value) === value))
+                ?.category || "general";
+        const inCategory = getGroupedCheats(cheats, "")[category] ?? [];
         searchBar.querySelector("input").value = "";
         handleSearch("");
         ui.activeCategory = category;
@@ -222,6 +242,13 @@ export const Cheats = () => {
             if (details && !details.open) details.open = true;
             const row = page.querySelector(`[data-cheat="${CSS.escape(value)}"] .cheat-button`);
             if (row) page.querySelector(".tabs-bar .tab-btn.active")?.scrollIntoView({ block: "nearest", inline: "center" });
+            // A value search found ("Rift Slug"): its command's row with the value in its field, focused to run.
+            const field = fill && row?.parentElement.querySelector(".value-fields__choice");
+            if (field) {
+                field.value = fill;
+                field.dispatchEvent(new Event("input"));
+                return field;
+            }
             return row;
         }, focus && !setting);
         if (setting) revealFound(() => document.querySelector(`[data-config-key="${CSS.escape(setting)}"]`), focus);

@@ -157,3 +157,59 @@ test("the family snapshot names only cheats that still exist", () => {
     for (const [group, list] of Object.entries(groups))
         for (const command of list) assert.ok(commands.includes(command), `${group}: ${command} is not a cheat`);
 });
+
+test("a command that takes a value from a list is one row: names, codes, and search opening it with the value", async () => {
+    const { VALUE_COMMANDS, valueCommandOf, valueOf, valuesOf, codeOf } =
+        await importRepo("src/ui/menu/valueCommands.js");
+    assert.equal(valueCommandOf("spawn rift2"), "spawn");
+    assert.equal(valueCommandOf("w4 chips all"), "w4 chips");
+    assert.equal(valueCommandOf("spawnx"), "");
+    const name = (command, value, message) => valueOf(command, { value, message }).name;
+    assert.equal(
+        name("buy", "buy bun_c", "Starter Pack (One Time Use, does not provide gems and pets)"),
+        "Starter Pack"
+    );
+    assert.equal(name("class", "class beginner", "Change to BEGINNER (ID: 1)"), "BEGINNER");
+    assert.equal(name("lvl", "lvl mining", "Change Mining level"), "Mining");
+    assert.equal(name("w4 chips", "w4 chips grounded_nanochip", "+{%_Total_Defence"), "grounded nanochip");
+    assert.equal(name("keychain", "keychain acc", ""), "acc");
+
+    const values = valuesOf("spawn", [
+        { value: "spawn mob1", message: "Mossy Pebble" },
+        { value: "spawn rift2", message: "Rift Slug" },
+        { value: "drop Copper", message: "Copper Ore" },
+    ]);
+    assert.deepEqual(values, [
+        { code: "mob1", name: "Mossy Pebble" },
+        { code: "rift2", name: "Rift Slug" },
+    ]);
+    assert.equal(codeOf("rift slug", values), "rift2", "by name, any case");
+    assert.equal(codeOf(" RIFT2 ", values), "rift2", "by code");
+    assert.equal(codeOf("Not a thing", values), null);
+    assert.ok(VALUE_COMMANDS.nomore.anyText, "nomore takes a pattern too");
+
+    const tree = buildMenuTree([
+        {
+            id: "w4.lab.chips",
+            world: 4,
+            system: "Laboratory",
+            tab: "Chips",
+            description: "Chips.",
+            keywords: [],
+            component: () => null,
+        },
+    ]);
+    const entries = cheatSearchEntries(
+        [
+            { value: "spawn rift2", message: "Rift Slug", needsParam: true, category: "Combat" },
+            { value: "w4 chips all", message: "Set amount for all lab chips", needsParam: true, category: "w4" },
+        ],
+        {},
+        tree
+    );
+    const slug = searchMenu(entries, "Rift Slug")[0];
+    assert.equal(slug.kind, "Cheat", "opens the row, not the command box");
+    assert.deepEqual(slug.target, { view: "CHEATS", cheat: "spawn", fill: "Rift Slug" });
+    const chips = entries.find((entry) => entry.command === "w4 chips all");
+    assert.deepEqual(chips.target, { world: 4, page: "w4.lab.chips", cheat: "w4 chips", fill: "all" });
+});

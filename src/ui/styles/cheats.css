@@ -406,3 +406,44 @@
     background: var(--c-danger-tint);
     color: var(--c-danger);
 }
+
+/*
+ * A command that takes a value from a list (ValueFields): its value field suggests names as you type, and an amount
+ * where the command takes one. In a Cheats row they sit where the row's one value field sits, at its shape.
+ */
+.value-fields {
+    display: flex;
+    flex: none;
+    gap: 8px;
+}
+.cheat-item-container .value-fields__choice {
+    width: 13rem;
+    border-radius: 9px;
+}
+/* Without an amount the value takes the amount's room too, so the fields of every row end and start together. */
+.cheat-item-container .value-fields--single .value-fields__choice {
+    width: calc(13rem + 88px);
+}
+.cheat-item-container .value-fields__amount {
+    width: 80px;
+    border-radius: 9px;
+    text-align: center;
+}
+/* Narrow: the row's words take their line, the fields and the star the next. */
+@media (max-width: 760px) {
+    .cheat-item-container.has-values {
+        flex-wrap: wrap;
+    }
+    .cheat-item-container.has-values .cheat-button {
+        flex-basis: 100%;
+    }
+    .cheat-item-container.has-values .value-fields {
+        flex: 1;
+        min-width: 0;
+    }
+    .cheat-item-container.has-values .value-fields__choice {
+        flex: 1;
+        width: auto;
+        min-width: 0;
+    }
+}

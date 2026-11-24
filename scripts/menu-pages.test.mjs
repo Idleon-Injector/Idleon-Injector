@@ -306,13 +306,14 @@ test("search finds the terminal's commands after cheats, by item name, and knows
         candy.map((hit) => [hit.kind, hit.label, hit.where]),
         [
             ["Cheat", "wide candy", "Cheat · Cheats › Wide"],
-            ["Command", "drop · 24 Hr Time Candy", "Command · drop Timecandy1"],
-            ["Command", "drop · 72 Hr Time Candy", "Command · drop Timecandy2"],
-            ["Command", "nomore · 24 Hr Time Candy", "Command · nomore Timecandy1"],
+            ["Cheat", "drop · 24 Hr Time Candy", "Cheat · Cheats › Drop"],
+            ["Cheat", "drop · 72 Hr Time Candy", "Cheat · Cheats › Drop"],
+            ["Cheat", "nomore · 24 Hr Time Candy", "Cheat · Cheats › Nomore"],
         ],
-        "cheats first, then the commands by the item's name, every drop before every nomore"
+        "cheats first, then the items by name, every drop before every nomore"
     );
-    assert.deepEqual(candy[1].target, { command: "drop Timecandy1", message: "24 Hr Time Candy", needsParam: true });
+    // An item opens its command's one row with the item in its field (#23), not the command box.
+    assert.deepEqual(candy[1].target, { view: "CHEATS", cheat: "drop", fill: "24 Hr Time Candy" });
     assert.equal(search("drop candy")[0].command, "drop Timecandy1", "every word, like the terminal");
     assert.equal(search("timecandy1")[0].command, "drop Timecandy1", "and by the command itself");
     assert.equal(search("stamp")[0].label, "Stamps", "pages still come first");

@@ -471,7 +471,9 @@ system shows the open tab's cheats and those for every tab. The rest of the Chea
 Multipliers, Items & drops, Costs & limits, Unlocks, Minigames, Display, Tools, and Dangerous last, marked). A panel
 switch is on until the injector restarts. The switches that turned on a whole family (w1-w7, wide, godlike, unlock,
 upstones) are gone: a startup list that held one gets that family's cheats in its place once, and typing one says where
-its cheats are now.
+its cheats are now. A command that takes a value from a list (drop, spawn,
+buy, ...) is one row whose field suggests the values by name, with an amount where it takes one; the console keeps one
+suggestion per value.
 
 Why: a player on a system's page looks for its cheats there, and the old Cheats tabs (w1-w7, wide, unlock) mixed a
 world's systems with each other (#23). Same two-audiences reasoning as the automation section.

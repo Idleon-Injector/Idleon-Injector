@@ -60,7 +60,7 @@ const appState = vanX.reactive({
     sidebarCollapsed: localStorage.getItem("sidebarCollapsed") === "true",
     configForcedPath: null,
     // The cheat the menu search sent the player to: the Cheats page shows that row (and `setting` in the drawer).
-    cheatFocus: { cheat: "", setting: "", focus: false, n: 0 },
+    cheatFocus: { cheat: "", setting: "", focus: false, fill: "", n: 0 },
     // Counts every openMenu, so the sidebar shows the opened place's list even when the place didn't change.
     menuOpens: 0,
     cheatsViewMode: localStorage.getItem("cheatsViewMode") || "tabs",
@@ -459,7 +459,7 @@ const store = {
 
     /**
      * Go somewhere in the menu: `{ view }` (a VIEWS key) or `{ world, page }` (page "" or null = the world's first page;
-     * with `cheat`, its cheats panel shows that cheat's row).
+     * with `cheat`, its cheats panel shows that cheat's row). `fill` puts a value in a value command's field.
      * `{ view: "CHEATS", cheat, setting, focus }` shows that cheat's row, and with `setting` opens its settings drawer;
      * `focus` (picked by keyboard) also focuses the row or the setting's field. It never runs the cheat.
      */
@@ -470,7 +470,13 @@ const store = {
             if (target.cheat) {
                 const setting = target.setting || "";
                 const focus = Boolean(target.focus);
-                appState.cheatFocus = { cheat: target.cheat, setting, focus, n: appState.cheatFocus.n + 1 };
+                appState.cheatFocus = {
+                    cheat: target.cheat,
+                    setting,
+                    focus,
+                    fill: target.fill || "",
+                    n: appState.cheatFocus.n + 1,
+                };
                 if (setting) CheatService.navigateToCheatConfig(target.cheat);
             }
             return;
@@ -483,6 +489,7 @@ const store = {
                 cheat: target.cheat,
                 setting: "",
                 focus: Boolean(target.focus),
+                fill: target.fill || "",
                 n: appState.cheatFocus.n + 1,
             };
         // A search hit on a page's own tab opens the page there; any other way in leaves the page as it was.
