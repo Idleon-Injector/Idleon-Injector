@@ -42,8 +42,9 @@ let startupCheats = null;
 let cheatConfig = null;
 // config.custom.js exists but couldn't be loaded; the next save keeps it under another name.
 let customConfigBroken = false;
-// A switched config the running game hasn't taken yet: reading the game would bring the old config's settings back.
-let gameBehind = false;
+// A switched config the running game hasn't taken yet: the startup cheats the game still runs, or null. Reading the
+// game meanwhile would bring the old config's settings back.
+let gameBehind = null;
 
 const CDP_PORT = 32123;
 const WEB_PORT = 8080;
@@ -305,31 +306,40 @@ async function applyConfigChange(action, name, gameBridge) {
 const tookConfig = (result) => !result.error && !String(result.value).startsWith("Error:");
 
 /**
- * Put the config just switched to into the running game: its settings in place of the old ones (a map key the old
- * config had would stay with a merge), then the old config's cheats off and the new one's on. Cheats the player
- * turned on by hand stay as they are. A game that isn't there gets it all when it's injected again.
+ * Put the config just switched to into the running game. Until the game confirms it (a throw or an error answer
+ * doesn't), the game counts as behind, and the next read of the game tries again first. A game that isn't there gets
+ * it all when it's injected again.
  */
 async function switchGame(gameBridge, before) {
-    // Behind until the game says it took the new config; a throw or an error answer leaves it so.
-    gameBehind = true;
+    gameBehind ??= before; // still behind an earlier switch: the game runs that config's cheats
     try {
         if (!(await gameBridge.isAttached())) return { gameApplied: false, contextLost: true };
-        const result = await gameBridge.updateConfig(cheatConfig, true);
-        if (!tookConfig(result)) return { gameApplied: false, details: result.error?.text ?? result.value };
-        gameBehind = false;
-        const failed = [];
-        const run = async (command, on) => {
-            const response = await gameBridge.executeCheat(command, on);
-            if (response.error || !response.value?.ok)
-                failed.push({ cheat: command, reason: response.error?.text ?? response.value?.message ?? "" });
-        };
-        for (const command of before.filter((c) => !startupCheats.includes(c))) await run(command, false);
-        for (const command of startupCheats) await run(command, true);
-        return { gameApplied: true, failed };
+        return await catchUpGame(gameBridge);
     } catch (error) {
         log.debug(`The game didn't take the switched config: ${error.message}`);
         return { gameApplied: false, contextLost: true };
     }
+}
+
+/**
+ * Give a game that is behind the config in use: its settings in place of the old ones (a map key the old config had
+ * would stay with a merge), then the old config's cheats off and the new one's on. Cheats the player turned on by hand
+ * stay as they are.
+ */
+async function catchUpGame(gameBridge) {
+    const result = await gameBridge.updateConfig(cheatConfig, true);
+    if (!tookConfig(result)) return { gameApplied: false, details: result.error?.text ?? result.value };
+    const before = gameBehind;
+    gameBehind = null;
+    const failed = [];
+    const run = async (command, on) => {
+        const response = await gameBridge.executeCheat(command, on);
+        if (response.error || !response.value?.ok)
+            failed.push({ cheat: command, reason: response.error?.text ?? response.value?.message ?? "" });
+    };
+    for (const command of before.filter((c) => !startupCheats.includes(c))) await run(command, false);
+    for (const command of startupCheats) await run(command, true);
+    return { gameApplied: true, failed };
 }
 
 /**
@@ -418,11 +428,8 @@ function pullGameConfig(gameBridge, cheatConfig) {
 
 async function readGameConfig(gameBridge, cheatConfig) {
     try {
-        // The game still has the config switched away from: give it this one first, or read nothing.
-        if (gameBehind) {
-            if (!tookConfig(await gameBridge.updateConfig(cheatConfig, true))) return false;
-            gameBehind = false;
-        }
+        // The game still has the config switched away from: give it this one first (settings and cheats), or read nothing.
+        if (gameBehind && !(await catchUpGame(gameBridge)).gameApplied) return false;
         const result = await gameBridge.callHelper("readCheatConfig");
         if (result.error || typeof result.value !== "string") return false;
         deepMerge(cheatConfig, reviveRegExps(dropEmptyObjects(JSON.parse(result.value))));

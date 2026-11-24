@@ -318,8 +318,12 @@ test("a config whose automation is null still loads, and so does the file", asyn
     assert.ok(row((await app.read()).configs, "Odd"));
 });
 
-test("after a switch the game refused, the game's old settings don't come back into the new config", async (t) => {
-    useInstall(t, `exports.cheatConfig = { automation: { shops: [{ id: "0:1", on: true }] } };`);
+test("after a switch the game refused, the game's old settings don't come back; the retry also switches the cheats", async (t) => {
+    useInstall(
+        t,
+        `exports.startupCheats = ["godlike reach"];
+exports.cheatConfig = { automation: { shops: [{ id: "0:1", on: true }] } };`
+    );
     const game = fakeGame();
     let takes = false;
     // The game keeps the old config's shop list until it takes the new config.
@@ -337,11 +341,21 @@ test("after a switch the game refused, the game's old settings don't come back i
     await app.change("saveAs", "Copy");
     assert.deepEqual(app.config.getCheatConfig().automation.shops, [], "Light's empty list stays");
 
-    // Once the game takes it, the game's own changes are read again.
+    assert.ok(!app.game.calls.some(([cheat]) => cheat === "godlike reach"), "no cheat switched while refused");
+
+    // Once the game takes it, the old config's cheats go off and Light's on, and the game is read again.
     takes = true;
+    game.calls.length = 0;
     await app.read();
-    assert.deepEqual(app.game.calls.at(-1), ["config", true]);
+    assert.deepEqual(game.calls, [
+        ["config", true],
+        ["godlike reach", false],
+        ...SHIPPED.Light.startupCheats.map((cheat) => [cheat, true]),
+    ]);
     assert.deepEqual(app.config.getCheatConfig().automation.shops, []);
+    game.calls.length = 0;
+    await app.read();
+    assert.deepEqual(game.calls, [], "in step again: a read only reads");
 });
 
 test("a switch whose game update throws, or answers with an Error text, counts as not taken", async (t) => {
