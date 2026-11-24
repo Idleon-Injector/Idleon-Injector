@@ -121,6 +121,15 @@
     --c-world-w5: #f27a6e;
     --c-world-w6: #59c46a;
     --c-world-w7: #c580e0;
+    /* The same hues, calmer, for the icon rail's codes at rest: one lightness and one chroma (OKLCH 0.72 / 0.08), so
+       no world shouts louder than another. The full colour comes back on hover and where you are. */
+    --c-world-w1-rest: #ce9678;
+    --c-world-w2-rest: #bba169;
+    --c-world-w3-rest: #68b1c7;
+    --c-world-w4-rest: #ac99d0;
+    --c-world-w5-rest: #d29289;
+    --c-world-w6-rest: #83b387;
+    --c-world-w7-rest: #b895c7;
 
     /* -- OVERLAYS & EFFECTS -- */
     --c-white-02: rgba(255, 255, 255, 0.02);
