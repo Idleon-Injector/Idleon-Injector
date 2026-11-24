@@ -1,8 +1,8 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { SearchBar } from "../../../components/SearchBar.js";
 import { EmptyState } from "../../../components/EmptyState.js";
 import { executeCheatAction, fetchBundleCatalog } from "../../../services/api.js";
+import { shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
@@ -45,66 +45,50 @@ const createDeferred = () => {
     return { promise, resolve, reject };
 };
 
-const matchesSearch = (bundle, query) => {
-    const normalizedQuery = String(query ?? "")
-        .trim()
-        .toLowerCase();
-    return !normalizedQuery || `${bundle.name} ${bundle.code}`.toLowerCase().includes(normalizedQuery);
-};
-
-const BundleRow = ({ bundle, state, searchQuery, buyAllStatus, onBuy, onUnbuy }) =>
-    div(
-        {
-            class: "bundle-row-wrap",
-            hidden: () => !matchesSearch(bundle, searchQuery.val),
+const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
+    AccountRow({
+        status: () => (state.status.val === "success" ? "success" : state.status.val === "error" ? "error" : null),
+        rowClass: "bundle-row",
+        info: div(
+            { class: "account-row__name-group" },
+            span({ class: "account-row__name" }, bundle.name),
+            span({ class: "account-row__sub-label bundle-row__code" }, bundle.code),
+            () =>
+                state.pending.val
+                    ? span({ class: "bundle-row__pending" }, "WAITING FOR LIVE OWNERSHIP CONFIRMATION")
+                    : null,
+            // Why the row's last Buy or Unbuy failed, until its next one.
+            Said({ said: state.said.said, className: "said--line bundle-row__said", kinds: ["failed"] })
+        ),
+        badge: () => {
+            if (state.pending.val) return "Buy queued";
+            return isOwned(state.owned.val) ? "Owned" : "Not owned";
         },
-        AccountRow({
-            status: () => (state.status.val === "success" ? "success" : state.status.val === "error" ? "error" : null),
-            rowClass: "bundle-row",
-            info: div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, bundle.name),
-                span({ class: "account-row__sub-label bundle-row__code" }, bundle.code),
-                () =>
-                    state.pending.val
-                        ? span({ class: "bundle-row__pending" }, "WAITING FOR LIVE OWNERSHIP CONFIRMATION")
-                        : null,
-                // Why the row's last Buy or Unbuy failed, until its next one.
-                Said({ said: state.said.said, className: "said--line bundle-row__said", kinds: ["failed"] })
-            ),
-            badge: () => {
-                if (state.pending.val) return "Buy queued";
-                return isOwned(state.owned.val) ? "Owned" : "Not owned";
-            },
-            controlsClass: "bundle-row__controls",
-            controls: button(
-                {
-                    type: "button",
-                    class: () =>
-                        isOwned(state.owned.val)
-                            ? "btn-danger btn-sm bundle-row__action"
-                            : "btn-quiet btn-sm bundle-row__action",
-                    disabled: () =>
-                        buyAllStatus.val === "loading" || state.pending.val || state.status.val === "loading",
-                    onclick: () => {
-                        if (buyAllStatus.val === "loading" || state.pending.val || state.status.val === "loading")
-                            return;
-                        return isOwned(state.owned.val) ? onUnbuy(bundle, state) : onBuy(bundle, state);
-                    },
+        controlsClass: "bundle-row__controls",
+        controls: button(
+            {
+                type: "button",
+                class: () =>
+                    isOwned(state.owned.val)
+                        ? "btn-danger btn-sm bundle-row__action"
+                        : "btn-quiet btn-sm bundle-row__action",
+                disabled: () => buyAllStatus.val === "loading" || state.pending.val || state.status.val === "loading",
+                onclick: () => {
+                    if (buyAllStatus.val === "loading" || state.pending.val || state.status.val === "loading") return;
+                    return isOwned(state.owned.val) ? onUnbuy(bundle, state) : onBuy(bundle, state);
                 },
-                () => {
-                    if (state.pending.val) return "Buy queued";
-                    if (state.status.val === "loading") return isOwned(state.owned.val) ? "Unbuying" : "Buying";
-                    return isOwned(state.owned.val) ? "Unbuy" : "Buy";
-                }
-            ),
-        })
-    );
+            },
+            () => {
+                if (state.pending.val) return "Buy queued";
+                if (state.status.val === "loading") return isOwned(state.owned.val) ? "Unbuying" : "Buying";
+                return isOwned(state.owned.val) ? "Unbuy" : "Buy";
+            }
+        ),
+    });
 
 const BundlesTab = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Bundles" });
     const catalogState = van.state([]);
-    const searchQuery = van.state("");
     const bundleStates = new Map();
     const purchaseBlockMessage = van.state(null);
     // Buy all asks in place (#25): the first press reads "Click again" and says the inventory warning beside it.
@@ -132,9 +116,9 @@ const BundlesTab = () => {
         const state = getBundleState(bundle.code, bundle.owned);
         return !isOwned(state.owned.val) && !state.pending.val;
     };
-    // Buy all and its count cover the bundles the search shows.
-    const getBuyableBundles = () =>
-        catalogState.val.filter((bundle) => matchesSearch(bundle, searchQuery.val) && isBuyable(bundle));
+    // Buy all and the counts cover the bundles the top bar's search shows (#28).
+    const shownBundles = () => catalogState.val.filter((bundle) => shownBySearch(getBundleState(bundle.code).row));
+    const getBuyableBundles = () => shownBundles().filter(isBuyable);
 
     const buyableCount = van.derive(() => getBuyableBundles().length);
 
@@ -172,7 +156,7 @@ const BundlesTab = () => {
 
     // Counted over the bundles the search shows, like Buy all.
     const totals = van.derive(() => {
-        const bundles = catalogState.val.filter((bundle) => matchesSearch(bundle, searchQuery.val));
+        const bundles = shownBundles();
         const owned = bundles.filter((bundle) => isOwned(getBundleState(bundle.code).owned.val)).length;
         const queued = bundles.filter((bundle) => getBundleState(bundle.code).pending.val).length;
         return { total: bundles.length, owned, queued };
@@ -189,16 +173,11 @@ const BundlesTab = () => {
         }
 
         reconcileRows(catalogCache.map((bundle) => `${bundle.code}:${bundle.name}`).join("|"), () =>
-            catalogCache.map((bundle) =>
-                BundleRow({
-                    bundle,
-                    state: getBundleState(bundle.code, bundle.owned),
-                    searchQuery,
-                    buyAllStatus,
-                    onBuy: buyBundle,
-                    onUnbuy: unbuyBundle,
-                })
-            )
+            catalogCache.map((bundle) => {
+                const state = getBundleState(bundle.code, bundle.owned);
+                state.row = BundleRow({ bundle, state, buyAllStatus, onBuy: buyBundle, onUnbuy: unbuyBundle });
+                return state.row;
+            })
         );
     };
 
@@ -386,7 +365,6 @@ const BundlesTab = () => {
         WarningBanner(() => purchaseBlockMessage.val)
     );
 
-    const noMatches = () => !catalogState.val.some((bundle) => matchesSearch(bundle, searchQuery.val));
     const body = div(
         { class: "scrollable-panel content-stack bundles-scroll" },
         AccountSection({
@@ -403,20 +381,10 @@ const BundlesTab = () => {
                           title: "NO BUNDLES",
                           subtitle: "No bundle codes were returned by the running game.",
                       }),
-        }),
-        div(
-            { hidden: () => !catalogState.val.length || !noMatches() },
-            EmptyState({ title: "NO MATCHING BUNDLES", subtitle: "No bundles matched your search." })
-        )
+        })
     );
 
     return PersistentAccountListPage({
-        toolbar: SearchBar({
-            placeholder: "SEARCH BUNDLES OR CODES",
-            value: searchQuery,
-            debounceMs: 0,
-            onInput: (value) => (searchQuery.val = value),
-        }),
         title: "BUNDLES",
         description:
             "Buy bundles and see which ones your account has received. Unbuy lets you mark a bundle as not received again, but does not remove its items from the Slab.",
