@@ -49,7 +49,8 @@ const isRowField = (node) =>
  * field stays until the field saves (or no longer needs to): a switch's ✓ beside it doesn't take it away.
  *
  * After a save, `undo.offer` holds its logged action for UNDO_MS: SaveState shows "↶ Undo" beside the ✓. A save made
- * by a switch or a step pick offers none, as flipping or picking again undoes it (undoesItself, #81). Undo puts
+ * by a switch, − / +, a step pick or a dropdown pick offers none, as using it again undoes it (undoesItself, #81).
+ * A typed number, Max and a row button (Reset, Clear, Relock, ×) offer it. Undo puts
  * the old values back (on the character they were saved on) with the same saving…/✓ states, then the page reads
  * the game again, so the row shows what the game now holds. When the fields edit one of several things (the selected
  * tile, say), `subject()` names it: Undo stays with the thing it saved, so it goes when the fields move on.
@@ -133,7 +134,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
         return runNow(plan.write, "save", quiet);
     };
 
-    // `quiet`: a switch or a step pick made it, so it offers no Undo.
+    // `quiet`: a switch, − / +, a step pick or a dropdown pick made it, so it offers no Undo.
     const runNow = (task, by, quiet, savedFor = subject?.(), named = label) =>
         withAction({ label: named, kind: "row" }, async (action) => {
             const outcome = await track(task, by);
@@ -203,7 +204,7 @@ export const useAutoSave = ({ prepare, capture = null, revert = null, successMs 
     // the last value is the one saved); after a switch, a button or Undo, it waits its own turn behind them. Each
     // keeps the drafts and the click of its own last commit, so a commit made after a switch never saves before
     // that switch, and its save is named and logged after its own click. `from` is the field or control that asked
-    // (by default the one clicked last): a switch or a step picker offers no Undo.
+    // (by default the one clicked last): a switch, − / +, a step picker or a dropdown pick offers no Undo.
     const save = (from = gestureTarget()) => {
         const commit = { drafts: capture?.(), inGesture: captureGesture(), after: commits, quiet: undoesItself(from) };
         if (lastSave) {
