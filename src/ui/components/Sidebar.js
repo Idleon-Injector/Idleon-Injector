@@ -51,7 +51,7 @@ const MenuBtn = ({ code, label, active, onclick, colorClass = "", key = null, dr
 
 /*
  * The menu drills down. Picking a world (or Account, Classes, Advanced) opens it and slides the list
- * over to its systems; the row at the top goes back. The logo above and My cheats, status and keys below
+ * over to its systems; the row at the top goes back. Home above and the status and keys below
  * stay put while the middle slides. In the icon rail a world just opens; its list is the line above the page.
  */
 let focusFirst = false; // a pick moves focus to the first entry of the new list

@@ -155,7 +155,7 @@ test("a cheat that needs a value lights its star once that value is a favorite",
     store.toggleFavorite("fixture nested deep 7");
 });
 
-// My cheats is Home's right column now (concept): a row per cheat, its name the switch.
+// My cheats is Home's right column: a row per cheat, its name the switch.
 test("My cheats lists the cheats that are on, and pressing a name turns exactly that cheat off", async () => {
     await game.cheat("godlike crit", true);
     await store.loadCheatStates();

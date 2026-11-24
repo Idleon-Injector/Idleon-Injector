@@ -261,45 +261,6 @@
     opacity: 1;
 }
 
-/* An active cheat is just its name in a quiet row, lined up under the heading: no bar, no box. */
-.active-cheat-item {
-    font-size: 0.875rem;
-    font-family: var(--font-mono);
-    color: var(--c-text-muted);
-    padding: 4px 0;
-    min-height: 22px;
-    flex-shrink: 0;
-    line-height: 1.2;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    border-radius: 8px;
-}
-
-.active-cheat-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    font-family: var(--font-display);
-    font-size: 0.8125rem;
-    color: var(--c-text-body);
-}
-
-.active-cheat-item:hover {
-    filter: brightness(1.2);
-    box-shadow: 0 0 8px var(--c-accent-dim);
-    background: #1b1930;
-}
-
-.no-active-cheats {
-    font-size: 0.875rem;
-    font-family: var(--font-mono);
-    color: var(--c-text-muted);
-    font-style: italic;
-}
-
 /* --- SYSTEM STATUS --- */
 .system-status {
     margin-top: auto;

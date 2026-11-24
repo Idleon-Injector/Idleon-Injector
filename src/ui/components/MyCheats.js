@@ -1,5 +1,5 @@
 /**
- * My cheats (concept, fourth pass): the player's own cheats, as Home's right column. Lumi: "the user is used to finding
+ * My cheats: the player's own cheats, as Home's right column. Lumi: "the user is used to finding
  * their cheats on the right side of the menu in each tab". It is the sibling of a system page's cheats panel
  * (SystemCheats.js): the same group, header and row lines; beside Home's contents where the window holds both, else
  * one line under Home's title that opens the same rows in place. Two small sections, each hidden while empty: Starts
