@@ -20,6 +20,7 @@
  * - Event Wheel (ActorEvents_670) - Land on the bonus line, then the bonus wheel jackpot
  *
  * Also here, because it hooks Poing's method: wide nogamingpop (ActorEvents_577) - hides the gaming popups.
+ * And w5 instantnuggets (ActorEvents_577 and runLater) - the shovel's nugget rolls all at once.
  */
 
 import { cheatState, cheatConfig } from "../core/state.js";
@@ -507,6 +508,7 @@ defineHook(
     }
 );
 
+// The other runLater hook, godlike.intervention, is in hooks/behavior.js; the two never change the same timer.
 // Around: shorten only nugget callback delays, leaving shovel movement and its unlock timer unchanged.
 defineHook(
     { id: "w5.instantnuggets", target: () => behavior, method: "runLater", around: true },
@@ -525,13 +527,14 @@ defineHook(
                 const index = station._GenINFO[39].length;
                 const result = Reflect.apply(callback, this, values);
                 const nugget = station._GenINFO[39][index];
-                // Native _event_3 settles a record and resets Dream before the next spaced-out roll.
+                // The game saves a record (and resets Dream) in _event_3 when the popup fades. Saving it right after
+                // the roll, before the next one, is what the game does with wide nogamingpop on. The popup stays,
+                // and the game's own check later finds the record already saved.
                 if (Number(nugget[5]) > Number(gga.Gaming[8])) {
                     gga.Gaming[8] = nugget[5];
                     if (events(579)._customBlock_Thingies("LegendPTS_bonus", 35, 0) < 1)
                         gga.OptionsListAccount[192] = 0;
                 }
-                if (cheatState.wide.nogamingpop) station._GenINFO[39].splice(index, 1);
                 return result;
             };
         }

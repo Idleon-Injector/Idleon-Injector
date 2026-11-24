@@ -461,7 +461,7 @@ defineCheat({
         { name: "endercaptains", message: "100% ender captains (requires Emporium bonus unlock)" },
         { name: "gaming", message: "gaming cheats" },
         { name: "betternuggets", message: "bigger nuggets from the gaming shovel (see config)" },
-        { name: "instantnuggets", message: "finish nugget batches immediately; keeps visuals and the shovel cooldown" },
+        { name: "instantnuggets", message: "dug nuggets all come out at once; the shovel still waits 6 s" },
         { name: "divinity", message: "divinity cheats" },
         { name: "holes", message: "holes cheats" },
         { name: "lantern", message: "no daily limit on Blinding Lantern uses" },
