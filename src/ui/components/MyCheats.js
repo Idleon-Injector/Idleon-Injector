@@ -16,6 +16,7 @@
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
+import { withNewNames } from "../menu/pageCheats.js";
 import { Said, plainReason, useSaid } from "./inPlace.js";
 
 const { aside, button, div, span } = van.tags;
@@ -24,7 +25,7 @@ const { aside, button, div, span } = van.tags;
 const startup = van.state(null);
 const loadStartup = () =>
     fetchConfig()
-        .then((file) => (startup.val = file.startupCheats ?? []))
+        .then((file) => (startup.val = withNewNames(file.startupCheats ?? [])))
         .catch(() => {});
 
 const groupOf = (cheat) => cheat.split(" ")[0];
@@ -74,9 +75,9 @@ const Row = (cheat, { say, linger }) => {
         autoQueue = autoQueue.then(async () => {
             try {
                 const { config } = await saveConfigPart((file) => ({
-                    startupCheats: startupWith(file.startupCheats ?? [], cheat, next),
+                    startupCheats: startupWith(withNewNames(file.startupCheats ?? []), cheat, next),
                 }));
-                startup.val = config.startupCheats ?? [];
+                startup.val = withNewNames(config.startupCheats ?? []);
             } catch {
                 say("failed", "Couldn't save. Try again.");
                 await loadStartup();
