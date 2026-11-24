@@ -29,7 +29,7 @@ export const worldNow = (tree) => tree.find((world) => world.id === store.app.me
 const pagesOf = (world) => world.systems.flatMap((system) => system.pages);
 export const pageNow = (world) => pagesOf(world).find((page) => page.id === store.app.menuPage) || pagesOf(world)[0];
 
-// Balances the page and its cheats column again (balancePages, below), once a page has rendered.
+// Balances the page and its cheats column again (balanceFrame, below), once a page has rendered.
 let relayout = () => {};
 
 const WorldFrame = (tree) => {
@@ -72,34 +72,45 @@ const WorldFrame = (tree) => {
     );
 };
 
+/** True while the open view stands in the two-column frame (a page or Home beside its cheats column). */
+export const framed = van.state(false);
+
 /**
  * The page column and the cheats column beside it read as one layout (#23). Where the window holds both, the pair is
  * balanced in it, and the search above spans both. The balance is worked out from a list page (48rem) and a full
  * cheats column on every page, a page with no cheats included, so the page column never moves between pages; a wider
- * table page that doesn't fit beside its cheats at that place folds them under its title instead.
+ * table page that doesn't fit beside its cheats at that place folds them under its title instead. Home stands in the
+ * same frame, with My cheats as its column. Started once, by whichever of the two views is made first.
  */
-const balancePages = (root) => {
+let balancing = false;
+export const balanceFrame = (root) => {
+    if (balancing) return;
+    balancing = true;
+    let watched = false;
     const apply = () => {
         const viewport = root.closest(".viewport");
         if (!viewport) return;
+        // The viewport, not this view: Home is framed too, while this view is hidden.
+        if (!watched) new ResizeObserver(apply).observe(viewport);
+        watched = true;
         const pad = parseFloat(getComputedStyle(viewport).getPropertyValue("--page-pad")) || 0;
         const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
         const list = 48 * rem;
         const room = viewport.clientWidth - 2 * pad;
-        const fits =
-            store.app.activeTab === VIEWS.PAGES.id && root.clientWidth > 0 && room - list - SIDE.gap >= SIDE.min;
+        const onPages = store.app.activeTab === VIEWS.PAGES.id;
+        const fits = (onPages || store.app.activeTab === VIEWS.HOME.id) && room - list - SIDE.gap >= SIDE.min;
         viewport.classList.toggle("pages-frame", fits);
+        framed.val = fits;
         if (!fits) return;
         const inset = Math.max(0, (room - list - SIDE.gap - SIDE.max) / 2);
         // The open page's own measure: a table page's search is as wide as its column and cheats column.
-        const open = root.querySelector(".world-sub-pane.active > .tab-container");
+        const open = onPages && document.querySelector("#pages-tab .world-sub-pane.active > .tab-container");
         const measure = open ? parseFloat(getComputedStyle(open).getPropertyValue("--page-measure")) * rem : list;
         const column = Math.min(SIDE.max, room - inset - measure - SIDE.gap);
         viewport.style.setProperty("--page-inset", `${inset}px`);
         viewport.style.setProperty("--frame-width", `${column >= SIDE.min ? measure + SIDE.gap + column : measure}px`);
     };
     relayout = apply;
-    new ResizeObserver(apply).observe(root);
     // Another page or view: after a frame, once the page is on screen.
     van.derive(() => {
         store.app.activeTab;
@@ -112,6 +123,6 @@ export const Pages = () => {
     const root = div({ id: "pages-tab", class: "tab-pane account-tab-layout" }, () =>
         menuTree.val ? WorldFrame(menuTree.val) : div({ class: "account-loader" }, Loader({ text: "Loading pages" }))
     );
-    balancePages(root);
+    balanceFrame(root);
     return root;
 };

@@ -1,24 +1,25 @@
 /**
- * My cheats (concept, third pass): the sidebar's list of the player's own cheats, where "Active cheats" was, in the old
- * list's quiet look. Two small sections, each hidden while empty: Starts with injector (the startup cheats, the same
- * list Settings › Startup edits) and This session (on now, not starting with the injector). A name is white when its
- * cheat is on and grey when off, and pressing it turns the cheat on or off. Lumi: no dots or marks on rows; moving a
- * row between sections is one faint word shown while the row is pointed at.
+ * My cheats (concept, fourth pass): the player's own cheats, as Home's right column. Lumi: "the user is used to finding
+ * their cheats on the right side of the menu in each tab". It is the sibling of a system page's cheats panel
+ * (SystemCheats.js): the same group, header and row lines; beside Home's contents where the window holds both, else
+ * one line under Home's title that opens the same rows in place. Two small sections, each hidden while empty: Starts
+ * with injector (the startup cheats, the same list Settings › Startup edits) and This session (on now, not starting
+ * with the injector). A name is white when its cheat is on and grey when off, and pressing it turns the cheat on or
+ * off. Lumi: no dots or marks on rows; moving a row between sections is one faint word shown while the row is pointed
+ * at.
  *
  * A cheat gets in by being turned on anywhere (a page's cheats panel, the Cheats area, the command box); its name
  * arrives in the accent and fades to white. While the pointer or focus is in the list nothing moves: a cheat turned off
- * here stays, and a row moved to the other section goes there, when the pointer leaves. In the icon rail (a narrow
- * window, a folded sidebar) the list opens from a "MY" entry at the rail's foot, over the page.
+ * here stays, and a row moved to the other section goes there, when the pointer leaves.
  */
 
 import van from "../vendor/van-1.6.0.js";
 import store from "../state/store.js";
 import { fetchConfig, saveConfigPart, startupWith } from "../services/api.js";
 import { withNewNames } from "../menu/pageCheats.js";
-import { isRail } from "./MenuLevels.js";
 import { Said, plainReason, useSaid } from "./inPlace.js";
 
-const { button, div, span } = van.tags;
+const { aside, button, div, span } = van.tags;
 
 // The startup cheats as the config file holds them; null until read.
 const startup = van.state(null);
@@ -116,7 +117,8 @@ const Row = (cheat, { say, linger }) => {
     );
 };
 
-export const MyCheats = () => {
+/** `side`: true while Home stands in the two-column frame (Pages.js), so the list stands beside Home's contents. */
+export const MyCheats = (side) => {
     const { said, say } = useSaid();
     // Cheats switched off here that stay in the list until the pointer (or focus) leaves it.
     const lingering = van.state([]);
@@ -136,6 +138,7 @@ export const MyCheats = () => {
             a.localeCompare(b)
         );
     const count = van.derive(() => shown().length);
+    const onCount = van.derive(() => store.getActiveCheats().length);
 
     // Read now, and again when the player moves on: Settings › Startup may have changed the file.
     van.derive(() => {
@@ -144,25 +147,8 @@ export const MyCheats = () => {
         loadStartup();
     });
 
-    // The rail's way in: "MY" at its foot opens the same list over the page.
+    // Folded (no room beside Home's contents): the header is one line that opens the rows in place.
     const open = van.state(false);
-    van.derive(() => {
-        if (!isRail()) open.val = false;
-    });
-    document.addEventListener("click", (e) => {
-        if (open.val && !e.target.closest?.(".my-cheats, .my-cheats-rail")) open.val = false;
-    });
-    const railButton = button(
-        {
-            type: "button",
-            class: () => `tab-button menu-nav-btn my-cheats-rail${open.val ? " active" : ""}`,
-            "aria-expanded": () => String(open.val),
-            "aria-controls": "my-cheats",
-            "aria-label": "My cheats",
-            onclick: () => (open.val = !open.val),
-        },
-        span({ class: "menu-nav-code", "aria-hidden": "true" }, "MY")
-    );
 
     // Two sections, each hidden while empty: the cheats that start with the injector, then the ones on this session.
     const autoList = div({ class: "my-cheats__list" });
@@ -171,15 +157,17 @@ export const MyCheats = () => {
     const sessionCount = van.state(0);
     const section = (title, list, n) =>
         div({ class: "my-cheats__section", hidden: () => !n.val }, div({ class: "my-cheats__sub" }, title), list);
-    // The sections scroll together; a list longer than its room fades at the foot while more is below.
     const body = div(
-        { class: "my-cheats__body" },
-        section("STARTS WITH INJECTOR", autoList, autoCount),
-        section("THIS SESSION", sessionList, sessionCount)
+        {
+            id: "my-cheats-rows",
+            class: "tabbed-list__body system-cheats__rows my-cheats__body",
+            hidden: () => !side.val && !open.val,
+        },
+        section("Starts with injector", autoList, autoCount),
+        section("This session", sessionList, sessionCount),
+        div({ class: "my-cheats__empty", hidden: () => count.val > 0 }, "No cheats on yet."),
+        Said({ said, className: "said--line" })
     );
-    const cut = () => body.classList.toggle("is-cut", body.scrollTop + body.clientHeight < body.scrollHeight - 2);
-    body.addEventListener("scroll", cut);
-    new ResizeObserver(cut).observe(body);
 
     // One element per cheat, kept while it is listed, so a row keeps its state; a new one arrives in the accent.
     const rows = new Map();
@@ -209,8 +197,6 @@ export const MyCheats = () => {
             lists[auto].push(el);
             if (ready && (isNew || moved)) {
                 arrive(el);
-                // Folded in the rail: its "MY" takes the accent instead.
-                if (isNew && isRail() && !open.val) arrive(railButton);
                 // A new cheat is shown; a moved one isn't scrolled to, so the list stays where the player left it.
                 if (isNew) requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" }));
             }
@@ -223,32 +209,49 @@ export const MyCheats = () => {
             els.forEach((el, i) => list.children[i] !== el && list.insertBefore(el, list.children[i] ?? null));
             n.val = els.length;
         }
-        requestAnimationFrame(cut);
         // Not until the startup list and the game's first cheat states are in: what was on at start doesn't "arrive".
         if (startup.val !== null && store.data.activeCheatStates !== firstStates) ready = true;
     });
 
-    const box = div(
+    // The header a page's cheats panel has: the name, then how many are on.
+    const headWords = () => [
+        span({ class: "account-section__title" }, "My cheats"),
+        span({ class: "account-section__meta system-cheats__count" }, () => (onCount.val ? `${onCount.val} on` : "")),
+    ];
+    const panel = aside(
         {
             id: "my-cheats",
-            class: () => `my-cheats${isRail() ? " is-pop" : ""}${count.val ? "" : " is-empty"}`,
-            hidden: () => isRail() && !open.val,
+            class: () => `system-cheats my-cheats ${side.val ? "is-side" : "is-folded"}${open.val ? " is-open" : ""}`,
+            "aria-label": "My cheats",
             onpointerleave: letGo,
             // Focus moving out by keyboard. Not a click inside (a press on a row blurs before the switch takes focus
             // back), and not the whole window losing focus (the player went to the game).
             onfocusout: (e) => {
-                if (document.hasFocus() && !box.matches(":hover") && !box.contains(e.relatedTarget)) letGo();
+                if (document.hasFocus() && !panel.matches(":hover") && !panel.contains(e.relatedTarget)) letGo();
             },
             onkeydown: (e) => {
-                if (e.key !== "Escape" || !open.val) return;
+                if (e.key !== "Escape" || side.val || !open.val) return;
                 open.val = false;
-                railButton.focus();
+                panel.querySelector(".system-cheats__toggle")?.focus();
             },
         },
-        div({ class: "my-cheats__head" }, "MY CHEATS"),
-        body,
-        div({ class: "my-cheats__empty" }, "Cheats you turn on show here."),
-        Said({ said, className: "said--line" })
+        div(
+            { class: "account-section tabbed-list no-tabs" },
+            () =>
+                side.val
+                    ? div({ class: "account-section__header" }, ...headWords())
+                    : button(
+                          {
+                              type: "button",
+                              class: "account-section__header system-cheats__toggle row-opener",
+                              "aria-expanded": () => String(open.val),
+                              "aria-controls": "my-cheats-rows",
+                              onclick: () => (open.val = !open.val),
+                          },
+                          ...headWords()
+                      ),
+            body
+        )
     );
-    return [div({ class: "my-cheats-rail-wrap", hidden: () => !isRail() }, railButton), box];
+    return panel;
 };

@@ -6,8 +6,7 @@ import { withTooltip } from "./Tooltip.js";
 import { WORLDS, AREAS, worldClass } from "../menu/menuModel.js";
 import { menuError, menuTree } from "../menu/pageRegistry.js";
 import { isRail, menuLevel, levelHead, LevelItems, DRILL_AREAS } from "./MenuLevels.js";
-import { plainReason, replay } from "./inPlace.js";
-import { MyCheats } from "./MyCheats.js";
+import { replay } from "./inPlace.js";
 
 const { nav, div, button, span, a, p, ul, li } = van.tags;
 
@@ -191,16 +190,6 @@ const MenuNav = () => {
     return box;
 };
 
-/**
- * Turn an active cheat off. It leaving the list says it worked; a failure is said under the list (`line`, a
- * `useSaid()`) until that cheat turns off.
- */
-export const turnOff = async (cheat, { said, say, clear }) => {
-    const result = await store.executeCheat(cheat, false);
-    if (!result.ok) return say("failed", `${cheat}: ${plainReason(result.message)}`);
-    if (said.val?.text.startsWith(`${cheat}: `)) clear();
-};
-
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /**
@@ -371,7 +360,6 @@ export const Sidebar = () => {
             )
         ),
         MenuNav(),
-        ...MyCheats(),
         div({ class: "system-status" }, ...SystemStatus()),
 
         // GitHub and Keys share the last line with the collapse chevron; the rail keeps only the chevron.

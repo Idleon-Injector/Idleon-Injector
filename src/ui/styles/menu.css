@@ -222,39 +222,6 @@
     padding-top: 16px;
 }
 
-/* --- HOME --- */
-.menu-home {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding-right: 4px;
-}
-
-.menu-home-cheats__list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.menu-home-cheats .active-cheat-item {
-    color: var(--c-text-main);
-    padding: 4px 8px;
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    font-family: var(--font-mono);
-    font-weight: 400;
-    letter-spacing: 0;
-    text-transform: none;
-}
-
-.menu-home-cheats__empty {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-}
-
 /* --- NARROW: the in-game overlay --- */
 @media (max-width: 760px) {
     .sidebar-toggle {
@@ -445,37 +412,6 @@
     padding-right: var(--page-pad);
 }
 
-/* -- Home: a contents page. Each world is a heading with its systems as plain words under it. -- */
-.viewport .menu-home {
-    display: block;
-    padding: 0 0 48px;
-}
-.home-body {
-    max-width: var(--page-measure);
-}
-.home-contents {
-    column-count: 2;
-}
-.home-world__title,
-.home-world__system {
-    border: 0;
-    background: transparent;
-    font-family: var(--font-display);
-    cursor: pointer;
-    border-radius: 8px;
-    transition:
-        background 0.16s var(--ease-slide),
-        color 0.16s var(--ease-slide);
-}
-.home-world.is-unmoved .home-world__label {
-    color: var(--c-text-muted);
-}
-@media (max-width: 760px) {
-    .home-contents {
-        column-count: 1;
-    }
-}
-
 /* One entry: the code or drawing in its column, then the words in quiet capitals. */
 .tab-button.menu-nav-btn {
     min-height: 32px;
@@ -664,75 +600,305 @@
     color: var(--c-text-muted);
 }
 
-/* ============ HOME: each world is one surface; its systems are words on it ============ */
-.home-contents {
-    column-gap: 16px;
-    padding-top: 22px;
+/* ============ HOME: the contents as one group, each world a row; My cheats as the column beside it ============ */
+.viewport .menu-home {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
 }
-.home-world {
-    break-inside: avoid;
-    margin-bottom: 16px;
-    padding: 10px 10px 12px;
+/* Folded (no room for the column): My cheats is one line under the title, the contents under it. */
+.home-frame {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-width: var(--page-measure);
+}
+.viewport .home-frame .my-cheats.is-folded {
+    order: -1;
+    max-width: none;
+    margin: 0;
+}
+/* Framed: the page column and the cheats column, as on a system page; the column's top on the group's top. */
+.menu-home.is-framed .home-frame {
+    display: grid;
+    grid-template-columns: minmax(0, var(--page-measure)) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: 32px;
+    max-width: var(--frame-width, none);
+}
+.viewport .home-frame .my-cheats.is-side {
+    position: static;
+    align-self: start;
+    width: auto;
+    max-height: 100%;
+}
+
+/* The group: the surface and edge of a page's list, running to the foot of the window; only its rows scroll. */
+.viewport .home-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     border: 1px solid var(--c-border);
     border-radius: var(--radius-group);
     background: var(--c-void-soft);
 }
+.viewport .home-list__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.home-contents {
+    display: flex;
+    flex-direction: column;
+}
+
+/* A world: its name in a column of its own, its systems in a grid beside it, the hairline between worlds. */
+.home-world {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start;
+    padding: 12px 12px 12px 8px;
+}
+.home-world + .home-world {
+    border-top: 1px solid var(--c-hairline);
+}
+.home-world__title,
+.home-world__system {
+    border: 0;
+    background: transparent;
+    font-family: var(--font-display);
+    cursor: pointer;
+    transition:
+        background 0.16s var(--ease-slide),
+        color 0.16s var(--ease-slide);
+}
 .home-world__title {
     display: flex;
-    text-align: left;
-    width: 100%;
+    align-items: flex-start;
     gap: 10px;
-    padding: 6px 8px;
-    align-items: center;
+    width: 100%;
+    padding: 7px 10px 8px;
+    border-radius: 10px;
+    text-align: left;
 }
 .home-world__code {
-    min-width: 24px;
+    flex: none;
+    min-width: 26px;
     font-family: var(--font-mark);
     font-size: 0.9375rem;
     font-weight: 700;
+    line-height: 1.375rem;
     color: var(--world-color, var(--c-text-faint));
+}
+.home-world__code svg {
+    width: 18px;
+    height: 18px;
+    vertical-align: -3px;
+}
+.home-world__words {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
 }
 .home-world__label {
     font-size: 1rem;
     font-weight: 700;
-    color: #ffffff;
+    line-height: 1.375rem;
+    color: var(--c-text-main);
 }
 .home-world__name {
     font-size: 0.8125rem;
     font-weight: 500;
+    line-height: 1.3;
     color: var(--c-text-faint);
 }
-.home-world__title:hover,
-.home-world__system:hover {
-    background: var(--c-panel-hover);
+.home-world.is-unmoved .home-world__label {
+    color: var(--c-text-muted);
 }
+
+/* The systems line up in columns, each a cell the size of what it opens, so they read as places, not loose words. */
 .home-world__systems {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    padding: 2px 0 0 34px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.75rem, 1fr));
+    gap: 4px;
 }
 .home-world__system {
-    padding: 5px 9px;
+    height: 36px;
+    padding: 0 11px;
+    overflow: hidden;
+    border-radius: 9px;
+    background: var(--c-white-02);
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--c-text-body);
+    text-align: left;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.home-world__title:hover {
+    background: var(--c-panel-hover);
 }
 .home-world__system:hover {
-    color: #ffffff;
+    background: var(--c-white-05);
+    color: var(--c-text-main);
 }
 .home-world__title:active,
 .home-world__system:active {
     transform: scale(0.97);
 }
-.viewport .menu-home .account-section__header {
-    padding-top: 18px;
+
+@media (max-width: 760px) {
+    .home-world {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 6px;
+        padding: 10px 8px 12px;
+    }
+    .home-world__title {
+        align-items: center;
+    }
+    .home-world__words {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 8px;
+    }
+    .home-world__systems {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
-.viewport .menu-home-cheats {
+
+/*
+ * My cheats: the page cheats panel's group, header and row lines (system-cheats.css). Two sections under quiet
+ * headings. A row is the cheat's name, and the name is its switch: the row-name colour when on, the faint colour
+ * when off. Pointing at a row shows one faint word at its end that moves it to the other section.
+ */
+.viewport .my-cheats .my-cheats__body {
+    padding-bottom: 6px;
+}
+.my-cheats__section[hidden] {
+    display: none;
+}
+.my-cheats__sub {
+    padding: 12px 16px 6px;
+    border-top: 1px solid var(--c-hairline);
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--c-text-faint);
+}
+.my-cheats__list {
+    display: flex;
+    flex-direction: column;
+}
+.my-cheat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 38px;
+    padding: 0 16px;
+    transition: background 160ms var(--ease-soft);
+}
+.my-cheat:hover {
+    background: var(--c-panel-hover);
+}
+.my-cheat.is-arriving .my-cheat__name {
+    animation: name-arrive 1.4s ease-out;
+}
+@keyframes name-arrive {
+    from {
+        color: var(--c-accent);
+    }
+}
+.my-cheat__name {
+    flex: 1;
+    align-self: stretch;
+    min-width: 0;
     padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-text-faint);
+    cursor: pointer;
+    transition: color 160ms var(--ease-soft);
 }
-.viewport .menu-home-cheats__list {
-    gap: 8px;
+.my-cheat.is-on .my-cheat__name {
+    color: var(--c-text-body);
+}
+.my-cheat__name:hover {
+    color: var(--c-text-muted);
+}
+.my-cheat.is-on .my-cheat__name:hover {
+    color: var(--c-text-main);
+}
+.my-cheat__name:focus-visible,
+.my-cheat__move:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+/* The move word: text only, faint and a step smaller than the name, shown while the row is pointed at or holds focus;
+   it reaches the name's colour only when pointed at itself. */
+.my-cheat__move {
+    display: none;
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--c-text-faint);
+    opacity: 0.8;
+    cursor: pointer;
+    transition:
+        color 160ms var(--ease-soft),
+        opacity 160ms var(--ease-soft);
+}
+.my-cheat__move:hover:not(:disabled) {
+    color: var(--c-text-body);
+    opacity: 1;
+}
+.my-cheat__move:disabled {
+    cursor: default;
+}
+.my-cheat:hover .my-cheat__move,
+.my-cheat:focus-within .my-cheat__move {
+    display: block;
+}
+/* No pointer to point with: the word shows on every row. */
+@media (hover: none) {
+    .my-cheat__move {
+        display: block;
+    }
+}
+.my-cheats__empty {
+    padding: 12px 16px 10px;
+    border-top: 1px solid var(--c-hairline);
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    color: var(--c-text-faint);
+}
+.my-cheats__empty[hidden] {
+    display: none;
+}
+.my-cheats .said--line {
+    padding: 6px 16px 4px;
+}
+.my-cheats .said--line.said--empty {
+    display: none;
 }
 
 /* ============ THE RAIL'S LINE (narrow): the level and the page, on the search's surface ============ */

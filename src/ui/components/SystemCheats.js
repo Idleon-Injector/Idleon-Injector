@@ -9,7 +9,7 @@
  * per cheat with its short label first and its command small under it (`RowTitles`), the one on/off switch
  * (`StateSwitch`), and a cheat's settings in the row it opens (`row-opener`, `row-detail`) as the shared value rows
  * (`EditableNumberRow`). A switch runs the cheat the way the Cheats area does (`store.executeCheat`), so it is on until
- * the injector restarts; a cheat turned on here arrives in the sidebar's My cheats, whose Autostart keeps it on at
+ * the injector restarts; a cheat turned on here arrives in Home's My cheats, whose Autostart keeps it on at
  * every start (concept, replacing the pin). A command (a reset, an unlock) gets a Run button instead, with a field
  * when it takes a value.
  */
@@ -194,8 +194,6 @@ const CheatRow = (cheat, { openId, config }) => {
                     next
                 );
                 if (!result.ok) return { ok: false, error: new Error(plainReason(result.message)) };
-                // In the rail My cheats is folded away, so where the cheat went is said here.
-                if (next && document.getElementById("my-cheats")?.hidden) say("done", "In My cheats");
                 return { ok: true };
             },
         });
