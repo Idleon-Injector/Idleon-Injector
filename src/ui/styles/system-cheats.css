@@ -273,7 +273,8 @@
  * page column in the same place on every page, and the search above spans both columns.
  */
 .viewport.pages-frame .menu-top,
-.viewport.pages-frame #tab-content > #pages-tab {
+.viewport.pages-frame #tab-content > #pages-tab,
+.viewport.pages-frame #tab-content > #home-tab {
     padding-left: calc(var(--page-pad) + var(--page-inset, 0px));
 }
 .viewport.pages-frame .menu-bar {
