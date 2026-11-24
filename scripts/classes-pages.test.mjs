@@ -831,8 +831,40 @@ test("nodes: Empty all asks in the tray; Refill all runs on one press; a typed a
         assert.equal(writes(), before);
         await yes(root);
         await until(() => gga.RoyalG[4][0] === -1, "emptied on the answer");
+        await until(() => showing(fieldsOf(first)[1]) === "", "the emptied node's box blank");
     } finally {
         saved.forEach((amount, i) => (gga.RoyalG[4][i] = amount));
+    }
+});
+
+// An Empty node's Collected box is blank (0 is full): left blank it keeps the node Empty, and 0 typed in fills it.
+test("nodes: an Empty node shows a blank box; its grade saves alone, and 0 typed in fills it", async () => {
+    const saved = copy(gga.RoyalG[4]);
+    const grades = copy(gga.RoyalG[5]);
+    try {
+        gga.RoyalG[4][0] = -1;
+        const { root, pane } = await openPane(ROYAL_ARMORY, "Nodes");
+        await click(buttonNamed(root, "Refresh"));
+        await until(() => pageRead(root), "the reload");
+        const first = rowsIn(pane)[0];
+        await until(() => showing(fieldsOf(first)[1]) === "", "node 1's blank box");
+        assert.equal(text(byClass(first, "account-row__badge")[0]).trim(), "Empty");
+
+        // The grade typed, the blank box left: the node stays Empty.
+        typeAndEnter(first, 3, fieldsOf(first)[0]);
+        await settled(first);
+        assert.equal(stateOf(first), "success");
+        assert.equal(gga.RoyalG[5][0], 3);
+        assert.equal(gga.RoyalG[4][0], -1);
+        assert.equal(showing(fieldsOf(first)[1]), "");
+
+        typeAndEnter(first, 0, fieldsOf(first)[1]);
+        await until(() => gga.RoyalG[4][0] === 0, "0 to fill it");
+        await until(() => showing(fieldsOf(first)[1]) === "0", "the full node's 0");
+        assert.equal(text(byClass(first, "account-row__badge")[0]).trim(), "");
+    } finally {
+        saved.forEach((amount, i) => (gga.RoyalG[4][i] = amount));
+        grades.forEach((grade, i) => (gga.RoyalG[5][i] = grade));
     }
 });
 
@@ -1301,7 +1333,7 @@ test("outposts: Reset to the game's asks in the tray first", async () => {
     const before = writes();
     click(buttonNamed(root, "Reset to the game's"));
     await tick();
-    assert.equal(trayLine(root), "Put every map unit back where the game puts it?");
+    assert.equal(trayLine(root), "Reset map units to the game's?");
     assert.equal(writes(), before);
     click(buttonNamed(root, "Cancel"));
 });
@@ -1408,7 +1440,7 @@ test("outposts: Reset says how many units it removes, and stops when more would 
         await until(() => pageRead(root), "the reload");
         click(buttonNamed(root, "Reset to the game's"));
         await tick();
-        assert.match(trayLine(root), /^Put every map unit back where the game puts it, and remove \d+ map units\?$/);
+        assert.match(trayLine(root), /^Reset map units to the game's\? \d+ units will be removed\.$/);
         gga.RoyalG[6] = Array(40).fill(4);
         gga.RoyalG[7] = Array(40).fill(1);
         const placed = unitArrays();
