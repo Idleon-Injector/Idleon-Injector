@@ -1,7 +1,7 @@
 /**
  * The fields of a command that takes a value from a list (menu/valueCommands.js): one that suggests the values by name
- * as the player types, and an amount where the command takes one. Used by a Cheats area row (CheatItem) and a page's
- * cheats panel (SystemCheats); each runs what `read()` gives.
+ * as the player types, and an amount where the command takes one. Used by a cheat's row (SystemCheats' CheatRow), in a page's
+ * cheats panel and the Cheats area; each runs what `read()` gives.
  */
 
 import van from "../vendor/van-1.6.0.js";

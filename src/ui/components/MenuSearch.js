@@ -30,6 +30,8 @@ const inGroups = (hits) => {
     return order.flatMap((group) => hits.filter((hit) => groupOf(hit) === group));
 };
 
+const CHEATS_PAGE = { id: "cheats", system: "Cheats" };
+
 const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 // "Cheat · Cheats › W1" -> "Cheats › W1": the group already says what it is.
 const place = (result) => result.where.replace(/^\w+ · /, "");
@@ -58,9 +60,14 @@ export const MenuSearch = () => {
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
     const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions, menuTree.val));
     const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
-    // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu.
+    // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu. The Cheats area is
+    // searched like a page.
     const openPage = van.derive(() =>
-        store.app.activeTab === VIEWS.PAGES.id && menuTree.val ? (pageNow(worldNow(menuTree.val)) ?? null) : null
+        store.app.activeTab === VIEWS.CHEATS.id
+            ? CHEATS_PAGE
+            : store.app.activeTab === VIEWS.PAGES.id && menuTree.val
+              ? (pageNow(worldNow(menuTree.val)) ?? null)
+              : null
     );
     const pageSearch = createPageSearch();
     const mode = van.state("page");

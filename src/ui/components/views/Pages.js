@@ -98,7 +98,12 @@ export const balanceFrame = (root) => {
         const list = 48 * rem;
         const room = viewport.clientWidth - 2 * pad;
         const onPages = store.app.activeTab === VIEWS.PAGES.id;
-        const fits = (onPages || store.app.activeTab === VIEWS.HOME.id) && room - list - SIDE.gap >= SIDE.min;
+        // The Cheats area too, unless the Config drawer takes the window's right side.
+        const inFrame =
+            onPages ||
+            store.app.activeTab === VIEWS.HOME.id ||
+            (store.app.activeTab === VIEWS.CHEATS.id && !store.app.configDrawerOpen);
+        const fits = inFrame && room - list - SIDE.gap >= SIDE.min;
         viewport.classList.toggle("pages-frame", fits);
         framed.val = fits;
         if (!fits) return;
@@ -115,6 +120,7 @@ export const balanceFrame = (root) => {
     van.derive(() => {
         store.app.activeTab;
         store.app.menuPage;
+        store.app.configDrawerOpen;
         requestAnimationFrame(apply);
     });
 };

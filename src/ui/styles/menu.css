@@ -646,14 +646,16 @@
 }
 
 /* ============ HOME: the contents as one group, each world a row; My cheats as the column beside it ============ */
-.viewport .menu-home {
+.viewport .menu-home,
+.viewport .cheats-view {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
 }
 /* Folded (no room for the column): My cheats is one line under the title, the contents under it. */
-.home-frame {
+.home-frame,
+.cheats-frame {
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -661,20 +663,23 @@
     min-height: 0;
     max-width: var(--page-measure);
 }
-.viewport .home-frame .my-cheats.is-folded {
+.viewport .home-frame .my-cheats.is-folded,
+.viewport .cheats-frame .my-cheats.is-folded {
     order: -1;
     max-width: none;
     margin: 0;
 }
 /* Framed: the page column and the cheats column, as on a system page; the column's top on the group's top. */
-.menu-home.is-framed .home-frame {
+.menu-home.is-framed .home-frame,
+.cheats-view.is-framed .cheats-frame {
     display: grid;
     grid-template-columns: minmax(0, var(--page-measure)) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     column-gap: 32px;
     max-width: var(--frame-width, none);
 }
-.viewport .home-frame .my-cheats.is-side {
+.viewport .home-frame .my-cheats.is-side,
+.viewport .cheats-frame .my-cheats.is-side {
     position: static;
     align-self: start;
     width: auto;

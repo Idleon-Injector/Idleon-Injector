@@ -98,38 +98,6 @@
     }
 }
 
-/* On a Cheats row: at the row's end, inside it; the label gives way, nothing around the row moves. */
-.said--row {
-    flex: none;
-    max-width: 88%;
-    margin-left: 12px;
-}
-
-/* A failure: its own line under the row, the full reason. Empty, it's out of the way but still listening. */
-.cheat-item-container {
-    flex-wrap: wrap;
-    row-gap: 6px;
-}
-
-.said--row-failed {
-    flex-basis: 100%;
-    margin-top: 0;
-    padding-left: 13px;
-}
-
-.said--row-failed.said--empty {
-    position: absolute;
-}
-
-.cheat-button.is-failed {
-    border-color: var(--c-warning-40);
-}
-
-/* The value field is the row's hint: it pulses, and stays warm while the row says why. */
-.is-waiting-value .cheat-input {
-    border-color: var(--c-warning);
-}
-
 /* Under a list (Active Cheats): a failure wraps instead of hiding its reason. */
 .said--line {
     display: flex;
@@ -209,12 +177,6 @@
     justify-content: space-between;
     gap: 12px;
     min-height: 1.25rem;
-}
-
-.quick-access-header .said {
-    max-width: 70%;
-    font-weight: 400;
-    letter-spacing: 0.02em;
 }
 
 /* Value search: the hint line says why a scan didn't run, and a list says when it's partial. */

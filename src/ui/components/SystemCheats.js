@@ -28,7 +28,7 @@ import { Icons } from "../assets/icons.js";
 import { AccountRow, RowTitles } from "./views/account/components/AccountRow.js";
 import { StateSwitch } from "./views/account/components/StateSwitch.js";
 import { EditableNumberRow } from "./views/account/EditableNumberRow.js";
-import { Said, plainReason, replay, useSaid } from "./inPlace.js";
+import { Said, clickAgain, plainReason, replay, useSaid } from "./inPlace.js";
 
 const { aside, button, div, input, span } = van.tags;
 
@@ -167,8 +167,10 @@ const ValueField = (cheat) =>
 /**
  * A cheat: its label and its command, then what it takes: a switch for an on/off cheat, a Run button
  * for a command, and a field first when it takes a value. A cheat with settings opens them under it from its name.
+ * Shared with the Cheats area (views/Cheats.js): a `dangerous` cheat's Run asks "Click again" first, and `extra` adds a
+ * control at the row's end, given what a press would run now (`command`) and how the row refuses (`refuse`).
  */
-const CheatRow = (cheat, { openId, config }) => {
+export const CheatRow = (cheat, { openId, config, extra = null }) => {
     const { said, say } = useSaid();
     const isOpen = () => openId.val === cheat.cheat;
     // Made again when the row learns it has settings (it then opens them), so the words never move between parents.
@@ -184,25 +186,34 @@ const CheatRow = (cheat, { openId, config }) => {
     const field = cheat.hint ? ValueField(cheat) : null;
     const value = () => field?.value.trim() ?? "";
 
+    // What a press runs now, with its value, or why it can't yet (the field to pulse and the reason).
+    const command = () => {
+        if (field && !value())
+            return {
+                at: field,
+                reason: `Needs ${cheat.hint === "1-25" ? "a number" : `a ${cheat.hint.split(" ")[0]}`}`,
+            };
+        const read = fields?.read();
+        if (read?.refuse) return { at: read.field, reason: read.refuse };
+        return { action: read?.action ?? (field ? `${cheat.cheat} ${value()}` : cheat.cheat) };
+    };
+    const refuse = ({ at, reason }) => {
+        replay(at, "refused");
+        say("refused", reason);
+    };
+
     // A second press while it runs is let go: a command like "add chips" would run twice.
     let running = false;
     const run = async (e) => {
         const runButton = e.currentTarget;
         if (running) return;
-        if (field && !value()) {
-            replay(field, "refused");
-            return say("refused", `Needs ${cheat.hint === "1-25" ? "a number" : `a ${cheat.hint.split(" ")[0]}`}`);
-        }
-        const read = fields?.read();
-        if (read?.refuse) {
-            replay(read.field, "refused");
-            return say("refused", read.refuse);
-        }
+        const asked = command();
+        if (!asked.action) return refuse(asked);
+        // One that wipes or changes the save for good asks on its own button first.
+        if (cheat.dangerous && !clickAgain(runButton, `run ${asked.action}`)) return;
         running = true;
         try {
-            const result = await store.executeCheat(
-                read?.action ?? (field ? `${cheat.cheat} ${value()}` : cheat.cheat)
-            );
+            const result = await store.executeCheat(asked.action);
             if (!result.ok) return say("failed", plainReason(result.message));
             replay(runButton, "confirmed");
             say("done", result.message);
@@ -244,8 +255,12 @@ const CheatRow = (cheat, { openId, config }) => {
         return state;
     };
 
+    // Made once, so the controls rebuilt when the kind is known keep it.
+    const end = extra?.({ command, refuse }) ?? null;
+
     const row = AccountRow({
-        rowClass: () => `system-cheats__row${fields ? " system-cheats__row--value" : ""}${isOpen() ? " is-open" : ""}`,
+        rowClass: () =>
+            `system-cheats__row${fields ? " system-cheats__row--value" : ""}${field ? " system-cheats__row--field" : ""}${isOpen() ? " is-open" : ""}`,
         rowProps: { "data-cheat": cheat.cheat },
         info: () =>
             hasDetail.val
@@ -268,8 +283,16 @@ const CheatRow = (cheat, { openId, config }) => {
                 kind.val === "toggle"
                     ? toggle()
                     : kind.val === "run"
-                      ? button({ type: "button", class: "btn-quiet btn-sm system-cheats__run", onclick: run }, "Run")
-                      : null
+                      ? button(
+                            {
+                                type: "button",
+                                class: `${cheat.dangerous ? "btn-danger" : "btn-quiet"} btn-sm system-cheats__run`,
+                                onclick: run,
+                            },
+                            "Run"
+                        )
+                      : null,
+                end
             ),
     });
     row.append(

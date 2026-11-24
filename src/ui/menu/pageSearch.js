@@ -121,7 +121,9 @@ export const createPageSearch = () => {
     let pane = null;
     const apply = () => {
         observer.disconnect();
-        pane = pageId ? document.querySelector(`#pages-tab [data-page="${pageId}"]`) : null;
+        pane = pageId
+            ? document.querySelector(`#pages-tab [data-page="${pageId}"], #cheats-tab[data-page="${pageId}"]`)
+            : null;
         hasRows.val = Boolean(pane?.querySelector(ROW));
         const hits = pane ? filterPane(pane, query) : null;
         // rawVal: the bar calls this inside its own derives, which must not start following the result.

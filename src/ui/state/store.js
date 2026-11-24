@@ -63,7 +63,6 @@ const appState = vanX.reactive({
     cheatFocus: { cheat: "", setting: "", focus: false, fill: "", n: 0 },
     // Counts every openMenu, so the sidebar shows the opened place's list even when the place didn't change.
     menuOpens: 0,
-    cheatsViewMode: localStorage.getItem("cheatsViewMode") || "tabs",
 });
 
 const dataState = vanX.reactive({
@@ -507,11 +506,6 @@ const store = {
         } catch {
             // ponytail: storage blocked (private window); the menu just opens on Home next time.
         }
-    },
-
-    toggleCheatsViewMode: () => {
-        appState.cheatsViewMode = appState.cheatsViewMode === "list" ? "tabs" : "list";
-        localStorage.setItem("cheatsViewMode", appState.cheatsViewMode);
     },
 
     /** Open a link in the player's browser; resolves with why it failed, or "" when it opened. */
