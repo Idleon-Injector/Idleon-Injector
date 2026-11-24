@@ -136,6 +136,7 @@ export const WORLDS = [
             "Alchemy",
             "Construction",
             "Cooking",
+            "Gaming",
             "Sneaking",
             "Summoning",
             "Sushi Station",
