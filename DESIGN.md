@@ -241,9 +241,9 @@ switches, picking the first option each time.
 - **Sections** are a plain heading in small muted capitals over a thin rule, with the rows straight under it. No box
   inside the page box. The heading's row can carry the section's own controls (Set all) on the right.
 - **On/off is one switch** (`StateSwitch`) with the game's own word for the state beside it: Owned / Not owned,
-  Unlocked / Locked, On / Off. It saves on flip; the row shows saving, the ✓ and Undo like any save, and the switch
-  goes back if the game refuses. The words keep one width, so the switches in a list line up. A switch is reachable
-  and flips from the keyboard; it has no glow.
+  Unlocked / Locked, On / Off. It saves on flip; the row shows saving and the ✓ like any save, with no Undo (flipping
+  again undoes it), and the switch goes back if the game refuses. The words keep one width, so the switches in a list
+  line up. A switch is reachable and flips from the keyboard; it has no glow.
 - **In the narrow overlay** a value row keeps its name and state word on the first line and puts the field and its
   buttons on the line under it.
 - **A search with no results** shows the shared empty state (`EmptyState`), and a save's error shows next to its field.
@@ -284,6 +284,9 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
 - **A tool that stops on an error says why** on the tray's first line, where a question goes, in the soft red ("Character
   changed. Refresh."), and screen readers hear it with the tool's name. It stays until that tool's next try (Lumi,
   #241).
+- **Undo shows where the old value is gone:** after a typed number, Max, and bulk actions (Set all, Max all, All to,
+  the tray's tools). Not after a switch or a step pick: flipping or picking again undoes them. History keeps every
+  change with its Undo (Lumi, #81).
 - **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
   tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
   tools; only with no room anywhere does it take its old place.
