@@ -65,10 +65,10 @@ const ON_ITS_OWN = new RegExp(
         "PlayerDATABASE\\.h\\.\\*\\.h\\.(Exp0\\[\\d+\\]|PldTraps\\[\\d+\\]\\[2\\]|PlayerAwayTime)",
         "PlacedTraps\\[\\d+\\]\\[2\\]",
         "FarmPlot\\[\\d+\\]\\[6\\]",
-        "Territory\\[\\d+\\]\\[0\\]",
+        "Territory\\[\\d+\\]\\[[014]\\]",
         "Breeding\\[25\\]\\[\\d+\\]",
         "Refinery\\[[02]\\]\\[\\d+\\]",
-        "AnvilPA\\[\\d+\\]\\[2\\]",
+        "AnvilPA\\[\\d+\\]\\[[0-3]\\]",
         "CauldronInfo\\[[56]\\]\\[\\d+\\]",
         "CauldronP2W\\[4\\]\\[\\d+\\]",
         "Bubba\\[0\\]\\[\\d+\\]",
@@ -87,6 +87,7 @@ const ON_ITS_OWN = new RegExp(
         "Ninja\\[102\\]\\[2\\]",
         "Sushi\\[4\\]\\[[03]\\]",
         "ForgeIntervalProgress\\[\\d+\\]",
+        "ForgeItemQuantity\\[\\d+\\]",
         // Timers and running totals kept in the account options: they moved in every idle gap, on both accounts.
         "OptionsListAccount\\[(45|87|124|253|263|288|289|305|423|439)\\]",
         // The storage chest, where idle loot lands: on the bigger test account the same items rose in every gap. A
