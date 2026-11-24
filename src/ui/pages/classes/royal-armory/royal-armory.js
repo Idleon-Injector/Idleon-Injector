@@ -38,6 +38,7 @@ import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 import { NumberInput } from "../../../components/NumberInput.js";
 import { gga, readCList } from "../../../services/api.js";
+import { withTooltip } from "../../../components/Tooltip.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
@@ -121,6 +122,8 @@ const ResourcesTab = () => {
 // ---- Nodes -------------------------------------------------------------------------------------------------------
 
 const EMPTY = -1;
+// What was collected from a node as the game holds it: -1 when Empty.
+const collectedOf = (raw) => toInt(raw, { min: EMPTY, mode: "floor" });
 
 // `bulk` is the page's, so the nodes' tools and Set all never write at once.
 const NodesTab = ({ pending, reload, bulk }) => {
@@ -132,13 +135,16 @@ const NodesTab = ({ pending, reload, bulk }) => {
     const reconcilers = worldNodes.map(createStaticRowReconciler);
     const counts = worldNodes.map(() => van.state(0));
     const collectedPath = (node) => `RoyalG[4][${node.i}]`;
+    const isEmpty = (node) => stateOf(node.i, "collected").val === EMPTY;
+    const isFull = (node) => stateOf(node.i, "collected").val === 0;
 
-    // A node's grade and what was collected from it; "Empty" before them when it is.
+    // A node's grade and what was collected from it; "Empty" before them when it is, its Collected box blank (0 is
+    // full). A collected amount typed in fills it again from there.
     const NodeRow = (node) => {
         const row = ValueTableRow({
             name: node.name,
             info: RowTitles({ bonus: resourceName(node.resource), name: node.name }),
-            badge: () => (stateOf(node.i, "empty").val ? "Empty" : ""),
+            badge: () => (isEmpty(node) ? withTooltip(span("Empty"), "Nothing left to collect") : ""),
             // Set all sets every node's grade; what was collected stays each node's own (Refill all, Empty all).
             setAll: "grade",
             fields: [
@@ -149,16 +155,12 @@ const NodesTab = ({ pending, reload, bulk }) => {
                     valueState: stateOf(node.i, "collected"),
                     paths: [collectedPath(node)],
                     formatted: true,
+                    toDraft: (value) => (value === EMPTY ? "" : String(value ?? 0)),
                 },
             ],
             read: async () => {
                 const [grade, collected] = await Promise.all([gga(`RoyalG[5][${node.i}]`), gga(collectedPath(node))]);
-                stateOf(node.i, "empty").val = toNum(collected, 0) === EMPTY;
-                return { grade: toInt(grade, { min: 0 }), collected: toInt(collected, { min: 0 }) };
-            },
-            // A collected amount typed in fills it again from there.
-            afterWrite: (changed) => {
-                if (changed.includes("collected")) stateOf(node.i, "empty").val = false;
+                return { grade: toInt(grade, { min: 0 }), collected: collectedOf(collected) };
             },
         });
         rowOf.set(node.i, row);
@@ -173,22 +175,14 @@ const NodesTab = ({ pending, reload, bulk }) => {
             runBulkSet({
                 entries,
                 getTargetValue: () => value,
-                getValueState: (node) => ({
-                    val: stateOf(node.i, "empty").val ? EMPTY : stateOf(node.i, "collected").val,
-                }),
+                getValueState: (node) => stateOf(node.i, "collected"),
                 getPath: collectedPath,
                 // The amount the game holds: the one asked for, or what it read back after a save failed.
-                applyLocal: (node, _index, now) => {
-                    const amount = toNum(now, 0);
-                    stateOf(node.i, "empty").val = amount === EMPTY;
-                    stateOf(node.i, "collected").val = Math.max(0, Math.floor(amount));
-                },
+                applyLocal: (node, _index, now) => (stateOf(node.i, "collected").val = collectedOf(now)),
             })
         );
         if (!result.ok && !result.cancelled) await reload();
     };
-    const isEmpty = (node) => stateOf(node.i, "empty").val;
-    const isFull = (node) => !isEmpty(node) && stateOf(node.i, "collected").val === 0;
 
     return {
         content: div(
@@ -223,9 +217,7 @@ const NodesTab = ({ pending, reload, bulk }) => {
                 counts[w].val = own.length;
             });
             next.forEach((node) => {
-                const amount = toNum(collected[node.i], 0);
-                stateOf(node.i, "empty").val = amount === EMPTY;
-                stateOf(node.i, "collected").val = Math.max(0, Math.floor(amount));
+                stateOf(node.i, "collected").val = collectedOf(collected[node.i]);
                 stateOf(node.i, "grade").val = toInt(grades[node.i], { min: 0 });
             });
             nodes.val = next;
@@ -984,8 +976,8 @@ const OutpostsTab = ({ pending, reload }) => {
                     const removed = vanillaUnitsRemoved(read.val.royalG, read.val.order);
                     ask({
                         question: removed
-                            ? `Put every map unit back where the game puts it, and remove ${plural(removed, ["map unit", "map units"])}?`
-                            : "Put every map unit back where the game puts it?",
+                            ? `Reset map units to the game's? ${plural(removed, ["unit", "units"])} will be removed.`
+                            : "Reset map units to the game's?",
                         confirmLabel: "Reset them",
                         from: reset,
                         onConfirm: () => resetUnits(removed),

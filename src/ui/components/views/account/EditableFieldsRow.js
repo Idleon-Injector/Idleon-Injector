@@ -126,12 +126,15 @@ export const ValueTableHead = ({ name, columns }) =>
  * @param {string} opts.name the thing, for the fields' names read out ("Water Droplets amount")
  * @param {*} opts.info the row's title (RowTitles, or a name)
  * A `formatted` field shows a big number short ("1.2M") and takes one typed that way; left as shown, it keeps the
- * game's exact value. A `quiet` field is a value that only supports the line's main one: a step smaller and muted.
+ * game's exact value. A `toDraft` field shows a value its own way (a node's -1 as a blank box); left so, it keeps that
+ * value, and anything typed in it saves as usual. A `quiet` field is a value that only supports the line's main one: a
+ * step smaller and muted.
  * A `steps` field is a pick out of a few (a palette colour's Black Stars: None, ★, ★★) in its own column, a step picker
  * that saves on the pick.
  *
  * @param {{key: string, label: string, valueState: {val: number}, paths: string[], max?: number|Function,
- *   formatted?: boolean, quiet?: boolean, steps?: {value: number, label: string}[]}[]} opts.fields
+ *   formatted?: boolean, toDraft?: (value: *) => string, quiet?: boolean, steps?: {value: number, label: string}[]}[]}
+ *   opts.fields
  * @param {() => Promise<Record<string, number>>} opts.read every field's value as the game holds it now
  * @param {object} [opts.writeOptions] passed to writeManyVerified ({ character })
  * @param {*} [opts.badge] the line's state in a plain word ("Polymer"), before its values
@@ -184,14 +187,17 @@ export const ValueTableRow = ({
             return read().catch(() => next);
         });
     const row = EditableFieldsRow({
-        fields: fields.map(({ key, valueState, formatted }) => ({ key, valueState, formatted })),
+        fields: fields.map(({ key, valueState, formatted, toDraft }) => ({ key, valueState, formatted, toDraft })),
         normalize: (drafts) => {
             const next = {};
             for (const field of fields) {
                 const draft = String(drafts[field.key] ?? "").trim();
                 const stored = field.valueState.val;
-                // A big number left as it shows ("1.2M") keeps the game's exact value.
-                if (field.formatted && [String(stored), largeFormatter(stored)].includes(draft)) {
+                // A big number left as it shows ("1.2M"), or a value its `toDraft` shows (blank), keeps the game's value.
+                if (
+                    (field.formatted && [String(stored), largeFormatter(stored)].includes(draft)) ||
+                    (field.toDraft && draft === field.toDraft(stored))
+                ) {
                     next[field.key] = stored;
                     continue;
                 }
@@ -237,6 +243,8 @@ export const ValueTableRow = ({
                                     formatted: field.formatted,
                                     // + leaves a value the game holds above the cap; − takes one off it.
                                     adjustDraft: (raw, delta) => {
+                                        // A blank `toDraft` box (an Empty node) is already the lowest: − leaves it.
+                                        if (field.toDraft && delta < 0 && String(raw ?? "").trim() === "") return "";
                                         if (field.formatted) return adjustFormattedIntInput(raw, delta, 0, { min: 0 });
                                         const value = toInt(raw, { min: 0 });
                                         if (value > maxOf(field)) return delta > 0 ? value : value - 1;

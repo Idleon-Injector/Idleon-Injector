@@ -22,7 +22,10 @@ const automations = [];
  * @param {string} spec.cheat - The cheat that turns it on and off, e.g. "wide autoboss". When that cheat is a toggle,
  *   the automation follows it (a group's "all on" included). A command with its own answer calls
  *   switchAutomation() instead.
- * @param {string} [spec.label] - Its name on Account › Automation, which lists the ones whose cheat is "automation …".
+ * @param {string} [spec.label] - Its name on the Automation overview, which lists only the automations with a label.
+ * @param {string} [spec.whenOff] - What its overview row says after "Off.", when it can only start in some places.
+ * @param {boolean} [spec.startup=true] - false when it can't start at launch: its overview switch then leaves the
+ *   startup cheats out.
  * @param {number} spec.interval - Milliseconds between ticks.
  * @param {Function} spec.tick - One step of work.
  * @param {Function} spec.status - What the menu shows while it runs.
@@ -100,7 +103,8 @@ export function withAutomations(states) {
 
 /**
  * Every automation, with its status while it runs and the last error a tick threw.
- * @returns {{id: string, cheat: string, label?: string, on: boolean, error: string|null, status: any}[]}
+ * @returns {{id: string, cheat: string, label?: string, whenOff?: string, startup: boolean, on: boolean,
+ *   error: string|null, status: any}[]}
  */
 export function getAutomations() {
     return automations.map((automation) => {
@@ -111,7 +115,7 @@ export function getAutomations() {
         } catch (error) {
             status = `Status failed: ${error?.message || error}`;
         }
-        const { id, cheat, label, error } = automation;
-        return { id, cheat, label, on, error, status };
+        const { id, cheat, label, whenOff, startup = true, error } = automation;
+        return { id, cheat, label, whenOff, startup, on, error, status };
     });
 }
