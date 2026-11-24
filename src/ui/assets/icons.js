@@ -137,14 +137,6 @@ export const Icons = {
             { "aria-hidden": "true", class: ["icon-star", className].filter(Boolean).join(" "), ...props }
         ),
 
-    /** A push pin: an outline at rest; pinned fills its body (CSS `fill: currentColor` on `.icon-pin`). */
-    Pin: ({ class: className, ...props } = {}) =>
-        SvgBase([path({ d: "M10.4 5h3.2v4.4l2.6 3.4H7.8l2.6-3.4z" }), path({ d: "M9 5h6M12 12.8v6.4" })], {
-            "aria-hidden": "true",
-            class: ["icon-pin", className].filter(Boolean).join(" "),
-            ...props,
-        }),
-
     Copy: (props) =>
         SvgBase(
             [

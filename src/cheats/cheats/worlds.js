@@ -19,9 +19,9 @@ import { getJarGemCatalog } from "../helpers/jarGems.js";
 
 defineCheat({
     name: "w1",
-    category: "Tools",
     message: "Activate all World 1 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "anvil", message: "anvil cost and duration nullification" },
         { name: "forge", message: "forge speed and capacity multiplier check config" },
@@ -60,9 +60,9 @@ defineCheat({
 
 defineCheat({
     name: "w2",
-    category: "Tools",
     message: "Activate all World 2 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "boss", message: "unlimited boss attempts" },
         { name: "roo", message: "roo cheats, check config file" },
@@ -118,9 +118,9 @@ defineCheat({
 
 defineCheat({
     name: "w3",
-    category: "Tools",
     message: "Activate all World 3 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "mobdeath", message: "worship mobs insta-death" },
         { name: "towerdamage", message: "multiply tower damage (see config)" },
@@ -168,9 +168,9 @@ defineCheat({
 
 defineCheat({
     name: "w4",
-    category: "Tools",
     message: "Activate all World 4 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "battleslots", message: "all 6 battle slots" },
         { name: "eggcap", message: "all egg slots" },
@@ -376,9 +376,9 @@ defineCheat({
 
 defineCheat({
     name: "w5",
-    category: "Tools",
     message: "Activate all World 5 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "sailing", message: "sailing cheats" },
         { name: "endercaptains", message: "100% ender captains (requires Emporium bonus unlock)" },
@@ -657,9 +657,9 @@ defineCheat({
 
 defineCheat({
     name: "w6",
-    category: "Tools",
     message: "Activate all World 6 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "farming", message: "farming cheats" },
         { name: "ninja", message: "ninja cheats" },
@@ -989,9 +989,9 @@ defineCheat({
 
 defineCheat({
     name: "w7",
-    category: "Tools",
     message: "Activate all World 7 cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "spelunk", message: "spelunk cheats" },
         { name: "gallery", message: "gallery cheats" },

@@ -29,6 +29,7 @@ export const PAGE_CHEATS = {
     "classes:Tesseract": [{ cheat: "w6 arcane", label: "Arcane Cultist boosts" }],
 
     "1:Stamps": [{ cheat: "w1 stampcost", label: "Cheaper stamp upgrades" }],
+    "1:Star Signs": [{ cheat: "wide star", label: "Star signs need no star points" }],
     "1:Anvil": [
         { cheat: "w1 anvil", label: "Free, faster anvil" },
         { cheat: "w1 smith", label: "Free smithing" },
@@ -207,10 +208,3 @@ export const cheatsOfPage = (page) =>
 
 /** Old command names that still run (the game side maps them in runCheat): search finds a cheat by them too. */
 export const OLD_NAMES = { "w5 collider": "w3 collider" };
-
-/** A startup list with old names put as the new ones, so a pin reads what runs at start. */
-export const withNewNames = (list) =>
-    list.map((command) => {
-        const old = Object.keys(OLD_NAMES).find((name) => command === name || command.startsWith(`${name} `));
-        return old ? OLD_NAMES[old] + command.slice(old.length) : command;
-    });

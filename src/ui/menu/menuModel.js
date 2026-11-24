@@ -390,7 +390,9 @@ export const cheatSearchEntries = (cheats, descriptions, tree = null) => {
         const onPage = pageOf(value);
         const place = onPage?.place ?? `Cheats › ${categoryName(cheat.category || "general")}`;
         const message = cheat.message || "";
-        const hiddenBase = value.includes(" ") && !values.has(base);
+        // A suggestion for a command the list only has suggestions of ("drop Copper"); an on/off cheat is its own row,
+        // its group's switch or not (#23 took those away).
+        const hiddenBase = value.includes(" ") && !values.has(base) && !cheat.toggle;
         if (onPage && !cheat.needsParam && !hiddenBase) {
             return {
                 kind: "Cheat",

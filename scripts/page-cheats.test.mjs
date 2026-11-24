@@ -4,16 +4,17 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { captureLogger, importRepo, loadCommonJs, loadGame, useInstallDir } from "./known-bugs/index.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const require = createRequire(import.meta.url);
 
 const game = await loadGame();
 const { cheats } = await importRepo("src/cheats/core/registration.js");
 const { cheatState } = await importRepo("src/cheats/core/state.js");
-const { PAGE_CHEATS, PAGE_RUNS, isPageCheat, cheatsOfPage, withNewNames } =
-    await importRepo("src/ui/menu/pageCheats.js");
+const { PAGE_CHEATS, PAGE_RUNS, isPageCheat, cheatsOfPage } = await importRepo("src/ui/menu/pageCheats.js");
 const { CATEGORY_ORDER } = await importRepo("src/ui/state/constants.js");
 const { WORLDS, buildMenuTree, cheatSearchEntries, searchMenu } = await importRepo("src/ui/menu/menuModel.js");
 
@@ -96,12 +97,7 @@ test("collider settings saved under w5 before the rename load under w3", (t) => 
     assert.equal(cheatConfig.w5.collider, undefined);
 });
 
-test("the old name reads as the new one: a pin shows on, and search finds the cheat on its page", () => {
-    assert.deepEqual(withNewNames(["w5 collider", "w4 eggcap", "w5 collider 3"]), [
-        "w3 collider",
-        "w4 eggcap",
-        "w3 collider 3",
-    ]);
+test("search finds a cheat by its old name and opens its page, with no group switch in the list", () => {
     const tree = buildMenuTree([
         {
             id: "w3.atomcollider",
@@ -113,14 +109,51 @@ test("the old name reads as the new one: a pin shows on, and search finds the ch
         },
     ]);
     const entries = cheatSearchEntries(
-        [
-            { value: "w3", message: "Activate all World 3 cheats", category: "Tools", toggle: true },
-            { value: "w3 collider", message: "collider cheats", category: "Tools", toggle: true },
-        ],
+        [{ value: "w3 collider", message: "collider cheats", category: "Tools", toggle: true }],
         {},
         tree
     );
     const hit = searchMenu(entries, "w5 collider")[0];
     assert.equal(hit?.command, "w3 collider");
     assert.deepEqual(hit.target, { world: 3, page: "w3.atomcollider", cheat: "w3 collider" });
+});
+
+test("a family switch is gone: typed, it says where its cheats are", async () => {
+    for (const name of ["w4", "wide", "godlike", "unlock", "upstones"]) {
+        assert.ok(!commands.includes(name), `${name} is still a command`);
+        const result = await game.cheat(name);
+        assert.equal(result.ok, false);
+        assert.ok(result.message.startsWith(`${name} is gone. Its cheats are `), result.message);
+    }
+    assert.equal((await game.cheat("w4")).message, "w4 is gone. Its cheats are on the World 4 pages.");
+    assert.ok(commands.includes("minigame"), "minigame is its own cheat (unlimited minigames), not a family switch");
+});
+
+test("a startup list with a family switch gets its cheats instead, once, and the file keeps them", async (t) => {
+    const dir = useInstallDir(t, {
+        custom: 'exports.startupCheats = ["w4", "w4 eggcap", "godlike reach", "w5"];',
+    });
+    const config = loadCommonJs("src/modules/config/configManager.js", { "../utils/logger": captureLogger() });
+    config.loadConfiguration();
+    const list = config.getStartupCheats();
+    assert.ok(!list.includes("w4") && !list.includes("w5"));
+    assert.ok(list.includes("w4 eggcap") && list.includes("w4 arena") && list.includes("godlike reach"));
+    assert.ok(list.includes("w3 collider"), "w5 turned the collider on when it was w5 collider");
+    assert.equal(new Set(list).size, list.length, "each cheat once, so a startup toggle isn't flipped back");
+    await config.startupMigrationDone();
+    const saved = readFileSync(join(dir, "config.custom.js"), "utf8");
+    assert.ok(!/"w4"/.test(saved) && /"w4 eggcap"/.test(saved));
+
+    // The next start reads the file as it is now: nothing to replace.
+    for (const key of Object.keys(require.cache)) if (key.endsWith("config.custom.js")) delete require.cache[key];
+    const again = loadCommonJs("src/modules/config/configManager.js", { "../utils/logger": captureLogger() });
+    again.loadConfiguration();
+    assert.equal(again.startupMigrationDone(), null);
+    assert.deepEqual(again.getStartupCheats(), list);
+});
+
+test("the family snapshot names only cheats that still exist", () => {
+    const groups = loadCommonJs("src/modules/config/removedGroups.js");
+    for (const [group, list] of Object.entries(groups))
+        for (const command of list) assert.ok(commands.includes(command), `${group}: ${command} is not a cheat`);
 });

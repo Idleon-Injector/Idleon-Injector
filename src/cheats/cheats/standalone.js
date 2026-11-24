@@ -247,7 +247,8 @@ defineCheat({
     name: "upstones",
     category: "Items & drops",
     message: "upgrade stone cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "rng", message: "100% upgrade stone success (safe)" },
         { name: "use", message: "Upgrade stones don't use a slot (risky)" },
@@ -260,7 +261,8 @@ defineCheat({
     name: "unlock",
     category: "Unlocks",
     message: "unlock cheats",
-    allowToggleChildren: true,
+    // One switch for the whole family is gone (#23): each cheat is on its own, in its group or on its page.
+    registerParent: false,
     subcheats: [
         { name: "divinitypearl", message: "divinity pearls > lvl50" },
         { name: "presets", message: "preset changes everywhere" },
