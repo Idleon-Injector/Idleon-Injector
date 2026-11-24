@@ -303,8 +303,9 @@ words that keep one width (Page layout).
 
 - **A thing with several values is one line,** like a table: its name, then each value in its own column (Statues:
   Level, Deposited, Tier, Flair). The column names are said once, in a head that stays at the top of the list while
-  it scrolls; the fields keep their names for screen readers. On a phone a line folds into a small grid and each field
-  shows its name again.
+  it scrolls; the fields keep their names for screen readers. Where the name and the columns don't fit side by side (a
+  phone, and up to 1023px with the sidebar; up to 1279px for four or more columns, `value-table--wide`) a line folds
+  into a small grid and each field shows its name again.
 - **A page without parts** uses `ListPanel`: the same panel, tray, question and scrolling list as `TabbedList`, with no
   tab row.
 - **A pick out of a few** (a tier: Stone, Gold, Onyx, Zenith) is a `StepPicker`: one joined shape, one press, no
@@ -425,7 +426,8 @@ Every automation page is `AutomationPage` in `automation.js`: a table at the wid
 - **Enable all | Disable all are the tray's tool**, acting on what the tray's line names ("All 9 Orion upgrades",
   "All 7 shop items in W2": the open tab only, Lumi's pick for Shops too); Disable all asks in the tray, Enable all
   runs on one press.
-- **On a phone** an item's own switch stays at the end of its name's line; its other cells fold two to a line.
+- **Where the table folds** (a phone, and up to 1023px with the sidebar) an item's own switch stays at the end of its
+  name's line; its other cells fold two to a line.
 - **The automation's switch row says why it is on** when an item's switch turned it on ("On, since an upgrade was
   switched on"), and an open page follows a running automation every few seconds, without Refresh (#214).
 

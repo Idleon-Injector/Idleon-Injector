@@ -84,10 +84,10 @@
     gap: 12px;
 }
 
-/* On a phone each row folds (tabbed-list.css): its name, then its cells two to a line, each named again. The item's
-   own switch stays on the name's line, at its end, as on an automation's switch row; the save mark steps left of it.
-   A setting's empty cells step out, so its field sits under its name. */
-@media (max-width: 760px) {
+/* Where the table folds (tabbed-list.css, up to 1023px) each row shows its name, then its cells two to a line, each
+   named again. The item's own switch stays on the name's line, at its end, as on an automation's switch row; the save
+   mark steps left of it. A setting's empty cells step out, so its field sits under its name. */
+@media (max-width: 1023px) {
     .viewport .automation-rows .value-cell--empty {
         display: none;
     }
@@ -131,6 +131,65 @@
     }
 
     .viewport .automation-rows .automation-pick .save-state {
+        right: 64px;
+    }
+}
+
+/* A five-column list (value-table--wide) folds up to 1279px (tabbed-list.css), so these follow it there. */
+@media (max-width: 1279px) {
+    .viewport .automation-rows.value-table--wide .value-cell--empty {
+        display: none;
+    }
+
+    .viewport .automation-rows.value-table--wide .automation-setting .value-cells {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .viewport .tabbed-list .automation-rows.value-table--wide .value-row.automation-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .viewport .tabbed-list .automation-rows.value-table--wide .value-row.automation-row .account-row__info,
+    .viewport .tabbed-list .automation-rows.value-table--wide .value-row.automation-row .account-row__controls {
+        grid-column: auto;
+        width: auto;
+    }
+
+    .viewport .automation-rows.value-table--wide .automation-row .value-cells {
+        display: block;
+        width: auto;
+    }
+
+    .viewport .automation-rows.value-table--wide .automation-row .value-cell__label,
+    .viewport
+        .automation-rows.value-table--wide
+        .automation-pick
+        .value-cells
+        > .value-cell:last-child
+        .value-cell__label {
+        display: none;
+    }
+
+    .viewport .automation-rows.value-table--wide .automation-pick .account-row__info {
+        padding-right: 56px;
+    }
+
+    .viewport .automation-rows.value-table--wide .automation-pick .value-cells > .value-cell:last-child {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+    }
+
+    .viewport
+        .automation-rows.value-table--wide
+        .automation-pick
+        .value-cells
+        > .value-cell:last-child
+        > .toggle-switch {
+        margin-left: 0;
+    }
+
+    .viewport .automation-rows.value-table--wide .automation-pick .save-state {
         right: 64px;
     }
 }
