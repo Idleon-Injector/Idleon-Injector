@@ -312,11 +312,7 @@ export const Config = () => {
                                     );
                             },
                         },
-                        name.toUpperCase(),
-                        // Which config the settings tabs edit, beside the tab that switches it.
-                        name === "Configs"
-                            ? span({ class: "config-sub-tab-active" }, () => configs.val?.active ?? "")
-                            : null
+                        name.toUpperCase()
                     );
                 })
             ),
@@ -326,7 +322,7 @@ export const Config = () => {
                 SettingsTop({
                     title: "CONFIGS",
                     description:
-                        "Each config keeps its own startup cheats and cheat settings. Switching keeps both; edits save into the config in use.",
+                        "A config is a set of startup cheats and settings. Changes save to the one in use.",
                 }),
                 Configs({ configs, onChanged: configChanged, hasUnsavedEdits })
             ),

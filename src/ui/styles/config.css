@@ -281,17 +281,6 @@
 }
 
 /* --- CONFIGS (#198) --- */
-/* The config the settings tabs edit, quietly beside the tab that switches it. */
-.config-sub-tab-active {
-    margin-left: 8px;
-    color: var(--c-text-faint);
-    font-weight: 400;
-}
-
-.config-sub-tab-active:empty {
-    display: none;
-}
-
 .configs {
     max-width: 760px;
 }
