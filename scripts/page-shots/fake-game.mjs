@@ -32,6 +32,7 @@ export async function createFakeGame(fixture = fakeGameData()) {
     const { getBundleCatalog } = await importRepo("src/cheats/helpers/bundles.js");
     const { getHookFailures } = await importRepo("src/cheats/core/hooks.js");
     const { readSave, takeSaveCopy } = await importRepo("src/cheats/core/saveCopy.js");
+    const { runCheat } = await importRepo("src/cheats/core/registration.js");
 
     const gga = fixture.gga;
     const computed = fixture.computed ?? {};
@@ -92,7 +93,10 @@ export async function createFakeGame(fixture = fakeGameData()) {
         readSave,
         takeSaveCopy,
         cheatStateList: () => structuredClone(fixture.cheatStates ?? {}),
-        cheat: (action) => ({ ok: true, message: `${action} (fake game)` }),
+        // Cheats answer without running, but for the ones that only read, which a page shows: Sushi's status says its
+        // board is closed, as the game would.
+        cheat: (action) =>
+            action === "w7 sushitools status" ? runCheat(action, {}) : { ok: true, message: `${action} (fake game)` },
         readCheatConfig: state.readCheatConfig,
         updateCheatConfig: state.updateCheatConfig,
         monitorWrap: () => ({ ok: true }),

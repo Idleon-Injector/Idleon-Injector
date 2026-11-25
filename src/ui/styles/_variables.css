@@ -16,14 +16,14 @@
     --c-void: #0d0c18; /* page */
     --c-void-soft: #161526; /* a group of rows */
     --c-panel: #161526; /* row, card */
-    --c-panel-hover: #1c1a2f; /* row hover */
+    --c-panel-hover: #211e38; /* row hover */
     --c-border: #252340;
     --c-border-strong: #36325a;
     --c-panel-dim: #211f3a; /* a value's well */
     --c-panel-dark-dim: #211f3a;
     --c-bg: var(--c-void);
-    --c-hairline: #1f1d35; /* between rows inside a group */
-    --c-well-hover: #27244a;
+    --c-hairline: #252340; /* between rows inside a group */
+    --c-well-hover: #2c2952;
     --c-here: #262244; /* where you are, in the sidebar */
     --c-btn: #1d1b33; /* a button's body */
     --c-btn-edge: #34305a;
@@ -69,11 +69,11 @@
     --c-text-main: #f3f1ff;
     --c-text-body: #e3e0f6; /* row names */
     --c-text-muted: #aaa6c8;
-    --c-text-faint: #8e8ab0; /* indices, a field's cap */
+    --c-text-faint: #9a96bc; /* indices, a field's cap */
     --c-nav-text: #b4b0d0; /* the sidebar's words at rest */
     --c-text-dim: var(--c-text-muted);
     --c-text: var(--c-text-main);
-    --c-text-disabled: rgba(243, 241, 255, 0.32); /* disabled: exempt from AA */
+    --c-text-disabled: rgba(243, 241, 255, 0.4); /* disabled: exempt from AA */
     --c-danger-soft-text: #ff9d94;
 
     /* -- NAMES THAT IDENTIFY A THING -- */
@@ -148,7 +148,7 @@
     --c-panel-95: rgba(22, 21, 38, 0.97);
     --c-panel-98: rgba(22, 21, 38, 0.99);
     --c-panel-80: rgba(13, 12, 24, 0.8);
-    --c-control-border-strong: #3d3962;
+    --c-control-border-strong: #4a4573;
     --c-control-thumb: #cbc7e6;
     --c-scrollbar-thumb: #2e2b4d;
     --c-border-faint: var(--c-white-05);

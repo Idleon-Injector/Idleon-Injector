@@ -282,3 +282,26 @@ test("CappedValue: a value with no field above its cap is marked over max", asyn
     assert.ok(!classes(at).includes("capped-value--over-max"));
     assert.ok(!classes(CappedValue({ value: 20, cap: null })).includes("capped-value--over-max"), "no cap, no mark");
 });
+
+// #290: an Automation table's level is read-only text; its max is passed in, so a level the game holds past it is marked.
+test("an Automation table's level above its max is marked over max", async () => {
+    const ui = await importRepo("src/ui/components/views/account/automation.js");
+    const picks = ui.createAutomationPicks("shops");
+    picks.sync([]);
+    const level = (value, cap) =>
+        byClass(
+            ui.PickRow({
+                picks,
+                id: `${value}:${cap}`,
+                name: "Bin",
+                values: [{ name: "Level", text: () => value, cap: () => cap }],
+            }),
+            "capped-value"
+        )[0];
+    const over = level(200, 150);
+    assert.ok(classes(over).includes("capped-value--over-max"), "200 / 150 is marked");
+    assert.equal(over.attributes.title, "over max");
+    assert.match(text(over), /^200\/ 150/);
+    assert.ok(!classes(level(150, 150)).includes("capped-value--over-max"), "at its max, no mark");
+    assert.ok(!classes(level(7, null)).includes("capped-value--over-max"), "no max, no mark");
+});
