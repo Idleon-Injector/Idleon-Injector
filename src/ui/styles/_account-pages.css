@@ -1001,6 +1001,15 @@
     width: 44px;
 }
 
+/* Why a doubler didn't save is said before the field, where the row's own reason is, so the field stays in its column. */
+.doubler-row .row-toggle {
+    display: contents;
+}
+
+.doubler-row .row-toggle__failure {
+    order: -1;
+}
+
 /* Max keeps its column's width with the doubler after it, as it has when it ends the line. */
 .field-columns .doubler-row .account-row__controls > .account-row__max {
     min-width: var(--field-columns-action);
@@ -1105,6 +1114,16 @@
 
     .viewport .field-columns .doubler-row .account-row__controls {
         gap: 8px;
+    }
+
+    /* And over the end of the name's line, like the row's own reason. */
+    .doubler-row .row-toggle__failure {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--c-panel-hover);
     }
 
     .viewport .field-columns .account-row__controls > .upgrade-doubler-slot,
