@@ -25,6 +25,10 @@ const elements = (node, out = []) => {
 };
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
+// The picked square of a board (BoardEditor): its row, the ones picked before kept hidden.
+const openSquareOf = (root) =>
+    byClass(root, "board-editor__square").find((square) => !square.attributes.hidden) ??
+    byClass(root, "board-editor")[0];
 const inputs = (row) => elements(row).filter((node) => node.nodeName === "input");
 const findRow = (root, label) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === label);
@@ -153,7 +157,7 @@ const stationSlots = (root) => byClass(root, "sushi-station-tile");
 const stationRead = (root) => stationSlots(root).some((slot) => slot.attributes.disabled === false);
 const openSlot = async (root, index) => {
     stationSlots(root)[index].listeners.click({});
-    const row = () => byClass(byClass(root, "sushi-station-editor")[0], "account-row")[0];
+    const row = () => byClass(openSquareOf(root), "account-row")[0];
     await until(row, "the slot's row");
     return row();
 };
@@ -207,11 +211,11 @@ test("Research Grid: Refresh while a level saves keeps the typed level, and leav
     const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
     const root = await openPage(GRID, (node) => tiles(node).length > 3);
     // A square picked opens its row under the board.
-    const card = () => byClass(byClass(root, "research-grid-editor")[0], "account-row")[0];
+    const card = () => byClass(openSquareOf(root), "account-row")[0];
     const tile = tiles(root)[3];
     tile.listeners.click({});
     await until(card, "the square's row");
-    const index = Number(tile.attributes["data-index"]);
+    const index = Number(tile.attributes["data-square"]);
     const max = Number(game.gga.CustomLists.h.ResGridSquares[index][1]);
     const next = Research[0][index] === max ? 0 : max;
     const [field] = inputs(card());

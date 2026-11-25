@@ -207,19 +207,27 @@ export const bonusText = (template = "") => {
         .replace(tail, "")
         // A number in the middle goes with its "by" or "to" ("chance by +{% per rank": "chance per rank"), and a
         // multiplier's mark with it ("costs }x less": "costs less").
-        .replace(/\s+(?:by|to)\s+(?=[+-]?\{|\}x)/gi, " ")
+        .replace(/\s+(?:by|(?:up\s+)?to)\s+(?=[+-]?\{|\}x)/gi, " ")
         .replace(/\}x\b/g, "")
         .replace(BONUS_NUMBER, "")
-        // A second number's mark ("up to } monsters") goes the same way.
-        .replace(/[|@$^{}]/g, " ")
+        // A second number's mark ("up to } monsters", "+$ Scurge EXP", "a unique ^x Fuel Cap bonus") goes the same way.
+        .replace(/\+?[$^{}](?:x\b)?|\+?\||@/g, " ")
         .replace(/\s+/g, " ")
         .trim()
         .split(/(?<=[.!?:])\s/)[0]
-        .replace(/\s+by\s*[+-]?\s*(?=[.,]|$)/g, "")
+        .replace(/,?\s+(?:by|(?:up\s+)?to)\s*[+-]?\s*(?=[.,!]|$)/g, "")
         .replace(/\s+([.,!?])/g, "$1")
-        .replace(/[.:]$/, "");
+        .replace(/[.:]$/, "")
+        // "Also, boosts Megacrop growth chance": the sentence before it isn't shown.
+        .replace(/^also,?\s+/i, "");
     const text = words.charAt(0).toUpperCase() + words.slice(1);
-    return percent && text && text.split(" ").length <= 5 ? `${text} %` : text;
+    return percent && text && text.split(" ").length <= 5 ? `${text.replace(/!$/, "")} %` : text;
+};
+
+/** An upgrade's max, null where the game writes a placeholder for none (9,999, 99,999): its level then shows alone. */
+export const realMax = (raw) => {
+    const max = toInt(raw, { min: 0 });
+    return max > 998 ? null : max;
 };
 
 /**

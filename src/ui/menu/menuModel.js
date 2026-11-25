@@ -592,5 +592,11 @@ export const searchMenu = (entries, query) => {
         if (!score && entry.description && entry.description.toLowerCase().includes(q)) score = 25;
         if (score > 0) hits.push({ ...entry, matched, score: BY_NAME + 200 + score });
     }
-    return hits.sort((a, b) => b.score - a.score || (a.group ?? 0) - (b.group ?? 0)).slice(0, MAX_RESULTS);
+    // Of two with the same score a page comes before a tab on another page (Automation's Overview, Menagerie's).
+    return hits
+        .sort(
+            (a, b) =>
+                b.score - a.score || (a.group ?? 0) - (b.group ?? 0) || Boolean(a.target?.tab) - Boolean(b.target?.tab)
+        )
+        .slice(0, MAX_RESULTS);
 };

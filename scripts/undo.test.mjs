@@ -25,6 +25,10 @@ const elements = (node, out = []) => {
 };
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
+// The picked square of a board (BoardEditor): its row, the ones picked before kept hidden.
+const openSquareOf = (root) =>
+    byClass(root, "board-editor__square").find((square) => !square.attributes.hidden) ??
+    byClass(root, "board-editor")[0];
 
 async function until(check, what) {
     for (let i = 0; i < 300; i++) {
@@ -486,7 +490,7 @@ test("the research grid's Undo goes when another tile is picked", async () => {
     const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
     const root = await openPage("src/ui/pages/world-7/research/grid.js", (node) => tiles(node).length > 1);
     // A square picked opens its own row under the board.
-    const card = () => byClass(byClass(root, "research-grid-editor")[0], "account-row")[0];
+    const card = () => byClass(openSquareOf(root), "account-row")[0];
     const [first, second] = tiles(root);
     first.listeners.click({});
     await until(card, "the tile's row");

@@ -6,7 +6,7 @@ import { parseNumber } from "../../../utils/numberFormat.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import {
-    cleanName,
+    bonusText,
     createStaticRowReconciler,
     getOrCreateState,
     writeVerified,
@@ -14,10 +14,11 @@ import {
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const PEARL_FIELD = { index: 454, label: "Pearls", live: true, formatted: true, float: true };
 const CLAMWORKS_FIELDS = [
@@ -57,8 +58,6 @@ const ClamTab = () => {
     const fieldStates = new Map(ALL_FIELDS.map((field) => [field.index, van.state(undefined)]));
     const scurgeStates = new Map();
     const scurgeReady = van.state(false);
-    // Fields stay enabled while a save runs, so the next field the player types into keeps her edit.
-    const disabled = () => loading.val;
     const scurgeList = div();
     const reconcileScurge = createStaticRowReconciler(scurgeList);
 
@@ -101,20 +100,19 @@ const ClamTab = () => {
                         },
                         write: (next) => writeVerified(field.path, next),
                         renderInfo: () =>
-                            div(
-                                { class: "account-row__name-group" },
-                                span({ class: "account-row__name" }, field.name),
-                                field.index === undefined
-                                    ? null
-                                    : span(
-                                          { class: "account-row__sub-label" },
-                                          cleanName(descriptions[9 + field.index])
-                                              .replace(/@/g, " ")
-                                              .replace(/[{}$]/g, "…")
-                                      )
-                            ),
+                            // An upgrade's bonus first, its name under it; "$" is a number's place here too.
+                            RowTitles({
+                                bonus:
+                                    field.index === undefined
+                                        ? ""
+                                        : bonusText(
+                                              String(descriptions[9 + field.index] ?? "")
+                                                  .replace(/\$x/g, "}x")
+                                                  .replace(/\$/g, "{")
+                                          ),
+                                name: field.name,
+                            }),
                         adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
-                        disabled,
                         controlsClass: "account-row__controls--xl",
                         inputMode: field.float ? "float" : "int",
                         inputProps: { "aria-label": field.name },
@@ -136,7 +134,7 @@ const ClamTab = () => {
         rootClass: "tab-container scroll-container",
         title: "Clam Work",
         description: "Pearls, Clamworks upgrades, and Scurge's EXP, level and upgrades.",
-        actions: RefreshButton({ onRefresh: load, disabled }),
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
         loadingText: "Reading Clam Work",
         errorTitle: "Couldn't read Clam Work",

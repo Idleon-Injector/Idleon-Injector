@@ -7,10 +7,13 @@ import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
+    normalCase,
     createStaticRowReconciler,
     getOrCreateState,
     toInt,
@@ -27,7 +30,7 @@ const ZenithRow = ({ entry, levelState }) =>
         writePath: `${ZENITH_LEVELS_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        name: entry.name,
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
         maxAction: true,
     });
 
@@ -59,7 +62,8 @@ const ZenithTab = () => {
                 return {
                     index,
                     rawName,
-                    name: cleanName(rawName, `Zenith ${index}`),
+                    name: normalCase(cleanName(rawName, `Zenith ${index}`)),
+                    bonus: bonusText(definition[6]),
                     maxLevel: toInt(definition[3], { min: 0 }),
                 };
             })
@@ -85,10 +89,7 @@ const ZenithTab = () => {
             const levels = toIndexedArray(rawLevels ?? []);
             clusterState.val = toInt(rawClusters, { min: 0 });
             for (const entry of entriesState.val) {
-                getOrCreateState(levelStates, entry.index).val = Math.min(
-                    entry.maxLevel,
-                    toInt(levels[entry.index], { min: 0 })
-                );
+                getOrCreateState(levelStates, entry.index).val = toInt(levels[entry.index], { min: 0 });
             }
         });
 

@@ -10,34 +10,30 @@ import { NumberInput } from "../../../components/NumberInput.js";
 import { AccountTabHeader } from "../../../components/views/account/components/AccountTabHeader.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
+import { useWriteStatus } from "../../../components/views/account/accountShared.js";
 const { div, span } = van.tags;
 
 function SushiToolsTab() {
-    const pending = van.state(false);
-    const feedback = van.state("");
+    const { status, run } = useWriteStatus();
+    const pending = () => status.val === "loading";
+    const added = van.state("");
     const knowledgeTier = van.state("1");
     const knowledgeQuantity = van.state("1");
-    // The game says why it can't (Auto Play on, Knowledge locked, a bad tier), so a press always gets its answer.
-    async function addXp() {
-        pending.val = true;
-        try {
-            const response = await executeCheatAction(
-                `w7 sushitools knowledge ${knowledgeTier.val} ${knowledgeQuantity.val}`
-            );
-            let answer;
+    // The game says why it can't (Auto Play on, Knowledge locked, a bad tier): the tray says it in the tool's place.
+    const addXp = () =>
+        run(async () => {
+            added.val = "";
+            const numbers = [knowledgeTier, knowledgeQuantity].map((field) => Number(field.val));
+            if (!numbers.every((n) => Number.isSafeInteger(n) && n >= 1))
+                throw new Error("Tier and quantity are whole numbers from 1.");
+            const response = await executeCheatAction(`w7 sushitools knowledge ${numbers.join(" ")}`);
             try {
-                answer = JSON.parse(response.message);
+                added.val = JSON.parse(response.message).message;
             } catch {
                 // The XP may have gone in, so no "try again": the parser's words are never shown.
                 throw new Error("Couldn't read Sushi's answer.");
             }
-            feedback.val = answer.message;
-        } catch (error) {
-            feedback.val = error.message;
-        } finally {
-            pending.val = false;
-        }
-    }
+        });
     // The tool's own numbers sit in the tray with it (like Populate's units), each in the shared field.
     const numberField = (title, value) => {
         const step = (delta) => (value.val = String(Math.max(1, (Number.parseInt(value.val, 10) || 1) + delta)));
@@ -66,22 +62,23 @@ function SushiToolsTab() {
             automation: { page: "automation.sushi" },
         }),
         div(
-            { class: "account-list account-list--tabbed", "aria-busy": () => pending.val },
-            ListPanel({
-                tools: () => [
-                    numberField("Tier", knowledgeTier),
-                    numberField("Quantity", knowledgeQuantity),
-                    div(
-                        { class: "tabbed-list__tool-group" },
-                        ActionButton({ label: "Add Knowledge XP", disabled: () => pending.val, onClick: addXp }),
-                        span({ class: "account-write-feedback", role: "status" }, () =>
-                            pending.val ? "Working…" : feedback.val
-                        )
-                    ),
-                ],
-                // The game's answer to the last press (why it couldn't, or what it added), where the tool is.
-                toolsLabel: () => (pending.val ? "Working…" : feedback.val || "Each press adds the XP again"),
-            })
+            { class: "account-page-shell__body" },
+            div(
+                { class: "account-list account-list--tabbed", "aria-busy": pending },
+                ListPanel({
+                    tools: () => [
+                        numberField("Tier", knowledgeTier),
+                        numberField("Quantity", knowledgeQuantity),
+                        div(
+                            { class: "tabbed-list__tool-group" },
+                            ActionButton({ label: "Add Knowledge XP", status, disabled: pending, onClick: addXp }),
+                            span({ class: "account-write-feedback", role: "status" }, added)
+                        ),
+                    ],
+                    // What the last press added, where the tool is.
+                    toolsLabel: () => (pending() ? "Working…" : added.val || "Each press adds the XP again"),
+                })
+            )
         )
     );
 }

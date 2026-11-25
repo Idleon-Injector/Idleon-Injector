@@ -34,7 +34,6 @@ import {
     resolveNumberInput,
     toInt,
     useWriteStatus,
-    writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
@@ -226,13 +225,8 @@ function SpelunkingCavesTab() {
         change(async (currentNames) => {
             const toAdd = objectIds.filter((objectId) => !currentNames.includes(objectId));
             if (toAdd.length === 0) return { cancelled: true };
-            await writeManyVerified([
-                ...toAdd.map((objectId, offset) => ({
-                    path: `${DISCOVERED_OBJECTS_PATH}[${currentNames.length + offset}]`,
-                    value: objectId,
-                })),
-                { path: `${DISCOVERED_OBJECTS_PATH}.length`, value: currentNames.length + toAdd.length },
-            ]);
+            // The whole list in one write, so Undo has the list as it was.
+            await writeVerified(DISCOVERED_OBJECTS_PATH, [...currentNames, ...toAdd]);
             return { ok: true };
         });
 
@@ -267,6 +261,7 @@ function SpelunkingCavesTab() {
             { class: "account-list account-list--tabbed" },
             ListPanel({
                 className: "value-table--wide",
+                empty: () => (caveRowsState.val.length || objects.val.length ? null : "No caves found"),
                 setAll: { word: (n) => (n === 1 ? "cave" : "caves"), placeholder: "Deepest" },
                 // Discovering only adds, so it runs on one press.
                 tools: () =>

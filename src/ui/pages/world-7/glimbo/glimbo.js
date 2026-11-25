@@ -91,7 +91,11 @@ const GlimboTab = () => {
         initialWrapperClass: "account-list",
         body: div(
             { class: "account-list account-list--tabbed" },
-            ListPanel({ body: listNode, setAll: { word: (n) => (n === 1 ? "trade" : "trades") } })
+            ListPanel({
+                body: listNode,
+                empty: () => (entriesState.val.length ? null : "No trades found"),
+                setAll: { word: (n) => (n === 1 ? "trade" : "trades") },
+            })
         ),
     });
 };

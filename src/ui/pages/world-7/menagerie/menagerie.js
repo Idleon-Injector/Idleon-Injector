@@ -4,7 +4,7 @@ import { gga, readCList, readComputed, readComputedMany } from "../../../service
 import { toIndexedArray } from "../../../utils/index.js";
 import { formatNumber, formattedStep, parseNumber } from "../../../utils/numberFormat.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
@@ -12,8 +12,8 @@ import { AccountSection } from "../../../components/views/account/components/Acc
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import {
+    bonusText,
     cleanName,
-    cleanNameEffect,
     createStaticRowReconciler,
     getOrCreateState,
     largeFormatter,
@@ -27,7 +27,7 @@ import { TabbedList, toolsPerTab } from "../../../components/views/account/tabSh
 
 const { div, span } = van.tags;
 const PANES = [
-    { id: "overview", label: "Lumi", keywords: ["Overview", "Lumi balance", "Shell EXP", "Shell rank"] },
+    { id: "overview", label: "Overview", keywords: ["Lumi balance", "Shell EXP", "Shell rank"] },
     { id: "unlocks", label: "Unlocks", keywords: ["Menagerie Unlocks"] },
     { id: "upgrades", label: "Boosts", keywords: ["Menagerie Boosts"] },
     { id: "missions", label: "Missions", keywords: ["Menagerie Missions"] },
@@ -45,6 +45,8 @@ const description = (raw) =>
         .replace(/\u819b/g, "")
         .replace(/@/g, " ")
         .trim();
+// An unlock's words, without a chance the game works out ("Mobs drop Omega Arcade Balls, 1 in $ chance").
+const unlockText = (raw) => description(raw).replace(/,[^,]*\$[^,]*/, "");
 const numericInput = (raw, integer) => {
     const value = parseNumber(raw);
     return Number.isFinite(value) && value >= 0 && (!integer || Number.isSafeInteger(value)) ? value : null;
@@ -60,8 +62,8 @@ const MenagerieTab = () => {
     const lists = Object.fromEntries(PANES.map(({ id }) => [id, div()]));
     const reconcilers = Object.fromEntries(PANES.map(({ id }) => [id, createStaticRowReconciler(lists[id])]));
     const state = (path) => getOrCreateState(states, path);
-    // Fields and switches stay usable while a save runs (and while it reads the game again after); only a load of the
-    // page itself, or a failed one, holds them.
+    // Fields always stay usable, so a Refresh moves nothing; switches stay usable while a save runs (and while it reads
+    // the game again after), and only a load of the page itself, or a failed one, holds them.
     const disabled = () => loading.val && !saving.val;
     // A write asked for while another runs waits its turn, then reads the game again.
     const inTurn = oneAtATime();
@@ -108,7 +110,7 @@ const MenagerieTab = () => {
                 unlocks.length !== 25 ||
                 upgrades.length !== 25
             ) {
-                throw new Error("Menagerie data is uninitialized or does not match this game version.");
+                throw new Error("The game's Menagerie isn't what the injector knows.");
             }
             unlockCount.val = unlocks.length;
             for (let group = 0; group < 8; group++) {
@@ -133,10 +135,10 @@ const MenagerieTab = () => {
                 numberRow("Shell rank", "Menagerie[0][2]", true, null, true),
             ]);
             reconcilers.unlocks(JSON.stringify(unlocks), () =>
-                unlocks.map((text, i) => toggleRow(description(text), `Menagerie[2][${i}]`))
+                unlocks.map((text, i) => toggleRow(unlockText(text), `Menagerie[2][${i}]`))
             );
             reconcilers.upgrades(JSON.stringify(upgrades), () =>
-                upgrades.map((text, i) => numberRow(cleanNameEffect(description(text)), `Menagerie[3][${i}]`, true))
+                upgrades.map((text, i) => numberRow(bonusText(description(text)), `Menagerie[3][${i}]`, true))
             );
             reconcilers.missions(JSON.stringify(missions), () => missions.map((text, i) => missionRow(text, i)));
             reconcilers.jellies(JSON.stringify(caves), () => [
@@ -204,16 +206,11 @@ const MenagerieTab = () => {
             normalize: (raw) => numericInput(raw, integer),
             write: (next) => save(() => writeVerified(path, next)),
             renderInfo: () =>
-                div(
-                    { class: "account-row__name-group" },
-                    span({ class: "account-row__name" }, name),
-                    note ? span({ class: "account-row__sub-label" }, note) : null
-                ),
+                note ? RowTitles({ bonus: name, name: note }) : span({ class: "account-row__name" }, name),
             adjustInput: (raw, delta, current) => {
                 const value = numericInput(raw, integer) ?? current;
                 return Math.max(0, value + delta * (formatted ? formattedStep(value) : 1));
             },
-            disabled,
             controlsClass: "account-row__controls--xl",
             inputMode: integer ? "int" : "float",
             inputProps: {
@@ -253,26 +250,23 @@ const MenagerieTab = () => {
             valueState: state(`Menagerie[1][${index}]`),
             normalize: (raw) => numericInput(raw, true),
             write: (next) => save(() => writeVerified(`Menagerie[1][${index}]`, next)),
-            renderInfo: () => [
-                div(
-                    { class: "account-row__name-group" },
-                    span({ class: "account-row__name" }, () =>
+            // The mission, then how far it is: a count toward its goal, not a cap, so "of", never a slash.
+            renderInfo: () =>
+                RowTitles({
+                    bonus: span(() =>
                         description(text).replace(
                             /[{$]/g,
                             `${index === 20 || index === 24 ? "10^" : ""}${formatNumber(missionTargets.get(index).val)}`
                         )
                     ),
-                    span(
-                        { class: "account-row__sub-label" },
+                    name: span(
                         () =>
-                            `Progress${index === 20 || index === 24 ? " (log10)" : ""}: ${formatNumber(missionProgress.get(index).val)} / ${formatNumber(missionTargets.get(index).val)}`
-                    )
-                ),
-            ],
+                            `${formatNumber(missionProgress.get(index).val)} of ${formatNumber(missionTargets.get(index).val)}${index === 20 || index === 24 ? " (log10)" : ""}`
+                    ),
+                }),
             adjustInput: (raw, delta, current) => Math.max(0, (numericInput(raw, true) ?? current) + delta),
-            disabled,
             controlsClass: "account-row__controls--xl",
-            inputProps: { "aria-label": `Mission ${index} completions` },
+            inputProps: { "aria-label": `Mission ${index + 1} completions` },
             setAll: {
                 path: `Menagerie[1][${index}]`,
                 refuse: (value) => (Number.isSafeInteger(value) ? null : "whole numbers only"),
@@ -346,6 +340,7 @@ const MenagerieTab = () => {
             TabbedList({
                 name: "Menagerie",
                 page: "w7.menagerie",
+                wrap: true,
                 tabs: PANES.map(({ id, label }) => ({ id, label, content: lists[id] })),
                 tools: toolsPerTab({ unlocks: unlockTools }),
                 toolsOn: (id) => id === "unlocks",

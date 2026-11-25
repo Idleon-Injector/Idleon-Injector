@@ -6,10 +6,15 @@ import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
-import { EmptyState } from "../../../components/EmptyState.js";
-import { cleanName, createStaticRowReconciler, toInt } from "../../../components/views/account/accountShared.js";
+import {
+    bonusText,
+    cleanName,
+    createStaticRowReconciler,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -38,7 +43,7 @@ const buildTalentRows = (rawDefinitions, rawOrder, rawLevels, rawMaxResults) => 
 
                 const maxResult = rawMaxResults[talentIndex];
                 if (!maxResult?.ok) {
-                    throw new Error(`LegendTalent_MaxLV failed for talent ${talentIndex}`);
+                    throw new Error("The game didn't give a talent's max level.");
                 }
 
                 return {
@@ -46,6 +51,7 @@ const buildTalentRows = (rawDefinitions, rawOrder, rawLevels, rawMaxResults) => 
                     talentIndex,
                     rawName,
                     name: cleanName(rawName, `Talent ${talentIndex}`),
+                    bonus: bonusText(definition[5]),
                     maxLevel: toInt(maxResult.value, { min: 0 }),
                     levelState: van.state(toInt(levels[talentIndex], { min: 0 })),
                 };
@@ -65,7 +71,7 @@ const LegendTalentRow = ({ talent }) =>
         writePath: `${LEGEND_TALENT_LEVELS_PATH}[${talent.talentIndex}]`,
         max: talent.maxLevel,
         integerMode: "round",
-        name: talent.name,
+        renderInfo: () => RowTitles({ bonus: talent.bonus, name: talent.name }),
         maxAction: true,
     });
 
@@ -142,16 +148,9 @@ const LegendTalentTab = () => {
     load();
 
     // The game's five colours, each a quiet group of its talents.
-    const body = () => {
-        const sections = sectionsState.val;
-        return sections.length === 0
-            ? EmptyState({ title: "No legend talents found" })
-            : div(
-                  ...sections.map((section) =>
-                      AccountSection({ title: section.title, body: reconcileSection(section) })
-                  )
-              );
-    };
+    const sections = () => sectionsState.val.filter((section) => section.talents.length);
+    const body = () =>
+        div(...sections().map((section) => AccountSection({ title: section.title, body: reconcileSection(section) })));
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
@@ -162,7 +161,10 @@ const LegendTalentTab = () => {
         loadingText: "Reading legend talents",
         errorTitle: "Couldn't read legend talents",
         initialWrapperClass: "account-list",
-        body: div({ class: "account-list account-list--tabbed" }, ListPanel({ body })),
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({ body, empty: () => (sections().length ? null : "No legend talents found") })
+        ),
     });
 };
 

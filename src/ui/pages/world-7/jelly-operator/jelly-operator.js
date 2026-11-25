@@ -49,7 +49,10 @@ const LevelRow = ({
 }) =>
     EditableNumberRow({
         valueState,
-        normalize: (raw) => validLevel(raw, max),
+        normalize: (raw) => {
+            if (Number(raw) > max) throw new Error(`max ${max}`);
+            return validLevel(raw, max);
+        },
         write,
         renderInfo: () => (bonus ? RowTitles({ bonus, name }) : span({ class: "account-row__name" }, name)),
         renderBadge: () => ((typeof locked === "function" ? locked() : locked) ? "Locked" : ""),
@@ -191,15 +194,8 @@ const JellyTab = () => {
                             } catch (error) {
                                 cacheError = error;
                             }
-                            if (writeError) {
-                                throw new Error(
-                                    `Cell level/XP update incomplete: ${writeError.message}${cacheError ? `; cache refresh also failed: ${cacheError.message}` : ""}. Refresh to inspect the saved values.`
-                                );
-                            }
-                            if (cacheError)
-                                throw new Error(
-                                    `Cell level and XP were saved, but cache refresh failed: ${cacheError.message}`
-                                );
+                            if (writeError) throw new Error("Couldn't save all of it. Refresh.");
+                            if (cacheError) throw new Error("Saved. Totals may be off. Refresh.");
                             return next;
                         },
                     })

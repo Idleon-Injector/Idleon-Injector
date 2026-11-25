@@ -6,15 +6,18 @@ import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    realMax,
     toInt,
 } from "../../../components/views/account/accountShared.js";
-import { UpgradeDoublerButton, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
+import { doublerRow, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
 
 const { div } = van.tags;
 
@@ -26,10 +29,8 @@ const ShopUpgradeRow = ({ entry, levelState, doublers }) =>
         writePath: `${SUSHI_SHOP_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        name: entry.name,
-        rowClass: "doubler-row",
-        maxAction: true,
-        renderExtraActions: () => UpgradeDoublerButton({ doublers, index: entry.index, name: entry.name }),
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
+        ...doublerRow(entry, doublers),
     });
 
 const getOrderKey = (rawOrderEntry) => {
@@ -58,7 +59,8 @@ const buildShopEntries = (rawDefinitions, rawOrder) => {
                 index,
                 rawName,
                 name: cleanName(rawName, `Sushi Upgrade ${index}`),
-                maxLevel: toInt(definition[1], { min: 0 }),
+                bonus: bonusText(definition[5]),
+                maxLevel: realMax(definition[1]),
             };
         })
         .filter(Boolean)
@@ -100,10 +102,7 @@ function SushiShopTab() {
 
             const levels = toIndexedArray((await gga(SUSHI_SHOP_PATH)) ?? []);
             for (const entry of upgradeEntries.val) {
-                getOrCreateState(levelStates, entry.index).val = Math.min(
-                    entry.maxLevel,
-                    toInt(levels[entry.index], { min: 0 })
-                );
+                getOrCreateState(levelStates, entry.index).val = toInt(levels[entry.index], { min: 0 });
             }
         });
 
@@ -121,6 +120,9 @@ function SushiShopTab() {
         body: div(
             { class: "account-list account-list--tabbed" },
             ListPanel({
+                className: "field-columns",
+                empty: () => (upgradeEntries.val.length ? null : "No upgrades found"),
+                setAll: { word: (n) => (n === 1 ? "upgrade" : "upgrades") },
                 body: AccountSection({
                     title: "Upgrades",
                     note: () => `${doublers.selected.val.length} of ${doublers.capacity.val} doubled`,

@@ -5,7 +5,7 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
-    cleanNameEffect,
+    bonusText,
     createStaticRowReconciler,
     getOrCreateState,
     toInt,
@@ -30,16 +30,16 @@ const CORAL_KID_FIELDS = [
     { index: 432, name: "Daily Coral Reef Bonus Level", descriptionIndex: 5 },
 ];
 const SINGULARITY_FIELDS = [
-    { index: 616, name: "Singularity Transmute Level", description: "Boosts Divinity PTS gain." },
+    { index: 616, name: "Singularity Transmute Level", description: "Boosts Divinity PTS gain" },
     {
         index: 617,
         name: "Transmute Base Value Level",
-        description: "Base value for transmuting Divinity PTS into Singularity Spirals.",
+        description: "Base value for transmuting Divinity PTS into Singularity Spirals",
     },
-    { index: 618, name: "Divinity EXP Multiplier", description: "Divinity EXP gain multiplier." },
-    { index: 619, name: "Universal Time Elapsed Efficiency", description: "Universal Time Elapsed efficiency." },
-    { index: 620, name: "Lumi Gain Rate Multiplier", description: "+5% Lumi gain rate per level." },
-    { index: 621, name: "God Rank Damage Multiplier", description: "Increases God Rank damage." },
+    { index: 618, name: "Divinity EXP Multiplier", description: "Divinity EXP gain multiplier" },
+    { index: 619, name: "Universal Time Elapsed Efficiency", description: "Universal Time Elapsed efficiency" },
+    { index: 620, name: "Lumi Gain Rate Multiplier", description: "+5% Lumi gain rate per level" },
+    { index: 621, name: "God Rank Damage Multiplier", description: "Increases God Rank damage" },
 ];
 const UnlockRow = ({ unlockedState }) => {
     const writeToggle = async (enabled) => {
@@ -63,15 +63,13 @@ const CoralKidLevelRow = ({ entry, levelState }) => SimpleNumberRow({ entry, val
 
 const buildCoralKidEntries = (rawOptions, rawDescriptions) =>
     CORAL_KID_FIELDS.map((field) => {
-        const description = cleanNameEffect(rawDescriptions?.[field.descriptionIndex], field.name);
+        const bonus = bonusText(rawDescriptions?.[field.descriptionIndex]);
 
         return {
             ...field,
             key: String(field.index),
             path: `OptionsListAccount[${field.index}]`,
-            // The game's words for it under its name, when they say more than the name.
-            info:
-                description && description !== field.name ? RowTitles({ bonus: field.name, name: description }) : null,
+            info: RowTitles({ bonus, name: field.name }),
             showIndex: false,
             level: toInt(rawOptions[String(field.index)] ?? 0, { min: 0 }),
         };
@@ -82,7 +80,7 @@ const buildSingularityEntries = (rawOptions) =>
         ...field,
         key: String(field.index),
         path: `OptionsListAccount[${field.index}]`,
-        info: RowTitles({ bonus: field.name, name: field.description }),
+        info: RowTitles({ bonus: field.description, name: field.name }),
         showIndex: false,
         level: toInt(rawOptions[String(field.index)] ?? 0, { min: 0 }),
     }));

@@ -147,7 +147,7 @@ const TrophyTab = () => {
         change(async (now) => {
             const toAdd = list.filter((trophy) => !now.includes(trophy.value));
             if (!toAdd.length) return { cancelled: true };
-            if (!now.includes(EMPTY)) throw new Error("No empty slot. Take a trophy out first.");
+            if (!now.includes(EMPTY)) throw new Error("No empty slot left.");
             let slot = 0;
             for (const trophy of toAdd) {
                 while (slot < now.length && now[slot] !== EMPTY) slot++;
@@ -187,6 +187,7 @@ const TrophyTab = () => {
             { class: "account-list account-list--tabbed" },
             ListPanel({
                 body: listNode,
+                empty: () => (trophies.val.length ? null : "No trophies found"),
                 // Adding only fills empty slots, so it runs on one press.
                 tools: () =>
                     div(

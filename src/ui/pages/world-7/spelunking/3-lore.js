@@ -4,12 +4,12 @@ import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
-import { EmptyState } from "../../../components/EmptyState.js";
-import { cleanName, toInt } from "../../../components/views/account/accountShared.js";
+import { bonusText, cleanName, toInt } from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -20,6 +20,7 @@ const LorePageRow = ({ entry }) =>
     SimpleNumberRow({
         entry: {
             name: `Page ${entry.pageNumber}`,
+            info: RowTitles({ bonus: entry.bonus, name: `Page ${entry.pageNumber}` }),
             path: `${LORE_LEVELS_PATH}[${entry.levelIndex}]`,
             formatted: false,
         },
@@ -39,7 +40,7 @@ const buildLoreGroups = (rawDefinitions, rawLevels) => {
 
                     return {
                         bonusIndex,
-                        label,
+                        bonus: bonusText(bonus[0]),
                     };
                 })
                 .filter(Boolean);
@@ -50,6 +51,7 @@ const buildLoreGroups = (rawDefinitions, rawLevels) => {
                 return {
                     levelIndex,
                     pageNumber: bonus.bonusIndex + 1,
+                    bonus: bonus.bonus,
                     chapterNumber: chapterIndex + 1,
                     levelState: van.state(toInt(levels[levelIndex], { min: 0 })),
                 };
@@ -99,16 +101,14 @@ function SpelunkingLoreTab() {
     // A chapter is a quiet group of its pages.
     const body = () => {
         const groups = loreGroups.val;
-        return groups.length === 0
-            ? EmptyState({ title: "No lore chapters found" })
-            : div(
-                  ...groups.map((group) =>
-                      AccountSection({
-                          title: `Chapter ${group.chapterNumber}`,
-                          body: group.pages.map((page) => LorePageRow({ entry: page })),
-                      })
-                  )
-              );
+        return div(
+            ...groups.map((group) =>
+                AccountSection({
+                    title: `Chapter ${group.chapterNumber}`,
+                    body: group.pages.map((page) => LorePageRow({ entry: page })),
+                })
+            )
+        );
     };
 
     return PersistentAccountListPage({
@@ -122,7 +122,11 @@ function SpelunkingLoreTab() {
         initialWrapperClass: "account-list",
         body: div(
             { class: "account-list account-list--tabbed" },
-            ListPanel({ body, setAll: { word: (n) => (n === 1 ? "lore page" : "lore pages") } })
+            ListPanel({
+                body,
+                empty: () => (loreGroups.val.length ? null : "No lore chapters found"),
+                setAll: { word: (n) => (n === 1 ? "lore page" : "lore pages") },
+            })
         ),
     });
 }

@@ -5,9 +5,15 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
-import { createStaticRowReconciler, getOrCreateState, toInt } from "../../../components/views/account/accountShared.js";
+import {
+    bonusText,
+    createStaticRowReconciler,
+    getOrCreateState,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
 const { div } = van.tags;
 
@@ -26,7 +32,7 @@ const CoralRow = ({ entry, levelState }) =>
         writePath: `${CORAL_LEVELS_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        name: entry.name,
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
         maxAction: true,
     });
 
@@ -46,6 +52,7 @@ const CoralTab = () => {
 
             return {
                 ...field,
+                bonus: bonusText(definition[0]),
                 // The game updates this definition only when opening its coral menu.
                 maxLevel: field.index === 3 && Number(pillarUpgradeOwned) === 1 && baseMax === 12 ? 15 : baseMax,
             };
@@ -74,10 +81,7 @@ const CoralTab = () => {
 
             const levels = toIndexedArray((await gga(CORAL_LEVELS_PATH)) ?? []);
             for (const entry of entriesState.val) {
-                getOrCreateState(levelStates, entry.index).val = Math.min(
-                    entry.maxLevel,
-                    toInt(levels[entry.index], { min: 0 })
-                );
+                getOrCreateState(levelStates, entry.index).val = toInt(levels[entry.index], { min: 0 });
             }
         });
 

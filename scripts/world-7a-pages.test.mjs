@@ -190,6 +190,7 @@ test("Legend Talents Refresh picks up a raised max level", async (t) => {
     const thingies = fixture.computed._customBlock_Thingies;
     const maxLevel = thingies.LegendTalent_MaxLV;
     t.after(() => (thingies.LegendTalent_MaxLV = maxLevel));
+    thingies.LegendTalent_MaxLV = () => 10;
     const firstRow = (root) => byClass(root, "account-row")[0];
     // The field's level and its cap, as the eye reads it ("10 / 15").
     const shownLevel = (root) => {
@@ -200,7 +201,7 @@ test("Legend Talents Refresh picks up a raised max level", async (t) => {
     const page = await openPage("src/ui/pages/world-7/legend-talents/legend-talents.js", (root) =>
         Boolean(firstRow(root))
     );
-    const index = Number(text(byClass(firstRow(page), "account-row__index")[0]).slice(1));
+    const index = Number(gga.CustomLists.h.Spelunky[26][0]); // the first row's talent
     gga.Spelunk[18][index] = 10;
     await button(page, "Refresh").listeners.click({ preventDefault() {} });
     await until(() => shownLevel(page) === "10 / 10", "the field at the old max");
@@ -428,4 +429,61 @@ test("Clam Scurge fields stay open while another Scurge field saves, and both ed
     await until(() => stateOf(exp) === "success" && stateOf(level) === "success", "both saves to finish");
     assert.equal(gga.Menagerie[0][7], 500);
     assert.equal(gga.Menagerie[0][8], 77);
+});
+
+test("a bonus says the game's words without its marks, and no sentence starts with Also", async () => {
+    const { bonusText, realMax } = await importRepo("src/ui/components/views/account/accountShared.js");
+    for (const [raw, shown] of [
+        ["Active_clam_kills_give_+$_Scurge_EXP", "Active clam kills give Scurge EXP"],
+        ["+{_max_Fuel_Capacity,_and_a_unique_^x_Fuel_Cap_bonus!", "Max Fuel Capacity, and a unique Fuel Cap bonus!"],
+        ["You_can_now_find_Multiplier_Tiles,_up_to_}!", "You can now find Multiplier Tiles!"],
+        ["Makes_it_sharp!_Also,_+{%_Total_POW_to_help_smash_rocks!", "Total POW to help smash rocks!"],
+        ["+{%_Drop_Rate_for_all_players!", "Drop Rate for all players %"],
+    ])
+        assert.equal(bonusText(raw), shown);
+    assert.deepEqual([50, "998", 9999, "99999"].map(realMax), [50, 998, null, null], "a placeholder max is no max");
+});
+
+test("Lore: the bonus comes first, and an empty journal says so without tools", async () => {
+    const LORE = "src/ui/pages/world-7/spelunking/3-lore.js";
+    const trayHidden = (root) => byClass(root, "tabbed-list__head")[0].attributes.hidden;
+    const lore = await openPage(LORE, (root) => byClass(root, "account-row").length > 3);
+    assert.equal(text(byClass(lore, "account-row__bonus")[0]), "Base Spelunking Efficiency");
+    assert.equal(text(byClass(lore, "account-row__name")[0]), "Page 1");
+    assert.equal(trayHidden(lore), false);
+
+    const chapters = gga.CustomLists.h.SpelunkChapters;
+    gga.CustomLists.h.SpelunkChapters = [];
+    try {
+        const none = await openPage(LORE, (root) => text(root).includes("No lore chapters found"));
+        assert.equal(trayHidden(none), true, "no All 0");
+    } finally {
+        gga.CustomLists.h.SpelunkChapters = chapters;
+    }
+});
+
+test("The Button: a number below 0 is refused and nothing is written", async () => {
+    const page = await openPage("src/ui/pages/world-7/the-button/button.js", (root) =>
+        Boolean(findRow(root, "Presses done"))
+    );
+    const row = findRow(page, "Presses done");
+    const before = gga.OptionsListAccount[594];
+    await saveRow(row, -5);
+    assert.equal(stateOf(row), "error");
+    assert.match(text(byClass(row, "save-state__label")[0]), /min 0/);
+    assert.equal(gga.OptionsListAccount[594], before);
+});
+
+test("Caves: Add all saves the list in one write, with the old list for its Undo", async () => {
+    const before = [...gga.Spelunk[6]];
+    const page = await openPage("src/ui/pages/world-7/spelunking/1-caves.js", (root) =>
+        text(root).includes(`${before.length} of `)
+    );
+    const start = requests.length;
+    button(page, "Add all").listeners.click({ preventDefault() {} });
+    await until(() => gga.Spelunk[6].length > before.length, "the objects to be added");
+    assert.equal(requests.slice(start).filter((request) => request.includes("/gga/write")).length, 1);
+    await until(() => requests.slice(start).some((request) => /POST .*\/changes$/.test(request)), "the log");
+    assert.deepEqual([...gga.Spelunk[6]].slice(0, before.length), before, "the game's objects stay first");
+    gga.Spelunk[6] = before;
 });

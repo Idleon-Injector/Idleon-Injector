@@ -5,7 +5,6 @@ import { useAccountLoad } from "../../../components/views/account/accountLoadPol
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
-import { EmptyState } from "../../../components/EmptyState.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import {
     cleanName,
@@ -97,9 +96,8 @@ const NametagTab = () => {
         body: div(
             { class: "account-list account-list--tabbed" },
             ListPanel({
-                body: div(listNode, () =>
-                    catalogState.val.length === 0 ? EmptyState({ title: "No nametags found" }) : div()
-                ),
+                body: listNode,
+                empty: () => (catalogState.val.length ? null : "No nametags found"),
                 setAll: { word: (n) => (n === 1 ? "nametag" : "nametags"), placeholder: "Amount" },
             })
         ),

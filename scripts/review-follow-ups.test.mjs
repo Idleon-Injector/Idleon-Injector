@@ -25,6 +25,10 @@ const elements = (node, out = []) => {
 };
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
+// The picked square of a board (BoardEditor): its row, the ones picked before kept hidden.
+const openSquareOf = (root) =>
+    byClass(root, "board-editor__square").find((square) => !square.attributes.hidden) ??
+    byClass(root, "board-editor")[0];
 const inputs = (root) => elements(root).filter((node) => node.nodeName === "input");
 const switches = (root) => inputs(root).filter((node) => node.attributes.role === "switch");
 const rowNamed = (root, name) =>
@@ -212,8 +216,8 @@ test("sushi station: an older save's failure says nothing once a newer one of th
         byClass(r, "sushi-station-tile").some((tile) => tile.attributes.disabled === false)
     );
     byClass(root, "sushi-station-tile")[0].listeners.click({});
-    await until(() => byClass(byClass(root, "sushi-station-editor")[0], "account-row")[0], "the slot's row");
-    const tile = byClass(byClass(root, "sushi-station-editor")[0], "account-row")[0];
+    await until(() => byClass(openSquareOf(root), "account-row")[0], "the slot's row");
+    const tile = byClass(openSquareOf(root), "account-row")[0];
     const [input] = inputs(tile);
     const type = (value) => {
         input.listeners.input({ target: Object.assign(input, { value }) });

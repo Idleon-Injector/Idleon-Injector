@@ -16,7 +16,6 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { EmptyState } from "../../../components/EmptyState.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -150,8 +149,8 @@ const ObservationsTab = () => {
                     // The last column is the Unlocked switch's.
                     ValueTableHead({ name: "Observation", columns: [...FIELDS.map((field) => field.label), ""] }),
                     listNode,
-                    div(() => (named.val === 0 ? EmptyState({ title: "No named observations found" }) : span())),
                 ],
+                empty: () => (named.val ? null : "No named observations found"),
             })
         ),
     });

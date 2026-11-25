@@ -75,18 +75,31 @@
     position: relative;
 }
 
-/* On a phone the squares come down a size, so the board fits the panel's width; a wider one scrolls in its box. */
+/* On a phone the squares come down to the panel's width, so the whole board shows. */
 @media (max-width: 600px) {
+    .research-grid-board-wrap {
+        padding-inline: 8px;
+    }
+
     .research-grid-board {
-        grid-template-columns: repeat(var(--research-columns), 26px);
-        grid-template-rows: repeat(var(--research-rows), 26px);
-        gap: 3px;
+        grid-template-columns: repeat(var(--research-columns), minmax(0, 26px));
+        grid-template-rows: none;
+        grid-auto-rows: 24px;
+        gap: 2px;
+        width: auto;
+        justify-content: center;
     }
 
     .research-grid-tile {
-        width: 26px;
-        height: 26px;
-        border-radius: 7px;
+        width: auto;
+        height: auto;
+        border-radius: 6px;
         font-size: 0.75rem;
     }
+}
+
+/* Observations: a table, so the page takes the wider measure; the last column is the Unlocked switch's. */
+.research-observations-tab {
+    --page-measure: 60rem;
+    --value-columns: repeat(2, 9.5rem) 8.5rem;
 }

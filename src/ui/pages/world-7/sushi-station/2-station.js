@@ -20,7 +20,7 @@ import { toIndexedArray } from "../../../utils/index.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { createBoardEditor } from "../../../components/views/account/components/BoardEditor.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { toInt, writeVerified } from "../../../components/views/account/accountShared.js";
@@ -41,24 +41,21 @@ const plateWord = (type) => PLATES[type] ?? `Plate ${type}`;
 const tierOf = (raw, maxTier) => Math.min(maxTier, toInt(raw, { min: -1 })) + 1;
 
 // A slot: its tier (nothing when empty), its plate on its edge. A slot not unlocked can't be picked.
-const SlotTile = ({ index, slot, onSelect }) =>
+const SlotTile = ({ index, slot, editor }) =>
     button(
         {
-            type: "button",
+            ...editor.squareProps(index),
             class: () =>
                 [
                     "sushi-station-tile",
                     `sushi-station-tile--plate-${slot.plate.val}`,
-                    slot.selected.val && "sushi-station-tile--selected",
+                    editor.picked.val === index && "sushi-station-tile--selected",
                 ]
                     .filter(Boolean)
                     .join(" "),
             disabled: () => slot.plate.val === -1,
-            "data-index": index,
-            "aria-pressed": () => String(slot.selected.val),
             "aria-label": () =>
                 `Slot ${index + 1}, ${plateWord(slot.plate.val)}, ${slot.tier.val ? `tier ${slot.tier.val}` : "empty"}`,
-            onclick: () => onSelect(index),
         },
         () => (slot.tier.val ? String(slot.tier.val) : "")
     );
@@ -68,15 +65,11 @@ function SushiStationTab() {
     const slots = Array.from({ length: STATION_SLOT_COUNT }, () => ({
         tier: van.state(0),
         plate: van.state(-1),
-        selected: van.state(false),
     }));
     const fireplaceStates = Array.from({ length: STATION_WIDTH }, () => van.state(-1));
     // The highest tier the game has (its Research[30] names, counted from 1).
     const maxTier = van.state(0);
-    const selectedIndex = van.state(null);
 
-    // A slot's row, built the first time it's picked and kept, so its save state and Undo stay with it.
-    const rowOf = new Map();
     const SlotRow = (index) => {
         const slot = slots[index];
         const path = `${SUSHI_SLOT_PATH}[${index}]`;
@@ -97,17 +90,11 @@ function SushiStationTab() {
         });
     };
 
-    const select = (index) => {
-        selectedIndex.val = index;
-        slots.forEach((slot, i) => (slot.selected.val = i === index));
-    };
-    // The same slot again closes its row.
-    const selectSlot = (index) => {
-        if (slots[index].plate.val === -1) return;
-        if (selectedIndex.val === index) return select(null);
-        if (!rowOf.has(index)) rowOf.set(index, SlotRow(index));
-        select(index);
-    };
+    const editor = createBoardEditor({
+        id: "sushi-station-editor",
+        title: (index) => `Slot ${index + 1}`,
+        row: SlotRow,
+    });
 
     const load = async () =>
         run(async () => {
@@ -132,7 +119,7 @@ function SushiStationTab() {
             }
             for (let column = 0; column < STATION_WIDTH; column++)
                 fireplaceStates[column].val = toInt(fireplaces[column], { min: -1 });
-            if (selectedIndex.val !== null && slots[selectedIndex.val].plate.val === -1) select(null);
+            if (editor.picked.val !== null && slots[editor.picked.val].plate.val === -1) editor.close();
         });
 
     load();
@@ -141,7 +128,7 @@ function SushiStationTab() {
         { class: "sushi-station-board-wrap" },
         div(
             { class: "sushi-station-board", style: `--sushi-station-width: ${STATION_WIDTH};` },
-            ...slots.map((slot, index) => SlotTile({ index, slot, onSelect: selectSlot })),
+            ...slots.map((slot, index) => SlotTile({ index, slot, editor })),
             // The fireplaces under the columns, read only.
             ...fireplaceStates.map((fireplace, column) =>
                 span(
@@ -157,23 +144,6 @@ function SushiStationTab() {
             )
         )
     );
-    // The picked slot's row, under the board; Escape closes it.
-    const editor = div(
-        {
-            class: "sushi-station-editor",
-            onkeydown: (e) => {
-                if (e.key !== "Escape" || selectedIndex.val === null) return;
-                const index = selectedIndex.val;
-                select(null);
-                board.querySelector?.(`[data-index="${index}"]`)?.focus();
-            },
-        },
-        () =>
-            selectedIndex.val === null
-                ? span()
-                : AccountSection({ title: `Slot ${selectedIndex.val + 1}`, body: rowOf.get(selectedIndex.val) })
-    );
-
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
         title: "Station",
@@ -184,7 +154,7 @@ function SushiStationTab() {
         loadingText: "Reading the station",
         errorTitle: "Couldn't read the station",
         initialWrapperClass: "account-list",
-        body: div({ class: "account-list account-list--tabbed" }, ListPanel({ body: [board, editor] })),
+        body: div({ class: "account-list account-list--tabbed" }, ListPanel({ body: editor.wrap(board) })),
     });
 }
 

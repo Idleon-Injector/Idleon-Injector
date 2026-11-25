@@ -7,15 +7,18 @@ import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    realMax,
     toInt,
 } from "../../../components/views/account/accountShared.js";
-import { UpgradeDoublerButton, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
+import { doublerRow, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
 
 const { div, span } = van.tags;
 
@@ -53,10 +56,8 @@ const MineheadUpgradeRow = ({ entry, levelState, doublers }) =>
         writePath: `${MINEHEAD_UPGRADES_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        name: entry.name,
-        rowClass: "doubler-row",
-        maxAction: true,
-        renderExtraActions: () => UpgradeDoublerButton({ doublers, index: entry.index, name: entry.name }),
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
+        ...doublerRow(entry, doublers),
     });
 
 const MineheadTab = () => {
@@ -82,7 +83,8 @@ const MineheadTab = () => {
                     index,
                     rawName,
                     name: cleanName(rawName, `Minehead ${index}`),
-                    maxLevel: toInt(definition[1], { min: 0 }),
+                    bonus: bonusText(definition[5]),
+                    maxLevel: realMax(definition[1]),
                 };
             })
             .filter(Boolean);
@@ -118,10 +120,7 @@ const MineheadTab = () => {
             }
 
             for (const entry of upgradeEntries.val) {
-                getOrCreateState(upgradeStates, entry.index).val = Math.min(
-                    entry.maxLevel,
-                    toInt(levels[entry.index], { min: 0 })
-                );
+                getOrCreateState(upgradeStates, entry.index).val = toInt(levels[entry.index], { min: 0 });
             }
         });
 

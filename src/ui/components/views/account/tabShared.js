@@ -7,6 +7,7 @@ import { tabRequest } from "../../../menu/pageRegistry.js";
 import { SetAllTool, setAllLines, trayLabel } from "./BulkActionBar.js";
 import { StepPicker } from "./components/StepPicker.js";
 import { PickInPlace } from "./components/PickInPlace.js";
+import { EmptyState } from "../../EmptyState.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -464,21 +465,43 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
  * (a function of `ask`, see TabbedList) sit in the tray above them.
  *
  * @param {object} opts
- * @param {*} opts.body the rows (and a column head, when the list is a table)
+ * @param {*} [opts.body] the rows (and a column head, when the list is a table); a page that is only its tools (Sushi
+ *   Tools) has none, and the panel ends with its tray
+ * @param {() => string|null} [opts.empty] what the list says when it has nothing to show ("No nametags found"), or null
+ *   while it has: it stands in for the rows and their tools
+ * @param {boolean} [opts.short] a list of a few rows (The Button): the panel ends with them, with no room kept below
  * @param {(activeId: *, ask: Function) => *} [opts.tools]
  * @param {() => string} [opts.toolsLabel]
  * @param {string} [opts.className]
  * @param {object} [opts.setAll] Set all on the list's rows, as TabbedList's
  * @returns {HTMLElement}
  */
-export const ListPanel = ({ body, tools = null, toolsLabel = null, className = "", setAll = null }) => {
-    const rows = div({ class: "tabbed-list__body" }, ...toNodes(body));
+export const ListPanel = ({
+    body = null,
+    tools = null,
+    toolsLabel = null,
+    className = "",
+    setAll = null,
+    empty = null,
+    short = !body,
+}) => {
+    const isEmpty = () => Boolean(empty?.());
+    const rows = div({ class: "tabbed-list__body", hidden: isEmpty }, ...toNodes(body));
     const trayTools = setAll ? withSetAll(setAll, () => setAllLines(rows), tools, toolsLabel) : { tools, toolsLabel };
     const tray = trayTools.tools ? ToolsTray({ ...trayTools, activeId: van.state("") }) : null;
     return div(
-        { class: joinClasses("tabbed-list no-tabs", trayTools.tools && "has-tools", className) },
-        tray ? div({ class: "tabbed-list__head" }, tray.node) : null,
-        rows
+        {
+            class: () =>
+                joinClasses(
+                    "tabbed-list no-tabs",
+                    trayTools.tools && !isEmpty() && "has-tools",
+                    (short || isEmpty()) && "is-short",
+                    className
+                ),
+        },
+        tray ? div({ class: "tabbed-list__head", hidden: isEmpty }, tray.node) : null,
+        body ? rows : null,
+        empty ? () => (isEmpty() ? EmptyState({ title: empty() }) : span({ hidden: true })) : null
     );
 };
 

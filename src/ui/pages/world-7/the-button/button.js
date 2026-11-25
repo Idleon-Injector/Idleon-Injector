@@ -48,6 +48,7 @@ const ButtonPage = () => {
     const body = div(
         { class: "account-list account-list--tabbed" },
         ListPanel({
+            short: true,
             body: BUTTON_FIELDS.map((field) =>
                 ButtonRow({ field, fieldState: getOrCreateState(fieldStates, field.index), onWrite })
             ),
