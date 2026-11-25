@@ -125,8 +125,8 @@ warning), on/off and where you are (the lavender accent), the world codes, and n
 cauldrons, liquids, brews, signs).
 
 - **Surfaces:** page `#0d0c18`, sidebar `#121120`, a group of rows (and the search, a panel) `#161526`, row hover
-  `#1c1a2f`, a value's well `#211f3a`, edge `#252340`, strong edge `#36325a`, the hairline between rows `#1f1d35`.
-- **Text:** main `#f3f1ff`, row names `#e3e0f6`, muted `#aaa6c8`, faint `#8e8ab0` (indices, a field's cap), the
+  `#211e38`, a value's well `#211f3a`, edge `#252340`, strong edge `#36325a`, the hairline between rows `#252340`.
+- **Text:** main `#f3f1ff`, row names `#e3e0f6`, muted `#aaa6c8`, faint `#9a96bc` (indices, a field's cap), the
   sidebar's words `#b4b0d0`. Each meets WCAG AA on every surface it sits on.
 - **Accent:** lavender `#b0a7ff`, for where you are, what is on and the focus ring; a switch that is on is `#7d72ee`.
 - **Trouble:** failed `#ff8a80` (soft text `#ff9d94`), warning `#ffc24d`. Saved is a quiet tick in the muted colour.

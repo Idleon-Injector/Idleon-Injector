@@ -23,8 +23,6 @@
     --c-void-soft: #161526;
     --c-panel-dim: #211f3a;
     --c-panel-dark-dim: #211f3a;
-    --c-panel-hover: #1c1a2f;
-    --c-lift: #1c1a2f;
     --c-fill: var(--c-here);
     --c-faint: var(--c-text-faint);
     --c-field: var(--c-panel-dim);
@@ -34,7 +32,6 @@
     --c-scrollbar-thumb: #2e2b4d;
     --c-accent-tint: #221f3f;
     --c-success-tint: var(--c-void-soft);
-    --c-success-flash: #1c1a2f;
 }
 
 #tab-content {
