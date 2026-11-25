@@ -108,7 +108,7 @@ const CookingAutomationTab = () => {
             name,
             stopAtTitle: "Stop at level",
             values: [
-                { name: "Level", text: () => `${meal.val.level ?? 0} / ${maxMeal.val}` },
+                { name: "Level", text: () => meal.val.level ?? 0, cap: () => maxMeal.val },
                 {
                     name: "Next level",
                     quiet: true,

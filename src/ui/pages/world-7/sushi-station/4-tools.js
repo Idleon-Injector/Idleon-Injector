@@ -23,7 +23,14 @@ function SushiToolsTab() {
             const response = await executeCheatAction(
                 `w7 sushitools knowledge ${knowledgeTier.val} ${knowledgeQuantity.val}`
             );
-            feedback.val = JSON.parse(response.message).message;
+            let answer;
+            try {
+                answer = JSON.parse(response.message);
+            } catch {
+                // The XP may have gone in, so no "try again": the parser's words are never shown.
+                throw new Error("Couldn't read Sushi's answer.");
+            }
+            feedback.val = answer.message;
         } catch (error) {
             feedback.val = error.message;
         } finally {

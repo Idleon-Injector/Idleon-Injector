@@ -102,7 +102,12 @@ function SushiAutomation() {
     const settingsSaving = () => settingsSave.isBusy() || settingsSave.status.val === "loading";
     async function command(action) {
         const response = await executeCheatAction("w7 sushitools" + (action ? " " + action : ""));
-        return JSON.parse(response.message);
+        // An answer that isn't the game's JSON is said plainly, never as the parser's words.
+        try {
+            return JSON.parse(response.message);
+        } catch {
+            throw new Error("Couldn't read Sushi. Try again.");
+        }
     }
     async function run(action) {
         actions++;

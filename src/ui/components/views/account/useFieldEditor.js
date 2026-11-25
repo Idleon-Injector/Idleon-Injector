@@ -183,9 +183,11 @@ export const useFieldEditor = ({ fields, normalize, write, disabled = null, onAp
     });
 
     fields.forEach((field) => {
-        draftStates[field.key] = van.state((field.toDraft ?? defaultToDraft)(field.valueState.val));
+        // rawVal: a row made inside a page's reactive list doesn't make that list depend on its value, or every
+        // save would rebuild the list and take the row's Undo with it (Observations, #290).
+        draftStates[field.key] = van.state((field.toDraft ?? defaultToDraft)(field.valueState.rawVal));
         shownByKey.set(field.key, draftStates[field.key].rawVal);
-        baseByKey.set(field.key, field.valueState.val);
+        baseByKey.set(field.key, field.valueState.rawVal);
         // A reload shows the new value, in a focused field too, unless the field is being saved or holds the
         // player's draft.
         van.derive(() => {

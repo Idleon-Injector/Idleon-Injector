@@ -15,7 +15,7 @@ const rowOf = (label) => byClass(tab, "account-row").find((node) => elements(nod
 const SPICE = "Encroaching Forest Spice % of goal";
 // A read-only value of a row, by its column ("Level", "Next level").
 const value = (node, column) =>
-    text(
+    kit.shown(
         byClass(node, "value-cell")
             .find((cell) => text(byClass(cell, "value-cell__label")[0]) === column)
             ?.childNodes.at(-1)

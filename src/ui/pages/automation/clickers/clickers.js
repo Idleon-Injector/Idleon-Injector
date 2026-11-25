@@ -79,8 +79,8 @@ export const useBubbaAutomation = () => {
                         values: [
                             {
                                 name: "Level",
-                                text: () =>
-                                    `${upgrade.val.level ?? 0}${upgrade.val.max ? ` / ${upgrade.val.max}` : ""}`,
+                                text: () => upgrade.val.level ?? 0,
+                                cap: () => upgrade.val.max || null,
                             },
                             {
                                 name: "Next level",

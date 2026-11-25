@@ -805,6 +805,13 @@ test("resources: only the kinds the nodes give, by world", async () => {
     const { pane } = await openPane(ROYAL_ARMORY, "Resources");
     const kinds = new Set(gga.CustomLists.h.RoyalResources.map((node) => node[3]).filter((r) => r >= 0));
     assert.equal(rowsIn(pane).length, kinds.size);
+    // #290: the names Automation's Armory uses, read from the game side, not "Resource 1".
+    const { RESOURCES } = await importRepo("src/cheats/helpers/automation/armory.js");
+    assert.deepEqual(
+        names(pane),
+        [...kinds].sort((a, b) => a - b).map((r) => RESOURCES[r])
+    );
+    assert.equal(names(pane)[0], "Wheat");
     const row = rowsIn(pane)[0];
     typeAndEnter(row, 4321);
     await settled(row);
