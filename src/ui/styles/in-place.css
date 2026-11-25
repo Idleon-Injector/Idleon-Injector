@@ -170,15 +170,6 @@
     overflow-wrap: anywhere;
 }
 
-/* Favorites and Recent: the result rides on the group's header line. */
-.quick-access-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 1.25rem;
-}
-
 /* Value search: the hint line says why a scan didn't run, and a list says when it's partial. */
 .search-refusal {
     display: inline-flex;

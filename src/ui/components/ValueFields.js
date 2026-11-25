@@ -11,22 +11,26 @@ import { VALUE_COMMANDS, codeOf, valuesOf } from "../menu/valueCommands.js";
 const { datalist, input, option, span } = van.tags;
 
 const AMOUNT_WORDS = { Amount: "an amount", Level: "a level", Stacks: "a stack count" };
-const withArticle = (noun) => `${/^[aeiou]/.test(noun) ? "an" : "a"} ${noun}`;
+export const withArticle = (noun) => `${/^[aeiou]/.test(noun) ? "an" : "a"} ${noun}`;
+
+/** Why a typed number can't run ("Not a number.", "0 or more."), or "". The game's own commands cut "3abc" to 3. */
+export const notANumber = (text) => {
+    const number = Number(text);
+    return !Number.isFinite(number) ? "Not a number." : number < 0 ? "0 or more." : "";
+};
 
 /**
  * @param {string} command - A key of VALUE_COMMANDS ("spawn")
  * @param {string} label - What the row is called, for screen readers
- * @returns {{ element: Element, read: () => ({ action: string } | { refuse: string, field: Element }), fill:
- *   (text: string) => void, typed: import("../vendor/van-1.6.0.js").State }}
+ * @returns {{ element: Element, read: () => ({ action: string } | { refuse: string, field: Element }) }}
  */
 export const ValueFields = (command, label) => {
     const spec = VALUE_COMMANDS[command];
     const values = van.derive(() => valuesOf(command, store.data.cheats));
     const listId = `values-${command.replace(/\W+/g, "-")}`;
-    // What the fields hold. The fields stay put and show these, so typing keeps focus; a row's star reads them.
+    // What the fields hold. The fields stay put and show these, so typing keeps focus.
     const text = van.state("");
     const count = van.state("");
-    const typed = van.derive(() => `${text.val}|${count.val}`);
 
     const choices = datalist({ id: listId });
     // The cheat list may load after the row.
@@ -62,15 +66,14 @@ export const ValueFields = (command, label) => {
         if (!code) return { refuse: `Not ${withArticle(spec.noun)}.`, field: choice };
         const number = count.val.trim();
         if (spec.amountNeeded && !number) return { refuse: `Needs ${AMOUNT_WORDS[spec.amount]}`, field: amount };
-        if (number && !Number.isFinite(Number(number))) return { refuse: "Not a number.", field: amount };
+        if (number && notANumber(number)) return { refuse: notANumber(number), field: amount };
         return { action: [command, code, number].filter(Boolean).join(" ") };
     };
-    const fill = (value) => (text.val = value);
     const element = span(
         { class: amount ? "value-fields" : "value-fields value-fields--single" },
         choice,
         choices,
         amount
     );
-    return { element, read, fill, typed };
+    return { element, read };
 };

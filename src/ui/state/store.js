@@ -70,8 +70,6 @@ const dataState = vanX.reactive({
     accountOptions: [],
     accountSchema: {},
     activeCheatStates: {},
-    favoriteCheats: safeParseJSON("favoriteCheats", []),
-    recentCheats: safeParseJSON("recentCheats", []),
 });
 
 const rawMonitorState = vanX.reactive({ values: {} });
@@ -272,7 +270,6 @@ const CheatService = {
     executeCheat: async (action, on = clickedState(action)) => {
         try {
             const result = await API.executeCheatAction(action, on);
-            FavoritesService.addToRecent(action);
             return { ok: true, message: result.message || "done" };
         } catch (e) {
             return { ok: false, message: e.message || "it didn't run" };
@@ -320,31 +317,6 @@ const CheatStateService = {
             console.error("Error loading cheat states:", e);
             dataState.activeCheatStates = {};
         }
-    },
-};
-
-const FavoritesService = {
-    toggleFavorite: (cheatValue) => {
-        const index = dataState.favoriteCheats.indexOf(cheatValue);
-        if (index > -1) {
-            dataState.favoriteCheats.splice(index, 1);
-        } else {
-            dataState.favoriteCheats.push(cheatValue);
-        }
-        localStorage.setItem("favoriteCheats", JSON.stringify([...dataState.favoriteCheats]));
-    },
-
-    isFavorite: (cheatValue) => {
-        return dataState.favoriteCheats.includes(cheatValue);
-    },
-
-    addToRecent: (cheatValue) => {
-        const filtered = dataState.recentCheats.filter((c) => c !== cheatValue);
-        filtered.unshift(cheatValue);
-        const newRecent = filtered.slice(0, 10);
-        dataState.recentCheats.length = 0;
-        newRecent.forEach((c) => dataState.recentCheats.push(c));
-        localStorage.setItem("recentCheats", JSON.stringify(newRecent));
     },
 };
 
@@ -517,10 +489,6 @@ const store = {
             return e.message || "it didn't open";
         }
     },
-
-    toggleFavorite: FavoritesService.toggleFavorite,
-    isFavorite: FavoritesService.isFavorite,
-    addToRecent: FavoritesService.addToRecent,
 };
 
 export default store;

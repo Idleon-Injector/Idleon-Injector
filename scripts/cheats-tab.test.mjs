@@ -1,6 +1,5 @@
 // The Cheats area in the page's own pieces: its nine groups as the shared tabs, each cheat a cheats-panel row with a
-// short name and its command under it, Dangerous last and asking before a command runs, the top bar as its search,
-// and Favorites and Recent beside the list.
+// short name and its command under it, Dangerous last and asking before a command runs, the top bar as its search.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { importRepo, loadUi } from "./known-bugs/index.mjs";
@@ -74,7 +73,8 @@ test("the short names are real cheats of the area, on one line, and a cheat that
 });
 
 test("Dangerous says what it can do, and its commands ask on their button before they run", async () => {
-    assert.match(text(page.querySelector(".cheats-rows .warning-banner")), /wipe parts of your save/);
+    assert.match(text(page.querySelector(".cheats-rows .cheats-warning")), /wipe parts of your save/);
+    assert.equal(page.querySelectorAll(".warning-banner").length, 0, "a plain line, not a box");
     const run = rowOf("wipe inv").querySelector(".system-cheats__run");
     assert.match(String(run.attributes.class), /btn-danger/);
     requests.length = 0;
@@ -85,34 +85,52 @@ test("Dangerous says what it can do, and its commands ask on their button before
     await until(() => requests.includes("POST /api/toggle"), "the second press to run it");
 });
 
-test("a row's star keeps what it would run, with its value, under Favorites; pressing it there runs it", async () => {
-    const row = rowOf("multiply damage");
+test("another tab drops a Click again that waits", async () => {
+    const run = rowOf("wipe chest").querySelector(".system-cheats__run");
+    await run.listeners.click({ currentTarget: run });
+    assert.equal(run.attributes["data-again"], "Click again");
+    const tab = (name) => page.querySelectorAll(".tabbed-list__tab").find((el) => text(el) === name);
+    tab("Tools").listeners.click();
+    await until(() => run.attributes["data-again"] === undefined, "the question to go");
+});
+
+test("a value field's hint starts with a capital, and what it can't take is said before anything is sent", async () => {
+    const row = rowOf("qnty inv");
     const field = row.querySelector(".system-cheats__value");
-    const star = row.querySelector(".cheats-star");
-    field.value = "7";
-    row.listeners.input();
-    await star.listeners.click();
-    await until(() => star.attributes["aria-pressed"] === "true", "the star to light");
-    assert.ok(store.isFavorite("multiply damage 7"));
+    assert.equal(field.attributes.placeholder ?? field.placeholder, "Amount");
+    const run = row.querySelector(".system-cheats__run");
+    const said = () => text(row.querySelector(".system-cheats__said"));
+    for (const [typed, reason] of [
+        ["", "Needs a number"],
+        ["abc", "Not a number."],
+        ["5abc", "Not a number."],
+        ["1e999", "Not a number."],
+        ["-1", "0 or more."],
+    ]) {
+        field.value = typed;
+        requests.length = 0;
+        await run.listeners.click({ currentTarget: run });
+        await until(() => said() === reason, `"${typed}" to say ${reason}`);
+        assert.ok(!requests.includes("POST /api/toggle"), `"${typed}" isn't sent`);
+    }
+    field.value = "5";
+    await run.listeners.click({ currentTarget: run });
+    await until(() => requests.includes("POST /api/toggle"), "a number to run");
 
-    // A favorite of several words (a command and its value) is one row of its own.
-    store.toggleFavorite("w7 sushitools knowledge 3 500");
-    const quick = () => elements(page).filter((el) => el.attributes["data-quick"]);
-    await until(() => quick().length === 2, "both favorites to show");
-    const several = quick().find((el) => el.attributes["data-quick"] === "w7 sushitools knowledge 3 500");
-    assert.equal(text(several.querySelector(".my-cheat__name")), "w7 sushitools knowledge 3 500");
-
+    // A value that is words isn't held to numbers.
+    const exp = rowOf("wipe exp");
+    const button = exp.querySelector(".system-cheats__run");
     requests.length = 0;
-    await several.querySelector(".my-cheat__name").listeners.click();
-    await until(() => requests.includes("POST /api/toggle"), "the favorite to run");
+    await button.listeners.click({ currentTarget: button });
+    await until(() => text(exp.querySelector(".system-cheats__said")) === "Needs a skill", "the skill to be asked for");
+    exp.querySelector(".system-cheats__value").value = "all";
+    await button.listeners.click({ currentTarget: button });
+    await button.listeners.click({ currentTarget: button });
+    await until(() => requests.includes("POST /api/toggle"), "words to run");
+});
 
-    // It ran, so Recent has it too; "remove" takes it out of Favorites only.
-    await several.querySelector(".my-cheat__move").listeners.click();
-    const favorites = () => quick().filter((el) => el.querySelector(".my-cheat__move"));
-    await until(() => favorites().length === 1, "remove");
-    assert.ok(
-        quick().some((el) => el.attributes["data-quick"] === "w7 sushitools knowledge 3 500"),
-        "still in Recent"
-    );
-    store.toggleFavorite("multiply damage 7");
+test("a run keeps nothing in the browser: no favorites, no recents", () => {
+    assert.equal(store.data.favoriteCheats, undefined);
+    assert.equal(store.data.recentCheats, undefined);
+    assert.equal(page.querySelectorAll(".cheats-star").length, 0);
 });

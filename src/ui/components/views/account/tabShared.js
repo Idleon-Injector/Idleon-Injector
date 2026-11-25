@@ -286,9 +286,15 @@ export const TabbedList = ({
         if (!tab || !tab.offsetWidth) return; // not laid out yet (the page still loading); the resize places it
         pill.style.setProperty("--pill-x", `${tab.offsetLeft}px`);
         pill.style.setProperty("--pill-w", `${tab.offsetWidth}px`);
-        // Wrapped rows: the pill follows its tab's row, and runs down into the list only from the last one.
-        pill.style.setProperty("--pill-y", `${tab.offsetTop - buttons[0].offsetTop}px`);
-        nav.classList.toggle("pill-floats", tab.offsetTop < Math.max(...buttons.map((b) => b.offsetTop)));
+        // Wrapped rows: the pill follows its tab's row. On a row above the last, the rows of tabs under it stand on the
+        // ground it opens (--band, their height), so the open tab is joined to its list from any row.
+        nav.style.setProperty("--pill-y", `${tab.offsetTop - buttons[0].offsetTop}px`);
+        const band = Math.max(...buttons.map((b) => b.offsetTop)) - tab.offsetTop;
+        nav.style.setProperty("--band", `${band}px`);
+        nav.classList.toggle("has-band", band > 0);
+        // A tab at its row's end has no room for a foot on that side.
+        nav.classList.toggle("pill-at-start", tab.offsetLeft === buttons[0].offsetLeft);
+        nav.classList.toggle("pill-at-end", tab.offsetLeft + tab.offsetWidth > nav.clientWidth - 12);
         if (nav.classList.contains("has-pill")) return;
         // The first place is taken without a glide; from the next frame on, a move glides.
         nav.classList.add("has-pill");
@@ -317,20 +323,7 @@ export const TabbedList = ({
 
     return div(
         { class: () => joinClasses("tabbed-list", showsTools() && "has-tools") },
-        div(
-            // The first tab open stands on the tray's left edge (its corner there goes square); on a phone the tabs fill
-            // the row, so the last one open stands on its right edge.
-            {
-                class: () =>
-                    joinClasses(
-                        "tabbed-list__head",
-                        !pick && activeId.val === tabs[0].id && "first-open",
-                        !pick && activeId.val === tabs[tabs.length - 1].id && "last-open"
-                    ),
-            },
-            picker ?? nav,
-            tray?.node
-        ),
+        div({ class: "tabbed-list__head" }, picker ?? nav, tray?.node),
         body
     );
 };

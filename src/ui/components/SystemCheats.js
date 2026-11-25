@@ -21,7 +21,7 @@ import { parseFunction, generateFunctionString, FUNCTION_TYPES } from "../utils/
 import { configDescriptions, configShortNames, configSwitches } from "../config/configDescriptions.js";
 import { cheatsOfPage } from "../menu/pageCheats.js";
 import { VALUE_COMMANDS } from "../menu/valueCommands.js";
-import { ValueFields } from "./ValueFields.js";
+import { ValueFields, notANumber, withArticle } from "./ValueFields.js";
 import { whenShown } from "../menu/menuModel.js";
 import { revealFound } from "../utils/index.js";
 import { Icons } from "../assets/icons.js";
@@ -155,23 +155,27 @@ const kindOf = (command) => {
     return row ? (row.toggle ? "toggle" : "run") : "";
 };
 
+// The hints whose value is a number; any other value is words (a skill, an attribute).
+const NUMBERS = ["1-25", "amount", "minutes", "number", "points", "size", "slot", "speed", "times"];
+
 /** A command's value field (a ribbon level, a twin's number), for a value the panel has no list of. */
 const ValueField = (cheat) =>
     input({
         type: "text",
         class: "system-cheats__value",
-        placeholder: cheat.hint,
+        ...(NUMBERS.includes(cheat.hint) && { inputmode: "decimal" }),
+        placeholder: cheat.hint.charAt(0).toUpperCase() + cheat.hint.slice(1),
         "aria-label": `${cheat.label}: ${cheat.hint}`,
     });
 
 /**
  * A cheat: its label and its command, then what it takes: a switch for an on/off cheat, a Run button
  * for a command, and a field first when it takes a value. A cheat with settings opens them under it from its name.
- * Shared with the Cheats area (views/Cheats.js): a `dangerous` cheat's Run asks "Click again" first, and `extra` adds a
- * control at the row's end, given what a press would run now (`command`) and how the row refuses (`refuse`).
+ * What a press did, or why it couldn't, is said under the command. Shared with the Cheats area (views/Cheats.js), where
+ * a `dangerous` cheat's Run asks "Click again" first.
  */
-export const CheatRow = (cheat, { openId, config, extra = null }) => {
-    const { said, say } = useSaid();
+export const CheatRow = (cheat, { openId, config }) => {
+    const { said, say, clear } = useSaid();
     const isOpen = () => openId.val === cheat.cheat;
     // Made again when the row learns it has settings (it then opens them), so the words never move between parents.
     const titles = () =>
@@ -188,11 +192,12 @@ export const CheatRow = (cheat, { openId, config, extra = null }) => {
 
     // What a press runs now, with its value, or why it can't yet (the field to pulse and the reason).
     const command = () => {
-        if (field && !value())
-            return {
-                at: field,
-                reason: `Needs ${cheat.hint === "1-25" ? "a number" : `a ${cheat.hint.split(" ")[0]}`}`,
-            };
+        if (field) {
+            const number = NUMBERS.includes(cheat.hint);
+            if (!value())
+                return { at: field, reason: `Needs ${withArticle(number ? "number" : cheat.hint.split(" ")[0])}` };
+            if (number && notANumber(value())) return { at: field, reason: notANumber(value()) };
+        }
         const read = fields?.read();
         if (read?.refuse) return { at: read.field, reason: read.refuse };
         return { action: read?.action ?? (field ? `${cheat.cheat} ${value()}` : cheat.cheat) };
@@ -229,15 +234,16 @@ export const CheatRow = (cheat, { openId, config, extra = null }) => {
             name: cheat.label,
             ownStatus: true,
             onFlip: async (next) => {
-                if (next && field && !value()) {
-                    replay(field, "refused");
-                    return { ok: false, error: new Error(`Needs a ${cheat.hint.split(" ")[0]}`) };
+                clear();
+                // Turning a cheat off takes no value.
+                const asked = next ? command() : { action: cheat.cheat };
+                if (!asked.action) {
+                    refuse(asked);
+                    return { ok: false };
                 }
-                const result = await store.executeCheat(
-                    next && field ? `${cheat.cheat} ${value()}` : cheat.cheat,
-                    next
-                );
-                return result.ok ? { ok: true } : { ok: false, error: new Error(plainReason(result.message)) };
+                const result = await store.executeCheat(asked.action, next);
+                if (!result.ok) say("failed", plainReason(result.message));
+                return { ok: result.ok };
             },
         });
 
@@ -254,9 +260,6 @@ export const CheatRow = (cheat, { openId, config, extra = null }) => {
         state.val = "on" in setting ? settingIsOn(setting, stored) : String(shownNumber(stored));
         return state;
     };
-
-    // Made once, so the controls rebuilt when the kind is known keep it.
-    const end = extra?.({ command, refuse }) ?? null;
 
     const row = AccountRow({
         rowClass: () =>
@@ -291,8 +294,7 @@ export const CheatRow = (cheat, { openId, config, extra = null }) => {
                             },
                             "Run"
                         )
-                      : null,
-                end
+                      : null
             ),
     });
     row.append(

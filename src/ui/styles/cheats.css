@@ -1,125 +1,125 @@
 /*
- * The Cheats area (views/Cheats.js): the page top, then the list of groups as tabs (TabbedList) with Quick access
- * beside it, in Home's frame. Its rows are the ones a page's cheats panel has (system-cheats.css).
+ * The Cheats area (views/Cheats.js): the page top, then the list of groups as tabs (TabbedList) at a table page's width,
+ * so its nine tabs stand in one row. Its rows are the ones a page's cheats panel has (system-cheats.css).
  */
-
-/* The view fills the window under the search (Home's frame, menu.css); only the list's rows scroll. */
-.viewport .cheats-page-top {
-    max-width: var(--page-measure);
+#cheats-tab {
+    --page-measure: 60rem;
 }
+
+/* The view fills the window under the search; only the list's rows scroll. */
+.viewport .cheats-view,
 .viewport .cheats-list {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
 }
+.viewport .cheats-list {
+    max-width: var(--page-measure);
+}
 .viewport .cheats-list > .tabbed-list {
     flex: 0 1 auto;
     min-height: 0;
 }
 
-/* A group's rows: the panel's rows across the list's width. */
-.viewport .cheats-rows {
-    display: flex;
-    flex-direction: column;
+/* Nine tabs share the row, so each still fits on it with a search's count after its name. */
+.viewport .cheats-list .tabbed-list .tabbed-list__tab {
+    flex: 1 1 auto;
+    padding: 0 6px;
 }
-.viewport .cheats-rows > .account-row + .account-row {
-    border-top: 1px solid var(--c-hairline);
-}
-.viewport .cheats-rows > .account-row {
-    min-height: 56px;
-}
-.viewport .cheats-rows > .warning-banner {
-    margin: 12px 12px 4px 16px;
-}
-
-/* The controls keep one width down the list: a value's field in its own column, then the switch or Run in one slot
-   (the switch keeps room for "On", so turning a cheat on moves nothing), then the star. So the fields, the switches
-   and the arrows of rows that open each line up. A list command's fields take their own line instead. */
-.viewport .cheats-rows > .account-row:not(.system-cheats__row--value) .system-cheats__controls {
-    justify-content: flex-end;
-    width: calc(7rem + 6px + 70px + 6px + 30px);
-}
-.viewport .system-cheats.cheats-rows .state-switch {
-    justify-content: flex-end;
-    min-width: 70px;
-}
-.viewport .system-cheats.cheats-rows .state-switch__words {
-    min-width: 1.6em;
-}
-.viewport .cheats-rows .system-cheats__run {
-    min-width: 70px;
-}
-/* A list command's own line: its value field gives way first, so the Run and star stay in the row. */
-.viewport .cheats-rows .system-cheats__row--value > .account-row__controls {
-    min-width: 0;
-}
-
-/* A cheat's settings end where the cheats' switches end, before the star's room. */
-.viewport .system-cheats.cheats-rows .row-detail .account-row {
-    padding-right: calc(12px + 36px);
-}
-
 /* Dangerous keeps its warning colour on its tab, open or not. */
 .viewport .tabbed-list__tab .cheats-danger-word {
     color: var(--c-danger-soft-text);
 }
 
-/* The star: quiet until the row is touched (always on a touch screen); a favorite's star is lavender. Its room is kept,
-   so nothing moves when it shows. */
-.viewport .cheats-star {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--c-text-faint);
-    cursor: pointer;
-    opacity: 0;
-    transition:
-        opacity 160ms var(--ease-soft),
-        color 160ms var(--ease-soft),
-        background 160ms var(--ease-soft);
+/* A group's rows: the panel's rows across the list's width, one height, their words and their switches as far in from
+   the list's two edges. */
+.viewport .cheats-rows {
+    --row-end: 16px;
+    display: flex;
+    flex-direction: column;
 }
-.viewport .cheats-star svg {
-    width: 16px;
-    height: 16px;
+.viewport .cheats-rows > .account-row + .account-row,
+.viewport .cheats-rows > .cheats-warning + .account-row {
+    border-top: 1px solid var(--c-hairline);
 }
-.viewport .account-row:hover .cheats-star,
-.viewport .account-row:focus-within .cheats-star {
-    opacity: 1;
+.viewport .system-cheats.cheats-rows > .account-row {
+    min-height: 56px;
+    padding-top: 8px;
+    padding-bottom: 8px;
 }
-.viewport .cheats-star:hover {
-    background: var(--c-white-05);
-    color: var(--c-text-main);
+/* The first row has no line over it, so this room stands in for it. */
+.viewport .system-cheats.cheats-rows > .account-row:first-child {
+    padding-top: 9px;
 }
-.viewport .cheats-star.is-favorite {
-    color: var(--c-accent);
+.viewport .system-cheats.cheats-rows > .account-row > .row-detail {
+    margin-bottom: -8px;
 }
-.viewport .cheats-star.is-favorite .icon-star {
-    fill: currentColor;
-}
-.viewport .cheats-star:focus-visible {
-    outline: 2px solid var(--c-accent);
-    outline-offset: 2px;
-}
-@media (hover: none) {
-    .viewport .cheats-star {
-        opacity: 1;
-    }
+.viewport .cheats-rows > .cheats-warning {
+    margin: 0;
+    padding: 12px 16px;
 }
 
-/* Quick access runs commands, so its names keep the row-name colour (My cheats greys a name that's off). */
-.viewport .cheats-quick .my-cheat__name {
-    color: var(--c-text-body);
+/* The switch alone says on or off here; its failure is said under the command. */
+.viewport .cheats-rows .state-switch__words {
+    display: none;
 }
-.viewport .cheats-quick .my-cheat__name:hover {
-    color: var(--c-text-main);
+
+/* Fields on the row's own line, as wide as each other down the list: the value, then the amount, then the switch or Run
+   in one slot. Where the line has no room for them (a phone, the Config drawer beside the list) they go under the name
+   and fill the line. */
+.viewport .cheats-rows .system-cheats__run,
+.viewport .cheats-rows .system-cheats__row--field .state-switch {
+    min-width: 70px;
+}
+.viewport .cheats-rows .system-cheats__row--field .state-switch {
+    justify-content: flex-end;
+}
+.viewport .system-cheats.cheats-rows .system-cheats__row--field,
+.viewport .system-cheats.cheats-rows .system-cheats__row--value {
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+.viewport .system-cheats.cheats-rows .system-cheats__row--field > .account-row__info,
+.viewport .system-cheats.cheats-rows .system-cheats__row--value > .account-row__info {
+    flex: 9999 1 11rem;
+}
+.viewport .system-cheats.cheats-rows .system-cheats__row > .account-row__controls {
+    min-width: 0;
+}
+.viewport .system-cheats.cheats-rows .system-cheats__row--field > .account-row__controls {
+    flex: 1 1 calc(7rem + 6px + 70px);
+}
+.viewport .system-cheats.cheats-rows .system-cheats__row--value > .account-row__controls {
+    flex: 1 1 calc(14rem + 6px + 7rem + 6px + 70px);
+}
+.viewport .system-cheats.cheats-rows .system-cheats__row--field .system-cheats__controls,
+.viewport .system-cheats.cheats-rows .system-cheats__value,
+.viewport .system-cheats.cheats-rows .value-fields {
+    flex: 1;
+    min-width: 0;
+}
+.viewport .system-cheats.cheats-rows .value-fields {
+    gap: 6px;
+}
+.viewport .system-cheats.cheats-rows .value-fields__amount {
+    width: 7rem;
+}
+
+/* What a press did, beside the command it ran, so the row keeps its height. */
+.viewport .cheats-rows .system-cheats__titles {
+    flex: 1;
+}
+@media (min-width: 761px) {
+    .viewport .cheats-rows .system-cheats__titles {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: end;
+        column-gap: 16px;
+    }
+    .viewport .cheats-rows .system-cheats__said {
+        margin-top: 0;
+    }
 }
 
 /* The Config page's sections (ConfigNode.js) */
@@ -178,25 +178,4 @@
     display: flex;
     flex: none;
     gap: 8px;
-}
-
-/* In the narrow overlay a cheat with a value keeps its name on the first line and its field, switch or Run on the
-   line under it, the field taking the room. */
-@media (max-width: 760px) {
-    .viewport .cheats-rows > .account-row:not(.system-cheats__row--value) .system-cheats__controls {
-        width: auto;
-    }
-    .viewport .cheats-rows .system-cheats__row--field {
-        flex-wrap: wrap;
-        row-gap: 8px;
-    }
-    .viewport .cheats-rows .system-cheats__row--field > .account-row__controls {
-        flex: 1 1 100%;
-        margin-left: 0;
-    }
-    .viewport .cheats-rows .system-cheats__row--field .system-cheats__controls,
-    .viewport .cheats-rows .system-cheats__row--field .system-cheats__value {
-        flex: 1;
-        min-width: 0;
-    }
 }

@@ -487,7 +487,8 @@ World 5 uses the same pieces; two shared pages moved onto them:
   Black Stars under their heads, so nothing in a line moves with its neighbour's width (Lumi: "it looks off, not
   aligned"). A number beside a control (the Rat King's "3 / 10") keeps one width for the same reason.
 - **Many tabs wrap** (`TabbedList`'s `wrap`, Death Note's eight on a phone): the rows of tabs fill the panel's width. The
-  open tab runs down into the list from the last row; on a row above, it is a block rounded all round.
+  open tab is joined to what it opens from any row (Lumi, 2026-11-25): on a row above the last, the rows of tabs under it
+  stand on the open tab's own ground, carried on down into the tray or the list. It is never a bubble.
 - **Far more parts than tabs hold** (Caverns' 18) are one pick instead (`TabbedList`'s `pick`): "Cavern [The Well]",
   the caverns opening over the page like a character's names. While the top bar searches the page, each cavern in the
   list and the pick itself say how many of its rows match ("Fountain · 12 matching").
@@ -537,3 +538,23 @@ The masterclasses use the World 6 pieces and the Page standards; one page builde
 - **The four masterclasses have their drawings** (Lumi: put all four in): a clasped book with a small skull for the
   Grimoire, a ring and its needle for the Compass, a cube in a cube for the Tesseract, and a knight's helm for the
   Royal Armory.
+
+### The Cheats page (decided 2026-11-25)
+
+Every cheat that isn't on a system's page, in the same pieces (`views/Cheats.js`).
+
+- **Nine groups, nine tabs in one row** at the table measure (60rem), Dangerous last and in its warning colour. They share
+  the row, so a search's counts still fit on it; on a narrow window they wrap.
+- **A row is the cheats panel's row** (`CheatRow`): the short name, the command small under it, then its field and its
+  switch or Run, which end as far from the list's right edge as the names start from its left. Every row is 56 px high.
+  A field stands on the row's own line where it fits, under the name on a phone or beside the Config drawer.
+- **A row's arrow is right beside its switch or Run,** as in the cheats panel.
+- **The switch alone says on or off:** no "On" beside it. Screen readers get the switch's state.
+- **A field's hint starts with a capital** ("Amount"), here and in the cheats panels. A field for a number refuses anything
+  else before it is sent ("Needs a number", "Not a number.", "0 or more.").
+- **What a press did is said beside the command** (under it on a phone), a switch's failure too, so nothing in the row
+  moves.
+- **Dangerous starts with its warning as one plain amber line,** no box. Its commands ask "Click again", and another tab
+  drops the question.
+- **No Quick access:** no favorites, no recents, no stars (Lumi). Cheats that are on are in Home's My cheats.
+- **Its drawing** is a game controller.
