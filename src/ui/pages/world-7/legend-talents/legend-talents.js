@@ -6,19 +6,26 @@ import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { cleanName, createStaticRowReconciler, toInt } from "../../../components/views/account/accountShared.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import {
+    bonusText,
+    cleanName,
+    createStaticRowReconciler,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const LEGEND_TALENT_LEVELS_PATH = "Spelunk[18]";
 const SECTION_SIZE = 10;
 const SECTION_DEFS = [
-    { id: "yellow", title: "YELLOW TALENTS", sliceStart: 0 },
-    { id: "red", title: "RED TALENTS", sliceStart: 10 },
-    { id: "brown", title: "BROWN TALENTS", sliceStart: 20 },
-    { id: "green", title: "GREEN TALENTS", sliceStart: 30 },
-    { id: "white", title: "WHITE TALENTS", sliceStart: 40 },
+    { id: "yellow", title: "Yellow", sliceStart: 0 },
+    { id: "red", title: "Red", sliceStart: 10 },
+    { id: "brown", title: "Brown", sliceStart: 20 },
+    { id: "green", title: "Green", sliceStart: 30 },
+    { id: "white", title: "White", sliceStart: 40 },
 ];
 
 const buildTalentRows = (rawDefinitions, rawOrder, rawLevels, rawMaxResults) => {
@@ -36,7 +43,7 @@ const buildTalentRows = (rawDefinitions, rawOrder, rawLevels, rawMaxResults) => 
 
                 const maxResult = rawMaxResults[talentIndex];
                 if (!maxResult?.ok) {
-                    throw new Error(`LegendTalent_MaxLV failed for talent ${talentIndex}`);
+                    throw new Error("The game didn't give a talent's max level.");
                 }
 
                 return {
@@ -44,6 +51,7 @@ const buildTalentRows = (rawDefinitions, rawOrder, rawLevels, rawMaxResults) => 
                     talentIndex,
                     rawName,
                     name: cleanName(rawName, `Talent ${talentIndex}`),
+                    bonus: bonusText(definition[5]),
                     maxLevel: toInt(maxResult.value, { min: 0 }),
                     levelState: van.state(toInt(levels[talentIndex], { min: 0 })),
                 };
@@ -63,12 +71,7 @@ const LegendTalentRow = ({ talent }) =>
         writePath: `${LEGEND_TALENT_LEVELS_PATH}[${talent.talentIndex}]`,
         max: talent.maxLevel,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${talent.talentIndex}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, talent.name)),
-        ],
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
+        renderInfo: () => RowTitles({ bonus: talent.bonus, name: talent.name }),
         maxAction: true,
     });
 
@@ -80,7 +83,7 @@ const LegendTalentTab = () => {
 
     const getSectionNode = (sectionId) => {
         if (!sectionNodes.has(sectionId)) {
-            const node = div({ class: "account-item-stack" });
+            const node = div();
             sectionNodes.set(sectionId, node);
             reconcilers.set(sectionId, createStaticRowReconciler(node));
         }
@@ -144,39 +147,24 @@ const LegendTalentTab = () => {
 
     load();
 
-    const body = div({ class: "scrollable-panel content-stack" }, () => {
-        const sections = sectionsState.val;
-        return sections.length === 0
-            ? div({ class: "tab-empty" }, "No Legend Talent definitions were found.")
-            : div(
-                  { class: "account-item-stack" },
-                  ...sections.map((section) =>
-                      AccountSection({
-                          title: section.title,
-                          note: () =>
-                              `${section.talents.length} TALENTS, ${section.talents.reduce(
-                                  (sum, talent) => sum + toInt(talent.levelState.val, { min: 0 }),
-                                  0
-                              )} LEVELS`,
-                          body: reconcileSection(section),
-                      })
-                  )
-              );
-    });
+    // The game's five colours, each a quiet group of its talents.
+    const sections = () => sectionsState.val.filter((section) => section.talents.length);
+    const body = () =>
+        div(...sections().map((section) => AccountSection({ title: section.title, body: reconcileSection(section) })));
 
     return PersistentAccountListPage({
-        title: "LEGEND TALENTS",
-        description:
-            "Set W7 Legend Talent levels from Spelunk[18]. Display order comes from Spelunky[26], split into five color sections.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Legend Talents",
+        description: "Legend Talent levels, in the game's five colours.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING LEGEND TALENTS",
-        errorTitle: "LEGEND TALENT READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading legend talents",
+        errorTitle: "Couldn't read legend talents",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({ body, empty: () => (sections().length ? null : "No legend talents found") })
+        ),
     });
 };
 

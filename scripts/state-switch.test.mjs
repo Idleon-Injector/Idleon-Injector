@@ -255,7 +255,8 @@ for (const [name, file, path] of [["menagerie", "src/ui/pages/world-7/menagerie/
         const menagerie = game.gga.Menagerie;
         const before = structuredClone(menagerie);
         try {
-            await twoFlipsLand(file, "Off", "On", () => toggledOn(menagerie[path], before[path]) >= 2);
+            // An unlock that is off says nothing; one that is on says Unlocked.
+            await twoFlipsLand(file, "", "Unlocked", () => toggledOn(menagerie[path], before[path]) >= 2);
         } finally {
             menagerie.splice(0, menagerie.length, ...before);
         }
@@ -1381,30 +1382,38 @@ test("weekly bosses: a skin switch reads out saving and saved", async () => {
     }
 });
 
-// Research › Observations: the unlock switch edits the tile's draft, saved with its other fields.
+// Research › Observations: the Unlocked switch is a setting on its line, saved on flip; the fields save on their own.
 const OBSERVATIONS = "src/ui/pages/world-7/research/observations.js";
 const research = () => game.gga.Research;
 const openTile = async () => {
-    const root = await openPage(OBSERVATIONS, (root) => pageRead(root) && byClass(root, "observation-tile").length > 0);
-    const tile = byClass(root, "observation-tile")[0];
+    const root = await openPage(
+        OBSERVATIONS,
+        (root) => pageRead(root) && byClass(root, "account-row").some((row) => switchOf(row))
+    );
+    const tile = byClass(root, "account-row").find((row) => switchOf(row));
     const fields = elements(tile).filter((node) => node.nodeName === "input" && node !== switchOf(tile));
     return { tile, unlock: switchOf(tile), insightLevel: fields[0] };
 };
 
-test("observations: Enter on the unlock switch saves the tile", async () => {
+test("observations: flipping Unlocked saves it at once, and only it", async () => {
+    const writes = holdEachWrite();
     const before = structuredClone(research());
     try {
-        const { tile, unlock } = await openTile();
+        const { tile } = await openTile();
         const was = Number(research()[2][0]) === 1;
-        await flip(tile, !was);
-        tile.listeners.keydown({ key: "Enter", target: unlock, preventDefault() {} });
-        await until(() => (Number(research()[2][0]) === 1) !== was, "the tile to save its unlock");
+        const save = flip(tile, !was);
+        await until(() => writes.held() === 1, "the switch's save to reach the game");
+        writes.all();
+        await save;
+        await until(() => (Number(research()[2][0]) === 1) !== was, "the game to hold the flip");
+        assert.deepEqual([research()[3][0], research()[4][0]], [before[3][0], before[4][0]], "the fields stay");
     } finally {
+        writes.all();
         Object.assign(research(), before);
     }
 });
 
-test("observations: moving from a field to the unlock switch keeps editing, and Escape there puts it back", async () => {
+test("observations: Escape in a field puts it back, and leaving it then saves nothing", async () => {
     const writes = holdEachWrite();
     const before = structuredClone(research());
     try {
@@ -1412,13 +1421,13 @@ test("observations: moving from a field to the unlock switch keeps editing, and 
         const stored = String(insightLevel.attributes.value ?? insightLevel.value);
         insightLevel.value = String(Number(stored) + 1);
         insightLevel.listeners.input({ target: insightLevel });
-        tile.listeners.focusout({ currentTarget: tile, target: insightLevel, relatedTarget: unlock });
-        tile.listeners.keydown({ key: "Escape", target: unlock, preventDefault() {} });
+        tile.listeners.keydown({ key: "Escape", target: insightLevel, preventDefault() {} });
         await until(() => String(insightLevel.attributes.value) === stored, "Escape to put the field back");
+        tile.listeners.focusout({ currentTarget: tile, target: insightLevel, relatedTarget: unlock });
         // A save started by leaving the field would read the game, then write: let a few game round trips pass.
         const { gga } = await importRepo("src/ui/services/api.js");
         for (let i = 0; i < 3; i++) await gga("Research");
-        assert.equal(writes.held(), 0, "leaving the field for the switch didn't save the tile");
+        assert.equal(writes.held(), 0, "leaving the put-back field saved nothing");
     } finally {
         writes.all();
         Object.assign(research(), before);

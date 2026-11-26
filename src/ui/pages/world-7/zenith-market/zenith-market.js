@@ -7,15 +7,19 @@ import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
+    normalCase,
     createStaticRowReconciler,
     getOrCreateState,
     toInt,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const ZENITH_LEVELS_PATH = "Spelunk[45]";
 const ZENITH_CLUSTERS_PATH = "OptionsListAccount[486]";
@@ -26,12 +30,7 @@ const ZenithRow = ({ entry, levelState }) =>
         writePath: `${ZENITH_LEVELS_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
         maxAction: true,
     });
 
@@ -41,8 +40,6 @@ const ZenithClustersRow = ({ valueState }) =>
             name: "Zenith Clusters",
             path: ZENITH_CLUSTERS_PATH,
             formatted: true,
-            showIndex: false,
-            controlsClass: "account-row__controls--xl",
         },
         valueState,
     });
@@ -52,7 +49,7 @@ const ZenithTab = () => {
     const entriesState = van.state([]);
     const clusterState = van.state(0);
     const levelStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
     const buildEntries = (rawDefinitions) =>
@@ -65,7 +62,8 @@ const ZenithTab = () => {
                 return {
                     index,
                     rawName,
-                    name: cleanName(rawName, `Zenith ${index}`),
+                    name: normalCase(cleanName(rawName, `Zenith ${index}`)),
+                    bonus: bonusText(definition[6]),
                     maxLevel: toInt(definition[3], { min: 0 }),
                 };
             })
@@ -91,41 +89,32 @@ const ZenithTab = () => {
             const levels = toIndexedArray(rawLevels ?? []);
             clusterState.val = toInt(rawClusters, { min: 0 });
             for (const entry of entriesState.val) {
-                getOrCreateState(levelStates, entry.index).val = Math.min(
-                    entry.maxLevel,
-                    toInt(levels[entry.index], { min: 0 })
-                );
+                getOrCreateState(levelStates, entry.index).val = toInt(levels[entry.index], { min: 0 });
             }
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "CURRENCY",
-            note: "OptionsListAccount[486]",
-            body: div({ class: "account-item-stack" }, ZenithClustersRow({ valueState: clusterState })),
-        }),
-        AccountSection({
-            title: "ZENITH UPGRADES",
-            note: () => `${entriesState.val.length} MARKET UPGRADES`,
-            body: listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "ZENITH",
-        description: "Set W7 Zenith market levels from Spelunk[45]. Max levels come from ZenithMarket definitions.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Zenith Market",
+        description: "Zenith Clusters and the market's upgrade levels.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING ZENITH",
-        errorTitle: "ZENITH READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the Zenith Market",
+        errorTitle: "Couldn't read the Zenith Market",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
+                body: [
+                    AccountSection({ title: "Currency", body: ZenithClustersRow({ valueState: clusterState }) }),
+                    AccountSection({ title: "Upgrades", body: listNode }),
+                ],
+            })
+        ),
     });
 };
 

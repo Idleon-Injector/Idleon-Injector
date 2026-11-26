@@ -19,6 +19,7 @@ export const ON_STANDARDS = [
     "world-4/",
     "world-5/",
     "world-6/",
+    "world-7/",
     "classes/",
     // The pages already on the shared pieces in Account: the clickers (Bubba not yet).
     "account/clickers/1-orion.js",
@@ -45,6 +46,8 @@ export const KNOWN_BREAKS = {};
 export const NOT_LISTS = new Set([
     // Emperor tries, Showdowns won and Entries: three different things, no one number fits them all.
     "world-6/emperor/emperor.js",
+    // The Button's presses done and insta skips.
+    "world-7/the-button/button.js",
 ]);
 
 const root = new URL("../../", import.meta.url);

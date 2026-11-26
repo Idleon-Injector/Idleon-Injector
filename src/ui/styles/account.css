@@ -178,7 +178,7 @@
     color: var(--c-text-muted);
 }
 
-.viewport .state-switch.is-on .state-switch__words {
+.viewport .state-switch.is-on:not(.is-failed) .state-switch__words {
     font-weight: 600;
     color: #ffffff;
 }

@@ -17,6 +17,16 @@
     overflow: hidden;
 }
 
+/* A panel that ends where its content ends, with no room kept below: a few rows (The Button), only a tray (Sushi Tools)
+   or an empty list. */
+.viewport .account-list > .tabbed-list.is-short {
+    flex-shrink: 0;
+    min-height: 0;
+}
+.tabbed-list__head:last-child {
+    border-bottom: 0;
+}
+
 /* The panel's head: the tabs, then the open tab's tools; a hairline parts it from the rows. */
 .tabbed-list__head {
     flex: none;
@@ -205,6 +215,11 @@
     opacity: 1;
 }
 
+/* The tray's own field stays centred in a list whose rows end their values in one column (field-columns). */
+.viewport .tabbed-list__tools .number-input-wrapper input {
+    text-align: center;
+}
+
 /* No ring or fill while typing in the tray's field (Lumi, 2026-11-21): the caret shows where the typing goes. */
 .viewport .tabbed-list__tools .number-input-wrapper:focus-within {
     outline: none;
@@ -224,7 +239,7 @@
     border-left: 1px solid var(--c-btn-edge);
 }
 .viewport .tabbed-list__tools .account-setall-row .account-btn,
-.viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn:last-child {
+.viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn:last-of-type {
     border-radius: 0 10px 10px 0;
 }
 .viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn:first-child {
@@ -611,6 +626,13 @@
     color: var(--c-text-muted);
 }
 
+/* On a phone it starts where the rows' names do. */
+@media (max-width: 760px) {
+    .viewport .tabbed-list .account-section__header {
+        padding-inline: 14px;
+    }
+}
+
 @keyframes tabbed-list-in {
     from {
         opacity: 0;
@@ -744,6 +766,12 @@
     }
     .viewport .tabbed-list .value-head {
         display: none;
+    }
+    /* A line's switch comes before its word, so the switches line up down the list whether the word shows or not. */
+    .viewport .value-cell--action .state-switch {
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+        padding-left: 12px;
     }
 }
 

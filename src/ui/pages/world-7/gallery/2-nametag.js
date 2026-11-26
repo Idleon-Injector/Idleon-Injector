@@ -4,7 +4,7 @@ import { gga } from "../../../services/api.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
 import {
     cleanName,
@@ -44,9 +44,7 @@ const NametagRow = ({ row, amountState }) =>
     SimpleNumberRow({
         entry: {
             ...row,
-            index: row.nametagNumber,
             path: `${NAMETAG_COUNTS_PATH}[${row.nametagNumber}]`,
-            subLabel: row.itemId,
             formatted: false,
         },
         valueState: amountState,
@@ -56,16 +54,9 @@ const NametagTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Nametags" });
     const amountStates = new Map();
     const catalogState = van.state([]);
-    const listNode = div({ class: "account-item-stack account-item-stack--dense" });
+    const listNode = div();
     const reconcileNametagRows = createStaticRowReconciler(listNode);
     let catalogCache = [];
-
-    const totalDelivered = van.derive(() =>
-        catalogState.val.reduce(
-            (total, row) => total + toInt(getOrCreateState(amountStates, row.nametagNumber).val, { min: 0 }),
-            0
-        )
-    );
 
     const reconcileRows = () => {
         reconcileNametagRows(catalogCache.map((row) => row.itemId).join("|"), () =>
@@ -93,30 +84,23 @@ const NametagTab = () => {
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "NAMETAG AMOUNTS",
-            note: () => `${catalogState.val.length} NAMETAGS, ${totalDelivered.val} TOTAL DELIVERED`,
-            body: () =>
-                catalogState.val.length === 0
-                    ? div({ class: "tab-empty" }, "No EquipmentNametag item definitions were found.")
-                    : listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "NAMETAGS",
-        description: "Set delivered nametag amounts from Spelunk[17]. Each index maps directly to EquipmentNametagX.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Nametag",
+        description: "How many of each nametag you have delivered.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING NAMETAGS",
-        errorTitle: "NAMETAG READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading nametags",
+        errorTitle: "Couldn't read nametags",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: listNode,
+                empty: () => (catalogState.val.length ? null : "No nametags found"),
+                setAll: { word: (n) => (n === 1 ? "nametag" : "nametags"), placeholder: "Amount" },
+            })
+        ),
     });
 };
 

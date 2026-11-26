@@ -25,6 +25,10 @@ const elements = (node, out = []) => {
 };
 const classes = (node) => String(typeof node.attributes.class === "function" ? "" : node.attributes.class);
 const byClass = (root, name) => elements(root).filter((node) => classes(node).split(" ").includes(name));
+// The picked square of a board (BoardEditor): its row, the ones picked before kept hidden.
+const openSquareOf = (root) =>
+    byClass(root, "board-editor__square").find((square) => !square.attributes.hidden) ??
+    byClass(root, "board-editor")[0];
 
 async function until(check, what) {
     for (let i = 0; i < 300; i++) {
@@ -485,15 +489,16 @@ test("Undo stays with the tile or slot it saved: it goes when the fields move on
 test("the research grid's Undo goes when another tile is picked", async () => {
     const tiles = (root) => byClass(root, "research-grid-tile").filter((tile) => tile.attributes.disabled === false);
     const root = await openPage("src/ui/pages/world-7/research/grid.js", (node) => tiles(node).length > 1);
-    const card = () => byClass(root, "research-grid-detail__edit-row")[0];
+    // A square picked opens its own row under the board.
+    const card = () => byClass(openSquareOf(root), "account-row")[0];
     const [first, second] = tiles(root);
     first.listeners.click({});
-    await until(card, "the tile's card");
+    await until(card, "the tile's row");
     const [field] = elements(card()).filter((node) => node.nodeName === "input");
     await saveRow(card(), String(field.attributes.value) === "0" ? 1 : 0);
     assert.ok(undoOffered(card()), "Undo beside the save");
     second.listeners.click({});
-    await until(() => !undoOffered(card()), "the other tile's card without that Undo");
+    await until(() => card() && !undoOffered(card()), "the other tile's row without that Undo");
 });
 
 // A 3D Printer slot: its title opens the items in place, and an item there is picked by its name (it saves at once).
@@ -747,7 +752,11 @@ test("Max on a row whose save reads the game before writing offers Undo", async 
 // #290: Observations makes its tiles inside a list that redraws when what it reads changes; a save must not redraw
 // it (a new tile has no Undo).
 test("an observation tile keeps its Undo: the save doesn't rebuild the tiles", async () => {
-    const tiles = (root) => byClass(root, "observation-tile");
+    // An observation's line: its fields, then its Unlocked switch.
+    const tiles = (root) =>
+        byClass(root, "account-row").filter((row) =>
+            elements(row).some((node) => node.nodeName === "input" && node.attributes.role === "switch")
+        );
     const root = await openPage("src/ui/pages/world-7/research/observations.js", (node) => tiles(node).length > 0);
     const tile = tiles(root)[0];
     const [field] = elements(tile).filter((node) => node.nodeName === "input" && node.attributes.type !== "checkbox");

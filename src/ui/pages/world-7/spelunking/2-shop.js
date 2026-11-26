@@ -4,12 +4,19 @@ import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
-import { cleanName, createStaticRowReconciler, toInt } from "../../../components/views/account/accountShared.js";
+import {
+    bonusText,
+    cleanName,
+    createStaticRowReconciler,
+    realMax,
+    toInt,
+} from "../../../components/views/account/accountShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const SHOP_LEVELS_PATH = "Spelunk[5]";
 
@@ -19,13 +26,8 @@ const ShopUpgradeRow = ({ entry }) =>
         writePath: `${SHOP_LEVELS_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index + 1}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
-        maxAction: true,
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
+        maxAction: entry.maxLevel === null ? null : true,
     });
 
 const buildShopDefinitions = (rawDefinitions) =>
@@ -39,7 +41,8 @@ const buildShopDefinitions = (rawDefinitions) =>
                 index,
                 rawName,
                 name: cleanName(rawName, `Upgrade ${index + 1}`),
-                maxLevel: toInt(definition[3], { min: 0 }),
+                bonus: bonusText(definition[12]),
+                maxLevel: realMax(definition[3]),
             };
         })
         .filter(Boolean);
@@ -47,7 +50,7 @@ const buildShopDefinitions = (rawDefinitions) =>
 function SpelunkingShopTab() {
     const { loading, error, run } = useAccountLoad({ label: "Spelunking Shop" });
     const upgradeEntries = van.state([]);
-    const shopListNode = div({ class: "account-item-stack account-item-stack--dense" });
+    const shopListNode = div();
     const reconcileShopRows = createStaticRowReconciler(shopListNode);
     let definitionsCache = [];
 
@@ -73,51 +76,37 @@ function SpelunkingShopTab() {
             if (!sameShape) {
                 upgradeEntries.val = definitionsCache.map((definition) => ({
                     ...definition,
-                    levelState: van.state(
-                        Math.min(definition.maxLevel, toInt(rawLevels[definition.index], { min: 0 }))
-                    ),
+                    levelState: van.state(toInt(rawLevels[definition.index], { min: 0 })),
                 }));
                 reconcileRows();
                 return;
             }
 
             for (const entry of existing) {
-                entry.levelState.val = Math.min(entry.maxLevel, toInt(rawLevels[entry.index], { min: 0 }));
+                entry.levelState.val = toInt(rawLevels[entry.index], { min: 0 });
             }
         });
 
     load();
 
-    const cappedCount = van.derive(
-        () => upgradeEntries.val.filter((entry) => toInt(entry.levelState.val, { min: 0 }) >= entry.maxLevel).length
-    );
-
-    const totalLevels = van.derive(() =>
-        upgradeEntries.val.reduce((total, entry) => total + toInt(entry.levelState.val, { min: 0 }), 0)
-    );
-
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "SHOP UPGRADES",
-            note: () =>
-                `${upgradeEntries.val.length} UPGRADES, ${cappedCount.val} CAPPED, ${totalLevels.val} TOTAL LEVELS`,
-            body: shopListNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "SPELUNKING SHOP",
-        description: "Set W7 Spelunking shop upgrade levels from Spelunk[5]. Max levels come from SpelunkUpg.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Shop",
+        description: "Spelunking shop upgrade levels.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING SPELUNKING SHOP",
-        errorTitle: "SPELUNKING SHOP READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the spelunking shop",
+        errorTitle: "Couldn't read the spelunking shop",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                setAll: { word: (n) => (n === 1 ? "upgrade" : "upgrades") },
+                body: shopListNode,
+                empty: () => (upgradeEntries.val.length ? null : "No upgrades found"),
+            })
+        ),
     });
 }
 

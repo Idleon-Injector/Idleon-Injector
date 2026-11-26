@@ -280,18 +280,24 @@ test("search finds cheats and their settings after the menu's own places, and in
         ["combat", "Stamps"],
         ["skills", "Stamps"],
         ["misc", "Stamps"],
-        ["unlocks", "Menagerie"],
-        ["cells", "Jelly Operator"],
         ["units", "Outposts"],
     ]) {
         assert.equal(search(q)[0].label, system, `"${q}" (an inner tab) finds ${system}`);
+    }
+    // A page's declared tab is found by its own name, and opens the page on it.
+    for (const [q, label, where, target] of [
+        ["unlocks", "Unlocks", "World 7 › Menagerie", { world: 7, page: "w7.menagerie", tab: "unlocks" }],
+        ["cells", "Cells", "World 7 › Jelly Operator", { world: 7, page: "w7.jellyoperator", tab: "cells" }],
+    ]) {
+        const [hit] = search(q);
+        assert.deepEqual([hit.label, hit.where, hit.target], [label, where, target], `"${q}" finds its tab`);
     }
     // A page's own tab comes before an inner tab of the same name.
     assert.deepEqual(
         search("overview")
             .slice(0, 2)
-            .map(({ label }) => label),
-        ["Overview", "Menagerie"]
+            .map(({ where }) => where),
+        ["Automation", "World 7 › Menagerie"]
     );
     assert.ok(search("e").length <= 8, "at most 8 results");
 });

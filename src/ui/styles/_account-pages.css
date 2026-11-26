@@ -993,58 +993,34 @@
     grid-template-columns: minmax(220px, 1fr) auto minmax(520px, auto);
 }
 
-.minigame-upgrade-row {
-    grid-template-columns: minmax(0, 1fr) 168px auto;
-}
-
-.minigame-upgrade-row .account-row__badge {
-    box-sizing: border-box;
-    width: 168px;
-    overflow: hidden;
-    text-align: center;
-    text-overflow: ellipsis;
-}
-
+/* A doubler's room on every line, so a line that can't be doubled keeps the fields in their column. */
 .upgrade-doubler-slot {
     display: inline-flex;
     flex: 0 0 44px;
-    align-items: center;
     justify-content: center;
     width: 44px;
-    height: 30px;
 }
 
-.account-btn.upgrade-doubler-button {
-    width: 44px;
-    padding: 0;
-    border: 1px solid var(--c-border);
-    background: transparent;
-    color: var(--c-text-muted);
-    font-weight: 700;
+/* Why a doubler didn't save is said before the field, where the row's own reason is, so the field stays in its column. */
+.doubler-row .row-toggle {
+    display: contents;
 }
 
-.upgrade-doubler-button[aria-pressed="false"]:hover:not(:disabled):not([aria-disabled="true"]) {
-    border-color: var(--c-accent);
-    color: var(--c-accent);
+.doubler-row .row-toggle__failure {
+    order: -1;
 }
 
-.upgrade-doubler-button:focus-visible {
+/* Max keeps its column's width with the doubler after it, as it has when it ends the line. */
+.field-columns .doubler-row .account-row__controls > .account-row__max {
+    min-width: var(--field-columns-action);
+}
+
+/* A row a board's square opens (BoardEditor), reached from the keyboard. Inside its edge: the list scrolls, and would cut
+   a ring drawn outside it. */
+.board-editor:focus-visible {
     outline: 2px solid var(--c-accent);
-    outline-offset: 2px;
-}
-
-.upgrade-doubler-button[aria-pressed="true"] {
-    border-color: var(--c-accent);
-    background: var(--c-accent);
-    color: var(--c-accent-ink);
-}
-
-.upgrade-doubler-button.account-btn--success {
-    color: var(--c-success);
-}
-
-.upgrade-doubler-button.account-btn--error {
-    color: var(--c-danger);
+    outline-offset: -2px;
+    border-radius: 10px;
 }
 
 .account-row__controls--field-grid {
@@ -1112,10 +1088,6 @@
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .minigame-upgrade-row {
-        grid-template-columns: minmax(0, 1fr) 168px;
-    }
-
     .account-row--wide-controls .account-row__controls {
         grid-column: 1 / -1;
         justify-content: flex-end;
@@ -1133,6 +1105,30 @@
 
     .account-row__controls--field-grid .account-btn {
         justify-self: end;
+    }
+
+    /* The field, Max and the doubler share a line, and a line without Max and doubler keeps no second one for them. */
+    .field-columns .doubler-row .account-row__controls > .account-row__max {
+        min-width: 0;
+    }
+
+    .viewport .field-columns .doubler-row .account-row__controls {
+        gap: 8px;
+    }
+
+    /* And over the end of the name's line, like the row's own reason. */
+    .doubler-row .row-toggle__failure {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--c-panel-hover);
+    }
+
+    .viewport .field-columns .account-row__controls > .upgrade-doubler-slot,
+    .viewport .field-columns.has-max .account-row__controls > .account-row__max-slot {
+        display: none;
     }
 }
 

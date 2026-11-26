@@ -1,46 +1,46 @@
+/**
+ * W7 - Research: Observations
+ *
+ * A table of the named observations: each one's Insight Lv and Insight EXP in their columns, and its Unlocked switch
+ * last (a setting on its line). A typed value saves on Enter or on leaving the line, only the values the player
+ * changed; the switch saves on flip.
+ *
+ * Data sources:
+ *   gga.Research[2][n] - observation n unlocked (1) or not (0)
+ *   gga.Research[3][n] - its Insight EXP
+ *   gga.Research[4][n] - its Insight Lv
+ *   cList.Occurrences  - the observations, the name first (a placeholder "Name7" for one the game hasn't named)
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
-import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
-import { NumberInput } from "../../../components/NumberInput.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { EditableFieldsRow } from "../../../components/views/account/EditableFieldsRow.js";
-import { cleanName, writeManyVerified } from "../../../components/views/account/accountShared.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
+import {
+    cleanName,
+    createStaticRowReconciler,
+    useWriteStatus,
+    writeVerified,
+} from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
 const OBSERVATION_COUNT = 80;
-const OBSERVATION_FIELDS = [
-    {
-        key: "unlocked",
-        label: "Unlock",
-        toDraft: (value) => Number(value ?? 0) === 1,
-    },
-    {
-        key: "insightLevel",
-        label: "Insight Lv",
-        toDraft: (value) => String(value ?? 0),
-    },
-    {
-        key: "insightExp",
-        label: "Insight EXP",
-        toDraft: (value) => String(value ?? 0),
-    },
+const UNLOCKED_PATH = "Research[2]";
+const FIELDS = [
+    { key: "insightLevel", label: "Insight Lv", path: "Research[4]" },
+    { key: "insightExp", label: "Insight EXP", path: "Research[3]" },
 ];
 
 const normalizeResearchValue = (raw, index, { round = false } = {}) => {
     const values = toIndexedArray(raw);
-    let resolved;
-
-    if (values.length > 0) {
-        resolved = values[index] ?? values[0] ?? 0;
-    } else {
-        resolved = raw ?? 0;
-    }
-
+    const resolved = values.length > 0 ? (values[index] ?? values[0] ?? 0) : (raw ?? 0);
     const numeric = Number(resolved ?? 0);
     if (!Number.isFinite(numeric)) return 0;
     return round ? Math.round(numeric) : numeric;
@@ -51,107 +51,45 @@ const isMeaningfulObservationName = (rawName) => {
     return Boolean(name) && !/^Name\d*$/i.test(name);
 };
 
-const ObservationTile = ({ index, tileState }) => {
-    const clampInt = (raw) => {
-        const numeric = Math.round(Number(raw));
-        if (!Number.isFinite(numeric)) return 0;
-        return Math.max(0, numeric);
-    };
-
-    return EditableFieldsRow({
-        fields: OBSERVATION_FIELDS.map((field) => ({
-            ...field,
-            valueState: tileState[field.key],
-        })),
-        normalize: (rawValues) => ({
-            unlocked: rawValues.unlocked ? 1 : 0,
-            insightLevel: clampInt(rawValues.insightLevel),
-            insightExp: clampInt(rawValues.insightExp),
-        }),
-        write: async (nextValues) => {
-            // Only what the player changed: the others hold the page's last read, which the game may have moved past.
-            await writeManyVerified(
-                [
-                    { key: "unlocked", path: `Research[2][${index}]` },
-                    { key: "insightExp", path: `Research[3][${index}]` },
-                    { key: "insightLevel", path: `Research[4][${index}]` },
-                ]
-                    .filter(({ key }) => nextValues[key] !== tileState[key].val)
-                    .map(({ key, path }) => ({ path, value: nextValues[key] }))
-            );
-            return nextValues;
-        },
-        info: null,
-        rowClass: () =>
-            ["observation-tile", tileState.unlocked.val === 1 ? "observation-tile--unlocked" : ""]
-                .filter(Boolean)
-                .join(" "),
-        controlsClass: "observation-tile__body",
-        renderControls: ({ draftStates, setFieldFocused }) => [
-            div(
-                { class: "observation-tile__header" },
-                div(
-                    { class: "observation-tile__title-group" },
-                    span({ class: "observation-tile__name" }, () => tileState.name.val)
-                ),
-                StateSwitch({
-                    checked: () => Boolean(draftStates.unlocked.val),
-                    words: ["Unlocked", "Locked"],
-                    name: () => `${tileState.name.val} unlock`,
-                    className: "observation-tile__toggle",
-                    rowField: true, // a draft the tile saves with its other fields
-                    onFlip: (next) => (draftStates.unlocked.val = next),
-                })
-            ),
-            div(
-                { class: "observation-tile__stats" },
-                div(
-                    { class: "observation-stat" },
-                    span({ class: "observation-stat__label" }, "Insight Lv"),
-                    div(
-                        { class: "observation-stat__controls" },
-                        NumberInput({
-                            mode: "int",
-                            value: draftStates.insightLevel,
-                            onfocus: () => setFieldFocused("insightLevel", true),
-                            onblur: () => setFieldFocused("insightLevel", false),
-                            onDecrement: () =>
-                                (draftStates.insightLevel.val = String(
-                                    Math.max(0, clampInt(draftStates.insightLevel.val) - 1)
-                                )),
-                            onIncrement: () =>
-                                (draftStates.insightLevel.val = String(clampInt(draftStates.insightLevel.val) + 1)),
-                        }),
-                        span({ class: "observation-stat__value" }, () => `CUR ${tileState.insightLevel.val}`)
-                    )
-                ),
-                div(
-                    { class: "observation-stat" },
-                    span({ class: "observation-stat__label" }, "Insight EXP"),
-                    div(
-                        { class: "observation-stat__controls" },
-                        NumberInput({
-                            mode: "int",
-                            value: draftStates.insightExp,
-                            onfocus: () => setFieldFocused("insightExp", true),
-                            onblur: () => setFieldFocused("insightExp", false),
-                            onDecrement: () =>
-                                (draftStates.insightExp.val = String(
-                                    Math.max(0, clampInt(draftStates.insightExp.val) - 1)
-                                )),
-                            onIncrement: () =>
-                                (draftStates.insightExp.val = String(clampInt(draftStates.insightExp.val) + 1)),
-                        }),
-                        span({ class: "observation-stat__value" }, () => `CUR ${tileState.insightExp.val}`)
-                    )
-                )
-            ),
-        ],
+// Unlocked, on its line: saved on flip, said only when on.
+const UnlockSwitch = ({ index, tile }) => {
+    const { run } = useWriteStatus();
+    return StateSwitch({
+        checked: () => tile.unlocked.val === 1,
+        words: ["Unlocked", ""],
+        name: () => `${tile.name.val} unlocked`,
+        ownStatus: true,
+        onFlip: (on) =>
+            run(async () => {
+                await writeVerified(`${UNLOCKED_PATH}[${index}]`, on ? 1 : 0);
+                tile.unlocked.val = on ? 1 : 0;
+            }),
     });
 };
 
+const ObservationRow = ({ index, tile }) =>
+    ValueTableRow({
+        name: tile.name.val,
+        info: span({ class: "account-row__name" }, () => tile.name.val),
+        // Only the values the player changed are written: the others hold the page's last read.
+        fields: FIELDS.map((field) => ({ ...field, valueState: tile[field.key], paths: [`${field.path}[${index}]`] })),
+        read: async () => {
+            const [level, exp] = await Promise.all(FIELDS.map((field) => gga(`${field.path}[${index}]`)));
+            return {
+                insightLevel: normalizeResearchValue(level, 0),
+                insightExp: normalizeResearchValue(exp, 0, { round: true }),
+            };
+        },
+        action: UnlockSwitch({ index, tile }),
+        // Set all sets an observation's Insight Lv.
+        setAll: "insightLevel",
+    });
+
 const ObservationsTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Observations" });
+    const listNode = div();
+    const reconcileRows = createStaticRowReconciler(listNode);
+    const named = van.state(0);
 
     const observationStates = Array.from({ length: OBSERVATION_COUNT }, () => ({
         name: van.state(""),
@@ -175,45 +113,46 @@ const ObservationsTab = () => {
             for (let index = 0; index < OBSERVATION_COUNT; index++) {
                 const tile = observationStates[index];
                 const occurrence = toIndexedArray(occurrences[index]);
-                const unlocked = normalizeResearchValue(rawUnlocks, index, { round: true }) ? 1 : 0;
-                const insightExp = normalizeResearchValue(rawInsightExp, index, { round: true });
-                const insightLevel = normalizeResearchValue(rawInsightLevels, index);
                 const rawName = String(occurrence[0] ?? "").trim();
                 tile.hasName.val = isMeaningfulObservationName(rawName);
                 tile.name.val = cleanName(rawName);
-                tile.unlocked.val = unlocked;
-                tile.insightExp.val = insightExp;
-                tile.insightLevel.val = insightLevel;
+                tile.unlocked.val = normalizeResearchValue(rawUnlocks, index, { round: true }) ? 1 : 0;
+                tile.insightExp.val = normalizeResearchValue(rawInsightExp, index, { round: true });
+                tile.insightLevel.val = normalizeResearchValue(rawInsightLevels, index);
             }
+
+            const shown = observationStates
+                .map((tile, index) => ({ tile, index }))
+                .filter(({ tile }) => tile.hasName.val);
+            named.val = shown.length;
+            reconcileRows(shown.map(({ tile, index }) => `${index}:${tile.name.val}`).join("|"), () =>
+                shown.map(ObservationRow)
+            );
         });
 
     load();
 
-    const tileGrid = div({ class: "scrollable-panel content-stack" }, () => {
-        const tiles = observationStates
-            .map((tileState, index) => ({ tileState, index }))
-            .filter(({ tileState }) => tileState.hasName.val);
-
-        return tiles.length === 0
-            ? div({ class: "tab-empty" }, "No named observations were found.")
-            : div(
-                  { class: "observations-grid" },
-                  ...tiles.map(({ tileState, index }) => ObservationTile({ index, tileState }))
-              );
-    });
-
     return PersistentAccountListPage({
-        title: "OBSERVATIONS",
-        description: "Edit unlock, insight level, and insight EXP per observation tile.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container research-observations-tab",
+        title: "Observations",
+        description: "Each observation's Insight Lv and Insight EXP, and whether it's unlocked.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING OBSERVATIONS",
-        errorTitle: "OBSERVATION READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body: tileGrid,
+        loadingText: "Reading observations",
+        errorTitle: "Couldn't read observations",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                setAll: { word: (n) => (n === 1 ? "observation" : "observations") },
+                body: [
+                    // The last column is the Unlocked switch's.
+                    ValueTableHead({ name: "Observation", columns: [...FIELDS.map((field) => field.label), ""] }),
+                    listNode,
+                ],
+                empty: () => (named.val ? null : "No named observations found"),
+            })
+        ),
     });
 };
 

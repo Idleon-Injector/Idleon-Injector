@@ -1,80 +1,59 @@
+/**
+ * W7 - Spelunking: Caves
+ *
+ * One list: each cave's records on one line (a table: Deepest, Manic deepest, Biggest haul, Grand discoveries), then
+ * every object the caves hold, by cave, each with a Discovered switch (the Hat Rack's way), then any stored object the
+ * game's list doesn't know. Add all sits in the tray and discovers the objects the top bar's search shows.
+ *
+ * Data sources:
+ *   gga.Spelunk[1][c], [47][c], [2][c], [44][c] - cave c's deepest layer, manic deepest layer, biggest haul, grand
+ *                                                discoveries (up to 10)
+ *   gga.Spelunk[6]                              - the destroyed objects discovered, by id ("Rock_0_1")
+ *   cList.Spelunky[6], [14], SpelunkRocks       - the caves' names and descriptions, each cave's objects
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { AddFromListSection } from "../../../components/views/account/components/AddFromListSection.js";
-import { InlineEditableNumberField } from "../../../components/views/account/components/InlineEditableNumberField.js";
-import { RemovableStoredRow } from "../../../components/views/account/components/RemovableStoredRow.js";
+import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { ValueTableHead, ValueTableRow } from "../../../components/views/account/EditableFieldsRow.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
-    adjustFormattedIntInput,
     cleanName,
-    createKeptRows,
     createStaticRowReconciler,
     getOrCreateState,
-    largeFormatter,
-    largeParser,
+    oneAtATime,
     resolveNumberInput,
     toInt,
     useWriteStatus,
-    writeManyVerified,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
 const { div, span } = van.tags;
 
-const DEEPEST_LAYERS_PATH = "Spelunk[1]";
-const MANIC_DEEPEST_LAYERS_PATH = "Spelunk[47]";
-const BIGGEST_HAUL_PATH = "Spelunk[2]";
-const GRAND_DISCOVERIES_PATH = "Spelunk[44]";
 const DISCOVERED_OBJECTS_PATH = "Spelunk[6]";
 
+// A cave's records, each in its column; Grand discoveries go up to 10.
 const CAVE_METRICS = [
-    {
-        id: "deepest",
-        label: "Deepest Layers",
-        path: DEEPEST_LAYERS_PATH,
-        normalize: (raw) => toInt(raw, { min: 0 }),
-        format: (value) => String(toInt(value, { min: 0 })),
-        adjust: (raw, delta, current) => Math.max(0, toInt(raw, current ?? 0) + delta),
-        inputMode: "int",
-    },
-    {
-        id: "manicDeepest",
-        label: "Manic Deepest",
-        path: MANIC_DEEPEST_LAYERS_PATH,
-        normalize: (raw) => toInt(raw, { min: 0 }),
-        format: (value) => String(toInt(value, { min: 0 })),
-        adjust: (raw, delta, current) => Math.max(0, toInt(raw, current ?? 0) + delta),
-        inputMode: "int",
-    },
-    {
-        id: "haul",
-        label: "Biggest Haul",
-        path: BIGGEST_HAUL_PATH,
-        normalize: (raw) => resolveNumberInput(raw, { formatted: true, float: true, min: 0, fallback: null }),
-        format: largeFormatter,
-        adjust: (raw, delta, current) => adjustFormattedIntInput(raw, delta, current ?? 0, { min: 0 }),
-        inputMode: "float",
-        inputProps: {
-            formatter: largeFormatter,
-            parser: largeParser,
-        },
-    },
-    {
-        id: "discoveries",
-        label: "Grand Discoveries",
-        path: GRAND_DISCOVERIES_PATH,
-        normalize: (raw) => Math.min(10, toInt(raw, { min: 0 })),
-        format: (value) => String(toInt(value, { min: 0 })),
-        adjust: (raw, delta, current) => Math.min(10, Math.max(0, toInt(raw, current ?? 0) + delta)),
-        inputMode: "int",
-    },
+    { key: "deepest", label: "Deepest", path: "Spelunk[1]" },
+    { key: "manicDeepest", label: "Manic deepest", path: "Spelunk[47]" },
+    { key: "haul", label: "Biggest haul", path: "Spelunk[2]", formatted: true },
+    { key: "discoveries", label: "Grand discoveries", path: "Spelunk[44]", max: 10 },
 ];
+const readMetric = (metric, raw) =>
+    metric.key === "haul"
+        ? resolveNumberInput(raw ?? 0, { formatted: true, float: true, min: 0, fallback: 0 })
+        : metric.key === "discoveries"
+          ? Math.min(10, toInt(raw, { min: 0 }))
+          : toInt(raw, { min: 0 });
 
 const normalizeStoredNames = (raw) =>
     toIndexedArray(raw ?? [])
@@ -109,119 +88,89 @@ const buildObjectCatalog = (rawRocksByCave, caveNames) =>
             .filter(Boolean)
     );
 
-const buildDestroyedObjectState = (storedNames, catalog) => {
-    const catalogById = new Map(catalog.map((entry) => [entry.objectId, entry]));
-    const discoveredSet = new Set(storedNames);
-
-    return {
-        rows: storedNames.map((objectId, index) => {
-            const match = catalogById.get(objectId);
-            return {
-                index,
-                objectId,
-                name: match?.name ?? cleanName(objectId, objectId),
-                caveName: match?.caveName ?? "Unknown Cave",
-                knownCatalogMatch: Boolean(match),
-            };
-        }),
-        missingOptions: catalog.filter((entry) => !discoveredSet.has(entry.objectId)),
-        knownCount: storedNames.filter((objectId) => catalogById.has(objectId)).length,
-    };
-};
-
-const CaveRow = ({ row, metricStates }) => {
-    const rowStatus = van.state(null);
-
-    return AccountRow({
-        status: rowStatus,
-        info: [
-            span({ class: "account-row__index" }, `#${row.index + 1}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, row.name)),
-        ],
-        badge: "Cave",
-        rowClass: "spelunking-cave-row",
-        controlsClass: "account-row__controls--stack",
-        controls: CAVE_METRICS.map((metric) =>
-            InlineEditableNumberField({
-                label: metric.label,
-                valueState: getOrCreateState(metricStates[metric.id], row.index),
-                path: `${metric.path}[${row.index}]`,
-                normalize: metric.normalize,
-                format: metric.format,
-                adjust: metric.adjust,
-                inputMode: metric.inputMode,
-                inputProps: metric.inputProps,
-                statusTarget: rowStatus,
-                rootClass: "spelunking-cave-metric",
-                labelClass: "spelunking-cave-metric__label",
-            })
-        ),
+const CaveRow = ({ row, metricStates }) =>
+    ValueTableRow({
+        name: row.name,
+        info: span({ class: "account-row__name" }, row.name),
+        fields: CAVE_METRICS.map((metric) => ({
+            ...metric,
+            valueState: getOrCreateState(metricStates[metric.key], row.index),
+            paths: [`${metric.path}[${row.index}]`],
+        })),
+        read: async () => {
+            const values = await Promise.all(CAVE_METRICS.map((metric) => gga(`${metric.path}[${row.index}]`)));
+            return Object.fromEntries(CAVE_METRICS.map((metric, i) => [metric.key, readMetric(metric, values[i])]));
+        },
+        // Set all sets a cave's deepest layer.
+        setAll: "deepest",
     });
-};
 
-const DestroyedObjectRow = ({ row, onRemove, isBusy }) =>
-    RemovableStoredRow({
-        index: row.index,
-        primaryLabel: row.name,
-        fallbackLabel: row.objectId,
-        badge: row.knownCatalogMatch ? "Discovered" : "Unknown",
-        nameGroupClass: "account-row__name-group",
-        onRemove,
-        isBusy,
+// One object: its name, and a Discovered switch. A stored object the game's list doesn't know says so.
+const ObjectRow = ({ object, isOn, onFlip }) =>
+    AccountRow({
+        info: span({ class: "account-row__name" }, object.name),
+        badge: object.known ? null : "Not a known object",
+        controls: StateSwitch({
+            checked: isOn,
+            words: ["Discovered", ""],
+            name: `${object.name} discovered`,
+            ownStatus: true,
+            onFlip,
+        }),
     });
 
 function SpelunkingCavesTab() {
     const { loading, error, run } = useAccountLoad({ label: "Spelunking Caves" });
-    const metricStates = {
-        deepest: new Map(),
-        manicDeepest: new Map(),
-        haul: new Map(),
-        discoveries: new Map(),
-    };
+    const metricStates = Object.fromEntries(CAVE_METRICS.map((metric) => [metric.key, new Map()]));
     const caveRowsState = van.state([]);
-    const storedObjectNames = van.state([]);
-    const destroyedRows = van.state([]);
-    const missingObjectOptions = van.state([]);
-    const selectedObjectId = van.state("");
-    const discoveredCount = van.state(0);
-    const knownDiscoveredCount = van.state(0);
-    const totalObjectCount = van.state(0);
-    const mutating = van.state(false);
-    const { status: addStatus, run: runAdd } = useWriteStatus();
-    const caveListNode = div({ class: "account-item-stack account-item-stack--dense" });
+    const discovered = van.state([]);
+    const objects = van.state([]);
+    const bulk = useWriteStatus();
+    // Changes run one at a time, each from the list the game holds when its turn comes.
+    const inTurn = oneAtATime();
+    const caveListNode = div();
     const reconcileCaveRows = createStaticRowReconciler(caveListNode);
-    let caveNamesCache = [];
+    const objectListNode = div();
+    const reconcileObjectGroups = createStaticRowReconciler(objectListNode);
+    const rowOf = new Map();
     let objectCatalogCache = [];
-    let scrollEl = null;
-
-    const withPreservedScroll = (fn) => {
-        const prevTop = scrollEl?.scrollTop ?? 0;
-        fn();
-        requestAnimationFrame(() => {
-            if (scrollEl) scrollEl.scrollTop = prevTop;
-        });
-    };
-
-    const applyDestroyedObjects = (nextNames) => {
-        const normalizedNames = normalizeStoredNames(nextNames);
-        const result = buildDestroyedObjectState(normalizedNames, objectCatalogCache);
-
-        storedObjectNames.val = normalizedNames;
-        destroyedRows.val = result.rows;
-        missingObjectOptions.val = result.missingOptions;
-        discoveredCount.val = normalizedNames.length;
-        knownDiscoveredCount.val = result.knownCount;
-        totalObjectCount.val = objectCatalogCache.length;
-
-        if (!result.missingOptions.some((entry) => entry.objectId === selectedObjectId.val)) {
-            selectedObjectId.val = result.missingOptions[0]?.objectId ?? "";
-        }
-    };
 
     const reconcileCaves = () => {
         reconcileCaveRows(caveRowsState.val.map((row) => row.rawName).join("|"), () =>
             caveRowsState.val.map((row) => CaveRow({ row, metricStates }))
         );
+    };
+
+    // Every object, by cave, then any stored one the game's list doesn't know. Rows are kept by object, so a switch
+    // keeps its focus and its save's state; the groups are rebuilt only when the objects in them change.
+    const applyDiscovered = (rawNames) => {
+        discovered.val = normalizeStoredNames(rawNames);
+        const known = new Set(objectCatalogCache.map((entry) => entry.objectId));
+        const next = [
+            ...objectCatalogCache.map((entry) => ({ ...entry, known: true })),
+            ...discovered.val
+                .filter((id) => !known.has(id))
+                .map((id) => ({ objectId: id, name: cleanName(id, id), caveName: "Other", known: false })),
+        ];
+        for (const object of next)
+            if (!rowOf.has(object.objectId))
+                rowOf.set(
+                    object.objectId,
+                    ObjectRow({
+                        object,
+                        isOn: () => discovered.val.includes(object.objectId),
+                        onFlip: (on) => (on ? addObjects([object.objectId]) : removeObject(object.objectId)),
+                    })
+                );
+        reconcileObjectGroups(next.map((object) => `${object.caveName}:${object.objectId}`).join("|"), () =>
+            [...new Set(next.map((object) => object.caveName))].map((cave) =>
+                AccountSection({
+                    title: `${cave} objects`,
+                    body: next.filter((object) => object.caveName === cave).map((o) => rowOf.get(o.objectId)),
+                })
+            )
+        );
+        objects.val = next;
     };
 
     const load = async () =>
@@ -231,10 +180,10 @@ function SpelunkingCavesTab() {
                 readCList("Spelunky[14]"),
                 readCList("SpelunkRocks"),
             ]);
-            caveNamesCache = normalizeCaveText(rawCaveNames);
+            const caveNames = normalizeCaveText(rawCaveNames);
             const caveDescriptions = normalizeCaveText(rawCaveDescriptions);
-            objectCatalogCache = buildObjectCatalog(rawObjectDefinitions, caveNamesCache);
-            caveRowsState.val = caveNamesCache
+            objectCatalogCache = buildObjectCatalog(rawObjectDefinitions, caveNames);
+            caveRowsState.val = caveNames
                 .map((rawName, index) => ({
                     index,
                     rawName,
@@ -244,157 +193,109 @@ function SpelunkingCavesTab() {
                 .filter((row) => isMeaningfulCaveDefinition(row.rawName, row.rawDescription));
             reconcileCaves();
 
-            const [rawDeepestLayers, rawManicDeepestLayers, rawBiggestHauls, rawGrandDiscoveries, rawDestroyedObjects] =
-                await Promise.all([
-                    gga(DEEPEST_LAYERS_PATH),
-                    gga(MANIC_DEEPEST_LAYERS_PATH),
-                    gga(BIGGEST_HAUL_PATH),
-                    gga(GRAND_DISCOVERIES_PATH),
-                    gga(DISCOVERED_OBJECTS_PATH),
-                ]);
-            const deepestLayers = toIndexedArray(rawDeepestLayers ?? []);
-            const manicDeepestLayers = toIndexedArray(rawManicDeepestLayers ?? []);
-            const biggestHauls = toIndexedArray(rawBiggestHauls ?? []);
-            const grandDiscoveries = toIndexedArray(rawGrandDiscoveries ?? []);
+            const [rawMetrics, rawDestroyedObjects] = await Promise.all([
+                Promise.all(CAVE_METRICS.map((metric) => gga(metric.path))),
+                gga(DISCOVERED_OBJECTS_PATH),
+            ]);
+            CAVE_METRICS.forEach((metric, m) => {
+                const values = toIndexedArray(rawMetrics[m] ?? []);
+                for (const row of caveRowsState.val)
+                    getOrCreateState(metricStates[metric.key], row.index).val = readMetric(metric, values[row.index]);
+            });
 
-            for (const row of caveRowsState.val) {
-                getOrCreateState(metricStates.deepest, row.index).val = toInt(deepestLayers[row.index], { min: 0 });
-                getOrCreateState(metricStates.manicDeepest, row.index).val = toInt(manicDeepestLayers[row.index], {
-                    min: 0,
-                });
-                getOrCreateState(metricStates.haul, row.index).val = resolveNumberInput(biggestHauls[row.index] ?? 0, {
-                    formatted: true,
-                    float: true,
-                    min: 0,
-                    fallback: 0,
-                });
-                getOrCreateState(metricStates.discoveries, row.index).val = Math.min(
-                    10,
-                    toInt(grandDiscoveries[row.index], { min: 0 })
-                );
-            }
-
-            applyDestroyedObjects(rawDestroyedObjects);
+            applyDiscovered(rawDestroyedObjects);
         });
 
     // Edits start from the game's list as it is now, not the page's last read: the game adds to it as objects are
-    // destroyed. Whatever happens, the page then shows the list the game holds; an unchanged list keeps its rows, so a
-    // refused Remove keeps saying why on its row. `edit` resolves to null when the list needs no change.
-    const editDestroyedObjects = async (edit) => {
-        mutating.val = true;
-        let names = null;
-        try {
-            names = normalizeStoredNames(await gga(DISCOVERED_OBJECTS_PATH));
-            const edited = await edit(names);
-            if (edited === null) return { cancelled: true };
-            names = edited;
-        } catch (error) {
-            names = await gga(DISCOVERED_OBJECTS_PATH).then(normalizeStoredNames, () => names);
-            throw error;
-        } finally {
-            mutating.val = false;
-            if (names && JSON.stringify(names) !== JSON.stringify(storedObjectNames.val))
-                withPreservedScroll(() => applyDestroyedObjects(names));
-        }
-    };
+    // destroyed. Whatever happens, the page then shows the list the game holds.
+    const change = (edit) =>
+        inTurn(async () => {
+            try {
+                return (await edit(normalizeStoredNames(await gga(DISCOVERED_OBJECTS_PATH)))) ?? { ok: true };
+            } finally {
+                try {
+                    applyDiscovered(await gga(DISCOVERED_OBJECTS_PATH));
+                } catch {
+                    // ponytail: the picture stays as it was; the next change reads the game again before it writes.
+                }
+            }
+        });
 
     const addObjects = (objectIds) =>
-        editDestroyedObjects(async (currentNames) => {
+        change(async (currentNames) => {
             const toAdd = objectIds.filter((objectId) => !currentNames.includes(objectId));
-            if (toAdd.length === 0) return null;
-            await writeManyVerified([
-                ...toAdd.map((objectId, offset) => ({
-                    path: `${DISCOVERED_OBJECTS_PATH}[${currentNames.length + offset}]`,
-                    value: objectId,
-                })),
-                { path: `${DISCOVERED_OBJECTS_PATH}.length`, value: currentNames.length + toAdd.length },
-            ]);
-            return [...currentNames, ...toAdd];
+            if (toAdd.length === 0) return { cancelled: true };
+            // The whole list in one write, so Undo has the list as it was.
+            await writeVerified(DISCOVERED_OBJECTS_PATH, [...currentNames, ...toAdd]);
+            return { ok: true };
         });
 
-    const removeObject = async (objectId) => {
-        if (mutating.val) return;
-        return editDestroyedObjects(async (currentNames) => {
+    const removeObject = (objectId) =>
+        change(async (currentNames) => {
             const index = currentNames.indexOf(objectId);
-            if (index < 0) return null;
-            const nextNames = currentNames.filter((_, other) => other !== index);
-            await writeVerified(DISCOVERED_OBJECTS_PATH, nextNames);
-            return nextNames;
+            if (index < 0) return { cancelled: true };
+            await writeVerified(
+                DISCOVERED_OBJECTS_PATH,
+                currentNames.filter((_, other) => other !== index)
+            );
+            return { ok: true };
         });
-    };
-    const isMutating = () => mutating.val;
-    // A row whose place and object are unchanged keeps its node, so a failed Remove still has its row to say so.
-    const keptRows = createKeptRows((row) =>
-        DestroyedObjectRow({ row, onRemove: () => removeObject(row.objectId), isBusy: isMutating })
-    );
 
-    const addSelectedObject = async () => {
-        const objectId = selectedObjectId.val;
-        if (!objectId || mutating.val) return;
-        await runAdd(() => addObjects([objectId]));
-    };
-
-    const addAllObjects = async () => {
-        if (mutating.val || missingObjectOptions.val.length === 0) return;
-        await runAdd(() => addObjects(missingObjectOptions.val.map((entry) => entry.objectId)));
-    };
-
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "CAVES",
-            note: () => `${caveRowsState.val.length} CAVES`,
-            body: caveListNode,
-        }),
-        AddFromListSection({
-            title: "ADD DESTROYED OBJECT",
-            note: () => `${missingObjectOptions.val.length} AVAILABLE TO ADD`,
-            selectLabel: "SELECT OBJECT",
-            selectedValue: selectedObjectId,
-            options: missingObjectOptions,
-            emptyOptionLabel: "No destroyed objects left to add",
-            getOptionValue: (entry) => entry.objectId,
-            getOptionLabel: (entry) => `${entry.caveName}: ${entry.name} (${entry.objectId})`,
-            addStatus,
-            addDisabled: () => mutating.val || !selectedObjectId.val || missingObjectOptions.val.length === 0,
-            addAllDisabled: () => mutating.val || missingObjectOptions.val.length === 0,
-            onAdd: addSelectedObject,
-            onAddAll: addAllObjects,
-        }),
-        AccountSection({
-            title: "DISCOVERED DESTROYED OBJECTS",
-            note: () =>
-                `${discoveredCount.val} DISCOVERED, ${knownDiscoveredCount.val}/${totalObjectCount.val} KNOWN OBJECTS`,
-            body: () => {
-                const rows = destroyedRows.val;
-                // Taken first, so an empty list lets go of the rows it held: a row added back is built new.
-                const nodes = keptRows(rows);
-                return rows.length === 0
-                    ? div({ class: "tab-empty" }, "No destroyed objects are currently discovered.")
-                    : div({ class: "account-item-stack account-item-stack--dense" }, ...nodes);
-            },
-        })
-    );
-    scrollEl = body;
+    // The objects the tools act on: every one, or the ones the top bar's search shows.
+    const shown = () => objects.val.filter((object) => shownBySearch(rowOf.get(object.objectId)));
+    const missing = () => shown().filter((object) => object.known && !discovered.val.includes(object.objectId));
+    const objectWord = (n) => `object${n === 1 ? "" : "s"}`;
 
     load();
 
     return PersistentAccountListPage({
-        title: "SPELUNKING CAVES",
-        description:
-            "Edit cave records from Spelunk[1], Spelunk[47], Spelunk[2], and Spelunk[44], and manage discovered destroyed objects from Spelunk[6].",
-        actions: RefreshButton({
-            onRefresh: () => {
-                if (mutating.val) return;
-                load();
-            },
-            disabled: () => loading.val || mutating.val,
-        }),
+        rootClass: "tab-container scroll-container spelunking-caves-tab",
+        title: "Caves",
+        description: "Each cave's records, and the destroyed objects you have discovered.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING SPELUNKING CAVES",
-        errorTitle: "SPELUNKING READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the caves",
+        errorTitle: "Couldn't read the caves",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "value-table--wide",
+                empty: () => (caveRowsState.val.length || objects.val.length ? null : "No caves found"),
+                setAll: { word: (n) => (n === 1 ? "cave" : "caves"), placeholder: "Deepest" },
+                // Discovering only adds, so it runs on one press.
+                tools: () =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Add all",
+                            status: bulk.status,
+                            disabled: () => loading.val || !missing().length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                const ids = missing().map((object) => object.objectId);
+                                return bulk.run(() => addObjects(ids));
+                            },
+                        })
+                    ),
+                // Set all sets the caves' deepest layers; Add all discovers the objects.
+                toolsLabel: () => {
+                    const n = shown().length;
+                    const found = shown().filter((object) => discovered.val.includes(object.objectId)).length;
+                    return `${isSearching() ? "Matching: " : ""}${found} of ${n} ${objectWord(n)} discovered`;
+                },
+                body: [
+                    AccountSection({
+                        title: "Records",
+                        body: [
+                            ValueTableHead({ name: "Cave", columns: CAVE_METRICS.map((metric) => metric.label) }),
+                            caveListNode,
+                        ],
+                    }),
+                    objectListNode,
+                ],
+            })
+        ),
     });
 }
 

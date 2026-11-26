@@ -310,9 +310,9 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
   #241).
 - **Undo shows where the old value is gone:** a row offers Undo only after a typed number, Max, a bulk action (Set
   all, Max all, Reset all, All to, the tray's tools) or a one-click wipe (Reset, Clear, Relock, × remove). Not after a
-  switch, the − / + beside a field, a step pick or a dropdown pick: using it again undoes it. A row with a switch and
-  fields (Research's observations) follows the control that saved it. History > Changes keeps every change with its
-  own Undo (Lumi, #81).
+  switch or a row toggle (Omni Jade, 2×), the − / + beside a field, a step pick or a dropdown pick: using it again
+  undoes it. A row with a switch and fields (Research's observations) follows the control that saved it. History >
+  Changes keeps every change with its own Undo (Lumi, #81).
 - **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
   tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
   tools; only with no room anywhere does it take its old place.
@@ -558,3 +558,36 @@ Every cheat that isn't on a system's page, in the same pieces (`views/Cheats.js`
   drops the question.
 - **No Quick access:** no favorites, no recents, no stars (Lumi). Cheats that are on are in Home's My cheats.
 - **Its drawing** is a game controller.
+
+### World 7 on the same pieces (decided 2026-11-26)
+
+World 7 uses the World 6 pieces and the Page standards (Lumi: yes to the direction and all fourteen drawings). The menu
+stays as it was (Lumi: keep the structure until she decides on on-page tabs): Spelunking, Research, Gallery, Coral Reef
+and Sushi Station keep their parts as sidebar entries; Jelly Operator and Menagerie keep theirs as tabs, now
+`TabbedList` tabs found by search. Menagerie's first tab is "Overview" (Lumi's pick).
+
+- **A board picks, a row edits** (the cog board's way, #251), built once for both boards (`createBoardEditor`): the
+  Research grid and the Sushi station show the game's board, each square or slot with its value; picking one opens its
+  row under the board in the same panel (the bonus first, the value up to its max). The same one again or Escape closes
+  it, and Escape gives focus back to the square; a press from the keyboard takes focus into the row. On a phone the
+  grid's squares come down to the panel's width, so the whole board shows; the station, far wider than a phone, scrolls
+  in its own box, never the page.
+- **Has or hasn't is a switch list** (the Hat Rack's way): Gallery's trophies ("In gallery") and Caves' destroyed
+  objects ("Discovered", grouped by cave), with Add all in the tray, instead of a dropdown and Remove buttons. The word
+  beside a switch stays (Lumi).
+- **A doubler is a row toggle** ("2×", lavender while on), after Max (`doublerRow`); a line that can't be doubled keeps
+  its room, and the stats above the upgrades keep Max's and the doubler's room, so the values stand in one column. "2 of
+  3 doubled" sits on the upgrades' heading. On a phone the field, Max and the doubler share one line.
+- **A placeholder max is no max:** where the game writes 9,999 or 99,999 for "none" (Minehead, the Sushi and Spelunking
+  shops, the Jelly Operator), the level shows alone, without a slash or Max (`realMax`), and the list has Set all.
+- **A sushi's state is a step picker** (Locked | Unlocked | Perfect) in its table column, with All to in the tray.
+- **A tool's own numbers sit in its tray**: Sushi Tools' tier and quantity, beside Add Knowledge XP; the tray's line says
+  what the last press added, or why it couldn't.
+- **A panel ends where its content ends** (`ListPanel`'s `short`): a page that is only its tools (Sushi Tools) or two
+  rows (The Button) keeps no empty room below.
+- **An empty list says so and shows no tools** (`ListPanel`'s `empty`: "No lore chapters found"), never "All 0".
+- **Progress toward a goal is "3 of 20", muted under the name** (Menagerie's missions); the slash stays for a cap.
+- **In a folded table line a switch comes before its word,** so the switches line up whether the word shows or not.
+- **A read-only number the game works out** (Menagerie's Lumi per hour) sits beside the title.
+- **World 7's fourteen systems have drawings** (Lumi: keep them all): a pickaxe, an eye, a jellyfish, a cell, a trophy, a
+  medal, a coral, a price tag, a clam, a fish, a minesweeper's flag, two passing arrows, a button and a nigiri.

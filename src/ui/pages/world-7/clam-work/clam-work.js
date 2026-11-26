@@ -6,7 +6,7 @@ import { parseNumber } from "../../../utils/numberFormat.js";
 import { ClickerRow } from "../../../components/views/account/ClickerRow.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
 import {
-    cleanName,
+    bonusText,
     createStaticRowReconciler,
     getOrCreateState,
     writeVerified,
@@ -14,9 +14,11 @@ import {
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const PEARL_FIELD = { index: 454, label: "Pearls", live: true, formatted: true, float: true };
 const CLAMWORKS_FIELDS = [
@@ -49,22 +51,14 @@ const SCURGE_FIELDS = [
 ];
 
 const ClamRow = ({ field, fieldState, onWrite }) =>
-    ClickerRow({
-        field,
-        fieldState,
-        onWrite,
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
-    });
+    ClickerRow({ field, fieldState, onWrite, controlsClass: "account-row__controls--xl" });
 
 const ClamTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Clam" });
     const fieldStates = new Map(ALL_FIELDS.map((field) => [field.index, van.state(undefined)]));
     const scurgeStates = new Map();
     const scurgeReady = van.state(false);
-    // Fields stay enabled while a save runs, so the next field the player types into keeps her edit.
-    const disabled = () => loading.val;
-    const scurgeList = div({ class: "account-item-stack" });
+    const scurgeList = div();
     const reconcileScurge = createStaticRowReconciler(scurgeList);
 
     const load = async () =>
@@ -106,24 +100,24 @@ const ClamTab = () => {
                         },
                         write: (next) => writeVerified(field.path, next),
                         renderInfo: () =>
-                            div(
-                                { class: "account-row__name-group" },
-                                span({ class: "account-row__name" }, field.name),
-                                field.index === undefined
-                                    ? null
-                                    : span(
-                                          { class: "account-row__sub-label" },
-                                          cleanName(descriptions[9 + field.index])
-                                              .replace(/@/g, " ")
-                                              .replace(/[{}$]/g, "…")
-                                      )
-                            ),
+                            // An upgrade's bonus first, its name under it; "$" is a number's place here too.
+                            RowTitles({
+                                bonus:
+                                    field.index === undefined
+                                        ? ""
+                                        : bonusText(
+                                              String(descriptions[9 + field.index] ?? "")
+                                                  .replace(/\$x/g, "}x")
+                                                  .replace(/\$/g, "{")
+                                          ),
+                                name: field.name,
+                            }),
                         adjustInput: (raw, delta, current) => Math.max(0, (parseNumber(raw) ?? current) + delta),
-                        disabled,
-                        rowClass: "account-row--wide-controls",
                         controlsClass: "account-row__controls--xl",
                         inputMode: field.float ? "float" : "int",
                         inputProps: { "aria-label": field.name },
+                        // A line of the list's Set all, saved where it lives.
+                        setAll: { min: 0, path: field.path },
                     })
                 )
             );
@@ -134,58 +128,40 @@ const ClamTab = () => {
         return true;
     };
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "PEARLS",
-            note: "OptionsListAccount[454]",
-            body: div(
-                { class: "account-item-stack" },
-                ClamRow({
-                    field: PEARL_FIELD,
-                    fieldState: fieldStates.get(PEARL_FIELD.index),
-                    onWrite,
-                })
-            ),
-        }),
-        AccountSection({
-            title: "CLAMWORKS",
-            note: () => `${CLAMWORKS_FIELDS.length} UPGRADES`,
-            body: div(
-                { class: "account-item-stack" },
-                ...CLAMWORKS_FIELDS.map((field) =>
-                    ClamRow({
-                        field,
-                        fieldState: fieldStates.get(field.index),
-                        onWrite,
-                    })
-                )
-            ),
-        }),
-        AccountSection({
-            title: "SCURGE",
-            note: () =>
-                scurgeReady.val
-                    ? "Clamworks promotion resets Scurge EXP, level, and these upgrades."
-                    : "Scurge data is not initialized.",
-            body: scurgeList,
-        })
-    );
-
     load();
 
     return PersistentAccountListPage({
-        title: "CLAM",
-        description: "Set Pearls, Clamworks upgrades, and Scurge EXP, level, and upgrades.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Clam Work",
+        description: "Pearls, Clamworks upgrades, and Scurge's EXP, level and upgrades.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING CLAM",
-        errorTitle: "CLAM READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading Clam Work",
+        errorTitle: "Couldn't read Clam Work",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                setAll: { word: (n) => (n === 1 ? "line" : "lines"), placeholder: "Value" },
+                body: [
+                    AccountSection({
+                        title: "Pearls",
+                        body: ClamRow({ field: PEARL_FIELD, fieldState: fieldStates.get(PEARL_FIELD.index), onWrite }),
+                    }),
+                    AccountSection({
+                        title: "Clamworks",
+                        body: CLAMWORKS_FIELDS.map((field) =>
+                            ClamRow({ field, fieldState: fieldStates.get(field.index), onWrite })
+                        ),
+                    }),
+                    AccountSection({
+                        title: "Scurge",
+                        note: () => (scurgeReady.val ? "A Clamworks promotion resets these" : "Not started yet"),
+                        body: scurgeList,
+                    }),
+                ],
+            })
+        ),
     });
 };
 

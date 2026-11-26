@@ -6,16 +6,20 @@ import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelR
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
+    bonusText,
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
+    realMax,
     toInt,
 } from "../../../components/views/account/accountShared.js";
-import { UpgradeDoublerButton, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
+import { doublerRow, useUpgradeDoublers } from "../../../components/views/account/UpgradeDoublers.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const SUSHI_SHOP_PATH = "Sushi[2]";
 
@@ -25,14 +29,8 @@ const ShopUpgradeRow = ({ entry, levelState, doublers }) =>
         writePath: `${SUSHI_SHOP_PATH}[${entry.index}]`,
         max: entry.maxLevel,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.index}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        rowClass: "account-row--wide-controls minigame-upgrade-row",
-        controlsClass: "account-row__controls--xl",
-        maxAction: true,
-        renderExtraActions: () => UpgradeDoublerButton({ doublers, index: entry.index, name: entry.name }),
+        renderInfo: () => RowTitles({ bonus: entry.bonus, name: entry.name }),
+        ...doublerRow(entry, doublers),
     });
 
 const getOrderKey = (rawOrderEntry) => {
@@ -61,7 +59,8 @@ const buildShopEntries = (rawDefinitions, rawOrder) => {
                 index,
                 rawName,
                 name: cleanName(rawName, `Sushi Upgrade ${index}`),
-                maxLevel: toInt(definition[1], { min: 0 }),
+                bonus: bonusText(definition[5]),
+                maxLevel: realMax(definition[1]),
             };
         })
         .filter(Boolean)
@@ -76,7 +75,7 @@ function SushiShopTab() {
     );
     const upgradeEntries = van.state([]);
     const levelStates = new Map();
-    const shopListNode = div({ class: "account-item-stack" });
+    const shopListNode = div();
     const reconcileShopRows = createStaticRowReconciler(shopListNode);
 
     const reconcileRows = () => {
@@ -103,37 +102,34 @@ function SushiShopTab() {
 
             const levels = toIndexedArray((await gga(SUSHI_SHOP_PATH)) ?? []);
             for (const entry of upgradeEntries.val) {
-                getOrCreateState(levelStates, entry.index).val = Math.min(
-                    entry.maxLevel,
-                    toInt(levels[entry.index], { min: 0 })
-                );
+                getOrCreateState(levelStates, entry.index).val = toInt(levels[entry.index], { min: 0 });
             }
         });
 
     load();
 
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "SHOP UPGRADES",
-            note: () =>
-                `${upgradeEntries.val.length} UPGRADES · ${doublers.selected.val.length}/${doublers.capacity.val} DOUBLED`,
-            body: shopListNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: "SUSHI SHOP",
-        description: "Set Sushi shop upgrade levels and choose which upgrades are doubled.",
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val,
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Shop",
+        description: "Sushi shop upgrade levels, and which upgrades are doubled.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
         state: { loading, error },
-        loadingText: "READING SUSHI SHOP",
-        errorTitle: "SUSHI SHOP READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the sushi shop",
+        errorTitle: "Couldn't read the sushi shop",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                className: "field-columns",
+                empty: () => (upgradeEntries.val.length ? null : "No upgrades found"),
+                setAll: { word: (n) => (n === 1 ? "upgrade" : "upgrades") },
+                body: AccountSection({
+                    title: "Upgrades",
+                    note: () => `${doublers.selected.val.length} of ${doublers.capacity.val} doubled`,
+                    body: shopListNode,
+                }),
+            })
+        ),
     });
 }
 

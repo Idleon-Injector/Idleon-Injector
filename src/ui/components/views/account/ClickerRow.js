@@ -12,11 +12,13 @@ const { div, span } = van.tags;
 export const ClickerRow = ({ field, fieldState, onWrite, warnBadgeClass, rowClass = "", controlsClass }) => {
     const isFormatted = field.formatted || field.float;
     const isFloat = field.float;
-    const parseInputValue = (raw) => resolveNumberInput(raw, { formatted: isFormatted, float: isFloat });
+    // A typed value below 0 is refused with the reason; −/+ stop at 0.
+    const parseInputValue = (raw, strict = false) =>
+        resolveNumberInput(raw, { formatted: isFormatted, float: isFloat, min: 0, strict });
 
     return EditableNumberRow({
         valueState: fieldState,
-        normalize: (rawValue) => parseInputValue(rawValue),
+        normalize: (rawValue) => parseInputValue(rawValue, true),
         write: async (nextValue) => {
             return writeVerified(`OptionsListAccount[${field.index}]`, nextValue, {
                 write: (_path, value) => onWrite(field.index, value),
