@@ -154,7 +154,6 @@ button {
 }
 
 /* A favourite's star fills; the outline is "not a favourite". */
-.favorite-btn.is-favorite .icon-star,
 .key-favorite-btn.active .icon-star {
     fill: currentColor;
 }

@@ -13,7 +13,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import vm from "node:vm";
 
 export const KNOWN_BUGS = {
-    destructiveOneClick: "Destructive cheats like wipe run on one click from the Cheats list",
     unbanNeverRuns: "The unban check reads a cheat that's never registered, so it never runs",
 };
 

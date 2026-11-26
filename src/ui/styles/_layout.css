@@ -44,8 +44,9 @@
     transition: padding-right 0.25s var(--ease-tech);
 }
 
-#cheats-tab.drawer-host-open {
-    padding-right: clamp(360px, 42vw, 560px);
+/* The list keeps the room left of the Config drawer. */
+.viewport #tab-content > #cheats-tab.drawer-host-open {
+    padding-right: calc(clamp(360px, 42vw, 560px) + 24px);
 }
 
 #config-tab.drawer-open {
@@ -119,8 +120,8 @@
 }
 
 @media (max-width: 1200px) {
-    #cheats-tab.drawer-host-open {
-        padding-right: 0;
+    .viewport #tab-content > #cheats-tab.drawer-host-open {
+        padding-right: var(--page-pad);
     }
 
     #config-tab.drawer-open {

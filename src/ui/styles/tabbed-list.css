@@ -54,20 +54,36 @@
 }
 
 /*
- * Many tabs (a farm's crops, Death Note's eight on a phone) wrap onto rows that fill the panel's width. The open tab runs down into the list
- * from the last row; on a row above, its block is rounded all round, with no feet (TabbedList sets pill-floats).
+ * Many tabs (a farm's crops, Death Note's eight on a phone) wrap onto rows that fill the panel's width. The open tab runs
+ * down into what it opens from any row: on a row above the last, the rows of tabs under it stand on the band, the open
+ * tab's own ground carried on down into the tray or the list (TabbedList sets --pill-y and --band).
  */
 .viewport .tabbed-list .tabbed-list__tabs--wrap {
     flex-wrap: wrap;
     row-gap: 4px;
     overflow: visible;
 }
-.tabbed-list__tabs.pill-floats .tabbed-list__pill {
-    border-radius: 10px;
+.viewport .tabbed-list .tabbed-list__tabs--wrap::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: var(--band, 0);
+    background: var(--tab-open-fill);
+    box-shadow: inset 0 -1px var(--c-hairline);
+    pointer-events: none;
 }
-.tabbed-list__tabs.pill-floats .tabbed-list__pill::before,
-.tabbed-list__tabs.pill-floats .tabbed-list__pill::after {
-    display: none;
+/* With tools the band is the top of the tray, so it takes the tray's shape and no line parts them. */
+.viewport .tabbed-list.has-tools .tabbed-list__tabs--wrap::before {
+    right: 8px;
+    left: 8px;
+    border-radius: 12px 12px 0 0;
+    box-shadow: none;
+}
+.tabbed-list.has-tools .has-band + .tabbed-list__tools {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }
 
 /* A tab's own tools (toolsPerTab): laid out as if the tray held them directly; another tab's stay out of sight. */
@@ -112,17 +128,27 @@
     background: radial-gradient(circle at 100% 0, transparent 10px, var(--tab-open-fill) 10.5px);
 }
 
-/* The first tab stands on the tray's left edge: the tray's corner there is square and there is no foot to curve. */
-.tabbed-list.has-tools .tabbed-list__head.first-open .tabbed-list__tools {
+/* A tab at its row's start (or end) stands on the tray's edge: the tray's corner there is square and there is no foot to
+   curve. */
+.viewport .tabbed-list.has-tools .pill-at-start::before,
+.tabbed-list.has-tools .pill-at-start + .tabbed-list__tools {
     border-top-left-radius: 0;
 }
-.tabbed-list.has-tools .tabbed-list__head.first-open .tabbed-list__pill::before {
+.viewport .tabbed-list.has-tools .pill-at-end::before,
+.tabbed-list.has-tools .pill-at-end + .tabbed-list__tools {
+    border-top-right-radius: 0;
+}
+.tabbed-list.has-tools .pill-at-start .tabbed-list__pill::before,
+.tabbed-list.has-tools .pill-at-end .tabbed-list__pill::after {
     display: none;
 }
 .tabbed-list__tabs.pill-glides .tabbed-list__pill {
     transition:
         transform 260ms var(--ease-soft),
         width 260ms var(--ease-soft);
+}
+.viewport .tabbed-list .tabbed-list__tabs--wrap.pill-glides::before {
+    transition: height 260ms var(--ease-soft);
 }
 
 /*
@@ -451,7 +477,8 @@
     .tabbed-list__body[data-switched] {
         animation: none;
     }
-    .tabbed-list__tabs.pill-glides .tabbed-list__pill {
+    .tabbed-list__tabs.pill-glides .tabbed-list__pill,
+    .viewport .tabbed-list .tabbed-list__tabs--wrap.pill-glides::before {
         transition: none;
     }
 }
@@ -504,13 +531,21 @@
         gap: 2px;
         padding: 8px 4px 0;
     }
+    /* The tray as far in as the tabs, so the first one open stands on its edge. */
+    .tabbed-list:not(.no-tabs) .tabbed-list__tools {
+        margin: 0 4px 4px;
+    }
+    .viewport .tabbed-list.has-tools .tabbed-list__tabs--wrap::before {
+        right: 4px;
+        left: 4px;
+    }
     .viewport .tabbed-list .tabbed-list__tab {
         flex: 1 1 auto;
         padding: 0 6px;
         font-size: 0.875rem;
     }
     /* The last tab ends at the panel's edge: no foot to curve out past it. */
-    .tabbed-list__head.last-open .tabbed-list__pill::after {
+    .tabbed-list__tabs.pill-at-end .tabbed-list__pill::after {
         display: none;
     }
 }

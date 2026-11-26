@@ -98,15 +98,24 @@ export const balanceFrame = (root) => {
         const list = 48 * rem;
         const room = viewport.clientWidth - 2 * pad;
         const onPages = store.app.activeTab === VIEWS.PAGES.id;
-        const fits = (onPages || store.app.activeTab === VIEWS.HOME.id) && room - list - SIDE.gap >= SIDE.min;
+        // The Cheats area too, unless the Config drawer takes the window's right side.
+        const inFrame =
+            onPages ||
+            store.app.activeTab === VIEWS.HOME.id ||
+            (store.app.activeTab === VIEWS.CHEATS.id && !store.app.configDrawerOpen);
+        const fits = inFrame && room - list - SIDE.gap >= SIDE.min;
         viewport.classList.toggle("pages-frame", fits);
         framed.val = fits;
         if (!fits) return;
         const inset = Math.max(0, (room - list - SIDE.gap - SIDE.max) / 2);
-        // The open page's own measure: a table page's search is as wide as its column and cheats column.
-        const open = onPages && document.querySelector("#pages-tab .world-sub-pane.active > .tab-container");
+        // The open page's own measure: a table page's search is as wide as its column and cheats column. The Cheats
+        // area has no column beside it.
+        const onCheats = store.app.activeTab === VIEWS.CHEATS.id;
+        const open = onPages
+            ? document.querySelector("#pages-tab .world-sub-pane.active > .tab-container")
+            : onCheats && document.getElementById(VIEWS.CHEATS.id);
         const measure = open ? parseFloat(getComputedStyle(open).getPropertyValue("--page-measure")) * rem : list;
-        const column = Math.min(SIDE.max, room - inset - measure - SIDE.gap);
+        const column = onCheats ? 0 : Math.min(SIDE.max, room - inset - measure - SIDE.gap);
         viewport.style.setProperty("--page-inset", `${inset}px`);
         viewport.style.setProperty("--frame-width", `${column >= SIDE.min ? measure + SIDE.gap + column : measure}px`);
     };
@@ -115,6 +124,7 @@ export const balanceFrame = (root) => {
     van.derive(() => {
         store.app.activeTab;
         store.app.menuPage;
+        store.app.configDrawerOpen;
         requestAnimationFrame(apply);
     });
 };
