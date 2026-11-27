@@ -328,3 +328,66 @@ test("a config read while a session update reaches the game keeps the applied va
     await Promise.all([update, read]);
     assert.equal(config.getCheatConfig().unlock.islands, "a", "the injector keeps the applied value");
 });
+
+test("startup nomore rules stay out of saved settings without changing active or separate filters", async (t) => {
+    const dir = useInstall(
+        t,
+        `
+exports.startupCheats = ["nomore ^Copper$", "nomore ^Bad[$"];
+exports.cheatConfig = { nomore: { items: [/^Copper$/, /^Iron$/i, /^CopperOre$/] } };
+`
+    );
+    const { config } = start();
+    assert.deepEqual(
+        config.getCheatConfig().nomore.items.map(String),
+        ["/^Iron$/i", "/^CopperOre$/"],
+        "old saved startup duplicates are removed before startup commands run"
+    );
+
+    const active = ["/^Copper$/", "/^Iron$/i", "/^CopperOre$/"];
+    let applied;
+    const bridge = {
+        callHelper: async () => ({ value: JSON.stringify({ nomore: { items: active } }) }),
+        isAttached: async () => true,
+        updateConfig: async (value) => {
+            applied = value.nomore.items.map(String);
+            return { value: "Config updated in game." };
+        },
+    };
+    await config.pullGameConfig(bridge, config.getCheatConfig());
+    await config.saveConfiguration({ cheatConfig: { nomore: { items: active } } }, bridge);
+    assert.deepEqual(applied, active, "saving does not disable the running game's startup filters");
+    assert.deepEqual(config.getCheatConfig().nomore.items.map(String), active);
+
+    let restarted = start().config;
+    assert.deepEqual(restarted.getCheatConfig().nomore.items.map(String), ["/^Iron$/i", "/^CopperOre$/"]);
+    // Removing a startup command leaves its still-active rule as an ordinary saved filter.
+    await config.saveConfiguration({ startupCheats: [] });
+    restarted = start().config;
+    assert.deepEqual(restarted.getCheatConfig().nomore.items.map(String), active);
+    assert.deepEqual(restarted.getStartupCheats(), []);
+
+    await config.saveConfiguration({
+        startupCheats: ["nomore ^Copper$", "nomore ^Iron$"],
+        cheatConfig: { nomore: { items: ["/^Copper$/", "/^Iron$/"] } },
+    });
+    const written = readFileSync(join(dir, "config.custom.js"), "utf8");
+    assert.equal(written.includes("nomore:"), false, "startup-only rules leave no duplicate settings block");
+    assert.equal(config.getCheatConfig().nomore.items.length, 2, "disk pruning does not change the session");
+});
+
+test("saving settings does not create a nomore block for startup-only filters", async (t) => {
+    const dir = useInstall(t, 'exports.startupCheats = ["nomore ^Copper$"];');
+    const { config } = start();
+    const bridge = {
+        callHelper: async () => ({ value: JSON.stringify({ nomore: { items: ["/^Copper$/"] } }) }),
+    };
+    for (let save = 0; save < 2; save++) {
+        await config.pullGameConfig(bridge, config.getCheatConfig());
+        await config.saveConfiguration({});
+        const written = readFileSync(join(dir, "config.custom.js"), "utf8");
+        assert.equal(written.includes("nomore:"), false);
+        assert.ok(written.includes('"nomore ^Copper$"'));
+        assert.deepEqual(config.getCheatConfig().nomore.items.map(String), ["/^Copper$/"]);
+    }
+});
