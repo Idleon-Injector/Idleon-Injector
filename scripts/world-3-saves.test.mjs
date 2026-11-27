@@ -241,6 +241,23 @@ test("A trap row's save keeps a Set all that lands on another column while it sa
     assert.deepEqual(exps(), [900, 900, 900], "the row's save left Set all's EXP in place");
 });
 
+test("Traps' tray count follows a Refresh that finds a new trap (#269)", async (t) => {
+    const before = structuredClone(gga.PlacedTraps);
+    t.after(() => (gga.PlacedTraps = before));
+    const root = await openPage("src/ui/pages/world-3/traps/traps.js", (r) => byClass(r, "trap-row").length > 1);
+    const label = () => text(byClass(byClass(root, "tabbed-list__tools")[0], "tabbed-list__tools-label")[0]);
+    const placed = () => gga.PlacedTraps.filter((trap) => trap[0] !== -1).length;
+    const n = placed();
+    await until(() => label() === `All ${n} traps`, "the tray to count the traps in play");
+
+    // A new trap placed in game, then Refresh: the count follows without another character picked.
+    const free = gga.PlacedTraps.findIndex((trap) => trap[0] === -1);
+    gga.PlacedTraps[free] = structuredClone(gga.PlacedTraps.find((trap) => trap[0] !== -1));
+    const refresh = button(root, "Refresh");
+    refresh.listeners.click({ preventDefault() {}, currentTarget: refresh });
+    await until(() => label() === `All ${n + 1} traps`, `the tray to count ${n + 1} traps after Refresh`);
+});
+
 test("Worship refuses a charge save once another character is in play, and writes nothing", async (t) => {
     const first = gga.UserInfo[0];
     t.after(() => switchTo(first));
