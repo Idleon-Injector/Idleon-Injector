@@ -15,7 +15,7 @@
  * - MaxCapacity (carry capacity multiplier)
  */
 
-import { cheatConfig, cheatState } from "../core/state.js";
+import { cheatConfig, cheatState, nomoreBlocks } from "../core/state.js";
 import { events } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
 import { getMultiplyValue } from "../helpers/values.js";
@@ -117,8 +117,7 @@ defineHook({ id: "multiply.drop", target: () => events(12), method: "_customBloc
 });
 
 defineHook({ id: "nomore", target: () => events(12), method: "_customBlock_GenerateMonsterDrops" }, (drops) => {
-    if (!cheatConfig.nomore) return drops;
-    return drops.filter((drop) => !cheatConfig.nomore.items.some((regex) => regex.test(drop[0])));
+    return drops.filter((drop) => !nomoreBlocks(drop[0]));
 });
 
 defineHook({ id: "multiply.classexp", target: () => events(12), method: "_customBlock_ExpMulti" }, (base, key) => {

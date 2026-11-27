@@ -5,7 +5,7 @@
  * - Card drop labels for nomore matches
  */
 
-import { cheatConfig, cheatState } from "../core/state.js";
+import { cheatConfig, cheatState, nomoreBlocks } from "../core/state.js";
 import { bEngine, events, gga, itemDefs } from "../core/globals.js";
 import { defineHook } from "../core/hooks.js";
 
@@ -59,12 +59,7 @@ defineHook(
         const row = Math.floor(index / 2);
         if (x !== 707 + 141 * (index - 2 * row) || y !== 264 + 44 * row) return callOriginal();
         const item = ui._GenINFO[40][index][0];
-        if (
-            !itemDefs[item] ||
-            ui._GenINFO[133].includes(item) ||
-            !cheatConfig.nomore.items.some((regex) => regex.test(item))
-        )
-            return callOriginal();
+        if (!itemDefs[item] || ui._GenINFO[133].includes(item) || !nomoreBlocks(item)) return callOriginal();
 
         // Keep the native chance font (white), distinct from the filter page's red FILTERED OUT glyph.
         return callOriginal(["FILTERED OUT", x - 5, y]);
