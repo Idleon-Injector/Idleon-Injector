@@ -32,6 +32,14 @@ export let webPort = null;
 export function setCheatConfig(config) {
     cheatConfig = config;
 }
+
+/**
+ * Whether a nomore rule blocks this item. `search` ignores a rule's `g`/`y` state, so a hand-written `/^Copper$/g`
+ * answers the same on every check (`test` would alternate).
+ * @param {string} item - Item code
+ * @returns {boolean}
+ */
+export const nomoreBlocks = (item) => cheatConfig?.nomore?.items.some((regex) => item.search(regex) !== -1) ?? false;
 /**
  * Update cheat configuration from external source.
  *

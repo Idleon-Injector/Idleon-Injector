@@ -84,6 +84,23 @@ function expandRemovedGroups(list) {
     return [...new Set(list.flatMap((command) => removedGroups[command] ?? [command]))];
 }
 
+/** Startup nomore commands restore their own rules; persisting them too would toggle them off on launch. */
+function omitStartupFilters(cheats, commands) {
+    if (!Array.isArray(cheats.nomore?.items)) return;
+    const startupPatterns = new Set();
+    for (const command of commands) {
+        const [name, pattern] = command.split(" ");
+        if (name !== "nomore" || !pattern) continue;
+        try {
+            startupPatterns.add(String(new RegExp(pattern)));
+        } catch {
+            // Invalid startup commands are reported when they run.
+        }
+    }
+    cheats.nomore.items = cheats.nomore.items.filter((regex) => !startupPatterns.has(String(regex)));
+    if (!cheats.nomore.items.length && Object.keys(cheats.nomore).length === 1) delete cheats.nomore;
+}
+
 /**
  * The save that wrote a startup list without its family switches, while it runs (null when the load had none); tests
  * wait for it.
@@ -151,6 +168,7 @@ function loadConfiguration() {
         injectorConfig = config.injectorConfig;
         startupCheats = config.startupCheats;
         cheatConfig = config.cheatConfig;
+        omitStartupFilters(cheatConfig, startupCheats);
         migrateAutomationShape(cheatConfig.automation);
         migrateAutomationPriority(cheatConfig);
         savedAutomation = plain(cheatConfig.automation ?? {});
@@ -306,7 +324,9 @@ async function writeConfiguration(receivedFullConfig, gameBridge) {
         filterByTemplate(uiInjectorConfig, injectorTemplate) || {}
     );
 
-    const cheatConfigDiff = getDeepDiff(mergedCheatConfig, defaultConfig?.cheatConfig) || {};
+    const persistedCheatConfig = deepClone(mergedCheatConfig);
+    omitStartupFilters(persistedCheatConfig, uiStartupCheats);
+    const cheatConfigDiff = getDeepDiff(persistedCheatConfig, defaultConfig?.cheatConfig) || {};
     const injectorConfigDiff = getDeepDiff(filteredInjectorConfig, defaultConfig?.injectorConfig) || {};
     const startupCheatsDiff =
         JSON.stringify(uiStartupCheats) !== JSON.stringify(defaultConfig?.startupCheats) ? uiStartupCheats : [];
