@@ -1,8 +1,16 @@
+/**
+ * Account - Task Board
+ *
+ * The game's three screens as tabs (Tasks, Achievements, Merit Shop), for the world picked on the line under the title,
+ * like a character on other pages. Tasks: gga.Tasks[0][world] progress and Tasks[1][world] stages done, each up to its
+ * stage count (cList.TaskDescriptions). Achievements: gga.AchieveReg, progress or -1 once complete (cList.RegAchieves,
+ * in AchieveOrderingz's order). Merit Shop: gga.Tasks[2] purchases, each up to its max (cList.TaskShopDesc).
+ */
 import van from "../../../vendor/van-1.6.0.js";
-import { definePage } from "../../../menu/menuModel.js";
+import { WORLDS as MENU_WORLDS, definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
-import { SimpleNumberRow } from "../../../components/views/account/SimpleNumberRow.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { ClampedLevelRow } from "../../../components/views/account/ClampedLevelRow.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
@@ -10,37 +18,33 @@ import {
     cleanNameEffect,
     createStaticRowReconciler,
     getOrCreateState,
+    runBulkSet,
     toInt,
+    useWriteStatus,
 } from "../../../components/views/account/accountShared.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import {
-    createComingSoonPlaceholder,
-    renderLazyPanes,
-    renderTabNav,
-} from "../../../components/views/account/tabShared.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
+import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
 
 const { div, span } = van.tags;
 
-const WORLD_TABS = [
-    { id: "w1", label: "W1", worldIndex: 0 },
-    { id: "w2", label: "W2", worldIndex: 1 },
-    { id: "w3", label: "W3", worldIndex: 2 },
-    { id: "w4", label: "W4", worldIndex: 3 },
-    { id: "w5", label: "W5", worldIndex: 4 },
-    { id: "w6", label: "W6", worldIndex: 5 },
-    { id: "w7", label: "W7", worldIndex: 6 },
+const WORLDS = MENU_WORLDS.filter((world) => typeof world.id === "number").map((world, index) => ({
+    id: String(index),
+    label: world.label,
+    note: world.name,
+}));
+const TABS = [
+    { id: "tasks", label: "Tasks" },
+    { id: "achievements", label: "Achievements" },
+    { id: "merit-shop", label: "Merit Shop" },
 ];
-
-const WORLD_FEATURE_TABS = [
-    { id: "tasks", label: "TASKS", component: (worldIndex) => TasksWorldTasksTab({ worldIndex }) },
-    { id: "achievements", label: "ACHIEVEMENTS", component: (worldIndex) => TasksWorldAchievementsTab({ worldIndex }) },
-    { id: "merit-shop", label: "MERIT SHOP", component: (worldIndex) => TasksWorldMeritShopTab({ worldIndex }) },
-];
-
 const TASK_LIMIT_PER_WORLD = 8;
 const ACHIEVEMENTS_PER_WORLD = 70;
+const COMPLETE = -1;
+const count = (n) => Number(n ?? 0).toLocaleString("en-US");
 
 const joinDescription = (first, second) =>
     [first, second]
@@ -71,90 +75,6 @@ const buildTaskEntries = (worldIndex, rawProgress, rawCompletions, rawDescriptio
                 stageTargets,
             };
         });
-};
-
-// entryState follows every load (a Refresh keeps the row); Target follows the saved stages done.
-const TaskRow = ({ entry, entryState, valueState }) =>
-    SimpleNumberRow({
-        entry: {
-            index: entry.index + 1,
-            name: entry.name,
-            path: entry.path,
-            formatted: false,
-            min: 0,
-            max: entry.maxStages,
-            subLabel: () => {
-                const { progress, stageTargets } = entryState.val;
-                const nextTarget = stageTargets[Math.min(toInt(valueState.val, { min: 0 }), stageTargets.length - 1)];
-                const parts = [`Progress ${progress ?? 0}`];
-                if (nextTarget !== undefined) parts.push(`Target ${nextTarget}`);
-                // A slash means a cap, so the two facts sit apart with a dot.
-                return parts.join(" · ");
-            },
-            cap: entry.maxStages,
-            maxAction: {
-                value: entry.maxStages,
-            },
-            resetAction: true,
-        },
-        valueState,
-    });
-
-const TasksWorldTasksTab = ({ worldIndex }) => {
-    const worldLabel = `W${worldIndex + 1}`;
-    const { loading, error, run } = useAccountLoad({ label: `${worldLabel} Tasks` });
-    const entries = van.state([]);
-    const valueStates = new Map();
-    const entryStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
-    const reconcileRows = createStaticRowReconciler(listNode);
-
-    const load = async () =>
-        run(async () => {
-            const [rawProgress, rawCompletions, rawDescriptions] = await Promise.all([
-                gga(`Tasks[0][${worldIndex}]`),
-                gga(`Tasks[1][${worldIndex}]`),
-                readCList(`TaskDescriptions[${worldIndex}]`),
-            ]);
-
-            entries.val = buildTaskEntries(worldIndex, rawProgress, rawCompletions, rawDescriptions);
-            for (const entry of entries.val) getOrCreateState(entryStates, entry.index, entry).val = entry;
-            reconcileRows(entries.val.map((entry) => entry.rawName).join("|"), () =>
-                entries.val.map((entry) =>
-                    TaskRow({
-                        entry,
-                        entryState: getOrCreateState(entryStates, entry.index),
-                        valueState: getOrCreateState(valueStates, entry.index),
-                    })
-                )
-            );
-
-            for (const entry of entries.val) {
-                getOrCreateState(valueStates, entry.index).val = entry.completed;
-            }
-        });
-
-    load();
-
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "TASKS",
-            note: () => `${entries.val.length} TASKS FROM Tasks[1][${worldIndex}]`,
-            body: listNode,
-        })
-    );
-
-    return PersistentAccountListPage({
-        title: `${worldLabel} TASKS`,
-        description: "Edit completed task stages. Stage caps come from TaskDescriptions.",
-        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
-        state: { loading, error },
-        loadingText: `READING ${worldLabel} TASKS`,
-        errorTitle: `${worldLabel} TASKS READ FAILED`,
-        initialWrapperClass: "scrollable-panel",
-        body,
-    });
 };
 
 const resolveAchievementIndexes = (worldIndex, rawOrdering, rawAchievements) => {
@@ -199,83 +119,6 @@ const buildAchievementEntries = (worldIndex, rawValues, rawAchievements, rawOrde
         })
         .filter(Boolean);
 };
-
-const AchievementRow = ({ entry, valueState }) =>
-    SimpleNumberRow({
-        entry: {
-            index: entry.index,
-            name: entry.name,
-            path: entry.path,
-            formatted: false,
-            min: -1,
-            badge: (currentValue) => (Number(currentValue) === -1 ? "Complete" : ""),
-            maxAction: {
-                label: "Done",
-                value: -1,
-            },
-            resetAction: true,
-        },
-        valueState,
-    });
-
-const TasksWorldAchievementsTab = ({ worldIndex }) => {
-    const worldLabel = `W${worldIndex + 1}`;
-    const { loading, error, run } = useAccountLoad({ label: `${worldLabel} Achievements` });
-    const entries = van.state([]);
-    const valueStates = new Map();
-    const listNode = div({ class: "account-item-stack account-item-stack--dense" });
-    const reconcileRows = createStaticRowReconciler(listNode);
-
-    const load = async () =>
-        run(async () => {
-            const [rawValues, rawAchievements, rawOrdering] = await Promise.all([
-                gga("AchieveReg"),
-                readCList("RegAchieves"),
-                readCList("AchieveOrderingz"),
-            ]);
-
-            entries.val = buildAchievementEntries(worldIndex, rawValues, rawAchievements, rawOrdering);
-            reconcileRows(entries.val.map((entry) => `${entry.index}:${entry.rawName}`).join("|"), () =>
-                entries.val.map((entry) =>
-                    AchievementRow({
-                        entry,
-                        valueState: getOrCreateState(valueStates, entry.index),
-                    })
-                )
-            );
-
-            for (const entry of entries.val) {
-                getOrCreateState(valueStates, entry.index).val = entry.value;
-            }
-        });
-
-    load();
-
-    const completedCount = van.derive(
-        () => entries.val.filter((entry) => getOrCreateState(valueStates, entry.index).val === -1).length
-    );
-
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "ACHIEVEMENTS",
-            note: () => `${completedCount.val} / ${entries.val.length} COMPLETE`,
-            body: listNode,
-        })
-    );
-
-    return PersistentAccountListPage({
-        title: `${worldLabel} ACHIEVEMENTS`,
-        description: "Edit achievement progress from AchieveReg. A value of -1 marks an achievement complete.",
-        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
-        state: { loading, error },
-        loadingText: `READING ${worldLabel} ACHIEVEMENTS`,
-        errorTitle: `${worldLabel} ACHIEVEMENTS READ FAILED`,
-        initialWrapperClass: "scrollable-panel",
-        body,
-    });
-};
-
 const getShopDefinitionsForWorld = (rawDefinitions, worldIndex) => {
     const definitionWorlds = toIndexedArray(rawDefinitions ?? []);
     const worldDefinitions = toIndexedArray(definitionWorlds[worldIndex] ?? []);
@@ -328,134 +171,260 @@ const buildMeritShopEntries = (worldIndex, rawPurchases, rawDefinitions) => {
         .filter(Boolean);
 };
 
+// A task: its stages done, up to how many it has; how far it is toward the next stage, muted under its name.
+const TaskRow = ({ entry, valueState, progressState }) =>
+    ClampedLevelRow({
+        valueState,
+        writePath: entry.path,
+        max: entry.maxStages,
+        renderInfo: () =>
+            RowTitles({
+                name: entry.name,
+                note: () => {
+                    const target = entry.stageTargets[Math.min(toInt(valueState.val, { min: 0 }), entry.maxStages - 1)];
+                    return target === undefined ? null : `${count(progressState.val)} of ${count(target)}`;
+                },
+            }),
+        maxAction: true,
+    });
+
+// An achievement: its progress, or "Complete" (the game's -1), which Done gives it at once.
+const AchievementRow = ({ entry, valueState }) =>
+    ClampedLevelRow({
+        valueState,
+        writePath: entry.path,
+        max: Infinity,
+        min: COMPLETE,
+        unset: COMPLETE,
+        renderInfo: () => RowTitles({ name: entry.name }),
+        renderBadge: (value) => (Number(value) === COMPLETE ? "Complete" : ""),
+        renderExtraActions: ({ applyValue }) =>
+            ActionButton({
+                label: "Done",
+                disabled: () => Number(valueState.val) === COMPLETE,
+                onClick: (e) => {
+                    e.preventDefault();
+                    void applyValue(COMPLETE);
+                },
+            }),
+    });
+
 const MeritShopRow = ({ entry, valueState }) =>
     ClampedLevelRow({
         valueState,
         writePath: entry.path,
         max: entry.maxPurchases,
         integerMode: "round",
-        renderInfo: () => [
-            span({ class: "account-row__index" }, `#${entry.localIndex + 1}`),
-            div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, entry.name)),
-        ],
-        rowClass: "account-row--wide-controls",
-        controlsClass: "account-row__controls--xl",
+        renderInfo: () => RowTitles({ name: entry.name }),
         maxAction: true,
     });
 
-const TasksWorldMeritShopTab = ({ worldIndex }) => {
-    const worldLabel = `W${worldIndex + 1}`;
-    const { loading, error, run } = useAccountLoad({ label: `${worldLabel} Merit Shop` });
-    const entries = van.state([]);
-    const valueStates = new Map();
-    const listNode = div({ class: "account-item-stack" });
-    const reconcileRows = createStaticRowReconciler(listNode);
+const TaskBoardTab = () => {
+    const { loading, error, run } = useAccountLoad({ label: "Task Board" });
+    const world = van.state("0");
+    const bulk = useWriteStatus();
+    const states = new Map();
+    const progress = new Map();
+    // Each tab's rows for the picked world: built again when another world is picked, kept across a refresh.
+    const lists = new Map(
+        TABS.map((tab) => {
+            const node = div({ class: "account-page-pane" });
+            return [tab.id, { node, reconcile: createStaticRowReconciler(node), entries: [] }];
+        })
+    );
+    const read = van.state(null);
 
-    const load = async () =>
-        run(async () => {
-            const [rawPurchases, rawDefinitions] = await Promise.all([gga("Tasks[2]"), readCList("TaskShopDesc")]);
-            entries.val = buildMeritShopEntries(worldIndex, rawPurchases, rawDefinitions);
-            reconcileRows(entries.val.map((entry) => `${entry.globalIndex}:${entry.rawName}`).join("|"), () =>
-                entries.val.map((entry) =>
-                    MeritShopRow({
-                        entry,
-                        valueState: getOrCreateState(valueStates, entry.globalIndex),
-                    })
-                )
-            );
-
-            for (const entry of entries.val) {
-                getOrCreateState(valueStates, entry.globalIndex).val = Math.min(entry.maxPurchases, entry.value);
+    const show = () => {
+        const data = read.val;
+        if (!data) return;
+        const w = Number(world.val);
+        const parts = {
+            tasks: buildTaskEntries(w, data.progress[w], data.completions[w], data.taskDescriptions[w]).map(
+                (entry) => ({
+                    entry,
+                    key: entry.path,
+                    value: entry.completed,
+                    max: entry.maxStages,
+                    Row: TaskRow,
+                })
+            ),
+            achievements: buildAchievementEntries(w, data.achieveReg, data.achievements, data.ordering).map(
+                (entry) => ({
+                    entry,
+                    key: entry.path,
+                    value: entry.value,
+                    max: null,
+                    Row: AchievementRow,
+                })
+            ),
+            "merit-shop": buildMeritShopEntries(w, data.purchases, data.shopDescriptions).map((entry) => ({
+                entry,
+                key: entry.path,
+                value: entry.value,
+                max: entry.maxPurchases,
+                Row: MeritShopRow,
+            })),
+        };
+        for (const tab of TABS) {
+            const list = lists.get(tab.id);
+            const items = parts[tab.id];
+            for (const item of items) {
+                getOrCreateState(states, item.key).val = item.value;
+                // A task's progress follows a refresh; its row is kept.
+                getOrCreateState(progress, item.key).val = item.entry.progress ?? 0;
             }
+            list.reconcile(JSON.stringify([w, items.map((item) => [item.key, item.entry.name, item.max])]), () => {
+                list.entries = items.map((item) => ({
+                    ...item,
+                    row: item.Row({
+                        entry: item.entry,
+                        valueState: getOrCreateState(states, item.key),
+                        progressState: getOrCreateState(progress, item.key),
+                    }),
+                }));
+                return list.entries.map(({ row }) => row);
+            });
+        }
+    };
+
+    const load = () =>
+        run(async () => {
+            const [
+                progress,
+                completions,
+                purchases,
+                achieveReg,
+                taskDescriptions,
+                shopDescriptions,
+                achievements,
+                ordering,
+            ] = await Promise.all([
+                gga("Tasks[0]"),
+                gga("Tasks[1]"),
+                gga("Tasks[2]"),
+                gga("AchieveReg"),
+                readCList("TaskDescriptions"),
+                readCList("TaskShopDesc"),
+                readCList("RegAchieves"),
+                readCList("AchieveOrderingz"),
+            ]);
+            read.val = {
+                progress: toIndexedArray(progress ?? []),
+                completions: toIndexedArray(completions ?? []),
+                purchases,
+                achieveReg,
+                taskDescriptions: toIndexedArray(taskDescriptions ?? []),
+                shopDescriptions,
+                achievements,
+                ordering,
+            };
+            show();
         });
+
+    const shown = (tabId) => (read.val, world.val, lists.get(tabId).entries).filter(({ row }) => shownBySearch(row));
+    // Max all only raises (and brings a value above its max down to it); Complete all only completes: one press each.
+    const fill = (tabId, label, target) => () =>
+        div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label,
+                status: bulk.status,
+                disabled: () => loading.val || shown(tabId).every((item) => Number(stateOf(item).val) === target(item)),
+                onClick: (e) => {
+                    e.preventDefault();
+                    return bulk.run(() =>
+                        runBulkSet({
+                            entries: shown(tabId),
+                            getTargetValue: target,
+                            getValueState: stateOf,
+                            getPath: (item) => item.key,
+                        })
+                    );
+                },
+            })
+        );
+    const stateOf = (item) => getOrCreateState(states, item.key);
+    const WORDS = { tasks: "task", achievements: "achievement", "merit-shop": "merit upgrade" };
+    const word = (tabId, n) => `${WORDS[tabId]}${n === 1 ? "" : "s"}`;
+    const worldName = () => WORLDS[Number(world.val)].label;
+
+    // The world, picked on the line under the title like a character: its name and the world's own under it.
+    const pick = PickInPlace({
+        name: "World",
+        opener: worldName,
+        options: () => WORLDS,
+        picked: () => world.val,
+        onPick: (id) => {
+            world.val = id;
+            show();
+        },
+        disabled: () => loading.val,
+        openerClass: "character-picker__opener",
+        panelClass: "character-picker__list",
+    });
+    pick.panel.tabIndex = -1;
+    const worldPicker = div(
+        {
+            class: "character-picker",
+            onfocusout: (e) => {
+                if (pick.isOpen() && !worldPicker.contains(e.relatedTarget)) pick.close();
+            },
+        },
+        div(
+            { class: "character-picker__line" },
+            span({ class: "character-picker__label" }, "World"),
+            pick.opener,
+            span({ class: "character-picker__info" }, () => WORLDS[Number(world.val)].note)
+        ),
+        pick.panel
+    );
 
     load();
 
-    const cappedCount = van.derive(
-        () =>
-            entries.val.filter((entry) => getOrCreateState(valueStates, entry.globalIndex).val >= entry.maxPurchases)
-                .length
-    );
-
-    const body = div(
-        { class: "scrollable-panel content-stack" },
-        AccountSection({
-            title: "MERIT SHOP",
-            note: () => `${cappedCount.val} / ${entries.val.length} CAPPED`,
-            body: listNode,
-        })
-    );
-
     return PersistentAccountListPage({
-        title: `${worldLabel} MERIT SHOP`,
-        description: "Edit merit shop purchases from Tasks[2]. Max purchases come from TaskShopDesc.",
-        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val }),
+        rootClass: "tab-container scroll-container",
+        title: "Task Board",
+        description: "Each world's tasks, achievements and merit shop.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || bulk.status.val === "loading" }),
+        toolbar: worldPicker,
         state: { loading, error },
-        loadingText: `READING ${worldLabel} MERIT SHOP`,
-        errorTitle: `${worldLabel} MERIT SHOP READ FAILED`,
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading the task board",
+        errorTitle: "Couldn't read the task board",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Task Board",
+                page: "account.taskboard",
+                busy: () => bulk.status.val === "loading",
+                setAll: { word: (n, tabId) => word(tabId, n), placeholder: "Progress" },
+                tabs: TABS.map((tab) => ({ ...tab, content: lists.get(tab.id).node })),
+                tools: toolsPerTab({
+                    tasks: fill("tasks", "Max all", (item) => item.max),
+                    achievements: fill("achievements", "Complete all", () => COMPLETE),
+                    "merit-shop": fill("merit-shop", "Max all", (item) => item.max),
+                }),
+                // The tools act on what isn't done yet: a complete achievement keeps its -1 (Set all leaves it).
+                toolsLabel: (activeId) => {
+                    const tab = activeId.val;
+                    const items = shown(tab).filter(
+                        (item) => tab !== "achievements" || Number(stateOf(item).val) !== COMPLETE
+                    );
+                    const n = items.length;
+                    const what = tab === "achievements" ? `unfinished ${word(tab, n)}` : word(tab, n);
+                    return `${isSearching() ? `${n} matching ${what}` : `All ${n} ${what}`} in ${worldName()}`;
+                },
+            })
+        ),
     });
-};
-
-const WorldTasksPanel = ({ worldIndex }) => {
-    const active = van.state(WORLD_FEATURE_TABS[0].id);
-
-    return div(
-        { class: `tab-container w${worldIndex + 1}-world-tab` },
-        renderTabNav({
-            tabs: WORLD_FEATURE_TABS,
-            activeId: active,
-            navClass: "account-nested-sub-nav",
-            buttonClass: "account-nested-sub-tab-btn",
-            stubClass: "account-nested-sub-tab-btn--stub",
-            isStub: (tab) => !tab.component,
-        }),
-        div(
-            { class: "account-nested-sub-content" },
-            ...renderLazyPanes({
-                tabs: WORLD_FEATURE_TABS,
-                activeId: active,
-                paneClass: "account-nested-pane",
-                activeClass: "account-nested-pane--active",
-                dataAttr: "data-tasks-panel",
-                renderContent: (tab) =>
-                    tab.component ? tab.component(worldIndex) : createComingSoonPlaceholder(tab.label),
-            })
-        )
-    );
-};
-
-const TasksTab = () => {
-    const activeWorld = van.state(WORLD_TABS[0].id);
-
-    return div(
-        { class: "world-tab" },
-        renderTabNav({
-            tabs: WORLD_TABS,
-            activeId: activeWorld,
-            navClass: "world-sub-nav",
-            buttonClass: (tab) => `account-world-sub-tab-btn w${tab.worldIndex + 1}-world-tab`,
-            getButtonProps: (tab) => ({ title: `World ${tab.worldIndex + 1}` }),
-        }),
-        div(
-            { class: "world-sub-content" },
-            ...renderLazyPanes({
-                tabs: WORLD_TABS,
-                activeId: activeWorld,
-                paneClass: "world-sub-pane",
-                dataAttr: "data-tasks-world",
-                renderContent: (tab) => WorldTasksPanel({ worldIndex: tab.worldIndex }),
-            })
-        )
-    );
 };
 
 export default definePage({
     id: "account.taskboard",
     world: "account",
     system: "Task Board",
-    description: "Tasks, achievements and merit shop purchases, one tab per world.",
+    description: "Each world's tasks, achievements and merit shop purchases.",
     keywords: ["Tasks", "Achievements", "Merits", "Merit Shop"],
-    component: TasksTab,
+    tabs: TABS.map((tab) => ({ id: tab.id, label: tab.label })),
+    component: TaskBoardTab,
 });

@@ -168,18 +168,25 @@ test("a press whose targets changed since the question asks again instead of run
     assert.equal(ran, 1, "and a third runs it");
 });
 
-const removals = [["src/ui/pages/account/event-shop/event-shop.js", "Disable all"]];
-
-for (const [file, label, open] of removals) {
-    test(`${file.split("/").pop()}: ${label} asks in place and writes nothing on the first click`, async () => {
-        const button = await openPage(file, label, open);
-        const before = writes();
-        await click(button);
-        await settle(100);
-        assert.equal(button.attributes["data-again"], "Click again", "the button asks");
-        assert.equal(writes(), before, "nothing was written");
-    });
-}
+// Taking event shop items away asks in the tools tray first; the answer runs it.
+test("event-shop.js: Remove all asks in the tray, then runs on the answer", async () => {
+    const own = await openPage("src/ui/pages/account/event-shop/event-shop.js", "Own all");
+    let before = writes();
+    await click(own);
+    await until(() => writes() > before, "Own all to write");
+    await settle(100);
+    let root = own;
+    while (root.parentNode) root = root.parentNode;
+    const inTray = (name) => elements(root).find((node) => String(node.attributes.class).split(" ").includes(name));
+    const remove = buttonsNamed(root, "Remove all").find((node) => !node.attributes.disabled);
+    before = writes();
+    await click(remove);
+    await settle(100);
+    assert.match(text(inTray("tabbed-list__tools-label")), /^Remove \d+ owned items?\? What they gave stays\.$/);
+    assert.equal(writes(), before, "the first click writes nothing");
+    await click(inTray("tabbed-list__yes"));
+    await until(() => writes() > before, "the answer to write");
+});
 
 // The Classes pages ask in the tray now (Reset all, Empty all, Set all, Populate, Reset to the game's):
 // classes-pages.test.mjs.
@@ -358,7 +365,7 @@ for (const [file, label] of [
     ["src/ui/pages/world-1/bribes/bribes.js", "Enable all"],
     ["src/ui/pages/world-2/weekly-bosses/weekly-bosses.js", "Unlock all"],
     ["src/ui/pages/world-3/prayers/prayers.js", "Unlock all"],
-    ["src/ui/pages/account/event-shop/event-shop.js", "Enable all"],
+    ["src/ui/pages/account/event-shop/event-shop.js", "Own all"],
 ]) {
     test(`${file.split("/").pop()}: ${label} adds on one click`, async () => {
         const button = await openPage(file, label);
@@ -369,27 +376,26 @@ for (const [file, label] of [
     });
 }
 
-test("bundles: Buy all asks in place with the inventory warning beside it, and buys on the second press", async () => {
+test("bundles: Buy all asks in the tray with the inventory warning, and buys on the answer", async () => {
     const root = (await importRepo("src/ui/pages/account/bundles/bundles.js")).default.component();
-    const buyAll = () =>
-        elements(root).find((node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim()));
-    await until(() => buyAll() && !buyAll().attributes.disabled && text(buyAll()) !== "Buy all (0)", "Buy all");
+    const buyAll = () => elements(root).find((node) => node.nodeName === "button" && text(node).trim() === "Buy all");
+    const inTray = (name) => elements(root).find((node) => String(node.attributes.class).split(" ").includes(name));
+    await until(() => buyAll() && /· \d+ owned/.test(text(inTray("tabbed-list__tools-label"))), "Buy all");
     await settle(100);
-    const button = buyAll();
-    const warning = () => text(elements(root).find((node) => /said--buy-all/.test(node.attributes.class ?? "")));
     const buys = () => requests.filter((entry) => entry === "POST /api/toggle").length;
 
     const before = buys();
-    await click(button);
+    await click(buyAll());
     await settle(100);
-    assert.equal(button.attributes["data-again"], "Click again", "the first press asks");
-    assert.match(warning(), /Free up inventory space first, or items may be lost\./, "and warns beside it");
+    assert.match(
+        text(inTray("tabbed-list__tools-label")),
+        /^Buy \d+ bundles?\? Free up inventory space first, or items may be lost\.$/,
+        "the first press asks, with the warning"
+    );
     assert.equal(buys(), before, "nothing was bought");
 
-    click(button);
-    await until(() => buys() > before, "the second press to buy");
-    assert.equal(button.attributes["data-again"], undefined);
-    assert.equal(warning(), "", "the warning goes once it buys");
+    click(inTray("tabbed-list__yes"));
+    await until(() => buys() > before, "the answer to buy");
 });
 
 // Lumi's call (2026-11-20): Lock all removes every island unlock, so it asks first: in the tray since the shared

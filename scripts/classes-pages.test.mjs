@@ -461,7 +461,8 @@ test("grimoire: a Max all whose write and clearing both fail says the write's fa
             click(maxAll);
             await until(() => /account-btn--error/.test(classes(maxAll)), "Max all to fail");
             await tick();
-            assert.match(text(root), /Write mismatch at Grimoire\[5\]/, "the refused write is said");
+            // The tray says it in words: the game kept the old value.
+            assert.match(text(root), /Game kept old value\./, "the refused write is said");
             assert.doesNotMatch(text(root), /the game refused/, "not the clearing's failure");
         } finally {
             restore();
@@ -1509,7 +1510,7 @@ test("outposts: Populate refuses more than 100 of a kind per outpost, and writes
         click(populate);
         await until(() => /account-btn--(success|error)/.test(classes(populate)), "Populate to finish");
         assert.match(classes(populate), /account-btn--error/);
-        assert.match(text(root), /max 100 of each/);
+        assert.match(text(root), /Max 100 of each./);
         assert.equal(writes(), before, "nothing written");
     } finally {
         putUnitArrays(saved);

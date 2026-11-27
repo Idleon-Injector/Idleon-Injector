@@ -1,13 +1,23 @@
+/**
+ * Account - Event Shop
+ *
+ * Which Event Shop items the account owns: OptionsListAccount[311] holds one letter per owned item (Number2Letter),
+ * edited without spending event points. One list in the game's order, the bonus first, each with an Owned switch. Own
+ * all and Remove all sit in the tray and act on the items the top bar's search shows; Remove all asks in the tray.
+ */
+
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { gga, readCList } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
 import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
-import { clickAgain } from "../../../components/inPlace.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     cleanName,
     createStaticRowReconciler,
@@ -17,15 +27,18 @@ import {
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 
-const { div, span, p } = van.tags;
+const { div } = van.tags;
 const OWNERSHIP_PATH = "OptionsListAccount[311]";
+// What an item does beyond its line, in short: said under its name.
 const ROW_NOTES = {
-    7: "Adds 17% to vote bonuses. Royal Vote Button adds a separate 13%, for 30% together.",
-    10: "Adds 12 storage slots independently. Reenter town to update storage capacity.",
-    11: "Adds 16 storage slots independently. Reenter town to update storage capacity.",
-    16: "Adds 13% to vote bonuses. Gilded Vote Button adds a separate 17%, for 30% together.",
-    50: "Enabling ownership grants no cardifiers and prevents the normal purchase. Disabling removes none. The normal purchase grants eight six-star cardifiers.",
+    7: "Royal Vote Button adds another 13%, for 30% in all.",
+    10: "Reenter town to see the 12 new storage slots.",
+    11: "Reenter town to see the 16 new storage slots.",
+    16: "Gilded Vote Button adds another 17%, for 30% in all.",
 };
+// The one item whose switch costs something: shown while it's off, before the switch is flipped.
+const CARDIFIER = 50;
+const CARDIFIER_WARNING = "Owned here, it gives no cardifiers and the real buy (eight six-star ones) is gone.";
 
 const readSnapshot = async () => {
     const [rawCatalog, rawCodes, rawOwnership] = await Promise.all([
@@ -37,7 +50,7 @@ const readSnapshot = async () => {
     const codes = toIndexedArray(unwrapH(rawCodes));
     const ownership = typeof rawOwnership === "string" ? rawOwnership : "";
     if (!definitions.length || definitions.length % 2 !== 0 || !codes.length) {
-        throw new Error("Invalid Eventshop catalog metadata. Refresh before editing.");
+        throw new Error("The game sent no Event Shop items. Refresh.");
     }
 
     const catalog = [];
@@ -60,37 +73,26 @@ const readSnapshot = async () => {
             Array.from(code).length !== 1 ||
             usedCodes.has(code)
         ) {
-            throw new Error(`Invalid Eventshop metadata for upgrade ${index}. Refresh before editing.`);
+            throw new Error(`The game's Event Shop item ${index + 1} can't be read. Refresh.`);
         }
         usedCodes.add(code);
-        catalog.push({
-            index,
-            code,
-            name,
-            effect,
-            cost: Number(cost),
-        });
+        catalog.push({ index, code, name, effect, cost: Number(cost) });
     }
     return { catalog, ownership };
 };
 
-/** Edit Eventshop ownership flags without spending points or granting purchase rewards. */
-const EventshopTab = () => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Eventshop" });
+const EventShopTab = () => {
+    const { loading, error, run: runLoad } = useAccountLoad({ label: "Event Shop" });
     const busy = van.state(false);
     const ready = van.state(false);
-    const notice = van.state("");
-    const bulkEnable = useWriteStatus();
-    const bulkDisable = useWriteStatus();
+    const bulk = useWriteStatus();
     const rows = new Map();
-    const listNode = div({ class: "account-item-stack account-item-stack--dense" });
+    const listNode = div();
     const reconcileRows = createStaticRowReconciler(listNode);
 
     const applySnapshot = ({ catalog, ownership }) => {
         for (const entry of catalog) {
-            if (!rows.has(entry.index)) {
-                rows.set(entry.index, { entry: van.state(entry), owned: van.state(false), feedback: useWriteStatus() });
-            }
+            if (!rows.has(entry.index)) rows.set(entry.index, { entry: van.state(entry), owned: van.state(false) });
             const row = rows.get(entry.index);
             row.entry.val = entry;
             row.owned.val = ownership.includes(entry.code);
@@ -98,34 +100,25 @@ const EventshopTab = () => {
         reconcileRows(catalog.map((entry) => entry.index).join(","), () =>
             catalog.map(({ index }) => {
                 const row = rows.get(index);
-                const action = [
-                    span({ class: "account-write-feedback", role: "status" }, () => {
-                        if (row.feedback.status.val === "loading") return "Saving…";
-                        if (row.feedback.status.val === "success") return "Verified";
-                        return "";
+                row.node = AccountRow({
+                    rowClass: "eventshop-row",
+                    info: RowTitles({
+                        bonus: () => row.entry.val.effect,
+                        name: () => `${row.entry.val.name} · ${row.entry.val.cost.toLocaleString("en-US")} points`,
+                        note: ROW_NOTES[index],
+                        warning: index === CARDIFIER ? () => (row.owned.val ? null : CARDIFIER_WARNING) : undefined,
                     }),
-                    StateSwitch({
+                    controls: StateSwitch({
                         checked: () => row.owned.val,
-                        words: ["Owned", "Not owned"],
+                        // The word shows only when on: "Not owned" would repeat down the list.
+                        words: ["Owned", ""],
                         name: () => row.entry.val.name,
                         disabled: () => !ready.val,
-                        title: () =>
-                            `${row.owned.val ? "Remove" : "Grant"} ownership of ${row.entry.val.name}. No event points spent.`,
-                        onFlip: (owned) => setOwnership(owned, index, row.feedback),
+                        ownStatus: true,
+                        onFlip: (owned) => setOwnership(owned, [index]),
                     }),
-                ];
-                return AccountRow({
-                    rowClass: "eventshop-row",
-                    status: row.feedback.status,
-                    info: div(
-                        { class: "account-row__name-group" },
-                        span({ class: "account-row__name" }, () => row.entry.val.name),
-                        span({ class: "account-row__sub-label" }, () => row.entry.val.effect),
-                        span({ class: "account-row__sub-label" }, () => `Cost: ${row.entry.val.cost} event points`),
-                        ROW_NOTES[index] ? span({ class: "eventshop-row__note" }, ROW_NOTES[index]) : null
-                    ),
-                    controls: action,
                 });
+                return row.node;
             })
         );
         ready.val = true;
@@ -135,7 +128,6 @@ const EventshopTab = () => {
         if (busy.val) return;
         busy.val = true;
         ready.val = false;
-        notice.val = "";
         try {
             await runLoad(async () => applySnapshot(await readSnapshot()));
         } finally {
@@ -146,118 +138,107 @@ const EventshopTab = () => {
     // A switch flipped while another write runs waits its turn (and reads the game again then), so it isn't lost.
     const inTurn = oneAtATime();
 
-    // `button`: the bulk button clicked, which asks in place before a bulk removal (#77); an addition runs on one
-    // press (DESIGN.md). Returns the save outcome, so a row's switch can say why a save failed.
-    const setOwnership = (enabled, index, feedback, button = null) =>
-        inTurn(async () => {
-            if (busy.val || !ready.val) return;
-            busy.val = true;
-            notice.val = "";
-            let attemptedWrite = false;
-            try {
-                return await feedback.run(async () => {
-                    try {
-                        const snapshot = await readSnapshot();
-                        applySnapshot(snapshot);
-                        const targets = snapshot.catalog.filter(
-                            (entry) =>
-                                (index === null || entry.index === index) &&
-                                snapshot.ownership.includes(entry.code) !== enabled
-                        );
-                        if (!targets.length) {
-                            notice.val = "Ownership is already set. No changes made.";
-                            return { cancelled: true };
-                        }
-                        if (index === null && !enabled) {
-                            const cardifierNote = targets.some((entry) => entry.index === 50)
-                                ? `\n\n${ROW_NOTES[50]}`
-                                : "";
-                            if (
-                                !clickAgain(
-                                    button,
-                                    `disable ownership for ${targets.length} Eventshop upgrade${targets.length === 1 ? "" : "s"}.${cardifierNote}`,
-                                    { targets: targets.map((entry) => entry.code) }
-                                )
-                            )
-                                return { cancelled: true };
-                            const fresh = await readSnapshot();
-                            applySnapshot(fresh);
-                            if (
-                                fresh.ownership !== snapshot.ownership ||
-                                JSON.stringify(fresh.catalog) !== JSON.stringify(snapshot.catalog)
-                            ) {
-                                notice.val =
-                                    "Catalog or ownership changed during confirmation. Review the refreshed state and try again.";
-                                return { cancelled: true };
-                            }
-                        }
+    // Owns (or removes) the items `indexes` names, from the letters the game holds now. Returns the save's outcome, so a
+    // switch can say why it failed.
+    const setOwnership = (owned, indexes, write = useWriteStatus()) =>
+        inTurn(() =>
+            write.run(async () => {
+                busy.val = true;
+                let attempted = false;
+                try {
+                    const snapshot = await readSnapshot();
+                    applySnapshot(snapshot);
+                    const targets = snapshot.catalog.filter(
+                        (entry) => indexes.includes(entry.index) && snapshot.ownership.includes(entry.code) !== owned
+                    );
+                    if (!targets.length) return { cancelled: true };
+                    const codes = new Set(targets.map((entry) => entry.code));
+                    const next = owned
+                        ? snapshot.ownership + targets.map((entry) => entry.code).join("")
+                        : Array.from(snapshot.ownership)
+                              .filter((code) => !codes.has(code))
+                              .join("");
+                    attempted = true;
+                    await writeVerified(OWNERSHIP_PATH, next);
+                    applySnapshot({ catalog: snapshot.catalog, ownership: next });
+                } catch (caught) {
+                    // A write that failed may have landed: the list shows what the game holds now.
+                    if (attempted) await readSnapshot().then(applySnapshot, () => {});
+                    throw caught;
+                } finally {
+                    busy.val = false;
+                }
+            })
+        );
 
-                        const targetCodes = new Set(targets.map((entry) => entry.code));
-                        const nextOwnership = enabled
-                            ? snapshot.ownership + targets.map((entry) => entry.code).join("")
-                            : Array.from(snapshot.ownership)
-                                  .filter((code) => !targetCodes.has(code))
-                                  .join("");
-                        attemptedWrite = true;
-                        await writeVerified(OWNERSHIP_PATH, nextOwnership);
-                        applySnapshot({ catalog: snapshot.catalog, ownership: nextOwnership });
-                        notice.val = `Verified ownership for ${targets.length} upgrade${targets.length === 1 ? "" : "s"}.`;
-                        return true;
-                    } catch (caughtError) {
-                        console.error("[Eventshop] ownership action failed", caughtError);
-                        if (attemptedWrite) {
-                            try {
-                                applySnapshot(await readSnapshot());
-                                notice.val =
-                                    "The write could not be verified and may have applied. Current ownership was reread.";
-                            } catch (readError) {
-                                console.error("[Eventshop] read after write failure failed", readError);
-                                ready.val = false;
-                                error.val = `Ownership verification unavailable. Refresh before editing. ${readError.message}`;
-                                notice.val = "The write may have applied. Ownership verification is unavailable.";
-                            }
-                        } else {
-                            ready.val = false;
-                            error.val = `Fresh read failed. Refresh before editing. ${caughtError.message}`;
-                        }
-                        throw caughtError;
-                    }
-                });
-            } finally {
-                busy.val = false;
-            }
-        });
+    // The items the tools act on: every one, or the ones the top bar's search shows.
+    // `ready` follows each read, so the tray counts again once the rows are made.
+    const shown = () => (ready.val, [...rows.values()]).filter((row) => row.node && shownBySearch(row.node));
+    const changing = (owned) => shown().filter((row) => row.owned.val !== owned);
+    const itemWord = (n) => `item${n === 1 ? "" : "s"}`;
 
     load();
+
     return PersistentAccountListPage({
-        title: "EVENTSHOP",
-        description:
-            "Edit account ownership without spending event points. Effects may require reopening the relevant game screen or reentering town. Turning ownership off does not undo rewards already received.",
-        rootClass: "tab-container eventshop-tab",
-        actions: BulkActionBar({
-            actions: [
-                {
-                    label: "Enable all",
-                    status: bulkEnable.status,
-                    disabled: () => busy.val || !ready.val,
-                    onClick: (e) => setOwnership(true, null, bulkEnable, e.currentTarget),
-                },
-                {
-                    label: "Disable all",
-                    status: bulkDisable.status,
-                    variant: "danger",
-                    disabled: () => busy.val || !ready.val,
-                    onClick: (e) => setOwnership(false, null, bulkDisable, e.currentTarget),
-                },
-            ],
-            refresh: { onClick: load, disabled: () => busy.val },
-        }),
-        wrapActions: false,
+        rootClass: "tab-container scroll-container",
+        title: "Event Shop",
+        description: "Event Shop items, owned without spending points. Turning one off keeps what it gave.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy.val }),
         state: { loading, error },
+        loadingText: "Reading the Event Shop",
+        errorTitle: "Couldn't read the Event Shop",
+        initialWrapperClass: "account-list",
         body: div(
-            { class: "scrollable-panel content-stack" },
-            p({ class: "eventshop-note write-status", role: "status", "aria-live": "polite" }, () => notice.val),
-            listNode
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: listNode,
+                // Owning only adds, so it runs on one press; Remove all takes items away, so it asks first.
+                tools: (_, ask) =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Own all",
+                            status: bulk.status,
+                            disabled: () => !ready.val || !changing(true).length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                return setOwnership(
+                                    true,
+                                    changing(true).map((row) => row.entry.val.index),
+                                    bulk
+                                );
+                            },
+                        }),
+                        ActionButton({
+                            label: "Remove all",
+                            variant: "danger",
+                            status: bulk.status,
+                            disabled: () => !ready.val || !changing(false).length,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                const from = e.currentTarget;
+                                const asked = () => changing(false).map((row) => row.entry.val.index);
+                                const askRemove = () => {
+                                    const n = asked().length;
+                                    return ask({
+                                        question: `Remove ${n} owned ${itemWord(n)}? What they gave stays.`,
+                                        confirmLabel: n === 1 ? "Remove it" : "Remove them",
+                                        from,
+                                        lowers: asked,
+                                        again: askRemove,
+                                        onConfirm: () => setOwnership(false, asked(), bulk),
+                                    });
+                                };
+                                askRemove();
+                            },
+                        })
+                    ),
+                toolsLabel: () => {
+                    const n = shown().length;
+                    const owned = shown().filter((row) => row.owned.val).length;
+                    return `${isSearching() ? `${n} matching ${itemWord(n)}` : `All ${n} ${itemWord(n)}`} · ${owned} owned`;
+                },
+            })
         ),
     });
 };
@@ -266,7 +247,7 @@ export default definePage({
     id: "account.eventshop",
     world: "account",
     system: "Event Shop",
-    description: "Which Event Shop rewards are owned.",
+    description: "Which Event Shop items are owned.",
     keywords: ["Eventshop", "Event points"],
-    component: EventshopTab,
+    component: EventShopTab,
 });

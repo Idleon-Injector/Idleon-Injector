@@ -1,151 +1,98 @@
+/**
+ * Account - Card Search
+ *
+ * Every card's amount (gga.Cards[0].h, by monster id), in the game's card regions (cList.CardStuff). A region is
+ * picked on the list's head ("Region [Blunder Hills]", 13 of them, more than tabs hold); each card's line has its
+ * amount and its tier, a step picker that sets the amount to the tier's least (base cards needed x 1, 3, 5, 16, 459,
+ * 14645, plus one). The tray's All to gives the region's cards one tier, asking first when that lowers one; Set all
+ * gives them one amount. Cards the game names nowhere are a last "Other cards" part.
+ */
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { Icons } from "../../../assets/icons.js";
 import { gga, readCList, readGgaEntries } from "../../../services/api.js";
 import { toIndexedArray } from "../../../utils/index.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { EditableNumberRow } from "../../../components/views/account/EditableNumberRow.js";
+import { AllToTool } from "../../../components/views/account/BulkActionBar.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     cleanName,
     createStaticRowReconciler,
     getOrCreateState,
-    joinClasses,
-    oneAtATime,
     resolveNumberInput,
-    resolveValue,
     runBulkSet,
     toInt,
     unwrapH,
     useWriteStatus,
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
-import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
-import { Said, announce, replay, useSaid } from "../../../components/inPlace.js";
-import { hideTooltip, showTooltip } from "../../../components/Tooltip.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { StepPicker } from "../../../components/views/account/components/StepPicker.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { TabbedList } from "../../../components/views/account/tabShared.js";
 
-const { div, span, select, option, details, summary } = van.tags;
+const { div, span } = van.tags;
 
 const CARD_PATH = "Cards[0].h";
 const TIER_MULTIPLIERS = [1, 3, 5, 16, 459, 14645];
-const CARD_REGION_NAMES = [
-    "BLUNDER HILLS W1",
-    "YUM-YUM DESERT W2",
-    "EASY RESOURCES",
-    "MEDIUM RESOURCES",
-    "FROSTBITE TUNDRA W3",
-    "HARD RESOURCES",
-    "HYPERION NEBULA W4",
-    "SMOLDERIN' PLATEAU W5",
-    "SPIRITED VALLEY W6",
-    "SHIMMERFIN DEEP W7",
-    "DUNGEONS",
-    "BOSSES AND NIGHTMARES",
-    "EVENTS",
+const TIERS = TIER_MULTIPLIERS.map((_, i) => ({ value: i + 1, label: String(i + 1) }));
+// The game's card regions in its order; a world's region is that world's name, as in the sidebar.
+const CARD_REGIONS = [
+    "Blunder Hills",
+    "Yum-Yum Desert",
+    "Easy Resources",
+    "Medium Resources",
+    "Frostbite Tundra",
+    "Hard Resources",
+    "Hyperion Nebula",
+    "Smolderin' Plateau",
+    "Spirited Valley",
+    "Shimmerfin Deep",
+    "Dungeons",
+    "Bosses and Nightmares",
+    "Events",
 ];
+const OTHER = { key: "other", name: "Other cards" };
 
 const toUnwrappedIndexedArray = (value) => toIndexedArray(unwrapH(value));
-// The last tier reached. Chromium 87 (the Steam client) has no findLastIndex.
-const tierIndexForAmount = (amount, thresholds) =>
-    thresholds.reduce((last, threshold, i) => (Number(amount) >= threshold ? i : last), -1);
-
-const nextTierLabel = (amount, thresholds) => {
-    const nextThreshold = thresholds.find((threshold) => Number(amount) < threshold);
-    return nextThreshold === undefined ? "MAX TIER" : `NEXT: ${nextThreshold}`;
+// The last tier reached, 0 below the first. Chromium 87 (the Steam client) has no findLastIndex.
+const tierOf = (amount, thresholds) =>
+    thresholds.reduce((last, threshold, i) => (Number(amount) >= threshold ? i + 1 : last), 0);
+const nextTierLine = (amount, thresholds) => {
+    const tier = tierOf(amount, thresholds);
+    const next = thresholds[tier];
+    if (next === undefined) return "Top tier";
+    return `${tier ? "Next tier" : "Tier 1"} at ${next.toLocaleString("en-US")}`;
 };
 
-const tierBadgeClass = (amount, thresholds) => {
-    const tierIndex = tierIndexForAmount(amount, thresholds);
-    return tierIndex < 0 ? "card-tier-badge--base" : `card-tier-badge--tier-${tierIndex + 1}`;
-};
-
-const TierBadgeContent = ({ amount, thresholds }) => {
-    const tierIndex = tierIndexForAmount(amount, thresholds);
-    if (tierIndex < 0) return span({ class: "card-tier-display" }, "BASE");
-
-    return span(
-        { class: "card-tier-display" },
-        Icons.CardTier(tierIndex + 1, { class: "card-tier-icon" }),
-        `TIER ${tierIndex + 1}`
-    );
-};
-
-// A card row's tier: picking one sets the card's amount to that tier's minimum.
-const TierSelect = ({ thresholds, onSelect, status }) =>
-    select(
-        {
-            class: () => {
-                const resolvedStatus = resolveValue(status);
-                return joinClasses(
-                    "select-base card-tier-select",
-                    resolvedStatus === "loading" ? "card-tier-select--loading" : "",
-                    resolvedStatus === "success" ? "card-tier-select--success" : "",
-                    resolvedStatus === "error" ? "card-tier-select--error" : ""
-                );
-            },
-            disabled: () => resolveValue(status) === "loading",
-            onchange: async (event) => {
-                const tierIndex = Number(event.target.value);
-                event.target.value = "";
-                await onSelect(tierIndex, thresholds[tierIndex]);
-            },
-        },
-        option({ value: "", disabled: true, selected: true }, "Set tier"),
-        ...TIER_MULTIPLIERS.map((_, tierIndex) =>
-            option({ value: tierIndex }, `TIER ${tierIndex + 1} - ${thresholds[tierIndex]}`)
-        )
-    );
-
-// The tier a region's pick names, or null for an empty or invalid pick.
-const pickedTier = (pick) => {
-    const tierIndex = pick === "" ? NaN : Number(pick);
-    return Number.isInteger(tierIndex) && tierIndex >= 0 && tierIndex < TIER_MULTIPLIERS.length ? tierIndex : null;
-};
-
+// A card: its name, how far the next tier is, its amount, and its tier as a step picker that sets the amount.
 const CardRow = ({ card, valueState }) =>
     EditableNumberRow({
         valueState,
         normalize: (rawValue) => resolveNumberInput(rawValue, { min: 0, fallback: null }),
         write: (nextValue) => writeVerified(card.path, nextValue),
         renderInfo: () =>
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, card.name),
-                span(
-                    { class: "account-row__sub-label" },
-                    () => `${card.monsterId} · ${nextTierLabel(valueState.val, card.thresholds)}`
-                )
-            ),
-        renderBadge: (currentValue) => TierBadgeContent({ amount: currentValue, thresholds: card.thresholds }),
-        renderExtraActions: ({ status, applyValue }) =>
-            TierSelect({
-                thresholds: card.thresholds,
-                status,
-                onSelect: (_, threshold) => applyValue(threshold),
+            RowTitles({
+                name: card.name,
+                note: card.thresholds ? () => nextTierLine(valueState.val, card.thresholds) : null,
             }),
-        rowClass: "account-row--wide-controls card-row",
-        badgeClass: () => joinClasses("card-tier-badge", tierBadgeClass(valueState.val, card.thresholds)),
-        controlsClass: "account-row__controls--xl card-row__controls",
-        inputProps: { "aria-label": `Card Amount for ${card.name}` },
-    });
-
-const UnresolvedCardRow = ({ card, valueState }) =>
-    EditableNumberRow({
-        valueState,
-        normalize: (rawValue) => resolveNumberInput(rawValue, { min: 0, fallback: null }),
-        write: (nextValue) => writeVerified(card.path, nextValue),
-        renderInfo: () =>
-            div(
-                { class: "account-row__name-group" },
-                span({ class: "account-row__name" }, card.monsterId),
-                span({ class: "account-row__sub-label" }, "CARD DEFINITION OR NAME UNRESOLVED")
-            ),
-        renderBadge: () => "Raw only",
-        rowClass: "account-row--wide-controls card-row card-row--unresolved",
-        controlsClass: "account-row__controls--xl card-row__controls",
-        inputProps: { "aria-label": `Card Amount for unresolved card ${card.monsterId}` },
+        renderExtraActions: card.thresholds
+            ? ({ applyValue }) =>
+                  div(
+                      { class: () => `card-tier${tierOf(valueState.val, card.thresholds) ? "" : " is-base"}` },
+                      span({ class: "card-tier__label", "aria-hidden": "true" }, "Tier"),
+                      StepPicker({
+                          name: `${card.name} tier`,
+                          steps: TIERS,
+                          picked: () => tierOf(valueState.val, card.thresholds),
+                          onPick: (tier) => void applyValue(card.thresholds[tier - 1]),
+                      })
+                  )
+            : null,
+        rowClass: "card-row",
+        inputProps: { "aria-label": `${card.name} amount` },
+        setAll: { min: 0, path: card.path },
     });
 
 const buildCardData = async (rawCards, rawCardStuff) => {
@@ -153,7 +100,7 @@ const buildCardData = async (rawCards, rawCardStuff) => {
     const accountIds = Object.keys(accountCards);
     const matchedIds = new Set();
 
-    const regions = CARD_REGION_NAMES.map((name, regionIndex) => {
+    const regions = CARD_REGIONS.map((name, regionIndex) => {
         const cards = toUnwrappedIndexedArray(toUnwrappedIndexedArray(rawCardStuff)[regionIndex])
             .map((rawDefinition) => {
                 const definition = toUnwrappedIndexedArray(rawDefinition);
@@ -211,206 +158,105 @@ const buildCardData = async (rawCards, rawCardStuff) => {
     };
 };
 
-const CardSection = ({
-    region,
-    openState,
-    valueStates,
-    bulkStatus = null,
-    activeBulkRegion = null,
-    setRegionTier = null,
-    lowerQuestion = null,
-    said = null,
-    unresolved = false,
-}) => {
-    const status = () => (setRegionTier && activeBulkRegion.val === region.key ? bulkStatus.val : null);
-    // The region's tier is a pick, then Set all, as on Sigils and Bubbles: an arrow key only moves the pick.
-    const tierPick = van.state("");
-    const pickNode = setRegionTier
-        ? select(
-              {
-                  class: "select-base card-tier-select card-region__tier-select",
-                  "aria-label": `Tier for ${region.name}`,
-                  disabled: () => region.cards.length === 0,
-                  onchange: (event) => (tierPick.val = event.target.value),
-              },
-              option({ value: "", disabled: true, selected: true }, "Pick a tier"),
-              ...TIER_MULTIPLIERS.map((_, tierIndex) => option({ value: tierIndex }, `TIER ${tierIndex + 1}`))
-          )
-        : null;
-    const Row = unresolved ? UnresolvedCardRow : CardRow;
-
-    return div(
-        {
-            class: () =>
-                joinClasses(
-                    "card-region",
-                    unresolved ? "card-region--unresolved" : "",
-                    status() === "success" ? "card-region--success" : "",
-                    status() === "error" ? "card-region--error" : ""
-                ),
-        },
-        details(
-            {
-                class: "card-region__details",
-                open: openState,
-                ontoggle: (event) => (openState.val = event.target.open),
-            },
-            summary(
-                { class: "card-region__toggle" },
-                Icons.Chevron({ dir: "right", class: "card-region__chevron" }),
-                span({ class: "card-region__title" }, region.name),
-                span({ class: "card-region__count" }, `${region.cards.length} CARDS`)
-            ),
-            // Why the region's last tier pick failed; the region opens to show it.
-            said ? Said({ said: said.said, className: "said--line card-region__said", kinds: ["failed"] }) : null,
-            div(
-                { class: "card-region__body account-item-stack" },
-                ...region.cards.map((card) => Row({ card, valueState: getOrCreateState(valueStates, card.monsterId) }))
-            )
-        ),
-        setRegionTier
-            ? div(
-                  { class: "card-region__tier" },
-                  pickNode,
-                  ActionButton({
-                      label: "Set all",
-                      status,
-                      disabled: () => region.cards.length === 0,
-                      confirm: () => lowerQuestion(region, tierPick.val),
-                      onClick: () => setRegionTier(region, tierPick.val, pickNode),
-                  })
-              )
-            : null
-    );
-};
-
 const CardsTab = () => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Cards" });
-    const { status: bulkStatus, run: runBulk } = useWriteStatus();
-    const totalCards = van.state(0);
+    const { loading, error, run: runLoad } = useAccountLoad({ label: "Card Search" });
+    const bulk = useWriteStatus();
     const amountStates = new Map();
-    const openStates = new Map();
-    const activeBulkRegion = van.state(null);
-    const regionSaids = new Map();
-    const getRegionSaid = (key) => {
-        if (!regionSaids.has(key)) regionSaids.set(key, useSaid());
-        return regionSaids.get(key);
-    };
-    const regionsNode = div({ class: "cards-regions" });
-    const reconcileRegions = createStaticRowReconciler(regionsNode);
-
-    const getOpenState = (key) => getOrCreateState(openStates, key, false);
+    const parts = van.state([]);
+    // A pane per part, kept: its rows keep their saves and Undo across a refresh.
+    const panes = [...CARD_REGIONS.map((_, i) => `region-${i}`), OTHER.key].map((key) => {
+        const node = div({ class: "account-page-pane" });
+        return { key, node, reconcile: createStaticRowReconciler(node), cards: [] };
+    });
+    const paneOf = (key) => panes.find((pane) => pane.key === key);
 
     const load = () =>
         runLoad(async () => {
             const [rawCards, rawCardStuff] = await Promise.all([gga(CARD_PATH), readCList("CardStuff")]);
             const data = await buildCardData(rawCards, rawCardStuff);
-            const signature = JSON.stringify({
-                regions: data.regions.map((region) => ({
-                    name: region.name,
-                    cards: region.cards.map((card) => [card.monsterId, card.name, card.baseRequirement]),
-                })),
-                unresolved: data.unresolved.map((card) => card.monsterId),
-            });
-
-            reconcileRegions(signature, () => [
-                ...data.regions.map((region) =>
-                    CardSection({
-                        region,
-                        openState: getOpenState(region.key),
-                        valueStates: amountStates,
-                        bulkStatus,
-                        activeBulkRegion,
-                        setRegionTier,
-                        lowerQuestion,
-                        said: getRegionSaid(region.key),
-                    })
-                ),
-                ...(data.unresolved.length
-                    ? [
-                          CardSection({
-                              region: {
-                                  key: "unresolved",
-                                  name: "UNRESOLVED CARDS",
-                                  cards: data.unresolved,
-                              },
-                              openState: getOpenState("unresolved"),
-                              valueStates: amountStates,
-                              unresolved: true,
-                          }),
-                      ]
-                    : []),
-            ]);
-
-            data.regions.forEach((region) => {
-                region.cards.forEach((card) => (getOrCreateState(amountStates, card.monsterId).val = card.amount));
-            });
-            data.unresolved.forEach((card) => (getOrCreateState(amountStates, card.monsterId).val = card.amount));
-            totalCards.val = data.total;
-        });
-
-    // A pick made while another region saves waits its turn instead of being dropped.
-    const inTurn = oneAtATime();
-    // A Set all that would lower any card asks in place first (DESIGN.md); one that only raises runs on one press.
-    const lowerQuestion = (region, pick) => {
-        const tierIndex = pickedTier(pick);
-        if (tierIndex === null) return null;
-        const lowered = region.cards.filter(
-            (card) => getOrCreateState(amountStates, card.monsterId).val > card.thresholds[tierIndex]
-        ).length;
-        return lowered
-            ? `lower ${lowered} card${lowered === 1 ? "" : "s"} in ${region.name} to tier ${tierIndex + 1}.`
-            : null;
-    };
-
-    // An empty or invalid pick writes nothing: the select pulses and says why.
-    const setRegionTier = (region, pick, pickNode) => {
-        const tierIndex = pickedTier(pick);
-        if (tierIndex === null) {
-            const why = "Pick a tier first";
-            announce(why);
-            replay(pickNode, "refused");
-            showTooltip(pickNode, why);
-            setTimeout(() => hideTooltip(pickNode), 4000);
-            return undefined;
-        }
-        return inTurn(async () => {
-            const said = getRegionSaid(region.key);
-            said.clear();
-            activeBulkRegion.val = region.key;
-            const result = await runBulk(() =>
-                runBulkSet({
-                    entries: region.cards,
-                    getTargetValue: (card) => card.thresholds[tierIndex],
-                    getValueState: (card) => getOrCreateState(amountStates, card.monsterId),
-                    getPath: (card) => card.path,
-                })
-            );
-
-            if (!result.ok) {
-                said.say("failed", saveFailureReason(result.error));
-                getOpenState(region.key).val = true;
-                await load();
+            const read = [
+                ...data.regions,
+                { ...OTHER, cards: data.unresolved.map((card) => ({ ...card, name: card.monsterId })) },
+            ];
+            for (const part of read)
+                for (const card of part.cards) getOrCreateState(amountStates, card.monsterId).val = card.amount;
+            for (const part of read) {
+                const pane = paneOf(part.key);
+                const signature = JSON.stringify(
+                    part.cards.map((card) => [card.monsterId, card.name, card.baseRequirement])
+                );
+                pane.reconcile(signature, () => {
+                    pane.cards = part.cards.map((card) => ({
+                        card,
+                        row: CardRow({ card, valueState: getOrCreateState(amountStates, card.monsterId) }),
+                    }));
+                    return pane.cards.map(({ row }) => row);
+                });
             }
+            parts.val = read;
         });
-    };
+
+    // The open part's cards the tools act on: every one, or the ones the top bar's search shows.
+    const shownCards = (key) => (parts.val, paneOf(key).cards).filter(({ row }) => shownBySearch(row));
+    const cardWord = (n) => `card${n === 1 ? "" : "s"}`;
+    const partName = (key) => parts.val.find((part) => part.key === key)?.name ?? "";
 
     load();
 
-    const body = div({ class: "cards-page-content" }, div({ class: "scrollable-panel cards-scroll" }, regionsNode));
-
     return PersistentAccountListPage({
-        title: "CARDS",
-        description: () => `${totalCards.val} cards grouped by Card Region. Edit amounts or set exact tier minimums.`,
-        actions: RefreshButton({
-            onRefresh: load,
-            disabled: () => loading.val || bulkStatus.val === "loading",
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Card Search",
+        description: "Card amounts and tiers, by the game's card regions.",
+        actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || bulk.status.val === "loading" }),
         state: { loading, error },
-        loadingText: "READING ACCOUNT CARDS",
-        errorTitle: "CARD READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading cards",
+        errorTitle: "Couldn't read cards",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed cards-tab" },
+            TabbedList({
+                name: "Card regions",
+                pick: "Region",
+                busy: () => bulk.status.val === "loading",
+                setAll: { word: cardWord, placeholder: "Amount" },
+                tabs: [
+                    ...CARD_REGIONS.map((name, i) => ({
+                        id: `region-${i}`,
+                        label: name,
+                        content: paneOf(`region-${i}`).node,
+                    })),
+                    { id: OTHER.key, label: OTHER.name, content: paneOf(OTHER.key).node },
+                ],
+                // A region's cards to one tier: each card's least amount for it. Lowering asks first.
+                tools: (activeId, ask) =>
+                    AllToTool({
+                        ask,
+                        bulk,
+                        ordered: true,
+                        steps: TIERS,
+                        stepName: (step) => `tier ${step.label}`,
+                        word: cardWord,
+                        lines: () => shownCards(activeId.val).filter(({ card }) => card.thresholds),
+                        pickedOf: ({ card }) =>
+                            tierOf(getOrCreateState(amountStates, card.monsterId).val, card.thresholds),
+                        write: (lines, tier) =>
+                            runBulkSet({
+                                entries: lines,
+                                getTargetValue: ({ card }) => card.thresholds[tier - 1],
+                                getValueState: ({ card }) => getOrCreateState(amountStates, card.monsterId),
+                                getPath: ({ card }) => card.path,
+                            }),
+                    }),
+                toolsOn: (key) => key !== OTHER.key,
+                toolsLabel: (activeId) => {
+                    const n = shownCards(activeId.val).length;
+                    const where = partName(activeId.val);
+                    return isSearching()
+                        ? `${n} matching ${cardWord(n)} in ${where}`
+                        : `All ${n} ${cardWord(n)} in ${where}`;
+                },
+            })
+        ),
     });
 };
 
@@ -418,7 +264,7 @@ export default definePage({
     id: "account.cards",
     world: "account",
     system: "Card Search",
-    description: "Card amounts and tiers, grouped by card region.",
-    keywords: ["Cards"],
+    description: "Card amounts and tiers, by card region.",
+    keywords: ["Cards", "Card tiers"],
     component: CardsTab,
 });

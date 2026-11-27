@@ -1,229 +1,44 @@
-.cards-page-content {
+/*
+ * A card's tier: the word "Tier", then its step picker (1 to 6). The box keeps one width, so the picker opening on a
+ * touched row never moves the amount beside it, and the tiers stand in one column down the list. At rest only the
+ * picked tier shows ("Tier 3"); a card below the first tier shows nothing there (its line under the name says so).
+ */
+.viewport .card-tier {
     display: flex;
-    flex: 1;
-    min-height: 0;
-}
-
-.cards-scroll {
-    width: 100%;
-}
-
-.cards-regions {
-    display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 8px;
+    width: 12.75rem;
+    flex: none;
 }
 
-.card-region {
-    position: relative;
-    background: var(--c-panel-dim);
-    border: 1px solid var(--c-border);
-    transition:
-        border-color 0.2s,
-        background 0.2s;
-}
-
-.card-region--success {
-    border-color: var(--c-success);
-    background: var(--c-success-tint);
-}
-
-.card-region--error {
-    border-color: var(--c-danger);
-    background: var(--c-danger-tint);
-}
-
-.card-region__toggle {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    min-height: 46px;
-    min-width: 0;
-    padding: 7px 210px 7px 12px;
-    color: var(--c-text-main);
-    cursor: pointer;
-    list-style: none;
-    text-align: left;
-}
-
-.card-region--unresolved .card-region__toggle {
-    padding-right: 12px;
-}
-
-.card-region__toggle::-webkit-details-marker {
-    display: none;
-}
-
-.card-region__toggle:hover .card-region__title {
-    color: var(--c-accent);
-}
-
-.card-region__chevron {
-    flex-shrink: 0;
+.viewport .card-tier__label {
+    font-size: 0.8125rem;
+    font-weight: 500;
     color: var(--c-text-muted);
-    transition: transform 0.15s;
 }
 
-.card-region__details[open] .card-region__chevron {
-    transform: rotate(90deg);
+.viewport .card-tier .step-picker {
+    flex: 1 1 auto;
 }
 
-.card-region__title {
-    overflow: hidden;
-    color: var(--c-text-main);
-    font-size: 0.875rem;
-    font-weight: 700;
-    letter-spacing: 0.07em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    transition: color 0.15s;
-}
-
-.card-region__count {
-    margin-left: auto;
-    color: var(--c-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.815rem;
-    white-space: nowrap;
-}
-
-.card-region__body {
-    padding: 8px 10px 10px;
-    border-top: 1px solid var(--c-border);
-}
-
-.card-region--unresolved {
-    border-color: var(--c-danger-40);
-}
-
-/* The tier class on the same badge sets the colour; this is the fallback for a badge without one. */
-.card-row .account-row__badge {
-    display: flex;
-    align-items: center;
-    color: var(--card-tier-color, var(--c-text-muted));
-}
-
-.card-tier-display {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.card-tier-icon {
-    width: 1.25em;
-    height: 1.25em;
-    flex-shrink: 0;
-}
-
-.card-tier-badge--base {
-    --card-tier-color: var(--c-text-muted) !important;
-}
-
-.card-tier-badge--tier-1 {
-    --card-tier-color: var(--c-tier-stone);
-}
-
-.card-tier-badge--tier-2 {
-    --card-tier-color: var(--c-tier-gold);
-}
-
-.card-tier-badge--tier-3 {
-    --card-tier-color: var(--c-cauldron-orange);
-}
-
-.card-tier-badge--tier-4 {
-    --card-tier-color: var(--c-tier-zenith);
-}
-
-.card-tier-badge--tier-5 {
-    --card-tier-color: var(--c-ui-red);
-}
-
-.card-tier-badge--tier-6 {
-    --card-tier-color: var(--c-tier-onyx);
-}
-
-.card-row--unresolved .account-row__badge {
-    color: var(--c-danger-soft-text);
-}
-
-.card-tier-select {
-    width: 150px;
-    height: 32px;
-    flex-shrink: 0;
+.viewport .card-tier .step-picker__step {
     padding: 0 6px;
-    font-family: var(--font-display);
-    font-size: 0.815rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
 }
 
-.card-tier-select:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-}
-
-/* A region's tier pick and its Set all, at the right of the header. */
-.card-region__tier {
-    position: absolute;
-    top: 7px;
-    right: 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.card-region__tier-select {
-    width: 110px;
-}
-
-.card-tier-select--loading {
-    cursor: wait;
-    opacity: 0.65;
-}
-
-.card-tier-select--success {
-    color: var(--c-success);
-    border-color: var(--c-success);
-}
-
-.card-tier-select--error {
-    color: var(--c-danger);
-    border-color: var(--c-danger);
-}
-
-/* In the narrow overlay the tier pick and Set all take a line of their own under the region's name. */
-@media (max-width: 600px) {
-    .card-region__toggle {
-        min-height: 86px;
-        padding: 7px 12px 47px;
-    }
-
-    .card-region--unresolved .card-region__toggle {
-        min-height: 46px;
-        padding-bottom: 7px;
-    }
-
-    .card-region__tier {
-        top: 46px;
-        left: 37px;
-        right: auto;
+@media (hover: hover) {
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .card-tier.is-base .card-tier__label {
+        visibility: hidden;
     }
 }
 
+/* On a phone the amount and the tier share the line under the name: the amount takes what the tier leaves. */
 @media (max-width: 760px) {
-    .card-row__controls {
-        flex-wrap: wrap;
-        justify-content: flex-end;
+    .viewport .card-row .account-row__controls .number-input-wrapper {
+        flex: 1 1 auto;
+        min-width: 6rem;
     }
-}
 
-/* Why a region's tier pick failed, under its header. Empty, it takes no room. */
-.card-region__said {
-    margin: 0;
-    padding: 0 12px 10px;
-}
-
-.card-region__said.said--empty {
-    position: absolute;
+    .viewport .card-tier {
+        width: auto;
+    }
 }

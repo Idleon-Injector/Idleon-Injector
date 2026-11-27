@@ -59,12 +59,15 @@ export const AccountRow = ({
 /**
  * A row's label when the thing has a bonus: what it does first, the line a player scans for ("Base HP"), then its name,
  * small and muted ("Heart Stamp"). The name keeps the row's name class, so it still names the row for its controls.
+ * `note` is a quiet line under them, a fact a player reads once; `warning` an amber one, while its trouble is real.
  */
-export const RowTitles = ({ bonus, name, warning }) =>
+export const RowTitles = ({ bonus, name, note, warning }) =>
     span(
         { class: "account-row__titles" },
         bonus ? span({ class: "account-row__bonus" }, bonus) : null,
         span({ class: "account-row__name" }, name),
+        // A quiet fact about the thing ("Reenter town to see the new slots", "Next tier at 120"), under its name.
+        note ? span({ class: "account-row__note" }, note) : null,
         // A warning shows only while its trouble is real: `warning` returns the text, or nothing.
         warning ? span({ class: "account-row__warning", hidden: () => !warning() }, () => warning() ?? "") : null
     );

@@ -121,7 +121,7 @@ test("upgrade vault: Refresh while a save runs keeps that save's result on the r
     };
     try {
         const input = field(row);
-        input.value = "55";
+        input.value = "15";
         input.listeners.input({ target: input });
         row.listeners.keydown({ key: "Enter", target: input, preventDefault() {} });
         await until(() => held, "the write to start");
@@ -134,34 +134,25 @@ test("upgrade vault: Refresh while a save runs keeps that save's result on the r
     await until(() => /save-state--(success|error)/.test(saveState(row)), "the save to finish");
     assert.equal(byClass(root, "account-row")[1], row, "the row kept its node");
     assert.match(saveState(row), /save-state--success/);
-    assert.equal(gga.UpgVault[1], 55);
+    assert.equal(gga.UpgVault[1], 15);
 });
 
-test("task board: Refresh shows the game's new progress, and Target follows the stages saved", async () => {
+test("task board: Refresh shows the game's new progress, and the target follows the stages saved", async () => {
     const root = await openPage("src/ui/pages/account/task-board/tasks.js");
     const row = byClass(root, "account-row")[0];
-    const sub = () => text(byClass(row, "account-row__sub-label")[0]);
+    const note = () => text(byClass(row, "account-row__note")[0]);
     gga.Tasks[1][0][0] = 0;
     gga.Tasks[0][0][0] = 77777;
     await button(root, "Refresh").listeners.click({});
-    await until(() => /^Progress 77777 /.test(sub()), "Refresh to show the new progress");
+    await until(() => /^77,777 of /.test(note()), "Refresh to show the new progress");
     // The fake game's stage targets are 10, 100, 1000, 5000.
-    assert.equal(sub(), "Progress 77777 · Target 10");
+    assert.equal(note(), "77,777 of 10");
     await saveRow(row, 2);
     assert.match(saveState(row), /save-state--success/);
-    assert.equal(sub(), "Progress 77777 · Target 1000");
+    assert.equal(note(), "77,777 of 1,000");
 });
 
 const CARDS = "src/ui/pages/account/card-search/cards.js";
-const regionSelects = (root) =>
-    elements(root).filter((node) => node.nodeName === "select" && classes(node).includes("card-region__tier-select"));
-const regionSelect = (root) => regionSelects(root)[0];
-// A region's tier is a pick, then Set all beside it.
-const pick = (select, tierIndex) => {
-    select.value = String(tierIndex);
-    select.listeners.change({ target: select });
-};
-const setAllOf = (select) => button(select.parentNode, "Set all");
 const press = (node) => node.listeners.click({ preventDefault() {}, currentTarget: node });
 const cardWrites = () => requests.filter((entry) => /write/.test(entry)).length;
 const refuseWrites = (object, key) => {
@@ -170,139 +161,66 @@ const refuseWrites = (object, key) => {
     return () =>
         Object.defineProperty(object, key, { value: kept, writable: true, configurable: true, enumerable: true });
 };
+// The tray's All to: its step buttons after the "All to" label, and the tray's line (what it acts on, or its question).
+const allTo = (root, tier) => {
+    const group = elements(root).find(
+        (node) => classes(node).includes("tabbed-list__tool-group") && /^All to/.test(text(node))
+    );
+    return elements(group).find((node) => node.nodeName === "button" && text(node).trim() === String(tier));
+};
+const trayLine = (root) => text(byClass(root, "tabbed-list__tools-label")[0]);
+const answer = (root) => byClass(root, "tabbed-list__yes")[0];
 
-test("card search: a region Set all that would lower cards asks first, and lowers them on the second press", async () => {
+test("card search: All to a tier that would lower cards asks in the tray, and lowers them on the answer", async () => {
     const cards = gga.Cards[0].h;
     cards.mob0 = 37;
     cards.mob1 = 74;
     const root = await openPage(CARDS);
-    const select = regionSelect(root);
-    const setAll = setAllOf(select);
-
-    pick(select, 0);
-    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "picking a tier writes nothing");
     const before = cardWrites();
-    await press(setAll);
-    assert.equal(setAll.attributes["data-again"], "Click again", "the first press asks");
-    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in BLUNDER HILLS W1 to tier 1.");
+    await press(allTo(root, 1));
+    assert.equal(trayLine(root), "Lower 2 cards to tier 1?", "it asks");
     assert.equal(cardWrites(), before, "nothing written");
 
-    await press(setAll);
-    assert.deepEqual([cards.mob0, cards.mob1], [6, 6]);
+    await press(answer(root));
+    await until(() => cards.mob0 === 6 && cards.mob1 === 6, "the cards to come down to tier 1");
+    assert.equal(trayLine(root), "All 2 cards in Blunder Hills");
 });
 
-test("card search: a region Set all that only raises runs on one press", async () => {
+test("card search: All to a tier that only raises runs on one press", async () => {
     const cards = gga.Cards[0].h;
     cards.mob0 = 0;
     cards.mob1 = 0;
     const root = await openPage(CARDS);
-    const select = regionSelect(root);
-    const setAll = setAllOf(select);
-    pick(select, 0);
-    await press(setAll);
-    assert.equal(setAll.attributes["data-again"], undefined, "it didn't ask");
-    assert.deepEqual([cards.mob0, cards.mob1], [6, 6]);
+    await press(allTo(root, 2));
+    await until(() => cards.mob0 === 21 && cards.mob1 === 21, "the cards to reach tier 2");
+    assert.equal(trayLine(root), "All 2 cards in Blunder Hills", "it didn't ask");
 });
 
-test("card search: changing the region's pick between the two presses asks again", async () => {
+test("card search: a card's tier pick sets its amount to the tier's least", async () => {
     const cards = gga.Cards[0].h;
-    cards.mob0 = 37;
-    cards.mob1 = 74;
+    cards.mob0 = 0;
     const root = await openPage(CARDS);
-    const select = regionSelect(root);
-    const setAll = setAllOf(select);
-
-    pick(select, 0);
-    await press(setAll);
-    pick(select, 1);
-    await press(setAll);
-    assert.equal(setAll.attributes["aria-label"], "Click again to lower 2 cards in BLUNDER HILLS W1 to tier 2.");
-    assert.deepEqual([cards.mob0, cards.mob1], [37, 74], "the new pick asked instead of running");
-
-    await press(setAll);
-    assert.deepEqual([cards.mob0, cards.mob1], [21, 21]);
+    const row = byClass(root, "account-row")[0];
+    const tier = (n) => elements(row).find((node) => node.nodeName === "button" && text(node).trim() === String(n));
+    await press(tier(3));
+    await until(() => cards.mob0 === 46, "the amount to become tier 3's least");
+    assert.equal(text(byClass(row, "account-row__note")[0]), "Next tier at 126");
 });
 
-test("card search: arrow keys on the closed region select only move the pick", async () => {
-    const cards = gga.Cards[0].h;
-    cards.mob0 = 37;
-    cards.mob1 = 74;
-    const root = await openPage(CARDS);
-    const select = regionSelect(root);
-    const before = cardWrites();
-    // Chromium changes a closed select on each arrow press; every press used to land on TIER 1 and apply it.
-    for (const tierIndex of [0, 0, 1]) {
-        select.listeners.keydown?.({ key: "ArrowDown", target: select });
-        pick(select, tierIndex);
-    }
-    assert.equal(cardWrites(), before, "nothing written");
-    assert.deepEqual([cards.mob0, cards.mob1], [37, 74]);
-    assert.equal(setAllOf(select).attributes["data-again"], undefined, "nothing asked either");
-});
-
-test("card search: Set all with no tier picked, or one that isn't a tier, is refused and writes nothing", async () => {
+test("card search: a refused All to says why on the tray's line, and the next press clears it", async () => {
     const cards = gga.Cards[0].h;
     cards.mob0 = 0;
     cards.mob1 = 0;
     const root = await openPage(CARDS);
-    const select = regionSelect(root);
-    const setAll = setAllOf(select);
-    const { TooltipContainer } = await importRepo("src/ui/components/Tooltip.js");
-    const tooltip = TooltipContainer();
-    const before = cardWrites();
-
-    await press(setAll);
-    assert.equal(select.attributes["data-refused"], "", "the pick pulses");
-    await until(() => text(tooltip) === "Pick a tier first", "the pick to say why");
-    pick(select, 9);
-    await press(setAll);
-    assert.equal(cardWrites(), before, "nothing written");
-    assert.deepEqual([cards.mob0, cards.mob1], [0, 0]);
-    assert.equal(setAll.attributes["data-again"], undefined);
-});
-
-test("card search: a refused region Set all says why under the region, and the next press clears it", async () => {
-    const cards = gga.Cards[0].h;
-    cards.mob0 = 0;
-    cards.mob1 = 0;
-    const root = await openPage(CARDS);
-    const select = regionSelect(root);
-    const region = elements(root).find((node) => classes(node).split(" ").includes("card-region"));
-    const reason = () => text(byClass(region, "card-region__said")[0]);
     const restore = refuseWrites(cards, "mob0");
     try {
-        pick(select, 3);
-        await press(setAllOf(select));
-        await until(() => reason() !== "", "the reason");
-        assert.match(reason(), /game kept old value/);
+        await press(allTo(root, 4));
+        await until(() => trayLine(root) === "Game kept old value.", "the reason");
     } finally {
         restore();
     }
-    pick(select, 5);
-    await press(setAllOf(select));
-    assert.equal(reason(), "", "the retry cleared it");
-});
-
-test("card search: a Set all pressed in a second region while the first saves waits its turn instead of being dropped", async () => {
-    const cards = gga.Cards[0].h;
-    for (const id of Object.keys(cards)) cards[id] = 0;
-    const root = await openPage(CARDS);
-    const [first, second] = regionSelects(root);
-    const before = cardWrites();
-    const writes = holdFirstWrite();
-    try {
-        pick(first, 5); // the top tier only raises, so neither asks
-        pick(second, 5);
-        const firstPress = press(setAllOf(first));
-        await until(writes.held, "the first region's write to start");
-        const presses = Promise.all([firstPress, press(setAllOf(second))]);
-        writes.release();
-        await presses;
-    } finally {
-        writes.restore();
-    }
-    assert.equal(cardWrites() - before, 2, "both regions were written");
-    assert.equal(writes.mostAtOnce(), 1, "the second region's write started after the first answered");
+    await press(allTo(root, 4));
+    await until(() => trayLine(root) === "All 2 cards in Blunder Hills", "the retry to clear it");
 });
 
 const BUNDLES = "src/ui/pages/account/bundles/bundles.js";
@@ -311,7 +229,16 @@ const rowWith = (root, label) =>
         elements(row).some((node) => node.nodeName === "button" && text(node).trim() === label)
     );
 const rowReason = (row) => text(byClass(row, "bundle-row__said")[0]);
-const ownedFlag = (row) => text(byClass(row, "bundle-row__code")[0]);
+// Buy all, in the tray; the tray's line says how many bundles it acts on and how many are owned, or its question.
+const buyAllOf = (root) => button(root, "Buy all");
+const buyable = (root) => {
+    const [, total, owned] = /(\d+) (?:matching )?bundles? · (\d+) owned/.exec(trayLine(root)) ?? [];
+    return Number(total) - Number(owned);
+};
+const pressBuyAll = (root) => buyAllOf(root).listeners.click({ preventDefault() {}, currentTarget: buyAllOf(root) });
+const answerYes = (root) => byClass(root, "tabbed-list__yes")[0].listeners.click({});
+
+const ownedFlag = (row) => row.attributes["data-code"];
 
 test("bundles: a refused Unbuy says why on its row, and the next try clears it", async () => {
     const root = await openPage(BUNDLES);
@@ -521,10 +448,7 @@ test("bundles: the read after a failure that answers after another bundle's Unbu
 
 test("bundles: Buy all ends when its ownership poll fails after another read showed a bundle owned", async () => {
     const root = await openPage(BUNDLES);
-    const buyAll = elements(root).find(
-        (node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim())
-    );
-    const count = Number(/\((\d+)\)/.exec(text(buyAll))[1]);
+    const count = buyable(root);
     const received = gga.BundlesReceived.h;
     const before = { ...received };
     const realFetch = globalThis.fetch;
@@ -553,20 +477,16 @@ test("bundles: Buy all ends when its ownership poll fails after another read sho
         return realFetch(url, options);
     };
     try {
-        const click = () => buyAll.listeners.click({ currentTarget: buyAll });
-        await click(); // asks first
-        void click();
-        await until(
-            () => /One or more bundle purchases/.test(text(byClass(root, "said--buy-all")[0])),
-            "Buy all to end and say why"
-        );
+        await pressBuyAll(root); // asks in the tray first
+        void answerYes(root);
+        await until(() => /Some bundles didn't arrive/.test(trayLine(root)), "Buy all to end and say why");
     } finally {
         globalThis.fetch = realFetch;
         Object.assign(received, before);
     }
 });
 
-test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why beside it", async () => {
+test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why on the tray's line", async () => {
     const root = await openPage(BUNDLES);
     const row = rowWith(root, "Buy");
     const realFetch = globalThis.fetch;
@@ -581,14 +501,9 @@ test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why
         await button(row, "Buy").listeners.click({});
         assert.equal(rowReason(row), "the cheat didn't run");
 
-        const buyAll = elements(root).find(
-            (node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim())
-        );
-        const click = () => buyAll.listeners.click({ currentTarget: buyAll });
-        await click(); // asks first
-        await click();
-        const said = text(byClass(root, "said--buy-all")[0]);
-        assert.match(said, /One or more bundle purchases could not be completed/);
+        await pressBuyAll(root); // asks in the tray first
+        await answerYes(root);
+        await until(() => /Some bundles didn't arrive/.test(trayLine(root)), "Buy all to say why");
         assert.equal(rowReason(row), "the cheat didn't run");
     } finally {
         globalThis.fetch = realFetch;
@@ -645,7 +560,7 @@ test("bundles: a pack the game didn't give says the free slots it needs, not a t
 });
 
 // #28: the count and Buy all covered every bundle, whatever the top bar's search showed.
-test("bundles: the count and Buy all follow the top bar's search, and a search changed before the second press asks again", async () => {
+test("bundles: the count and Buy all follow the top bar's search, and a search changed while it asks drops the question", async () => {
     const { searchHits } = await importRepo("src/ui/menu/pageSearch.js");
     const root = await openPage(BUNDLES);
     const received = gga.BundlesReceived.h;
@@ -654,16 +569,11 @@ test("bundles: the count and Buy all follow the top bar's search, and a search c
         (searchHits.val = value
             ? new Set(byClass(root, "account-row").filter((row) => ownedFlag(row).includes(value)))
             : null);
-    const buyAll = () =>
-        elements(root).find((node) => node.nodeName === "button" && /^Buy all \(\d+\)$/.test(text(node).trim()));
-    const shownCount = () => Number(/\((\d+)\)/.exec(text(buyAll()))[1]);
-    const note = () => text(elements(root).find((node) => /^\d+ BUNDLES, /.test(text(node))));
-    const press = () => buyAll().listeners.click({ currentTarget: buyAll() });
-    const codes = byClass(root, "bundle-row__code").map(text);
+    const codes = byClass(root, "bundle-row").map(ownedFlag);
     const notOwned = codes.filter((code) => !received[code]);
     assert.ok(notOwned.length >= 2, "the fixture has two bundles to buy");
     const [first, second] = notOwned;
-    const allBuyable = shownCount();
+    const allBuyable = buyable(root);
 
     // The game takes a buy as its cheat would: the bundle is received.
     const bought = [];
@@ -679,29 +589,27 @@ test("bundles: the count and Buy all follow the top bar's search, and a search c
     };
     try {
         typeSearch(first);
-        await until(() => shownCount() === 1, "Buy all to count the one bundle shown");
-        assert.match(note(), /^1 BUNDLES, 0 OWNED, 1 NOT OWNED/);
+        await until(() => trayLine(root) === "1 matching bundle · 0 owned", "the tray to count the one bundle shown");
 
         typeSearch("no bundle is called this");
-        await until(() => shownCount() === 0, "Buy all to count nothing");
-        assert.equal(buyAll().attributes.disabled, true, "nothing shown, nothing to buy");
-        assert.match(note(), /^0 BUNDLES/);
+        await until(() => buyable(root) === 0, "the tray to count nothing");
+        assert.equal(buyAllOf(root).attributes["aria-disabled"], "true", "nothing shown, nothing to buy");
 
         typeSearch("");
-        await until(() => shownCount() === allBuyable, "a cleared search to count every bundle again");
+        await until(() => buyable(root) === allBuyable, "a cleared search to count every bundle again");
 
-        // Asked about the first, then the search moved on: the second press asks about the second.
+        // Asked about the first, then the search moved on: the question goes, and the next press asks about the second.
         typeSearch(first);
-        await until(() => shownCount() === 1, "the first bundle alone");
-        await press();
-        assert.equal(buyAll().attributes["data-again"], "Click again");
+        await until(() => buyable(root) === 1, "the first bundle alone");
+        await pressBuyAll(root);
+        assert.match(trayLine(root), /^Buy 1 bundle\?/);
         typeSearch(second);
-        await until(() => shownCount() === 1 && note().startsWith("1 BUNDLES"), "the second bundle alone");
-        await press();
-        assert.deepEqual(bought, [], "a changed search asks again instead of buying");
-        await press();
-        await until(() => bought.length === 1 && shownCount() === 0, "the second bundle bought");
-        assert.deepEqual(bought, [second], "only the bundle shown at the second press");
+        await until(() => trayLine(root) === "1 matching bundle · 0 owned", "the question to go with the search");
+        assert.deepEqual(bought, [], "a changed search buys nothing");
+        await pressBuyAll(root);
+        await answerYes(root);
+        await until(() => bought.length === 1 && buyable(root) === 0, "the second bundle bought");
+        assert.deepEqual(bought, [second], "only the bundle shown when it was asked");
         assert.equal(received[first] ?? 0, 0, "the first one stays not owned");
     } finally {
         globalThis.fetch = realFetch;
@@ -782,25 +690,75 @@ test("levels: a save that waited its turn keeps the warning of the failed save b
     }
     assert.match(saveState(mining), /save-state--error/);
     assert.match(saveState(money), /save-state--success/);
-    assert.match(warning(), /some writes may have applied/);
+    assert.match(warning(), /Some values may have saved/);
 });
 
-test("upgrade vault: a failed Max all says why until the next press", async () => {
+test("upgrade vault: a failed Max all says why on the tray's line until the next press", async () => {
     const root = await openPage(VAULT);
     const maxAll = button(root, "Max all");
-    const feedback = () => text(byClass(root, "account-write-feedback")[0]);
+    const line = () => text(byClass(root, "tabbed-list__tools-label")[0]);
     gga.UpgVault[0] = 0;
     const restore = refuseWrites(gga.UpgVault, 0);
     try {
         await maxAll.listeners.click({ preventDefault() {}, currentTarget: maxAll });
-        await until(() => /^Failed/.test(feedback()), "Max all to fail");
-        assert.equal(feedback(), "Failed to save all vault upgrades: game kept old value");
+        await until(() => line() === "Game kept old value.", "Max all to fail");
         await until(() => classes(maxAll).includes("account-btn--error"), "the button to show the failure");
         await until(() => !classes(maxAll).includes("account-btn--error"), "the button's failure to fade");
-        assert.equal(feedback(), "Failed to save all vault upgrades: game kept old value", "it stays");
+        assert.equal(line(), "Game kept old value.", "it stays");
     } finally {
         restore();
     }
     await maxAll.listeners.click({ preventDefault() {}, currentTarget: maxAll });
-    await until(() => feedback() === "All vault upgrades saved", "the retry to save");
+    await until(() => line() === "All 30 vault upgrades", "the retry to save");
+});
+
+// #28: a vault level is typed up to its real max (the max was only a note before).
+test("upgrade vault: a level typed above its real max is refused beside the field and writes nothing", async () => {
+    const root = await openPage(VAULT);
+    const row = byClass(root, "account-row")[1]; // its real max is 20 on the fake game
+    const before = gga.UpgVault[1];
+    const writesBefore = requests.filter((entry) => /write/.test(entry)).length;
+    await saveRow(row, 21);
+    assert.match(saveState(row), /save-state--error/);
+    assert.equal(words(row), "max 20");
+    assert.equal(gga.UpgVault[1], before);
+    assert.equal(requests.filter((entry) => /write/.test(entry)).length, writesBefore, "nothing written");
+});
+
+test("bubba: an upgrade's level saves and clears the game's cached level total after it", async () => {
+    const root = await openPage("src/ui/pages/account/clickers/3-bubba.js");
+    const row = byClass(root, "value-row")[0];
+    const levelField = byClass(row, "number-input-wrapper")
+        .map((wrapper) => elements(wrapper).find((node) => node.nodeName === "input"))
+        .find(Boolean);
+    const since = requests.length;
+    levelField.value = "3";
+    levelField.listeners.input({ target: levelField });
+    row.listeners.keydown({ key: "Enter", target: levelField, preventDefault() {} });
+    await until(() => /save-state--(success|error)/.test(saveState(row)), "the save to finish");
+    assert.match(saveState(row), /save-state--success/);
+    assert.equal(gga.Bubba[1][0], 3);
+    const after = requests.slice(since);
+    const write = after.findIndex((entry) => /write/.test(entry));
+    assert.ok(
+        write >= 0 && after.slice(write).some((entry) => /gga\/delete/.test(entry)),
+        "the cache clear follows the write"
+    );
+});
+
+test("task board: picking a world shows that world's tasks, achievements and merit shop", async () => {
+    const root = await openPage("src/ui/pages/account/task-board/tasks.js");
+    const line = () => text(byClass(root, "tabbed-list__tools-label")[0]);
+    assert.match(line(), /in World 1$/);
+    const option = elements(byClass(root, "account-page-toolbar")[0]).find(
+        (node) => node.attributes.role === "option" && node.attributes["data-id"] === "2"
+    );
+    option.listeners.click({});
+    await until(() => /in World 3$/.test(line()), "the tray to follow the world");
+    const row = byClass(root, "account-row")[0];
+    const before = gga.Tasks[1][2][0];
+    const next = before === 3 ? 1 : 3;
+    await saveRow(row, next);
+    assert.equal(gga.Tasks[1][2][0], next, "the third world's task saved");
+    gga.Tasks[1][2][0] = before;
 });

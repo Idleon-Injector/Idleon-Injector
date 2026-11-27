@@ -295,7 +295,8 @@ export const ValueTableRow = ({
                 };
             },
             unset: null,
-            disabled: () => false,
+            // A line without the picked column (a blank cell: an upgrade that gets no free levels) isn't one of its lines.
+            disabled: () => !lineField(),
         });
     return row;
 };

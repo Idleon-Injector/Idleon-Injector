@@ -164,14 +164,14 @@ test("a save the game took part of reads the game again even when History can't 
 // A reload rebuilds the rows on some pages (Upgrade Vault), which took the reason and the typed value away.
 test("a save the game refused outright keeps its reason and the typed value, and reads nothing again", async () => {
     const { reloadPlace } = await importRepo("src/ui/services/changeLog.js");
-    const root = await openPage("src/ui/pages/account/upgrade-vault/upgrade-vault.js", "Ember Bramble");
-    const row = findRow(root, "Ember Bramble");
+    const root = await openPage("src/ui/pages/account/upgrade-vault/upgrade-vault.js", "Natural Talent");
+    const row = findRow(root, "Natural Talent");
     const [input] = inputs(row);
     const restore = refuseWrites(game.gga.UpgVault, 1);
     const before = reloadPlace.rawVal;
     try {
         focus(input);
-        type(input, 77);
+        type(input, 15);
         press(row, input, "Enter");
         await settled(row);
     } finally {
@@ -180,9 +180,9 @@ test("a save the game refused outright keeps its reason and the typed value, and
     assert.equal(stateOf(row), "error");
     assert.equal(reloadPlace.rawVal, before, "nothing was saved, so the page isn't read again");
     await tick();
-    assert.equal(findRow(root, "Ember Bramble"), row, "the row is still the one the player typed in");
+    assert.equal(findRow(root, "Natural Talent"), row, "the row is still the one the player typed in");
     assert.equal(stateOf(row), "error");
-    assert.equal(input.value, "77");
+    assert.equal(input.value, "15");
 });
 
 // The reload of a save that never reached the game failed too, and opened the page's READ FAILED panel.

@@ -1,13 +1,13 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { EmptyState } from "../../../components/EmptyState.js";
 import { executeCheatAction, fetchBundleCatalog } from "../../../services/api.js";
-import { shownBySearch } from "../../../menu/pageSearch.js";
+import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
-import { RefreshButton, WarningBanner } from "../../../components/views/account/components/AccountPageChrome.js";
+import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import {
     NO_CHARACTER,
     createStaticRowReconciler,
@@ -16,7 +16,7 @@ import {
     writeVerified,
 } from "../../../components/views/account/accountShared.js";
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
-import { Said, clickAgain, useSaid } from "../../../components/inPlace.js";
+import { Said, useSaid } from "../../../components/inPlace.js";
 
 const { div, span, button } = van.tags;
 
@@ -45,24 +45,21 @@ const createDeferred = () => {
     return { promise, resolve, reject };
 };
 
+// A bundle: its name, "Owned" when the account has it, and Buy or Unbuy. A purchase keeps its button (DESIGN.md: picks
+// with a limit or an order aren't switches); why the last one failed shows under the name until the next.
 const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
     AccountRow({
-        status: () => (state.status.val === "success" ? "success" : state.status.val === "error" ? "error" : null),
         rowClass: "bundle-row",
+        // The game's code stays off the page; the row keeps it for search and its own tests.
+        rowProps: { "data-change-label": bundle.name, "data-code": bundle.code },
         info: div(
             { class: "account-row__name-group" },
             span({ class: "account-row__name" }, bundle.name),
-            span({ class: "account-row__sub-label bundle-row__code" }, bundle.code),
-            () =>
-                state.pending.val
-                    ? span({ class: "bundle-row__pending" }, "WAITING FOR LIVE OWNERSHIP CONFIRMATION")
-                    : null,
-            // Why the row's last Buy or Unbuy failed, until its next one.
             Said({ said: state.said.said, className: "said--line bundle-row__said", kinds: ["failed"] })
         ),
         badge: () => {
-            if (state.pending.val) return "Buy queued";
-            return isOwned(state.owned.val) ? "Owned" : "Not owned";
+            if (state.pending.val) return "Buying";
+            return isOwned(state.owned.val) ? "Owned" : "";
         },
         controlsClass: "bundle-row__controls",
         controls: button(
@@ -79,7 +76,7 @@ const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
                 },
             },
             () => {
-                if (state.pending.val) return "Buy queued";
+                if (state.pending.val) return "Buying";
                 if (state.status.val === "loading") return isOwned(state.owned.val) ? "Unbuying" : "Buying";
                 return isOwned(state.owned.val) ? "Unbuy" : "Buy";
             }
@@ -91,8 +88,6 @@ const BundlesTab = () => {
     const catalogState = van.state([]);
     const bundleStates = new Map();
     const purchaseBlockMessage = van.state(null);
-    // Buy all asks in place (#25): the first press reads "Click again" and says the inventory warning beside it.
-    const buyAllSaid = useSaid();
     const { status: buyAllStatus, run: runBuyAll } = useWriteStatus();
     const listNode = div({ class: "account-item-stack bundles-list" });
     const reconcileRows = createStaticRowReconciler(listNode);
@@ -137,21 +132,31 @@ const BundlesTab = () => {
         }
     };
 
-    const askThenBuyAll = async (e) => {
-        const buyButton = e.currentTarget;
+    // Buy all only adds, but a full inventory drops what a bundle gives, so it asks in the tray first (#25).
+    const askThenBuyAll = async (e, ask) => {
+        const from = e.currentTarget;
         if (buyAllStatus.val === "loading" || buyableCount.val === 0) return undefined;
-        if (!(await ensurePlayerSelected())) return undefined;
-        const bundles = getBuyableBundles();
-        const question = `buy ${bundles.length} bundle${bundles.length === 1 ? "" : "s"}. ${BUY_ALL_WARNING}`;
-        if (!clickAgain(buyButton, question, { targets: bundles.map((bundle) => bundle.code) })) {
-            buyAllSaid.say("refused", BUY_ALL_WARNING);
-            return undefined;
-        }
-        buyAllSaid.clear();
-        // The bundles the second press confirmed, though the search changes while it runs.
-        const outcome = await buyAllBundles(bundles);
-        if (outcome?.error) buyAllSaid.say("failed", saveFailureReason(outcome.error));
-        return outcome;
+        // Said on the tray's line, like any failure of its tool.
+        if (!(await ensurePlayerSelected()))
+            return runBuyAll(() => {
+                throw new Error(purchaseBlockMessage.val ?? NO_CHARACTER);
+            });
+        const asked = () => getBuyableBundles().map((bundle) => bundle.code);
+        const askBuy = () => {
+            const n = asked().length;
+            return ask({
+                question: `Buy ${n} bundle${n === 1 ? "" : "s"}? ${BUY_ALL_WARNING}`,
+                confirmLabel: n === 1 ? "Buy it" : "Buy them",
+                from,
+                quiet: true,
+                lowers: asked,
+                again: askBuy,
+                // The bundles the answer confirmed, though the search changes while it runs.
+                onConfirm: () => buyAllBundles(getBuyableBundles()),
+            });
+        };
+        askBuy();
+        return undefined;
     };
 
     // Counted over the bundles the search shows, like Buy all.
@@ -337,7 +342,7 @@ const BundlesTab = () => {
             }
 
             const results = await Promise.all(entries.map((entry) => entry.result));
-            if (results.some(({ ok }) => !ok)) throw new Error("One or more bundle purchases could not be completed.");
+            if (results.some(({ ok }) => !ok)) throw new Error("Some bundles didn't arrive. Their lines say why.");
         });
     }
 
@@ -360,60 +365,48 @@ const BundlesTab = () => {
     const load = () => runLoad(refreshCatalog);
     load();
 
-    const playerSelectionWarning = div(
-        { hidden: () => !purchaseBlockMessage.val },
-        WarningBanner(() => purchaseBlockMessage.val)
-    );
-
-    const body = div(
-        { class: "scrollable-panel content-stack bundles-scroll" },
-        AccountSection({
-            title: "BUNDLE CATALOG",
-            note: () => {
-                const value = totals.val;
-                const queueLabel = value.queued ? `, ${value.queued} QUEUED` : "";
-                return `${value.total} BUNDLES, ${value.owned} OWNED, ${value.total - value.owned} NOT OWNED${queueLabel}`;
-            },
-            body: () =>
-                catalogState.val.length
-                    ? listNode
-                    : EmptyState({
-                          title: "NO BUNDLES",
-                          subtitle: "No bundle codes were returned by the running game.",
-                      }),
-        })
-    );
+    const bundleWord = (n) => `bundle${n === 1 ? "" : "s"}`;
 
     return PersistentAccountListPage({
-        title: "BUNDLES",
+        rootClass: "tab-container scroll-container",
+        title: "Bundles",
         description:
-            "Buy bundles and see which ones your account has received. Unbuy lets you mark a bundle as not received again, but does not remove its items from the Slab.",
-        actions: [
-            Said({ said: buyAllSaid.said, className: "said--buy-all" }),
-            button(
-                {
-                    type: "button",
-                    class: "btn-quiet btn-sm bundles-buy-all-button",
-                    disabled: () => loading.val || buyAllStatus.val === "loading" || buyableCount.val === 0,
-                    onclick: askThenBuyAll,
-                },
-                () => {
-                    if (buyAllStatus.val === "loading") return "Buying all…";
-                    if (buyAllStatus.val === "error") return "Buy all failed";
-                    return `Buy all (${buyableCount.val})`;
-                }
-            ),
-            RefreshButton({
-                onRefresh: load,
-                disabled: () => loading.val || buyAllStatus.val === "loading",
-            }),
-        ],
-        topNotices: [WarningBanner("Bundles do not provide gems or pets."), playerSelectionWarning],
+            "Bundles the account has received. Unbuy marks one as not received; its items stay. No gems or pets.",
+        actions: RefreshButton({
+            onRefresh: load,
+            disabled: () => loading.val || buyAllStatus.val === "loading",
+        }),
         state: { loading, error },
-        loadingText: "READING BUNDLES",
-        errorTitle: "BUNDLE READ FAILED",
-        initialWrapperClass: "scrollable-panel",
-        body,
+        loadingText: "Reading bundles",
+        errorTitle: "Couldn't read bundles",
+        initialWrapperClass: "account-list",
+        body: div(
+            { class: "account-list account-list--tabbed" },
+            ListPanel({
+                body: listNode,
+                empty: () => (loading.val || catalogState.val.length ? null : "No bundles found"),
+                tools: (_, ask) =>
+                    div(
+                        { class: "tabbed-list__tool-group" },
+                        ActionButton({
+                            label: "Buy all",
+                            status: buyAllStatus,
+                            disabled: () => loading.val || buyableCount.val === 0,
+                            onClick: (e) => {
+                                e.preventDefault();
+                                return askThenBuyAll(e, ask);
+                            },
+                        })
+                    ),
+                toolsLabel: () => {
+                    const { total, owned, queued } = totals.val;
+                    const all = isSearching()
+                        ? `${total} matching ${bundleWord(total)}`
+                        : `All ${total} ${bundleWord(total)}`;
+                    return `${all} · ${owned} owned${queued ? ` · ${queued} buying` : ""}`;
+                },
+            })
+        ),
     });
 };
 
@@ -422,5 +415,6 @@ export default definePage({
     world: "account",
     system: "Bundles",
     description: "Which bundles the account has received, and buying or unbuying them.",
+    keywords: ["Gem shop", "Packs"],
     component: BundlesTab,
 });

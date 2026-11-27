@@ -301,6 +301,8 @@ export const SetAllTool = ({
  * @param {(task: Function) => Promise} [opts.run] runs the write in `bulk` (the page's own, to say a failure its way)
  * @param {boolean} [opts.ordered]
  * @param {() => boolean} [opts.disabled]
+ * @param {(step: {value: *, label: string}) => string} [opts.stepName] a step in the question's words, when its label is
+ *   short ("1" is "tier 1": "Lower 2 cards to tier 1?")
  * @param {() => boolean} [opts.behind] true while part of a write failed after the lines took the step (the config
  *   file's save, Palette's clean-up): a step every line already has stays pressable then, and its press only redoes
  *   that part
@@ -317,6 +319,7 @@ export const AllToTool = ({
     ordered = false,
     disabled = () => false,
     behind = () => false,
+    stepName = (step) => step.label,
 }) => {
     const rank = (value) => steps.findIndex((step) => step.value === value);
     const buttons = steps.map((step) => {
@@ -328,7 +331,7 @@ export const AllToTool = ({
             const n = lowered().length;
             if (!n) return press();
             return ask({
-                question: `Lower ${n} ${word(n)} to ${step.label}?`,
+                question: `Lower ${n} ${word(n)} to ${stepName(step)}?`,
                 confirmLabel: n === 1 ? "Lower it" : "Lower them",
                 from: stepButton,
                 lowers: lowered,

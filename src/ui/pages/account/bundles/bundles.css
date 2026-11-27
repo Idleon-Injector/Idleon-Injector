@@ -1,80 +1,15 @@
-.bundles-scroll {
-    width: 100%;
-}
-
-.bundles-list {
-    min-width: 0;
-}
-
-.bundle-row-wrap[hidden] {
-    display: none;
-}
-
+/* A bundle's row: its name, the state word ("Owned") at one width, and Buy or Unbuy at one width, so both line up. */
 .bundle-row {
     grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
-.bundle-row__code {
-    font-family: var(--font-mono);
-}
-
-.bundle-row__pending {
-    margin-top: 2px;
-    color: var(--c-warning);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-}
-
-/* The state (Owned, Not owned, Buy queued) is the plain muted word every row uses, at one width so the buttons align. */
 .bundle-row .account-row__badge {
-    width: 88px;
+    min-width: 4.5rem;
     text-align: right;
 }
 
-.bundle-row__controls {
-    min-width: 132px;
-}
-
 .bundle-row__action {
-    width: 100%;
-}
-
-/* Buy all's inventory warning, beside it while it asks "Click again". Empty, it takes no room. */
-.said--buy-all.said--empty {
-    position: absolute;
-}
-
-/*
- * In the narrow overlay the actions sit under the words: the warning wraps on its own line under the buttons, and
- * takes no width of its own (nor the 8 px gap before it), so the buttons stay put.
- */
-@media (max-width: 760px) {
-    .said--buy-all {
-        flex: 0 0 100%;
-        order: 1;
-        width: 0;
-        min-width: 100%;
-        margin-right: -8px;
-    }
-
-    .said--buy-all .said__text {
-        white-space: normal;
-    }
-}
-
-@media (max-width: 680px) {
-    .bundle-row {
-        grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .bundle-row .account-row__controls {
-        grid-column: 1 / -1;
-    }
-
-    .bundle-row__controls {
-        width: 100%;
-    }
+    min-width: 5.5rem;
 }
 
 /* Why a row's last Buy or Unbuy failed. Empty, it takes no room. */

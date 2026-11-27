@@ -6,6 +6,7 @@ import { wardrobeComputed, wardrobeDefinitions } from "../../wardrobe-fixture.mj
 import { fakeName, h, level, list, upgradeDefs, upgradeLevels } from "./helpers.mjs";
 import { MAPS, MONSTERS, PLAYERS } from "./shared.mjs";
 import { PREMIUM_HATS } from "./world-3-game.mjs";
+import { BUBBA_GIFTS, BUBBA_SMOKE, BUBBA_TRAITS, BUBBA_UPGRADES, EVENT_SHOP, UPGRADE_VAULT } from "./account-game.mjs";
 
 const WORLDS = 7;
 const TASKS = 8;
@@ -13,7 +14,6 @@ const MERITS = 6;
 const ACHIEVEMENTS = 70;
 const CARD_REGIONS = 13;
 const VAULT = 30;
-const EVENT_SHOP = 20;
 const ARMORY = 70;
 
 const vaultMax = (index) => 10 + (index % 5) * 10;
@@ -72,37 +72,7 @@ const shopItems = (shop) =>
 // Grimoire › Automation: each upgrade's next level costs more bones the later it comes.
 const grimoireCost = (i) => Math.round(10 * 1.6 ** i);
 
-// The game's own lines for Bubba's upgrades (BubbaUpg[7]) and the Grimoire's (GrimoireUpg[9]), in order.
-const BUBBA_TEXTS = [
-    "Produce_+{_Meat_Slices_per_second._@_Click_the_upgrade_again_to_upgrade_it!_@_Or,_Hold_Down_on_an_upgrade_to_upgrade_fast!",
-    "Unlocks_the_Happiness_Meter,_multiplying_Meat_Slice_production!_@_You_can_pat_Bubba_$_times_per_hour,_giving_+{_Happiness_each_time._@_Your_next_pats_come_in_~",
-    "Boosts_Meat_Slice_production_by_+{%",
-    "Gain_a_permanent_bonus_for_the_rest_of_IdleOn!_@_This_upgrade_never_resets,_so_those_bonuses_at_the_bottom_are_permanent!",
-    "All_upgrades_are_$%_cheaper",
-    "Bubba_gains_+$_Happiness_for_every_upgrade_you_purchase!",
-    "Unlocks_the_Charisma_Chart,_boosting_stats_as_you_level_up_attributes!_@_Click_the_(?)_Icon_to_get_started!_@_This_upgrade_boosts_attribute_Lv_Up_speed_by_+{%",
-    "Produce_an_extra_+{_Meat_Slices_per_second",
-    "Reset_it_all._Get_a_permanent_Megaflesh.",
-    "Start_each_run_with_a_new_gift._You_can_choose_from_{_different_options!",
-    "Trigger_the_effect_of_your_gifts!_Remember,_each_one_has_a_unique_effect!",
-    "Boosts_Meat_Slice_production_by_+{%",
-    "Unlocks_the_Frozen_Dice,_which_boost_Meat_Slice_production_by_the_sum_of_their_rolls._Each_upgrade_here_rerolls_dice._@_Price_resets_in_~",
-    "All_Attributes_from_Bubba's_Charisma_Chart_give_a_}x_higher_bonus!",
-    "Increase_the_number_of_Dice_you_roll_by_+{",
-    "Unlock_the_Smoker,_making_Smoked_Meats_that_multiply_Meat_Slice_production!_@_Each_upgrade_makes_a_Smoked_Meat_based_on_how_long_you_wait!_@_Your_smoker_has_been_smoking_for_~",
-    "Increase_the_number_of_sides_of_each_Dice_by_+{,_so_your_highest_possible_dice_roll_is_now_$!",
-    "The_passive_bonus_of_your_gifts_is_}x_higher!",
-    "All_upgrades_are_$%_cheaper",
-    "Boosts_Meat_Slice_production_by_+{%",
-    "All_happiness_gained_for_Bubba_from_all_sources_is_now_}x_higher!",
-    "{%_chance_to_find_a_random_coin_when_upgrading,_each_one_multiplying_Meat_Slice_production._Better_coins_are_rarer...",
-    "Your_dice_are_all_{%_luckier._This_will_make_low_rolls_rarer,_and_big_rolls_more_common!",
-    "Produce_and_extra_+{_Meat_Slices_per_second",
-    "+{%_Meat_Slice_production_per_POW_10_fish_you_own_over_at_Poppy's_Fish_Pond!",
-    "You_now_get_double_Smoked_Meat_when_curing!_Not_every_time,_but_{%_of_the_time!",
-    "All_upgrades_are_$%_cheaper",
-    "{%_chance_to_find_two_coins_instead_of_one_when_finding_Spare_Coins!",
-];
+// The game's own lines for the Grimoire's upgrades (GrimoireUpg[9]), in order.
 const GRIMOIRE_TEXTS = [
     "+{_Base_Damage_in_Wraith_Form",
     "+{_Base_Accuracy_in_Wraith_Form",
@@ -253,9 +223,10 @@ export default () => ({
                 CardSets: list(CARD_REGIONS, (r) => [`{%_${fakeName(r + 9)}_Set`, "6"]),
                 ObolShapes: ["Circle", "Square", "Hexagon", "Sparkle"],
                 ObolXYcoords: [list(4, (i) => [0, 0, String(i)]), list(4, (i) => [0, 0, String(i)])],
-                UpgradeVault: upgradeDefs(VAULT, 2),
-                // Bubba: [7] is the game's own line for each upgrade.
-                BubbaUpg: upgradeDefs(28, 5).map((row, i) => [...row, BUBBA_TEXTS[i]]),
+                // The vault's own upgrades (account-game.mjs): names, maxes and lines.
+                UpgradeVault: UPGRADE_VAULT,
+                // Bubba's upgrades keep the fake names and maxes its automation's tests know, with the game's own lines.
+                BubbaUpg: upgradeDefs(28, 5).map((row, i) => [...row, BUBBA_UPGRADES[i][7]]),
                 // Grimoire: each upgrade's bone [3], the total level that unlocks it [6] and the game's line [9].
                 GrimoireUpg: upgradeDefs(30, 1).map((row, i) => [
                     ...row.slice(0, 3),
@@ -278,22 +249,13 @@ export default () => ({
                     String(50 + i),
                     String(i % 10),
                 ]),
-                NinjaInfo: {
-                    // Event shop: "name@effect", cost, pairs.
-                    39: list(EVENT_SHOP, (i) => [
-                        `${fakeName(i)}@+${i + 1}%_${fakeName(i + 4)}`,
-                        String(25 * (i + 1)),
-                    ]).flat(),
-                },
+                // Event shop: "name@effect", cost, pairs.
+                NinjaInfo: { 39: EVENT_SHOP },
                 Research: {
                     40: list(7, (i) => `${fakeName(i)}_Statue`),
                     43: list(ARMORY, (i) => i),
                 },
-                Spelunky: {
-                    34: [5, 10, 15, 20, 25],
-                    36: list(6, (i) => fakeName(i + 2)),
-                    39: list(6, (i) => `${fakeName(i + 8)}_Gift`),
-                },
+                Spelunky: { 34: BUBBA_SMOKE, 36: BUBBA_TRAITS, 39: BUBBA_GIFTS },
             },
         },
     },

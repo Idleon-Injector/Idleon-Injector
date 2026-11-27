@@ -1,15 +1,16 @@
 /**
  * Account - Player: Attire Rack (#89, ported from VoidKitten's #3)
  *
- * Outfit bonuses: a card per outfit; a click turns its bonus on or off. The choice is
+ * Two tabs. Outfit bonuses: a line per outfit, its bonus first, with a switch that gives it as if worn. The choice is
  * cheatConfig.wide.attire.outfits ("all" once every outfit is on, so outfits a game update adds count too), saved to
  * config.custom.js and the session on each click, as the Pets page saves its pets. `wide attire` is on,
  * now and at every start (a startup cheat), while any outfit is chosen. As on Pets, the cards show the saved choice
- * even while the cheat is off, and a click edits that choice.
+ * even while the cheat is off, and a flip edits that choice. All on and All off sit in the tray; All off asks there.
  *
  * Appearance: the attire each character wears, slot 15 of its first equipment row (EquipmentOrder, EquipmentQuantity
  * and EquipmentMap), on the live copy of the character in play and on its PlayerDATABASE copy. Each change is one
- * saved action Undo can put back. After a change of the character in play, and after any undo of a change made here,
+ * saved action Undo can put back. A character's attire is picked in place under its line; Give everyone is a pick in the
+ * tray that asks there before it replaces what everyone wears. After a change of the character in play, and after any undo of a change made here,
  * the game works out that character's stats again (the `wide attirestats` command).
  *
  * Reads: readComputed("attire", "status") (the outfits and each character's attire), the config and the cheat states.
@@ -26,21 +27,24 @@ import {
     startupWith,
 } from "../../../services/api.js";
 import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
-import { Said, clickAgain, useSaid } from "../../../components/inPlace.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useSaid } from "../../../components/inPlace.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import {
     createStaticRowReconciler,
+    normalCase,
     useWriteStatus,
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 import { SaveState, saveStateClass, useAutoSave } from "../../../components/views/account/autoSave.js";
-import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { AccountRow, RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
+import { TabbedList, toolsPerTab } from "../../../components/views/account/tabShared.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, span, button, select, option } = van.tags;
+const { div } = van.tags;
 
 // The attire slot, relative to a character's live copy (the top-level keys) or its PlayerDATABASE entry.
 const ORDER_PATH = "EquipmentOrder[0][15]";
@@ -53,6 +57,11 @@ const ATTIRE_CHEAT = "wide attire";
 const STATS_CHEAT = "wide attirestats";
 
 const words = (key) => String(key).replace(/_/g, " ");
+// An outfit's bonus in normal case, as the game names it: "%_DROP_RATE" is "+2% Drop Rate" (EXP stays EXP).
+const bonusLine = ({ key, value }) => {
+    const percent = String(key).startsWith("%");
+    return `+${value}${percent ? "%" : ""} ${normalCase(String(key).replace(/^%_?/, ""))}`;
+};
 const statLine = (outfit) =>
     Object.entries(outfit.stats)
         .filter(([, value]) => value)
@@ -80,7 +89,7 @@ const changeable = (character) => character.available && ADDRESSABLE.test(charac
 const AttireRackPage = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Attire Rack" });
     const choiceWrite = useWriteStatus();
-    // The cards' own saves, so their result doesn't light up All outfits or No outfits.
+    // The switches' own saves, so their result doesn't light up All on or All off.
     const cardWrite = useWriteStatus();
     const choiceSaving = () => choiceWrite.status.val === "loading" || cardWrite.status.val === "loading";
     const bulkWrite = useWriteStatus();
@@ -91,26 +100,16 @@ const AttireRackPage = () => {
     const allChosen = van.state(false);
     const enabled = van.state(false);
     const current = van.state("");
-    const everyone = van.state("");
     // Character name -> { character, item, draft, write }.
     const rowStates = new Map();
-    // Busy while an outfit choice saves, so assistive technology hears the cards are updating.
-    const cards = div({
-        class: "tier-grid",
-        role: "group",
-        "aria-label": "Outfit bonuses",
-        "aria-busy": () => choiceSaving(),
-    });
-    const rows = div({ class: "account-list" });
-    const everyoneHolder = span();
+    // Busy while an outfit choice saves, so assistive technology hears the list is updating.
+    const cards = div({ class: "account-page-pane", "aria-busy": () => choiceSaving() });
+    const rows = div({ class: "account-page-pane" });
     const reconcileCards = createStaticRowReconciler(cards);
     const reconcileRows = createStaticRowReconciler(rows);
-    const reconcileEveryone = createStaticRowReconciler(everyoneHolder);
 
     const busy = () => loading.val || choiceSaving() || bulkWrite.status.val === "loading";
     const isChosen = (id) => chosen.val.has(id);
-    const outfitName = (id) =>
-        id === NO_ATTIRE ? "no attire" : (outfits.val.find((outfit) => outfit.id === id)?.name ?? id);
     const wornNow = () => rowStates.get(current.val)?.item.val;
 
     // --- Outfit bonuses ---
@@ -181,50 +180,58 @@ const AttireRackPage = () => {
             }
         );
 
-    const clearChoice = (buttonNode) => {
+    // All off takes every bonus away, now and at start, so it asks in the tray first.
+    const clearChoice = (from, ask) => {
         choiceSaid.clear();
-        if (!chosen.val.size && !enabled.val) return choiceSaid.say("refused", "No outfit bonus is chosen.");
-        const count = chosen.val.size === outfits.val.length ? "every" : String(chosen.val.size);
-        if (!clickAgain(buttonNode, `stop giving ${count} outfit bonuses, now and at start.`)) return;
-        return writeChoice(() => new Set());
+        const n = chosen.val.size;
+        return ask({
+            question:
+                n === outfits.val.length
+                    ? "Stop giving every outfit bonus, now and at start?"
+                    : `Stop giving ${n} outfit bonus${n === 1 ? "" : "es"}, now and at start?`,
+            confirmLabel: n === 1 ? "Turn it off" : "Turn them off",
+            from,
+            lowers: () => [...chosen.val],
+            again: () => clearChoice(from, ask),
+            onConfirm: () => writeChoice(() => new Set()),
+        });
     };
 
-    // A click while a choice saves is dropped; the cards stay enabled so focus stays on the card. It does what the
-    // card shows (on turns off), whatever the fresh read finds.
-    const toggleOutfit = (id) => {
-        if (busy()) return false;
-        const turnOn = !isChosen(id);
-        return writeChoice((on) => {
-            if (turnOn) on.add(id);
-            else on.delete(id);
-            return on;
+    // A switch's flip: on gives the outfit's bonus, off stops it, from the choice as it is saved when the save runs.
+    const flipOutfit = (id, on) =>
+        writeChoice((chosenNow) => {
+            if (on) chosenNow.add(id);
+            else chosenNow.delete(id);
+            return chosenNow;
         }, cardWrite);
-    };
 
-    const renderCard = (outfit) =>
-        button(
-            {
-                type: "button",
-                class: "tier-card attire-card",
-                "aria-pressed": () => isChosen(outfit.id),
+    // An outfit: what it gives first (its stats, then its bonuses), its name under it, "Worn" while the character in
+    // play wears it, and a switch that gives its bonus as if worn.
+    const renderOutfit = (outfit) =>
+        AccountRow({
+            rowClass: "attire-outfit-row",
+            info: RowTitles({
+                bonus: [statLine(outfit), ...outfit.bonuses.map(bonusLine)].filter(Boolean).join(" · "),
+                name: outfit.name,
+            }),
+            badge: () => (wornNow() === outfit.id ? "Worn" : ""),
+            controls: StateSwitch({
+                checked: () => isChosen(outfit.id),
+                // The word shows only when on: "Off" would repeat down the list.
+                words: ["On", ""],
+                name: `${outfit.name} bonus`,
                 disabled: () => loading.val,
-                title: () => `${isChosen(outfit.id) ? "Stop giving" : "Give"} the ${outfit.name} bonus`,
-                onclick: () => toggleOutfit(outfit.id),
-            },
-            div({ class: "tier-card__header" }, span({ class: "tier-card__name" }, outfit.name), () =>
-                wornNow() === outfit.id ? span({ class: "tier-card__badge" }, "worn") : span()
-            ),
-            statLine(outfit) ? div({ class: "attire-card__line" }, statLine(outfit)) : null,
-            ...outfit.bonuses.map((bonus) => div({ class: "attire-card__line" }, `+${bonus.value}${words(bonus.key)}`))
-        );
+                ownStatus: true,
+                onFlip: (on) => flipOutfit(outfit.id, on),
+            }),
+        });
 
-    const choiceNote = () => {
-        if (!enabled.val)
-            return chosen.val.size
-                ? "The cheat is off, so the chosen bonuses aren't given. A click on an outfit turns it back on."
-                : "Off. Click an outfit to give its bonus.";
-        if (allChosen.val) return "Every outfit's bonus is on, including outfits a game update adds.";
-        return `${chosen.val.size} of ${outfits.val.length} outfit bonuses are on.`;
+    // What the outfit tray says: how many bonuses are on, or that the cheat giving them is off.
+    const choiceLabel = () => {
+        const n = outfits.val.length;
+        if (!enabled.val && chosen.val.size) return "Off, so the chosen bonuses aren't given. Flip one to give them.";
+        const all = `All ${n} outfit${n === 1 ? "" : "s"}`;
+        return allChosen.val && n ? `${all} · every bonus on, new outfits too` : `${all} · ${chosen.val.size} on`;
     };
 
     // --- Appearance ---
@@ -263,11 +270,10 @@ const AttireRackPage = () => {
         for (const name of rowStates.keys())
             if (!status.characters.some((character) => character.name === name)) rowStates.delete(name);
         const ids = status.outfits.map(({ id }) => id);
-        reconcileCards(JSON.stringify(ids), () => status.outfits.map(renderCard));
+        reconcileCards(JSON.stringify(ids), () => status.outfits.map(renderOutfit));
         reconcileRows(JSON.stringify([status.characters.map(({ name }) => name), ids]), () =>
             status.characters.map(({ name }) => renderRow(name))
         );
-        reconcileEveryone(JSON.stringify(ids), renderEveryone);
     };
 
     // Two row saves can read at once: a read that answers after a newer one was shown is older, so it isn't shown.
@@ -366,59 +372,64 @@ const AttireRackPage = () => {
         await afterChange([character]);
     };
 
+    // The attire a pick can give: none, or an outfit the game lists.
+    const attireChoices = () => [
+        { id: NO_ATTIRE, label: "No attire" },
+        ...outfits.val.map((outfit) => ({ id: outfit.id, label: outfit.name })),
+    ];
+    // Attire the outfit list doesn't know (EquipmentGown0, say) is an unlisted outfit, and can't be picked again.
+    const attireName = (item) =>
+        item === NO_ATTIRE
+            ? "No attire"
+            : (outfits.val.find((outfit) => outfit.id === item)?.name ?? "Unlisted outfit");
+
+    // A character: its name, the attire it wears under it (the row's title opens the pick, like a chip slot's),
+    // "In play" for the one in play. A pick saves at once.
     const renderRow = (name) => {
         const state = rowStates.get(name);
-        const unknown = () => state.item.val !== NO_ATTIRE && !outfits.val.some(({ id }) => id === state.item.val);
-        const options = [
-            option({ value: NO_ATTIRE, selected: () => state.draft.val === NO_ATTIRE }, "No attire"),
-            ...outfits.val.map((outfit) =>
-                option({ value: outfit.id, selected: () => state.draft.val === outfit.id }, outfit.name)
-            ),
-            // Attire the outfit list doesn't know (EquipmentGown0, say) shows as it is, and can't be picked again.
-            option(
-                {
-                    value: () => state.item.val,
-                    disabled: true,
-                    hidden: () => !unknown(),
-                    selected: () => unknown() && state.draft.val === state.item.val,
-                },
-                () => state.item.val
-            ),
-        ];
-        return AccountRow({
-            // Wide controls: on a narrow window the picker gets its own line.
-            rowClass: () => `account-row--wide-controls ${saveStateClass(state.write.status.val, state.write.undo)}`,
-            rowProps: { ...state.write.handlers, "data-change-label": `${name} attire` },
-            info: div({ class: "account-row__name-group" }, span({ class: "account-row__name" }, name), () =>
-                !state.character.val.available
-                    ? span({ class: "account-row__sub-label" }, "No attire slot to change")
-                    : !changeable(state.character.val)
-                      ? span({ class: "account-row__sub-label" }, "This name can't be changed from here")
-                      : span()
-            ),
-            badge: () => (state.character.val.active ? "in play" : "saved"),
-            controls: [
-                SaveState(state.write),
-                select(
-                    {
-                        class: "select-base",
-                        "aria-label": `Attire for ${name}`,
-                        disabled: () => loading.val || !changeable(state.character.val),
-                        onchange: (event) => {
-                            state.draft.val = event.target.value;
-                            void state.write.save();
-                        },
-                    },
-                    ...options
-                ),
-            ],
+        const pick = PickInPlace({
+            name: `Attire for ${name}`,
+            look: "row",
+            label: () => attireName(state.draft.val),
+            // The character names the line; what it wears is the quiet line under it, and why it can't change.
+            opener: RowTitles({
+                name,
+                note: () =>
+                    [
+                        attireName(state.draft.val),
+                        !state.character.val.available
+                            ? "No attire slot to change"
+                            : !changeable(state.character.val)
+                              ? "This name can't be changed from here"
+                              : null,
+                    ]
+                        .filter(Boolean)
+                        .join(" · "),
+            }),
+            options: attireChoices,
+            picked: () => state.draft.val,
+            onPick: (id) => {
+                state.draft.val = id;
+                void state.write.save();
+            },
+            search: true,
+            disabled: () => loading.val || !changeable(state.character.val),
+            panelClass: "row-detail",
         });
+        const row = AccountRow({
+            rowClass: () => saveStateClass(state.write.status.val, state.write.undo),
+            rowProps: { ...state.write.handlers, "data-change-label": `${name} attire` },
+            info: pick.opener,
+            badge: () => (state.character.val.active ? "In play" : ""),
+            controls: SaveState(state.write),
+        });
+        row.append(pick.panel);
+        return row;
     };
 
-    // Everyone gets one outfit; the second click within a few seconds does it.
-    const giveEveryone = async (buttonNode) => {
-        const item = everyone.val;
-        if (!item || busy()) return;
+    // Everyone gets one outfit: picked in the tray, then asked about there, since it replaces what they wear.
+    const askGiveEveryone = async (item, ask, from) => {
+        if (busy()) return;
         bulkSaid.clear();
         let targets;
         let inPlay;
@@ -433,15 +444,27 @@ const AttireRackPage = () => {
         if (!targets.length) {
             if (owed.has(inPlay))
                 return bulkWrite.run(() => updateStats(inPlay), { onError: (caught) => sayOwed(inPlay, caught) });
-            bulkSaid.say("refused", `Everyone already wears ${outfitName(item)}.`);
+            bulkSaid.say("refused", `Everyone already wears ${attireName(item)}.`);
             return;
         }
-        const count = `${targets.length} character${targets.length === 1 ? "" : "s"}`;
-        const question = `give ${count} ${outfitName(item)}. The attire they wear now is replaced, not moved to storage.`;
-        if (!clickAgain(buttonNode, question, { targets: targets.map(({ name }) => name) })) return;
+        const names = () => targets.map((character) => character.name);
+        const n = targets.length;
+        ask({
+            question: `Give ${n} character${n === 1 ? "" : "s"} ${attireName(item)}? What they wear now isn't stored.`,
+            confirmLabel: n === 1 ? "Give it" : "Give them",
+            from,
+            lowers: names,
+            again: () => askGiveEveryone(item, ask, from),
+            onConfirm: () => giveEveryone(item, targets, inPlay),
+        });
+    };
+
+    // Its failure is said on the tray's line by its own words (bulkSaid), which go once an owed stat update runs (a
+    // Refresh, a pick), so it isn't left as the tray tool's failure, which only its next try would clear.
+    const giveEveryone = (item, targets, inPlay) => {
         let wrote = false;
-        await bulkWrite.run(
-            async () => {
+        return bulkWrite.run(async () => {
+            try {
                 await writeManyVerified(
                     targets.flatMap((character) => slotWrites(character, item)),
                     { character: inPlay }
@@ -451,31 +474,30 @@ const AttireRackPage = () => {
                 });
                 wrote = true;
                 await afterChange(targets);
-            },
-            {
-                onError: (caught) => {
-                    // Everyone has the outfit and only the stat update failed: the line goes once one runs.
-                    if (wrote && owed.has(inPlay)) sayOwed(inPlay, caught);
-                    else bulkSaid.say("failed", caught.message);
-                    void readStatus().catch(() => {});
-                },
+            } catch (caught) {
+                // Everyone has the outfit and only the stat update failed: the line goes once one runs.
+                if (wrote && owed.has(inPlay)) sayOwed(inPlay, caught);
+                else bulkSaid.say("failed", caught.message);
+                void readStatus().catch(() => {});
+                return { cancelled: true };
             }
-        );
+        });
     };
 
-    const renderEveryone = () =>
-        select(
-            {
-                class: "select-base",
-                "aria-label": "Outfit for every character",
-                onchange: (event) => (everyone.val = event.target.value),
-            },
-            option({ value: "", selected: () => everyone.val === "" }, "Outfit for everyone"),
-            option({ value: NO_ATTIRE, selected: () => everyone.val === NO_ATTIRE }, "No attire"),
-            ...outfits.val.map((outfit) =>
-                option({ value: outfit.id, selected: () => everyone.val === outfit.id }, outfit.name)
-            )
-        );
+    // The tray's tool: "Give everyone", a pick of the attire that opens in place under the tray's tools.
+    const everyoneTool = (ask) => {
+        const pick = PickInPlace({
+            name: "Give everyone",
+            opener: "Give everyone",
+            options: attireChoices,
+            onPick: (id) => void askGiveEveryone(id, ask, pick.opener),
+            search: true,
+            disabled: () => busy() || !outfits.val.length,
+            panelClass: "pick-in-place--columns attire-everyone__list",
+        });
+        // The list opens in place under the tray's tools (the panel's edge would cut off a list laid over the rows).
+        return [pick.opener, pick.panel];
+    };
 
     // An undo of a change made here (from its row, Undo all or History) puts old attire back: the stats of the
     // character in play are worked out again, as after the change itself.
@@ -502,57 +524,58 @@ const AttireRackPage = () => {
         });
     load();
 
+    const characterCount = () => rowStates.size;
     return PersistentAccountListPage({
-        title: "ATTIRE RACK",
-        description:
-            "Outfit bonuses as if worn, and the attire each character wears. The worn outfit counts once; there is no bonus in dungeons.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            actions: [
-                // Adds: a quiet button (DESIGN.md).
-                {
-                    label: "All outfits",
-                    variant: "quiet",
-                    status: choiceWrite.status,
-                    disabled: () => busy() || !outfits.val.length,
-                    onClick: () => writeChoice(() => new Set(outfits.val.map(({ id }) => id))),
-                },
-                // Removes: a danger button that asks in place.
-                {
-                    label: "No outfits",
-                    variant: "danger",
-                    status: choiceWrite.status,
-                    disabled: busy,
-                    onClick: (event) => clearChoice(event.currentTarget),
-                },
-            ],
-            refresh: { onClick: load, disabled: busy },
-        }),
+        rootClass: "tab-container scroll-container",
+        title: "Attire Rack",
+        description: "Outfit bonuses as if worn, and the attire each character wears. No bonus in dungeons.",
+        actions: RefreshButton({ onRefresh: load, disabled: busy }),
         state: { loading, error },
-        loadingText: "READING ATTIRE",
-        errorTitle: "ATTIRE READ FAILED",
+        loadingText: "Reading the attire rack",
+        errorTitle: "Couldn't read the attire rack",
+        initialWrapperClass: "account-list",
         body: div(
-            { class: "scrollable-panel content-stack" },
-            AccountSection({
-                title: "OUTFIT BONUSES",
-                note: choiceNote,
-                body: [Said({ said: choiceSaid.said, className: "said--line" }), cards],
-            }),
-            AccountSection({
-                title: "APPEARANCE",
-                note: "A new pick replaces the attire in that slot; it isn't moved to storage. Undo puts it back.",
-                meta: [
-                    everyoneHolder,
-                    // It replaces the attire everyone wears, so it is a danger button that asks in place.
-                    ActionButton({
-                        label: "Give everyone",
-                        variant: "danger",
-                        status: bulkWrite.status,
-                        disabled: () => busy() || !everyone.val,
-                        onClick: (event) => giveEveryone(event.currentTarget),
-                    }),
+            { class: "account-list account-list--tabbed" },
+            TabbedList({
+                name: "Attire Rack",
+                page: "account.attire-rack",
+                busy,
+                tabs: [
+                    { id: "bonuses", label: "Outfit bonuses", content: cards },
+                    { id: "appearance", label: "Appearance", content: rows },
                 ],
-                body: [Said({ said: bulkSaid.said, className: "said--line" }), rows],
+                tools: toolsPerTab({
+                    // All on only gives, so it runs on one press; All off takes them away, so it asks.
+                    bonuses: (ask) =>
+                        div(
+                            { class: "tabbed-list__tool-group" },
+                            ActionButton({
+                                label: "All on",
+                                status: choiceWrite.status,
+                                disabled: () => busy() || !outfits.val.length || (allChosen.val && enabled.val),
+                                onClick: (e) => {
+                                    e.preventDefault();
+                                    return writeChoice(() => new Set(outfits.val.map(({ id }) => id)));
+                                },
+                            }),
+                            ActionButton({
+                                label: "All off",
+                                variant: "danger",
+                                status: choiceWrite.status,
+                                disabled: () => busy() || (!chosen.val.size && !enabled.val),
+                                onClick: (e) => {
+                                    e.preventDefault();
+                                    clearChoice(e.currentTarget, ask);
+                                },
+                            })
+                        ),
+                    appearance: everyoneTool,
+                }),
+                toolsLabel: (activeId) => {
+                    if (activeId.val === "bonuses") return choiceSaid.said.val?.text ?? choiceLabel();
+                    const n = (outfits.val, characterCount());
+                    return bulkSaid.said.val?.text ?? `All ${n} character${n === 1 ? "" : "s"}`;
+                },
             })
         ),
     });

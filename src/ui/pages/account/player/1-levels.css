@@ -1,0 +1,5 @@
+/* Money sits in its own short panel over the levels, a step apart, so the levels' tray speaks only for them. */
+.viewport .tabbed-list.player-money {
+    flex: none;
+    margin-bottom: 12px;
+}

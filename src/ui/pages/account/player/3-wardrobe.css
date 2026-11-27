@@ -1,132 +1,81 @@
-/* ── Wardrobe: a loadout picker, what applying it changes (slot by slot, in columns), and saving the current one ── */
+/* ── Wardrobe: the loadout picked under the title, what it changes slot by slot, and its tools in the tray ── */
 
-.wardrobe-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-}
-
-.wardrobe-picker,
-.wardrobe-name {
-    min-height: 32px;
-    padding: 4px 10px;
-    border-radius: 9px;
-    font: inherit;
-}
-
-.wardrobe-picker {
-    flex: 0 1 380px;
+/* A slot's line: its name, then what the loadout puts there; a slot it leaves as it is is muted. */
+.viewport .wardrobe-slot .account-row__controls {
     min-width: 0;
+    justify-content: flex-end;
 }
 
-.wardrobe-name {
-    flex: 0 1 300px;
+.viewport .wardrobe-slot__item {
     min-width: 0;
-    background: var(--c-panel);
-    color: var(--c-text);
-    border: 1px solid var(--c-border);
-}
-
-.wardrobe-name::placeholder {
-    color: var(--c-text-muted);
-}
-
-.wardrobe-name:focus-visible,
-.wardrobe-picker:focus-visible {
-    outline: 2px solid var(--c-accent);
-    outline-offset: 2px;
-}
-
-.wardrobe-empty {
-    color: var(--c-text-muted);
+    color: var(--c-text-body);
     font-size: 0.875rem;
-    padding: 4px 0;
-}
-
-.wardrobe-empty:empty {
-    display: none;
-}
-
-.wardrobe-plan {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding-top: 4px;
-}
-
-.wardrobe-groups {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 14px 28px;
-}
-
-.wardrobe-group {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.wardrobe-group__title {
-    color: var(--c-text-dim);
-    font-size: 0.8125rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    padding-bottom: 4px;
-}
-
-.wardrobe-group__note {
-    color: var(--c-text-muted);
-    font-size: 0.8125rem;
-    padding-bottom: 4px;
-}
-
-.wardrobe-slot {
-    display: grid;
-    grid-template-columns: 7.5rem minmax(0, 1fr);
-    align-items: baseline;
-    gap: 8px;
-    padding: 3px 0;
-    border-top: 1px solid var(--c-border);
-    font-size: 0.875rem;
-}
-
-.wardrobe-slot__label {
-    color: var(--c-text-muted);
-}
-
-.wardrobe-slot__item {
-    color: var(--c-text);
+    font-weight: 500;
+    text-align: right;
     overflow-wrap: anywhere;
 }
 
-.wardrobe-slot__item--kept {
+.viewport .wardrobe-slot__item--kept {
     color: var(--c-text-muted);
-    font-style: italic;
 }
 
-.wardrobe-slot__count {
+.viewport .wardrobe-slot__count {
     color: var(--c-text-muted);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
 
-.wardrobe-notes ul {
-    margin: 0;
-    padding-left: 18px;
-    columns: 2 420px;
-    column-gap: 40px;
-    color: var(--c-text-dim);
+.viewport .wardrobe-empty {
+    padding: 14px 16px;
+    color: var(--c-text-muted);
     font-size: 0.875rem;
-    line-height: 1.5;
 }
 
-.wardrobe-notes li {
-    break-inside: avoid;
+.viewport .wardrobe-empty:empty {
+    display: none;
+}
+
+/* The name for a new loadout, typed in the tray beside its tool: the tray field's look, no ring or fill. */
+.viewport .wardrobe-add .wardrobe-name {
+    width: 11rem;
+    min-width: 0;
+    height: 36px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--c-text-main);
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.viewport .wardrobe-add .wardrobe-name::placeholder {
+    color: var(--c-text-muted);
+    opacity: 1;
+}
+
+.viewport .wardrobe-add .wardrobe-name:focus {
+    outline: none;
+}
+
+[data-keyboard] .viewport .wardrobe-add .wardrobe-name:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+    border-radius: 10px 0 0 10px;
 }
 
 @media (max-width: 560px) {
-    .wardrobe-slot {
-        grid-template-columns: 6rem minmax(0, 1fr);
+    .viewport .wardrobe-add {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .viewport .wardrobe-add .wardrobe-name {
+        flex: 1 1 0;
+        width: auto;
+    }
+
+    .viewport .wardrobe-add .account-btn {
+        flex: none;
     }
 }

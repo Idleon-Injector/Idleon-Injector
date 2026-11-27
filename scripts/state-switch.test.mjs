@@ -214,7 +214,8 @@ test("event shop: a switch flipped while another row saves still saves", async (
     try {
         await twoFlipsLand(
             "src/ui/pages/account/event-shop/event-shop.js",
-            "Not owned",
+            // An item that isn't owned says nothing; an owned one says Owned.
+            "",
             "Owned",
             () => String(ola[311]).length === String(before).length + 2
         );
@@ -312,7 +313,7 @@ test("bribes: Enable all keeps its button's click even when another control is c
 });
 
 for (const [name, file, list, index, off] of [
-    ["event shop", "src/ui/pages/account/event-shop/event-shop.js", () => ola, 311, "Not owned"],
+    ["event shop", "src/ui/pages/account/event-shop/event-shop.js", () => ola, 311, ""],
     ["slab", "src/ui/pages/world-5/slab/slab.js", () => game.gga.Cards, 1, ""],
 ]) {
     test(`${name}: a refused row save is said once, on the switch`, async () => {
@@ -465,7 +466,7 @@ test("bribes: a row flip that Enable all already covered claims no save", async 
     }
 });
 
-test("event shop: a confirmed Enable all keeps its button's action through the queue", async () => {
+test("event shop: Own all keeps its button's action through the queue", async () => {
     const before = ola[311];
     try {
         const page = await openPage(
@@ -474,12 +475,11 @@ test("event shop: a confirmed Enable all keeps its button's action through the q
         );
         const { changeLog, done } = await startLog(page);
         cleanups.push(done);
-        const enableAll = buttonNamed(page, "Enable all");
+        const ownAll = buttonNamed(page, "Own all");
         const logged = changeLog.lastBulkAction.val;
-        await click(enableAll); // asks in place
-        await click(enableAll); // confirmed
-        await until(() => changeLog.lastBulkAction.val !== logged, "Enable all to log its action");
-        assert.equal(changeLog.lastBulkAction.val.action.anchor, enableAll, "its Undo all sits beside the button");
+        await click(ownAll); // only adds, so it runs on one press
+        await until(() => changeLog.lastBulkAction.val !== logged, "Own all to log its action");
+        assert.equal(changeLog.lastBulkAction.val.action.anchor, ownAll, "its Undo all sits beside the button");
     } finally {
         await runCleanups();
         ola[311] = before;

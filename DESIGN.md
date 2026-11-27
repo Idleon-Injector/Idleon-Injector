@@ -591,3 +591,32 @@ and Sushi Station keep their parts as sidebar entries; Jelly Operator and Menage
 - **A read-only number the game works out** (Menagerie's Lumi per hour) sits beside the title.
 - **World 7's fourteen systems have drawings** (Lumi: keep them all): a pickaxe, an eye, a jellyfish, a cell, a trophy, a
   medal, a coral, a price tag, a clam, a fish, a minesweeper's flag, two passing arrows, a button and a nigiri.
+
+### Account on the same pieces (draft, 2026-11-27)
+
+The Account pages use the World 7 pieces and the Page standards. The menu stays as it was: Player's Levels, Attire Rack
+and Wardrobe and the three Clickers stay sidebar entries.
+
+- **A second way a page is split sits on the line under the title, like a character:** the Task Board's world ("World
+  [World 1] Blunder Hills"), the Wardrobe's loadout. The game's screens stay the tabs (Tasks, Achievements, Merit Shop).
+- **A quiet fact sits under a row's name** (`RowTitles`' `note`): muted, the name's size, wrapping rather than cut off.
+  Card Search's "Next tier at 46", the Event Shop's "Reenter town to see the 12 new storage slots".
+- **A number the list's Set all must not touch** (a character's money) sits in its own short panel above the list. Main
+  level isn't a Set all line either: raising it gets you shadowbanned, said in amber under its name.
+- **A card's tier is a step picker beside its amount** (1 to 6; it sets the amount to that tier's least), "Tier 3" at
+  rest, with All to in the tray. Thirteen regions are a pick ("Region [Blunder Hills]"), named as the game names them.
+- **Outfit bonuses are a switch list** ("On", and "Worn" beside the one the character in play wears), with All on and All
+  off. A character's attire is picked in place under its row, its name the row's title, like a chip slot. Give everyone
+  is a pick in the tray that asks there before it replaces what everyone wears.
+- **A loadout shows what it changes slot by slot**, a slot it keeps muted ("Kept"). Equip, Delete and Perfect equipped
+  ask in the tray. A name for a new loadout is typed in the tray, joined to Add loadout: the one text field, since a
+  name isn't a value (`data-name-field`, which the Fields check lets through).
+- **A level is typed up to its real max** on the Upgrade Vault (#28: the max was only a note before).
+- **Bubba's places are tabs** (Upgrades, Meat, Charisma, Gifts, Dice); its upgrades are a table of Level and Free
+  levels, the game's own line first, and Set all has the pick of the two. A table line without the picked column (an
+  upgrade that gets no free levels) isn't one of its lines.
+- **A purchase keeps its button** (Bundles' Buy and Unbuy), "Owned" only when owned; Buy all asks in the tray, since a
+  full inventory loses what a bundle gives.
+- **Account's six systems have drawings:** a head and shoulders for Player, a safe with its dial for the Upgrade Vault,
+  a card in front of another for Card Search, a gift box for Bundles, a board with two ticks for the Task Board and a
+  torn ticket for the Event Shop.
