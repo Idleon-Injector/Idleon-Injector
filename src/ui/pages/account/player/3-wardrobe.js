@@ -3,7 +3,7 @@
  *
  * Loadouts: predefined ones for the class of the character in play, and ones the player saved. Picking one shows what
  * applying it would change (gear, tools, food, cards, prayers, lab chips, obols) and which picks aren't available.
- * Apply asks "Click again" (it replaces items), then saves the plan through writeManyVerified, so it is in the change
+ * Equip asks in the tray (it replaces items), then saves the plan through writeManyVerified, so it is in the change
  * log and Undo puts it back; the game works the stats out again (`wide wardrobestats`), and the food stacks get their
  * size. The plan is read again first; a game that changed since the preview shows the new one instead.
  *
@@ -19,15 +19,19 @@ import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
 import { executeCheatAction, fetchConfig, readComputed, saveConfigPart } from "../../../services/api.js";
 import { currentPlace, reloadPlace } from "../../../services/changeLog.js";
-import { Said, useSaid } from "../../../components/inPlace.js";
-import { BulkActionBar } from "../../../components/views/account/BulkActionBar.js";
+import { useSaid } from "../../../components/inPlace.js";
+import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { useWriteStatus, writeManyVerified } from "../../../components/views/account/accountShared.js";
 import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
+import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
+import { PickInPlace } from "../../../components/views/account/components/PickInPlace.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 
-const { div, span, select, option, optgroup, input, ul, li } = van.tags;
+const { div, span, input } = van.tags;
 
 const STATS_CHEAT = "wide wardrobestats";
 const MAX_SAVED = 100;
@@ -55,16 +59,32 @@ const SLOT_NAMES = {
 // Items the loadout leaves as they are.
 const KEPT = /^(Keep|Keep current item|Locked - unchanged)$/;
 const count = (value) => Number(value).toLocaleString("en-US");
+// A tool whose failure the page says itself on the tray's line (its `onError`): the tray doesn't keep it as that tool's
+// failure too, which would cover what another tool says next.
+const sayingItsOwn = (write) => ({
+    ...write,
+    run: (task, { onError } = {}) =>
+        write.run(async () => {
+            try {
+                return await task();
+            } catch (caught) {
+                onError?.(caught);
+                return { cancelled: true };
+            }
+        }),
+});
 
 const WardrobePage = () => {
     const { loading, error, run: runLoad } = useAccountLoad({ label: "Wardrobe" });
-    const applyWrite = useWriteStatus();
-    const deleteWrite = useWriteStatus();
-    const saveWrite = useWriteStatus();
-    const perfectWrite = useWriteStatus();
-    const loadoutSaid = useSaid();
-    const saveSaid = useSaid();
-    const perfectSaid = useSaid(6000);
+    const applyWrite = sayingItsOwn(useWriteStatus());
+    const deleteWrite = sayingItsOwn(useWriteStatus());
+    const saveWrite = sayingItsOwn(useWriteStatus());
+    const perfectWrite = sayingItsOwn(useWriteStatus());
+    // What the last press did, or why it couldn't, said on the tray's one line: the newest says it.
+    const traySaid = useSaid(6000);
+    const loadoutSaid = traySaid;
+    const saveSaid = traySaid;
+    const perfectSaid = traySaid;
     const status = van.state(null);
     const saved = van.state([]);
     const selected = van.state("");
@@ -165,7 +185,7 @@ const WardrobePage = () => {
     let undone = reloadPlace.rawVal;
     const load = () =>
         runLoad(async () => {
-            // A load is newer than every preview and recheck before it: an Apply whose recheck read the game before
+            // A load is newer than every preview and recheck before it: an Equip whose recheck read the game before
             // this load (a reload after an undo) doesn't write that plan, though the load hasn't read anything yet.
             previewRun++;
             const target = reloadPlace.rawVal;
@@ -219,12 +239,7 @@ const WardrobePage = () => {
         }
     };
 
-    // --- Apply ---
-
-    const applyQuestion = () =>
-        preview.val
-            ? `replace ${preview.val.character}'s gear, tools, food, cards, prayers, lab chips and obols with ${preview.val.name}.`
-            : null;
+    // --- Equip ---
 
     const apply = () =>
         applyWrite.run(
@@ -235,7 +250,7 @@ const WardrobePage = () => {
                 const asked = selected.val;
                 const run = previewRun;
                 const plan = await planFor();
-                // A loadout picked meanwhile isn't the one asked about: Apply stops quietly, and its preview stays.
+                // A loadout picked meanwhile isn't the one asked about: Equip stops quietly, and its preview stays.
                 if (selected.val !== asked) return { cancelled: true };
                 // A preview started during the recheck (a reload after an undo, say) is newer than it: the recheck may
                 // have read the game before that change, though its plan matches the one shown.
@@ -244,10 +259,7 @@ const WardrobePage = () => {
                     // keeps its reason said.
                     if (run === previewRun) preview.val = plan;
                     else if (!preview.val && !previewing.val) return { cancelled: true };
-                    loadoutSaid.say(
-                        "refused",
-                        "The game changed since this preview, so it shows the new plan. Apply again."
-                    );
+                    loadoutSaid.say("refused", "The game changed. This is the new plan; equip again.");
                     return { cancelled: true };
                 }
                 await writeManyVerified(plan.writes, { character: plan.character });
@@ -261,7 +273,7 @@ const WardrobePage = () => {
                 await rememberGolden(plan.character, food.limits.golden);
                 await readStatus();
                 await showPreview();
-                loadoutSaid.say("done", `${plan.name} is on ${plan.character}. Undo puts back what it replaced.`);
+                loadoutSaid.say("done", `Equipped ${plan.name} on ${plan.character}.`);
             },
             {
                 onError: (caught) => {
@@ -306,7 +318,7 @@ const WardrobePage = () => {
                 const loadout = { ...(await readComputed("wardrobe", "capture")), name: label };
                 if (unsaved?.label === label) loadout.id = unsaved.id;
                 // Counted again on the list just read: another tab may have saved meanwhile.
-                const full = `${MAX_SAVED} loadouts are saved; delete one first.`;
+                const full = `${MAX_SAVED} loadouts saved. Delete one first.`;
                 try {
                     await persist((wardrobe) => {
                         const loadouts = wardrobe.loadouts.some(({ id }) => id === loadout.id)
@@ -328,7 +340,7 @@ const WardrobePage = () => {
                 if (name.val === typed) name.val = "";
                 selected.val = loadout.id;
                 await showPreview();
-                saveSaid.say("done", `Saved ${label} from ${status.val.character}.`);
+                saveSaid.say("done", `Added ${label}.`);
             },
             { onError: (caught) => saveSaid.say("failed", caught.message) }
         );
@@ -357,8 +369,8 @@ const WardrobePage = () => {
                 await showPreview();
                 perfectSaid.say(
                     "done",
-                    `Rebuilt ${plan.writes.length} items for ${plan.primaryStat} and raised ${food.length} food stacks; ` +
-                        `skipped ${plan.skipped.length}. Undo puts the old rolls back.`
+                    `Rebuilt ${plan.writes.length} items for ${plan.primaryStat}, raised ${food.length} food stacks, ` +
+                        `skipped ${plan.skipped.length}.`
                 );
             },
             {
@@ -371,194 +383,243 @@ const WardrobePage = () => {
 
     // --- View ---
 
-    const picker = select(
+    // The loadout, picked on the line under the title like a character: the class's own first, then the player's
+    // ("Yours" under each).
+    const choices = () => [
+        ...(status.val?.presets ?? []).map((preset) => ({ id: preset.id, label: preset.name })),
+        ...savedChoices().map((loadout) => ({ id: loadout.id, label: loadout.name, note: "Yours" })),
+    ];
+    const loadoutPick = PickInPlace({
+        name: "Loadout",
+        opener: () => choiceName() || "None",
+        options: choices,
+        picked: () => selected.val,
+        onPick: (id) => {
+            selected.val = id;
+            loadoutSaid.clear();
+            void showPreview();
+        },
+        search: true,
+        disabled: () => loading.val || !status.val,
+        openerClass: "character-picker__opener",
+        panelClass: "character-picker__list",
+    });
+    loadoutPick.panel.tabIndex = -1;
+    const inPlayLine = () => {
+        const value = status.val;
+        return value ? `${value.character} · ${value.baseClass} · World ${value.world}` : "";
+    };
+    const loadoutPicker = div(
         {
-            class: "select-base wardrobe-picker",
-            "aria-label": "Loadout",
-            disabled: () => loading.val || !status.val,
-            onchange: (event) => {
-                selected.val = event.target.value;
-                loadoutSaid.clear();
-                void showPreview();
+            class: "character-picker",
+            onfocusout: (e) => {
+                if (loadoutPick.isOpen() && !loadoutPicker.contains(e.relatedTarget)) loadoutPick.close();
             },
         },
-        () =>
-            optgroup(
-                { label: "Predefined" },
-                ...(status.val?.presets ?? []).map((preset) =>
-                    option({ value: preset.id, selected: () => selected.val === preset.id }, preset.name)
-                )
-            ),
-        () =>
-            savedChoices().length
-                ? optgroup(
-                      { label: "Saved" },
-                      ...savedChoices().map((loadout) =>
-                          option({ value: loadout.id, selected: () => selected.val === loadout.id }, loadout.name)
-                      )
-                  )
-                : optgroup({ label: "Saved", hidden: true })
+        div(
+            { class: "character-picker__line" },
+            span({ class: "character-picker__label" }, "Loadout"),
+            loadoutPick.opener,
+            span({ class: "character-picker__info" }, inPlayLine)
+        ),
+        loadoutPick.panel
     );
 
-    // A food stack's size follows its name, quieter.
+    // A slot and what the loadout puts there; one it leaves as it is is muted. A food stack's size follows its name.
     const slotRow = (label, item, quantity) =>
-        div(
-            { class: "wardrobe-slot" },
-            span({ class: "wardrobe-slot__label" }, label),
-            span(
+        AccountRow({
+            rowClass: "wardrobe-slot",
+            info: span({ class: "account-row__name" }, label),
+            controls: span(
                 { class: KEPT.test(item) ? "wardrobe-slot__item wardrobe-slot__item--kept" : "wardrobe-slot__item" },
-                item,
+                KEPT.test(item) ? "Kept" : item,
                 quantity === null || quantity === undefined
                     ? null
                     : span({ class: "wardrobe-slot__count" }, ` × ${count(quantity)}`)
-            )
-        );
+            ),
+        });
 
     const group = (section) =>
-        div(
-            { class: "wardrobe-group" },
-            div({ class: "wardrobe-group__title" }, section.title),
-            section.set ? div({ class: "wardrobe-group__note" }, `Card set: ${section.set}`) : null,
-            ...section.items.map((item, slot) =>
+        AccountSection({
+            title: section.title,
+            // The food's stacks, as the game lets them grow for the character in play.
+            note: section.set
+                ? `Card set: ${section.set}`
+                : section.title === "Food" && status.val
+                  ? `Stacks: golden ${count(status.val.foodLimits.golden)}, other ${count(status.val.foodLimits.regular)}`
+                  : null,
+            body: section.items.map((item, slot) =>
                 slotRow(
                     section.labels?.[slot] ?? SLOT_NAMES[section.title]?.[slot] ?? `Slot ${slot + 1}`,
                     item,
                     section.quantities?.[slot]
                 )
-            )
-        );
+            ),
+        });
 
-    const previewView = () => {
+    // What the loadout changes, in the game's groups; then the picks it can't make, and why.
+    const planView = () => {
         const plan = preview.val;
         if (!plan)
             return div(
                 { class: "wardrobe-empty" },
-                previewing.val ? "Working out the loadout…" : selected.val ? "" : "No loadout fits this class."
+                previewing.val
+                    ? "Working out the loadout…"
+                    : selected.val
+                      ? "Nothing to show for this loadout."
+                      : "No loadout fits this class."
             );
-        // What changes comes first; the reasons for the picks kept as they are follow it.
         return div(
-            { class: "wardrobe-plan" },
-            div({ class: "wardrobe-groups" }, ...plan.sections.map(group)),
+            ...plan.sections.map(group),
             plan.notes.length
-                ? div(
-                      { class: "wardrobe-notes" },
-                      div({ class: "wardrobe-group__title" }, `Not available (${plan.notes.length})`),
-                      ul(...plan.notes.map((note) => li(note)))
-                  )
+                ? AccountSection({
+                      title: "Not available",
+                      body: plan.notes.map((note) =>
+                          AccountRow({ rowClass: "wardrobe-note", info: span({ class: "account-row__note" }, note) })
+                      ),
+                  })
                 : null
         );
     };
 
-    const loadoutNote = () => {
-        const value = status.val;
-        if (!value) return "";
-        return `${value.character} · ${value.baseClass} · world ${value.world} · food stacks: golden ${count(
-            value.foodLimits.golden
-        )}, other ${count(value.foodLimits.regular)}`;
+    // The tray's line: what the last press did or why it couldn't, else what Equip would change.
+    const trayLine = () => {
+        const said = traySaid.said.val;
+        // A failure in words: the game keeping its old value isn't said as the write's own message.
+        if (said?.kind === "failed") {
+            const reason = saveFailureReason(said.text);
+            return `${reason.charAt(0).toUpperCase()}${reason.slice(1)}`;
+        }
+        if (said) return said.text;
+        const plan = preview.val;
+        if (!plan) return status.val ? `Loadouts for ${status.val.character}` : "";
+        const changes = plan.sections.flatMap((section) => section.items).filter((item) => !KEPT.test(item)).length;
+        return `${plan.name} changes ${changes} slot${changes === 1 ? "" : "s"} on ${plan.character}`;
     };
+
+    const tools = (_, ask) => [
+        // Equip replaces items, Delete takes a saved loadout away, Perfect equipped replaces the rolls of the gear
+        // worn: each asks in the tray first.
+        div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Equip",
+                status: applyWrite.status,
+                disabled: () => busy() || previewing.val || !preview.val,
+                onClick: (e) => {
+                    e.preventDefault();
+                    const from = e.currentTarget;
+                    const askEquip = () => {
+                        const plan = preview.val;
+                        if (!plan) return undefined;
+                        return ask({
+                            question: `Equip ${plan.name} on ${plan.character}? Gear, tools, food, cards, prayers, chips and obols are replaced.`,
+                            confirmLabel: "Equip it",
+                            from,
+                            // Two saved loadouts can share a name: the question is about this one's plan.
+                            lowers: () => [selected.val, preview.val?.fingerprint],
+                            again: askEquip,
+                            onConfirm: apply,
+                        });
+                    };
+                    askEquip();
+                },
+            }),
+            // Only a loadout of the player's own can be deleted.
+            () =>
+                savedLoadout()
+                    ? ActionButton({
+                          label: "Delete",
+                          variant: "danger",
+                          status: deleteWrite.status,
+                          disabled: busy,
+                          onClick: (e) => {
+                              e.preventDefault();
+                              const from = e.currentTarget;
+                              const askDelete = () =>
+                                  ask({
+                                      question: `Delete your loadout ${choiceName()}?`,
+                                      confirmLabel: "Delete it",
+                                      from,
+                                      lowers: () => [selected.val],
+                                      again: askDelete,
+                                      onConfirm: deleteSaved,
+                                  });
+                              askDelete();
+                          },
+                      })
+                    : span({ hidden: true })
+        ),
+        div(
+            { class: "tabbed-list__tool-group" },
+            ActionButton({
+                label: "Perfect equipped",
+                variant: "danger",
+                status: perfectWrite.status,
+                disabled: () => busy() || !status.val,
+                onClick: (e) => {
+                    e.preventDefault();
+                    const from = e.currentTarget;
+                    const askRebuild = () =>
+                        ask({
+                            question: `Rebuild ${status.val.character}'s worn gear? Its upgrades now are replaced.`,
+                            confirmLabel: "Rebuild it",
+                            from,
+                            lowers: () => [status.val?.character],
+                            again: askRebuild,
+                            onConfirm: perfectEquipped,
+                        });
+                    askRebuild();
+                },
+            })
+        ),
+        // What the character in play wears now, as a loadout of the player's own, named in the tray.
+        div(
+            { class: "account-setall-row wardrobe-add" },
+            input({
+                class: "wardrobe-name",
+                type: "text",
+                maxlength: 80,
+                placeholder: "Loadout name",
+                "aria-label": "Loadout name",
+                "data-name-field": "",
+                value: name,
+                oninput: (event) => (name.val = event.target.value),
+                onkeydown: (event) => {
+                    if (event.key === "Enter") void saveCurrent();
+                },
+            }),
+            ActionButton({
+                label: "Add loadout",
+                status: saveWrite.status,
+                disabled: () => busy() || !status.val,
+                onClick: (e) => {
+                    e.preventDefault();
+                    return saveCurrent();
+                },
+            })
+        ),
+    ];
 
     load();
 
     return PersistentAccountListPage({
-        title: "WARDROBE",
-        description:
-            "Loadouts of gear, tools, food, cards, prayers, lab chips and obols for the character in play. Applying one replaces those items; Undo puts them back.",
-        wrapActions: false,
-        actions: BulkActionBar({
-            actions: [
-                // It replaces the rolls of the gear worn, so it is a danger button that asks in place.
-                {
-                    label: "Perfect Equipped",
-                    variant: "danger",
-                    status: perfectWrite.status,
-                    disabled: () => busy() || !status.val,
-                    confirm: () =>
-                        status.val
-                            ? `rebuild ${status.val.character}'s gear. The upgrades it has now are replaced.`
-                            : null,
-                    onClick: perfectEquipped,
-                },
-            ],
-            refresh: { onClick: load, disabled: busy },
-        }),
-        topNotices: Said({ said: perfectSaid.said, className: "said--line" }),
+        rootClass: "tab-container scroll-container",
+        title: "Wardrobe",
+        description: "Loadouts of gear, tools, food, cards, prayers, chips and obols for the character in play.",
+        actions: RefreshButton({ onRefresh: load, disabled: busy }),
+        toolbar: loadoutPicker,
         state: { loading, error },
-        loadingText: "READING THE WARDROBE",
-        errorTitle: "WARDROBE READ FAILED",
+        loadingText: "Reading the wardrobe",
+        errorTitle: "Couldn't read the wardrobe",
+        initialWrapperClass: "account-list",
         body: div(
-            { class: "scrollable-panel content-stack" },
-            div(
-                {
-                    class: "wardrobe-loadout",
-                    "data-change-label": () =>
-                        preview.val ? `${preview.val.name} on ${preview.val.character}` : "Loadout",
-                },
-                AccountSection({
-                    title: "LOADOUT",
-                    note: loadoutNote,
-                    body: [
-                        div(
-                            { class: "wardrobe-controls" },
-                            picker,
-                            // It replaces items, so it is a danger button that asks in place.
-                            ActionButton({
-                                label: "Apply",
-                                variant: "danger",
-                                status: applyWrite.status,
-                                disabled: () => busy() || previewing.val || !preview.val,
-                                confirm: applyQuestion,
-                                // Two saved loadouts can share a name: the question is about this one's plan.
-                                confirmTargets: () => preview.val && [selected.val, preview.val.fingerprint],
-                                onClick: apply,
-                            }),
-                            () =>
-                                savedLoadout()
-                                    ? ActionButton({
-                                          label: "Delete",
-                                          variant: "danger",
-                                          status: deleteWrite.status,
-                                          disabled: busy,
-                                          confirm: () => `delete the saved loadout ${choiceName()}.`,
-                                          onClick: deleteSaved,
-                                      })
-                                    : span()
-                        ),
-                        Said({ said: loadoutSaid.said, className: "said--line" }),
-                        () => previewView(),
-                    ],
-                })
-            ),
-            AccountSection({
-                title: "SAVE CURRENT",
-                note: () =>
-                    status.val ? `What ${status.val.character} wears and uses now, as a loadout of your own.` : "",
-                body: [
-                    div(
-                        { class: "wardrobe-controls" },
-                        input({
-                            class: "wardrobe-name",
-                            type: "text",
-                            maxlength: 80,
-                            placeholder: "Loadout name",
-                            "aria-label": "Loadout name",
-                            value: name,
-                            oninput: (event) => (name.val = event.target.value),
-                            onkeydown: (event) => {
-                                if (event.key === "Enter") void saveCurrent();
-                            },
-                        }),
-                        // Adds: a quiet button (DESIGN.md).
-                        ActionButton({
-                            label: "Save",
-                            variant: "quiet",
-                            status: saveWrite.status,
-                            disabled: () => busy() || !status.val,
-                            onClick: saveCurrent,
-                        })
-                    ),
-                    Said({ said: saveSaid.said, className: "said--line" }),
-                ],
-            })
+            {
+                class: "account-list account-list--tabbed wardrobe-loadout",
+                "data-change-label": () =>
+                    preview.val ? `${preview.val.name} on ${preview.val.character}` : "Loadout",
+            },
+            ListPanel({ body: div(() => planView()), tools, toolsLabel: trayLine })
         ),
     });
 };

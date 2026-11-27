@@ -241,7 +241,7 @@ test("the Anvil says the character changed when another one comes into play whil
 
 // Every page that reads the character in play's own values says the one line at character select, then reads them in play.
 const PAGES = {
-    "src/ui/pages/account/player/1-levels.js": "LEVELS & MONEY",
+    "src/ui/pages/account/player/1-levels.js": "Levels",
     "src/ui/pages/world-1/statues/statues.js": "Statues",
     "src/ui/pages/world-2/post-office/post-office.js": "Delivery complete",
     "src/ui/pages/world-3/library/library.js": "Library",
@@ -249,8 +249,8 @@ const PAGES = {
     "src/ui/pages/world-3/traps/traps.js": "Traps",
     "src/ui/pages/world-3/worship/worship.js": "Worship",
     "src/ui/pages/world-3/death-note/death-note.js": "Death Note",
-    "src/ui/pages/account/player/2-attire-rack.js": "ATTIRE",
-    "src/ui/pages/account/player/3-wardrobe.js": "WARDROBE",
+    "src/ui/pages/account/player/2-attire-rack.js": "Attire Rack",
+    "src/ui/pages/account/player/3-wardrobe.js": "Wardrobe",
 };
 // A load worked: the page's body shows (it stays hidden until one does), and no load failure shows.
 const hidden = (node) => classes(node).split(" ").includes("is-hidden-until-ready");

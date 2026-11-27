@@ -1,6 +1,6 @@
 // The Wardrobe page (#101, from VoidKitten's #2) on the fake game with the mage of scripts/wardrobe-fixture.mjs: picking
-// a loadout previews it; Apply asks "Click again", then saves the plan as one action the change log can undo (after
-// which the page works the stats out again); a write the game refuses is said where Apply was pressed; saved loadouts
+// a loadout previews it; Equip asks in the tray, then saves the plan as one action the change log can undo (after
+// which the page works the stats out again); a write the game refuses is said on the tray's line; saved loadouts
 // and the largest golden food stack are saved to the config file from a fresh read, as Pets saves its pets.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -137,16 +137,63 @@ async function until(check, what) {
     }
     assert.fail(`timed out waiting for ${what}`);
 }
-const button = (root, label) => elements(root).find((node) => node.nodeName === "button" && text(node) === label);
+const realButton = (root, label) => elements(root).find((node) => node.nodeName === "button" && text(node) === label);
+// An attribute as it is now (VanJS keeps one that changes as a function).
+const attrOf = (node, name) =>
+    typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
+const trayLine = (root) => text(byClass(root, "tabbed-list__tools-label")[0]);
+// The tray asks a question in place of its tools: its answer row shows.
+const asking = (root) => {
+    const answer = byClass(root, "tabbed-list__answer")[0];
+    return Boolean(answer) && !attrOf(answer, "hidden");
+};
+// Equip, Delete and Perfect equipped ask in the tray, then run on its answer. In the tests they keep the shape the
+// "Click again" buttons had: the first press asks (the question is the button's label), the second answers.
+const asker = (root, label) => {
+    const real = () => realButton(root, label);
+    return {
+        get attributes() {
+            return {
+                disabled: asking(root) ? false : attrOf(real(), "disabled"),
+                "data-again": asking(root) ? "Click again" : undefined,
+                "aria-label": asking(root) ? trayLine(root) : undefined,
+                "aria-busy": attrOf(real(), "aria-busy"),
+            };
+        },
+        listeners: {
+            // The answer resolves once the run it started ends, as the second "Click again" press did.
+            click: async () => {
+                if (!asking(root))
+                    return real().listeners.click({ currentTarget: real(), target: real(), preventDefault() {} });
+                byClass(root, "tabbed-list__yes")[0].listeners.click({});
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                await until(() => !real() || String(attrOf(real(), "aria-busy")) !== "true", "the answer's run to end");
+                await new Promise((resolve) => setTimeout(resolve, 20));
+            },
+        },
+    };
+};
+const NAMES = { Apply: "Equip", "Perfect Equipped": "Perfect equipped", Delete: "Delete", Save: "Add loadout" };
+const button = (root, label) => {
+    const now = NAMES[label] ?? label;
+    if (!realButton(root, now)) return undefined;
+    return ["Equip", "Perfect equipped", "Delete"].includes(now) ? asker(root, now) : realButton(root, now);
+};
 // A browser doesn't click a disabled button: wait until it is enabled (or fail), then click.
 const click = async (node) => {
-    await until(() => !node.attributes.disabled, `${text(node)} to be enabled`);
+    await until(() => !attrOf(node, "disabled"), "the button to be enabled");
     return node.listeners.click({ currentTarget: node, preventDefault() {} });
 };
 const after = (since, kind) => requests.slice(since).filter((entry) => entry.includes(kind));
-const titles = (root) => byClass(root, "wardrobe-group__title").map(text);
-const picker = (root) => elements(root).find((node) => node.attributes["aria-label"] === "Loadout");
-const pick = (root, id) => picker(root).listeners.change({ target: { value: id } });
+const titles = (root) => byClass(root, "account-section__title").map(text);
+// The loadout is picked on the line under the title, in place: its options are buttons with the loadout's id.
+const options = (root) =>
+    elements(byClass(root, "account-page-toolbar")[0]).filter((node) => node.attributes.role === "option");
+const optionLabel = (node) => text(byClass(node, "pick-in-place__option-label")[0] ?? node);
+const pick = (root, id) =>
+    options(root)
+        .find((node) => node.attributes["data-id"] === id)
+        .listeners.click({});
 // The preview of the loadout picked, once it is on the page (VanJS draws on the next tick).
 const previewShown = async (root = page) => {
     await new Promise((resolve) => setTimeout(resolve, 30));
@@ -170,11 +217,11 @@ const open = async () => {
 const page = await open();
 
 test("the page shows who is in play, the loadouts for a mage, and what the first one would change", () => {
-    assert.match(text(page), /Lumi_Main · Mage · world 5 · food stacks: golden 25,000, other 1,500/);
-    const options = elements(picker(page)).filter((node) => node.nodeName === "option");
-    assert.equal(text(options[0]), "Rare Drops (DK / RG Primarily)");
+    assert.match(text(page), /Lumi_Main · Mage · World 5/);
+    assert.match(text(page), /Stacks: golden 25,000, other 1,500/);
+    assert.equal(optionLabel(options(page)[0]), "Rare Drops (DK / RG Primarily)");
     assert.deepEqual(titles(page).slice(0, 3), ["Equipment & specials", "Tools", "Food"]);
-    assert.match(text(page), /Not available \(\d+\)/);
+    assert.ok(titles(page).includes("Not available"));
     assert.match(text(page), /Prehistoric Battlehair requires Character level 650/);
     assert.match(text(page), /Diabolical Wand/);
     assert.deepEqual(gga.EquipmentOrder[0][1], "EquipmentSword5", "the preview changes nothing");
@@ -186,16 +233,16 @@ test("the largest golden food stack seen is saved to the config file on open, fr
     assert.deepEqual(saves.at(-1).cheatConfig.wide.wardrobe.goldenfood, { Lumi_Main: 25000 });
 });
 
-test("Apply asks Click again first, then saves the loadout as one action and works the stats out again", async () => {
+test("Equip asks in the tray first, then saves the loadout as one action and works the stats out again", async () => {
     const apply = button(page, "Apply");
     const since = requests.length;
     const ran = commands.length;
     await click(apply);
     assert.equal(apply.attributes["data-again"], "Click again");
-    assert.match(apply.attributes["aria-label"], /^Click again to replace Lumi_Main's gear, .* with Rare Drops/);
+    assert.match(apply.attributes["aria-label"], /^Equip Rare Drops .* on Lumi_Main\? Gear, tools, .* are replaced\.$/);
     assert.deepEqual(after(since, "write"), [], "the first click changes nothing");
     await click(apply);
-    await until(() => /is on Lumi_Main/.test(text(page)), "the result to be said");
+    await until(() => /Equipped .* on Lumi_Main/.test(text(page)), "the result to be said");
     assert.equal(gga.EquipmentOrder[0][1], "EquipmentWands9");
     assert.equal(gga.EquipmentQuantity[2][0], 25000, "golden food keeps its largest stack");
     assert.equal(gga.PlayerDATABASE.h.Lumi_Main.h.Prayers[0], gga.PrayersActive[0]);
@@ -224,7 +271,7 @@ test("a game that changed since the preview shows the new plan instead of applyi
     const apply = button(page, "Apply");
     await click(apply);
     await click(apply);
-    await until(() => /changed since this preview/.test(text(page)), "the refusal to be said");
+    await until(() => /The game changed\. This is the new plan/.test(text(page)), "the refusal to be said");
     assert.deepEqual(after(since, "write"), []);
     assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
     gga.Lv0[0] = 500;
@@ -232,7 +279,7 @@ test("a game that changed since the preview shows the new plan instead of applyi
     await previewShown();
 });
 
-test("a write the game refuses is said where Apply was pressed", async () => {
+test("a write the game refuses is said on the tray's line", async () => {
     const row = gga.EquipmentOrder[0];
     const kept = row[1];
     Object.defineProperty(row, 1, { get: () => kept, set() {}, configurable: true });
@@ -248,12 +295,11 @@ test("a write the game refuses is said where Apply was pressed", async () => {
         const apply = button(page, "Apply");
         await click(apply);
         await click(apply);
-        await until(() => /Write mismatch at EquipmentOrder\[0\]\[1\]/.test(text(page)), "the failure to be said");
-        assert.ok(byClass(page, "said--failed").length, "said as a failure, in place");
+        await until(() => /Game kept old value/.test(text(page)), "the failure to be said");
         // What landed before the refusal counts: the stats are worked out again and the preview read again.
         await until(() => commands.slice(ran).includes("wide wardrobestats"), "the stats after the failure");
         await until(previewAfterWrite, "the preview read again after the refused write");
-        assert.match(text(page), /Write mismatch at EquipmentOrder\[0\]\[1\]/, "the failure stays said");
+        assert.match(text(page), /Game kept old value/, "the failure stays said");
         assert.equal(row[1], kept);
     } finally {
         Object.defineProperty(row, 1, { value: kept, writable: true, configurable: true });
@@ -273,7 +319,7 @@ test("Save keeps what the character wears as a loadout, in the config file, and 
     name.listeners.input({ target: { value: "Drop farm" } });
     const count = saves.length;
     await save.listeners.click({ currentTarget: save, preventDefault() {} });
-    await until(() => /Saved Drop farm from Lumi_Main/.test(text(page)), "the save to be said");
+    await until(() => /Added Drop farm/.test(text(page)), "the save to be said");
     const [loadout] = (await wardrobeConfig()).loadouts;
     assert.equal(loadout.name, "Drop farm");
     assert.equal(loadout.equipment[1], "EquipmentSword5");
@@ -286,7 +332,7 @@ test("Save keeps what the character wears as a loadout, in the config file, and 
     // It is picked, previewed, and shows up again on a page opened later.
     await until(() => button(page, "Delete"), "the Delete button of a saved loadout");
     const again = await open();
-    assert.ok(elements(picker(again)).some((node) => node.nodeName === "option" && text(node) === "Drop farm"));
+    assert.ok(options(again).some((node) => optionLabel(node) === "Drop farm"));
 
     const remove = button(page, "Delete");
     await click(remove);
@@ -298,16 +344,16 @@ test("Save keeps what the character wears as a loadout, in the config file, and 
     assert.deepEqual(saves.at(-1).cheatConfig.wide.wardrobe.loadouts, []);
 });
 
-test("Perfect Equipped asks Click again, rebuilds the gear as one action, and Undo puts the old rolls back", async () => {
+test("Perfect equipped asks in the tray, rebuilds the gear as one action, and Undo puts the old rolls back", async () => {
     await settle();
     gga.EquipmentMap[0][0].h = { STR: 3 };
     const perfect = button(page, "Perfect Equipped");
     const since = requests.length;
     await click(perfect);
-    assert.match(perfect.attributes["aria-label"], /^Click again to rebuild Lumi_Main's gear/);
+    assert.match(perfect.attributes["aria-label"], /^Rebuild Lumi_Main's worn gear\?/);
     assert.deepEqual(after(since, "write"), []);
     await click(perfect);
-    await until(() => /Rebuilt 2 items for WIS and raised 1 food stacks/.test(text(page)), "the result");
+    await until(() => /Rebuilt 2 items for WIS, raised 1 food stacks/.test(text(page)), "the result");
     assert.equal(gga.EquipmentMap[0][0].h.Defence, 10);
     assert.equal(gga.EquipmentQuantity[2][1], 1500);
     const [action] = (await fetchChanges()).actions;
@@ -324,7 +370,7 @@ test("a larger golden stack saved meanwhile (another tab, the Config page) is ke
     const apply = button(page, "Apply");
     await click(apply);
     await click(apply);
-    await until(() => /is on Lumi_Main/.test(text(page)), "the loadout to land");
+    await until(() => /Equipped .* on Lumi_Main/.test(text(page)), "the loadout to land");
     assert.equal((await wardrobeConfig()).goldenfood.Lumi_Main, 90000);
     assert.equal(saves.at(-1).cheatConfig.wide.wardrobe.goldenfood.Lumi_Main, 90000);
     const [action] = (await fetchChanges()).actions;
@@ -355,7 +401,7 @@ test("Perfect Equipped refuses before writing when another character is in play 
     try {
         const perfect = button(page, "Perfect Equipped");
         await click(perfect);
-        assert.match(perfect.attributes["aria-label"], /rebuild Lumi_Main's gear/);
+        assert.match(perfect.attributes["aria-label"], /Rebuild Lumi_Main's worn gear/);
         await click(perfect);
         await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
         assert.deepEqual(after(since, "write"), []);
@@ -413,7 +459,6 @@ test("a player who switches characters as Apply writes gets no gear put on the n
     await click(apply);
     await click(apply);
     await until(() => /Character changed\. Refresh\./.test(text(page)), "the refusal");
-    assert.ok(byClass(page, "said--failed").length, "said in place");
     assert.equal(gga.EquipmentOrder[0][1], "EquipmentSword5");
     assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1");
     assert.equal((await fetchChanges()).actions.length, actions, "nothing logged");
@@ -458,14 +503,12 @@ test("a name typed while a loadout saves stays in the field for the next one", a
     name.listeners.input({ target: { value: "First" } });
     onSave = () => name.listeners.input({ target: { value: "Second" } });
     await save.listeners.click({ currentTarget: save, preventDefault() {} });
-    await until(() => /Saved First from Lumi_Main/.test(text(page)), "the save");
+    await until(() => /Added First/.test(text(page)), "the save");
     // The fake DOM keeps a field's value as its attribute.
     await until(() => name.attributes.value === "Second", "the field to show the new name");
     await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
 });
 
-const options = (root) =>
-    elements(picker(root)).filter((node) => node.nodeName === "option" && !node.attributes.hidden);
 const changeLabel = (root) => byClass(root, "wardrobe-loadout")[0].attributes["data-change-label"];
 
 // CodeRabbit on #103: two saved loadouts can share a name, so the question is about the plan, not its name.
@@ -476,7 +519,7 @@ test("Apply asks again for another saved loadout of the same name", async () => 
     for (let i = 0; i < 2; i++) {
         name.listeners.input({ target: { value: "Farm" } });
         await click(save);
-        await until(() => /Saved Farm from Lumi_Main/.test(text(page)), "Farm to be saved");
+        await until(() => /Added Farm/.test(text(page)), "Farm to be saved");
         await settle();
     }
     const farms = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Farm");
@@ -504,7 +547,7 @@ test("Apply asks again for another saved loadout of the same name", async () => 
 // CodeRabbit on #103: an Apply's recheck that comes back after a newer pick's preview doesn't replace it.
 test("an older Apply recheck doesn't put its plan under a loadout picked meanwhile", async () => {
     await settle();
-    const [first, second] = options(page).map((node) => node.attributes.value);
+    const [first, second] = options(page).map((node) => node.attributes["data-id"]);
     pick(page, first);
     await previewShown();
     const firstLabel = changeLabel(page);
@@ -521,7 +564,7 @@ test("an older Apply recheck doesn't put its plan under a loadout picked meanwhi
         const secondLabel = changeLabel(page);
         assert.notEqual(secondLabel, firstLabel);
         release();
-        await until(() => button(page, "Apply").attributes["aria-busy"] === "false", "Apply to end");
+        await until(() => String(button(page, "Apply").attributes["aria-busy"]) === "false", "Equip to end");
         await new Promise((resolve) => setTimeout(resolve, 50));
         assert.equal(changeLabel(page), secondLabel, "the newer pick's preview stays");
     } finally {
@@ -536,7 +579,7 @@ test("an older Apply recheck doesn't put its plan under a loadout picked meanwhi
 // meanwhile, instead of writing the first one.
 test("an Apply whose loadout was changed during its recheck writes nothing and says nothing", async () => {
     await settle();
-    const [first, second] = options(page).map((node) => node.attributes.value);
+    const [first, second] = options(page).map((node) => node.attributes["data-id"]);
     pick(page, first);
     await previewShown();
     let release;
@@ -584,7 +627,7 @@ test("an undo during an Apply's recheck leaves the Apply saying what happened", 
         await until(() => previews() > before, "the reload's preview");
         release();
         await pressed;
-        assert.match(text(page), /changed since this preview/);
+        assert.match(text(page), /The game changed\. This is the new plan/);
     } finally {
         release?.();
         gga.Lv0[0] = 500;
@@ -621,7 +664,7 @@ test("an Apply whose recheck read the game before an undo writes nothing", async
         release();
         await pressed;
         assert.equal(log.filter((entry) => entry === "write-many").length, writes, "nothing written");
-        assert.match(text(page), /changed since this preview/);
+        assert.match(text(page), /The game changed\. This is the new plan/);
     } finally {
         release?.();
         holdStats = null;
@@ -656,7 +699,7 @@ test("a newer preview that failed during an Apply's recheck keeps its failure sa
         release();
         await pressed;
         assert.match(text(page), /The game didn't answer/);
-        assert.doesNotMatch(text(page), /Apply again/);
+        assert.doesNotMatch(text(page), /equip again/);
     } finally {
         release?.();
         failPreviews = 0;
@@ -676,7 +719,7 @@ test("Save is refused when another tab filled the list since the page read it", 
         const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
         name.listeners.input({ target: { value: "One more" } });
         await click(button(page, "Save"));
-        await until(() => /100 loadouts are saved; delete one first/.test(text(page)), "the refusal");
+        await until(() => /100 loadouts saved\. Delete one first\./.test(text(page)), "the refusal");
         assert.equal((await wardrobeConfig()).loadouts.length, 100);
         assert.equal(saves.length, count, "nothing went to the file");
     } finally {
@@ -698,7 +741,7 @@ test("Save goes ahead when another tab deleted a loadout from the full list the 
         const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
         name.listeners.input({ target: { value: "One more" } });
         await click(button(page, "Save"));
-        await until(() => /Saved One more from Lumi_Main/.test(text(page)), "the save");
+        await until(() => /Added One more/.test(text(page)), "the save");
         assert.equal((await wardrobeConfig()).loadouts.length, 100);
     } finally {
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
@@ -722,7 +765,7 @@ test("a loadout whose file save failed is saved once when Save is pressed again"
         const unsaved = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Retry");
         assert.equal(unsaved.length, 0, "the failed save left the session's list as it was");
         await click(button(page, "Save"));
-        await until(() => /Saved Retry from Lumi_Main/.test(text(page)), "the retry");
+        await until(() => /Added Retry/.test(text(page)), "the retry");
         const retries = (await wardrobeConfig()).loadouts.filter((loadout) => loadout.name === "Retry");
         assert.equal(retries.length, 1);
         assert.equal(saves.at(-1).cheatConfig.wide.wardrobe.loadouts.length, 1);
@@ -751,16 +794,13 @@ test("a loadout another tab saved while this tab's file save failed stays in the
         await until(() => /The config file is locked/.test(text(page)), "the failure");
         const names = (await wardrobeConfig()).loadouts.map((loadout) => loadout.name);
         assert.deepEqual(names, ["Theirs"]);
-        const options = () =>
-            elements(picker(page))
-                .filter((node) => node.nodeName === "option")
-                .map(text);
-        await until(() => options().includes("Theirs"), "the page to read the list again");
-        assert.ok(!options().includes("Mine"), "the page shows the list the file holds");
+        const labels = () => options(page).map(optionLabel);
+        await until(() => labels().includes("Theirs"), "the page to read the list again");
+        assert.ok(!labels().includes("Mine"), "the page shows the list the file holds");
         onFail = null;
         await settle();
         await click(button(page, "Save"));
-        await until(() => /Saved Mine from Lumi_Main/.test(text(page)), "the retry");
+        await until(() => /Added Mine/.test(text(page)), "the retry");
         const written = saves.at(-1).cheatConfig.wide.wardrobe.loadouts.map((loadout) => loadout.name);
         assert.deepEqual(written.sort(), ["Mine", "Theirs"], "the file gets one Mine");
     } finally {
@@ -803,7 +843,7 @@ test("after an undo each page reads its status once, after its own stat update",
     const apply = button(page, "Apply");
     await click(apply);
     await click(apply);
-    await until(() => /is on Lumi_Main/.test(text(page)), "the loadout to land");
+    await until(() => /Equipped .* on Lumi_Main/.test(text(page)), "the loadout to land");
     const [action] = (await fetchChanges()).actions;
     const since = log.length;
     const count = (entry) => log.slice(since).filter((logged) => logged === entry).length;
@@ -838,7 +878,7 @@ test("after an undo each page reads its status once, after its own stat update",
 });
 
 // CodeRabbit on #147: the running game holds the whole config, so a save it kept its old settings for would be undone
-// by the next read and the save after it; the page says so where Save was pressed, as Pets and Attire Rack do.
+// by the next read and the save after it; the page says so on the tray's line, as Pets and Attire Rack do.
 test("a loadout save the running game kept its old settings for is said as a failure", async () => {
     await settle();
     const save = router.routes.POST.get("/api/config/save");
@@ -853,8 +893,8 @@ test("a loadout save the running game kept its old settings for is said as a fai
     name.listeners.input({ target: { value: "Kept old" } });
     try {
         await click(button(page, "Save"));
-        await until(() => /The game is busy/.test(text(page)), "the reason where Save was pressed");
-        assert.doesNotMatch(text(page), /Saved Kept old/);
+        await until(() => /The game is busy/.test(text(page)), "the reason on the tray's line");
+        assert.doesNotMatch(text(page), /Added Kept old/);
     } finally {
         router.routes.POST.set("/api/config/save", save);
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });

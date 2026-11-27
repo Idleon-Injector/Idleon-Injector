@@ -1,5 +1,5 @@
 // The Attire Rack page (#89) on the fake game: a card click saves the outfit choice like Pets (on at start too), an
-// attire change lands in the change log and can be undone, giving everyone an outfit or no outfits asks "Click again"
+// attire change lands in the change log and can be undone, giving everyone an outfit or All off asks in the tray
 // first, and a write the game refuses is said in its row. After a change and after its undo, the page runs
 // wide attirestats so the game works the stats out again.
 import assert from "node:assert/strict";
@@ -115,30 +115,72 @@ async function until(check, what) {
     assert.fail(`timed out waiting for ${what}`);
 }
 
-const card = (root, name) => byClass(root, "attire-card").find((node) => text(node).includes(name));
-const pressed = (root, name) => String(card(root, name).attributes["aria-pressed"]) === "true";
+// An outfit's line, by its name, and its switch: on gives the outfit's bonus.
+const outfitRow = (root, name) =>
+    byClass(root, "attire-outfit-row").find((node) => text(byClass(node, "account-row__name")[0]) === name);
+const switchOf = (root, name) => elements(outfitRow(root, name)).find((node) => node.attributes.role === "switch");
+// An attribute as it is now (VanJS keeps one that changes as a function).
+const attrOf = (node, name) =>
+    typeof node.attributes[name] === "function" ? node.attributes[name]() : node.attributes[name];
+const pressed = (root, name) => {
+    const box = switchOf(root, name);
+    return Boolean(attrOf(box, "checked") ?? box.checked);
+};
+// The player flips an outfit's switch: the browser has moved the box, then reports the change.
+const flipCard = (root, name) => {
+    const on = pressed(root, name);
+    return switchOf(root, name).listeners.change({ target: { checked: !on } });
+};
 const row = (root, name) =>
     byClass(root, "account-row").find((node) => text(byClass(node, "account-row__name")[0]) === name);
 const saveState = (node) => classes(byClass(node, "save-state")[0]);
-// What a row's picker shows: its selected option.
-const shown = (node) =>
-    text(elements(node).find((entry) => entry.nodeName === "option" && entry.attributes.selected === true));
+// What a character's line shows it wears: the quiet line under its name.
+const shown = (node) => text(byClass(node, "account-row__note")[0]).split(" · ")[0];
+// A character's attire pick opens in place under its line; picking an option there saves it. Kept in the old
+// picker's shape (`change` with the item's id), so the tests read as before.
+const pickerOf = (node) => [
+    {
+        listeners: {
+            change: ({ target }) =>
+                elements(node)
+                    .find((entry) => entry.nodeName === "button" && entry.attributes["data-id"] === target.value)
+                    .listeners.click({}),
+        },
+    },
+];
+// The tray's line, its answer, and the open tab (a tray says only its own tab's line).
+const trayLine = (root) => text(byClass(root, "tabbed-list__tools-label")[0]);
+const answerYes = (root) => byClass(root, "tabbed-list__yes")[0].listeners.click({});
+const showTab = (root, label) =>
+    byClass(root, "tabbed-list__tab")
+        .find((node) => text(node).trim() === label)
+        .listeners.click({});
+// Give everyone: the outfit picked in the tray's list, which then asks there.
+const giveEveryone = async (root, item) => {
+    showTab(root, "Appearance");
+    const list = byClass(root, "attire-everyone__list")[0];
+    elements(list)
+        .find((entry) => entry.nodeName === "button" && entry.attributes["data-id"] === item)
+        .listeners.click({});
+    await new Promise((resolve) => setTimeout(resolve, 30));
+};
 
 const open = async () => {
     const root = (await importRepo(PAGE)).default.component();
-    await until(() => byClass(root, "attire-card").length === 8 && row(root, "Lumi_Third"), "the page to load");
+    await until(() => byClass(root, "attire-outfit-row").length === 8 && row(root, "Lumi_Third"), "the page to load");
+    showTab(root, "Outfit bonuses");
     return root;
 };
 const page = await open();
 const button = (root, label) => elements(root).find((node) => node.nodeName === "button" && text(node) === label);
-const names = byClass(page, "tier-card__name").map(text);
+const names = byClass(page, "attire-outfit-row").map((node) => text(byClass(node, "account-row__name")[0]));
 const savedOutfits = async () => (await fetchConfig()).cheatConfig.wide.attire.outfits;
 const after = (since, kind) => requests.slice(since).filter((entry) => entry.includes(kind));
 
 // Pick an outfit in a character's row; resolves once the row's save ends.
 async function pick(name, item) {
     const node = row(page, name);
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const since = requests.length;
     field.listeners.change({ target: { value: item } });
     // The fake game answers at once, so the row can go from its last ✓ to this save's end between two looks: wait
@@ -154,15 +196,15 @@ test("the cards are the outfits; with all saved and the cheat on, every bonus sh
     assert.equal(names.length, 8, "EquipmentGown0 is no outfit");
     assert.equal(new Set(names).size, 8);
     assert.ok(names.every((name) => pressed(page, name)));
-    assert.match(text(page), /Every outfit's bonus is on/);
-    assert.match(text(card(page, names[2])), /worn/, "the outfit the character in play wears");
+    assert.match(trayLine(page), /every bonus on, new outfits too/);
+    assert.match(text(outfitRow(page, names[2])), /Worn/, "the outfit the character in play wears");
 });
 
 // One config save, which writes the file first, so a save that fails there changes nothing, and then takes the choice
 // into the session (and the game); then the cheat.
 test("a card click turns its bonus off: config file, session config and cheat, as Pets saves", async () => {
     const since = requests.length;
-    await card(page, names[0]).listeners.click({});
+    await flipCard(page, names[0]);
     await until(() => !pressed(page, names[0]), "the card to show off");
     const ids = Array.from({ length: 7 }, (_, i) => `EquipmentGown${i + 2}`).join(",");
     assert.equal(await savedOutfits(), ids);
@@ -170,7 +212,7 @@ test("a card click turns its bonus off: config file, session config and cheat, a
         requests.slice(since).filter((entry) => entry.startsWith("POST")),
         ["POST /api/config/save", "POST /api/toggle"]
     );
-    assert.match(text(page), /7 of 8 outfit bonuses are on/);
+    assert.match(trayLine(page), /^All 8 outfits · 7 on$/);
     assert.deepEqual(startup(), ["wide attire"], "chosen outfits turn the cheat on at start");
     // Only what it changed: a whole config read before another page's change would put that change back.
     assert.deepEqual(saves.at(-1).cheatConfig, { wide: { attire: { outfits: ids } } });
@@ -180,29 +222,28 @@ test("a card click turns its bonus off: config file, session config and cheat, a
 test("clicking it again turns every outfit on, so outfits a game update adds count too", async () => {
     // Run alone, the card is still on: the test before turns it off.
     if (pressed(page, names[0])) {
-        await card(page, names[0]).listeners.click({});
+        await flipCard(page, names[0]);
         await until(() => !pressed(page, names[0]), "the card to show off first");
     }
-    await card(page, names[0]).listeners.click({});
+    await flipCard(page, names[0]);
     await until(() => pressed(page, names[0]), "the card to show on");
     assert.equal(await savedOutfits(), "all");
 });
 
-test("no outfits asks Click again, then turns the cheat off, now and at start", async () => {
-    const none = button(page, "No outfits");
+test("All off asks in the tray, then turns the cheat off, now and at start", async () => {
+    const none = button(page, "All off");
     const since = requests.length;
     await none.listeners.click({ currentTarget: none, preventDefault() {} });
-    assert.equal(none.attributes["data-again"], "Click again");
-    assert.equal(none.attributes["aria-label"], "Click again to stop giving every outfit bonuses, now and at start.");
+    assert.equal(trayLine(page), "Stop giving every outfit bonus, now and at start?");
     assert.deepEqual(after(since, "/api/config"), [], "the first click changes nothing");
-    await none.listeners.click({ currentTarget: none, preventDefault() {} });
+    await answerYes(page);
     await until(() => !pressed(page, names[3]), "every card to show off");
     assert.equal(await savedOutfits(), "");
     assert.deepEqual(startup(), []);
     assert.equal(commands.at(-1), "wide attire");
     assert.equal(fixture.cheatStates.wide.attire, false);
-    assert.match(text(page), /Off\. Click an outfit/);
-    await card(page, names[3]).listeners.click({});
+    assert.match(trayLine(page), /^All 8 outfits · 0 on$/);
+    await flipCard(page, names[3]);
     await until(() => pressed(page, names[3]), "the card to show on");
     assert.equal(await savedOutfits(), "EquipmentGown4");
     assert.ok(names.filter((name) => name !== names[3]).every((name) => !pressed(page, name)));
@@ -215,8 +256,8 @@ test("while the cheat is off the cards show the saved choice, and a click edits 
     const root = await open();
     await until(() => pressed(root, names[1]) && pressed(root, names[4]), "the saved choice to show");
     assert.equal(pressed(root, names[2]), false);
-    assert.match(text(root), /The cheat is off, so the chosen bonuses aren't given/);
-    await card(root, names[2]).listeners.click({});
+    assert.match(trayLine(root), /^Off, so the chosen bonuses aren't given/);
+    await flipCard(root, names[2]);
     await until(() => pressed(root, names[2]), "the card to show on");
     assert.equal(await savedOutfits(), "EquipmentGown2,EquipmentGown3,EquipmentGown5", "edited, not replaced");
     assert.equal(fixture.cheatStates.wide.attire, true, "and the cheat is on again");
@@ -226,7 +267,7 @@ test("while the cheat is off the cards show the saved choice, and a click edits 
 test("with every account-wide cheat on at start, choosing adds nothing that would toggle it back off", async () => {
     await updateSessionConfig({ startupCheats: ["wide"] });
     const count = saves.length;
-    await card(page, names[6]).listeners.click({});
+    await flipCard(page, names[6]);
     await until(() => saves.length > count, "the save");
     assert.deepEqual(startup(), ["wide"]);
     await updateSessionConfig({ startupCheats: [] });
@@ -304,22 +345,17 @@ test("a write the game refuses is said in its row and changes nothing", async ()
     }
 });
 
-test("give everyone asks Click again, then gives every character the outfit as one action", async () => {
-    const [everyone] = elements(page).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
-    everyone.listeners.change({ target: { value: "EquipmentGown7" } });
-    const give = elements(page).find((node) => node.nodeName === "button" && text(node) === "Give everyone");
+test("give everyone asks in the tray, then gives every character the outfit as one action", async () => {
     const since = requests.length;
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    assert.equal(give.attributes["data-again"], "Click again");
+    await giveEveryone(page, "EquipmentGown7");
+    await until(() => /\?/.test(trayLine(page)), "the question");
     assert.match(
-        give.attributes["aria-label"],
-        new RegExp(`^Click again to give ${PLAYERS.length} characters .*not moved to storage\\.$`)
+        trayLine(page),
+        new RegExp(`^Give ${PLAYERS.length} characters .*What they wear now isn't stored\\.$`)
     );
-    assert.deepEqual(after(since, "write"), [], "the first click writes nothing");
+    assert.deepEqual(after(since, "write"), [], "the pick writes nothing");
 
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await answerYes(page);
     await until(() => gga.PlayerDATABASE.h.Lumi_Third.h.EquipmentOrder[0][15] === "EquipmentGown7", "everyone");
     assert.equal(gga.EquipmentOrder[0][15], "EquipmentGown7");
     assert.equal(gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15], "EquipmentGown7");
@@ -334,24 +370,20 @@ test("give everyone says so when everyone already wears it", async () => {
     // Everyone wears EquipmentGown7, and it is the outfit picked for everyone (the test before does this).
     gga.EquipmentOrder[0][15] = "EquipmentGown7";
     for (const name of PLAYERS) gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] = "EquipmentGown7";
-    const [everyone] = elements(page).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
-    everyone.listeners.change({ target: { value: "EquipmentGown7" } });
-    const give = elements(page).find((node) => node.nodeName === "button" && text(node) === "Give everyone");
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    await until(() => /already wears/.test(text(page)), "the refusal to be said");
-    assert.equal(give.attributes["data-again"], undefined);
+    await giveEveryone(page, "EquipmentGown7");
+    await until(() => /already wears/.test(trayLine(page)), "the refusal to be said");
+    assert.doesNotMatch(trayLine(page), /\?/, "nothing to ask");
 });
 
-test("an outfit choice the config refuses is said above the cards, and the card stays as it was", async () => {
+test("an outfit choice the config refuses is said on its switch, and the switch stays as it was", async () => {
+    showTab(page, "Outfit bonuses");
     const routes = router.routes.POST;
     const save = routes.get("/api/config/save");
     routes.set("/api/config/save", (req, res) => res.status(500).json({ error: "Config is read-only" }));
     try {
         const before = pressed(page, names[1]);
-        await card(page, names[1]).listeners.click({});
-        await until(() => /Config is read-only/.test(text(page)), "the reason to be said");
+        await flipCard(page, names[1]);
+        await until(() => /Config is read-only/.test(text(outfitRow(page, names[1]))), "the reason to be said");
         assert.equal(pressed(page, names[1]), before);
     } finally {
         routes.set("/api/config/save", save);
@@ -404,23 +436,20 @@ const holdReloads = () => {
     };
 };
 
-test("while an outfit choice saves, the cards stay enabled and their group says it is busy", async () => {
-    const group = elements(page).find((node) => node.attributes["aria-label"] === "Outfit bonuses");
+test("while an outfit choice saves, the switches stay enabled and their list says it is busy", async () => {
+    const group = byClass(page, "attire-outfit-row")[0].parentNode;
     const updates = () => requests.filter((entry) => entry === "POST /api/config/save").length;
     const before = updates();
     const release = holdConfigSave();
     try {
-        card(page, names[5]).listeners.click({});
+        flipCard(page, names[5]);
         await until(() => updates() === before + 1, "the save to start");
-        await until(() => group.attributes["aria-busy"] === true, "the cards to say they're busy");
-        assert.notEqual(card(page, names[5]).attributes.disabled, true, "focus stays on the card");
-        card(page, names[6]).listeners.click({});
-        await new Promise((resolve) => setTimeout(resolve, 30));
-        assert.equal(updates(), before + 1, "a click while it saves starts nothing");
+        await until(() => attrOf(group, "aria-busy") === true, "the list to say it's busy");
+        assert.notEqual(attrOf(switchOf(page, names[5]), "disabled"), true, "focus stays on the switch");
     } finally {
         release();
     }
-    await until(() => group.attributes["aria-busy"] === false, "the cards to settle");
+    await until(() => attrOf(group, "aria-busy") === false, "the list to settle");
 });
 
 test("a stat update the game refused after the attire landed runs again when the pick is retried", async () => {
@@ -443,21 +472,17 @@ test("a stat update the game refused after the attire landed runs again when the
 });
 
 test("a stat update refused after giving everyone an outfit runs again on the next give", async () => {
-    const [everyone] = elements(page).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
-    everyone.listeners.change({ target: { value: "EquipmentGown1" } });
-    const give = button(page, "Give everyone");
     refuseStats = 1;
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    await until(() => /The game is busy/.test(text(page)), "the refusal to be said");
+    await giveEveryone(page, "EquipmentGown1");
+    await until(() => /\?/.test(trayLine(page)), "the question");
+    await answerYes(page);
+    await until(() => /The game is busy/.test(trayLine(page)), "the refusal to be said");
     assert.equal(gga.EquipmentOrder[0][15], "EquipmentGown1", "the attire landed");
     const ran = commands.length;
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await giveEveryone(page, "EquipmentGown1");
     await until(() => commands.length > ran, "the stat update");
-    assert.deepEqual(commands.slice(ran), ["wide attirestats"], "one click, nothing to ask: no attire changes");
-    assert.doesNotMatch(text(page), /already wears/);
+    assert.deepEqual(commands.slice(ran), ["wide attirestats"], "one pick, nothing to ask: no attire changes");
+    assert.doesNotMatch(trayLine(page), /already wears/);
 });
 
 // Attire review F1: a click does what its card shows, and a failed save reads the choice again.
@@ -468,7 +493,7 @@ test("a card click does what the card shows, though the choice changed behind th
     // The Config page turns the first outfit off; this page still shows it on.
     const rest = Array.from({ length: 7 }, (_, i) => `EquipmentGown${i + 2}`).join(",");
     await updateSessionConfig({ cheatConfig: { wide: { attire: { outfits: rest } } } });
-    await card(root, names[0]).listeners.click({});
+    await flipCard(root, names[0]);
     await until(() => !pressed(root, names[0]), "the card to show off");
     assert.equal(await savedOutfits(), rest, "turned off, as the card asked, not flipped back on");
 });
@@ -478,7 +503,7 @@ test("an outfit choice that failed after the session took it shows what the sess
     const root = await open();
     await until(() => names.every((name) => pressed(root, name)), "every card on");
     refuseAttire = 1;
-    await card(root, names[0]).listeners.click({});
+    await flipCard(root, names[0]);
     await until(() => /The game is busy/.test(text(root)), "the failure to be said");
     assert.notEqual(await savedOutfits(), "all", "the session took the choice");
     await until(() => !pressed(root, names[0]), "the card to show what the session holds");
@@ -486,10 +511,10 @@ test("an outfit choice that failed after the session took it shows what the sess
 });
 
 // Attire review F2: the write landed and the stat update was refused; the row and badge follow the game.
-test("a stat update refused after the attire landed leaves the badge and Escape on what the game wears", async () => {
+test("a stat update refused after the attire landed leaves the badge and the line on what the game wears", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const was = gga.EquipmentOrder[0][15];
     const next = was === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5";
     const nextName = names[Number(next.slice(-1)) - 1];
@@ -497,10 +522,8 @@ test("a stat update refused after the attire landed leaves the badge and Escape 
     field.listeners.change({ target: { value: next } });
     await until(() => /The game is busy/.test(text(node)), "the refusal in the row");
     assert.equal(gga.EquipmentOrder[0][15], next, "the attire landed");
-    await until(() => /worn/.test(text(card(root, nextName))), "the worn badge on what the game wears");
-    node.listeners.keydown({ key: "Escape", target: field, preventDefault() {} });
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    assert.equal(shown(node), nextName, "Escape shows what the game wears");
+    await until(() => /Worn/.test(text(outfitRow(root, nextName))), "the worn badge on what the game wears");
+    assert.equal(shown(node), nextName, "the line shows what the game wears");
     // The stats are still owed: leaving the field runs them.
     const ran = commands.length;
     node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
@@ -515,7 +538,7 @@ test("a reload that read the choice before a card save ended doesn't undo the ca
     await until(() => names.every((name) => pressed(root, name)), "every card on");
     // A row change to undo (a saved character, so no stat update).
     const alt = row(root, "Lumi_Alt");
-    const [field] = elements(alt).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(alt);
     const wears = gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15];
     field.listeners.change({ target: { value: wears === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4" } });
     await until(() => /save-state--success/.test(saveState(alt)), "the row change");
@@ -525,7 +548,7 @@ test("a reload that read the choice before a card save ended doesn't undo the ca
     const releaseUpdate = holdConfigSave();
     // A wait that fails lets both held requests go, so later tests don't wait on them.
     try {
-        void card(root, names[0]).listeners.click({});
+        void flipCard(root, names[0]);
         await until(() => requests.at(-1) === "POST /api/config/save", "the card save to wait");
         reloads.hold();
         await undoAction(action.id);
@@ -549,7 +572,7 @@ test("a reload that read the choice before a refused card save doesn't put the c
     const root = await open();
     await until(() => names.every((name) => pressed(root, name)), "every card on");
     const alt = row(root, "Lumi_Alt");
-    const [field] = elements(alt).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(alt);
     const wears = gga.PlayerDATABASE.h.Lumi_Alt.h.EquipmentOrder[0][15];
     field.listeners.change({ target: { value: wears === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4" } });
     await until(() => /save-state--success/.test(saveState(alt)), "the row change");
@@ -560,7 +583,7 @@ test("a reload that read the choice before a refused card save doesn't put the c
     // A wait that fails lets both held requests go, so later tests don't wait on them.
     try {
         refuseAttire = 1;
-        void card(root, names[0]).listeners.click({});
+        void flipCard(root, names[0]);
         await until(() => requests.at(-1) === "POST /api/config/save", "the card save to wait");
         reloads.hold();
         await undoAction(action.id);
@@ -581,49 +604,50 @@ test("a reload that read the choice before a refused card save doesn't put the c
 });
 
 // Attire review F4: the cards' saves show on the cards, not on the header buttons.
-test("a card click leaves All outfits and No outfits quiet", async () => {
+test("a switch's flip leaves All on and All off quiet", async () => {
     const root = await open();
     await until(() => !button(root, "Refresh").attributes.disabled, "the page's first read to end");
-    const header = ["All outfits", "No outfits"].map((label) => button(root, label));
+    const header = ["All on", "All off"].map((label) => button(root, label));
     const lit = () => header.some((node) => /account-btn--(loading|success|error)/.test(classes(node)));
-    const group = elements(root).find((node) => node.attributes["aria-label"] === "Outfit bonuses");
+    const group = byClass(root, "attire-outfit-row")[0].parentNode;
     const was = pressed(root, names[1]);
     const release = holdConfigSave();
     let saved;
     try {
-        saved = card(root, names[1]).listeners.click({});
+        saved = flipCard(root, names[1]);
         // The cards say they're busy in the same redraw that would light a header button.
-        await until(() => group.attributes["aria-busy"] === true, "the card's save to run");
+        await until(() => attrOf(group, "aria-busy") === true, "the switch's save to run");
         assert.equal(lit(), false, "quiet while the card saves");
     } finally {
         release();
     }
     await saved;
-    await until(() => group.attributes["aria-busy"] === false && pressed(root, names[1]) !== was, "the card to change");
+    await until(() => attrOf(group, "aria-busy") === false && pressed(root, names[1]) !== was, "the switch to change");
     assert.equal(lit(), false, "quiet once the card saved");
-    await card(root, names[1]).listeners.click({});
+    await flipCard(root, names[1]);
 });
 
 // Attire review F5: the press that only asks says its question, not the last press's done.
-test("No outfits pressed right after All outfits asks, and says nothing of All outfits' done", async () => {
+test("All off pressed right after All on asks in the tray, and says nothing of All on's done", async () => {
     const root = await open();
-    const all = button(root, "All outfits");
-    const none = button(root, "No outfits");
+    const all = button(root, "All on");
+    const none = button(root, "All off");
+    await flipCard(root, names[0]); // so All on has something to turn on
     await all.listeners.click({ currentTarget: all, preventDefault() {} });
-    await until(() => /account-btn--success/.test(classes(all)), "All outfits to say done");
+    await until(() => /account-btn--success/.test(classes(all)), "All on to say done");
     await new Promise((resolve) => setTimeout(resolve, 30));
     await none.listeners.click({ currentTarget: none, preventDefault() {} });
     await new Promise((resolve) => setTimeout(resolve, 120));
-    const region = elements(globalThis.document.body).find((node) => node.attributes.role === "status");
-    assert.match(region.textContent, /^Click again to stop giving/);
+    assert.match(trayLine(root), /^Stop giving every outfit bonus/);
     assert.doesNotMatch(classes(none), /account-btn--success/, "the asking button isn't green");
+    byClass(root, "tabbed-list__answer")[0].childNodes.at(-1).listeners.click({}); // Cancel
 });
 
 // Attire review F6: the live copy landed and the saved copy was refused; the stat update is owed.
 test("a change of the character in play that partly landed owes its stat update, and leaving the field runs it", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const slot = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0];
     const kept = slot[15];
     const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
@@ -651,7 +675,7 @@ test("a change of the character in play that partly landed owes its stat update,
 test("Refresh runs a stat update an undo left owed, and its failure line goes once it runs", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
     field.listeners.change({ target: { value: next } });
     await until(() => /save-state--success/.test(saveState(node)), "the change");
@@ -660,35 +684,32 @@ test("Refresh runs a stat update an undo left owed, and its failure line goes on
     refuseStats = 100;
     try {
         await undoAction(action.id);
-        await until(() => /Undone, but the stats weren't worked out again/.test(text(root)), "the failure");
+        showTab(root, "Appearance");
+        await until(() => /Undone, but the stats weren't worked out again/.test(trayLine(root)), "the failure");
     } finally {
         refuseStats = 0;
     }
     const ran = commands.length;
     await button(root, "Refresh").listeners.click({});
     await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run the owed stat update");
-    await until(() => !/Undone, but the stats/.test(text(root)), "the failure line to go");
+    await until(() => !/Undone, but the stats/.test(trayLine(root)), "the failure line to go");
 });
 
 // Reader of the leftovers, 4: once Refresh ran the owed stat update, the lines that said it failed go.
 test("Refresh clears Give everyone's stat failure and the row's reason once the owed update runs", async () => {
     const root = await open();
-    const [everyone] = elements(root).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
     const next = gga.EquipmentOrder[0][15] === "EquipmentGown2" ? "EquipmentGown3" : "EquipmentGown2";
-    everyone.listeners.change({ target: { value: next } });
-    const give = button(root, "Give everyone");
     refuseStats = 1;
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    await until(() => /The game is busy/.test(text(root)), "Give everyone's stat failure");
+    await giveEveryone(root, next);
+    await until(() => /\?/.test(trayLine(root)), "the question");
+    await answerYes(root);
+    await until(() => /The game is busy/.test(trayLine(root)), "Give everyone's stat failure");
     await button(root, "Refresh").listeners.click({});
-    await until(() => !/The game is busy/.test(text(root)), "the line to go once the stats ran");
+    await until(() => !/The game is busy/.test(trayLine(root)), "the line to go once the stats ran");
 
     // A row's pick whose stat update was refused: its reason goes too.
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     refuseStats = 1;
     field.listeners.change({ target: { value: next === "EquipmentGown2" ? "EquipmentGown3" : "EquipmentGown2" } });
     await until(() => /save-state--error/.test(saveState(node)), "the row's reason");
@@ -701,7 +722,7 @@ test("Refresh clears Give everyone's stat failure and the row's reason once the 
 test("a change the saved copy refused stays shown after Refresh, and leaving the field finishes it", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const slot = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0];
     const kept = slot[15];
     const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
@@ -730,15 +751,10 @@ test("give everyone writes a saved copy that still lacks the outfit the live cop
     gga.EquipmentOrder[0][15] = item;
     gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] = "EquipmentGown2";
     for (const name of PLAYERS.slice(1)) gga.PlayerDATABASE.h[name].h.EquipmentOrder[0][15] = item;
-    const [everyone] = elements(root).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
-    everyone.listeners.change({ target: { value: item } });
-    const give = button(root, "Give everyone");
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    await until(() => give.attributes["data-again"] === "Click again", "the question");
-    assert.match(give.attributes["aria-label"], /^Click again to give 1 character /);
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await giveEveryone(root, item);
+    await until(() => /\?/.test(trayLine(root)), "the question");
+    assert.match(trayLine(root), /^Give 1 character /);
+    await answerYes(root);
     await until(() => gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0][15] === item, "the saved copy");
 });
 
@@ -748,24 +764,20 @@ test("give everyone writes a saved copy that still lacks the outfit the live cop
 // depends on the order VanJS runs the page's listeners; the fix covers that path too.
 test("an older stat update that answers after a newer one failed leaves the newer one owed", async () => {
     const root = await open();
-    const [everyone] = elements(root).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
     const worn = gga.EquipmentOrder[0][15];
     const item = worn === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5";
-    everyone.listeners.change({ target: { value: item } });
-    const give = button(root, "Give everyone");
     const held = [];
     try {
-        await give.listeners.click({ currentTarget: give, preventDefault() {} });
-        await until(() => give.attributes["data-again"] === "Click again", "the question");
+        await giveEveryone(root, item);
+        await until(() => /\?/.test(trayLine(root)), "the question");
         holdStats = (release) => held.push(release);
-        const given = give.listeners.click({ currentTarget: give, preventDefault() {} });
+        answerYes(root);
+        const given = () => until(() => /^All \d+ characters$/.test(trayLine(root)), "Give everyone to end");
         await until(() => held.length === 1, "Give everyone's stat update to wait");
         holdStats = null;
         // The pick of the character in play lands; its own stat update is refused.
         const node = row(root, "Lumi_Main");
-        const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+        const [field] = pickerOf(node);
         const next = item === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5";
         refuseStats = 1;
         field.listeners.change({ target: { value: next } });
@@ -773,7 +785,7 @@ test("an older stat update that answers after a newer one failed leaves the newe
         assert.equal(gga.EquipmentOrder[0][15], next, "the pick landed");
         // The older update answers now; Give everyone ends once the page took its answer.
         held[0]();
-        await given;
+        await given();
         const ran = commands.length;
         node.listeners.focusout({ relatedTarget: null, target: {}, currentTarget: node });
         await until(() => commands.slice(ran).includes("wide attirestats"), "leaving the field to run the owed update");
@@ -788,30 +800,24 @@ test("an older stat update that answers after a newer one failed leaves the newe
 // CodeRabbit on #110: an older stat update the game refuses after a newer one worked says nothing over that success.
 test("an older stat update refused after a newer one worked says no failure", async () => {
     const root = await open();
-    const [everyone] = elements(root).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
     const item = gga.EquipmentOrder[0][15] === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5";
-    everyone.listeners.change({ target: { value: item } });
-    const give = button(root, "Give everyone");
     const held = [];
     try {
-        await give.listeners.click({ currentTarget: give, preventDefault() {} });
-        await until(() => give.attributes["data-again"] === "Click again", "the question");
+        await giveEveryone(root, item);
+        await until(() => /\?/.test(trayLine(root)), "the question");
         holdStats = (release) => held.push(release);
-        const given = give.listeners.click({ currentTarget: give, preventDefault() {} });
+        answerYes(root);
         await until(() => held.length === 1, "Give everyone's stat update to wait");
         holdStats = null;
         // The pick of the character in play lands, and its own stat update works.
         const node = row(root, "Lumi_Main");
-        const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+        const [field] = pickerOf(node);
         field.listeners.change({ target: { value: item === "EquipmentGown5" ? "EquipmentGown6" : "EquipmentGown5" } });
         await until(() => /save-state--success/.test(saveState(node)), "the row's pick to save");
         // The older update is refused now.
         held[0]({ ok: false, message: "The game is busy" });
-        await given;
-        await until(() => /account-btn--(success|error)/.test(classes(give)), "Give everyone to show how it ended");
-        assert.doesNotMatch(text(root), /The game is busy/);
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        assert.doesNotMatch(trayLine(root), /The game is busy/);
     } finally {
         holdStats = null;
         for (const release of held) release();
@@ -823,7 +829,7 @@ test("an older stat update refused after a newer one worked says no failure", as
 test("a Refresh during a pick's save leaves its stat update owed when the pick lands in part", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const slot = gga.PlayerDATABASE.h.Lumi_Main.h.EquipmentOrder[0];
     const kept = slot[15];
     const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
@@ -866,7 +872,7 @@ test("a pick that landed but couldn't be read back says so in its row", async ()
 test("a pick for the character in play writes nothing on the one she switched to meanwhile", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const live = gga.EquipmentOrder[0][15];
     const next = live === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
     // Main's saved copy: its ID, quantity and upgrade map.
@@ -898,7 +904,7 @@ test("a pick for the character in play writes nothing on the one she switched to
 test("a stat update one character owes isn't cleared by another character's update", async () => {
     const root = await open();
     const main = row(root, "Lumi_Main");
-    const [mainField] = elements(main).filter((entry) => entry.nodeName === "select");
+    const [mainField] = pickerOf(main);
     const live = gga.EquipmentOrder[0][15];
     const next = live === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
     refuseStats = 1;
@@ -908,7 +914,7 @@ test("a stat update one character owes isn't cleared by another character's upda
         gga.UserInfo[0] = "Lumi_Alt"; // she switches characters in the game
         await button(root, "Refresh").listeners.click({});
         const alt = row(root, "Lumi_Alt");
-        const [altField] = elements(alt).filter((entry) => entry.nodeName === "select");
+        const [altField] = pickerOf(alt);
         const ran = commands.length;
         altField.listeners.change({
             target: { value: next === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4" },
@@ -946,7 +952,7 @@ test("a card click keeps an outfit choice saved elsewhere between its read and i
     });
     t.after(() => router.routes.GET.set("/api/config", config));
 
-    await card(root, names[2]).listeners.click({});
+    await flipCard(root, names[2]);
     await until(() => pressed(root, names[2]), "the card to show on");
     assert.equal(await savedOutfits(), "EquipmentGown3,EquipmentGown4,EquipmentGown5");
 });
@@ -966,10 +972,10 @@ test("an older read of the game that answers last doesn't put back what a newer 
     let release;
     try {
         holdStatusAnswer = new Promise((resolve) => (answer = resolve));
-        const [mainField] = elements(main).filter((entry) => entry.nodeName === "select");
+        const [mainField] = pickerOf(main);
         mainField.listeners.change({ target: { value: mainNext } }); // its read waits
         await until(() => holdStatusAnswer === null, "Main's read to wait");
-        const [altField] = elements(alt).filter((entry) => entry.nodeName === "select");
+        const [altField] = pickerOf(alt);
         altField.listeners.change({ target: { value: altNext } });
         await until(() => /save-state--success/.test(saveState(alt)), "Alt's save");
         const altShown = shown(alt);
@@ -1000,7 +1006,7 @@ test("the read after a failed card save doesn't overwrite a newer Refresh", asyn
     const releaseUpdate = holdConfigSave();
     try {
         refuseAttire = 1;
-        void card(root, names[0]).listeners.click({});
+        void flipCard(root, names[0]);
         await until(() => requests.at(-1) === "POST /api/config/save", "the card save to wait");
         reloads.hold(); // the read after the failure waits
         releaseUpdate();
@@ -1024,7 +1030,7 @@ test("the read after a failed card save doesn't overwrite a newer Refresh", asyn
 test("an undo's stat failure belongs to the character it ran for, though another is in play when it fails", async () => {
     const root = await open();
     const node = row(root, "Lumi_Main");
-    const [field] = elements(node).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(node);
     const next = gga.EquipmentOrder[0][15] === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
     field.listeners.change({ target: { value: next } });
     await until(() => /save-state--success/.test(saveState(node)), "the change");
@@ -1038,7 +1044,7 @@ test("an undo's stat failure belongs to the character it ran for, though another
         mainLive = gga.EquipmentOrder[0][15];
         gga.UserInfo[0] = "Lumi_Alt"; // she switches characters in the game, and picks attire for Alt
         const alt = row(root, "Lumi_Alt");
-        const [altField] = elements(alt).filter((entry) => entry.nodeName === "select");
+        const [altField] = pickerOf(alt);
         const waiting = held.length;
         altField.listeners.change({
             target: { value: next === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4" },
@@ -1046,7 +1052,8 @@ test("an undo's stat failure belongs to the character it ran for, though another
         await until(() => held.length > waiting, "Alt's pick to read Alt in play and wait on its stat update");
         holdStats = null;
         held.splice(0).forEach((release) => release({ ok: false, message: "The game is busy" }));
-        await until(() => /Undone, but the stats weren't worked out again/.test(text(root)), "the undo's failure");
+        showTab(root, "Appearance");
+        await until(() => /Undone, but the stats weren't worked out again/.test(trayLine(root)), "the undo's failure");
     } finally {
         holdStats = null;
         held.splice(0).forEach((release) => release());
@@ -1056,7 +1063,7 @@ test("an undo's stat failure belongs to the character it ran for, though another
     const ran = commands.length;
     await button(root, "Refresh").listeners.click({}); // Main in play again: Refresh runs the update it owes
     await until(() => commands.slice(ran).includes("wide attirestats"), "Refresh to run Main's owed stat update");
-    await until(() => !/Undone, but the stats/.test(text(root)), "the failure line to go once Main's update ran");
+    await until(() => !/Undone, but the stats/.test(trayLine(root)), "the failure line to go once Main's update ran");
 });
 
 // #113 (CodeRabbit on #110): a stat update that worked takes back a row's failure only when that character owed it.
@@ -1064,7 +1071,7 @@ test("an undo's stat failure belongs to the character it ran for, though another
 test("a stat update a character didn't owe leaves its row's failure", async () => {
     const root = await open();
     const main = row(root, "Lumi_Main");
-    const [field] = elements(main).filter((entry) => entry.nodeName === "select");
+    const [field] = pickerOf(main);
     const live = gga.EquipmentOrder[0][15];
     const picked = live === "EquipmentGown4" ? "EquipmentGown3" : "EquipmentGown4";
     failReadAfterWrite = true;
@@ -1075,14 +1082,10 @@ test("a stat update a character didn't owe leaves its row's failure", async () =
         failReadAfterWrite = false;
         failNextStatus = false;
     }
-    const [everyone] = elements(root).filter(
-        (node) => node.nodeName === "select" && node.attributes["aria-label"] === "Outfit for every character"
-    );
-    everyone.listeners.change({ target: { value: "EquipmentGown2" } });
-    const give = button(root, "Give everyone");
     const ran = commands.length;
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
-    await give.listeners.click({ currentTarget: give, preventDefault() {} });
+    await giveEveryone(root, "EquipmentGown2");
+    await until(() => /\?/.test(trayLine(root)), "the question");
+    await answerYes(root);
     await until(() => commands.slice(ran).includes("wide attirestats"), "Give everyone's stat update for Main");
     await until(() => gga.EquipmentOrder[0][15] === "EquipmentGown2", "Main to wear it");
     await new Promise((resolve) => setTimeout(resolve, 50));

@@ -8,6 +8,7 @@ import { SetAllTool, setAllLines, trayLabel } from "./BulkActionBar.js";
 import { StepPicker } from "./components/StepPicker.js";
 import { PickInPlace } from "./components/PickInPlace.js";
 import { EmptyState } from "../../EmptyState.js";
+import { saveFailureReason } from "./autoSave.js";
 
 const { div, button, p, span } = van.tags;
 
@@ -168,8 +169,11 @@ const withSetAll = (setAll, allLinesOf, tools, toolsLabel) => {
                       })
                     : span();
             });
+            // With a pick of columns the tool stays while the list has lines, so a player can pick another column
+            // (Bubba's free levels have no max where every level has one).
             van.derive(() => {
-                tool.hidden = !hasSetAll(linesOf(activeId.val));
+                const lines = linesOf(activeId.val);
+                tool.hidden = columnsOf(activeId.val) ? lines.length < 2 : !hasSetAll(lines);
                 pick.hidden = tool.hidden || !columnsOf(activeId.val);
             });
             return [pick, tool, ...toNodes(tools?.(activeId, ask))];
@@ -329,6 +333,14 @@ export const TabbedList = ({
     );
 };
 
+// Why a tool stopped, as a sentence on the tray's line: the game keeping its old value is said in words, not as the
+// write's own message ("Write mismatch at UpgVault[0]: expected 10").
+const trayReason = (run) => {
+    if (!run) return null;
+    const reason = saveFailureReason(run.reason);
+    return `${reason.charAt(0).toUpperCase()}${reason.slice(1)}${/[.!?]$/.test(reason) ? "" : "."}`;
+};
+
 /**
  * The tray of tools under a list's head (TabbedList, ListPanel), and the question a tool can ask in it before a risky
  * change (lowering, taking away). The question takes the tray's place, in its words and shapes, and waits for an
@@ -427,7 +439,7 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
                 class: () =>
                     joinClasses("tabbed-list__tools-label", asking.val ? "is-question" : failed.val && "is-failure"),
             },
-            () => asking.val?.question ?? failed.val?.reason ?? (toolsLabel ? toolsLabel(activeId) : "")
+            () => asking.val?.question ?? trayReason(failed.val) ?? (toolsLabel ? toolsLabel(activeId) : "")
         ),
         div(
             { class: "tabbed-list__tools-row", "data-undo-at-end": "", hidden: () => !!asking.val },
@@ -448,7 +460,7 @@ const ToolsTray = ({ tools, toolsLabel, activeId, busy = null }) => {
             return;
         }
         failed.val = run;
-        announce(`${labelOf(run.anchor)}: ${run.reason}`);
+        announce(`${labelOf(run.anchor)}: ${trayReason(run)}`);
     });
     // Escape drops the question wherever focus is (a click on a tool left it outside the tray), but only on the page
     // showing: a page left open in the background keeps its question, and leaves Escape to the one on screen.

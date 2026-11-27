@@ -284,6 +284,15 @@
     color: var(--c-text-muted);
 }
 
+/* A quiet fact under the name (RowTitles' note): the muted line's size, wrapping rather than cut off. */
+.viewport .account-row__note {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--c-text-muted);
+    overflow-wrap: anywhere;
+}
+
 /* A warning under the name, only while its trouble is real: amber, the name's size, one short line. */
 .viewport .account-row__warning {
     margin-top: 3px;

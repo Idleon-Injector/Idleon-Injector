@@ -19,11 +19,12 @@ import {
     writeManyVerified,
 } from "../../../components/views/account/accountShared.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
-import { AccountSection } from "../../../components/views/account/components/AccountSection.js";
+import { RowTitles } from "../../../components/views/account/components/AccountRow.js";
+import { ListPanel } from "../../../components/views/account/tabShared.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
 import { createCharacterSelector } from "../../../components/views/account/components/CharacterSelector.js";
 
-const { div, span } = van.tags;
+const { div } = van.tags;
 
 const PlayerTab = () => {
     const { loading, error, run } = useAccountLoad({ label: "Player" });
@@ -32,7 +33,9 @@ const PlayerTab = () => {
     const busy = van.state(false);
     const message = van.state("");
     const values = new Map();
-    const rows = div({ class: "account-list" });
+    const moneyRows = div();
+    const rows = div();
+    const reconcileMoney = createStaticRowReconciler(moneyRows);
     const reconcileRows = createStaticRowReconciler(rows);
     // Fields stay enabled while a save runs, so focus stays where the player put it (AGENTS.md).
     const unavailable = () => loading.val || Boolean(error.val);
@@ -44,21 +47,23 @@ const PlayerTab = () => {
             selected.val = event.target.value;
             load();
         },
+        // A character not in play keeps a change only once it is played (#28: the old caption didn't say so).
         info: () =>
             selected.val === current.val
                 ? ""
-                : "SAVED CHARACTER. Open this character in-game before closing to save level edits.",
+                : "Not in play. Switch to them in game before you close it, or changes are lost.",
     });
 
     // A save asked for while another runs waits its turn, and reads the game again then.
     const inTurn = oneAtATime();
     // The line clears when a save is asked for, not at its turn, so the warning of a failed save before it stays.
-    const setValue = (name, index, next) => {
+    // `changes`: [index, value] pairs, the index null for money; they save in one write (a row's, or Set all's).
+    const setValues = (name, changes) => {
         message.val = "";
-        return inTurn(() => saveValue(name, index, next));
+        return inTurn(() => saveValues(name, changes));
     };
-    const saveValue = async (name, index, next) => {
-        if (unavailable()) throw new Error("Player data is unavailable. Refresh and try again.");
+    const saveValues = async (name, changes) => {
+        if (unavailable()) throw new Error("Couldn't read the character. Refresh.");
         // Its write joins its own row's action after the reads below, though another row's save waits meanwhile:
         // so the row offers Undo.
         const inOwnAction = captureGesture();
@@ -67,29 +72,41 @@ const PlayerTab = () => {
             const active = await readCharacterInPlay(current.val);
             if (name !== selected.val) throw new Error(CHARACTER_CHANGED);
             const root = name === active ? "" : `PlayerDATABASE.h[${name}].h.`;
-            const field = index === null ? "Money" : `Lv0[${index}]`;
-            const before = await gga(`${root}${field}`);
-            if (before === next) return { cancelled: true };
+            const fieldOf = (index) => (index === null ? "Money" : `Lv0[${index}]`);
+            const before = await Promise.all(changes.map(([index]) => gga(`${root}${fieldOf(index)}`)));
+            const changed = changes.filter(([, next], i) => before[i] !== next);
+            if (!changed.length) return { cancelled: true };
             const writes = [];
-            if (index !== null) {
-                const required = await readComputed("player", "expRequired", [index, next]);
-                if (!Number.isFinite(required)) throw new Error("The game returned an invalid XP requirement.");
-                writes.push({ path: `${root}Exp0[${index}]`, value: 0 });
-                writes.push({ path: `${root}ExpReq0[${index}]`, value: required });
+            for (const [index, next] of changed) {
+                if (index !== null) {
+                    const required = await readComputed("player", "expRequired", [index, next]);
+                    if (!Number.isFinite(required)) throw new Error("The game sent a bad XP need. Refresh.");
+                    writes.push({ path: `${root}Exp0[${index}]`, value: 0 });
+                    writes.push({ path: `${root}ExpReq0[${index}]`, value: required });
+                }
+                writes.push({ path: `${root}${fieldOf(index)}`, value: next });
             }
-            writes.push({ path: `${root}${field}`, value: next });
             // The game writes only while `active` is still in play, checked as it writes.
             await inOwnAction(() => writeManyVerified(writes, { character: active }));
-            return next;
+            return changes.length === 1 ? changes[0][1] : changes;
         } catch (caught) {
             message.val =
                 caught.message === CHARACTER_CHANGED || caught.message === NO_CHARACTER
                     ? caught.message
-                    : `${caught.message} Refresh to reload player values; some writes may have applied.`;
+                    : `${caught.message} Some values may have saved; Refresh shows them.`;
             throw caught;
         } finally {
             busy.val = false;
         }
+    };
+
+    // Set all on the skills: every level in one write, then each line shows its level.
+    const setAllLevels = async (plan) => {
+        const indexOf = new Map([...values].map(([index, state]) => [state, index]));
+        const changes = plan.map(({ line, value }) => [indexOf.get(line.valueState), value]);
+        const saved = await setValues(selected.val, changes);
+        if (saved?.cancelled) return;
+        plan.forEach(({ line, value }) => (line.valueState.val = value));
     };
 
     const renderRow = (name, index, title) => {
@@ -104,15 +121,12 @@ const PlayerTab = () => {
                     ? next
                     : null;
             },
-            write: (next) => setValue(name, index, next),
+            write: (next) => setValues(name, [[index, next]]),
             renderInfo: () =>
-                div(
-                    { class: "account-row__name-group" },
-                    span({ class: "account-row__name" }, title),
-                    index === 0
-                        ? span({ class: "option-warning" }, "Warning: changing the main level up will shadowban you.")
-                        : null
-                ),
+                RowTitles({
+                    name: title,
+                    warning: index === 0 ? () => "Raising it gets you shadowbanned." : undefined,
+                }),
             inputMode: money ? "float" : "int",
             inputProps: { "aria-label": title, ...(money ? { formatter: largeFormatter, parser: largeParser } : {}) },
             adjustInput: money
@@ -121,8 +135,8 @@ const PlayerTab = () => {
                       return Math.max(0, base + delta * formattedStep(base));
                   }
                 : undefined,
-            rowClass: `account-row--wide-controls${index === 0 ? " has-warning" : ""}`,
-            controlsClass: "account-row__controls--xl",
+            // The skills' levels are the list's lines for Set all; money and the main level (a ban risk) never are.
+            setAll: index > 0 ? {} : null,
         });
     };
 
@@ -173,8 +187,10 @@ const PlayerTab = () => {
                     }
                 });
             characterSelector.setCharacters(names);
-            reconcileRows(JSON.stringify([name, fields.map(({ index, title }) => [index, title])]), () =>
-                fields.map(({ index, title }) => renderRow(name, index, title))
+            reconcileMoney(name, () => [renderRow(name, null, "Money")]);
+            const levelFields = fields.filter(({ index }) => index !== null);
+            reconcileRows(JSON.stringify([name, levelFields.map(({ index, title }) => [index, title])]), () =>
+                levelFields.map(({ index, title }) => renderRow(name, index, title))
             );
             fields.forEach(({ index, value }) => {
                 getOrCreateState(values, index).val = value;
@@ -184,21 +200,27 @@ const PlayerTab = () => {
 
     load();
     return PersistentAccountListPage({
-        title: "PLAYER",
-        description: "Edit levels and money. Level edits reset XP and leave talent points unchanged.",
+        rootClass: "tab-container scroll-container",
+        title: "Levels",
+        description: "A character's levels and money. A new level starts its XP at 0; talent points stay.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || busy.val }),
+        toolbar: characterSelector.node,
         state: { loading, error },
-        loadingText: "READING PLAYER",
-        errorTitle: "PLAYER READ FAILED",
+        loadingText: "Reading the character",
+        errorTitle: "Couldn't read the character",
+        initialWrapperClass: "account-list",
         body: div(
-            { class: "scrollable-panel content-stack" },
-            characterSelector.node,
+            { class: "account-list account-list--tabbed" },
             div({ class: "write-status", role: "status", "aria-live": "polite" }, message),
-            AccountSection({ title: "LEVELS & MONEY", body: rows })
+            // Money is one number of its own, not one of the levels Set all fills: its own short panel above them.
+            ListPanel({ className: "player-money", body: moneyRows, short: true }),
+            ListPanel({
+                setAll: { word: (n) => `skill level${n === 1 ? "" : "s"}`, write: setAllLevels },
+                body: rows,
+            })
         ),
     });
 };
-
 export default definePage({
     id: "account.player",
     world: "account",

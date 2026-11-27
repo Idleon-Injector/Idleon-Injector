@@ -1,0 +1,4 @@
+/* Bubba's upgrades are a table of two columns: each upgrade's level and its free levels. */
+.viewport .bubba-upgrades {
+    --value-columns: repeat(2, 9.5rem);
+}

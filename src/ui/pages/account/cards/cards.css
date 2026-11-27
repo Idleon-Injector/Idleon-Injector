@@ -1,0 +1,44 @@
+/*
+ * A card's tier: the word "Tier", then its step picker (1 to 6). The box keeps one width, so the picker opening on a
+ * touched row never moves the amount beside it, and the tiers stand in one column down the list. At rest only the
+ * picked tier shows ("Tier 3"); a card below the first tier shows nothing there (its line under the name says so).
+ */
+.viewport .card-tier {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 12.75rem;
+    flex: none;
+}
+
+.viewport .card-tier__label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+.viewport .card-tier .step-picker {
+    flex: 1 1 auto;
+}
+
+.viewport .card-tier .step-picker__step {
+    padding: 0 6px;
+}
+
+@media (hover: hover) {
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .card-tier.is-base .card-tier__label {
+        visibility: hidden;
+    }
+}
+
+/* On a phone the amount and the tier share the line under the name: the amount takes what the tier leaves. */
+@media (max-width: 760px) {
+    .viewport .card-row .account-row__controls .number-input-wrapper {
+        flex: 1 1 auto;
+        min-width: 6rem;
+    }
+
+    .viewport .card-tier {
+        width: auto;
+    }
+}

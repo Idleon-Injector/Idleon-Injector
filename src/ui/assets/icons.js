@@ -109,7 +109,7 @@ export const Icons = {
             { "aria-hidden": "true", ...props }
         ),
 
-    // The brand and the game's own marks (Crown on Rat King, CardTier on Card Search) keep their drawings.
+    // The brand and the game's own marks (Crown on Rat King, CardTier on Cards) keep their drawings.
     GitHub: (props) =>
         SvgBase(
             path({
@@ -260,6 +260,39 @@ const SYSTEM_ICONS = {
     "Weekly Bosses": ["M4.5 4.5 15 15M13 17l4-4M16.5 16.5l3 3", "M19.5 4.5 9 15M7 13l4 4M7.5 16.5l-3 3"],
     // Account: a pointer and its click.
     Clickers: ["M9 8.5v11l2.8-2.6 2 4.4 2-.9-2-4.4h3.9z", "M9 3.5v2M4.5 8.5h2M5.8 4.8l1.4 1.4M12.2 4.8l-1.4 1.4"],
+    // A character: a head and shoulders.
+    Player: [[12, 8, 3.5], "M5 20.5c0-3.9 3.1-7 7-7s7 3.1 7 7"],
+    // A safe with its dial, on two feet.
+    "Upgrade Vault": [
+        "M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v11.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 5 4.5z",
+        [12, 11.75, 3.25],
+        "M12 8.5v1.4",
+        "M7 19v1.5M17 19v1.5",
+    ],
+    // A card in front of another, a gem on its face.
+    Cards: [
+        "M9 7h8.5a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 1-1.5 1.5H9a1.5 1.5 0 0 1-1.5-1.5v-11A1.5 1.5 0 0 1 9 7z",
+        "M5 17.5V5a1.5 1.5 0 0 1 1.5-1.5h8",
+        "M13.25 11.2l2 2.8-2 2.8-2-2.8z",
+    ],
+    // A gift box tied with its ribbon.
+    Bundles: [
+        "M4 8.5h16v3.5H4z",
+        "M5.5 12v8.5h13V12",
+        "M12 8.5v12",
+        "M12 8.5c-1.6-3.3-5-3.8-5-1.8s3 1.8 5 1.8zM12 8.5c1.6-3.3 5-3.8 5-1.8s-3 1.8-5 1.8z",
+    ],
+    // A board of tasks, two of them ticked.
+    "Task Board": [
+        "M5.5 4h13a1 1 0 0 1 1 1v14.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z",
+        "M7.8 9.2l1.4 1.4 2.4-2.6M14 9.5h3",
+        "M7.8 15.2l1.4 1.4 2.4-2.6M14 15.5h3",
+    ],
+    // An event ticket, torn along its dotted line.
+    "Event Shop": [
+        "M3.5 7h17v3.2a1.8 1.8 0 0 0 0 3.6V17h-17v-3.2a1.8 1.8 0 0 0 0-3.6z",
+        "M15 8.5v1M15 11.5v1M15 14.5v1",
+    ],
     Construction: ["M4 20.5V10l5-3v13.5", "M9 20.5V4.5l10 4.5v11.5", "M2.5 20.5h19", "M12.5 11h3M12.5 14h3M12.5 17h3"],
     "3D Printer": [
         "M7 8V3.5h10V8",

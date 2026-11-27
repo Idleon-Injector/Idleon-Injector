@@ -21,9 +21,7 @@ export const ON_STANDARDS = [
     "world-6/",
     "world-7/",
     "classes/",
-    // The pages already on the shared pieces in Account: the clickers (Bubba not yet).
-    "account/clickers/1-orion.js",
-    "account/clickers/2-poppy.js",
+    "account/",
     // The automation pages that were on them before they moved into the Automation section (#249), and the
     // Masterclasses' (Grimoire's was on them with the Classes pages, #239). Overview and Sushi Station aren't yet.
     "automation/alchemy/",
@@ -279,7 +277,8 @@ export function pageBreaks(node, page, title) {
 /**
  * Fields and Picks, in `node` (a page, or what an opener showed). `where` says what holds a field that isn't in a row.
  * Fields: a value is typed into the shared field (NumberInput, which EditableNumberRow, ClampedLevelRow and the tables
- * use), so its cap, Max, − / + and saving come with it; a field drawn by hand drops out of all of them. Picks: a pick
+ * use), so its cap, Max, − / + and saving come with it; a field drawn by hand drops out of all of them. A name the
+ * player types for something new (Wardrobe's loadout name) isn't a value, so it isn't one. Picks: a pick
  * out of a list opens in place (PickInPlace), never a dropdown.
  */
 function fieldAndPickBreaks(node, rows, where = "the page has") {
@@ -291,7 +290,12 @@ function fieldAndPickBreaks(node, rows, where = "the page has") {
     for (const field of elements(node).filter(
         (el) => el.nodeName === "input" && !["checkbox", "radio", "hidden"].includes(attr(el, "type"))
     ))
-        if (!within(field, "number-input-wrapper") && !within(field, "pick-in-place")) {
+        // A name the player types for something new (a loadout's, `data-name-field`) is words, not a value.
+        if (
+            !within(field, "number-input-wrapper") &&
+            !within(field, "pick-in-place") &&
+            attr(field, "data-name-field") === undefined
+        ) {
             const row = rows.find((r) => elements(r).includes(field));
             breaks.push(`Fields: ${row ? `"${rowName(row)}" has` : where} a field drawn by hand; use NumberInput`);
         }
