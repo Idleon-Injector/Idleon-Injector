@@ -273,7 +273,7 @@ switches, picking the first option each time.
 - **A search with no results** shows the shared empty state (`EmptyState`), and a save's error shows next to its field.
 
 Not switches, on purpose: picks with a limit or an order (the 2× doublers, Organic labels, palette stars, the cape
-vine, prayer slots, bundle purchases) keep their buttons.
+vine, prayer slots) keep their buttons. Bundles are switches now, like the rest (Lumi, 2026-11-27).
 
 ## Lists with tabs
 
@@ -615,8 +615,10 @@ and Wardrobe and the three Clickers stay sidebar entries.
 - **Bubba's places are tabs** (Upgrades, Meat, Charisma, Gifts, Dice); its upgrades are a table of Level and Free
   levels, the game's own line first, and Set all has the pick of the two. A table line without the picked column (an
   upgrade that gets no free levels) isn't one of its lines.
-- **A purchase keeps its button** (Bundles' Buy and Unbuy), "Owned" only when owned; Buy all asks in the tray, since a
-  full inventory loses what a bundle gives.
+- **A bundle is a switch** (Lumi, 2026-11-27: "bundles is weird, it should be a switch like the rest"): on buys it, off
+  marks it not received (its items stay). Its word is "Buying" while the game confirms a buy and "Owned" once it has it.
+  A flip's failure is said on its switch; a Buy all's on each row's line, which the tray points to. Buy all asks in the
+  tray, since a full inventory loses what a bundle gives.
 - **Account's six systems have drawings:** a head and shoulders for Player, a safe with its dial for the Upgrade Vault,
   a card in front of another for Cards, a gift box for Bundles, a board with two ticks for the Task Board and a
   torn ticket for the Event Shop.

@@ -4,6 +4,7 @@ import { executeCheatAction, fetchBundleCatalog } from "../../../services/api.js
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
+import { StateSwitch } from "../../../components/views/account/components/StateSwitch.js";
 import { ActionButton } from "../../../components/views/account/components/ActionButton.js";
 import { RefreshButton } from "../../../components/views/account/components/AccountPageChrome.js";
 import { PersistentAccountListPage } from "../../../components/views/account/components/PersistentAccountListPage.js";
@@ -18,7 +19,7 @@ import {
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 
-const { div, span, button } = van.tags;
+const { div, span } = van.tags;
 
 const BUNDLES_RECEIVED_PATH = "BundlesReceived.h";
 const BUY_POLL_INTERVAL_MS = 1000;
@@ -45,8 +46,10 @@ const createDeferred = () => {
     return { promise, resolve, reject };
 };
 
-// A bundle: its name, "Owned" when the account has it, and Buy or Unbuy. A purchase keeps its button (DESIGN.md: picks
-// with a limit or an order aren't switches); why the last one failed shows under the name until the next.
+// A bundle: its name and a switch, like every has-or-hasn't list (Lumi, 2026-11-27). On buys it (the game's cheat, then
+// a few seconds until the game shows it received), off marks it not received; its items stay. The switch's word says
+// "Buying" while a buy waits on the game and "Owned" once it has it. A single flip's failure is said on the switch; a
+// Buy all's on the row's line under the name, which the tray's line points to.
 const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
     AccountRow({
         rowClass: "bundle-row",
@@ -57,30 +60,15 @@ const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
             span({ class: "account-row__name" }, bundle.name),
             Said({ said: state.said.said, className: "said--line bundle-row__said", kinds: ["failed"] })
         ),
-        badge: () => {
-            if (state.pending.val) return "Buying";
-            return isOwned(state.owned.val) ? "Owned" : "";
-        },
-        controlsClass: "bundle-row__controls",
-        controls: button(
-            {
-                type: "button",
-                class: () =>
-                    isOwned(state.owned.val)
-                        ? "btn-danger btn-sm bundle-row__action"
-                        : "btn-quiet btn-sm bundle-row__action",
-                disabled: () => buyAllStatus.val === "loading" || state.pending.val || state.status.val === "loading",
-                onclick: () => {
-                    if (buyAllStatus.val === "loading" || state.pending.val || state.status.val === "loading") return;
-                    return isOwned(state.owned.val) ? onUnbuy(bundle, state) : onBuy(bundle, state);
-                },
-            },
-            () => {
-                if (state.pending.val) return "Buying";
-                if (state.status.val === "loading") return isOwned(state.owned.val) ? "Unbuying" : "Buying";
-                return isOwned(state.owned.val) ? "Unbuy" : "Buy";
-            }
-        ),
+        controls: StateSwitch({
+            checked: () => isOwned(state.owned.val),
+            words: () => (state.pending.val ? "Buying" : isOwned(state.owned.val) ? "Owned" : ""),
+            name: bundle.name,
+            // Buy all buys the bundles it asked about; a flip meanwhile would race it.
+            disabled: () => buyAllStatus.val === "loading",
+            ownStatus: true,
+            onFlip: (on) => (on ? onBuy(bundle, state) : onUnbuy(bundle, state)),
+        }),
     });
 
 const BundlesTab = () => {
@@ -248,14 +236,15 @@ const BundlesTab = () => {
                 }
             });
     };
-    const failed = (state, what, caughtError) => {
+    // `onLine`: Buy all's failures are said on each row's line (the tray points there); a single flip's on its switch.
+    const failed = (state, what, caughtError, { onLine = false } = {}) => {
         console.error(`[bundles] ${what}:`, caughtError);
-        state.said.say("failed", saveFailureReason(caughtError));
+        if (onLine) state.said.say("failed", saveFailureReason(caughtError));
         readAfterFailure();
     };
 
     async function buyBundle(bundle, state) {
-        if (buyAllStatus.val === "loading" || isOwned(state.owned.val) || state.pending.val) return;
+        if (buyAllStatus.val === "loading" || isOwned(state.owned.val) || state.pending.val) return { cancelled: true };
         state.said.clear();
         return state.run(
             async () => {
@@ -317,7 +306,10 @@ const BundlesTab = () => {
                             state.pending.val = false;
                         }
                     },
-                    { onError: (caughtError) => failed(state, `Buy failed for ${bundle.code}`, caughtError) }
+                    {
+                        onError: (caughtError) =>
+                            failed(state, `Buy failed for ${bundle.code}`, caughtError, { onLine: true }),
+                    }
                 );
                 return entry;
             });
@@ -347,7 +339,8 @@ const BundlesTab = () => {
     }
 
     async function unbuyBundle(bundle, state) {
-        if (buyAllStatus.val === "loading" || !isOwned(state.owned.val) || state.pending.val) return;
+        if (buyAllStatus.val === "loading" || !isOwned(state.owned.val) || state.pending.val)
+            return { cancelled: true };
         state.said.clear();
         return state.run(
             async () => {
@@ -371,7 +364,7 @@ const BundlesTab = () => {
         rootClass: "tab-container scroll-container",
         title: "Bundles",
         description:
-            "Bundles the account has received. Unbuy marks one as not received; its items stay. No gems or pets.",
+            "Bundles the account has received. Off marks one as not received; its items stay. No gems or pets.",
         actions: RefreshButton({
             onRefresh: load,
             disabled: () => loading.val || buyAllStatus.val === "loading",

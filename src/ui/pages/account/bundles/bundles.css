@@ -1,18 +1,4 @@
-/* A bundle's row: its name, the state word ("Owned") at one width, and Buy or Unbuy at one width, so both line up. */
-.bundle-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-}
-
-.bundle-row .account-row__badge {
-    min-width: 4.5rem;
-    text-align: right;
-}
-
-.bundle-row__action {
-    min-width: 5.5rem;
-}
-
-/* Why a row's last Buy or Unbuy failed. Empty, it takes no room. */
+/* Why a Buy all left a bundle without it, under its name. Empty, it takes no room. */
 .bundle-row__said.said--empty {
     position: absolute;
 }

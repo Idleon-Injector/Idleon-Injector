@@ -224,10 +224,19 @@ test("card search: a refused All to says why on the tray's line, and the next pr
 });
 
 const BUNDLES = "src/ui/pages/account/bundles/bundles.js";
+// A bundle is a switch: on is owned. A flip buys it (on) or marks it not received (off).
+const switchOf = (row) => elements(row).find((node) => node.attributes.role === "switch");
+const isOn = (row) => {
+    const checked = switchOf(row).attributes.checked;
+    return Boolean(typeof checked === "function" ? checked() : checked);
+};
+const flip = (row, on) => switchOf(row).listeners.change({ target: { checked: on } });
+// What a single flip says: the switch's word, or why its flip failed.
+const switchWords = (row) => text(byClass(row, "state-switch__words")[0]);
+// A row owned ("Unbuy" could take it away) or not ("Buy" could buy it), as the tests named them before the switch.
 const rowWith = (root, label) =>
-    byClass(root, "account-row").find((row) =>
-        elements(row).some((node) => node.nodeName === "button" && text(node).trim() === label)
-    );
+    byClass(root, "bundle-row").find((row) => (label === "Unbuy" ? isOn(row) : !isOn(row)));
+// Why a Buy all left a bundle without it, on the row's line under its name.
 const rowReason = (row) => text(byClass(row, "bundle-row__said")[0]);
 // Buy all, in the tray; the tray's line says how many bundles it acts on and how many are owned, or its question.
 const buyAllOf = (root) => button(root, "Buy all");
@@ -240,20 +249,20 @@ const answerYes = (root) => byClass(root, "tabbed-list__yes")[0].listeners.click
 
 const ownedFlag = (row) => row.attributes["data-code"];
 
-test("bundles: a refused Unbuy says why on its row, and the next try clears it", async () => {
+test("bundles: a refused switch-off says why on its switch, once, and the next try clears it", async () => {
     const root = await openPage(BUNDLES);
     const row = rowWith(root, "Unbuy");
     const received = gga.BundlesReceived.h;
     const restore = refuseWrites(received, ownedFlag(row));
     try {
-        await button(row, "Unbuy").listeners.click({});
-        assert.equal(rowReason(row), "game kept old value");
-        assert.equal(byClass(row, "bundle-row__said")[0].attributes.role, "status");
+        await flip(row, false);
+        assert.equal(switchWords(row), "game kept old value");
+        assert.equal(rowReason(row), "", "said once: on the switch, not again under the name");
     } finally {
         restore();
     }
-    await button(row, "Unbuy").listeners.click({});
-    assert.equal(rowReason(row), "", "the retry cleared it");
+    await flip(row, false);
+    assert.equal(switchWords(row), "", "the retry cleared it");
     received[ownedFlag(row)] = 1;
 });
 
@@ -289,9 +298,10 @@ test("bundles: a Buy whose first ownership read fails reads the game again, so t
     };
     const restore = failCatalogOnce();
     try {
-        await button(row, "Buy").listeners.click({});
-        assert.equal(rowReason(row), "the game is busy");
-        await until(() => button(row, "Unbuy"), "the row to show the bundle owned");
+        await flip(row, true);
+        // The switch says why (until the read after the failure shows it owned, which takes the reason away).
+        assert.ok(["the game is busy", "Owned"].includes(switchWords(row)));
+        await until(() => isOn(row), "the row to show the bundle owned");
     } finally {
         restore();
         globalThis.fetch = realFetch;
@@ -314,8 +324,8 @@ test("bundles: a failed Unbuy reads the game again, so the row shows what the ga
         });
     };
     try {
-        await button(row, "Unbuy").listeners.click({});
-        await until(() => button(row, "Buy"), "the row to show the bundle not owned");
+        await flip(row, false);
+        await until(() => !isOn(row), "the row to show the bundle not owned");
     } finally {
         globalThis.fetch = realFetch;
         received[code] = 1;
@@ -345,14 +355,14 @@ test("bundles: the read after a failed Unbuy that answers after a newer Refresh 
         return response;
     };
     try {
-        await button(row, "Unbuy").listeners.click({});
+        await flip(row, false);
         await until(() => held, "the read after the failure");
         received[code] = 0; // the player gives it back in game
         await button(root, "Refresh").listeners.click({});
-        await until(() => button(row, "Buy"), "the Refresh to show it not owned");
+        await until(() => !isOn(row), "the Refresh to show it not owned");
         release();
         await new Promise((resolve) => setTimeout(resolve, 50));
-        assert.ok(button(row, "Buy"), "the older read didn't put Unbuy back");
+        assert.ok(!isOn(row), "the older read didn't put Unbuy back");
     } finally {
         globalThis.fetch = realFetch;
         release();
@@ -368,7 +378,7 @@ test("bundles: an Unbuy that fails while the read after another failure runs get
     const code = ownedFlag(second);
     received[code] = 1; // a second owned bundle
     await button(root, "Refresh").listeners.click({});
-    await until(() => button(second, "Unbuy"), "the second bundle to show owned");
+    await until(() => isOn(second), "the second bundle to show owned");
     const realFetch = globalThis.fetch;
     let release;
     const answer = new Promise((resolve) => (release = resolve));
@@ -390,11 +400,11 @@ test("bundles: an Unbuy that fails while the read after another failure runs get
         return response;
     };
     try {
-        await button(first, "Unbuy").listeners.click({});
+        await flip(first, false);
         await until(() => held, "the read after the first failure");
-        await button(second, "Unbuy").listeners.click({});
+        await flip(second, false);
         release();
-        await until(() => button(second, "Buy"), "the second bundle to show not owned");
+        await until(() => !isOn(second), "the second bundle to show not owned");
     } finally {
         globalThis.fetch = realFetch;
         release();
@@ -411,7 +421,7 @@ test("bundles: the read after a failure that answers after another bundle's Unbu
     const code = ownedFlag(second);
     received[code] = 1; // a second owned bundle
     await button(root, "Refresh").listeners.click({});
-    await until(() => button(second, "Unbuy"), "the second bundle to show owned");
+    await until(() => isOn(second), "the second bundle to show owned");
     const realFetch = globalThis.fetch;
     let release;
     const answer = new Promise((resolve) => (release = resolve));
@@ -431,13 +441,13 @@ test("bundles: the read after a failure that answers after another bundle's Unbu
         return response;
     };
     try {
-        await button(first, "Unbuy").listeners.click({});
+        await flip(first, false);
         await until(() => held, "the read after the failure");
-        await button(second, "Unbuy").listeners.click({}); // lands
-        assert.ok(button(second, "Buy"));
+        await flip(second, false); // lands
+        assert.ok(!isOn(second));
         release();
         await new Promise((resolve) => setTimeout(resolve, 100));
-        assert.ok(button(second, "Buy"), "the older read didn't put Unbuy back");
+        assert.ok(!isOn(second), "the older read didn't put Unbuy back");
     } finally {
         globalThis.fetch = realFetch;
         release();
@@ -486,7 +496,7 @@ test("bundles: Buy all ends when its ownership poll fails after another read sho
     }
 });
 
-test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why on the tray's line", async () => {
+test("bundles: a flip whose buy fails says why on its switch; Buy all says why on the row's line and the tray's", async () => {
     const root = await openPage(BUNDLES);
     const row = rowWith(root, "Buy");
     const realFetch = globalThis.fetch;
@@ -498,8 +508,9 @@ test("bundles: a Buy whose cheat fails says why on its row, and Buy all says why
               })
             : realFetch(url, options);
     try {
-        await button(row, "Buy").listeners.click({});
-        assert.equal(rowReason(row), "the cheat didn't run");
+        await flip(row, true);
+        assert.equal(switchWords(row), "the cheat didn't run");
+        assert.equal(rowReason(row), "", "a single flip isn't said twice");
 
         await pressBuyAll(root); // asks in the tray first
         await answerYes(root);
@@ -550,8 +561,8 @@ test("bundles: a pack the game didn't give says the free slots it needs, not a t
             : realFetch(url, options);
     globalThis.setTimeout = (fn, ms, ...args) => realTimeout(fn, ms >= 1000 ? 0 : ms, ...args); // the poll's waits
     try {
-        await button(row, "Buy").listeners.click({});
-        assert.equal(rowReason(row), "Not received. Needs 3 free inventory slots.");
+        await flip(row, true);
+        assert.equal(switchWords(row), "Not received. Needs 3 free inventory slots.");
     } finally {
         globalThis.fetch = realFetch;
         globalThis.setTimeout = realTimeout;
