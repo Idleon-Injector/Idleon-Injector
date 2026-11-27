@@ -812,13 +812,11 @@
     border-top-width: 0;
 }
 
-/* On a phone it starts where the rows' names do; a touch shows a field's box anyway, so no fill-in line. */
+/* On a phone it starts where the rows' names do. (The fill-in line stays at every width with a pointer: 400 px is also
+   the game's overlay, used with a mouse. A touch screen shows the field's box at rest instead, as it has no hover.) */
 @media (max-width: 760px) {
     .viewport .tabbed-list .account-section__header {
         padding-inline: 14px;
-    }
-    .viewport .tabbed-list__body .account-row .number-input-wrapper::after {
-        display: none;
     }
 }
 
