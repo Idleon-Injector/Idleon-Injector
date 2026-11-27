@@ -50,6 +50,7 @@ test("API setup retains every endpoint and does not evaluate the game during reg
             "GET /api/game/bundles",
             "GET /api/game/pet-frames",
             "GET /api/game/pet-picture",
+            "GET /api/game/bundle-picture",
             "GET /api/heartbeat",
             "GET /api/save-copies",
             "GET /api/search/keys",
@@ -221,6 +222,77 @@ test("pet pictures come from the game as PNG bytes, one at a time, and are 404 w
         ["getPetPicture", 3, false],
         ["getPetPicture", 0, true],
         ["getPetPicture", 1, true],
+    ]);
+    assert.equal(overlap, false);
+});
+
+test("pack pictures come from the game as PNG bytes, one at a time, and are 404 when the game has none", async () => {
+    const router = new TinyRouter();
+    const calls = [];
+    let running = 0;
+    let overlap = false;
+    const png = Buffer.from("png-bytes");
+    const answers = {
+        bun_a: { value: `data:image/png;base64,${png.toString("base64")}` },
+        bon_q: { value: null }, // Robot Pack: no picture in the game
+        bun_b: { error: { text: "ReferenceError: getBundlePicture is not defined" } }, // a game without the helper
+    };
+    setupGameRoutes(router, {
+        callHelper: async (name, args) => {
+            calls.push([name, ...args]);
+            overlap ||= running > 0;
+            running++;
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            running--;
+            if (args[0] === "bun_c") throw new Error("game closed");
+            return answers[args[0]] ?? { value: null };
+        },
+    });
+    const get = (url) => {
+        const response = {
+            statusCode: 200,
+            headers: {},
+            status(code) {
+                this.statusCode = code;
+                return this;
+            },
+            json(value) {
+                this.body = value;
+            },
+            setHeader(name, value) {
+                this.headers[name] = value;
+            },
+            end(bytes) {
+                this.body = bytes;
+            },
+        };
+        return router.routes.GET.get(url.split("?")[0])({ url, headers: { host: "localhost" } }, response).then(
+            () => response
+        );
+    };
+
+    const [picture, none, noHelper, closed, noCode] = await Promise.all([
+        get("/api/game/bundle-picture?code=bun_a"),
+        get("/api/game/bundle-picture?code=bon_q"),
+        get("/api/game/bundle-picture?code=bun_b"),
+        get("/api/game/bundle-picture?code=bun_c"),
+        get("/api/game/bundle-picture"),
+    ]);
+    assert.equal(picture.statusCode, 200);
+    assert.equal(picture.headers["Content-Type"], "image/png");
+    assert.deepEqual(picture.body, png);
+    // Each of these leaves the row with just the pack's name.
+    assert.deepEqual(
+        [none, noHelper, closed, noCode].map((response) => response.statusCode),
+        [404, 404, 404, 404]
+    );
+    // The game checks the code; the route only queues the asks, one at a time.
+    assert.deepEqual(calls, [
+        ["getBundlePicture", "bun_a"],
+        ["getBundlePicture", "bon_q"],
+        ["getBundlePicture", "bun_b"],
+        ["getBundlePicture", "bun_c"],
+        ["getBundlePicture", null],
     ]);
     assert.equal(overlap, false);
 });

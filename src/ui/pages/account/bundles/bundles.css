@@ -2,3 +2,25 @@
 .bundle-row__said.said--empty {
     position: absolute;
 }
+
+/*
+ * A pack's picture, the gem shop's banner from the running game, at half the game's size (bundles.js sets the width
+ * once it's in; most are 711 px wide). Too wide for the row, it shrinks whole.
+ */
+.bundle-picture {
+    display: block;
+    width: var(--bundle-picture-w, 355.5px);
+    max-width: 100%;
+    height: auto;
+}
+
+.bundle-picture[hidden] {
+    display: none;
+}
+
+/* Under its picture, the name steps down to the muted line. */
+.viewport .bundle-picture:not([hidden]) + .account-row__name {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}

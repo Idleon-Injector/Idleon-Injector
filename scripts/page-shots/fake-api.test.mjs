@@ -85,6 +85,20 @@ test("the fake game hands out no pet pictures, so CI and the page shots never ho
     assert.equal((await request(router, "GET", "/api/game/pet-frames?id=0")).body, null);
 });
 
+test("the fake game hands out no pack pictures, and its catalog says so", async () => {
+    assert.equal((await request(router, "GET", "/api/game/bundle-picture?code=bun_a")).statusCode, 404);
+    const { bundles } = (await request(router, "GET", "/api/game/bundles")).body;
+    assert.equal(
+        bundles.some((bundle) => bundle.picture),
+        false
+    );
+    // Robot Pack, the one without a picture in the game's files, isn't out yet.
+    assert.deepEqual(
+        bundles.filter((bundle) => bundle.notOutYet).map((bundle) => bundle.code),
+        ["bon_q"]
+    );
+});
+
 test("the fake game's data is the same every time", () => {
     assert.deepEqual(fakeGameData(), fakeGameData());
 });

@@ -82,6 +82,9 @@ export async function fetchPetFrames(id) {
     return _request(`/game/pet-frames?id=${id}`);
 }
 
+/** A pack's picture (PNG, the gem shop's banner) from the running game, for an <img>. It answers 404 without one. */
+export const bundlePictureUrl = (code) => `${API_BASE}/game/bundle-picture?code=${encodeURIComponent(code)}`;
+
 /** Fetch bundle names, codes, and live ownership flags from the injected runtime. */
 export async function fetchBundleCatalog() {
     const data = await _request("/game/bundles");

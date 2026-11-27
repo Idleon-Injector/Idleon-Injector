@@ -618,7 +618,9 @@ and Wardrobe and the three Clickers stay sidebar entries.
 - **A bundle is a switch** (Lumi, 2026-11-27: "bundles is weird, it should be a switch like the rest"): on buys it, off
   marks it not received (its items stay). Its word is "Buying" while the game confirms a buy and "Owned" once it has it.
   A flip's failure is said on its switch; a Buy all's on each row's line, which the tray points to. Buy all asks in the
-  tray, since a full inventory loses what a bundle gives.
+  tray, since a full inventory loses what a bundle gives. A pack shows its gem shop banner from the running game first,
+  at half the game's size, and its name small and muted under it (Lumi, 2026-11-27); without a picture, the name alone
+  as before. A pack the game has no picture for isn't sold yet: "Not out yet", its switch locked.
 - **Account's six systems have drawings:** a head and shoulders for Player, a safe with its dial for the Upgrade Vault,
   a card in front of another for Cards, a gift box for Bundles, a board with two ticks for the Task Board and a
   torn ticket for the Event Shop.
