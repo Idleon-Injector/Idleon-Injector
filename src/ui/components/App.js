@@ -19,6 +19,7 @@ import { Search } from "./views/Search.js";
 import { History } from "./views/History.js";
 import { SaveCopies } from "./views/SaveCopies.js";
 import { startChangeLog } from "../services/changeLog.js";
+import { mountAnnouncer } from "./inPlace.js";
 
 const { div, main } = van.tags;
 
@@ -36,6 +37,8 @@ const viewFactories = {
 
 export const App = () => {
     startChangeLog(store.app, document);
+    // The screen-reader live region is there, empty, before its first message (#266).
+    mountAnnouncer();
     store.initHeartbeat();
     store.loadAppInfo();
     store.checkForUpdate();

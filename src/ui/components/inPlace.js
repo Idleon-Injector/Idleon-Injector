@@ -94,11 +94,17 @@ export const Said = ({ said, className = "", kinds = null }) => {
 // The one live region for what a button says without words on screen: a click-again question (so a keyboard player
 // hears what the second click will do) and a press's result (the button only changes colour).
 let askRegion = null;
+/**
+ * Put the live region on the page, empty, when the menu starts (#266): a screen reader can miss a region's first
+ * message when the region appears together with it. Later calls keep the same region.
+ */
+export const mountAnnouncer = () => {
+    if (askRegion) return;
+    askRegion = span({ class: "sr-only", role: "status" });
+    document.body.appendChild(askRegion);
+};
 export const announce = (text) => {
-    if (!askRegion) {
-        askRegion = span({ class: "sr-only", role: "status" });
-        document.body.appendChild(askRegion);
-    }
+    mountAnnouncer();
     askRegion.textContent = text;
 };
 
