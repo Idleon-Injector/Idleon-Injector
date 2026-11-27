@@ -265,11 +265,12 @@ const TrappingTab = () => {
         selected,
         disabled: () => loading.val,
         onChange: (event) => (selected.val = event.target.value),
-        info: () => (selected.val && selected.val === latestSnapshot.currentPlayer ? "In play" : ""),
+        info: () => (selected.val && selected.val === latestSnapshot.val.currentPlayer ? "In play" : ""),
     });
     // Each trap's row, so Finish all acts on the picked character's traps the search shows.
     const rowOf = new Map();
-    let latestSnapshot = { currentPlayer: "", players: [] };
+    // A state, so the tray's count, Finish all and "In play" follow a Refresh, not only another pick (#269).
+    const latestSnapshot = van.state({ currentPlayer: "", players: [] });
     const reconcilePlayerPanels = createStaticRowReconciler(playersNode);
 
     const getValueState = (playerName, trapIndex, field, initialValue = 0) =>
@@ -288,7 +289,6 @@ const TrappingTab = () => {
     };
 
     const reconcilePlayers = (snapshot) => {
-        latestSnapshot = snapshot;
         setTrapStatesFromSnapshot(snapshot);
 
         if (!snapshot.players.some((player) => player.playerName === selected.val))
@@ -327,11 +327,13 @@ const TrappingTab = () => {
                 )
             );
         });
+        // Last, so the count reads the new rows.
+        latestSnapshot.val = snapshot;
     };
 
     // PlacedTraps holds the traps of the character in play now, so a save asks the game who that is first.
     const onWriteField = async (playerName, trapIndex, fieldIndex, value) => {
-        const inPlay = await readCharacterInPlay(latestSnapshot.currentPlayer);
+        const inPlay = await readCharacterInPlay(latestSnapshot.val.currentPlayer);
         if (playerName === inPlay) {
             // The game refuses it if another character is in play by the time it writes.
             await writeVerified(`PlacedTraps[${trapIndex}][${fieldIndex}]`, value, { character: inPlay });
@@ -352,7 +354,7 @@ const TrappingTab = () => {
     };
 
     const trapsOf = (playerName) =>
-        latestSnapshot.players.find((player) => player.playerName === playerName)?.traps ?? [];
+        latestSnapshot.val.players.find((player) => player.playerName === playerName)?.traps ?? [];
     // The open tab's traps Finish all acts on: every one, or those the top bar's search shows.
     const trapsShown = (playerName) =>
         trapsOf(playerName).filter((trap) => shownBySearch(rowOf.get(`${playerName}:${trap.trapIndex}`)));
