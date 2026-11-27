@@ -188,6 +188,10 @@ export const NumberInput = ({
         // If we used a reactive `value:` VanJS prop, any state change would let
         // VanJS overwrite input.value mid-keystroke, resetting the cursor.
         const capped = Cap(cap, formatter, () => inputEl, value);
+        // The shown text's length, for the wrapper's --chars: a capped value is as wide as its text, so the value and
+        // its cap can sit in the middle of the field as one unit. Only this field's style reads it.
+        const chars = van.state(1);
+        const countChars = () => (chars.val = Math.max(inputEl.value.length, 1));
         const inputEl = input({
             type: "text",
             ...capped.inputAttrs,
@@ -208,6 +212,7 @@ export const NumberInput = ({
                 // reactive closures to rebuild their DOM subtrees — destroying this
                 // input element, losing focus, and resetting scroll position.
                 liveRawByState.set(value, e.target.value);
+                countChars();
                 if (userOninput) userOninput(e);
             },
 
@@ -219,6 +224,7 @@ export const NumberInput = ({
                 if (parsed !== null) {
                     value.val = parsed;
                     inputEl.value = formatter(parsed);
+                    countChars();
                     liveRawByState.delete(value);
                 } else if (e.target.value === shownOnFocus) {
                     liveRawByState.delete(value);
@@ -229,6 +235,7 @@ export const NumberInput = ({
 
         const show = (nextValue) => {
             inputEl.value = formatter(nextValue);
+            countChars();
             if (isFocused) {
                 liveRawByState.set(value, inputEl.value);
                 // Shown, not typed: leaving it as it is keeps the exact value behind it.
@@ -250,7 +257,7 @@ export const NumberInput = ({
         };
 
         return div(
-            { class: capped.wrapperClass },
+            { class: capped.wrapperClass, style: () => `--chars: ${chars.val}` },
             inputEl,
             capped.node,
             button(
@@ -322,7 +329,7 @@ export const NumberInput = ({
     });
 
     return div(
-        { class: capped.wrapperClass },
+        { class: capped.wrapperClass, style: () => `--chars: ${Math.max(String(value.val ?? "").length, 1)}` },
         inputEl,
         capped.node,
         button(

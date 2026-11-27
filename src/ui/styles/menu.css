@@ -127,25 +127,34 @@
     max-height: min(560px, 70vh);
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 6px 8px 8px;
+    padding: 0 0 8px;
     border: 1px solid var(--c-border);
     border-radius: var(--radius-group);
     background: var(--c-panel);
-    box-shadow: 0 14px 28px var(--c-black-50);
+    box-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.5),
+        0 22px 44px -16px rgba(0, 0, 0, 0.95);
     animation: character-picker-in 180ms var(--ease-soft);
 }
 
 .menu-search-group + .menu-search-group {
-    margin-top: 6px;
-    border-top: 1px solid var(--c-hairline);
+    margin-top: 8px;
 }
 
+/* A group's name sits on a band like a table's head, so Pages, Cheats and Settings read as sections. */
 .menu-search-group__head {
-    padding: 10px 10px 4px;
+    margin-bottom: 6px;
+    padding: 9px 18px 8px;
+    border-bottom: 1px solid var(--c-border);
+    background: var(--c-tray);
     font-family: var(--font-display);
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 600;
+    letter-spacing: 0.02em;
     color: var(--c-text-muted);
+}
+.menu-search-group:first-child .menu-search-group__head {
+    border-radius: var(--radius-group) var(--radius-group) 0 0;
 }
 
 .menu-search-result {
@@ -153,13 +162,14 @@
     flex-direction: column;
     align-items: stretch;
     gap: 2px;
-    width: 100%;
+    width: calc(100% - 16px);
     min-height: 44px;
+    margin: 0 8px;
     padding: 6px 10px;
     border: 0;
     border-radius: 8px;
     background: none;
-    color: var(--c-text-body);
+    color: var(--c-text-main);
     font-family: var(--font-display);
     text-align: left;
     text-transform: none;
@@ -174,7 +184,8 @@
    ring shows here. */
 .menu-search-result.is-hi {
     background: var(--c-here);
-    color: var(--c-text-main);
+    box-shadow: inset 0 0 0 1px var(--c-border);
+    color: #ffffff;
 }
 
 /* A name runs to two lines before it is cut; the line under it stays one. */
@@ -192,7 +203,7 @@
 .menu-search-result__where {
     overflow: hidden;
     font-size: 0.8125rem;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1.3;
     color: var(--c-text-muted);
     text-overflow: ellipsis;
@@ -466,8 +477,8 @@
     font-weight: 600;
     letter-spacing: 0.075em;
     transition:
-        background-color 150ms var(--ease-soft),
-        color 150ms var(--ease-soft);
+        background-color var(--dur-hover) var(--ease-soft),
+        color var(--dur-hover) var(--ease-soft);
 }
 .tab-button.menu-nav-btn:hover {
     background: #19172b;
@@ -479,6 +490,13 @@
 .tab-button.menu-nav-btn.active {
     background: var(--c-here);
     color: #ffffff;
+}
+/* Where you are takes the panels' material: a faint edge and the soft drop (a sub-entry stays plain words). */
+.tab-button.menu-nav-btn.active:not(.drill-item--sub) {
+    box-shadow:
+        inset 0 0 0 1px var(--c-border),
+        0 1px 0 rgba(0, 0, 0, 0.45),
+        0 6px 14px -8px rgba(0, 0, 0, 0.8);
 }
 .tab-button.menu-nav-btn:focus-visible {
     outline: 2px solid var(--c-accent);
@@ -577,6 +595,7 @@
     border: 1px solid var(--c-border) !important;
     border-radius: 12px;
     background: var(--c-void-soft) !important;
+    box-shadow: var(--shadow-panel);
     font-family: var(--font-display);
     font-size: 0.9375rem;
     transition: border-color 150ms var(--ease-soft);
@@ -709,7 +728,7 @@
     grid-template-columns: 11rem minmax(0, 1fr);
     column-gap: 14px;
     align-items: start;
-    padding: 12px 12px 12px 8px;
+    padding: 16px 12px 16px 8px;
 }
 .home-world + .home-world {
     border-top: 1px solid var(--c-hairline);
@@ -721,8 +740,8 @@
     font-family: var(--font-display);
     cursor: pointer;
     transition:
-        background 0.16s var(--ease-slide),
-        color 0.16s var(--ease-slide);
+        background-color var(--dur-hover) var(--ease-soft),
+        color var(--dur-hover) var(--ease-soft);
 }
 .home-world__title {
     display: flex;
@@ -733,14 +752,33 @@
     border-radius: 10px;
     text-align: left;
 }
+/* The world's code in a small tile, edged faintly in its world's colour: the header's tile, small. No wash behind the
+   code (a wash measured lower contrast for it). */
 .home-world__code {
+    position: relative;
+    display: flex;
     flex: none;
-    min-width: 26px;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    min-width: 34px;
+    height: 30px;
+    margin-top: -4px;
+    border-radius: 9px;
+    background: var(--c-tray);
     font-family: var(--font-mark);
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 700;
     line-height: 1.375rem;
     color: var(--world-color, var(--c-text-faint));
+}
+.home-world__code::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--world-color, var(--c-text-faint));
+    border-radius: inherit;
+    opacity: 0.4;
 }
 .home-world__code svg {
     width: 18px;
@@ -754,46 +792,63 @@
     min-width: 0;
 }
 .home-world__label {
-    font-size: 1rem;
+    font-size: 1.125rem;
     font-weight: 700;
     line-height: 1.375rem;
+    letter-spacing: -0.01em;
     color: var(--c-text-main);
 }
 .home-world__name {
+    margin-top: 1px;
     font-size: 0.8125rem;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1.3;
-    color: var(--c-text-faint);
+    color: var(--c-text-muted);
 }
 .home-world.is-unmoved .home-world__label {
     color: var(--c-text-muted);
 }
 
-/* The systems line up in columns, each a cell the size of what it opens, so they read as places, not loose words. */
+/* The systems line up in columns, each a tile set into the panel (the tray's ground), so they read as places, not loose
+   words; pointing at one washes it with its world's colour. */
 .home-world__systems {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(7.75rem, 1fr));
     gap: 4px;
 }
 .home-world__system {
-    height: 36px;
+    position: relative;
+    isolation: isolate;
+    height: 38px;
     padding: 0 11px;
     overflow: hidden;
-    border-radius: 9px;
-    background: var(--c-white-02);
+    border-radius: 10px;
+    background: var(--c-tray);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
     font-size: 0.9375rem;
     font-weight: 500;
-    color: var(--c-text-body);
+    color: var(--c-text-main);
     text-align: left;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+.home-world__system::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--world-color, var(--c-accent));
+    opacity: 0;
+    transition: opacity var(--dur-hover) var(--ease-soft);
 }
 .home-world__title:hover {
     background: var(--c-panel-hover);
 }
 .home-world__system:hover {
-    background: var(--c-white-05);
-    color: var(--c-text-main);
+    color: #ffffff;
+}
+.home-world__system:hover::before {
+    opacity: 0.14;
 }
 .home-world__title:active,
 .home-world__system:active {
@@ -804,7 +859,7 @@
     .home-world {
         grid-template-columns: minmax(0, 1fr);
         row-gap: 6px;
-        padding: 10px 8px 12px;
+        padding: 16px 8px;
     }
     .home-world__title {
         align-items: center;

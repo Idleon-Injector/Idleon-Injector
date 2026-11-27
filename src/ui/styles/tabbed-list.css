@@ -5,7 +5,7 @@
     }
 }
 .tabbed-list {
-    --tab-open-fill: var(--c-void);
+    --tab-open-fill: var(--c-tray);
     display: flex;
     flex-direction: column;
     flex: 0 1 auto;
@@ -14,6 +14,7 @@
     border: 1px solid var(--c-border);
     border-radius: var(--radius-group);
     background: var(--c-void-soft);
+    box-shadow: var(--shadow-panel);
     overflow: hidden;
 }
 
@@ -46,7 +47,7 @@
     --tab-open-fill: var(--c-void-soft);
 }
 .tabbed-list:not(.has-tools) .tabbed-list__head {
-    background: var(--c-void);
+    background: var(--c-tray);
     border-bottom: 0;
 }
 
@@ -162,34 +163,46 @@
 }
 
 /*
- * The tools for the open tab: a tray set into the panel (the page's own ground showing through), so what you do never
- * reads as more tabs. Its first line says what the tools act on; under it, each tool is one joined shape with soft
- * corners (not a pill, which is a tab's shape): the level and its Set all, then Exalt all | Unexalt all.
+ * The tools for the open tab: a toolbar set into the panel (the tray's ground, a step above the page), joined to the open
+ * tab, so what you do never reads as more tabs. Its first line is a label strip saying what the tools act on, parted
+ * from the tools by a hairline; under it, each tool is one segmented shape with soft corners (not a pill, which is a
+ * tab's shape): the level and its Set all, then Exalt all | Unexalt all.
  */
 .tabbed-list__tools {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
     margin: 0 8px 8px;
-    padding: 10px 12px 12px;
+    padding: 0 0 14px;
     border-radius: 12px;
-    background: var(--c-void);
+    background: var(--c-tray);
 }
 /* One line height for the line and the question that takes its place, so asking moves nothing under it. */
 .tabbed-list__tools-label {
-    font-size: 0.8125rem;
-    font-weight: 500;
+    padding: 11px 14px 10px;
+    border-bottom: 1px solid var(--c-border);
+    font-size: 0.75rem;
+    font-weight: 600;
     line-height: 1.25rem;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
     color: var(--c-text-muted);
 }
 .tabbed-list__tools-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px 12px;
+    gap: 8px 10px;
+    padding: 12px 14px 0;
 }
 
-/* A joined tool: one filled shape; its parts are parted by a hairline and fill on their own when pointed at. */
+/* A joined tool: one filled shape with a faint lit top edge, so it reads as something to press; its parts are cut
+   apart by the tray's own ground and fill on their own when pointed at. */
+.viewport .tabbed-list__tools .account-setall-row,
+.viewport .tabbed-list__tools .tabbed-list__tool-group,
+.viewport .tabbed-list__tools .step-picker {
+    box-shadow: var(--shadow-tool);
+}
 .viewport .tabbed-list__tools .account-setall-row,
 .viewport .tabbed-list__tools .tabbed-list__tool-group {
     display: flex;
@@ -233,10 +246,13 @@
     border-radius: 0;
     background: transparent;
     font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-text-main);
 }
 .viewport .tabbed-list__tools .account-setall-row .account-btn,
-.viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn + .account-btn {
-    border-left: 1px solid var(--c-btn-edge);
+.viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn + .account-btn,
+.viewport .tabbed-list__tools .step-picker__step + .step-picker__step {
+    border-left: 2px solid var(--c-tray);
 }
 .viewport .tabbed-list__tools .account-setall-row .account-btn,
 .viewport .tabbed-list__tools .tabbed-list__tool-group .account-btn:last-of-type {
@@ -246,17 +262,17 @@
     border-radius: 10px 0 0 10px;
 }
 .viewport .tabbed-list__tools .account-btn.btn-quiet:hover:not(:disabled):not([aria-disabled="true"]) {
-    border-color: var(--c-btn-edge);
+    border-color: var(--c-tray);
     background: var(--c-well-hover);
 }
 .viewport .tabbed-list__tools .account-btn.btn-danger:hover:not(:disabled):not([aria-disabled="true"]) {
-    border-color: var(--c-btn-edge);
+    border-color: var(--c-tray);
     background: rgba(255, 138, 128, 0.14);
     color: var(--c-danger-soft-text);
 }
 .viewport .tabbed-list__tools .account-btn:disabled,
 .viewport .tabbed-list__tools .account-btn[aria-disabled="true"] {
-    border-color: var(--c-btn-edge);
+    border-color: var(--c-tray);
     background: transparent;
     color: var(--c-text-disabled);
 }
@@ -272,16 +288,23 @@
     min-width: 0;
 }
 .viewport .account-row__bonus {
-    font-size: var(--size-name);
+    font-size: 1rem;
     font-weight: 600;
     line-height: 1.25;
-    color: var(--c-text-body);
+    letter-spacing: -0.005em;
+    color: var(--c-text-main);
 }
+/* The name under the bonus a weight lighter, so the bonus leads; the bonus goes white on the row you touch. */
 .viewport .account-row__bonus + .account-row__name {
+    margin-top: 2px;
     font-size: 0.8125rem;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1.25;
     color: var(--c-text-muted);
+}
+.viewport .account-row:hover .account-row__bonus,
+.viewport .account-row:focus-within .account-row__bonus {
+    color: #ffffff;
 }
 
 /* A quiet fact under the name (RowTitles' note): the muted line's size, wrapping rather than cut off. */
@@ -325,13 +348,13 @@
 /* A joined tool can start with a quiet word saying what it sets ("Tier for all"). */
 .tabbed-list__tool-label {
     padding: 0 12px;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
     color: var(--c-text-muted);
     white-space: nowrap;
 }
 .viewport .tabbed-list__tools .tabbed-list__tool-label + .account-btn {
-    border-left: 1px solid var(--c-btn-edge);
+    border-left: 2px solid var(--c-tray);
 }
 
 /* A list without tabs (ListPanel): the tray is the head's only part. */
@@ -418,7 +441,92 @@
     outline: 2px solid var(--c-accent);
     outline-offset: -2px;
 }
+
+/* In a row a step picker is cut like the tray's tools and lit along its top. */
+.viewport .tabbed-list__body .step-picker {
+    box-shadow: var(--shadow-tool);
+}
+.viewport .tabbed-list__body .step-picker__step {
+    border-left: 2px solid var(--c-tray);
+}
+.viewport .tabbed-list__body .step-picker__step:first-child {
+    border-left: 0;
+}
+
+/*
+ * A value you can change reads as a number, not a heading: the value's size at medium weight, lining same-width
+ * digits, in the middle of its field's line (the field before its − / +). The − / + only fade in, so they keep their
+ * room and the number never moves when the box shows. A capped value ("40 / 600") centres with its cap as one unit:
+ * the number is as wide as its text (NumberInput's --chars) and equal room on either side puts the pair in the middle.
+ * `.viewport.viewport` (one element, counted twice) outranks the lists that keep a cap's room after an uncapped value
+ * (field-columns: Anvil, the Gem shop), so a value without a cap centres on its own line.
+ */
+.viewport.viewport .tabbed-list__body .account-row .account-row__controls .number-input-wrapper input {
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: var(--size-value);
+    font-weight: 500;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums lining-nums;
+    text-align: center;
+    color: #ffffff;
+}
+.viewport.viewport .tabbed-list__body .account-row .account-row__controls .number-input-wrapper--capped input {
+    flex: 0 0 auto;
+    width: calc(var(--chars, 2) * 1ch + 2px);
+    min-width: 0;
+    margin-left: auto;
+    padding: 0;
+    text-align: right;
+}
+.viewport.viewport
+    .tabbed-list__body
+    .account-row
+    .account-row__controls
+    .number-input-wrapper--capped
+    .number-input__cap {
+    flex: 0 0 auto;
+    min-width: 0;
+    margin: 0 auto 0 0;
+    padding-left: 4px;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    text-align: left;
+    white-space: nowrap;
+}
+.viewport.viewport
+    .tabbed-list__body
+    .account-row
+    .account-row__controls
+    .number-input-wrapper--capped
+    .number-input-btn:first-of-type {
+    margin-left: 0;
+}
+/* A number you can't change keeps no line and no box: text, not a field. */
+.viewport .tabbed-list__body .capped-value,
+.viewport .tabbed-list__body .account-row__value {
+    font-variant-numeric: tabular-nums lining-nums;
+}
+
 @media (hover: hover) {
+    .viewport .tabbed-list__body .account-row .number-input-wrapper {
+        position: relative;
+    }
+    /* At rest a faint fill-in line under the number says "you can type here"; the box and its − / + replace it when the
+       row is touched (rows stay quiet until touched). */
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .number-input-wrapper::after {
+        content: "";
+        position: absolute;
+        right: calc(var(--field-steppers) + 4px);
+        bottom: 5px;
+        left: 4px;
+        height: 1px;
+        background: var(--c-border-strong);
+        pointer-events: none;
+    }
+    .viewport .tabbed-list__body .account-row:not(:hover):not(:focus-within) .step-picker {
+        box-shadow: none;
+    }
     .viewport .tabbed-list__body .account-row .number-input-wrapper,
     .viewport .tabbed-list__body .account-row .number-input-btn {
         transition:
@@ -516,8 +624,8 @@
     height: 40px;
     padding: 0 18px;
     border-radius: 10px 10px 0 0;
-    font-size: 1rem;
-    font-weight: 550;
+    font-size: 0.9375rem;
+    font-weight: 500;
     letter-spacing: 0;
     white-space: nowrap;
     color: var(--c-text-muted);
@@ -536,7 +644,7 @@
 .viewport .tabbed-list .tabbed-list__tab.active {
     background: var(--tab-open-fill) !important;
     color: var(--c-accent);
-    font-weight: 650;
+    font-weight: 600;
 }
 .viewport .tabbed-list .has-pill .tabbed-list__tab.active {
     background: transparent !important;
@@ -606,7 +714,7 @@
     background: var(--c-text-faint) padding-box;
 }
 
-/* Inside the panel the rows are its lines: no edges or corners of their own, a hairline between two. */
+/* Inside the panel the rows are its lines: no edges or corners of their own. */
 .viewport .tabbed-list .account-row,
 .viewport .tabbed-list .account-row:first-child,
 .viewport .tabbed-list .account-row:last-child {
@@ -618,27 +726,99 @@
 }
 
 /*
- * A group of rows inside a panel (an AccountSection in a TabbedList or ListPanel, Anvil's "Points" and "Spent on"): its
- * name is a quiet line over its rows, set on the panel like a column head, never a box or a big heading of its own. A
- * hairline parts two groups.
+ * A list's rows are rounded lines inset in the panel, every other one a step deeper (never lighter), so the eye holds a
+ * line from the bonus to the row's buttons without a hairline between them. The row under the pointer fills and its
+ * bonus goes white. A table's head (account-row--head) is the band at the top instead.
+ */
+.viewport .tabbed-list__body .account-row:not(.account-row--head) {
+    min-height: 58px;
+    margin: 0 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-top-color: transparent;
+    border-radius: 10px;
+    transition: background-color var(--dur-hover) var(--ease-soft);
+}
+.viewport .tabbed-list__body .account-row:not(.account-row--head):nth-child(even) {
+    background: var(--c-row-alt);
+}
+.viewport .tabbed-list__body .account-row:not(.account-row--head):hover,
+.viewport .tabbed-list__body .account-row:not(.account-row--head):focus-within {
+    background: var(--c-panel-hover);
+}
+.viewport .tabbed-list__body > :first-child,
+.viewport .tabbed-list__body .account-item-stack {
+    padding-top: 2px;
+}
+.viewport .tabbed-list__body {
+    padding-bottom: 6px;
+}
+/* The index ("#0") steps back: small and quiet, so the bonus leads. */
+.viewport .tabbed-list .account-row__index {
+    align-self: flex-start;
+    min-width: 2.6em;
+    padding-top: 3px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+/* The row's own buttons (Relock, Max) a weight lighter than the bonus, so content leads and controls stay in reach. */
+.viewport .tabbed-list__body .account-row__controls .account-btn {
+    font-weight: 500;
+}
+
+/* A table's column names: a band in the tray's ground at the top of the list, small spaced labels on it. */
+.viewport .tabbed-list .account-row--head,
+.viewport .tabbed-list .account-row--head:hover {
+    min-height: 40px;
+    margin: 0;
+    padding-left: 16px;
+    padding-right: 16px;
+    border-radius: 0;
+    border-bottom: 1px solid var(--c-border);
+    background: var(--c-tray);
+}
+
+/*
+ * A group of rows inside a panel (an AccountSection in a TabbedList or ListPanel, Anvil's "Points" and "Spent on") and the
+ * head of a panel without tabs (Gem shop, Cheats): its name in white, the tabs' size, a hairline under it; never a box or
+ * a big heading of its own. A hairline parts two groups.
  */
 .viewport .tabbed-list .account-section__header {
-    padding: 16px 16px 8px;
+    align-items: baseline;
+    min-height: 48px;
+    box-sizing: border-box;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--c-hairline);
 }
 .viewport .tabbed-list .account-section + .account-section .account-section__header {
     border-top: 1px solid var(--c-border);
 }
 .viewport .tabbed-list .account-section__title {
-    font-size: 0.8125rem;
+    font-size: 0.9375rem;
     font-weight: 600;
-    letter-spacing: 0;
+    letter-spacing: -0.005em;
+    color: var(--c-text-main);
+}
+.viewport .tabbed-list .account-section__note,
+.viewport .tabbed-list .account-section__meta {
+    font-size: 0.8125rem;
+    font-weight: 400;
     color: var(--c-text-muted);
 }
+.viewport .tabbed-list .account-section__header + .account-row,
+.viewport .tabbed-list .account-section__header + * > .account-row:first-child {
+    border-top-width: 0;
+}
 
-/* On a phone it starts where the rows' names do. */
+/* On a phone it starts where the rows' names do; a touch shows a field's box anyway, so no fill-in line. */
 @media (max-width: 760px) {
     .viewport .tabbed-list .account-section__header {
         padding-inline: 14px;
+    }
+    .viewport .tabbed-list__body .account-row .number-input-wrapper::after {
+        display: none;
     }
 }
 
@@ -667,11 +847,50 @@
     gap: 4px;
     min-width: 0;
 }
-/* A value that only supports the line's main one (a meal's amount): a step smaller and muted. */
-.viewport .value-cell--quiet .number-input-wrapper input {
-    font-size: 0.875rem;
+/* A value that only supports the line's main one (a meal's amount): a step smaller and muted, beating the value's own
+   look (one main number a row). */
+.viewport .value-cell--quiet .number-input-wrapper input,
+.viewport.viewport
+    .tabbed-list__body
+    .account-row
+    .account-row__controls
+    .value-cell--quiet
+    .number-input-wrapper
+    input {
+    font-size: 0.9375rem;
     font-weight: 500;
     color: var(--c-text-muted);
+}
+
+/*
+ * A column's name sits by what it holds (its kind, columnKind in EditableFieldsRow.js; Lumi, 2026-11-27): over a column
+ * of fields or of read-only numbers the name is centred over the numbers (a field's numbers centre in the room before
+ * its − / +); over a pick (Tier) or a switch, and in the thing's own name column, it stays at the left. The same goes
+ * for a field's own name where a table folds (a phone).
+ */
+.viewport .value-head__label.column--field,
+.viewport .statue-head__label.column--field,
+.viewport .column--field > .value-cell__label,
+.viewport .column--field > .statue-cell__label {
+    padding-left: 0;
+    padding-right: var(--field-steppers);
+    text-align: center;
+}
+.viewport .value-head__label.column--number,
+.viewport .column--number > .value-cell__label {
+    padding-left: 0;
+    padding-right: 0;
+    text-align: center;
+}
+.viewport .column--number > .automation-value {
+    padding-left: 0;
+    text-align: center;
+}
+/* The centring room never widens a folded cell past its column: a long name runs on into the − / + room instead. */
+.viewport .value-cell.column--field,
+.viewport .value-cell.column--number,
+.viewport .statue-cell.column--field {
+    grid-template-columns: minmax(0, 1fr);
 }
 /* A pick in a table column (ValueTableRow's `steps`): its words start where the column's name starts. */
 .viewport .value-cell--steps {
@@ -718,15 +937,17 @@
     z-index: 3;
     min-height: 40px;
     border-width: 0 0 1px;
-    background: var(--c-void-soft);
+    background: var(--c-tray);
 }
 .value-head__label {
     font-family: var(--font-display);
-    font-size: 0.8125rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     color: var(--c-text-muted);
 }
-.value-head .value-cells > .value-head__label {
+/* A pick's or a switch's name starts 12px in, where its words do; a number column's name is centred (above). */
+.value-head .value-cells > .value-head__label:not(.column--field):not(.column--number) {
     padding-left: 12px;
 }
 .viewport .tabbed-list .value-head + * .account-row:first-child,
@@ -902,7 +1123,7 @@
     min-width: 0;
     margin: 2px 0 -6px;
     border-radius: 10px;
-    background: var(--c-void);
+    background: var(--c-tray);
 }
 .viewport .tabbed-list .row-detail > .account-row {
     border-width: 0;
@@ -976,11 +1197,11 @@
 .pick-in-place {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     margin-top: 8px;
-    padding: 6px;
-    border-radius: 10px;
-    background: var(--c-void);
+    padding: 8px;
+    border-radius: 12px;
+    background: var(--c-tray);
 }
 .pick-in-place__search {
     height: 34px;
@@ -1002,12 +1223,14 @@
     overflow-y: auto;
 }
 .pick-in-place__option {
-    min-height: 34px;
-    padding: 0 10px;
+    position: relative;
+    min-height: 36px;
+    padding: 0 10px 0 24px;
     border: 0;
     border-radius: 8px;
     background: none;
-    color: var(--c-text-body);
+    color: var(--c-text-main);
+    transition: background-color var(--dur-hover) var(--ease-soft);
     font-family: var(--font-display);
     font-size: 0.9375rem;
     font-weight: 500;
@@ -1020,6 +1243,18 @@
 .pick-in-place__option.is-picked {
     color: var(--c-accent);
     font-weight: 600;
+}
+/* The current pick also has a lavender dot before its word, so it shows without reading every name. */
+.pick-in-place__option.is-picked::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    width: 6px;
+    height: 6px;
+    margin-top: -3px;
+    border-radius: 50%;
+    background: var(--c-accent);
 }
 .pick-in-place__none {
     margin: 0;
@@ -1098,7 +1333,7 @@
     align-items: center;
     min-width: 0;
     min-height: 50px;
-    padding: 6px 10px;
+    padding: 6px 10px 6px 24px;
     border-radius: 10px;
     overflow: hidden;
     white-space: nowrap;
@@ -1106,7 +1341,7 @@
 /* On a phone the names sit a little closer to their edges, so the longest class ("Elemental Sorcerer") fits. */
 @media (max-width: 600px) {
     .character-picker .pick-in-place__option {
-        padding: 6px 8px;
+        padding: 6px 8px 6px 24px;
     }
 }
 .pick-in-place__option-text {

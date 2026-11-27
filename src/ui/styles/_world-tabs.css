@@ -172,7 +172,7 @@
 
 .world-sub-pane.active {
     display: flex;
-    animation: slideIn 0.18s ease;
+    animation: pageIn 200ms var(--ease-soft) both;
 }
 
 /* Empty pane (unimplemented tabs) */

@@ -19,12 +19,16 @@
     flex: none;
     align-items: baseline;
     gap: 10px;
-    padding: 14px 16px 10px;
+    min-height: 48px;
+    box-sizing: border-box;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--c-hairline);
 }
-/* Its name is the one word that says what this is, so it reads in the main colour; the note stays faint. */
+/* Its name is the one word that says what this is: a panel head like Gem shop's, in the main colour; the note faint. */
 .viewport .system-cheats .account-section__title {
-    font-size: 0.875rem;
-    font-weight: 650;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
     color: var(--c-text-main);
 }
 /* Only "On" shows, so the words take no fixed room; the switches still end on one line. */
@@ -37,6 +41,7 @@
 .viewport .system-cheats__count {
     margin-left: auto;
     font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
@@ -63,10 +68,14 @@
     overflow-y: auto;
 }
 
-/* Each row: its short label leads; the command it runs sits small and grey under it. */
-.viewport .system-cheats .account-row__titles .account-row__name {
-    font-size: var(--size-index);
-    font-weight: 500;
+/* Each row: its short label leads; the command it runs sits under it, small and grey in the code font, the voice the
+   search gives commands (Lumi's pick, 2026-11-27: the one place besides commands typed that isn't Fira Sans). */
+.viewport .system-cheats__row .account-row__titles .account-row__name {
+    margin-top: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0;
     color: var(--c-text-muted);
 }
 .viewport .system-cheats__titles {
@@ -104,7 +113,7 @@
     padding: 0 10px;
     border: 1px solid var(--c-border);
     border-radius: var(--radius-sm);
-    background: var(--c-void);
+    background: var(--c-tray);
     color: var(--c-text-main);
     font: 500 var(--size-small) var(--font-display);
 }
@@ -165,7 +174,7 @@
     padding: 2px 0;
     border-top: 1px solid var(--c-hairline);
     border-radius: 0;
-    background: var(--c-void);
+    background: var(--c-tray);
 }
 .viewport .system-cheats .system-cheats__row.is-open {
     flex-wrap: wrap;
@@ -182,24 +191,42 @@
     font-size: 0.875rem;
     color: var(--c-text-body);
 }
+/* A setting's fixed sign ("÷", "×", "=") is part of its value, not a box: the value's size, muted, right against the
+   number ("÷ 4"). */
 .viewport .system-cheats .system-cheats__setting > .account-row__badge {
     flex: none;
     align-self: center;
-    margin-right: 0;
-    padding-top: 0;
+    min-width: 0;
+    margin: 0 -2px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    font-size: var(--size-value);
+    font-weight: 500;
+    line-height: 1;
     color: var(--c-text-muted);
-    font-size: 1rem;
 }
 .viewport .system-cheats .system-cheats__setting > .account-row__controls {
     position: relative;
     flex: none;
     flex-wrap: nowrap;
 }
-/* The panel's field: room for a setting's few digits and its − / +, so the names keep the width. */
+/* The panel's field: room for a setting's few digits and its − / +, so the names keep the width. Its number starts
+   right after the sign, so the two read as one value. */
 .viewport .system-cheats .system-cheats__setting .number-input-wrapper:not(.number-input-wrapper--capped) {
     flex: none;
     width: 6.5rem;
     max-width: none;
+}
+.viewport.viewport .system-cheats .system-cheats__setting .account-row__controls .number-input-wrapper input {
+    padding-left: 6px;
+    text-align: left;
+}
+@media (hover: hover) {
+    .viewport .system-cheats .system-cheats__setting:not(:hover):not(:focus-within) .number-input-wrapper::after {
+        left: 6px;
+    }
 }
 /* The ✓ and Undo take the sign's place (the sign steps aside while they show), on the line, at every width. */
 .viewport .system-cheats .system-cheats__setting .save-state {
@@ -210,7 +237,7 @@
 }
 /* The ✓ lies on the settings' ground, so its fill covers the sign under it instead of crossing it. */
 .viewport .system-cheats .row-detail .system-cheats__setting .save-state--success {
-    --save-state-bg: var(--c-void);
+    --save-state-bg: var(--c-tray);
     height: 20px;
     background: var(--save-state-bg);
 }

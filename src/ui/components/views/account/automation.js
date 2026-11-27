@@ -324,7 +324,7 @@ export const AutomationRow = ({ entry, onSwitched = null, column = null }) => {
         controls:
             column === null
                 ? switchLabel(checkbox)
-                : div({ class: "value-cells" }, ...cellsBefore(column), Cell("On", switchLabel(checkbox))),
+                : div({ class: "value-cells" }, ...cellsBefore(column), Cell("On", "switch", switchLabel(checkbox))),
     });
 };
 
@@ -715,7 +715,9 @@ const useQueuedField = ({ value, draft, parse, write, resave, fileBehind }) => {
 };
 
 // A column's cell: its name (said by the column head; shown again where a phone folds the row), then what it holds.
-const Cell = (name, ...content) => div({ class: "value-cell" }, span({ class: "value-cell__label" }, name), ...content);
+// `kind` is the column's kind (columnKind): it centres a number's name over it, or keeps a pick's or switch's at the left.
+const Cell = (name, kind, ...content) =>
+    div({ class: `value-cell column--${kind}` }, span({ class: "value-cell__label" }, name), ...content);
 
 // Empty cells up to column `at`, so a row's one control lands in that column of the list.
 const cellsBefore = (at) => Array.from({ length: at }, () => span({ class: "value-cell value-cell--empty" }));
@@ -736,7 +738,8 @@ const QueuedField = ({ field, draft, parse, title, ariaLabel, placeholder = "", 
     };
     return div(
         {
-            class: () => `value-cell account-field-metric ${saveStateClass(field.status.val, field.save.undo)}`,
+            class: () =>
+                `value-cell column--field account-field-metric ${saveStateClass(field.status.val, field.save.undo)}`,
             ...field.save.handlers,
         },
         span({ class: "value-cell__label" }, title),
@@ -773,11 +776,13 @@ const nameWithDetail = (name, detail, bonus = null) => {
  */
 export const automationColumns = ({ values = [], selects = [], save = false, stopAt = "Stop at" } = {}) => {
     const columns = [
-        ...values.map((value) => (typeof value === "string" ? [value, "5.75rem"] : [value.name, value.width])),
-        ...selects.map(({ title }) => [title, "12rem"]),
-        [stopAt, "9.5rem"],
-        ...(save ? [["Save for it", "5.5rem"]] : []),
-        ["On", "2.75rem"],
+        ...values.map((value) =>
+            typeof value === "string" ? [value, "5.75rem", "number"] : [value.name, value.width, "number"]
+        ),
+        ...selects.map(({ title }) => [title, "12rem", "steps"]),
+        [stopAt, "9.5rem", "field"],
+        ...(save ? [["Save for it", "5.5rem", "switch"]] : []),
+        ["On", "2.75rem", "switch"],
     ];
     return {
         names: columns.map(([name]) => name),
@@ -786,7 +791,7 @@ export const automationColumns = ({ values = [], selects = [], save = false, sto
         widths: columns.map(([, width]) => width).join(" "),
         // Five columns (four values and the switch) need about 1280px beside the sidebar: the list folds below that.
         wide: columns.length >= 5,
-        head: (name) => ValueTableHead({ name, columns: columns.map(([column]) => column) }),
+        head: (name) => ValueTableHead({ name, columns: columns.map(([label, , column]) => ({ label, column })) }),
     };
 };
 
@@ -858,6 +863,7 @@ export const PickRow = ({
         const shown = picks.field(id, setting);
         return Cell(
             title,
+            "steps",
             StepPicker({
                 name: `${label} ${title.toLowerCase()}`,
                 steps: options,
@@ -886,6 +892,7 @@ export const PickRow = ({
                 ...values.map(({ name: column, text, quiet = false, cap = null }) =>
                     Cell(
                         column,
+                        "number",
                         span(
                             { class: quiet ? "automation-value automation-value--quiet" : "automation-value" },
                             cap ? CappedValue({ value: text, cap }) : text
@@ -901,8 +908,8 @@ export const PickRow = ({
                     ariaLabel: `${label} ${stopAtTitle.toLowerCase()}`,
                     placeholder: "No limit",
                 }),
-                save ? Cell("Save for it", switchLabel(saveBox)) : null,
-                Cell("On", switchLabel(checkbox))
+                save ? Cell("Save for it", "switch", switchLabel(saveBox)) : null,
+                Cell("On", "switch", switchLabel(checkbox))
             ),
         ],
     });

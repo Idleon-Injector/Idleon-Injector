@@ -19,7 +19,7 @@ const { div, button, span, h3, p } = van.tags;
 /** One world as a row of the contents: its name opens it, its systems stand in a grid beside it. */
 const WorldEntry = (world) =>
     div(
-        { class: `home-world ${world.systems.length ? "" : "is-unmoved"}` },
+        { class: `home-world ${worldClass(world)} ${world.systems.length ? "" : "is-unmoved"}` },
         button(
             { type: "button", class: "home-world__title", onclick: () => store.openMenu({ world: world.id }) },
             span(

@@ -216,7 +216,7 @@ function SushiGeneralTab() {
                         body: [
                             ValueTableHead({
                                 name: "Sushi",
-                                columns: KNOWLEDGE_FIELDS.map((field) => field.label),
+                                columns: KNOWLEDGE_FIELDS,
                             }),
                             knowledgeListNode,
                         ],

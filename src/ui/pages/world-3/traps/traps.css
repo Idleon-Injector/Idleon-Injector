@@ -34,3 +34,8 @@
         justify-self: start;
     }
 }
+
+/* A finish's failure line takes room only while it says something, so the fields sit in the head's columns. */
+.viewport .traps-list .account-row__controls > .said--empty {
+    display: none;
+}

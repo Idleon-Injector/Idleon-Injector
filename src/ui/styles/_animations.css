@@ -33,6 +33,17 @@
     }
 }
 
+/* A page coming in: it fades, nothing slides (Lumi, 2026-11-27). */
+@keyframes pageIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
 @keyframes scaleIn {
     from {
         transform: scale(0.95);
@@ -123,6 +134,11 @@
 
     [data-refused] {
         animation: refusal-pulse 760ms steps(1, end);
+    }
+
+    .tab-pane.active,
+    .world-sub-pane.active {
+        animation: none;
     }
 }
 

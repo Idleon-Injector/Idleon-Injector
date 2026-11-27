@@ -445,7 +445,7 @@ const PickLine = ({ name, label = name, steps, state, write, said, onFailed = nu
                 { class: "value-cells" },
                 div(
                     {
-                        class: `value-cell value-cell--steps outpost-pick__cell${extra ? " outpost-pick__cell--short" : ""}`,
+                        class: `value-cell value-cell--steps column--steps outpost-pick__cell${extra ? " outpost-pick__cell--short" : ""}`,
                     },
                     span({ class: "outpost-pick__locked", hidden: () => !locked?.() }, () => locked?.() ?? ""),
                     div(
@@ -638,7 +638,7 @@ const OutpostsTab = ({ pending, reload }) => {
                 controls: div(
                     { class: "value-cells" },
                     div(
-                        { class: "value-cell value-cell--steps outpost-pick__cell outpost-add" },
+                        { class: "value-cell value-cell--steps column--steps outpost-pick__cell outpost-add" },
                         ...UNIT_KINDS.map((kind) =>
                             ActionButton({
                                 label: kind.label,

@@ -596,7 +596,7 @@ const PalettePart = ({ pending }) => {
     return {
         content: div(
             { class: "gaming-palette" },
-            ValueTableHead({ name: "Colour", columns: PALETTE_FIELDS.map((field) => field.label) }),
+            ValueTableHead({ name: "Colour", columns: PALETTE_FIELDS }),
             listNode
         ),
         load: async () => {

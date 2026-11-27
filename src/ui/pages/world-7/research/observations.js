@@ -147,7 +147,10 @@ const ObservationsTab = () => {
                 setAll: { word: (n) => (n === 1 ? "observation" : "observations") },
                 body: [
                     // The last column is the Unlocked switch's.
-                    ValueTableHead({ name: "Observation", columns: [...FIELDS.map((field) => field.label), ""] }),
+                    ValueTableHead({
+                        name: "Observation",
+                        columns: [...FIELDS.map((field) => field.label), { label: "", column: "switch" }],
+                    }),
                     listNode,
                 ],
                 empty: () => (named.val ? null : "No named observations found"),

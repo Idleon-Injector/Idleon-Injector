@@ -1654,42 +1654,58 @@
     }
 }
 
-/* The header: the system's drawing on its tile, the title that leads, the amount beside it, the words under. */
+/* The header: the system's drawing on its tile in its world's colour, the title that leads, the amount beside it, the
+   words under; one rule under the whole top parts it from the page's content. */
 .viewport .account-header {
     max-width: var(--page-measure);
     box-sizing: border-box;
     border: 0;
+    border-bottom: 1px solid var(--c-border);
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
-    gap: 16px;
-    padding: 36px 0 6px;
+    gap: 18px;
+    margin-bottom: 20px;
+    padding: 40px 0 22px;
 }
 .account-tab-header__icon {
+    position: relative;
     display: flex;
     flex: none;
     align-items: center;
     justify-content: center;
     align-self: flex-start;
-    width: 48px;
-    height: 48px;
-    margin-top: 2px;
-    border: 1px solid var(--c-border);
-    border-radius: 14px;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 16px;
     background: var(--c-void-soft);
-    color: var(--c-accent);
+    box-shadow:
+        inset 0 0 0 1px var(--c-border),
+        var(--shadow-panel);
+    color: var(--world-color, var(--c-accent));
+}
+/* The world's colour, very low, washing the tile: where you are, said once and calmly. */
+.account-tab-header__icon::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--world-color, var(--c-accent));
+    opacity: 0.09;
 }
 .account-tab-header__icon svg {
-    width: 26px;
-    height: 26px;
+    position: relative;
+    width: 28px;
+    height: 28px;
 }
 .viewport .account-tab-header__title {
     margin: 0;
     font-family: var(--font-display);
     font-size: var(--size-title);
     font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: -0.015em !important;
+    line-height: 1.05;
+    letter-spacing: -0.028em !important;
     color: #ffffff;
 }
 .viewport .account-tab-header__line {
@@ -1698,6 +1714,7 @@
 .viewport .amount-left {
     font-size: 0.9375rem;
     font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--c-text-muted);
 }
 .viewport .amount-left__value {
@@ -1712,20 +1729,20 @@
     color: var(--c-danger);
 }
 .viewport .account-tab-header__desc {
-    margin: 6px 0 0;
-    margin-top: 4px;
+    margin: 8px 0 0;
     font-size: 0.9375rem;
-    line-height: 1.45;
+    font-weight: 400;
+    line-height: 1.5;
     color: var(--c-text-muted);
 }
 .viewport .account-tab-header > .account-header__actions,
 .viewport .account-header__actions {
     flex-wrap: nowrap;
     white-space: nowrap;
-    align-self: flex-start;
+    align-self: center;
     align-items: center;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: 0;
 }
 .viewport .account-list {
     gap: 0;
@@ -1903,20 +1920,21 @@
 }
 @media (max-width: 760px) {
     .viewport .account-header {
-        padding-top: 22px;
         flex-wrap: wrap;
         gap: 12px;
+        margin-bottom: 16px;
+        padding: 22px 0 18px;
     }
 
     .account-tab-header__icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
+        width: 44px;
+        height: 44px;
+        border-radius: 13px;
     }
 
     .account-tab-header__icon svg {
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
     }
 
     /* The words keep 12rem: buttons that don't fit beside that move to the next line, so the title and description
@@ -1928,6 +1946,7 @@
 
     .viewport .account-tab-header > .account-header__actions,
     .viewport .account-header__actions {
+        align-self: flex-start;
         margin-top: 0;
     }
 
