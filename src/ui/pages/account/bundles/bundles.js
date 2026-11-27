@@ -30,8 +30,8 @@ const BUY_ALL_WARNING = "Free up inventory space first, or items may be lost.";
 const notReceived = (bundle) =>
     new Error(
         bundle.slots
-            ? `Not received. Needs ${bundle.slots} free inventory slot${bundle.slots === 1 ? "" : "s"}.`
-            : `Timed out confirming ownership of ${bundle.code}.`
+            ? `Needs ${bundle.slots} free inventory slot${bundle.slots === 1 ? "" : "s"}.`
+            : "Didn't arrive. Try again."
     );
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isOwned = (owned) => Number(owned) === 1;

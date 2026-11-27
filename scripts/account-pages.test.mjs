@@ -562,7 +562,7 @@ test("bundles: a pack the game didn't give says the free slots it needs, not a t
     globalThis.setTimeout = (fn, ms, ...args) => realTimeout(fn, ms >= 1000 ? 0 : ms, ...args); // the poll's waits
     try {
         await flip(row, true);
-        assert.equal(switchWords(row), "Not received. Needs 3 free inventory slots.");
+        assert.equal(switchWords(row), "Needs 3 free inventory slots.");
     } finally {
         globalThis.fetch = realFetch;
         globalThis.setTimeout = realTimeout;
