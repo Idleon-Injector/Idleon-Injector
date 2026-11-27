@@ -50,6 +50,11 @@ const createDeferred = () => {
 // a few seconds until the game shows it received), off marks it not received; its items stay. The switch's word says
 // "Buying" while a buy waits on the game and "Owned" once it has it. A single flip's failure is said on the switch; a
 // Buy all's on the row's line under the name, which the tray's line points to.
+// Packs the game lists but doesn't sell yet: no picture in its files, and buying gives nothing but the received mark.
+// ponytail: by hand (Robot Pack, game of 2026-11-21); read the missing picture instead once bundle pictures land.
+const NOT_OUT_YET = new Set(["bon_q"]);
+const notOutYet = (bundle, state) => NOT_OUT_YET.has(bundle.code) && !isOwned(state.owned.val);
+
 const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
     AccountRow({
         rowClass: "bundle-row",
@@ -62,10 +67,17 @@ const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
         ),
         controls: StateSwitch({
             checked: () => isOwned(state.owned.val),
-            words: () => (state.pending.val ? "Buying" : isOwned(state.owned.val) ? "Owned" : ""),
+            words: () =>
+                state.pending.val
+                    ? "Buying"
+                    : isOwned(state.owned.val)
+                      ? "Owned"
+                      : notOutYet(bundle, state)
+                        ? "Not out yet"
+                        : "",
             name: bundle.name,
             // Buy all buys the bundles it asked about; a flip meanwhile would race it.
-            disabled: () => buyAllStatus.val === "loading",
+            disabled: () => buyAllStatus.val === "loading" || notOutYet(bundle, state),
             ownStatus: true,
             onFlip: (on) => (on ? onBuy(bundle, state) : onUnbuy(bundle, state)),
         }),
@@ -97,7 +109,7 @@ const BundlesTab = () => {
 
     const isBuyable = (bundle) => {
         const state = getBundleState(bundle.code, bundle.owned);
-        return !isOwned(state.owned.val) && !state.pending.val;
+        return !isOwned(state.owned.val) && !state.pending.val && !notOutYet(bundle, state);
     };
     // Buy all and the counts cover the bundles the top bar's search shows (#28).
     const shownBundles = () => catalogState.val.filter((bundle) => shownBySearch(getBundleState(bundle.code).row));

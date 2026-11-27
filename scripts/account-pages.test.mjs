@@ -458,7 +458,7 @@ test("bundles: the read after a failure that answers after another bundle's Unbu
 
 test("bundles: Buy all ends when its ownership poll fails after another read showed a bundle owned", async () => {
     const root = await openPage(BUNDLES);
-    const count = buyable(root);
+    const count = buyable(root) - 1; // Robot Pack isn't out yet, so Buy all leaves it out
     const received = gga.BundlesReceived.h;
     const before = { ...received };
     const realFetch = globalThis.fetch;
@@ -492,7 +492,8 @@ test("bundles: Buy all ends when its ownership poll fails after another read sho
         await until(() => /Some bundles didn't arrive/.test(trayLine(root)), "Buy all to end and say why");
     } finally {
         globalThis.fetch = realFetch;
-        Object.assign(received, before);
+        // Every bundle back as it was, the ones this test bought first included.
+        for (const code of Object.keys(received)) received[code] = before[code] ?? 0;
     }
 });
 
@@ -519,6 +520,22 @@ test("bundles: a flip whose buy fails says why on its switch; Buy all says why o
     } finally {
         globalThis.fetch = realFetch;
     }
+});
+
+// Robot Pack (bon_q) isn't sold yet: the game has no picture for it and buying gives nothing.
+test("bundles: Robot Pack says Not out yet, can't be switched on, and Buy all leaves it out", async () => {
+    const root = await openPage(BUNDLES);
+    const robot = () => byClass(root, "bundle-row").find((row) => row.attributes["data-code"] === "bon_q");
+    await until(() => robot(), "the Robot Pack row");
+    assert.equal(isOn(robot()), false);
+    assert.equal(switchWords(robot()), "Not out yet");
+    const locked = switchOf(robot()).attributes.disabled;
+    assert.ok(typeof locked === "function" ? locked() : locked, "its switch is locked");
+
+    const notOwned = buyable(root);
+    pressBuyAll(root);
+    await until(() => /^Buy \d+ bundles?\?/.test(trayLine(root)), "Buy all to ask");
+    assert.equal(Number(/^Buy (\d+)/.exec(trayLine(root))[1]), notOwned - 1, "Buy all asks for every pack but Robot");
 });
 
 // #197: 33 packs need free inventory slots. Without them the game drops the pack: no items, and never received.
