@@ -109,7 +109,7 @@ export const Icons = {
             { "aria-hidden": "true", ...props }
         ),
 
-    // The brand and the game's own marks (Crown on Rat King, CardTier on Card Search) keep their drawings.
+    // The brand and the game's own marks (Crown on Rat King, CardTier on Cards) keep their drawings.
     GitHub: (props) =>
         SvgBase(
             path({
@@ -270,7 +270,7 @@ const SYSTEM_ICONS = {
         "M7 19v1.5M17 19v1.5",
     ],
     // A card in front of another, a gem on its face.
-    "Card Search": [
+    Cards: [
         "M9 7h8.5a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 1-1.5 1.5H9a1.5 1.5 0 0 1-1.5-1.5v-11A1.5 1.5 0 0 1 9 7z",
         "M5 17.5V5a1.5 1.5 0 0 1 1.5-1.5h8",
         "M13.25 11.2l2 2.8-2 2.8-2-2.8z",

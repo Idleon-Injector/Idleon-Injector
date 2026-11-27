@@ -7,7 +7,7 @@
  */
 
 export const PAGE_CHEATS = {
-    "account:Card Search": [
+    "account:Cards": [
         { cheat: "wide cardcopy", label: "Copy card preset to everyone" },
         { cheat: "wide cardpassive", label: "Every card counts as passive" },
     ],

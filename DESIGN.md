@@ -600,7 +600,7 @@ and Wardrobe and the three Clickers stay sidebar entries.
 - **A second way a page is split sits on the line under the title, like a character:** the Task Board's world ("World
   [World 1] Blunder Hills"), the Wardrobe's loadout. The game's screens stay the tabs (Tasks, Achievements, Merit Shop).
 - **A quiet fact sits under a row's name** (`RowTitles`' `note`): muted, the name's size, wrapping rather than cut off.
-  Card Search's "Next tier at 46", the Event Shop's "Reenter town to see the 12 new storage slots".
+  Cards' "Next tier at 46", the Event Shop's "Reenter town to see the 12 new storage slots".
 - **A number the list's Set all must not touch** (a character's money) sits in its own short panel above the list. Main
   level isn't a Set all line either: raising it gets you shadowbanned, said in amber under its name.
 - **A card's tier is a step picker beside its amount** (1 to 6; it sets the amount to that tier's least), "Tier 3" at
@@ -618,5 +618,5 @@ and Wardrobe and the three Clickers stay sidebar entries.
 - **A purchase keeps its button** (Bundles' Buy and Unbuy), "Owned" only when owned; Buy all asks in the tray, since a
   full inventory loses what a bundle gives.
 - **Account's six systems have drawings:** a head and shoulders for Player, a safe with its dial for the Upgrade Vault,
-  a card in front of another for Card Search, a gift box for Bundles, a board with two ticks for the Task Board and a
+  a card in front of another for Cards, a gift box for Bundles, a board with two ticks for the Task Board and a
   torn ticket for the Event Shop.

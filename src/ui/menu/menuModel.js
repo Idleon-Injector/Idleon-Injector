@@ -22,7 +22,7 @@ export const WORLDS = [
         systems: [
             "Player",
             "Upgrade Vault",
-            "Card Search",
+            "Cards",
             "Bundles",
             "Task Board",
             // IdleonToolbox's Clickers group: Orion, Poppy and Bubba as its tabs.

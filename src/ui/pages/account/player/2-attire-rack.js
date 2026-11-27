@@ -217,8 +217,8 @@ const AttireRackPage = () => {
             badge: () => (wornNow() === outfit.id ? "Worn" : ""),
             controls: StateSwitch({
                 checked: () => isChosen(outfit.id),
-                // The word shows only when on: "Off" would repeat down the list.
-                words: ["On", ""],
+                // No word: the switch alone says on or off (Lumi, as on the Cheats tab).
+                words: ["", ""],
                 name: `${outfit.name} bonus`,
                 disabled: () => loading.val,
                 ownStatus: true,

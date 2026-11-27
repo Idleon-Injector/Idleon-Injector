@@ -114,6 +114,11 @@
     color: var(--c-text-main);
 }
 
+/* Attire Rack's outfit switches have no words (Lumi), so "Worn" sits by the switch; a failure still gets its room. */
+.attire-outfit-row .state-switch__words:empty {
+    min-width: 0;
+}
+
 /* A failed save says why where the words were, in the danger colour, until the next flip. */
 .state-switch.is-failed .state-switch__words {
     max-width: 16em;

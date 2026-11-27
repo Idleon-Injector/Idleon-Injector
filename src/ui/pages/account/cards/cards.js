@@ -1,5 +1,5 @@
 /**
- * Account - Card Search
+ * Account - Cards
  *
  * Every card's amount (gga.Cards[0].h, by monster id), in the game's card regions (cList.CardStuff). A region is
  * picked on the list's head ("Region [Blunder Hills]", 13 of them, more than tabs hold); each card's line has its
@@ -159,7 +159,7 @@ const buildCardData = async (rawCards, rawCardStuff) => {
 };
 
 const CardsTab = () => {
-    const { loading, error, run: runLoad } = useAccountLoad({ label: "Card Search" });
+    const { loading, error, run: runLoad } = useAccountLoad({ label: "Cards" });
     const bulk = useWriteStatus();
     const amountStates = new Map();
     const parts = van.state([]);
@@ -205,7 +205,7 @@ const CardsTab = () => {
 
     return PersistentAccountListPage({
         rootClass: "tab-container scroll-container",
-        title: "Card Search",
+        title: "Cards",
         description: "Card amounts and tiers, by the game's card regions.",
         actions: RefreshButton({ onRefresh: load, disabled: () => loading.val || bulk.status.val === "loading" }),
         state: { loading, error },
@@ -263,8 +263,8 @@ const CardsTab = () => {
 export default definePage({
     id: "account.cards",
     world: "account",
-    system: "Card Search",
+    system: "Cards",
     description: "Card amounts and tiers, by card region.",
-    keywords: ["Cards", "Card tiers"],
+    keywords: ["Card Search", "Card tiers"],
     component: CardsTab,
 });

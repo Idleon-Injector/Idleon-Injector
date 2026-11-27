@@ -152,7 +152,7 @@ test("task board: Refresh shows the game's new progress, and the target follows 
     assert.equal(note(), "77,777 of 1,000");
 });
 
-const CARDS = "src/ui/pages/account/card-search/cards.js";
+const CARDS = "src/ui/pages/account/cards/cards.js";
 const press = (node) => node.listeners.click({ preventDefault() {}, currentTarget: node });
 const cardWrites = () => requests.filter((entry) => /write/.test(entry)).length;
 const refuseWrites = (object, key) => {
