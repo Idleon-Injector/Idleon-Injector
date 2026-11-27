@@ -538,6 +538,43 @@ test("bundles: Robot Pack says Not out yet, can't be switched on, and Buy all le
     assert.equal(Number(/^Buy (\d+)/.exec(trayLine(root))[1]), notOwned - 1, "Buy all asks for every pack but Robot");
 });
 
+// A pack's picture comes from the player's running game, the name small under it; the fake game has none.
+const pictureOf = (row) => elements(row).find((node) => node.nodeName === "img");
+const bundleRow = (root, code) => byClass(root, "bundle-row").find((row) => row.attributes["data-code"] === code);
+
+test("bundles: without pictures from the game every row shows just its name, as before", async () => {
+    const root = await openPage(BUNDLES);
+    const rows = byClass(root, "bundle-row");
+    assert.equal(rows.filter(pictureOf).length, 0, "no row asks for a picture");
+    assert.equal(text(byClass(bundleRow(root, "bun_a"), "account-row__name")[0]), "Lava Supporter Pack");
+});
+
+test("bundles: a pack the game has a picture of shows it above its name; one that doesn't load leaves the name", async () => {
+    const catalog = game.page.getBundleCatalog;
+    // The real game's catalog: every pack's picture is loaded, but Robot Pack's, which the game hasn't got.
+    game.page.getBundleCatalog = () => catalog().map((bundle) => ({ ...bundle, picture: !bundle.notOutYet }));
+    try {
+        const root = await openPage(BUNDLES);
+        const lava = bundleRow(root, "bun_a");
+        const picture = pictureOf(lava);
+        assert.ok(picture, "the Lava Supporter Pack row has its picture");
+        assert.equal(picture.attributes.src, "/api/game/bundle-picture?code=bun_a");
+        assert.equal(picture.attributes.alt, "", "the name says it, so the picture stays quiet for screen readers");
+        const group = byClass(lava, "account-row__name-group")[0];
+        const [first, name] = group.childNodes.filter((node) => node?.nodeType === 1);
+        assert.equal(first, picture, "the picture comes first");
+        assert.equal(text(name), "Lava Supporter Pack", "the name sits under it");
+        assert.equal(pictureOf(bundleRow(root, "bon_q")), undefined, "Robot Pack has no picture to ask for");
+        assert.equal(switchWords(bundleRow(root, "bon_q")), "Not out yet");
+
+        picture.onerror(); // the game closed, or wouldn't hand it over: a 404
+        assert.equal(picture.hidden, true);
+        assert.equal(text(name), "Lava Supporter Pack");
+    } finally {
+        game.page.getBundleCatalog = catalog;
+    }
+});
+
 // #197: 33 packs need free inventory slots. Without them the game drops the pack: no items, and never received.
 test("bundles: a buy is refused without the free inventory slots the game needs", async () => {
     const { firebase } = await importRepo("src/cheats/core/globals.js");

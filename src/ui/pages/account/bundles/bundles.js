@@ -1,6 +1,6 @@
 import van from "../../../vendor/van-1.6.0.js";
 import { definePage } from "../../../menu/menuModel.js";
-import { executeCheatAction, fetchBundleCatalog } from "../../../services/api.js";
+import { bundlePictureUrl, executeCheatAction, fetchBundleCatalog } from "../../../services/api.js";
 import { isSearching, shownBySearch } from "../../../menu/pageSearch.js";
 import { useAccountLoad } from "../../../components/views/account/accountLoadPolicy.js";
 import { AccountRow } from "../../../components/views/account/components/AccountRow.js";
@@ -19,7 +19,7 @@ import {
 import { saveFailureReason } from "../../../components/views/account/autoSave.js";
 import { Said, useSaid } from "../../../components/inPlace.js";
 
-const { div, span } = van.tags;
+const { div, img, span } = van.tags;
 
 const BUNDLES_RECEIVED_PATH = "BundlesReceived.h";
 const BUY_POLL_INTERVAL_MS = 1000;
@@ -46,14 +46,30 @@ const createDeferred = () => {
     return { promise, resolve, reject };
 };
 
-// A bundle: its name and a switch, like every has-or-hasn't list (Lumi, 2026-11-27). On buys it (the game's cheat, then
-// a few seconds until the game shows it received), off marks it not received; its items stay. The switch's word says
-// "Buying" while a buy waits on the game and "Owned" once it has it. A single flip's failure is said on the switch; a
-// Buy all's on the row's line under the name, which the tray's line points to.
-// Packs the game lists but doesn't sell yet: no picture in its files, and buying gives nothing but the received mark.
-// ponytail: by hand (Robot Pack, game of 2026-11-21); read the missing picture instead once bundle pictures land.
-const NOT_OUT_YET = new Set(["bon_q"]);
-const notOutYet = (bundle, state) => NOT_OUT_YET.has(bundle.code) && !isOwned(state.owned.val);
+// A bundle: its picture and name, and a switch like every has-or-hasn't list (Lumi, 2026-11-27). On buys it (the game's
+// cheat, then a few seconds until the game shows it received), off marks it not received; its items stay. The switch's
+// word says "Buying" while a buy waits on the game and "Owned" once it has it. A single flip's failure is said on the
+// switch; a Buy all's on the row's line under the name, which the tray's line points to.
+// A pack the game lists but doesn't sell yet (the catalog's `notOutYet`: no picture in its files) can't be bought.
+const notOutYet = (bundle, state) => bundle.notOutYet && !isOwned(state.owned.val);
+
+// The pack's picture from the running game, the gem shop's banner, with its name small underneath (Lumi, 2026-11-27).
+// One that doesn't load goes away and leaves the name as it was. The name stays for search and screen readers.
+const BundlePicture = (code) => {
+    // Most banners are 711x130: the size holds the row's room until the picture comes.
+    const picture = img({
+        class: "bundle-picture",
+        src: bundlePictureUrl(code),
+        alt: "",
+        loading: "lazy",
+        width: 711,
+        height: 130,
+    });
+    // Shown at half the game's size, so a narrower banner stays narrower (bundles.css).
+    picture.onload = () => picture.style.setProperty("--bundle-picture-w", `${picture.naturalWidth / 2}px`);
+    picture.onerror = () => (picture.hidden = true);
+    return picture;
+};
 
 const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
     AccountRow({
@@ -62,6 +78,7 @@ const BundleRow = ({ bundle, state, buyAllStatus, onBuy, onUnbuy }) =>
         rowProps: { "data-change-label": bundle.name, "data-code": bundle.code },
         info: div(
             { class: "account-row__name-group" },
+            bundle.picture ? BundlePicture(bundle.code) : null,
             span({ class: "account-row__name" }, bundle.name),
             Said({ said: state.said.said, className: "said--line bundle-row__said", kinds: ["failed"] })
         ),
@@ -177,7 +194,7 @@ const BundlesTab = () => {
             if (bundle.owned === 1) state.pending.val = false;
         }
 
-        reconcileRows(catalogCache.map((bundle) => `${bundle.code}:${bundle.name}`).join("|"), () =>
+        reconcileRows(catalogCache.map((bundle) => `${bundle.code}:${bundle.name}:${bundle.picture}`).join("|"), () =>
             catalogCache.map((bundle) => {
                 const state = getBundleState(bundle.code, bundle.owned);
                 state.row = BundleRow({ bundle, state, buyAllStatus, onBuy: buyBundle, onUnbuy: unbuyBundle });

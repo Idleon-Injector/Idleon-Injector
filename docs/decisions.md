@@ -440,7 +440,9 @@ Source: [Wardrobe planner](../src/cheats/helpers/wardrobe/planner.js).
 Decision: a pet's picture is read from the game's own sprite in the page (`getPetPicture`) and handed to the menu by
 the server: frame 0 as a PNG for the card, its idle frames as one strip for the hover. Nothing is written to disk, and
 no game picture goes into the repo, CI, the page shots or a PR. Without a picture (no game, the fake game, the game's
-monsters not loaded yet at character select, an unreadable canvas) a pet shows its name as before.
+monsters not loaded yet at character select, an unreadable canvas) a pet shows its name as before. A gem shop pack's
+picture, its shop banner, comes the same way from the images the game loads at start (`getBundlePicture`); a pack the
+game's files have no picture for isn't sold yet, which the Bundles page reads instead of a list kept by hand.
 
 Why: the art belongs to the game. Taking it from the game on the player's PC means the injector ships none of it.
 
@@ -450,7 +452,8 @@ Trade-off: no pictures without a running game, and none at character select, sin
 stalls the game for about a second. The server asks the game for one picture a frame, so a long list fills in over a
 second or two instead of stalling the game (all 177 at once does, for about 0.2 s).
 
-Source: [game side](../src/cheats/helpers/petPictures.js), [routes](../src/modules/server/routes/game.js).
+Source: [game side](../src/cheats/helpers/petPictures.js), [packs](../src/cheats/helpers/bundles.js),
+[routes](../src/modules/server/routes/game.js).
 
 ## Give automation its own menu section
 

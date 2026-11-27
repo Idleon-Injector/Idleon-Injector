@@ -52,6 +52,12 @@ export async function createFakeGame(fixture = fakeGameData()) {
                 getCurrentSceneName: () => context["com.stencyl.Engine"].engine.scene.name,
             },
             "scripts.CustomMapsREAL": { GemPopupBundleMessages: () => ({ h: fixture.bundleMessages ?? {} }) },
+            // The game's files have a picture for every pack but Robot Pack (game of 2026-11-21), which isn't sold yet.
+            // None is loaded, so the fake game hands out no pictures: CI and the page shots never hold one.
+            "lime.utils.Assets": {
+                exists: (path) => path !== "assets/data/bon_q.png",
+                getLibrary: () => ({ cachedImages: { h: {} } }),
+            },
             // The pets the account owns, as the game's server copy lists them ("id,x,y,z,plus").
             FirebaseStorage: { getCompanionInfoMe: () => structuredClone(fixture.companions ?? []) },
         },

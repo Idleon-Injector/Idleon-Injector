@@ -36,15 +36,13 @@ const PICTURE_GAP_MS = 16;
 let pictureTurn = Promise.resolve();
 
 /**
- * A pet's picture from the running game (see getPetPicture), or null: no game, no picture, or a bad id.
+ * A picture from the running game, through one of its picture helpers, or null: no game, no picture.
  * Pictures only ever come from the game on the player's PC; nothing is written to disk.
  */
-function readPetPicture(gameBridge, req, idle) {
-    const id = Number(new URL(req.url, "http://localhost").searchParams.get("id"));
-    if (!Number.isInteger(id) || id < 0) return Promise.resolve(null);
+function readGamePicture(gameBridge, helper, args) {
     const read = pictureTurn.then(async () => {
         try {
-            const result = await gameBridge.callHelper("getPetPicture", [id, idle]);
+            const result = await gameBridge.callHelper(helper, args);
             return result.error ? null : (result.value ?? null);
         } catch {
             return null; // the game closed
@@ -54,15 +52,33 @@ function readPetPicture(gameBridge, req, idle) {
     return read;
 }
 
+const queryOf = (req, name) => new URL(req.url, "http://localhost").searchParams.get(name);
+
+/** A pet's picture (see getPetPicture), or null: no game, no picture, or a bad id. */
+function readPetPicture(gameBridge, req, idle) {
+    const id = Number(queryOf(req, "id"));
+    if (!Number.isInteger(id) || id < 0) return Promise.resolve(null);
+    return readGamePicture(gameBridge, "getPetPicture", [id, idle]);
+}
+
+/** A PNG data URL as an image for <img>; 404 without one, and the menu shows the name instead. */
+function sendPicture(res, dataUrl) {
+    if (!dataUrl) return res.status(404).json({ error: "No picture" });
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.end(Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64"));
+}
+
 function setupGameRoutes(app, gameBridge) {
     // Frame 0 as a PNG for <img>. The menu falls back to the pet's name on a 404.
     app.get("/api/game/pet-picture", async (req, res) => {
-        const picture = await readPetPicture(gameBridge, req, false);
-        if (!picture) return res.status(404).json({ error: "No picture" });
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "image/png");
-        res.setHeader("Cache-Control", "private, max-age=3600");
-        res.end(Buffer.from(picture.png.slice(picture.png.indexOf(",") + 1), "base64"));
+        sendPicture(res, (await readPetPicture(gameBridge, req, false))?.png);
+    });
+
+    // A pack's picture (see getBundlePicture) by its code, bundle-picture?code=bun_a; the game refuses unknown codes.
+    app.get("/api/game/bundle-picture", async (req, res) => {
+        sendPicture(res, await readGamePicture(gameBridge, "getBundlePicture", [queryOf(req, "code")]));
     });
 
     // The idle frames in one strip, for the hover animation; null without a game or picture. The menu also asks it

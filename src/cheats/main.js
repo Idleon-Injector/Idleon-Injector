@@ -38,7 +38,7 @@ import {
 } from "./api/stateAccessors.js";
 import { getAutoCompleteSuggestions } from "./api/suggestions.js";
 import { searchGga, getGgaKeys } from "./api/search.js";
-import { getBundleCatalog } from "./helpers/bundles.js";
+import { getBundleCatalog, getBundlePicture } from "./helpers/bundles.js";
 import { getPetPicture } from "./helpers/petPictures.js";
 import { monitor } from "./core/valueMonitor.js";
 import { getHookFailures, installEarlyHooks } from "./core/hooks.js";
@@ -88,6 +88,7 @@ window.readCheatConfig = readCheatConfig;
 window.getAutoCompleteSuggestions = getAutoCompleteSuggestions;
 window.cheatStateList = getcheatStateList;
 window.getBundleCatalog = getBundleCatalog;
+window.getBundlePicture = getBundlePicture;
 window.getPetPicture = getPetPicture;
 window.getHookFailures = getHookFailures;
 window.getAutomations = getAutomations;

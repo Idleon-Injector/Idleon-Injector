@@ -61,6 +61,9 @@ export function freeInventorySlots() {
     return free;
 }
 
+// Where the game keeps a pack's picture (the gem shop's banner) in its files.
+const picturePath = (code) => `assets/data/${code}.png`;
+
 const getBundleMessages = () => {
     return gameContext["scripts.CustomMapsREAL"].GemPopupBundleMessages().h || {};
 };
@@ -92,17 +95,52 @@ export function getAllBundles() {
  * Ownership is intentionally read-only here: buying is handled by the existing
  * game/Firebase cheat flow.
  *
- * @returns {Array<{ code: string, name: string, owned: 0 | 1, slots: number }>} `slots`: see bundleSlots
+ * `picture`: the game has the pack's picture loaded, so getBundlePicture can hand it over. `notOutYet`: the game's
+ * files have no picture for the pack (Robot Pack, game of 2026-11-21): the game lists it but doesn't sell it yet, and
+ * buying it gives nothing but the received mark.
+ *
+ * @returns {Array<{ code: string, name: string, owned: 0 | 1, slots: number, picture: boolean, notOutYet: boolean }>}
+ *   `slots`: see bundleSlots
  */
 export function getBundleCatalog() {
     const bundlesReceived = gga.BundlesReceived.h;
+    const assets = gameContext["lime.utils.Assets"];
+    const loaded = assets.getLibrary("default").cachedImages.h;
 
     return knownBundles.map(([name, code]) => ({
         code,
         name,
         owned: Number(bundlesReceived[code]) === 1 ? 1 : 0,
         slots: bundleSlots[code] ?? 0,
+        picture: Boolean(loaded[picturePath(code)]),
+        notOutYet: !assets.exists(picturePath(code)),
     }));
+}
+
+/**
+ * A pack's picture, read from the running game: the gem shop's banner for it (711x130 for most), as a PNG data URL.
+ * Nothing is saved: the server hands it to the menu. The game loads every pack's banner with its other pictures at
+ * start (checked 2026-11-27, character select and in play), so nothing has to open the gem shop.
+ * Null for a code that isn't a known pack, a pack without a loaded picture, or an image the browser won't read back.
+ * About 8 ms a picture (they're big), so the server hands them out one at a time.
+ *
+ * @param {string} code - a pack's code, `bun_a`
+ * @returns {string | null}
+ */
+export function getBundlePicture(code) {
+    if (!knownBundles.some(([, known]) => known === code)) return null;
+    const image = gameContext["lime.utils.Assets"].getLibrary("default").cachedImages.h[picturePath(code)];
+    if (!image) return null;
+    try {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        canvas.getContext("2d").drawImage(image.buffer.__srcCanvas ?? image.buffer.__srcImage, 0, 0);
+        return canvas.toDataURL("image/png");
+    } catch {
+        // A disposed or tainted image (Steam's file:// page, if it ever taints one) shows the name instead.
+        return null;
+    }
 }
 
 /**
