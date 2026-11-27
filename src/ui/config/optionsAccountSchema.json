@@ -846,7 +846,7 @@
     },
     "139": {
         "name": "Pirate Flag Kills",
-        "description": "Kills counted by the Siege Breaker's Pirate Flag. Boosts Archlord of the Pirates.",
+        "description": "Plunderous Kills: how many Plunderous mobs you have killed (Siege Breaker). The Archlord of the Pirates talent (talent 328, not Account Options [328]) shows and uses this count, and The True Pirate achievement wants 1 million.",
         "type": "number",
         "verified": true
     },
