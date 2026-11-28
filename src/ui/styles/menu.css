@@ -712,7 +712,7 @@
     vertical-align: top;
     break-inside: avoid;
     border-radius: var(--radius-group);
-    background: var(--c-void-soft);
+    background: var(--world-card, var(--c-void-soft));
     box-shadow: var(--shadow-panel);
 }
 /* The card's edge: the hairline for Account and Classes, a world's own colour, low, for a world. */
@@ -823,39 +823,36 @@
     transform: none;
 }
 
-/* The systems: an index of lines set into the card (the tray's ground, as the tiles were, so their names keep today's
-   contrast), in as many columns as the card holds, a hairline between lines. The first line's hairline sits outside the
-   well and is cut off. */
+/* The systems: an index of lines set into the card, on the world's own darker ground (the tray's lightness, tinted),
+   in as many columns as the card holds. No lines between them: spacing alone splits the rows. */
 .world-card__systems {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(9.25rem, 1fr));
-    column-gap: 16px;
+    gap: 2px 4px;
     margin: 0 8px 8px;
-    padding: 0 10px;
-    overflow: hidden;
+    padding: 6px;
     border-radius: 10px;
-    background: var(--c-tray);
+    background: var(--world-ground, var(--c-tray));
 }
 .world-card__system {
-    position: relative;
-    isolation: isolate;
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
-    height: 40px;
-    margin-top: -1px;
-    padding: 0;
+    height: 36px;
+    padding: 0 8px 0 10px;
     border: 0;
-    border-top: 1px solid var(--c-hairline);
-    background: none;
+    border-radius: 8px;
+    background: transparent;
     font-family: var(--font-display);
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--c-text-main);
     text-align: left;
     cursor: pointer;
-    transition: color var(--dur-hover) var(--ease-soft);
+    transition:
+        color var(--dur-hover) var(--ease-soft),
+        background-color var(--dur-hover) var(--ease-soft);
 }
 .world-card__system-name {
     min-width: 0;
@@ -863,17 +860,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 }
-/* Pointed at: the line washes in its world's colour, a little past its words, and an arrow comes in. */
-.world-card__system::before {
-    content: "";
-    position: absolute;
-    inset: 4px -7px 3px;
-    z-index: -1;
-    border-radius: 8px;
-    background: var(--world-color, var(--c-accent));
-    opacity: 0;
-    transition: opacity var(--dur-hover) var(--ease-soft);
-}
+/* Pointed at: the row takes a soft solid fill of its world, and an arrow comes in. */
 .world-card__arrow {
     flex: none;
     width: 16px;
@@ -888,9 +875,7 @@
 }
 .world-card__system:hover {
     color: #ffffff;
-}
-.world-card__system:hover::before {
-    opacity: 0.12;
+    background: var(--world-fill, var(--c-panel-hover));
 }
 .world-card__system:hover .world-card__arrow,
 .world-card__system:focus-visible .world-card__arrow {
@@ -923,7 +908,6 @@
     }
     .world-card__systems {
         grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-        column-gap: 12px;
     }
 }
 
