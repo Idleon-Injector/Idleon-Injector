@@ -49,7 +49,7 @@ test("a search that only slots match shows the best three, then one line for the
 
 test("a slot opens the page searched for that slot alone", () => {
     const [first] = searchMenu(options, "quick tap");
-    assert.deepEqual(first.target, { view: "ACCOUNT_OPTIONS", query: "#1 Storage Chest - Quick Tap" });
+    assert.deepEqual(first.target, { view: "ACCOUNT_OPTIONS", query: "#1 Storage Chest - Quick Tap", slot: 1 });
     assert.deepEqual(rowsMatching(first.target.query.toLowerCase()), ["1"], "the page's search leaves one row");
     assert.equal(first.description, SCHEMA[1].description, "what it does, under its name");
 });
@@ -85,7 +85,10 @@ const find = (node, match) => (match(node) ? [node] : (node.childNodes ?? []).fl
 const text = (node) => (typeof node === "string" ? node : (node.data ?? (node.childNodes ?? []).map(text).join("")));
 const bar = MenuSearch();
 const field = find(bar, (node) => node.nodeName === "input")[0];
-field.focus = field.blur = field.setSelectionRange = () => {};
+let blurs = 0;
+field.focus = field.setSelectionRange = () => {};
+field.blur = () => blurs++;
+const { pickedSlot } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
 const key = async (name) => {
     field.listeners.keydown({ key: name, preventDefault() {}, stopPropagation() {} });
     await settle();
@@ -116,9 +119,12 @@ test("the bar shows the slots in an Account Options group; the keys walk to them
     await key("ArrowDown");
     assert.equal(picked(), rows[0], "and wrap to the top");
 
+    blurs = 0;
     await key("Enter");
     await settle();
     assert.equal(store.app.activeTab, "account-options-tab", "Account Options opens");
+    assert.equal(blurs, 0, "a pick from the keyboard keeps focus in the field");
+    assert.equal(pickedSlot.val, 1, "the picked slot shows even with Hide AI guesses on");
     assert.equal(field.attributes.value, "#1 Storage Chest - Quick Tap", "with This page searched for the slot");
     assert.equal(find(bar, (node) => node.attributes?.role === "option").length, 0, "the results close");
 });
@@ -130,4 +136,31 @@ test("picking a slot while Account Options is open searches it there", async () 
     await settle();
     assert.equal(store.app.activeTab, "account-options-tab");
     assert.match(field.attributes.value, /^#\d+ Talent Points/, "the first slot that matches, searched on the page");
+});
+
+test("with Hide AI guesses on, the page keeps a guessed slot the search picked, until the switch is flipped", async () => {
+    // The values the page shows (its own read fails here: the fake server has only the cheat routes).
+    store.data.accountOptions = Array.from({ length: 50 }, (_, i) => i);
+    const { AccountOptionsTab } = await importRepo("src/ui/components/views/account/AccountOptionsTab.js");
+    const root = AccountOptionsTab();
+    await settle();
+    const slots = () =>
+        find(root, (node) => node.attributes?.["data-index"] !== undefined).map((row) => row.attributes["data-index"]);
+    const hide = find(root, (node) => node.nodeName === "input" && node.attributes?.type === "checkbox")[0];
+    const flip = async (checked) => {
+        hide.listeners.change({ target: { checked } });
+        await settle();
+    };
+    assert.ok(SCHEMA[40].AI, "slot 40 is a guess");
+    pickedSlot.val = 40;
+    await flip(true);
+    assert.equal(
+        slots().length,
+        49,
+        "flipping the switch hides every guess (40 is the only one here), the picked one too"
+    );
+    assert.ok(!slots().includes(40));
+    pickedSlot.val = 40;
+    await settle();
+    assert.ok(slots().includes(40), "a guess the search picks while the switch is on shows");
 });

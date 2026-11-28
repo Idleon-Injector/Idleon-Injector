@@ -541,7 +541,7 @@ export const optionSearchEntries = (schema) =>
             command: "",
             description: note,
             text: pageWords([label, note, slot.warning ?? ""].join(" ")),
-            target: { view: "ACCOUNT_OPTIONS", query: label },
+            target: { view: "ACCOUNT_OPTIONS", query: label, slot: Number(index) },
         };
     });
 

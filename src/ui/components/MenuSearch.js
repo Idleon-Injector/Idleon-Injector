@@ -25,6 +25,7 @@ import { configDescriptions } from "../config/configDescriptions.js";
 import { Said, plainReason, useSaid } from "./inPlace.js";
 import { StepPicker } from "./views/account/components/StepPicker.js";
 import { pageNow, worldNow } from "./views/Pages.js";
+import { pickedSlot } from "./views/account/AccountOptionsTab.js";
 
 const { div, input, span, button, kbd } = van.tags;
 
@@ -156,9 +157,12 @@ export const MenuSearch = () => {
     const go = (result, byKeyboard = false) => {
         if (result.kind === "Command") return startCommand(result.target);
         // A slot: Account Options with "This page" searching for it (or, for "12 more", for the typed words).
+        // From the keyboard, focus stays in the field, which now searches the page for it.
         if (result.kind === "Option") {
             close();
-            field.blur();
+            if (!byKeyboard) field.blur();
+            // A picked slot shows even when Hide AI guesses would hide it.
+            pickedSlot.val = result.target.slot ?? null;
             if (openPage.val?.id === "account-options") {
                 mode.val = "page";
                 query.val = result.target.query;

@@ -20,6 +20,9 @@ import { optionNote as noteOf } from "../../../menu/menuModel.js";
 
 const { div, input, label, span } = van.tags;
 
+/** The slot the menu's search last opened this page for: it shows even with Hide AI guesses on, until that is flipped. */
+export const pickedSlot = van.state(null);
+
 // A slot the list doesn't name yet.
 const UNKNOWN = "Unknown option";
 
@@ -195,7 +198,7 @@ export const AccountOptionsTab = () => {
             const rawValue = data[index];
             const optionSchema = schema[index];
 
-            if (hideAI.val && optionSchema?.AI) continue;
+            if (hideAI.val && optionSchema?.AI && index !== pickedSlot.val) continue;
 
             visibleRows.push(getOptionRow(index, rawValue, optionSchema).node);
             visibleIndexes.push(index);
@@ -226,7 +229,10 @@ export const AccountOptionsTab = () => {
                 input({
                     type: "checkbox",
                     checked: hideAI,
-                    onchange: (e) => (hideAI.val = e.target.checked),
+                    onchange: (e) => {
+                        pickedSlot.val = null;
+                        hideAI.val = e.target.checked;
+                    },
                 }),
                 span({ class: "slider" }),
                 span({ class: "label" }, "Hide AI guesses")
