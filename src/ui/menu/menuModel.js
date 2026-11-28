@@ -513,7 +513,41 @@ export const commandHint = (command) => {
     return "";
 };
 
+/** An Account Options slot's quiet note: what it does, an unchecked guess said as one, an unnamed slot as not mapped. */
+export const optionNote = (schema) =>
+    schema ? (schema.AI ? `Unchecked AI guess. ${schema.description ?? ""}` : schema.description) : "Not mapped yet.";
+
+// The top bar's "This page" words for a row: lower case, runs of spaces and underscores as one space (pageSearch.js).
+const pageWords = (text) =>
+    text
+        .toLowerCase()
+        .replace(/[_\s]+/g, " ")
+        .trim();
+
+/**
+ * Search entries for Account Options' slots, from the slot list the page names them by (optionsAccountSchema.json,
+ * index: { name, description, warning?, AI? }); the game isn't read. Each opens the page searched for its slot alone.
+ * `text` is the slot's row as the page's own search reads it, so a hit here is a row the page shows for the same words.
+ */
+export const optionSearchEntries = (schema) =>
+    Object.entries(schema ?? {}).map(([index, slot]) => {
+        const label = `#${index} ${slot.name}`;
+        const note = optionNote(slot) ?? "";
+        return {
+            kind: "Option",
+            group: Number(index),
+            label,
+            where: "Option · Account Options",
+            command: "",
+            description: note,
+            text: pageWords([label, note, slot.warning ?? ""].join(" ")),
+            target: { view: "ACCOUNT_OPTIONS", query: label },
+        };
+    });
+
 const MAX_RESULTS = 8;
+// Account Options' slots shown at most, then one line for the rest, so 700 slots never push pages and cheats out.
+const MAX_OPTIONS = 3;
 
 const scoreText = (text, q) => {
     const t = text.toLowerCase();
@@ -554,7 +588,7 @@ const scoreCheat = (entry, q) => {
 
 // Tiers: menu places; cheats and settings matched by name, then commands; then the same matched only by
 // description, so a name with every typed word ("multiply damage") beats a description that has them. Best first.
-const TIER = { Cheat: 100, Setting: 100, Command: 0 };
+const TIER = { Cheat: 100, Setting: 100, Option: 100, Command: 0 };
 const NAME_MATCH = 45; // the lowest name score (50, less 5 for the plural fold); descriptions score 20 at most
 const BY_NAME = 200;
 
@@ -569,6 +603,13 @@ export const searchMenu = (entries, query) => {
     if (!q) return [];
     const hits = [];
     for (const entry of entries) {
+        // A slot is found exactly when its row on the page would be (its index, name, note or warning), by name first.
+        if (entry.kind === "Option") {
+            if (!entry.text.includes(pageWords(q))) continue;
+            const name = scoreText(entry.label, q);
+            hits.push({ ...entry, matched: null, score: TIER.Option + (name >= NAME_MATCH ? BY_NAME + name : 10) });
+            continue;
+        }
         if (entry.kind) {
             const { score, matched } = scoreCheat(entry, q);
             const byName = score >= NAME_MATCH ? BY_NAME : 0;
@@ -593,10 +634,26 @@ export const searchMenu = (entries, query) => {
         if (score > 0) hits.push({ ...entry, matched, score: BY_NAME + 200 + score });
     }
     // Of two with the same score a page comes before a tab on another page (Automation's Overview, Menagerie's).
-    return hits
-        .sort(
-            (a, b) =>
-                b.score - a.score || (a.group ?? 0) - (b.group ?? 0) || Boolean(a.target?.tab) - Boolean(b.target?.tab)
-        )
-        .slice(0, MAX_RESULTS);
+    const byRank = (a, b) =>
+        b.score - a.score || (a.group ?? 0) - (b.group ?? 0) || Boolean(a.target?.tab) - Boolean(b.target?.tab);
+    hits.sort(byRank);
+    const options = hits.filter((hit) => hit.kind === "Option");
+    if (!options.length) return hits.slice(0, MAX_RESULTS);
+    // The best few slots, then "12 more in Account Options", which opens the page searched for the same words.
+    const shown = options.slice(0, MAX_OPTIONS);
+    const rest = options.length - shown.length;
+    if (rest)
+        shown.push({
+            kind: "Option",
+            more: rest,
+            group: Infinity,
+            label: `${rest} more in Account Options`,
+            where: "Option · Account Options",
+            command: "",
+            description: "",
+            target: { view: "ACCOUNT_OPTIONS", query: query.trim() },
+            score: shown[shown.length - 1].score,
+        });
+    const others = hits.filter((hit) => hit.kind !== "Option").slice(0, MAX_RESULTS - shown.length);
+    return [...others, ...shown].sort(byRank);
 };

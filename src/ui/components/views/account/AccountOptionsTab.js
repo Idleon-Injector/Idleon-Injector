@@ -15,14 +15,13 @@ import { SaveState, saveStateClass, useAutoSave } from "./autoSave.js";
 import { PersistentAccountListPage } from "./components/PersistentAccountListPage.js";
 import { StateSwitch } from "./components/StateSwitch.js";
 import { ListPanel } from "./tabShared.js";
+// The note the menu's search finds a slot by too.
+import { optionNote as noteOf } from "../../../menu/menuModel.js";
 
 const { div, input, label, span } = van.tags;
 
 // A slot the list doesn't name yet.
 const UNKNOWN = "Unknown option";
-// An entry the list's mappers guessed and nobody checked in the game yet (`AI` in the schema).
-const noteOf = (schema) =>
-    schema ? (schema.AI ? `Unchecked AI guess. ${schema.description ?? ""}` : schema.description) : "Not mapped yet.";
 
 const getOptionType = (rawValue, schema) => schema?.type ?? typeof rawValue;
 
