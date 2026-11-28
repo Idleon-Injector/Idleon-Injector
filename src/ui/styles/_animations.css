@@ -136,8 +136,8 @@
         animation: refusal-pulse 760ms steps(1, end);
     }
 
-    .tab-pane.active,
-    .world-sub-pane.active {
+    /* .world-sub-pane's is in _world-tabs.css, which loads after this file. */
+    .tab-pane.active {
         animation: none;
     }
 }

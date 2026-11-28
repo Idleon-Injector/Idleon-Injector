@@ -107,8 +107,11 @@ const UpgradeVaultTab = () => {
     const upgradeWord = (n) => `vault upgrade${n === 1 ? "" : "s"}`;
 
     // Max all only raises (and brings a level above its max down to it), so it runs on one press.
+    // Not while the vault is read again: the max a bonus moved shows only after that read.
+    const unread = () => loading.val || Boolean(error.val);
     const doMaxAll = () =>
         runMaxAll(async () => {
+            if (unread()) return { cancelled: true };
             await runBulkSet({
                 entries: shown(),
                 getTargetValue: (upgrade) => getRealMaxState(upgrade.index).val,
@@ -139,7 +142,7 @@ const UpgradeVaultTab = () => {
                         ActionButton({
                             label: "Max all",
                             status: maxAllStatus,
-                            disabled: () => !shown().length || shown().every(atMax),
+                            disabled: () => unread() || !shown().length || shown().every(atMax),
                             onClick: (e) => {
                                 e.preventDefault();
                                 void doMaxAll();

@@ -15,12 +15,20 @@ const DESCRIPTION_LIMIT = 4096; // Discord's limit for an embed description
 function sections(body) {
     const found = {};
     let current = null;
+    let prose = false;
     for (const line of (body || "").split(/\r?\n/)) {
         const heading = line.match(/^#{1,6}\s+(.+?)\s*$/)?.[1] ?? line.match(/^<summary>(.+)<\/summary>$/)?.[1];
         if (heading) current = found[heading] = [];
+        else if (line.trim() === "</details>") current = null;
         else if (current && /^[-*]\s+/.test(line)) current.push(line.replace(/^[-*]\s+/, ""));
+        // Anything else under a heading but the generator's own lines (its folded block, its thanks) is prose.
+        else if (current && line.trim() && !/^<\/?\w+>$/.test(line.trim()) && !/^Thanks to .+\.$/.test(line))
+            prose = true;
     }
-    return ["New", "Improved", "Fixed", UNDER_THE_HOOD].some((h) => h in found) ? found : null;
+    // Generated notes give each of their headings at least one line and nothing else; a heading over prose ("## New"
+    // and a paragraph, with bullets or without) is notes written by hand, posted whole.
+    const known = ["New", "Improved", "Fixed", UNDER_THE_HOOD].filter((h) => h in found);
+    return !prose && known.length && known.every((h) => found[h].length) ? found : null;
 }
 
 const count = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");

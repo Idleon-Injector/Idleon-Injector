@@ -29,6 +29,8 @@ test("a click opens the list and keeps it past the pointer leaving", async () =>
 });
 
 test("a click elsewhere closes it; a click on the button doesn't", async () => {
+    // Opened here too, so the test also runs alone (--test-name-pattern).
+    if (keys.attributes["aria-expanded"] !== "true") keys.listeners.click();
     pageListeners.pointerdown({ target: keys });
     assert.ok(await shown());
     pageListeners.pointerdown({ target: elsewhere });

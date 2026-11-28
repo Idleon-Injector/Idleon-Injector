@@ -186,3 +186,25 @@ test("a long Discord post still fits Discord's limit", () => {
     assert.equal(post.description.length, 4096);
     assert.ok(post.description.endsWith(`[Read the full notes](${LINK})`));
 });
+
+// CodeRabbit on #317: notes written by hand under a heading the generator uses are posted whole, not as a lone link.
+test("hand-written notes under a New heading are posted whole", () => {
+    const body = "## New\n\nThe 3.0 release: every page in the new look.";
+    const post = releaseMessage({ tagName: "3.0.0", url: LINK, body }).embeds[0];
+    assert.equal(post.description, "**New**\n\nThe 3.0 release: every page in the new look.");
+});
+
+// CodeRabbit on #325: prose beside a bullet keeps the notes hand-written; the generator's thanks line doesn't.
+test("hand-written notes with a bullet and a paragraph are posted whole; generated notes with thanks are summed up", () => {
+    const body = "## New\n\n- First change\n\nMore details.";
+    assert.equal(
+        releaseMessage({ tagName: "3.0.0", url: LINK, body }).embeds[0].description,
+        "**New**\n\n- First change\n\nMore details."
+    );
+    const { notes } = releaseNotes({ prs: [pr(1, "Pets: x.", "fixed", "VoidKitten")] });
+    assert.match(notes, /Thanks to/);
+    assert.equal(
+        releaseMessage({ tagName: "3.0.1", url: LINK, body: notes }).embeds[0].description,
+        `1 fix.\n\n[Full notes on GitHub](${LINK})`
+    );
+});

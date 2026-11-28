@@ -128,16 +128,19 @@ const TrophyTab = () => {
         });
 
     // Every change starts from the slots the game holds now, so nothing it filled since the page read them is written
-    // over; after any outcome the page shows what the game holds.
+    // over; after any outcome the page shows what the game holds. A read after that fails shows the slots the task's
+    // verified writes left (`now`, which the task keeps up to date).
     const change = (task) =>
         inTurn(async () => {
+            let now = null;
             try {
-                return (await task(normalizeSlotValues(await gga(TROPHY_SLOTS_PATH)))) ?? { ok: true };
+                now = normalizeSlotValues(await gga(TROPHY_SLOTS_PATH));
+                return (await task(now)) ?? { ok: true };
             } finally {
                 try {
                     applySlots(await gga(TROPHY_SLOTS_PATH));
                 } catch {
-                    // ponytail: the picture stays as it was; the next change reads the game again before it writes.
+                    if (now) applySlots(now);
                 }
             }
         });
@@ -163,6 +166,7 @@ const TrophyTab = () => {
             const slot = now.indexOf(trophy.value);
             if (slot < 0) return { cancelled: true };
             await writeVerified(`${TROPHY_SLOTS_PATH}[${slot}]`, EMPTY);
+            now[slot] = EMPTY;
             return { ok: true };
         });
 

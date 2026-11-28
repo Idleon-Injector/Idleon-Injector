@@ -117,7 +117,13 @@ const ClamTab = () => {
                         inputMode: field.float ? "float" : "int",
                         inputProps: { "aria-label": field.name },
                         // A line of the list's Set all, saved where it lives.
-                        setAll: { min: 0, path: field.path },
+                        // A whole-number field takes only whole numbers from Set all too.
+                        setAll: {
+                            min: 0,
+                            path: field.path,
+                            refuse: (value) =>
+                                field.float || Number.isSafeInteger(value) ? null : "whole numbers only",
+                        },
                     })
                 )
             );

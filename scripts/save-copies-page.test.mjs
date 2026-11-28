@@ -13,6 +13,19 @@ import { importRepo, loadUi } from "./known-bugs/index.mjs";
 import { createFakeApi } from "./page-shots/fake-api.mjs";
 import { fakeGameData } from "./page-shots/fake-game-data.mjs";
 
+// The clock reads noon today (and runs on from there), so the copies made 12 minutes ago are today's whenever the test
+// runs: just after midnight they would be yesterday's, in a group that starts folded (CodeRabbit on #318).
+const RealDate = Date;
+const offset = new RealDate().setHours(12, 0, 0, 0) - RealDate.now();
+globalThis.Date = class extends RealDate {
+    constructor(...args) {
+        super(...(args.length ? args : [RealDate.now() + offset]));
+    }
+    static now() {
+        return RealDate.now() + offset;
+    }
+};
+
 const require = createRequire(import.meta.url);
 const { writeCopy } = require("../src/modules/saveCopies");
 
@@ -225,4 +238,33 @@ test("without gems bought since, a copy's GemsOwned is restorable", async () => 
     assert.equal(gems.restorable, true);
     assert.equal(gems.gemsBought, false);
     assert.ok(gemsId);
+});
+
+// CodeRabbit on #318: what changed is asked for 25 copies at a time; when one batch fails, the next opening asks for it
+// and every batch after it, so no copy stays without its line. Last: it adds many copies to today's group.
+test("a failed ask for what changed is asked again on the next opening, for every copy it left", async () => {
+    for (let i = 0; i < 60; i++) await writeCopy(dir, copyTime - (i + 3) * 1000, JSON.stringify(copy));
+    const realFetch = globalThis.fetch;
+    let failed = false;
+    globalThis.fetch = async (url, options) => {
+        if (!failed && String(url).includes("/save-copies/since")) {
+            failed = true;
+            return new Response(JSON.stringify({ error: "busy" }), { status: 500 });
+        }
+        return realFetch(url, options);
+    };
+    try {
+        const root = await openPage();
+        const today = byClass(root, "save-copies__day")[0];
+        const toggle = byClass(today, "save-copies__day-toggle")[0];
+        await until(() => failed, "the first ask to fail");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await toggle.listeners.click({});
+        await toggle.listeners.click({});
+        const rows = byClass(today, "save-copy");
+        assert.ok(rows.length > 50);
+        await until(() => rows.every((row) => what(row) !== ""), "every copy to say what changed");
+    } finally {
+        globalThis.fetch = realFetch;
+    }
 });
