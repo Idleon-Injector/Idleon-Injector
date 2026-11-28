@@ -56,18 +56,25 @@
     margin-right: auto;
 }
 
-.statue-head .statue-cells > .statue-head__label {
+.statue-head .statue-cells > .statue-head__label:not(.column--field) {
     padding-left: 12px;
 }
 
 /* Deposited is progress toward the next level, so it reads a step quieter than the level: one main number a row. */
-.viewport .statue-cell--quiet .number-input-wrapper input {
-    font-size: 0.875rem;
+.viewport .statue-cell--quiet .number-input-wrapper input,
+.viewport.viewport
+    .tabbed-list__body
+    .account-row
+    .account-row__controls
+    .statue-cell--quiet
+    .number-input-wrapper
+    input {
+    font-size: 0.9375rem;
     font-weight: 500;
     color: var(--c-text-muted);
 }
 
-/* The head: quiet column names, held at the top of the list while it scrolls. */
+/* The head: quiet column names on the table head's band, held at the top of the list while it scrolls. */
 .viewport .tabbed-list .statue-head,
 .viewport .tabbed-list .statue-head:hover {
     position: sticky;
@@ -75,14 +82,20 @@
     z-index: 3;
     min-height: 40px;
     border-width: 0 0 1px;
-    background: var(--c-void-soft);
+    background: var(--c-tray);
 }
 
 .statue-head__label {
     font-family: var(--font-display);
-    font-size: 0.8125rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     color: var(--c-text-muted);
+}
+
+/* The picked tier at rest: its own colour, a step bolder than the numbers beside it. */
+.viewport .statue-cells .step-picker__step.is-picked {
+    font-weight: 700;
 }
 
 .statue-head__flair {

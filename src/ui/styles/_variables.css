@@ -13,7 +13,9 @@
 
     /* -- SURFACES -- */
     /* The page, then one step up for a group of rows (and the search, a panel); a value rests in its well. */
-    --c-void: #0d0c18; /* page */
+    --c-void: #08070e; /* page: deep, so panels stand off it without any fill made lighter */
+    --c-tray: #0d0c18; /* the tray, the open tab, a table's head, a board, a picker: set into a panel */
+    --c-row-alt: #121122; /* every other row of a list, a step under the panel */
     --c-void-soft: #161526; /* a group of rows */
     --c-panel: #161526; /* row, card */
     --c-panel-hover: #211e38; /* row hover */
@@ -152,6 +154,11 @@
     --c-control-thumb: #cbc7e6;
     --c-scrollbar-thumb: #2e2b4d;
     --c-border-faint: var(--c-white-05);
+    /* One soft drop under a panel, the search bar and the header's tile: depth without a lighter fill. */
+    --shadow-panel: 0 1px 0 rgba(0, 0, 0, 0.5), 0 14px 32px -14px rgba(0, 0, 0, 0.9);
+    /* A tool or step picker: a faint lit top edge, a short drop. */
+    --shadow-tool: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+    --field-steppers: 54px; /* the − / + at a field's end: a field's number centres in the room before them */
     --c-cogs-selected-ring: var(--c-accent);
 
     /* -- DIMENSIONS & FONTS -- */
@@ -164,7 +171,7 @@
     --radius-group: 14px;
 
     /* -- TYPE SIZES & THE PAGE -- */
-    --size-title: 1.875rem;
+    --size-title: 2.5rem;
     --size-heading: 0.9375rem;
     --size-name: 0.9375rem;
     --size-body: 0.9375rem;
@@ -178,11 +185,12 @@
     --ease-tech: cubic-bezier(0.2, 0.6, 0.3, 1);
     --ease-slide: cubic-bezier(0.2, 0.7, 0.2, 1); /* the sidebar's lists */
     --ease-soft: cubic-bezier(0.32, 0.72, 0.28, 1); /* hovers, presses, the open tab's glide */
+    --dur-hover: 180ms; /* a row, tile or entry easing into its hover */
 }
 
 @media (max-width: 760px) {
     :root {
         --page-pad: 14px;
-        --size-title: 1.625rem;
+        --size-title: 1.875rem;
     }
 }

@@ -80,7 +80,7 @@ const StatueRow = ({ index, nameState, bonus, levelState, depositedState, tierSt
     const cell = (key, label, extra = {}) => ({
         key,
         label,
-        rootClass: "statue-cell",
+        rootClass: "statue-cell column--field",
         labelClass: "statue-cell__label",
         ...extra,
         inputProps: { "aria-label": `${name} ${label.toLowerCase()}`, ...(extra.inputProps ?? {}) },
@@ -160,7 +160,7 @@ const StatueRow = ({ index, nameState, bonus, levelState, depositedState, tierSt
                 StackedNumberField({
                     field: cell("deposited", "Deposited", {
                         formatted: true,
-                        rootClass: "statue-cell statue-cell--quiet",
+                        rootClass: "statue-cell statue-cell--quiet column--field",
                     }),
                     draftStates,
                     getDraftValue,
@@ -169,7 +169,7 @@ const StatueRow = ({ index, nameState, bonus, levelState, depositedState, tierSt
                 }),
                 // A tier saves on the press, like − / +.
                 div(
-                    { class: "statue-cell" },
+                    { class: "statue-cell column--steps" },
                     span({ class: "statue-cell__label" }, "Tier"),
                     StepPicker({
                         name: `${name} tier`,
@@ -297,9 +297,10 @@ const StatuesTab = () => {
             { class: "account-row__controls" },
             div(
                 { class: "statue-cells" },
-                span({ class: "statue-head__label" }, "Level"),
-                span({ class: "statue-head__label" }, "Deposited"),
-                span({ class: "statue-head__label" }, "Tier"),
+                span({ class: "statue-head__label column--field" }, "Level"),
+                span({ class: "statue-head__label column--field" }, "Deposited"),
+                span({ class: "statue-head__label column--steps" }, "Tier"),
+                // Flair's name stays at the left: its unlock switch fills the rest of the head (Lumi, 2026-11-27).
                 div({ class: "statue-head__label statue-head__flair" }, span("Flair"), flairSwitch)
             )
         )

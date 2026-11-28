@@ -3,7 +3,10 @@
 /* Grid: the game's board, centred in the panel; where it doesn't fit (a phone) it scrolls inside its own box. */
 .research-grid-board-wrap {
     overflow-x: auto;
-    padding: 16px 12px;
+    margin: 8px;
+    padding: 22px 16px;
+    border-radius: 12px;
+    background: var(--c-tray);
 }
 
 .research-grid-board {

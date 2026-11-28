@@ -124,13 +124,26 @@ rests on a surface one step up, edged by a hairline. Colour stays only where it 
 warning), on/off and where you are (the lavender accent), the world codes, and names that identify a thing (tiers,
 cauldrons, liquids, brews, signs).
 
-- **Surfaces:** page `#0d0c18`, sidebar `#121120`, a group of rows (and the search, a panel) `#161526`, row hover
-  `#211e38`, a value's well `#211f3a`, edge `#252340`, strong edge `#36325a`, the hairline between rows `#252340`.
+- **Surfaces:** page `#08070e`, sidebar `#121120`, a group of rows (and the search, a panel) `#161526`, every other
+  row `#121122`, row hover `#211e38`, a value's well `#211f3a`, edge `#252340`, strong edge `#36325a`, the hairline
+  `#252340`. Set into a panel, a step above the page: the tray, the open tab, a table's head, a board, a picker's list
+  and a world's tile on Home (`#0d0c18`, `--c-tray`).
+- **Depth without lighter fills** (Lumi, 2026-11-27: "nothing ever harder to read than today"): the page sits deep, a
+  panel, the top search bar and the header's tile get one soft drop (`--shadow-panel`), a tool or step picker a faint
+  lit top edge (`--shadow-tool`). No surface a word sits on is made lighter, so no text loses contrast; no glow, no
+  gradients.
 - **Text:** main `#f3f1ff`, row names `#e3e0f6`, muted `#aaa6c8`, faint `#9a96bc` (indices, a field's cap), the
   sidebar's words `#b4b0d0`. Each meets WCAG AA on every surface it sits on.
 - **Accent:** lavender `#b0a7ff`, for where you are, what is on and the focus ring; a switch that is on is `#7d72ee`.
 - **Trouble:** failed `#ff8a80` (soft text `#ff9d94`), warning `#ffc24d`. Saved is a quiet tick in the muted colour.
 - **Type:** Fira Sans for everything a player reads; Rajdhani only where it is a mark (the logo and the codes, W1, HOM).
+  One exception, Lumi's pick (2026-11-27): a cheat's command under its name (`godlike reach`, on the Cheats page and a
+  system's cheats panel) is in the code font (`--font-mono`), small and muted, the voice the search gives commands.
+- **Type steps:** a page title 40px bold and tight (30px on a phone); a group's or panel's name and a tab 15px; a row's
+  bonus 16px semibold, the name under it 13px regular; a value 17px medium in same-width lining digits; labels (a
+  table's column names, the tray's line, the search's group names) 12px semibold, a little spaced.
+- **Motion:** a row, tile or entry eases into its hover (180ms); a page fades in when opened, with no slide; both stop
+  for a player who asks for less motion.
 - **No decorative tints:** no tinted cards or boxes behind tiers, cauldrons or values; the tier keeps only its word's
   colour.
 
@@ -231,8 +244,14 @@ game's.
 - **Search results** drop over the page like the character picker's names (the panel, its hairline, the menu's
   shadow), in quiet groups, pages first: Pages, then Cheats, Settings and Commands in the order their best result
   ranked. Each result is a name with a small muted line under it, in Fira Sans: a cheat by its command and what it
-  does, a setting by what it does with its cheat and key under it. The picked row (pointer or arrow keys) takes the
-  sidebar's where-you-are fill; focus stays in the field, so no box and no ring.
+  does, a setting by what it does with its cheat and key under it. Each group's name sits on a band like a table's
+  head. The picked row (pointer or arrow keys) takes the sidebar's where-you-are fill and its faint edge; focus stays in
+  the field, so no ring.
+- **Where you are in the sidebar** takes the panels' material: its fill, a faint edge and the soft drop (a sub-entry
+  stays plain words). The sidebar is otherwise as it was.
+- **Home** keeps its calm grid (Lumi, 2026-11-24): each world's code in a small tile edged faintly in its colour, its
+  name a step bigger, and its systems as tiles set into the panel (the tray's ground) that wash with the world's colour
+  when pointed at.
 - **The icon rail** (the folded sidebar and the narrow overlay) is one column on Home's centre line: 32 px entries 2 px
   apart, full-width hairlines with 10 px on each side, and at the bottom expand as one more entry under the same
   hairline. The status shows there only when something is wrong. A world's code rests in a calmer tone of its colour
@@ -250,7 +269,9 @@ switches, picking the first option each time.
 - **The top:** the title and its description on the left, the page's buttons on the right of the same row. When the
   buttons don't fit beside 26rem of description (12rem on a phone), they move to the line under it, still on the right, so the description
   never becomes a thin column. Search and filters go on the line under the title (`toolbar` on the page wrapper);
-  inner tabs stay above the title. One thin rule runs under the whole top.
+  inner tabs stay above the title. One thin rule runs under the whole top. The system's drawing sits on a 56px tile
+  (44px on a phone) in its world's colour, over a very low wash of that colour; the page's buttons sit on the title's
+  middle.
 - **Values show once.** A number lives in its field, and so does its cap: the field reads `2 / 15`, with `/ 15` muted
   and a step smaller after the value. The cap is never part of the typed text; Enter or leaving the field saves only
   the number, and a typed value over the cap is refused beside the field (`max 15`). A row with a cap but no field shows
@@ -285,20 +306,21 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
 - **Parts are tabs on the page,** not entries in the sidebar and not one long page of stacked sections. The sidebar
   lists only the page.
 - **The open tab** is a block with 10 px top corners in the colour of what it opens, running straight down into it with
-  curved feet: no pill, no bubble, no coloured line. Its word is lavender (where you are); the other tabs are plain
-  muted words, 16 px. The first tab stands flush on the tray's left edge. On a phone the tabs share the row in a step
+  curved feet: no pill, no bubble, no coloured line. Its word is lavender and semibold (where you are); the other tabs
+  are plain muted words, 15 px. The open tab and the tray share one ground, so they read as one shape. The first tab stands flush on the tray's left edge. On a phone the tabs share the row in a step
   smaller type (14 px), so five short names fit without scrolling sideways.
 - **Switching** glides the block to the new tab and lets the new list fade in with a small rise; both are off when the
   player asks for less motion. A page comes back on the tab it was left on; a newly opened tab starts at its top. Left,
   Right, Home and End move between the tabs, and Tab goes from the open tab into its list.
 - **Only the list scrolls,** inside its panel, with a slim bar inside the panel's edge. The title, the tabs and the
   tools stay where they are. A window too short for the panel scrolls the page instead, so nothing is cut off.
-- **Tools for the open tab** (Set all, Exalt all) sit in a tray under the tabs: a darker strip set into the panel (the
-  page's own ground), joined to the open tab. Its first line says what the tools act on: "All 30 combat stamps". While
+- **Tools for the open tab** (Set all, Exalt all) sit in a tray under the tabs: a toolbar set into the panel (the
+  tray's ground, a step above the page), joined to the open tab. Its first line is a label strip, small spaced words
+  over a hairline, saying what the tools act on: "All 30 combat stamps". While
   the top bar searches the page, the tools act only on the rows it shows, and the line says so: "3 matching combat
   stamps" (a page keeps each entry's row and asks `shownBySearch(row)`; `isSearching()` picks the words). Each
-  tool is one joined shape with 10 px corners and hairline dividers (a level field with its Set all; Exalt all |
-  Unexalt all), never pills, so tools never look like tabs. A field's label is its placeholder ("Level"), and the field
+  tool is one segmented shape with 10 px corners and a faint lit top edge, its parts cut apart by the tray's own
+  ground (a level field with its Set all; Exalt all | Unexalt all), never pills, so tools never look like tabs. A field's label is its placeholder ("Level"), and the field
   shows no ring or fill while it's typed in.
 - **Asking before a risky change** (lowering, taking away) happens in the tray, never with "Click again" or a popup. The
   tray's first line becomes the question ("Lower 30 combat stamps to level 47?") and the tools give way to the answer:
@@ -316,13 +338,23 @@ its rows and its tools, instead of writing its own tabs, tools or CSS.
 - **Undo all** comes up at the free right end of the tray's line, never over a control (`data-undo-at-end`). When the
   tools wrap (a phone) and that line is full, it goes to the end of the tray's first line, then of another line of
   tools; only with no room anywhere does it take its old place.
-- **Row buttons** (Relock, Max, Reset) are soft filled shapes in the field's colour with no outline; one that lowers or
-  removes turns red only under the pointer. No hover popup explains a button.
+- **Rows** are rounded lines inset in the panel, every other one a step deeper, with no hairline between them, so the
+  eye holds a line from the bonus to the row's buttons. The row under the pointer fills and its bonus goes white. The
+  index ("#0") is small and quiet.
+- **Row buttons** (Relock, Max, Reset) are soft filled shapes in the field's colour with no outline, a weight lighter
+  than the bonus; one that lowers or removes turns red only under the pointer. No hover popup explains a button.
 - **A switch shows its word only when on** where the off word would repeat down the list: "Exalted", never "Not
   exalted". The switch keeps its name for screen readers.
 - **Value fields** hold seven digits (9,999,999) at full size; a longer value scrolls inside its field. One width for
   every row keeps the values in one column. On a phone a field shares its line with the switch and grows into what's
   left.
+- **A value you can change reads as a number** (Lumi, 2026-11-27): medium weight, same-width lining digits, in the
+  middle of its field's line, the room before its − / +. At rest a faint line under it says "you can type here"; the
+  box and − / + replace the line when the row is touched, and the number doesn't move. A capped value ("40 / 600")
+  centres with its cap as one unit (`NumberInput` sets `--chars`, the shown text's length). A number you can't change
+  has no line and no box.
+- **A cheat's fixed sign** ("÷ 4" on a cheat's setting) is part of its value: the value's size, muted, right against
+  the number, no box.
 - **Without tools,** the tab row is the darker ground and the open tab runs down into the rows instead.
 
 For pages that move to this look, it replaces "Click again" (Buttons), sections as headings over a rule, and switch
@@ -345,8 +377,15 @@ words that keep one width (Page layout).
   and a step picker shows only its pick (a tier as its coloured word). The row under the pointer, or with focus in it,
   shows the controls in place; nothing moves. Touch screens always show them. A step picker too wide for a narrow row
   (Sigils' six tiers) folds into lines of three, like the tray's tier tool, and always shows, with a mouse too.
-- **Every value starts where its column's name starts** (12px into the column), quiet or touched, so a column reads
-  straight down. A capped value keeps its cap right after it ("1 / 4").
+- **Numbers sit in the middle of their column, under a centred name** (Lumi, 2026-11-27). A field's number (with its
+  cap, "1 / 4", as one unit) is centred on its line and stays there when the box and − / + show. A read-only number is
+  centred in its cell. The column's name is centred over those numbers (Statues: Level, Deposited; Cooking: Level, Next
+  level, Stop at level). A name column (Statue, Kitchen), a pick (Tier) and a switch column (Save for it, On) keep their
+  name and words at the left, 12px in. Flair stays left too, because its head also holds the unlock switch and a centred
+  name would run into it. Each column says its kind in the code (`columnKind`: a `ValueTableHead` column as a string is
+  a field, `{ label, column: "number" | "steps" | "switch" }` otherwise, or a ValueTableRow field with `steps`), so the
+  head and the cells agree.
+- **A table's head** is a band in the tray's ground with small spaced labels and a hairline under it.
 - **One main number a row:** a value that only supports another (Deposited, progress toward the next level) is a step
   smaller and muted.
 - **− and +** are a close pair at the field's end, with room before its edge.

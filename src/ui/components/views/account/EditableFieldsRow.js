@@ -104,6 +104,12 @@ export const EditableFieldsRow = ({
 /**
  * The head of a table in a list: the thing's column name, then each value's ("Liquid", "Amount", "Cap", "Rate"). It
  * stays at the top of the list while it scrolls; on a phone, where each line folds, the fields say their names instead.
+ *
+ * A column's kind (`columnKind`) decides where its name sits: over a column of fields ("field", a name as a string) or
+ * of read-only numbers ("number") the name is centred over the numbers; over a pick ("steps") or a switch ("switch") it
+ * stays at the left. A column can be given as a ValueTableRow field: one with `steps` is a pick.
+ *
+ * @param {{name: *, columns: (string|{label: string, column?: string, steps?: *[]})[]}} opts
  */
 export const ValueTableHead = ({ name, columns }) =>
     div(
@@ -111,9 +117,21 @@ export const ValueTableHead = ({ name, columns }) =>
         div({ class: "account-row__info" }, span({ class: "value-head__label" }, name)),
         div(
             { class: "account-row__controls" },
-            div({ class: "value-cells" }, ...columns.map((column) => span({ class: "value-head__label" }, column)))
+            div(
+                { class: "value-cells" },
+                ...columns.map((column) =>
+                    span(
+                        { class: `value-head__label column--${columnKind(column)}` },
+                        typeof column === "string" ? column : column.label
+                    )
+                )
+            )
         )
     );
+
+/** A table column's kind: "field" (a typed number, the default), "number" (read-only), "steps" or "switch". */
+export const columnKind = (column) =>
+    typeof column === "string" ? "field" : (column.column ?? (column.steps ? "steps" : "field"));
 
 /**
  * One thing on one line of a table (a liquid: Amount, Cap, Rate), its values in the head's columns. A value saves on
@@ -225,7 +243,7 @@ export const ValueTableRow = ({
                         : field.steps
                           ? // A pick saves on the press, like − / +.
                             div(
-                                { class: "value-cell value-cell--steps" },
+                                { class: "value-cell value-cell--steps column--steps" },
                                 span({ class: "value-cell__label" }, field.label),
                                 StepPicker({
                                     name: `${name} ${field.label.toLowerCase()}`,
@@ -238,7 +256,9 @@ export const ValueTableRow = ({
                                 field: {
                                     key: field.key,
                                     label: field.label,
-                                    rootClass: field.quiet ? "value-cell value-cell--quiet" : "value-cell",
+                                    rootClass: field.quiet
+                                        ? "value-cell value-cell--quiet column--field"
+                                        : "value-cell column--field",
                                     labelClass: "value-cell__label",
                                     formatted: field.formatted,
                                     // + leaves a value the game holds above the cap; − takes one off it.
