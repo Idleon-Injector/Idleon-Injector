@@ -493,7 +493,17 @@ test("a player who switches characters as Apply writes the food stacks is told t
     gga.EquipmentQuantity[2][0] = 25000;
 });
 
-// CodeRabbit on #328: the gear landed, so the loadout matches what's worn; the next Equip still sets the food stacks.
+// The next stats update (`wide wardrobestats`) fails once, as a game that doesn't answer.
+const failNextStats = () => {
+    const toggle = router.routes.POST.get("/api/toggle");
+    router.routes.POST.set("/api/toggle", async (req, res) => {
+        router.routes.POST.set("/api/toggle", toggle);
+        return res.status(500).json({ error: "The game didn't answer" });
+    });
+};
+
+// CodeRabbit on #328: the gear landed, so the loadout matches what's worn; the next Equip still sets the food stacks,
+// whether the food save or the stats update before it failed.
 test("an Equip whose food stacks weren't set finishes them on the next Equip, though the gear matches now", async () => {
     await settle();
     const name = elements(page).find((node) => node.attributes["aria-label"] === "Loadout name");
@@ -502,35 +512,49 @@ test("an Equip whose food stacks weren't set finishes them on the next Equip, th
     await until(() => /Added Worn/.test(text(page)), "Worn to be saved");
     await settle();
     const [worn] = (await wardrobeConfig()).loadouts;
-    const actions = (await fetchChanges()).actions.length;
-    try {
-        gga.EquipmentOrder[0][0] = "Blank";
-        pick(page, worn.id);
-        await until(() => trayLine(page) === "Worn changes 1 slot on Lumi_Main", "the plan for the helmet");
-        const switched = switchAtNextWrite(1);
-        const apply = button(page, "Apply");
-        await click(apply);
-        await click(apply);
-        await until(() => /Worn landed on Lumi_Main, but its food stacks weren't set/.test(text(page)), "the stop");
-        await previewReadSince(await switched, "the page to read the game again");
-        assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1", "the helmet landed");
-        assert.equal(gga.EquipmentQuantity[2][1], 800, "no food stack set");
-
-        const since = requests.length;
-        await click(button(page, "Apply"));
-        await until(() => /Equipped Worn on Lumi_Main\./.test(text(page)), "the food step to finish");
-        assert.equal(gga.EquipmentQuantity[2][1], 1500);
-        assert.equal(after(since, "write").length, 1, "only the food stacks are written");
-        await settle();
-        await click(button(page, "Apply"));
-        await until(() => /Lumi_Main already wears Worn\. Nothing changed\./.test(text(page)), "nothing left to do");
-    } finally {
+    const undoSince = async (count) => {
         const all = (await fetchChanges()).actions;
-        for (const { id } of all.slice(0, all.length - actions)) {
+        for (const { id } of all.slice(0, all.length - count)) {
             const reads = previewReads;
             await undoAction(id);
             await previewReadSince(reads, "the page to read the game after the undo");
         }
+    };
+    try {
+        for (const [step, fail, said] of [
+            ["food save", () => switchAtNextWrite(1), /Worn landed on Lumi_Main, but its food stacks weren't set/],
+            ["stats update", failNextStats, /didn't answer/i],
+        ]) {
+            const actions = (await fetchChanges()).actions.length;
+            gga.EquipmentOrder[0][0] = "Blank";
+            pick(page, "rare-drops");
+            await previewShown();
+            pick(page, worn.id);
+            await previewShown();
+            const reads = previewReads;
+            fail();
+            const apply = button(page, "Apply");
+            await click(apply);
+            await click(apply);
+            await until(() => said.test(text(page)), `${step}: the stop`);
+            await previewReadSince(reads, `${step}: the page to read the game again`);
+            assert.equal(gga.EquipmentOrder[0][0], "EquipmentHats1", `${step}: the helmet landed`);
+            assert.equal(gga.EquipmentQuantity[2][1], 800, `${step}: no food stack set`);
+
+            const since = requests.length;
+            await click(button(page, "Apply"));
+            await until(() => /Equipped Worn on Lumi_Main\./.test(text(page)), `${step}: the food step to finish`);
+            assert.equal(gga.EquipmentQuantity[2][1], 1500, step);
+            assert.equal(after(since, "write").length, 1, `${step}: only the food stacks are written`);
+            await settle();
+            await click(button(page, "Apply"));
+            await until(
+                () => /Lumi_Main already wears Worn\. Nothing changed\./.test(text(page)),
+                `${step}: nothing left`
+            );
+            await undoSince(actions);
+        }
+    } finally {
         gga.EquipmentOrder[0][0] = "EquipmentHats1";
         await updateSessionConfig({ cheatConfig: { wide: { wardrobe: { loadouts: [] } } } });
         pick(page, "rare-drops");

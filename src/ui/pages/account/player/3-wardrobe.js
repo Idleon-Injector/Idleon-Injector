@@ -271,11 +271,9 @@ const WardrobePage = () => {
                     loadoutSaid.say("done", `${plan.character} already wears ${plan.name}. Nothing changed.`);
                     return { cancelled: true };
                 }
-                if (plan.writes.length) {
-                    await writeManyVerified(plan.writes, { character: plan.character });
-                    await updateStats();
-                }
+                if (plan.writes.length) await writeManyVerified(plan.writes, { character: plan.character });
                 unfinishedFood = thisRun;
+                await updateStats();
                 const food = await foodFor(plan.character, plan.name, () =>
                     readComputed("wardrobe", "food", [
                         { goldenMaximum: plan.foodLimits.golden, character: plan.character },
