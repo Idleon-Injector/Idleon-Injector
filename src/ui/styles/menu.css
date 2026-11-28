@@ -712,7 +712,7 @@
     vertical-align: top;
     break-inside: avoid;
     border-radius: var(--radius-group);
-    background: var(--world-card, var(--c-void-soft));
+    background: var(--c-void-soft);
     box-shadow: var(--shadow-panel);
 }
 /* The card's edge: the hairline for Account and Classes, a world's own colour, low, for a world. */
@@ -823,8 +823,7 @@
     transform: none;
 }
 
-/* The systems: an index of lines set into the card, on the world's own darker ground (the tray's lightness, tinted),
-   in as many columns as the card holds. No lines between them: spacing alone splits the rows. */
+/* The systems: an index of lines set into the card (the tray's ground), in as many columns as the card holds. No lines between them: spacing alone splits the rows. */
 .world-card__systems {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(9.25rem, 1fr));
@@ -832,7 +831,7 @@
     margin: 0 8px 8px;
     padding: 6px;
     border-radius: 10px;
-    background: var(--world-ground, var(--c-tray));
+    background: var(--c-tray);
 }
 .world-card__system {
     display: flex;
