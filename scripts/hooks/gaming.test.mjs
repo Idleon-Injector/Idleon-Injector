@@ -67,6 +67,19 @@ test("on, the nugget roll leans low by the configured power, inside the game's r
     set("w5.betternuggets", false);
 });
 
+// CodeRabbit on #317: a roll the rng cheat forces stays as it was set, with better nuggets on too.
+test("a roll the rng cheat forces stays, with better nuggets on", () => {
+    set("w5.betternuggets");
+    game.returns.randomFloatBetween = () => 0.9;
+    try {
+        state.cheatState.rng = 0.5;
+        assert.equal(script.randomFloatBetween(1e-5, 1), 0.5);
+    } finally {
+        state.cheatState.rng = false;
+        set("w5.betternuggets", false);
+    }
+});
+
 const shovel = (count) => {
     gga.Gaming = Array(10).fill(0);
     gga.OptionsListAccount[192] = 0;
