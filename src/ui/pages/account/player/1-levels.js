@@ -75,7 +75,11 @@ const PlayerTab = () => {
             const fieldOf = (index) => (index === null ? "Money" : `Lv0[${index}]`);
             const before = await Promise.all(changes.map(([index]) => gga(`${root}${fieldOf(index)}`)));
             const changed = changes.filter(([, next], i) => before[i] !== next);
-            if (!changed.length) return { cancelled: true };
+            // The game already holds it (it moved on since the read): the rows show what it holds.
+            if (!changed.length) {
+                changes.forEach(([index], i) => (getOrCreateState(values, index).val = before[i]));
+                return { cancelled: true };
+            }
             const writes = [];
             for (const [index, next] of changed) {
                 if (index !== null) {
@@ -136,7 +140,11 @@ const PlayerTab = () => {
                   }
                 : undefined,
             // The skills' levels are the list's lines for Set all; money and the main level (a ban risk) never are.
-            setAll: index > 0 ? {} : null,
+            // Set all keeps a row's own bounds: a skill level is 1 or more, and a whole number.
+            setAll:
+                index > 0
+                    ? { min: 1, refuse: (value) => (Number.isSafeInteger(value) ? null : "whole numbers only") }
+                    : null,
         });
     };
 
@@ -215,7 +223,12 @@ const PlayerTab = () => {
             // Money is one number of its own, not one of the levels Set all fills: its own short panel above them.
             ListPanel({ className: "player-money", body: moneyRows, short: true }),
             ListPanel({
-                setAll: { word: (n) => `skill level${n === 1 ? "" : "s"}`, write: setAllLevels },
+                // A question asked for one character asks again once another is picked.
+                setAll: {
+                    word: (n) => `skill level${n === 1 ? "" : "s"}`,
+                    write: setAllLevels,
+                    askedFor: () => selected.val,
+                },
                 body: rows,
             })
         ),

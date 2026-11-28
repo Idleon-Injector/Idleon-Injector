@@ -142,12 +142,17 @@ export const buildVanillaUnitArrays = (royalG, order = []) => {
     return { rebuilt, summaries, sovereigntyCount };
 };
 
-// How many map units a reset to the game's takes away: each world's units over the ones it puts back.
+// How many map units a reset to the game's takes away: in each world, each kind's units over the ones of that kind it
+// puts back (two knights reset to two militia are two removed).
 export const vanillaUnitsRemoved = (royalG, order) =>
-    Object.values(buildVanillaUnitArrays(royalG, order).rebuilt).reduce(
-        (sum, entry) => sum + Math.max(0, toIndexedArray(royalG?.[entry.typeArray] ?? []).length - entry.types.length),
-        0
-    );
+    Object.values(buildVanillaUnitArrays(royalG, order).rebuilt).reduce((sum, entry) => {
+        const kept = countUnitTypes(entry.types.map(Number));
+        for (const type of toIndexedArray(royalG?.[entry.typeArray] ?? []).map(Number)) {
+            if (kept[type] > 0) kept[type]--;
+            else sum++;
+        }
+        return sum;
+    }, 0);
 
 export const refreshRoyalGuardUnitCaches = async () => {
     await deleteGga("DNSM.h.TotUnitzAllMapz");

@@ -45,7 +45,8 @@ const RESOURCE_FIELDS = [
 
 // A sushi's line: its state, its Knowledge XP and its level, each in its column.
 const KNOWLEDGE_FIELDS = [
-    { key: "perfect", label: "State", path: SUSHI_PERFECT_PATH, steps: STATES },
+    // Down to Locked (-1): a locked sushi shows locked, and stays so when only its XP or level is saved.
+    { key: "perfect", label: "State", path: SUSHI_PERFECT_PATH, steps: STATES, min: -1 },
     { key: "xp", label: "Knowledge XP", path: SUSHI_XP_PATH, formatted: true },
     { key: "level", label: "Level", path: SUSHI_LEVEL_PATH },
 ];

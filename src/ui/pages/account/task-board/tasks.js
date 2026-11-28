@@ -172,7 +172,8 @@ const buildMeritShopEntries = (worldIndex, rawPurchases, rawDefinitions) => {
 };
 
 // A task: its stages done, up to how many it has; how far it is toward the next stage, muted under its name.
-const TaskRow = ({ entry, valueState, progressState }) =>
+// The targets come from a state each read sets, so a kept row shows the game's targets after a Refresh.
+const TaskRow = ({ entry, valueState, progressState, targetsState }) =>
     ClampedLevelRow({
         valueState,
         writePath: entry.path,
@@ -181,7 +182,7 @@ const TaskRow = ({ entry, valueState, progressState }) =>
             RowTitles({
                 name: entry.name,
                 note: () => {
-                    const target = entry.stageTargets[Math.min(toInt(valueState.val, { min: 0 }), entry.maxStages - 1)];
+                    const target = targetsState.val[Math.min(toInt(valueState.val, { min: 0 }), entry.maxStages - 1)];
                     return target === undefined ? null : `${count(progressState.val)} of ${count(target)}`;
                 },
             }),
@@ -225,6 +226,7 @@ const TaskBoardTab = () => {
     const bulk = useWriteStatus();
     const states = new Map();
     const progress = new Map();
+    const targets = new Map();
     // Each tab's rows for the picked world: built again when another world is picked, kept across a refresh.
     const lists = new Map(
         TABS.map((tab) => {
@@ -272,6 +274,7 @@ const TaskBoardTab = () => {
                 getOrCreateState(states, item.key).val = item.value;
                 // A task's progress follows a refresh; its row is kept.
                 getOrCreateState(progress, item.key).val = item.entry.progress ?? 0;
+                getOrCreateState(targets, item.key).val = item.entry.stageTargets ?? [];
             }
             list.reconcile(JSON.stringify([w, items.map((item) => [item.key, item.entry.name, item.max])]), () => {
                 list.entries = items.map((item) => ({
@@ -280,6 +283,7 @@ const TaskBoardTab = () => {
                         entry: item.entry,
                         valueState: getOrCreateState(states, item.key),
                         progressState: getOrCreateState(progress, item.key),
+                        targetsState: getOrCreateState(targets, item.key),
                     }),
                 }));
                 return list.entries.map(({ row }) => row);
@@ -354,9 +358,11 @@ const TaskBoardTab = () => {
         opener: worldName,
         options: () => WORLDS,
         picked: () => world.val,
+        // The world's rows at once, then the game read again: a value saved since the last read shows what landed.
         onPick: (id) => {
             world.val = id;
             show();
+            void load();
         },
         disabled: () => loading.val,
         openerClass: "character-picker__opener",
@@ -397,7 +403,8 @@ const TaskBoardTab = () => {
                 name: "Task Board",
                 page: "account.taskboard",
                 busy: () => bulk.status.val === "loading",
-                setAll: { word: (n, tabId) => word(tabId, n), placeholder: "Progress" },
+                // A question asked for one world asks again once another is picked.
+                setAll: { word: (n, tabId) => word(tabId, n), placeholder: "Progress", askedFor: () => world.val },
                 tabs: TABS.map((tab) => ({ ...tab, content: lists.get(tab.id).node })),
                 tools: toolsPerTab({
                     tasks: fill("tasks", "Max all", (item) => item.max),

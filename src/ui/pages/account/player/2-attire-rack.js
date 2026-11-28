@@ -455,16 +455,31 @@ const AttireRackPage = () => {
             from,
             lowers: names,
             again: () => askGiveEveryone(item, ask, from),
-            onConfirm: () => giveEveryone(item, targets, inPlay),
+            onConfirm: () => giveEveryone(item, names(), inPlay, () => askGiveEveryone(item, ask, from)),
         });
     };
 
     // Its failure is said on the tray's line by its own words (bulkSaid), which go once an owed stat update runs (a
     // Refresh, a pick), so it isn't left as the tray tool's failure, which only its next try would clear.
-    const giveEveryone = (item, targets, inPlay) => {
+    // The attire is read again on the answer: a character given the outfit meanwhile is left alone, and one more to
+    // change than the question named, another character in play, or no one left to change goes back to the question.
+    const giveEveryone = async (item, asked, inPlay, askAgain) => {
         let wrote = false;
-        return bulkWrite.run(async () => {
+        let again = false;
+        const result = await bulkWrite.run(async () => {
             try {
+                const { characters, current } = await readStatus();
+                const targets = characters.filter(
+                    (character) => changeable(character) && slotWrites(character, item).length
+                );
+                if (
+                    current !== inPlay ||
+                    !targets.length ||
+                    targets.some((character) => !asked.includes(character.name))
+                ) {
+                    again = true;
+                    return { cancelled: true };
+                }
                 await writeManyVerified(
                     targets.flatMap((character) => slotWrites(character, item)),
                     { character: inPlay }
@@ -482,6 +497,9 @@ const AttireRackPage = () => {
                 return { cancelled: true };
             }
         });
+        // Asked once the write status is free again (the question's tool is busy while it runs).
+        if (again) await askAgain();
+        return result;
     };
 
     // The tray's tool: "Give everyone", a pick of the attire that opens in place under the tray's tools.

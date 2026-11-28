@@ -1092,3 +1092,36 @@ test("a stat update a character didn't owe leaves its row's failure", async () =
     assert.match(text(main), /couldn't read the game again/, "the failure stays");
     gga.EquipmentOrder[0][15] = live;
 });
+
+// CodeRabbit on #319: Give everyone reads the attire again on the answer. A character given the outfit from its own
+// row while the question waited keeps its attire's upgrades, and the tray says no one is left to give it.
+test("give everyone answered after a character already got the outfit leaves that character's attire alone", async () => {
+    const root = await open();
+    const item = "EquipmentGown5";
+    const db = gga.PlayerDATABASE.h;
+    const before = {
+        live: gga.EquipmentOrder[0][15],
+        saved: Object.fromEntries(PLAYERS.map((name) => [name, db[name].h.EquipmentOrder[0][15]])),
+    };
+    gga.EquipmentOrder[0][15] = item;
+    for (const name of PLAYERS) db[name].h.EquipmentOrder[0][15] = name === "Lumi_Third" ? "EquipmentGown1" : item;
+    try {
+        await giveEveryone(root, item);
+        await until(() => /\?/.test(trayLine(root)), "the question");
+        assert.match(trayLine(root), /^Give 1 character /);
+        // Meanwhile Lumi_Third gets the outfit in game, and an upgrade on it.
+        db.Lumi_Third.h.EquipmentOrder[0][15] = item;
+        db.Lumi_Third.h.EquipmentMap[0][15].h = { STR: 5 };
+        await answerYes(root);
+        await until(() => /already wears/.test(trayLine(root)), "the tray to say everyone wears it");
+        assert.equal(
+            JSON.stringify(db.Lumi_Third.h.EquipmentMap[0][15].h),
+            JSON.stringify({ STR: 5 }),
+            "its upgrade stays"
+        );
+    } finally {
+        db.Lumi_Third.h.EquipmentMap[0][15].h = {};
+        gga.EquipmentOrder[0][15] = before.live;
+        for (const name of PLAYERS) db[name].h.EquipmentOrder[0][15] = before.saved[name];
+    }
+});
