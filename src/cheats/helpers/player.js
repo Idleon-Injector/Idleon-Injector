@@ -5,6 +5,9 @@ export function getPlayerExpRequired(index, level) {
     if (!Number.isInteger(index) || index < 0 || index > 20 || !Number.isSafeInteger(level) || level < 1) {
         throw new Error("Invalid player level or skill index");
     }
+    // The game runs IncreaseExpREQ only on a level-up; a skill at level 1 keeps the need it started with: 15 from
+    // character creation, 25 for Spelunking and 10 for Research from the game's own setup when those came out.
+    if (level === 1) return index === 19 ? 25 : index === 20 ? 10 : 15;
     let required;
     switch (index) {
         case 0:
@@ -99,6 +102,6 @@ export function getPlayerExpRequired(index, level) {
                 30;
     }
     if (!Number.isFinite(required)) throw new Error("This level exceeds the game's finite XP range");
-    // New character slots start at 15 XP; a few low-level formulas are nonpositive.
+    // Farming level 2 is the one nonpositive need (-2.56); the game would level it up again at once.
     return required > 0 ? required : 15;
 }
