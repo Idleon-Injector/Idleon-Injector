@@ -30,7 +30,11 @@ const inGroups = (hits) => {
     return order.flatMap((group) => hits.filter((hit) => groupOf(hit) === group));
 };
 
-const CHEATS_PAGE = { id: "cheats", system: "Cheats" };
+// Views outside the menu's pages whose rows "This page" searches, by tab; each pane carries its id as `data-page`.
+const VIEW_PAGES = {
+    [VIEWS.CHEATS.id]: { id: "cheats", system: "Cheats" },
+    [VIEWS.ACCOUNT_OPTIONS.id]: { id: "account-options", system: "Account Options" },
+};
 
 const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 // "Cheat · Cheats › W1" -> "Cheats › W1": the group already says what it is.
@@ -60,14 +64,12 @@ export const MenuSearch = () => {
     // ponytail: the Cheats page's own list (loaded at start), so a cheat the game adds is found without a list here.
     const cheatEntries = van.derive(() => cheatSearchEntries(store.data.cheats, configDescriptions, menuTree.val));
     const entries = van.derive(() => [...menuSearchEntries.val, ...cheatEntries.val]);
-    // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu. The Cheats area is
-    // searched like a page.
-    const openPage = van.derive(() =>
-        store.app.activeTab === VIEWS.CHEATS.id
-            ? CHEATS_PAGE
-            : store.app.activeTab === VIEWS.PAGES.id && menuTree.val
-              ? (pageNow(worldNow(menuTree.val)) ?? null)
-              : null
+    // The open page (null off the pages); "page" searches its rows, "everywhere" searches the menu. The Cheats area and
+    // Account Options are searched like a page.
+    const openPage = van.derive(
+        () =>
+            VIEW_PAGES[store.app.activeTab] ??
+            (store.app.activeTab === VIEWS.PAGES.id && menuTree.val ? (pageNow(worldNow(menuTree.val)) ?? null) : null)
     );
     const pageSearch = createPageSearch();
     const mode = van.state("page");

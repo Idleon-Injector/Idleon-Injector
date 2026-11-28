@@ -122,7 +122,7 @@ export const createPageSearch = () => {
     const apply = () => {
         observer.disconnect();
         pane = pageId
-            ? document.querySelector(`#pages-tab [data-page="${pageId}"], #cheats-tab[data-page="${pageId}"]`)
+            ? document.querySelector(`#pages-tab [data-page="${pageId}"], .tab-pane[data-page="${pageId}"]`)
             : null;
         hasRows.val = Boolean(pane?.querySelector(ROW));
         const hits = pane ? filterPane(pane, query) : null;
